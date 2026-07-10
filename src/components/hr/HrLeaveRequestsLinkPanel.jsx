@@ -16,13 +16,13 @@ export function HrLeaveRequestsLinkPanel() {
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           to={hrTimeAbsenceQueuePath('hr_queue')}
-          className="rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] no-underline"
+          className="rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] no-underline"
         >
           HR review queue
         </Link>
         <Link
           to={hrTimeAbsencePath('approvals', { kind: 'leave' })}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50 no-underline"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-50 no-underline"
         >
           All leave requests
         </Link>

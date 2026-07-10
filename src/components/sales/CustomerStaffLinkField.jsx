@@ -68,7 +68,7 @@ export function CustomerStaffLinkField({ value = '', onChange, disabled = false,
   return (
     <div className="space-y-2 rounded-xl border border-dashed border-teal-200/80 bg-teal-50/30 p-3">
       <label className={CUSTOMER_LABEL}>Link to staff (optional)</label>
-      <p className="text-[10px] text-slate-500 leading-relaxed">
+      <p className="text-ui-xs text-slate-500 leading-relaxed">
         Only for employees buying on purchase credit. Regular customers do not need this.
       </p>
       <div className="relative">
@@ -91,7 +91,7 @@ export function CustomerStaffLinkField({ value = '', onChange, disabled = false,
           <button
             type="button"
             onClick={clear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase text-rose-600 hover:text-rose-700"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-ui-xs font-bold uppercase text-rose-600 hover:text-rose-700"
           >
             Clear
           </button>
@@ -117,10 +117,10 @@ export function CustomerStaffLinkField({ value = '', onChange, disabled = false,
                       onClick={() => pick(staff)}
                       className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-xs hover:bg-teal-50 disabled:opacity-50"
                     >
-                      <span className="font-semibold text-[#134e4a]">
+                      <span className="font-semibold text-zarewa-teal">
                         {staff.label || staff.displayName}
                       </span>
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-ui-xs text-slate-500">
                         {staff.employeeNo ? `${staff.employeeNo} · ` : ''}
                         {staff.branchId || '—'}
                         {taken ? ` · linked to ${staff.salesCustomerId}` : ''}

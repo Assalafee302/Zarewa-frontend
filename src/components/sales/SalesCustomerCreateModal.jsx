@@ -115,12 +115,12 @@ export default function SalesCustomerCreateModal({
         <ModalScrollHeader>
           <div className="flex justify-between items-start gap-3">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600 mb-1">Sales · CRM</p>
-              <h3 className="text-xl font-black text-[#134e4a] flex items-center gap-2">
+              <p className="text-ui-xs font-bold uppercase tracking-widest text-teal-600 mb-1">Sales · CRM</p>
+              <h3 className="text-xl font-black text-zarewa-teal flex items-center gap-2">
                 <UserPlus size={22} className="text-teal-600 shrink-0" />
                 New customer
               </h3>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                 Register a buyer or project contact. Staff link is optional.
               </p>
             </div>
@@ -135,7 +135,7 @@ export default function SalesCustomerCreateModal({
         </ModalScrollHeader>
         <ModalScrollBody>
           {!ws?.canMutate ? (
-            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-semibold text-amber-900">
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900">
               System offline (read-only). Reconnect and refresh before registering customers.
             </div>
           ) : null}
@@ -156,7 +156,7 @@ export default function SalesCustomerCreateModal({
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full min-h-12 rounded-xl bg-[#134e4a] text-white py-3.5 text-xs font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-60"
+                className="w-full min-h-12 rounded-xl bg-zarewa-teal text-white py-3.5 text-xs font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-60"
               >
                 {saving ? 'Saving…' : 'Save customer'}
               </button>

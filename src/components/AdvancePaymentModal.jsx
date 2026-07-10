@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { X, Wallet, Save, Printer } from 'lucide-react';
 import { ModalFrame } from './layout/ModalFrame';
+import { PrintModalPortal } from './layout/PrintModalPortal';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
 import { useToast } from '../context/ToastContext';
@@ -282,8 +282,8 @@ const AdvancePaymentModal = ({
               <Wallet size={20} />
             </div>
             <div className="min-w-0">
-              <h2 className="text-base font-bold text-[#134e4a] tracking-tight">Advance payment</h2>
-              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
+              <h2 className="text-base font-bold text-zarewa-teal tracking-tight">Advance payment</h2>
+              <p className="text-ui-xs font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
                 Deposit before quotation — liability, not revenue
               </p>
             </div>
@@ -298,7 +298,7 @@ const AdvancePaymentModal = ({
         </div>
 
         {useLedgerApi && voucherInLockedPeriod ? (
-          <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-[10px] text-amber-950 space-y-1">
+          <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-ui-xs text-amber-950 space-y-1">
             <p className="font-bold">Date is in a locked accounting period</p>
             <p className="leading-snug">Choose an open month or ask finance to unlock the period.</p>
             <Link to="/settings/governance" className="inline-flex font-semibold text-amber-900 underline underline-offset-2">
@@ -308,8 +308,8 @@ const AdvancePaymentModal = ({
         ) : null}
 
         {postingHint ? (
-          <div className="px-5 py-3 bg-rose-50/90 border-b border-rose-200 text-[10px] text-rose-950 space-y-2">
-            <p className="text-[11px] font-bold">{postingHint.title}</p>
+          <div className="px-5 py-3 bg-rose-50/90 border-b border-rose-200 text-ui-xs text-rose-950 space-y-2">
+            <p className="text-xs font-bold">{postingHint.title}</p>
             <p className="leading-snug opacity-95">{postingHint.detail}</p>
             {postingHint.steps?.length ? (
               <ol className="list-decimal pl-4 space-y-1">
@@ -332,14 +332,14 @@ const AdvancePaymentModal = ({
 
         <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
           <div>
-            <label className="text-[9px] font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
               Customer
             </label>
             <select
               value={customerID}
               onChange={(e) => setCustomerID(e.target.value)}
               required
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-sm font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-amber-500/20"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-sm font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-amber-500/20"
             >
               <option value="">Select customer…</option>
               {customersSorted.map((c) => (
@@ -358,7 +358,7 @@ const AdvancePaymentModal = ({
             snapshot={depositSnapshot}
           />
           <div>
-            <label className="text-[9px] font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
               Amount paid (₦)
             </label>
             <input
@@ -368,17 +368,17 @@ const AdvancePaymentModal = ({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="e.g. 200000"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-sm font-bold text-[#134e4a] tabular-nums outline-none focus:ring-2 focus:ring-amber-500/20"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-sm font-bold text-zarewa-teal tabular-nums outline-none focus:ring-2 focus:ring-amber-500/20"
             />
           </div>
           <div>
-            <label className="text-[9px] font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
               Received into (treasury)
             </label>
             <select
               value={treasuryAccountId}
               onChange={(e) => setTreasuryAccountId(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-xs font-semibold text-[#134e4a] outline-none"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-xs font-semibold text-zarewa-teal outline-none"
             >
               {treasuryList.length === 0 ? (
                 <option value="">No accounts — add in Finance</option>
@@ -390,19 +390,19 @@ const AdvancePaymentModal = ({
                 ))
               )}
             </select>
-            <p className="text-[9px] text-slate-500 mt-1">Bank or cash till — method is implied by account.</p>
+            <p className="text-ui-xs text-slate-500 mt-1">Bank or cash till — method is implied by account.</p>
           </div>
           <div>
-            <label className="text-[9px] font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">Date</label>
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">Date</label>
             <input
               type="date"
               value={dateISO}
               onChange={(e) => setDateISO(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-xs font-semibold text-[#134e4a] outline-none"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-xs font-semibold text-zarewa-teal outline-none"
             />
           </div>
           <div>
-            <label className="text-[9px] font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
               Reference (transfer ID / POS ref)
             </label>
             <input
@@ -413,7 +413,7 @@ const AdvancePaymentModal = ({
             />
           </div>
           <div>
-            <label className="text-[9px] font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
               Purpose (optional)
             </label>
             <input
@@ -423,7 +423,7 @@ const AdvancePaymentModal = ({
               className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-sm font-medium text-slate-800 outline-none"
             />
           </div>
-          <p className="text-[10px] text-slate-500 leading-relaxed rounded-lg border border-amber-100 bg-amber-50/50 p-3">
+          <p className="text-ui-xs text-slate-500 leading-relaxed rounded-lg border border-amber-100 bg-amber-50/50 p-3">
             Ledger row is the audit trail for customer advance balance and quotation application.
           </p>
         </div>
@@ -432,74 +432,58 @@ const AdvancePaymentModal = ({
           <button
             type="button"
             onClick={openPrintPreview}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-amber-300 text-amber-900 text-[10px] font-semibold uppercase hover:bg-amber-50"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-amber-300 text-amber-900 text-ui-xs font-semibold uppercase hover:bg-amber-50"
           >
             <Printer size={14} /> Print preview
           </button>
           <button
             type="button"
             onClick={handleClose}
-            className="px-4 py-2.5 rounded-lg text-[10px] font-semibold uppercase text-slate-600 border border-slate-200 hover:bg-slate-50"
+            className="px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase text-slate-600 border border-slate-200 hover:bg-slate-50"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isPosting || (useLedgerApi && voucherInLockedPeriod)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white text-[10px] font-semibold uppercase shadow-sm hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white text-ui-xs font-semibold uppercase shadow-sm hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Save size={14} /> {isPosting ? 'Saving…' : 'Save advance'}
           </button>
         </div>
       </form>
 
-      {showPrint &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <>
+      <PrintModalPortal open={showPrint} onClose={() => setShowPrint(false)}>
+        <div className="mx-auto max-w-4xl pb-16">
+          <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
+            <AdvancePaymentPrintView
+              customerName={customerName || customerID || '—'}
+              amountNgn={Number(String(amount).replace(/,/g, '')) || 0}
+              dateStr={dateISO}
+              accountLabel={accountLabelForPrint}
+              reference={reference || '—'}
+              purpose={purpose || '—'}
+              handledBy={handledByLabel}
+            />
+          </div>
+          <div className="no-print mt-4 flex flex-wrap justify-center gap-2">
             <button
               type="button"
-              aria-label="Close print preview"
-              className="no-print fixed inset-0 z-[11060] bg-black/50"
-              onClick={() => setShowPrint(false)}
-            />
-            <div
-              className="print-portal-scroll fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8"
-              onClick={() => setShowPrint(false)}
+              onClick={() => window.print()}
+              className="rounded-lg bg-amber-700 px-5 py-2.5 text-ui-xs font-semibold uppercase text-white shadow-lg"
             >
-              <div className="mx-auto max-w-4xl pb-16" onClick={(e) => e.stopPropagation()}>
-                <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
-                  <AdvancePaymentPrintView
-                    customerName={customerName || customerID || '—'}
-                    amountNgn={Number(String(amount).replace(/,/g, '')) || 0}
-                    dateStr={dateISO}
-                    accountLabel={accountLabelForPrint}
-                    reference={reference || '—'}
-                    purpose={purpose || '—'}
-                    handledBy={handledByLabel}
-                  />
-                </div>
-                <div className="no-print mt-4 flex flex-wrap justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="rounded-lg bg-amber-700 px-5 py-2.5 text-[10px] font-semibold uppercase text-white shadow-lg"
-                  >
-                    Print / Save PDF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowPrint(false)}
-                    className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase text-slate-700"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>,
-          document.body
-        )}
+              Print / Save PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPrint(false)}
+              className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase text-slate-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </PrintModalPortal>
       </>
     </ModalFrame>
   );

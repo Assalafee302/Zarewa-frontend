@@ -107,22 +107,22 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-white px-4 py-5">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-teal-900/80">Staff purchase credit</p>
+      <p className="text-ui-xs font-semibold uppercase tracking-wide text-teal-900/80">Staff purchase credit</p>
       <h2 className="mt-1 text-lg font-semibold text-slate-900">{item?.title || 'Staff purchase credit'}</h2>
       <p className="mt-2 font-mono text-xs text-slate-500">{id}</p>
       <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 text-sm text-slate-800">
         {data.staffDisplayName ? (
           <p>
-            <span className="text-[11px] font-semibold uppercase text-slate-500">Staff</span>
+            <span className="text-xs font-semibold uppercase text-slate-500">Staff</span>
             <span className="mt-0.5 block">{data.staffDisplayName}</span>
           </p>
         ) : null}
         {quoteRef ? (
           <p>
-            <span className="text-[11px] font-semibold uppercase text-slate-500">Quotation</span>
+            <span className="text-xs font-semibold uppercase text-slate-500">Quotation</span>
             <span className="mt-0.5 block font-mono">{quoteRef}</span>
             {quoteLink ? (
-              <Link to={quoteLink.to} state={quoteLink.state} className="mt-1 inline-block text-xs font-bold text-[#134e4a] underline">
+              <Link to={quoteLink.to} state={quoteLink.state} className="mt-1 inline-block text-xs font-bold text-zarewa-teal underline">
                 Open quotation in Sales
               </Link>
             ) : null}
@@ -130,13 +130,13 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
         ) : null}
         {amountNgn > 0 ? (
           <p>
-            <span className="text-[11px] font-semibold uppercase text-slate-500">Credit amount</span>
+            <span className="text-xs font-semibold uppercase text-slate-500">Credit amount</span>
             <span className="mt-0.5 block font-semibold">{formatNgn(amountNgn)}</span>
           </p>
         ) : null}
         {installmentNgn > 0 ? (
           <p>
-            <span className="text-[11px] font-semibold uppercase text-slate-500">Payroll repayment</span>
+            <span className="text-xs font-semibold uppercase text-slate-500">Payroll repayment</span>
             <span className="mt-0.5 block">
               {formatNgn(installmentNgn)}/mo
               {termMonths > 0 ? ` · ${termMonths} months` : ''}
@@ -145,7 +145,7 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
         ) : null}
         {item?.summary ? (
           <p>
-            <span className="text-[11px] font-semibold uppercase text-slate-500">Summary</span>
+            <span className="text-xs font-semibold uppercase text-slate-500">Summary</span>
             <span className="mt-0.5 block">{item.summary}</span>
           </p>
         ) : null}

@@ -11,7 +11,7 @@ import {
 const linkClass = ({ isActive }) =>
   `flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium no-underline transition-colors ${
     isActive
-      ? 'bg-[#134e4a] text-white'
+      ? 'bg-zarewa-teal text-white'
       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
   }`;
 
@@ -59,7 +59,7 @@ export function ProfileMobileNav({ cohort = 'employee' }) {
   const tabClass = (active) =>
     `inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold no-underline transition-colors ${
       active
-        ? 'bg-[#134e4a] text-white'
+        ? 'bg-zarewa-teal text-white'
         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
     }`;
 
@@ -112,7 +112,7 @@ export function ProfileMobileNav({ cohort = 'employee' }) {
                       onClick={() => setMoreOpen(false)}
                       className={({ isActive }) =>
                         `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium no-underline ${
-                          isActive ? 'bg-teal-50 text-[#134e4a]' : 'text-slate-700 hover:bg-slate-50'
+                          isActive ? 'bg-teal-50 text-zarewa-teal' : 'text-slate-700 hover:bg-slate-50'
                         }`
                       }
                     >
@@ -123,7 +123,7 @@ export function ProfileMobileNav({ cohort = 'employee' }) {
                 );
               })}
             </ul>
-            <p className="border-t border-slate-100 px-3 py-2 text-[10px] text-slate-400">
+            <p className="border-t border-slate-100 px-3 py-2 text-ui-xs text-slate-400">
               {all.length} sections · scroll primary tabs for quick access
             </p>
           </div>

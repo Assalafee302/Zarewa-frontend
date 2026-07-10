@@ -18,12 +18,19 @@ function isTableRowElement(child) {
   return false;
 }
 
-export function AppTableWrap({ children, className = '' }) {
+export function AppTableWrap({ children, className = '', scrollHint = true }) {
   return (
-    <div
-      className={`z-scroll-x min-w-0 w-full overflow-x-auto rounded-2xl border border-slate-200/90 bg-white shadow-sm ${className}`}
-    >
-      {children}
+    <div className="relative min-w-0 w-full">
+      {scrollHint ? (
+        <p className="mb-1.5 text-ui-xs font-medium text-slate-500 sm:hidden" aria-hidden="true">
+          Swipe sideways to see more columns
+        </p>
+      ) : null}
+      <div
+        className={`z-scroll-x min-w-0 w-full overflow-x-auto rounded-2xl border border-slate-200/90 bg-white shadow-sm ${className}`}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -62,7 +69,7 @@ export function AppTableThead({ children, sticky = false }) {
   );
 }
 
-/** Readable header: avoids micro text-[10px]. */
+/** Readable header: avoids micro text-ui-xs. */
 export function AppTableTh({ children, align = 'left', className = '', style }) {
   const a =
     align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
@@ -157,7 +164,7 @@ export function AppTablePager({
             type="button"
             disabled={!hasPrev}
             onClick={onPrev}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-[#134e4a] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-zarewa-teal hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Previous
           </button>
@@ -165,7 +172,7 @@ export function AppTablePager({
             type="button"
             disabled={!hasNext}
             onClick={onNext}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-[#134e4a] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-zarewa-teal hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next
           </button>

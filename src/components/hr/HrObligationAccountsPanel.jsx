@@ -145,7 +145,7 @@ export function HrObligationAccountsPanel() {
             onClick={() => setKindFilter(f.id)}
             className={`rounded-full px-3 py-1 text-xs font-bold transition ${
               kindFilter === f.id
-                ? 'bg-[#134e4a] text-white'
+                ? 'bg-zarewa-teal text-white'
                 : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
@@ -163,7 +163,7 @@ export function HrObligationAccountsPanel() {
             type="button"
             onClick={() => setSelectedId(a.id)}
             className={`w-full text-left rounded-lg border px-3 py-2 text-sm transition ${
-              selectedId === a.id ? 'border-[#134e4a] bg-teal-50' : 'border-slate-100 hover:bg-slate-50'
+              selectedId === a.id ? 'border-zarewa-teal bg-teal-50' : 'border-slate-100 hover:bg-slate-50'
             }`}
           >
             <p className="font-bold text-slate-900">{a.title || a.id}</p>
@@ -171,7 +171,7 @@ export function HrObligationAccountsPanel() {
               {KIND_LABEL[a.kind] || a.kind} · {a.staffDisplayName || a.userId}
               {a.branchId ? <span className="text-slate-400"> · Branch {a.branchId}</span> : null}
             </p>
-            <p className="text-xs font-semibold text-[#134e4a] tabular-nums">
+            <p className="text-xs font-semibold text-zarewa-teal tabular-nums">
               {formatNgn(a.principalOutstandingNgn)} outstanding
               {a.status === 'active' && a.deductionsActive === false && a.principalOutstandingNgn > 0 ? (
                 <span className="ml-2 text-amber-700 font-bold">· Paused</span>
@@ -187,7 +187,7 @@ export function HrObligationAccountsPanel() {
       {detail ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
           <div>
-            <h4 className="font-black text-[#134e4a]">{detail.title}</h4>
+            <h4 className="font-black text-zarewa-teal">{detail.title}</h4>
             <p className="text-xs text-slate-600 mt-1">
               {detail.staffDisplayName} · {KIND_LABEL[detail.kind] || detail.kind} · {detail.status}
               {detail.branchId ? <span className="text-slate-400"> · Branch {detail.branchId}</span> : null}
@@ -199,12 +199,12 @@ export function HrObligationAccountsPanel() {
               <p className="text-xs text-slate-500 mt-1">Quotation {detail.quotationRef}</p>
             ) : null}
             <div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold">
-              <a className="text-[#134e4a] underline" href={obligationStatementPdfUrl(detail.id)} target="_blank" rel="noreferrer">
+              <a className="text-zarewa-teal underline" href={obligationStatementPdfUrl(detail.id)} target="_blank" rel="noreferrer">
                 Statement PDF
               </a>
               {detail.kind === 'loan' && detail.status === 'approved_pending_disbursement' ? (
                 <a
-                  className="text-[#134e4a] underline"
+                  className="text-zarewa-teal underline"
                   href={obligationDisbursementVoucherPdfUrl(detail.id)}
                   target="_blank"
                   rel="noreferrer"
@@ -217,7 +217,7 @@ export function HrObligationAccountsPanel() {
 
           {detail.transactions?.length ? (
             <div>
-              <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Transactions</p>
+              <p className="text-ui-xs font-bold uppercase text-slate-500 mb-2">Transactions</p>
               <ul className="space-y-1.5 max-h-40 overflow-y-auto text-xs">
                 {detail.transactions.map((tx) => (
                   <li
@@ -230,7 +230,7 @@ export function HrObligationAccountsPanel() {
                     <span className="font-semibold tabular-nums text-right">{formatNgn(tx.amountNgn)}</span>
                     {tx.type === 'cash_repayment' || tx.type === 'payroll_deduction' ? (
                       <a
-                        className="text-[#134e4a] underline shrink-0"
+                        className="text-zarewa-teal underline shrink-0"
                         href={obligationRepaymentReceiptPdfUrl(detail.id, tx.id)}
                         target="_blank"
                         rel="noreferrer"
@@ -254,7 +254,7 @@ export function HrObligationAccountsPanel() {
 
           {detail.principalOutstandingNgn > 0 && detail.status === 'active' && detail.kind !== 'recovery' ? (
             <form onSubmit={submitRepayment} className="space-y-3 border-t border-slate-100 pt-3">
-              <p className="text-[10px] font-bold uppercase text-slate-500">Record staff repayment</p>
+              <p className="text-ui-xs font-bold uppercase text-slate-500">Record staff repayment</p>
               <p className="text-xs text-slate-600">
                 Staff pay cash or bank transfer — post here after payment is received, or use{' '}
                 <strong>Finance → Desk</strong> at the branch cashier. They see the updated balance on{' '}

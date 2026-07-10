@@ -3,7 +3,7 @@ import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../../Data/companyQuotation';
 import { fmtConv2 } from '../../lib/conversionKgPerM.js';
 import { INCIDENT_TYPES, INCIDENT_STATUS_LABEL, RETURN_DISPOSITIONS } from '../../lib/materialIncidentConstants';
 
-const TH = 'px-2 py-1.5 text-left text-[9px] font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
+const TH = 'px-2 py-1.5 text-left text-ui-xs font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
 const TD = 'px-2 py-1.5 align-top text-[11px] text-slate-800 print:text-[10pt]';
 
 function typeLabel(id) {
@@ -32,16 +32,16 @@ export default function MaterialIncidentPrintView({ payload }) {
         </div>
       ) : null}
 
-      <header className="border-b-2 border-[#134e4a] pb-4 mb-5">
+      <header className="border-b-2 border-zarewa-teal pb-4 mb-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Material exception register</p>
-            <h1 className="text-xl font-black text-[#134e4a]">{ZAREWA_COMPANY_ACCOUNT_NAME}</h1>
+            <h1 className="text-xl font-black text-zarewa-teal">{ZAREWA_COMPANY_ACCOUNT_NAME}</h1>
             <p className="text-sm font-semibold text-slate-700">{payload.branchName || payload.branchId}</p>
           </div>
           <div className="text-right">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Tracking reference</p>
-            <p className="font-mono text-2xl font-black text-[#134e4a] tracking-tight">{payload.id}</p>
+            <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Tracking reference</p>
+            <p className="font-mono text-2xl font-black text-zarewa-teal tracking-tight">{payload.id}</p>
             <p className="text-[10px] text-slate-500 mt-1">Book ref · {payload.bookRef || payload.id}</p>
           </div>
         </div>
@@ -83,7 +83,7 @@ export default function MaterialIncidentPrintView({ payload }) {
       </div>
 
       <section className="mb-5">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a] mb-2 border-b border-slate-200 pb-1">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-zarewa-teal mb-2 border-b border-slate-200 pb-1">
           Damaged sections
         </p>
         <table className="w-full border-collapse border border-slate-200 quotation-print-table">
@@ -218,7 +218,7 @@ export default function MaterialIncidentPrintView({ payload }) {
         </div>
       </footer>
 
-      <p className="mt-6 text-[9px] text-slate-400 print:text-[8pt]">
+      <p className="mt-6 text-ui-xs text-slate-400 print:text-[8pt]">
         Printed {new Date().toISOString().slice(0, 19).replace('T', ' ')} · {payload.id}
       </p>
     </div>

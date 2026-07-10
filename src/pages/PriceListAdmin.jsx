@@ -25,8 +25,8 @@ export default function PriceListAdmin() {
         subtitle="Floor prices (₦/m) in price_list_items: validated effective dates, duplicate detection, optional material/colour/profile keys, and CSV export. Also available under Procurement → Conversion."
       />
       {canPolicy ? (
-        <p className="mb-3 text-[11px] text-slate-600">
-          <Link className="font-bold text-[#134e4a] underline-offset-2 hover:underline" to="/pricing-policy">
+        <p className="mb-3 text-xs text-slate-600">
+          <Link className="font-bold text-zarewa-teal underline-offset-2 hover:underline" to="/pricing-policy">
             Pricing policy &amp; customer price book
           </Link>
         </p>

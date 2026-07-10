@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { useToast } from '../../context/ToastContext';
 import {
   KNOWLEDGE_MODULE_VALUES,
@@ -63,7 +64,7 @@ function StatusBadge({ status }) {
   };
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${tones[status] || tones.active}`}
+      className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${tones[status] || tones.active}`}
     >
       {String(status || 'active').replace(/_/g, ' ')}
     </span>
@@ -73,7 +74,7 @@ function StatusBadge({ status }) {
 function StatCard({ label, value }) {
   return (
     <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-black text-slate-900">{value ?? '—'}</p>
     </div>
   );
@@ -257,7 +258,7 @@ export function KnowledgeCenterPanel() {
   };
 
   const archiveRecord = async (record) => {
-    if (!window.confirm(`Archive "${record.title}"?`)) return;
+    if (!(await appConfirm({ title: 'Archive', message: `Archive "${record.title}"?` }))) return;
     setBusy(true);
     try {
       const { ok, data } = await apiFetch(`/api/ai-knowledge-center/records/${record.id}/archive`, {
@@ -341,7 +342,7 @@ export function KnowledgeCenterPanel() {
       <section className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-end gap-3">
           <label className="min-w-[140px] flex-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Search</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Search</span>
             <div className="mt-1 flex gap-2">
               <input
                 className="z-input w-full"
@@ -363,7 +364,7 @@ export function KnowledgeCenterPanel() {
             </div>
           </label>
           <label>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Type</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Type</span>
             <select
               className="z-input mt-1 block min-w-[160px]"
               value={filterType}
@@ -378,7 +379,7 @@ export function KnowledgeCenterPanel() {
             </select>
           </label>
           <label>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Category</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Category</span>
             <select
               className="z-input mt-1 block min-w-[140px]"
               value={filterCategory}
@@ -393,7 +394,7 @@ export function KnowledgeCenterPanel() {
             </select>
           </label>
           <label>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Module</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Module</span>
             <select
               className="z-input mt-1 block min-w-[140px]"
               value={filterModule}
@@ -408,7 +409,7 @@ export function KnowledgeCenterPanel() {
             </select>
           </label>
           <label>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Status</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Status</span>
             <select
               className="z-input mt-1 block min-w-[140px]"
               value={filterStatus}
@@ -433,7 +434,7 @@ export function KnowledgeCenterPanel() {
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <tr className="border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
                 <th className="px-2 py-2">Title</th>
                 <th className="px-2 py-2">Type</th>
                 <th className="px-2 py-2">Module</th>
@@ -641,7 +642,7 @@ export function KnowledgeCenterPanel() {
                   {v.changedByName || v.changedBy || 'System'}
                   {v.changeNote ? ` — ${v.changeNote}` : ''}
                 </p>
-                <pre className="mt-2 max-h-32 overflow-auto rounded-lg bg-white p-2 text-[11px] text-slate-700">
+                <pre className="mt-2 max-h-32 overflow-auto rounded-lg bg-white p-2 text-xs text-slate-700">
                   {JSON.stringify(v.snapshot, null, 2)}
                 </pre>
               </div>

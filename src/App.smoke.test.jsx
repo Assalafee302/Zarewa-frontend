@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithProviders } from './test/renderWithProviders';
 import App from './App.jsx';
 
 vi.mock('./lib/firebase.js', () => ({
@@ -44,7 +45,7 @@ describe('App smoke', () => {
   });
 
   it('renders login screen without crashing', async () => {
-    render(<App />);
+    renderWithProviders(<App />);
     expect(await screen.findByText(/enter workspace/i)).toBeTruthy();
   });
 });

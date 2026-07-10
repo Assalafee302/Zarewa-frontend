@@ -1,26 +1,26 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useWorkspace } from '../context/WorkspaceContext';
+import { useQuery } from '@tanstack/react-query';
 import { fetchHrDashboardCounts, parseHrDashboardCounts } from '../lib/hrDashboardCounts';
+import { SHELL_QUERY_STALE_MS } from '../lib/queryClient';
 
 /**
  * Shared HR dashboard queue counts for HrRequestsOverview and similar tiles.
  */
 export function useHrDashboardCounts() {
-  const ws = useWorkspace();
-  const [counts, setCounts] = useState(() => parseHrDashboardCounts({}));
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: ['hr', 'dashboard-counts'],
+    queryFn: async () => {
+      const r = await fetchHrDashboardCounts();
+      if (!r.ok) throw new Error(r.error || 'Could not load HR counts.');
+      return r.counts;
+    },
+    staleTime: SHELL_QUERY_STALE_MS,
+    refetchInterval: SHELL_QUERY_STALE_MS,
+    placeholderData: parseHrDashboardCounts({}),
+  });
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    const r = await fetchHrDashboardCounts();
-    setLoading(false);
-    if (r.ok) setCounts(r.counts);
-    return r;
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload, ws?.refreshEpoch]);
-
-  return { counts, loading, reload };
+  return {
+    counts: query.data ?? parseHrDashboardCounts({}),
+    loading: query.isLoading && query.data == null,
+    reload: query.refetch,
+  };
 }

@@ -17,7 +17,7 @@ export function HrContextBreadcrumb({ items = [], className = '' }) {
             <li key={`${item.label}-${i}`} className="inline-flex items-center gap-1">
               {i > 0 ? <span className="text-slate-300" aria-hidden>/</span> : null}
               {item.to && !isLast ? (
-                <Link to={item.to} className="font-semibold text-[#134e4a] hover:underline">
+                <Link to={item.to} className="font-semibold text-zarewa-teal hover:underline">
                   {item.label}
                 </Link>
               ) : (

@@ -66,14 +66,14 @@ export function FinanceDeskCashierGuide() {
     >
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-widest text-[#134e4a]">Start here</p>
+          <p className="text-xs font-black uppercase tracking-widest text-zarewa-teal">Start here</p>
           <p className="text-sm font-semibold text-slate-800 mt-0.5">Your daily cashier workflow</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 hover:text-teal-800"
+            className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-slate-500 hover:text-teal-800"
           >
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             {expanded ? 'Collapse' : 'Expand'}
@@ -97,11 +97,11 @@ export function FinanceDeskCashierGuide() {
                 key={step.title}
                 className="flex gap-3 rounded-xl border border-white/80 bg-white/70 px-3 py-3 shadow-sm"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-[#134e4a]">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-zarewa-teal">
                   <Icon size={16} aria-hidden />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">
                     Step {idx + 1}
                   </p>
                   <p className="text-sm font-bold text-slate-900">{step.title}</p>

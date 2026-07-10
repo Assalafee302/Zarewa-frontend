@@ -11,6 +11,33 @@
     0 20px 60px -32px rgba(15, 23, 42, 0.28),
     0 10px 24px -18px rgba(20, 83, 45, 0.14);
   --radius-zarewa: 24px;
+  --zarewa-min-ui-text: 11px;
+  --z-layer-nav-overlay: 45;
+  --z-layer-nav-button: 55;
+  --z-layer-dropdown: 60;
+  --z-layer-toast: 1100;
+  --z-layer-modal: 1060;
+  --z-layer-modal-close: 1070;
+  --z-layer-print-backdrop: 11060;
+  --z-layer-print-content: 11070;
+  --z-layer-auth-lock: 5000;
+  --z-layer-force-auth: 12000;
+}
+
+@utility text-ui-xs {
+  font-size: max(var(--zarewa-min-ui-text), 11px);
+  line-height: 1.35;
+}
+
+@utility text-ui-micro {
+  font-size: max(var(--zarewa-min-ui-text), 10px);
+  line-height: 1.3;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --zarewa-min-ui-text: 12px;
+  }
 }
 
 @keyframes z-toast-in {
@@ -163,12 +190,12 @@ summary {
 /* Finance / treasury modal fields — 16px on phone avoids iOS input zoom */
 .z-finance-field {
   @apply w-full rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-base sm:text-[11px] font-semibold text-slate-800 outline-none min-h-11;
-  @apply focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10;
+  @apply focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10;
 }
 
 .z-finance-select {
   @apply w-full rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-base sm:text-[11px] font-semibold text-slate-800 outline-none min-h-11;
-  @apply focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10;
+  @apply focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10;
 }
 
 .z-modal-scroll-y {
@@ -380,7 +407,7 @@ summary {
 .rpt-full {
   --rpt-ink: #111827;
   --rpt-ink-soft: #374151;
-  --rpt-teal: #134e4a;
+  --rpt-teal: var(--color-zarewa-teal);
   --rpt-teal-mid: #0f766e;
   --rpt-mint: #ecfdf5;
   --rpt-mint-deep: #d1fae5;
@@ -1267,7 +1294,7 @@ summary {
   font-size: 6pt;
   font-weight: 700;
   text-transform: uppercase;
-  color: #134e4a;
+  color: var(--color-zarewa-teal);
   margin: 2px 0 1px;
 }
 
@@ -1276,7 +1303,7 @@ summary {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #134e4a;
+  color: var(--color-zarewa-teal);
   margin-bottom: 2px;
 }
 
@@ -1306,7 +1333,7 @@ summary {
   font-size: 6pt;
   font-weight: 700;
   text-transform: uppercase;
-  color: #134e4a;
+  color: var(--color-zarewa-teal);
 }
 
 .cl-a5-ql-td,
@@ -1333,7 +1360,7 @@ summary {
 
 /* Factory cutting list — richer layout (screen + print) */
 .cutting-list-factory-root.cl-factory-theme {
-  --cl-teal: #134e4a;
+  --cl-teal: var(--color-zarewa-teal);
   --cl-teal-mid: #0f766e;
   --cl-mint: #ecfdf5;
   --cl-mint-deep: #d1fae5;
@@ -2260,7 +2287,7 @@ summary {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #134e4a;
+  color: var(--color-zarewa-teal);
   font-size: 5.75pt;
 }
 

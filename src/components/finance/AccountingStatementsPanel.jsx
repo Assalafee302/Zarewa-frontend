@@ -143,11 +143,11 @@ export function AccountingStatementsPanel({
   const headerActions = (
     <div className="flex flex-wrap gap-2">
       {!periodKeyProp ? (
-        <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
+        <label className="inline-flex items-center gap-2 text-ui-xs font-bold text-slate-600">
           Period
           <input
             type="month"
-            className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold"
+            className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
           />
@@ -155,7 +155,7 @@ export function AccountingStatementsPanel({
       ) : null}
       <button
         type="button"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-[#134e4a]/30 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50/80 disabled:opacity-40 min-h-11"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-zarewa-teal/30 bg-white px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-teal-50/80 disabled:opacity-40 min-h-11"
         onClick={printPack}
         disabled={!data}
       >
@@ -164,7 +164,7 @@ export function AccountingStatementsPanel({
       </button>
       <button
         type="button"
-        className="inline-flex items-center gap-1.5 rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:brightness-105 disabled:opacity-40 min-h-11"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-white hover:brightness-105 disabled:opacity-40 min-h-11"
         onClick={exportCsv}
         disabled={!data}
       >
@@ -173,7 +173,7 @@ export function AccountingStatementsPanel({
       </button>
       <button
         type="button"
-        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] min-h-11"
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase text-zarewa-teal min-h-11"
         onClick={() => load(true)}
         disabled={loading}
       >
@@ -196,7 +196,7 @@ export function AccountingStatementsPanel({
       )}
 
       {branchScopeLabel ? (
-        <p className="text-[11px] text-slate-600">
+        <p className="text-xs text-slate-600">
           Scope: <span className="font-bold">{branchScopeLabel}</span>
         </p>
       ) : null}
@@ -219,12 +219,12 @@ export function AccountingStatementsPanel({
 
           <AccountingDeskTableSection title="Profit & Loss" description={`${data.range?.start} → ${data.range?.end}`}>
             {plRows.length === 0 ? (
-              <p className="text-[11px] text-slate-500 py-4">No revenue or expense GL activity in this period.</p>
+              <p className="text-xs text-slate-500 py-4">No revenue or expense GL activity in this period.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px]">
+                <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[9px] font-bold uppercase text-slate-500">
+                    <tr className="border-b border-slate-100 text-ui-xs font-bold uppercase text-slate-500">
                       <th className="py-2 pr-3">Code</th>
                       <th className="py-2 pr-3">Account</th>
                       <th className="py-2 text-right">Amount</th>
@@ -235,7 +235,7 @@ export function AccountingStatementsPanel({
                       <tr key={`${r.accountCode}-${r.accountType}`} className="border-b border-slate-50">
                         <td className="py-2 pr-3 font-mono text-slate-600">{r.accountCode}</td>
                         <td className="py-2 pr-3 font-semibold text-slate-800">{r.accountName}</td>
-                        <td className="py-2 text-right font-bold tabular-nums text-[#134e4a]">{formatNgn(r.amountNgn)}</td>
+                        <td className="py-2 text-right font-bold tabular-nums text-zarewa-teal">{formatNgn(r.amountNgn)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -246,12 +246,12 @@ export function AccountingStatementsPanel({
 
           <AccountingDeskTableSection title="Statement of financial position" description={`As at ${data.range?.end}`}>
             {bsRows.length === 0 ? (
-              <p className="text-[11px] text-slate-500 py-4">No asset, liability, or equity balances in GL yet.</p>
+              <p className="text-xs text-slate-500 py-4">No asset, liability, or equity balances in GL yet.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px]">
+                <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[9px] font-bold uppercase text-slate-500">
+                    <tr className="border-b border-slate-100 text-ui-xs font-bold uppercase text-slate-500">
                       <th className="py-2 pr-3">Code</th>
                       <th className="py-2 pr-3">Account</th>
                       <th className="py-2 pr-3">Type</th>
@@ -264,7 +264,7 @@ export function AccountingStatementsPanel({
                         <td className="py-2 pr-3 font-mono text-slate-600">{r.accountCode}</td>
                         <td className="py-2 pr-3 font-semibold text-slate-800">{r.accountName}</td>
                         <td className="py-2 pr-3 capitalize text-slate-500">{r.accountType}</td>
-                        <td className="py-2 text-right font-bold tabular-nums text-[#134e4a]">{formatNgn(r.balanceNgn)}</td>
+                        <td className="py-2 text-right font-bold tabular-nums text-zarewa-teal">{formatNgn(r.balanceNgn)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -274,7 +274,7 @@ export function AccountingStatementsPanel({
           </AccountingDeskTableSection>
         </>
       ) : (
-        <p className="text-[11px] text-slate-500">Select a period and load statements.</p>
+        <p className="text-xs text-slate-500">Select a period and load statements.</p>
       )}
     </div>
   );

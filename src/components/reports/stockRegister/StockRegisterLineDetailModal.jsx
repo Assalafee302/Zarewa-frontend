@@ -149,8 +149,8 @@ export function StockRegisterLineDetailModal({
       <div className="z-modal-panel-lg flex max-h-[90dvh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Line clearance</p>
-            <h2 className="text-lg font-bold text-[#134e4a]">{lineTitle(item)}</h2>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Line clearance</p>
+            <h2 className="text-lg font-bold text-zarewa-teal">{lineTitle(item)}</h2>
             {item?.gaugeLabel ? <p className="text-sm text-slate-600">{item.gaugeLabel}</p> : null}
           </div>
           <button type="button" onClick={onClose} className="z-btn-secondary p-2" aria-label="Close">
@@ -170,14 +170,14 @@ export function StockRegisterLineDetailModal({
               {!isFinished && kind !== 'intransit' ? (
                 <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-sm">
                   <div>
-                    <p className="text-[10px] font-bold uppercase text-slate-500">System</p>
-                    <p className="text-lg font-black text-[#134e4a] tabular-nums">
+                    <p className="text-ui-xs font-bold uppercase text-slate-500">System</p>
+                    <p className="text-lg font-black text-zarewa-teal tabular-nums">
                       {fmtQty(sysVal, kind)} {unitLabel}
                     </p>
                   </div>
                   {entry?.status === LINE_STATUS.ADJUSTED && countedField ? (
                     <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-500">Counted</label>
+                      <label className="text-ui-xs font-bold uppercase text-slate-500">Counted</label>
                       <input
                         type="number"
                         step={isCoil ? 1 : 0.01}
@@ -192,7 +192,7 @@ export function StockRegisterLineDetailModal({
                     </div>
                   ) : entry?.status === LINE_STATUS.CLEARED ? (
                     <div>
-                      <p className="text-[10px] font-bold uppercase text-slate-500">Counted</p>
+                      <p className="text-ui-xs font-bold uppercase text-slate-500">Counted</p>
                       <p className="text-lg font-bold tabular-nums">{fmtQty(sysVal, kind)} {unitLabel}</p>
                     </div>
                   ) : null}
@@ -292,11 +292,11 @@ export function StockRegisterLineDetailModal({
 
               {(kind === 'coil' || kind === 'finished') && detail?.productionJobs?.length ? (
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-600 mb-2">
+                  <p className="text-ui-xs font-black uppercase tracking-wide text-slate-600 mb-2">
                     Production jobs this period
                   </p>
                   <div className="max-h-40 overflow-y-auto custom-scrollbar border border-slate-200 rounded-lg">
-                    <table className="w-full text-[10px]">
+                    <table className="w-full text-ui-xs">
                       <thead className="bg-slate-50 sticky top-0">
                         <tr>
                           <th className="text-left p-1.5">Date</th>

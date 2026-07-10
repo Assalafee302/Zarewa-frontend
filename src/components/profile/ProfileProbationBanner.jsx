@@ -50,7 +50,7 @@ export function ProfileProbationBanner({ className = '' }) {
       action={
         <Link
           to={HR_SELF_SERVICE_PATH.employment}
-          className="z-btn-secondary !px-4 !py-2 !text-[10px] uppercase tracking-wide"
+          className="z-btn-secondary !px-4 !py-2 !text-ui-xs uppercase tracking-wide"
         >
           View record
         </Link>

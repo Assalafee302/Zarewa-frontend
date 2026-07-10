@@ -78,7 +78,7 @@ export function ProfileHeroCard() {
           : null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#134e4a] via-[#0d5c56] to-[#134e4a] p-5 text-white shadow-lg shadow-teal-950/15 sm:p-7">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zarewa-teal via-[#0d5c56] to-zarewa-teal p-5 text-white shadow-lg shadow-teal-950/15 sm:p-7">
       <div
         className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl"
         aria-hidden
@@ -99,7 +99,7 @@ export function ProfileHeroCard() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               {badgeLabel ? (
-                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${COHORT_BADGE[cohort] || COHORT_BADGE.employee}`}>
+                <span className={`rounded-full px-2.5 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${COHORT_BADGE[cohort] || COHORT_BADGE.employee}`}>
                   {badgeLabel}
                 </span>
               ) : null}
@@ -133,7 +133,7 @@ export function ProfileHeroCard() {
           <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col sm:items-stretch">
             <Link
               to={ACCOUNT_PATH.account}
-              className="inline-flex min-h-10 items-center justify-center gap-1 rounded-xl bg-white px-4 py-2 text-xs font-bold text-[#134e4a] no-underline shadow-sm transition hover:bg-teal-50"
+              className="inline-flex min-h-10 items-center justify-center gap-1 rounded-xl bg-white px-4 py-2 text-xs font-bold text-zarewa-teal no-underline shadow-sm transition hover:bg-teal-50"
             >
               Account settings
               <ChevronRight size={14} aria-hidden />

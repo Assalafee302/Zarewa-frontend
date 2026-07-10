@@ -67,7 +67,7 @@ export function HrStaffActivityStrip({ userId, onOpenTab }) {
           type="button"
           onClick={() => item.tab && onOpenTab?.(item.tab)}
           className={`rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-left text-xs ${
-            item.tab ? 'hover:border-[#134e4a]/30 hover:bg-teal-50/50' : ''
+            item.tab ? 'hover:border-zarewa-teal/30 hover:bg-teal-50/50' : ''
           }`}
         >
           <p className="font-bold uppercase tracking-wide text-slate-400">{item.label}</p>

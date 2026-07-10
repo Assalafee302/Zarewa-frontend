@@ -72,8 +72,8 @@ function DetailField({ label, children }) {
   if (children == null || children === '') return null;
   return (
     <div>
-      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{label}</p>
-      <p className="mt-0.5 text-[11px] font-semibold text-slate-800 break-words">{children}</p>
+      <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
+      <p className="mt-0.5 text-xs font-semibold text-slate-800 break-words">{children}</p>
     </div>
   );
 }
@@ -151,12 +151,12 @@ export function AccountingRegisterDetailModal({
   return (
     <ModalFrame isOpen onClose={onClose} title="Register line detail" surface="plain">
       <div className="w-full max-w-lg rounded-2xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
-        <div className="h-1 bg-[#134e4a]" />
+        <div className="h-1 bg-zarewa-teal" />
         <div className="p-5 sm:p-6 max-h-[min(85dvh,720px)] overflow-y-auto custom-scrollbar">
           <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
             <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{sectionTitle || 'Register line'}</p>
-              <h2 className="text-lg font-bold text-[#134e4a] mt-1 break-words">
+              <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">{sectionTitle || 'Register line'}</p>
+              <h2 className="text-lg font-bold text-zarewa-teal mt-1 break-words">
                 {partyLink?.to ? (
                   <AccountingRegisterNavLink link={partyLink} fallback={item.partyName} showIcon={false} />
                 ) : (
@@ -165,41 +165,41 @@ export function AccountingRegisterDetailModal({
               </h2>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {item.isSignificant ? (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[8px] font-bold uppercase text-amber-900">
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-ui-xs font-bold uppercase text-amber-900">
                     Significant
                   </span>
                 ) : null}
                 {item.isLegacy ? (
-                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[8px] font-bold uppercase text-slate-700">
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-ui-xs font-bold uppercase text-slate-700">
                     Legacy
                   </span>
                 ) : null}
                 {categoryLabel ? (
-                  <span className="rounded-full bg-teal-50 border border-teal-100 px-2 py-0.5 text-[8px] font-bold uppercase text-teal-900">
+                  <span className="rounded-full bg-teal-50 border border-teal-100 px-2 py-0.5 text-ui-xs font-bold uppercase text-teal-900">
                     {categoryLabel}
                   </span>
                 ) : null}
                 {item.partyLinkStatus === 'unlinked' ? (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[8px] font-bold uppercase text-amber-900">
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-ui-xs font-bold uppercase text-amber-900">
                     Not linked
                   </span>
                 ) : null}
               </div>
             </div>
             <div className="text-right shrink-0">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{sideLabel}</p>
-              <p className="text-xl font-black text-[#134e4a] tabular-nums">{formatNgn(item.amountNgn)}</p>
+              <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">{sideLabel}</p>
+              <p className="text-xl font-black text-zarewa-teal tabular-nums">{formatNgn(item.amountNgn)}</p>
             </div>
           </div>
 
           {item.partyLinkStatus === 'unlinked' && item.partyLinkWarning ? (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-950 leading-relaxed">
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950 leading-relaxed">
               {item.partyLinkWarning}
               {canManage && onEdit ? (
                 <button
                   type="button"
                   onClick={() => onEdit(item)}
-                  className="mt-2 block text-[10px] font-bold uppercase tracking-wide text-amber-900 underline hover:no-underline"
+                  className="mt-2 block text-ui-xs font-bold uppercase tracking-wide text-amber-900 underline hover:no-underline"
                 >
                   Edit and link party
                 </button>
@@ -214,7 +214,7 @@ export function AccountingRegisterDetailModal({
               <DetailField label="As-at date">{item.asAtDateIso}</DetailField>
               <DetailField label="Reference">
                 {refLink?.to ? (
-                  <AccountingRegisterNavLink link={refLink} fallback={item.reference || item.partyRef} className="text-[11px]" />
+                  <AccountingRegisterNavLink link={refLink} fallback={item.reference || item.partyRef} className="text-xs" />
                 ) : (
                   item.reference || item.partyRef || '—'
                 )}
@@ -235,7 +235,7 @@ export function AccountingRegisterDetailModal({
                       to={a.to}
                       state={a.state}
                       onClick={onClose}
-                      className={`${registerSide === 'creditor' ? '' : ''} flex items-center justify-between gap-2 rounded-lg border border-slate-200/80 bg-slate-50/50 px-3 py-2 text-[10px] font-bold text-[#134e4a] hover:bg-white hover:border-[#134e4a]/20 transition-colors`}
+                      className={`${registerSide === 'creditor' ? '' : ''} flex items-center justify-between gap-2 rounded-lg border border-slate-200/80 bg-slate-50/50 px-3 py-2 text-ui-xs font-bold text-zarewa-teal hover:bg-white hover:border-zarewa-teal/20 transition-colors`}
                     >
                       <span className="inline-flex items-center gap-1.5">
                         {ActionIcon ? <ActionIcon size={12} /> : <ExternalLink size={12} />}
@@ -253,7 +253,7 @@ export function AccountingRegisterDetailModal({
           {legacyLine ? (
             <ProcurementFormSection letter="S" title="Withdrawal requests" compact>
               {settlementsLoading ? (
-                <p className="text-[10px] text-slate-500">Loading withdrawal requests…</p>
+                <p className="text-ui-xs text-slate-500">Loading withdrawal requests…</p>
               ) : activeSettlements.length ? (
               <ul className="space-y-1.5">
                 {activeSettlements.map((s) => {
@@ -265,10 +265,10 @@ export function AccountingRegisterDetailModal({
                   return (
                     <li
                       key={s.settlementId}
-                      className="rounded-lg border border-slate-200/80 bg-white px-3 py-2 text-[10px]"
+                      className="rounded-lg border border-slate-200/80 bg-white px-3 py-2 text-ui-xs"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-bold text-[#134e4a]">{s.settlementId}</span>
+                        <span className="font-bold text-zarewa-teal">{s.settlementId}</span>
                         <span className="font-semibold text-slate-600">{s.status}</span>
                       </div>
                       <p className="mt-0.5 text-slate-600">
@@ -286,7 +286,7 @@ export function AccountingRegisterDetailModal({
                                 setDecisionTarget(s);
                                 setDecisionMode('Approved');
                               }}
-                              className="rounded border border-teal-200 bg-teal-50 px-2 py-0.5 text-[8px] font-bold uppercase text-teal-900"
+                              className="rounded border border-teal-200 bg-teal-50 px-2 py-0.5 text-ui-xs font-bold uppercase text-teal-900"
                             >
                               Approve
                             </button>
@@ -297,7 +297,7 @@ export function AccountingRegisterDetailModal({
                                 setDecisionTarget(s);
                                 setDecisionMode('Rejected');
                               }}
-                              className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[8px] font-bold uppercase text-rose-800"
+                              className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-ui-xs font-bold uppercase text-rose-800"
                             >
                               Reject
                             </button>
@@ -308,13 +308,13 @@ export function AccountingRegisterDetailModal({
                             type="button"
                             disabled={settleBusy}
                             onClick={() => void handleWithdraw(s)}
-                            className="rounded border border-slate-300 bg-slate-50 px-2 py-0.5 text-[8px] font-bold uppercase text-slate-800"
+                            className="rounded border border-slate-300 bg-slate-50 px-2 py-0.5 text-ui-xs font-bold uppercase text-slate-800"
                           >
                             Withdraw
                           </button>
                         ) : null}
                         {s.status === 'Pending' && !canApprove && !isOwnPending ? (
-                          <span className="text-[9px] font-medium text-amber-800 self-center">
+                          <span className="text-ui-xs font-medium text-amber-800 self-center">
                             Awaiting MD/finance approval
                           </span>
                         ) : null}
@@ -322,7 +322,7 @@ export function AccountingRegisterDetailModal({
                           <button
                             type="button"
                             onClick={() => setPayTarget(s)}
-                            className="rounded bg-[#134e4a] text-white px-2 py-0.5 text-[8px] font-bold uppercase"
+                            className="rounded bg-zarewa-teal text-white px-2 py-0.5 text-ui-xs font-bold uppercase"
                           >
                             Pay
                           </button>
@@ -333,10 +333,10 @@ export function AccountingRegisterDetailModal({
                 })}
               </ul>
               ) : (
-                <p className="text-[10px] text-slate-500">No active withdrawal requests on this line.</p>
+                <p className="text-ui-xs text-slate-500">No active withdrawal requests on this line.</p>
               )}
               {historySettlements.length ? (
-                <p className="mt-2 text-[9px] text-slate-500">
+                <p className="mt-2 text-ui-xs text-slate-500">
                   {historySettlements.length} earlier request(s) — paid, rejected, or withdrawn.
                 </p>
               ) : null}
@@ -348,7 +348,7 @@ export function AccountingRegisterDetailModal({
               <button
                 type="button"
                 onClick={() => setRequestOpen(true)}
-                className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-teal-950 hover:bg-teal-100"
+                className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-teal-950 hover:bg-teal-100"
               >
                 <Banknote size={12} />
                 Request withdrawal
@@ -361,7 +361,7 @@ export function AccountingRegisterDetailModal({
                   onEdit(item);
                   onClose();
                 }}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
               >
                 <Pencil size={12} />
                 Edit line
@@ -372,7 +372,7 @@ export function AccountingRegisterDetailModal({
                 type="button"
                 disabled={clearing}
                 onClick={() => onClear(item)}
-                className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-rose-800 hover:bg-rose-100 disabled:opacity-50"
               >
                 <Trash2 size={12} />
                 {clearing ? 'Clearing…' : 'Mark cleared'}
@@ -381,7 +381,7 @@ export function AccountingRegisterDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider"
+              className="inline-flex items-center rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider"
             >
               Close
             </button>

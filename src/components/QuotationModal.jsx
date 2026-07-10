@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { PrintModalPortal } from './layout/PrintModalPortal';
 import { Link } from 'react-router-dom';
 import {
   X,
@@ -60,6 +60,7 @@ import {
   quotationPaymentPolicySnapshot,
 } from '../lib/accountingPolicyV1.js';
 import { apiFetch } from '../lib/apiBase';
+import { appConfirm } from '../lib/appConfirm';
 import {
   isMeterSheetProductLine,
   materialKeyFromMaterialTypeRow,
@@ -428,11 +429,11 @@ function OrderLinesSection({
   return (
     <div className="mb-5">
       <div className="mb-2 px-0.5">
-        <h3 className="text-[9px] font-semibold text-[#134e4a] uppercase tracking-widest">{title}</h3>
+        <h3 className="text-ui-xs font-semibold text-zarewa-teal uppercase tracking-widest">{title}</h3>
       </div>
 
       {stoneFlatsheetIssueLines.length > 0 ? (
-        <div className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[10px] text-amber-950">
+        <div className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-ui-xs text-amber-950">
           <p className="font-bold uppercase tracking-wide">Stone flatsheet — fix before production</p>
           <ul className="mt-1 list-disc pl-4 space-y-0.5">
             {stoneFlatsheetIssueLines.map((msg) => (
@@ -453,7 +454,7 @@ function OrderLinesSection({
                 key={row.id}
                 className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100/90 pb-2 text-xs last:border-0"
               >
-                <span className="font-semibold text-[#134e4a]">
+                <span className="font-semibold text-zarewa-teal">
                   {row.name?.trim() || '—'}
                   {showStoneFlatsheetLength &&
                   isStoneFlatsheetQuotationLine(row.name) &&
@@ -466,7 +467,7 @@ function OrderLinesSection({
                 </span>
                 <span className="tabular-nums text-slate-600">
                   {row.qty || '0'} × {formatNgn(parseLineNum(row.unitPrice))} ={' '}
-                  <span className="font-bold text-[#134e4a]">{formatNgn(lineAmountNgn(row))}</span>
+                  <span className="font-bold text-zarewa-teal">{formatNgn(lineAmountNgn(row))}</span>
                 </span>
               </li>
             ))}
@@ -476,7 +477,7 @@ function OrderLinesSection({
           </ul>
         ) : (
           <>
-            <div className="flex items-center gap-2 mb-2 px-1 text-[8px] font-semibold text-slate-400 uppercase tracking-wider min-w-0">
+            <div className="flex items-center gap-2 mb-2 px-1 text-ui-xs font-semibold text-slate-400 uppercase tracking-wider min-w-0">
               <div className="min-w-0 flex-1">Item</div>
               {showStoneFlatsheetLength && title === 'Products' ? (
                 <div className="w-[4.25rem] shrink-0 text-center">Len</div>
@@ -534,7 +535,7 @@ function OrderLinesSection({
                           }}
                           placeholder="Custom name"
                           title="Custom line item"
-                          className="min-w-0 flex-1 bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-[11px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/10"
+                          className="min-w-0 flex-1 bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/10"
                         />
                         <button
                           type="button"
@@ -546,7 +547,7 @@ function OrderLinesSection({
                               stoneFlatsheetLengthM: '',
                             })
                           }
-                          className="shrink-0 text-[9px] font-semibold text-[#134e4a] underline decoration-[#134e4a]/30 underline-offset-2 hover:text-[#0f3d39] whitespace-nowrap"
+                          className="shrink-0 text-ui-xs font-semibold text-zarewa-teal underline decoration-zarewa-teal/30 underline-offset-2 hover:text-[#0f3d39] whitespace-nowrap"
                         >
                           List
                         </button>
@@ -598,7 +599,7 @@ function OrderLinesSection({
                                 ...(title === 'Products' ? trimMeta : {}),
                               });
                             }}
-                            className="w-full min-w-0 bg-white border border-slate-200 rounded-lg py-1.5 pl-2 pr-7 text-[11px] font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/15 cursor-pointer"
+                            className="w-full min-w-0 bg-white border border-slate-200 rounded-lg py-1.5 pl-2 pr-7 text-xs font-semibold text-zarewa-teal appearance-none outline-none focus:ring-2 focus:ring-zarewa-teal/15 cursor-pointer"
                           >
                             <option value="">Choose…</option>
                             {stoneOptionGroups ? (
@@ -639,7 +640,7 @@ function OrderLinesSection({
                           type="button"
                           title="Type a custom line item"
                           onClick={() => updateRow(row.id, { customLine: true })}
-                          className="shrink-0 text-[9px] font-semibold text-[#134e4a] underline decoration-[#134e4a]/30 underline-offset-2 hover:text-[#0f3d39] whitespace-nowrap"
+                          className="shrink-0 text-ui-xs font-semibold text-zarewa-teal underline decoration-zarewa-teal/30 underline-offset-2 hover:text-[#0f3d39] whitespace-nowrap"
                         >
                           Custom
                         </button>
@@ -674,7 +675,7 @@ function OrderLinesSection({
                             }
                             updateRow(row.id, patch);
                           }}
-                          className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1 pr-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                          className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1 pr-1 text-ui-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                         >
                           <option value="">—</option>
                           <option value="1.4">1.4 m</option>
@@ -704,7 +705,7 @@ function OrderLinesSection({
                               ...(suggestedPrice > 0 ? { unitPrice: String(suggestedPrice) } : {}),
                             });
                           }}
-                          className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1 pr-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                          className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1 pr-1 text-ui-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                         >
                           {TRIM_GIRTH_OPTIONS_MM.map((mm) => (
                             <option key={mm} value={String(mm)}>
@@ -736,9 +737,9 @@ function OrderLinesSection({
                     }
                     value={row.qty}
                     onChange={(e) => updateRow(row.id, { qty: e.target.value })}
-                    className={`w-14 sm:w-16 shrink-0 border py-1.5 px-1 rounded-lg text-[11px] text-center font-semibold outline-none tabular-nums ${
+                    className={`w-14 sm:w-16 shrink-0 border py-1.5 px-1 rounded-lg text-xs text-center font-semibold outline-none tabular-nums ${
                       qtyPriceEnabled
-                        ? 'bg-white border-slate-200 text-[#134e4a]'
+                        ? 'bg-white border-slate-200 text-zarewa-teal'
                         : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                     placeholder={isStoneFlatsheetRow ? 'm²' : '0'}
@@ -764,13 +765,13 @@ function OrderLinesSection({
                     })()}
                     value={row.unitPrice}
                     onChange={(e) => updateRow(row.id, { unitPrice: e.target.value })}
-                    className={`w-[4.25rem] sm:w-24 shrink-0 border py-1.5 px-1 rounded-lg text-[11px] text-center font-semibold outline-none tabular-nums ${
+                    className={`w-[4.25rem] sm:w-24 shrink-0 border py-1.5 px-1 rounded-lg text-xs text-center font-semibold outline-none tabular-nums ${
                       qtyPriceEnabled
-                        ? 'bg-white border-slate-200 text-[#134e4a]'
+                        ? 'bg-white border-slate-200 text-zarewa-teal'
                         : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                   />
-                  <div className="w-[5.25rem] sm:w-28 shrink-0 text-right pr-0.5 sm:pr-1 text-[10px] sm:text-[11px] font-bold text-[#134e4a] tabular-nums leading-tight">
+                  <div className="w-[5.25rem] sm:w-28 shrink-0 text-right pr-0.5 sm:pr-1 text-ui-xs sm:text-xs font-bold text-zarewa-teal tabular-nums leading-tight">
                     {formatNgn(amt)}
                   </div>
                   <div className="w-[4.5rem] shrink-0 flex justify-end items-center gap-0.5">
@@ -787,7 +788,7 @@ function OrderLinesSection({
                         type="button"
                         title={`Add ${title.endsWith('s') ? title.slice(0, -1) : title}`}
                         onClick={addRow}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#134e4a]/25 bg-teal-50/80 text-[#134e4a] hover:bg-teal-100 transition-colors"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zarewa-teal/25 bg-teal-50/80 text-zarewa-teal hover:bg-teal-100 transition-colors"
                       >
                         <Plus size={16} strokeWidth={2.5} />
                       </button>
@@ -2127,10 +2128,29 @@ const QuotationModal = ({
           }
           showToast(msg);
         } else {
-          const { ok, data } = await apiFetch('/api/quotations', {
-            method: 'POST',
-            body: JSON.stringify(body),
-          });
+          const postQuotation = async (payload) =>
+            apiFetch('/api/quotations', {
+              method: 'POST',
+              body: JSON.stringify(payload),
+            });
+
+          let { ok, data } = await postQuotation(body);
+          if (!ok && data?.code === 'DUPLICATE_QUOTATION') {
+            const detailMsg = Array.isArray(data.detail)
+              ? data.detail.map((w) => w.message).filter(Boolean).join('\n')
+              : '';
+            const proceed = await appConfirm({
+              title: 'Similar quotation found',
+              message: [detailMsg || data.error || 'A similar quotation may already exist.', 'Save this quotation anyway?']
+                .filter(Boolean)
+                .join('\n\n'),
+              confirmLabel: 'Save anyway',
+              cancelLabel: 'Review first',
+              variant: 'danger',
+            });
+            if (!proceed) return;
+            ({ ok, data } = await postQuotation({ ...body, forceDuplicateCreate: true }));
+          }
           if (!ok || !data?.ok) {
             showToast(
               data?.code === 'quotation_below_workbook_floor'
@@ -2205,9 +2225,9 @@ const QuotationModal = ({
       return;
     }
     if (
-      !window.confirm(
-        'Approve below-floor pricing for this quotation? Cutting lists and production may proceed after this step.'
-      )
+      !(await appConfirm({
+        message: 'Approve below-floor pricing for this quotation? Cutting lists and production may proceed after this step.',
+      }))
     )
       return;
     setMdApproving(true);
@@ -2263,28 +2283,28 @@ const QuotationModal = ({
       >
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center shrink-0 bg-white gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 bg-[#134e4a] rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
+            <div className="w-10 h-10 bg-zarewa-teal rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
               Q
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 gap-y-1">
-                <h2 className="text-base font-bold text-[#134e4a] tracking-tight">Quotation</h2>
+                <h2 className="text-base font-bold text-zarewa-teal tracking-tight">Quotation</h2>
                 <span
-                  className={`shrink-0 rounded-md px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                  className={`shrink-0 rounded-md px-2 py-0.5 text-ui-xs font-semibold uppercase tracking-wide ${
                     readOnly
                       ? 'bg-slate-200 text-slate-700'
-                      : 'bg-teal-100 text-[#134e4a] ring-1 ring-[#134e4a]/20'
+                      : 'bg-teal-100 text-zarewa-teal ring-1 ring-zarewa-teal/20'
                   }`}
                 >
                   {readOnly ? 'View' : 'Edit'}
                 </span>
               </div>
-              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest truncate mt-0.5">
+              <p className="text-ui-xs font-semibold text-slate-400 uppercase tracking-widest truncate mt-0.5">
                 {editData?.id ? `${editData.id}` : 'New quote'}
                 {readOnly ? ' · read-only' : editData?.id ? ' · amending' : ''}
               </p>
-              <p className="text-[9px] font-medium text-slate-500 mt-1">
-                Prepared by: <span className="font-semibold text-[#134e4a]">{preparedByLabel}</span>
+              <p className="text-ui-xs font-medium text-slate-500 mt-1">
+                Prepared by: <span className="font-semibold text-zarewa-teal">{preparedByLabel}</span>
                 {!editData?.id ? <span className="text-slate-400"> · current workspace role</span> : null}
               </p>
             </div>
@@ -2301,10 +2321,10 @@ const QuotationModal = ({
         <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-white">
           {archivedLifecycle ? (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 space-y-2">
-              <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wide">
+              <p className="text-ui-xs font-bold text-amber-900 uppercase tracking-wide">
                 Archived quotation ({String(editData.status)})
               </p>
-              <p className="text-[10px] text-amber-950/90 leading-snug">
+              <p className="text-ui-xs text-amber-950/90 leading-snug">
                 {editData.lifecycleNote
                   ? String(editData.lifecycleNote)
                   : 'Valid for 10 days from quote date, or voided after a master price change. Revive to continue this record as Pending, or create a new quotation.'}
@@ -2314,12 +2334,12 @@ const QuotationModal = ({
                   type="button"
                   onClick={onReviveArchived}
                   disabled={reviving}
-                  className="inline-flex items-center justify-center rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
+                  className="inline-flex items-center justify-center rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
                 >
                   {reviving ? 'Reviving…' : 'Revive as Pending'}
                 </button>
               ) : (
-                <p className="text-[9px] text-amber-900/80">
+                <p className="text-ui-xs text-amber-900/80">
                   Sign in with quotation edit permission to revive this record.
                 </p>
               )}
@@ -2327,13 +2347,13 @@ const QuotationModal = ({
           ) : null}
           {pricingViolationsList.length > 0 ? (
             <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50/95 px-4 py-3 space-y-2">
-              <p className="text-[10px] font-black text-amber-950 uppercase tracking-wide">Pricing policy</p>
-              <p className="text-[10px] text-amber-950/90 leading-relaxed">
+              <p className="text-ui-xs font-black text-amber-950 uppercase tracking-wide">Pricing policy</p>
+              <p className="text-ui-xs text-amber-950/90 leading-relaxed">
                 {quotationBelowFloorExceptionApproved(editData)
                   ? 'MD below-floor approval is on file — cutting lists and production may proceed if other gates are satisfied.'
                   : 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and production stay blocked until the Managing Director or an administrator approves a below-floor price exception.'}
               </p>
-              <ul className="text-[10px] text-amber-950 space-y-1.5 list-disc pl-4">
+              <ul className="text-ui-xs text-amber-950 space-y-1.5 list-disc pl-4">
                 {pricingViolationsList.map((v, i) => (
                   <li key={i}>
                     <span className="font-semibold capitalize">{v.lineCategory || 'line'}</span> #{Number(v.lineIndex) + 1}:{' '}
@@ -2358,7 +2378,7 @@ const QuotationModal = ({
                   type="button"
                   onClick={onMdPriceExceptionApprove}
                   disabled={mdApproving}
-                  className="inline-flex items-center justify-center rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
+                  className="inline-flex items-center justify-center rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
                 >
                   {mdApproving ? 'Recording…' : 'MD: approve below-floor pricing'}
                 </button>
@@ -2367,14 +2387,14 @@ const QuotationModal = ({
               editData?.id &&
               quotationBelowFloorPendingMdApproval(editData) &&
               !canApproveMdPriceException ? (
-                <p className="text-[9px] text-amber-900/85 mt-2">
+                <p className="text-ui-xs text-amber-900/85 mt-2">
                   Awaiting Managing Director or administrator approval before cutting list or production.
                 </p>
               ) : null}
             </div>
           ) : null}
           {readOnly ? (
-            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-medium text-slate-600">
+            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-ui-xs font-medium text-slate-600">
               {archivedLifecycle
                 ? 'Archived — use Revive above to unlock editing.'
                 : allowMaterialSpecCorrectionInView
@@ -2385,28 +2405,28 @@ const QuotationModal = ({
 
           {editData?.id ? (
             <div className="mb-5 p-4 rounded-xl border border-slate-200 bg-slate-50/80">
-              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
+              <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
                 Quotation status
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block">
+                  <label className="text-ui-xs font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block">
                     Quotation ID
                   </label>
                   <input
                     readOnly
                     value={editData.id}
-                    className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-sm font-semibold text-[#134e4a] opacity-90"
+                    className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-sm font-semibold text-zarewa-teal opacity-90"
                   />
                 </div>
                 <div className="relative">
-                  <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block">
+                  <label className="text-ui-xs font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block">
                     Status
                   </label>
                   <select
                     disabled={readOnly}
                     defaultValue={editData.status}
-                    className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-sm font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/10 cursor-pointer disabled:cursor-not-allowed"
+                    className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-sm font-semibold text-zarewa-teal appearance-none outline-none focus:ring-2 focus:ring-zarewa-teal/10 cursor-pointer disabled:cursor-not-allowed"
                   >
                     <option value="Pending">Pending</option>
                     <option value="Approved">Approved</option>
@@ -2419,13 +2439,13 @@ const QuotationModal = ({
                 </div>
                 {!readOnly ? (
                   <div className="sm:col-span-2">
-                    <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block">
+                    <label className="text-ui-xs font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block">
                       Edit type (why this change)
                     </label>
                     <select
                       value={quotationEditType}
                       onChange={(e) => setQuotationEditType(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/10 cursor-pointer"
+                      className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-zarewa-teal appearance-none outline-none focus:ring-2 focus:ring-zarewa-teal/10 cursor-pointer"
                     >
                       <option value="">Select edit type…</option>
                       {QUOTATION_EDIT_TYPES.map((t) => (
@@ -2434,13 +2454,13 @@ const QuotationModal = ({
                         </option>
                       ))}
                     </select>
-                    <p className="text-[9px] text-slate-500 mt-1 leading-snug">
+                    <p className="text-ui-xs text-slate-500 mt-1 leading-snug">
                       Audit trail — required when amending an existing quotation.
                     </p>
                   </div>
                 ) : null}
                 <div className="sm:col-span-2">
-                  <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block">
+                  <label className="text-ui-xs font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block">
                     Customer feedback
                   </label>
                   <textarea
@@ -2448,7 +2468,7 @@ const QuotationModal = ({
                     rows={2}
                     defaultValue={editData.customerFeedback ?? ''}
                     placeholder="Notes…"
-                    className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-[#134e4a]/10 resize-none"
+                    className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-zarewa-teal/10 resize-none"
                   />
                 </div>
               </div>
@@ -2458,7 +2478,7 @@ const QuotationModal = ({
           <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-white">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
               <div>
-            <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-2 block">
+            <label className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-2 block">
               Customer — search by name, phone, staff ID (e.g. ZAPKD004), or tier
             </label>
             <div className="relative">
@@ -2489,7 +2509,7 @@ const QuotationModal = ({
                 autoComplete="off"
                 aria-expanded={customerListOpen}
                 aria-controls="quotation-customer-suggestions"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/10"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/10"
               />
               {!readOnly && customerListOpen && filteredCustomers.length > 0 ? (
                 <ul
@@ -2505,8 +2525,8 @@ const QuotationModal = ({
                         className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-xs hover:bg-teal-50"
                         onClick={() => pickCustomer(c)}
                       >
-                        <span className="font-semibold text-[#134e4a]">{customerPickerPrimaryLabel(c)}</span>
-                        <span className="text-[10px] text-slate-500">{customerPickerSubline(c)}</span>
+                        <span className="font-semibold text-zarewa-teal">{customerPickerPrimaryLabel(c)}</span>
+                        <span className="text-ui-xs text-slate-500">{customerPickerSubline(c)}</span>
                       </button>
                     </li>
                   ))}
@@ -2514,12 +2534,12 @@ const QuotationModal = ({
               ) : null}
             </div>
             {selectedCustomerId ? (
-              <p className="mt-2 text-[10px] font-medium text-emerald-800">
+              <p className="mt-2 text-ui-xs font-medium text-emerald-800">
                 Selected: <span className="font-mono">{selectedCustomerId}</span>
               </p>
             ) : null}
             {!readOnly && customerQuery.trim().length >= 2 && filteredCustomers.length === 0 ? (
-              <p className="mt-2 text-[10px] text-amber-700 font-medium">
+              <p className="mt-2 text-ui-xs text-amber-700 font-medium">
                 No match — use New customer to register without leaving this quote.
               </p>
             ) : null}
@@ -2528,12 +2548,12 @@ const QuotationModal = ({
                 <button
                   type="button"
                   onClick={openFullCustomerForm}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/50 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/50 px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wide text-zarewa-teal hover:bg-teal-50"
                 >
                   <UserPlus size={14} />
                   New customer
                 </button>
-                <span className="text-[9px] text-slate-400">Opens on top — quotation stays open</span>
+                <span className="text-ui-xs text-slate-400">Opens on top — quotation stays open</span>
               </div>
             ) : null}
               </div>
@@ -2550,7 +2570,7 @@ const QuotationModal = ({
               ) : null}
 
               <div>
-            <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-2 block">
+            <label className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-2 block">
               Project / site <span className="text-rose-600 normal-case font-bold">(required)</span>
             </label>
             <input
@@ -2560,7 +2580,7 @@ const QuotationModal = ({
               readOnly={readOnly}
               required={!readOnly}
               placeholder="e.g. Site address, estate, or job reference"
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2.5 px-3 text-xs font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/10 disabled:opacity-60"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2.5 px-3 text-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/10 disabled:opacity-60"
             />
               </div>
             </div>
@@ -2568,14 +2588,14 @@ const QuotationModal = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
             <div className="relative">
-              <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
+              <label className="text-ui-xs font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
                 Material type
               </label>
               <select
                 value={materialTypeId}
                 onChange={(e) => setMaterialTypeId(e.target.value)}
                 disabled={materialFieldsLocked}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none disabled:opacity-60"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-zarewa-teal appearance-none outline-none disabled:opacity-60"
               >
                 <option value="">Select material type…</option>
                 {materialTypeOptions.map((m) => (
@@ -2587,14 +2607,14 @@ const QuotationModal = ({
               <ChevronDown size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
             </div>
             <div className="relative">
-              <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
+              <label className="text-ui-xs font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
                 Material gauge
               </label>
               <select
                 value={materialGauge}
                 onChange={(e) => setMaterialGauge(e.target.value)}
                 disabled={materialFieldsLocked}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none disabled:opacity-60"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-zarewa-teal appearance-none outline-none disabled:opacity-60"
               >
                 <option value="">Select gauge…</option>
                 {gaugeOptions.map((g) => (
@@ -2606,14 +2626,14 @@ const QuotationModal = ({
               <ChevronDown size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
             </div>
             <div className="relative">
-              <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
+              <label className="text-ui-xs font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
                 Colour
               </label>
               <select
                 value={materialColor}
                 onChange={(e) => setMaterialColor(e.target.value)}
                 disabled={materialFieldsLocked}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none disabled:opacity-60"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-zarewa-teal appearance-none outline-none disabled:opacity-60"
               >
                 <option value="">Select…</option>
                 {colourOptions.map((c) => (
@@ -2625,14 +2645,14 @@ const QuotationModal = ({
               <ChevronDown size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
             </div>
             <div className="relative">
-              <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
+              <label className="text-ui-xs font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
                 Profile
               </label>
               <select
                 value={materialDesign}
                 onChange={(e) => setMaterialDesign(e.target.value)}
                 disabled={materialFieldsLocked}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none disabled:opacity-60"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-zarewa-teal appearance-none outline-none disabled:opacity-60"
               >
                 <option value="">Select design…</option>
                 {profileOptions.map((d) => (
@@ -2644,7 +2664,7 @@ const QuotationModal = ({
               <ChevronDown size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
             </div>
             <div className="relative">
-              <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
+              <label className="text-ui-xs font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
                 Quote date
               </label>
               <input
@@ -2652,7 +2672,7 @@ const QuotationModal = ({
                 value={quoteDate}
                 onChange={(e) => setQuoteDate(e.target.value)}
                 readOnly={readOnly}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] outline-none disabled:opacity-60"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-zarewa-teal outline-none disabled:opacity-60"
               />
               <Calendar size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
             </div>
@@ -2663,10 +2683,10 @@ const QuotationModal = ({
 
           {allowMaterialSpecCorrectionInView ? (
             <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 p-4 mb-5">
-              <p className="text-[10px] font-semibold text-[#134e4a] uppercase tracking-widest mb-1">
+              <p className="text-ui-xs font-semibold text-zarewa-teal uppercase tracking-widest mb-1">
                 Material correction (no price change)
               </p>
-              <p className="text-[10px] text-slate-700 leading-snug mb-3">
+              <p className="text-ui-xs text-slate-700 leading-snug mb-3">
                 Use this when colour, gauge, material type, or profile was entered wrong. The server keeps line items
                 and totals as they are. To change quantities (including kg on product lines), open{' '}
                 <strong>Edit</strong> from the quotation row menu if your role allows, or ask a branch manager. For kg
@@ -2687,32 +2707,32 @@ const QuotationModal = ({
                     type="button"
                     disabled={savingMaterial}
                     onClick={() => void onSaveMaterialSpecOnly()}
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#134e4a] px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
+                    className="inline-flex items-center gap-2 rounded-lg bg-zarewa-teal px-4 py-2.5 text-ui-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
                   >
                     <Save size={14} />
                     {savingMaterial ? 'Saving…' : 'Save material correction'}
                   </button>
                 </div>
               ) : (
-                <p className="text-[9px] text-slate-500 italic">Adjust the fields above, then save here.</p>
+                <p className="text-ui-xs text-slate-500 italic">Adjust the fields above, then save here.</p>
               )}
             </div>
           ) : null}
 
           <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-slate-50/50">
-            <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <Landmark size={12} className="text-[#134e4a]" />
+            <label className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              <Landmark size={12} className="text-zarewa-teal" />
               Pay into (shows on printed quotation)
             </label>
             {treasuryPayAccounts.length === 0 ? (
-              <p className="text-[10px] font-medium text-amber-800 leading-snug">
+              <p className="text-ui-xs font-medium text-amber-800 leading-snug">
                 No treasury accounts on file. Add accounts under Finance → Treasury.
               </p>
             ) : (
               <select
                 value={paymentAccountId}
                 onChange={(e) => setPaymentAccountId(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/10"
+                className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-zarewa-teal appearance-none outline-none focus:ring-2 focus:ring-zarewa-teal/10"
               >
                 {treasuryPayAccounts.map((a) => (
                   <option key={a.id} value={String(a.id)}>
@@ -2726,11 +2746,11 @@ const QuotationModal = ({
 
           {editData?.id && selectedCustomerId && !readOnly ? (
             <div className="rounded-xl border border-amber-200/90 bg-amber-50/50 p-4 mb-5">
-              <p className="text-[9px] font-semibold text-amber-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <p className="text-ui-xs font-semibold text-amber-900 uppercase tracking-widest mb-2 flex items-center gap-2">
                 <Wallet size={14} className="text-amber-700" />
                 Apply customer advance
               </p>
-              <p className="text-[10px] text-amber-900/80 leading-relaxed mb-3">
+              <p className="text-ui-xs text-amber-900/80 leading-relaxed mb-3">
                 Customer has <strong>{formatNgn(advanceBal)}</strong> on deposit.{' '}
                 {quoteBalancePolicyLabel ? (
                   <>
@@ -2749,7 +2769,7 @@ const QuotationModal = ({
                 Applying advance is not revenue — it reduces what they owe.
               </p>
               {useLedgerApi && applyAdvanceDateLocked ? (
-                <div className="mb-3 rounded-lg border border-amber-300 bg-amber-100/80 px-3 py-2 text-[10px] text-amber-950">
+                <div className="mb-3 rounded-lg border border-amber-300 bg-amber-100/80 px-3 py-2 text-ui-xs text-amber-950">
                   <p className="font-bold">Quotation date month is locked</p>
                   <p className="mt-0.5 leading-snug">
                     Apply advance uses the quotation date ({applyAdvanceDateISO}) for the ledger period check.
@@ -2760,7 +2780,7 @@ const QuotationModal = ({
                 </div>
               ) : null}
               {applyAdvanceHint ? (
-                <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] text-rose-950 space-y-1">
+                <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-ui-xs text-rose-950 space-y-1">
                   <p className="font-bold">{applyAdvanceHint.title}</p>
                   <p className="leading-snug">{applyAdvanceHint.detail}</p>
                   {applyAdvanceHint.links?.length ? (
@@ -2775,13 +2795,13 @@ const QuotationModal = ({
                 </div>
               ) : null}
               {advanceBal <= 0 ? (
-                <p className="text-[10px] font-medium text-slate-500">No advance balance — record an advance in Sales first.</p>
+                <p className="text-ui-xs font-medium text-slate-500">No advance balance — record an advance in Sales first.</p>
               ) : quoteDueNgn <= 0 ? (
-                <p className="text-[10px] font-medium text-emerald-700">This quotation has no remaining balance in the ledger view.</p>
+                <p className="text-ui-xs font-medium text-emerald-700">This quotation has no remaining balance in the ledger view.</p>
               ) : (
                 <form onSubmit={submitApplyAdvance} className="flex flex-col sm:flex-row sm:items-end gap-2">
                   <div className="flex-1 min-w-0">
-                    <label className="text-[9px] font-semibold text-slate-500 uppercase ml-0.5 mb-1 block">
+                    <label className="text-ui-xs font-semibold text-slate-500 uppercase ml-0.5 mb-1 block">
                       Amount to apply (max {formatNgn(maxApplyAdvance)})
                     </label>
                     <input
@@ -2791,12 +2811,12 @@ const QuotationModal = ({
                       value={applyAdvanceAmount}
                       onChange={(e) => setApplyAdvanceAmount(e.target.value)}
                       placeholder={String(maxApplyAdvance)}
-                      className="w-full bg-white border border-amber-200 rounded-lg py-2 px-3 text-sm font-bold text-[#134e4a] tabular-nums outline-none focus:ring-2 focus:ring-amber-400/30"
+                      className="w-full bg-white border border-amber-200 rounded-lg py-2 px-3 text-sm font-bold text-zarewa-teal tabular-nums outline-none focus:ring-2 focus:ring-amber-400/30"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="shrink-0 rounded-lg bg-amber-600 text-white px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wide hover:bg-amber-700"
+                    className="shrink-0 rounded-lg bg-amber-600 text-white px-4 py-2.5 text-ui-xs font-semibold uppercase tracking-wide hover:bg-amber-700"
                   >
                     Apply to {editData.id}
                   </button>
@@ -2849,14 +2869,14 @@ const QuotationModal = ({
           </div>
         ) : null}
         {!ws?.canMutate ? (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold text-amber-900">
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-ui-xs font-semibold text-amber-900">
             System offline (read-only). Reconnect and refresh before saving or printing.
           </div>
         ) : null}
 
-        <div className="px-5 py-4 bg-[#134e4a] flex justify-between items-center text-white shrink-0 flex-wrap gap-3">
+        <div className="px-5 py-4 bg-zarewa-teal flex justify-between items-center text-white shrink-0 flex-wrap gap-3">
           <div>
-            <p className="text-[9px] font-semibold text-white/50 uppercase tracking-widest mb-0.5">Total</p>
+            <p className="text-ui-xs font-semibold text-white/50 uppercase tracking-widest mb-0.5">Total</p>
             <p className="text-2xl font-bold text-white tabular-nums">{formatNgn(grandTotalNgn)}</p>
           </div>
           <div className="flex gap-2 flex-wrap justify-end">
@@ -2864,28 +2884,28 @@ const QuotationModal = ({
               type="button"
               disabled={readOnly || saving || savingMaterial}
               onClick={() => void onSaveDraft()}
-              className="bg-white/10 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
+              className="bg-white/10 px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
             >
               <Save size={14} className="inline mr-1.5" /> {saving ? 'Saving…' : 'Save'}
             </button>
             <button
               type="button"
               onClick={() => openPrintPreview('quotation')}
-              className="bg-white text-[#134e4a] px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"
+              className="bg-white text-zarewa-teal px-3 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"
             >
               <Printer size={14} /> Quote
             </button>
             <button
               type="button"
               onClick={() => openPrintPreview('invoice')}
-              className="bg-white text-[#134e4a] px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"
+              className="bg-white text-zarewa-teal px-3 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"
             >
               <Printer size={14} /> Invoice
             </button>
             <button
               type="button"
               onClick={() => openPrintPreview('receipt')}
-              className="bg-white text-[#134e4a] px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"
+              className="bg-white text-zarewa-teal px-3 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"
             >
               <Printer size={14} /> Receipt
             </button>
@@ -2893,21 +2913,8 @@ const QuotationModal = ({
         </div>
       </div>
 
-      {showPrint &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <>
-            <button
-              type="button"
-              aria-label="Close print preview"
-              className="no-print fixed inset-0 z-[11060] bg-black/50"
-              onClick={() => setShowPrint(false)}
-            />
-            <div
-              className="print-portal-scroll fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8"
-              onClick={() => setShowPrint(false)}
-            >
-              <div className="mx-auto max-w-[210mm] pb-16 print:m-0 print:max-w-none print:pb-0" onClick={(e) => e.stopPropagation()}>
+      <PrintModalPortal open={showPrint} onClose={() => setShowPrint(false)}>
+              <div className="mx-auto max-w-[210mm] pb-16 print:m-0 print:max-w-none print:pb-0">
                 <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
                   <QuotationPrintView
                     documentKind={printDocumentKind}
@@ -2931,23 +2938,20 @@ const QuotationModal = ({
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="rounded-lg bg-[#134e4a] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg"
+                    className="rounded-lg bg-zarewa-teal px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-white shadow-lg"
                   >
                     Print / Save as PDF
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowPrint(false)}
-                    className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700"
+                    className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-700"
                   >
                     Close
                   </button>
                 </div>
               </div>
-            </div>
-          </>,
-          document.body
-        )}
+      </PrintModalPortal>
     </ModalFrame>
   );
 };

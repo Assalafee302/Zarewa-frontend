@@ -51,7 +51,7 @@ export function ReportsFinanceToolsPanel({
               {toolLabels.map((label) => (
                 <span
                   key={label}
-                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600"
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-ui-xs font-bold uppercase tracking-wide text-slate-600"
                 >
                   {label}
                 </span>

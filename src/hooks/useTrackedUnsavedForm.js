@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useUnsavedWorkRegistry, UNSAVED_LEAVE_MESSAGE } from '../context/UnsavedWorkContext';
+import { appConfirm } from '../lib/appConfirm';
 
 /**
  * Tracks “user edited this modal” for global leave guards and optional close confirmation.
@@ -33,8 +34,11 @@ export function useTrackedUnsavedForm(id, { isOpen, blockTracking, hydrateKey })
   }, [blockTracking]);
 
   const wrapClose = useCallback(
-    (fn) => () => {
-      if (edited && !blockTracking && !window.confirm(UNSAVED_LEAVE_MESSAGE)) return;
+    (fn) => async () => {
+      if (edited && !blockTracking) {
+        const ok = await appConfirm({ title: 'Unsaved changes', message: UNSAVED_LEAVE_MESSAGE });
+        if (!ok) return;
+      }
       setEdited(false);
       fn();
     },

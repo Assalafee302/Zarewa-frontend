@@ -17,6 +17,7 @@ import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
 import { HrPayrollPeriodFields } from '../../components/hr/HrPayrollPeriodFields';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
+import { appConfirm } from '../../lib/appConfirm';
 import {
   approveExecutivePayment,
   deleteExecutiveSchoolFee,
@@ -70,7 +71,7 @@ function KpiCard({ label, value, hint }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-black text-[#134e4a]">{value}</p>
+      <p className="mt-1 text-2xl font-black text-zarewa-teal">{value}</p>
       {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </div>
   );
@@ -206,7 +207,11 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
   };
 
   const handleDeleteFee = async (id) => {
-    if (!window.confirm('Delete this school fee request?')) return;
+    if (!(await appConfirm({
+      title: 'Delete',
+      message: 'Delete this school fee request?',
+      variant: 'danger',
+    }))) return;
     await deleteExecutiveSchoolFee(id);
     await loadTab();
   };
@@ -281,7 +286,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
             onClick={() => setTab(t.id)}
             className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
               tab === t.id
-                ? 'border-[#134e4a] bg-[#134e4a] text-white shadow-sm'
+                ? 'border-zarewa-teal bg-zarewa-teal text-white shadow-sm'
                 : 'border-slate-200 bg-white text-slate-700 hover:border-teal-200'
             }`}
           >
@@ -318,7 +323,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd>{b.bankAccountNo || '—'}</AppTableTd>
                       <AppTableTd><HrStatusBadge status={b.status} variant="benefit" /></AppTableTd>
                       <AppTableTd>
-                        <button type="button" className="text-xs font-semibold text-[#134e4a]" onClick={() => openModal('beneficiary', b)}>Edit</button>
+                        <button type="button" className="text-xs font-semibold text-zarewa-teal" onClick={() => openModal('beneficiary', b)}>Edit</button>
                       </AppTableTd>
                     </AppTableTr>
                   ))}
@@ -352,7 +357,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd align="right">{formatNgn(f.amountApprovedNgn ?? f.amountRequestedNgn)}</AppTableTd>
                       <AppTableTd><HrStatusBadge status={f.paymentStatus} variant="benefit" /></AppTableTd>
                       <AppTableTd className="space-x-2">
-                        <button type="button" className="text-xs font-semibold text-[#134e4a]" onClick={() => openModal('fee', f)}>Edit</button>
+                        <button type="button" className="text-xs font-semibold text-zarewa-teal" onClick={() => openModal('fee', f)}>Edit</button>
                         {f.paymentStatus === 'draft' ? (
                           <button type="button" className="text-xs font-semibold text-teal-700" onClick={() => handleSubmitFee(f.id)}>Submit</button>
                         ) : null}
@@ -392,7 +397,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd>{s.bankAccountNo || '—'}</AppTableTd>
                       <AppTableTd><HrStatusBadge status={s.status} variant="benefit" /></AppTableTd>
                       <AppTableTd>
-                        <button type="button" className="text-xs font-semibold text-[#134e4a]" onClick={() => openModal('stipend', s)}>Edit</button>
+                        <button type="button" className="text-xs font-semibold text-zarewa-teal" onClick={() => openModal('stipend', s)}>Edit</button>
                       </AppTableTd>
                     </AppTableTr>
                   ))}
@@ -430,7 +435,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd align="right">{formatNgn(d.salaryAmountNgn)}</AppTableTd>
                       <AppTableTd><HrStatusBadge status={d.status} variant="benefit" /></AppTableTd>
                       <AppTableTd>
-                        <button type="button" className="text-xs font-semibold text-[#134e4a]" onClick={() => openModal('domestic', d)}>Edit</button>
+                        <button type="button" className="text-xs font-semibold text-zarewa-teal" onClick={() => openModal('domestic', d)}>Edit</button>
                       </AppTableTd>
                     </AppTableTr>
                   ))}

@@ -40,19 +40,19 @@ export function StaffPurchaseCreditManagerPreview({
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-teal-200 bg-teal-50/60 px-4 py-4">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#134e4a]">Staff purchase credit</p>
+        <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">Staff purchase credit</p>
         <p className="mt-1 text-lg font-bold text-slate-900">{staffName}</p>
         <p className="text-sm text-slate-600 mt-1">{account.title || 'Roofing / materials on credit'}</p>
         <dl className="mt-4 grid gap-2 text-sm text-slate-800 sm:grid-cols-2">
           {quoteRef ? (
             <div className="sm:col-span-2">
-              <dt className="text-[10px] font-bold uppercase text-slate-500">Quotation</dt>
+              <dt className="text-ui-xs font-bold uppercase text-slate-500">Quotation</dt>
               <dd className="font-mono font-semibold">{quoteRef}</dd>
               {quoteLink ? (
                 <Link
                   to={quoteLink.to}
                   state={quoteLink.state}
-                  className="mt-1 inline-block text-xs font-bold text-[#134e4a] underline"
+                  className="mt-1 inline-block text-xs font-bold text-zarewa-teal underline"
                 >
                   Open quotation in Sales
                 </Link>
@@ -61,13 +61,13 @@ export function StaffPurchaseCreditManagerPreview({
           ) : null}
           {amountNgn > 0 ? (
             <div>
-              <dt className="text-[10px] font-bold uppercase text-slate-500">Credit amount</dt>
+              <dt className="text-ui-xs font-bold uppercase text-slate-500">Credit amount</dt>
               <dd className="font-semibold">{asMoney(amountNgn)}</dd>
             </div>
           ) : null}
           {installmentNgn > 0 ? (
             <div>
-              <dt className="text-[10px] font-bold uppercase text-slate-500">Payroll repayment</dt>
+              <dt className="text-ui-xs font-bold uppercase text-slate-500">Payroll repayment</dt>
               <dd>
                 {asMoney(installmentNgn)}/mo
                 {termMonths > 0 ? ` · ${termMonths} months` : ''}
@@ -76,7 +76,7 @@ export function StaffPurchaseCreditManagerPreview({
           ) : null}
           {account.branchId ? (
             <div>
-              <dt className="text-[10px] font-bold uppercase text-slate-500">Branch</dt>
+              <dt className="text-ui-xs font-bold uppercase text-slate-500">Branch</dt>
               <dd>{account.branchId}</dd>
             </div>
           ) : null}

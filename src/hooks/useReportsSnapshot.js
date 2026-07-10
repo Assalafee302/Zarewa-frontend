@@ -6,7 +6,7 @@ import {
   productionAttributedRevenueNgn,
   productionOutputDateISO,
 } from '../lib/liveAnalytics';
-import { apiFetch } from '../lib/apiBase';
+import { useReportsSummaryQuery } from './useReportsSummaryQuery';
 
 const EXCEPTION_STORAGE_KEY = 'reports.paymentExceptionClosureNotes';
 
@@ -18,28 +18,11 @@ export function useReportsSnapshot(ws, startDate, endDate) {
     !ws.canAccessModule('operations') &&
     !ws.canAccessModule('finance');
 
-  const [aggregateSummary, setAggregateSummary] = useState(null);
-  const [summaryErr, setSummaryErr] = useState(null);
+  const {
+    counts: aggregateSummary,
+    error: summaryErr,
+  } = useReportsSummaryQuery(countOnlyOverview && ws.hasWorkspaceData);
   const [exceptionClosureNotes, setExceptionClosureNotes] = useState({});
-
-  useEffect(() => {
-    if (!countOnlyOverview || !ws.hasWorkspaceData) return undefined;
-    let cancelled = false;
-    (async () => {
-      const { ok, data } = await apiFetch('/api/reports/summary');
-      if (cancelled) return;
-      if (!ok || !data?.ok) {
-        setSummaryErr(data?.error || 'Could not load summary');
-        setAggregateSummary(null);
-        return;
-      }
-      setAggregateSummary(data.counts);
-      setSummaryErr(null);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [countOnlyOverview, ws.hasWorkspaceData, ws.refreshEpoch]);
 
   useEffect(() => {
     try {

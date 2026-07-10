@@ -11,7 +11,7 @@ function heatCellClass(pct, hasData) {
 function summaryPctClass(pct) {
   if (pct >= 25) return 'text-rose-700';
   if (pct >= 15) return 'text-amber-800';
-  return 'text-[#134e4a]';
+  return 'text-zarewa-teal';
 }
 
 /**
@@ -30,7 +30,7 @@ export function ExpenseCategoryOthersTrendTable({
     <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white/60">
       <table className={`w-full ${compact ? 'min-w-[480px] text-xs' : 'min-w-[640px] text-sm'}`}>
         <thead>
-          <tr className="border-b border-slate-200 text-left text-[10px] font-bold uppercase text-slate-500 bg-slate-50/80">
+          <tr className="border-b border-slate-200 text-left text-ui-xs font-bold uppercase text-slate-500 bg-slate-50/80">
             <th className={`${compact ? 'py-2 pr-3' : 'py-2.5 pr-4'}`}>Branch</th>
             {monthKeys.map((mk) => (
               <th key={mk} className={`${compact ? 'py-2 px-1.5' : 'py-2.5 px-2'} text-right`}>

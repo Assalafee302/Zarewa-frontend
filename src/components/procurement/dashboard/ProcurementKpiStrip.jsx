@@ -4,8 +4,8 @@ import { formatNgn } from '../../../Data/mockData';
 function KpiCard({ label, value, money = false }) {
   return (
     <div className="min-w-[9.5rem] rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-black tabular-nums text-[#134e4a]">{money ? formatNgn(Number(value) || 0) : value}</p>
+      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-black tabular-nums text-zarewa-teal">{money ? formatNgn(Number(value) || 0) : value}</p>
     </div>
   );
 }

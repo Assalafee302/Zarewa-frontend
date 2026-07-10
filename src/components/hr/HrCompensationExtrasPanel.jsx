@@ -26,7 +26,7 @@ function recommendAppRoleKeysClient(form) {
 import { formatNgn } from '../../lib/hrFormat';
 
 const fieldCls =
-  'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
+  'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-zarewa-teal focus:outline-none focus:ring-2 focus:ring-zarewa-teal/15';
 
 function Field({ label, children, hint }) {
   return (
@@ -151,7 +151,7 @@ export function HrCompensationExtrasPanel({
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Offices & pay variance</h3>
+          <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Offices & pay variance</h3>
           <p className="mt-1 text-xs text-slate-500">
             Merge functional desks under one person (primary designation + secondary hats). Standard matrix pay plus any
             manual addition equals actual pay.
@@ -160,7 +160,7 @@ export function HrCompensationExtrasPanel({
         {onApplyMatrix ? (
           <button
             type="button"
-            className="rounded-xl border border-[#134e4a]/30 bg-white px-3 py-2 text-xs font-bold text-[#134e4a] hover:bg-[#134e4a]/5 disabled:opacity-50"
+            className="rounded-xl border border-zarewa-teal/30 bg-white px-3 py-2 text-xs font-bold text-zarewa-teal hover:bg-zarewa-teal/5 disabled:opacity-50"
             disabled={matrixBusy}
             onClick={onApplyMatrix}
           >
@@ -185,7 +185,7 @@ export function HrCompensationExtrasPanel({
 
       {mergedOfficePreview.length > 0 ? (
         <div className="rounded-xl border border-teal-100 bg-teal-50/50 p-3">
-          <p className="text-[10px] font-black uppercase tracking-wide text-teal-900 mb-2">Merged functional desks</p>
+          <p className="text-ui-xs font-black uppercase tracking-wide text-teal-900 mb-2">Merged functional desks</p>
           <ul className="space-y-1 text-xs text-teal-950">
             {mergedOfficePreview.map((o, i) => (
               <li key={i}>
@@ -273,7 +273,7 @@ export function HrCompensationExtrasPanel({
       <div>
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Secondary operational roles / offices</p>
-          <button type="button" className="text-xs font-bold text-[#134e4a]" onClick={addRole}>
+          <button type="button" className="text-xs font-bold text-zarewa-teal" onClick={addRole}>
             + Add desk
           </button>
         </div>

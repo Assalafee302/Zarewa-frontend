@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { ListEmptyState } from '../ui/ListEmptyState';
 import { normalizeWorkItem } from '../../lib/workspaceWorkItemModel';
 import { officeRecordStatusBadges, officeRecordNextActorLabel } from '../../lib/officeRecordStatus';
 import {
@@ -29,7 +30,7 @@ function TaskCard({ item, branchNames, onSelect }) {
       {n.previewText ? <p className="mt-2 text-sm text-slate-600 line-clamp-2">{n.previewText}</p> : null}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {badges.secondary ? <span className={badges.secondary.className}>{badges.secondary.label}</span> : null}
-        <span className="text-[10px] font-medium text-slate-500">{officeRecordNextActorLabel(item)}</span>
+        <span className="text-ui-xs font-medium text-slate-500">{officeRecordNextActorLabel(item)}</span>
       </div>
     </button>
   );
@@ -69,15 +70,17 @@ export default function TaskQueuePanel({ items, inboxCtx, activeTab, onTabChange
           >
             {tab.label}
             {counts[tab.id] > 0 ? (
-              <span className="ml-1 rounded-full bg-teal-100 px-1.5 py-0.5 text-[10px] text-teal-900">{counts[tab.id]}</span>
+              <span className="ml-1 rounded-full bg-teal-100 px-1.5 py-0.5 text-ui-xs text-teal-900">{counts[tab.id]}</span>
             ) : null}
           </button>
         ))}
       </div>
       {filtered.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-          {emptyMessage || 'No items in this queue.'}
-        </p>
+        <ListEmptyState
+          title={emptyMessage || 'No items in this queue'}
+          description="Switch tabs or check back when new work arrives."
+          className="py-8"
+        />
       ) : (
         <div className="space-y-2">
           {filtered.map((item) => (

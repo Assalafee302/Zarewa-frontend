@@ -3,6 +3,7 @@ import { CheckCircle2, Factory, Flag, X } from 'lucide-react';
 import { ModalFrame } from '../layout/ModalFrame';
 import { formatNgn } from '../../Data/mockData';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { QuotationPriceExceptionPanel } from '../QuotationPriceExceptionPanel';
@@ -574,15 +575,15 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
         {!isOfficeMemo ? (
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#134e4a]">{kindLabel}</p>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">{kindLabel}</p>
             <h2 className="mt-1 text-lg font-black text-slate-900 truncate">{item.title || 'Review'}</h2>
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               {item.branchName || '—'}
               {item.amountNgn != null ? ` · ${formatNgn(item.amountNgn)}` : ''}
               {item.requestedBy ? ` · ${item.requestedBy}` : ''}
             </p>
             {reasons.length > 0 ? (
-              <ul className="mt-2 space-y-0.5 text-[10px] text-amber-900/90 list-disc pl-4">
+              <ul className="mt-2 space-y-0.5 text-ui-xs text-amber-900/90 list-disc pl-4">
                 {reasons.map((r, i) => (
                   <li key={i}>{r}</li>
                 ))}
@@ -601,7 +602,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
         ) : (
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#134e4a]">Office memo</p>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">Office memo</p>
             <h2 className="text-base font-bold text-slate-900 truncate">{item.title || 'Memo'}</h2>
           </div>
           <button
@@ -673,16 +674,17 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                   const reason = window.prompt('Reason for audit flag? (required)');
                   if (reason?.trim()) void handleQuotationReview(review.quotationId, 'flag', reason.trim());
                 }}
-                onReleasePayments={() => {
-                  if (window.confirm('Release payment hold on this quotation?')) {
+                onReleasePayments={async () => {
+                  if (await appConfirm({ message: 'Release payment hold on this quotation?' })) {
                     void handleQuotationReview(review.quotationId, 'release_payments');
                   }
                 }}
-                onWaiveBalance={() => {
+                onWaiveBalance={async () => {
                   if (
-                    window.confirm(
-                      'Waive the small round-off within payment tolerance (max ₦5,000)? It will be removed from Creditors receivables.'
-                    )
+                    await appConfirm({
+                      message:
+                        'Waive the small round-off within payment tolerance (max ₦5,000)? It will be removed from Creditors receivables.',
+                    })
                   ) {
                     void handleQuotationReview(review.quotationId, 'waive_balance');
                   }
@@ -699,21 +701,21 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           {review.view === 'conversion' ? (
             <div className="space-y-4 rounded-xl border border-violet-200 bg-violet-50/40 p-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-violet-900">Conversion review</p>
+                <p className="text-ui-xs font-black uppercase tracking-widest text-violet-900">Conversion review</p>
                 <p className="mt-1 font-mono text-sm font-bold text-slate-900">{review.jobId}</p>
                 <p className="text-xs text-slate-600 mt-1">{formatPersonName(review.row?.customer_name)}</p>
-                <p className="text-[10px] text-slate-500">{review.row?.product_name}</p>
+                <p className="text-ui-xs text-slate-500">{review.row?.product_name}</p>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="rounded-md bg-white px-2 py-0.5 text-[9px] font-bold uppercase ring-1 ring-violet-200">
+                  <span className="rounded-md bg-white px-2 py-0.5 text-ui-xs font-bold uppercase ring-1 ring-violet-200">
                     Alert: {review.row?.conversion_alert_state || '—'}
                   </span>
                   {review.row?.manager_review_required ? (
-                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-900">
+                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-ui-xs font-bold uppercase text-amber-900">
                       Manager review
                     </span>
                   ) : null}
                 </div>
-                <p className="text-[10px] text-slate-600 mt-3 tabular-nums">
+                <p className="text-ui-xs text-slate-600 mt-3 tabular-nums">
                   Actual: {Number(review.row?.actual_meters || 0).toLocaleString()} m
                   {review.row?.actual_weight_kg != null
                     ? ` · ${Number(review.row.actual_weight_kg).toLocaleString()} kg`
@@ -725,7 +727,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
               ) : null}
               {!readOnly && item.canAct !== false ? (
                 <div className="space-y-3 border-t border-violet-200/80 pt-4">
-                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                  <p className="text-ui-xs text-slate-600 leading-relaxed">
                     Confirm you have reviewed high/low conversion variance for this completed job.
                   </p>
                   <textarea
@@ -733,7 +735,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                     onChange={(e) => setConversionRemark(e.target.value)}
                     rows={2}
                     placeholder="Sign-off remark (min. 3 characters)"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-violet-300/50"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-violet-300/50"
                   />
                   {review.jobId ? (
                     <EditSecondApprovalInline
@@ -747,7 +749,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                     type="button"
                     disabled={busy}
                     onClick={() => void handleConversionSignoff()}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-[10px] font-black uppercase tracking-wide text-white hover:bg-violet-800 disabled:opacity-40"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-violet-800 disabled:opacity-40"
                   >
                     <Factory size={16} />
                     Sign off conversion review
@@ -792,7 +794,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'register_settlement' ? (
             <div className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/40 p-4">
-              <p className="text-[10px] font-black uppercase text-teal-900">Register withdrawal</p>
+              <p className="text-ui-xs font-black uppercase text-teal-900">Register withdrawal</p>
               {!canApproveSettlements ? (
                 <ZareApprovalHint
                   context={{
@@ -805,26 +807,26 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 />
               ) : null}
               {loadingSettlement && !settlementDetail && !review.row?.settlementId ? (
-                <p className="text-[11px] text-slate-500">Loading withdrawal details…</p>
+                <p className="text-xs text-slate-500">Loading withdrawal details…</p>
               ) : (
                 <>
                   <p className="font-mono text-sm font-bold">{settlementId || review.settlementId || '—'}</p>
-                  <p className="text-[11px] text-slate-700">
+                  <p className="text-xs text-slate-700">
                     {(settlementDetail || review.row)?.partyName || item?.reviewContext?.subtitle || '—'}
                     {(settlementDetail || review.row)?.registerLineId
                       ? ` · ${(settlementDetail || review.row).registerLineId}`
                       : ''}
                   </p>
-                  <p className="text-2xl font-black text-[#134e4a] tabular-nums">
+                  <p className="text-2xl font-black text-zarewa-teal tabular-nums">
                     {formatNgn((settlementDetail || review.row)?.amountNgn ?? item?.amountNgn)}
                   </p>
                   {(settlementDetail || review.row)?.reason ? (
-                    <p className="text-[11px] text-slate-600 rounded-lg bg-white border border-slate-100 px-3 py-2">
+                    <p className="text-xs text-slate-600 rounded-lg bg-white border border-slate-100 px-3 py-2">
                       {(settlementDetail || review.row).reason}
                     </p>
                   ) : null}
                   {(settlementDetail || review.row)?.requestedByName ? (
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-ui-xs text-slate-500">
                       Requested by {formatPersonName((settlementDetail || review.row).requestedByName)}
                     </p>
                   ) : null}
@@ -833,7 +835,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
               {!readOnly && canApproveSettlements ? (
                 <div className="space-y-3 border-t border-teal-200/80 pt-4">
                   {settlementActionError ? (
-                    <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800">
+                    <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
                       {settlementActionError}
                     </p>
                   ) : null}
@@ -842,14 +844,14 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                     onChange={(e) => setSettlementNote(e.target.value)}
                     rows={2}
                     placeholder="Approval or rejection note (required for rejection)"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-teal-300/50"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-teal-300/50"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       disabled={busy || (!settlementId && !review.settlementId)}
                       onClick={() => void handleSettlementDecision('Approved')}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
                     >
                       <CheckCircle2 size={14} />
                       {busy ? 'Saving…' : 'Approve'}
@@ -858,7 +860,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                       type="button"
                       disabled={busy || (!settlementId && !review.settlementId)}
                       onClick={() => void handleSettlementDecision('Rejected')}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
                     >
                       <Flag size={14} />
                       {busy ? 'Saving…' : 'Reject'}
@@ -871,20 +873,20 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'payment' ? (
             <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-              <p className="text-[10px] font-black uppercase text-slate-500">Payment request</p>
+              <p className="text-ui-xs font-black uppercase text-slate-500">Payment request</p>
               <p className="font-mono text-sm font-bold">{review.requestId}</p>
-              <p className="text-2xl font-black text-[#134e4a] tabular-nums">
+              <p className="text-2xl font-black text-zarewa-teal tabular-nums">
                 {formatNgn(review.row?.amount_requested_ngn)}
               </p>
-              <p className="text-[11px] text-slate-700">{review.row?.description}</p>
-              <p className="text-[10px] text-slate-500">{review.row?.expense_category}</p>
+              <p className="text-xs text-slate-700">{review.row?.description}</p>
+              <p className="text-ui-xs text-slate-500">{review.row?.expense_category}</p>
               {!readOnly && item.canAct !== false ? (
                 <div className="grid grid-cols-2 gap-2 pt-2">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => void handlePaymentDecision('Approved')}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
                   >
                     <CheckCircle2 size={14} />
                     Approve
@@ -893,7 +895,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                     type="button"
                     disabled={busy}
                     onClick={() => void handlePaymentDecision('Rejected')}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
                   >
                     <Flag size={14} />
                     Reject
@@ -905,9 +907,9 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'material' ? (
             <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-              <p className="text-[10px] font-black uppercase text-amber-950">Material exception</p>
+              <p className="text-ui-xs font-black uppercase text-amber-950">Material exception</p>
               <p className="font-mono text-sm font-bold">{review.incidentId}</p>
-              <p className="text-[11px] text-amber-950/90">
+              <p className="text-xs text-amber-950/90">
                 {review.row?.incident_type || 'Incident'} · {review.row?.gauge_label} {review.row?.colour}
               </p>
               {!readOnly && item.canAct !== false ? (
@@ -915,7 +917,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                   type="button"
                   disabled={busy}
                   onClick={() => void handleMaterialApprove()}
-                  className="rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
+                  className="rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
                 >
                   Approve incident
                 </button>
@@ -925,11 +927,11 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'edit_approval' ? (
             <div className="space-y-3 rounded-xl border border-violet-200 bg-violet-50/50 p-4">
-              <p className="text-[10px] font-black uppercase text-violet-900">Edit approval</p>
-              <p className="text-[11px]">
+              <p className="text-ui-xs font-black uppercase text-violet-900">Edit approval</p>
+              <p className="text-xs">
                 {review.row?.entityKind} · <span className="font-mono">{review.row?.entityId}</span>
               </p>
-              <p className="text-[10px] text-slate-600">
+              <p className="text-ui-xs text-slate-600">
                 Requested by {review.row?.requestedByDisplay || review.row?.requestedByUserId || '—'}
               </p>
               {!readOnly && item.canAct !== false ? (
@@ -937,7 +939,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                   type="button"
                   disabled={busy}
                   onClick={() => void handleEditApproval()}
-                  className="rounded-lg bg-violet-700 px-4 py-2 text-[10px] font-black uppercase text-white hover:bg-violet-800 disabled:opacity-40"
+                  className="rounded-lg bg-violet-700 px-4 py-2 text-ui-xs font-black uppercase text-white hover:bg-violet-800 disabled:opacity-40"
                 >
                   Approve edit
                 </button>
@@ -947,7 +949,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'staff_purchase_credit' ? (
             loadingStaffCredit && !staffCreditRow ? (
-              <p className="text-[11px] text-slate-500">Loading staff purchase credit…</p>
+              <p className="text-xs text-slate-500">Loading staff purchase credit…</p>
             ) : (
               <StaffPurchaseCreditManagerPreview
                 row={staffCreditRow || review.row}
@@ -963,15 +965,15 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'payroll' ? (
             <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-              <p className="text-[10px] font-black uppercase text-amber-950">Payroll MD sign-off</p>
+              <p className="text-ui-xs font-black uppercase text-amber-950">Payroll MD sign-off</p>
               <p className="font-mono text-sm font-bold">{review.payrollRunId}</p>
-              <p className="text-[11px] text-amber-950/90">
+              <p className="text-xs text-amber-950/90">
                 Period {formatPeriodYyyymm(review.row?.period_yyyymm || review.row?.periodYyyymm || review.payrollRunId)}
               </p>
               {loadingPayroll ? (
-                <p className="text-[11px] text-slate-500">Loading payroll totals…</p>
+                <p className="text-xs text-slate-500">Loading payroll totals…</p>
               ) : payrollTotals ? (
-                <p className="text-2xl font-black text-[#134e4a] tabular-nums">
+                <p className="text-2xl font-black text-zarewa-teal tabular-nums">
                   {formatNgn(payrollTotals.netPayNgn ?? payrollTotals.totalNetNgn ?? payrollTotals.grandTotalNgn ?? 0)}
                 </p>
               ) : null}
@@ -980,7 +982,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                   type="button"
                   disabled={busy}
                   onClick={() => void handlePayrollMdApprove()}
-                  className="rounded-lg bg-[#134e4a] px-4 py-2.5 text-[10px] font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
+                  className="rounded-lg bg-zarewa-teal px-4 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
                 >
                   Sign off payroll
                 </button>
@@ -990,16 +992,16 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'inter_branch_loan' ? (
             <div className="space-y-4 rounded-xl border border-sky-200 bg-sky-50/60 p-4">
-              <p className="text-[10px] font-black uppercase text-sky-950">Inter-branch loan</p>
+              <p className="text-ui-xs font-black uppercase text-sky-950">Inter-branch loan</p>
               <p className="font-mono text-sm font-bold">{review.loanId}</p>
               {loadingLoan ? (
-                <p className="text-[11px] text-slate-500">Loading loan…</p>
+                <p className="text-xs text-slate-500">Loading loan…</p>
               ) : interBranchLoan ? (
                 <>
-                  <p className="text-2xl font-black text-[#134e4a] tabular-nums">
+                  <p className="text-2xl font-black text-zarewa-teal tabular-nums">
                     {formatNgn(interBranchLoan.principalNgn ?? item.amountNgn)}
                   </p>
-                  <p className="text-[11px] text-slate-700">{interBranchLoan.purpose || review.row?.purpose || '—'}</p>
+                  <p className="text-xs text-slate-700">{interBranchLoan.purpose || review.row?.purpose || '—'}</p>
                 </>
               ) : null}
               {!readOnly && canMdInterBranch ? (
@@ -1009,14 +1011,14 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                     onChange={(e) => setLoanRejectNote(e.target.value)}
                     rows={2}
                     placeholder="Rejection note (required to reject)"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-sky-300/50"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-sky-300/50"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       disabled={busy}
                       onClick={() => void handleInterBranchMdApprove()}
-                      className="rounded-lg bg-emerald-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
+                      className="rounded-lg bg-emerald-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
                     >
                       Approve
                     </button>
@@ -1024,7 +1026,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                       type="button"
                       disabled={busy}
                       onClick={() => void handleInterBranchMdReject()}
-                      className="rounded-lg bg-rose-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
+                      className="rounded-lg bg-rose-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
                     >
                       Reject
                     </button>
@@ -1036,20 +1038,20 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'stock_register' ? (
             <div className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/40 p-4">
-              <p className="text-[10px] font-black uppercase text-teal-900">Month-end stock register</p>
-              <p className="text-sm font-bold text-[#134e4a]">
+              <p className="text-ui-xs font-black uppercase text-teal-900">Month-end stock register</p>
+              <p className="text-sm font-bold text-zarewa-teal">
                 {review.branchIdForRegister || item.branchName} · {review.periodKey}
               </p>
               {ws?.viewAllBranches ? (
-                <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   Switch workspace from <strong>All branches</strong> to{' '}
                   <strong>{review.branchIdForRegister || 'this branch'}</strong> in the branch bar, then approve.
                 </p>
               ) : null}
               {loadingStock ? (
-                <p className="text-[11px] text-slate-500">Loading register workflow…</p>
+                <p className="text-xs text-slate-500">Loading register workflow…</p>
               ) : (
-                <p className="text-[11px] text-slate-700">
+                <p className="text-xs text-slate-700">
                   Status: {String(stockWorkflow?.status || '—').replace(/_/g, ' ')}
                 </p>
               )}
@@ -1058,7 +1060,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                   type="button"
                   disabled={busy || ws?.viewAllBranches || stockWorkflow?.status !== 'procurement_costed'}
                   onClick={() => void handleStockRegisterMdApprove()}
-                  className="rounded-lg bg-[#134e4a] px-4 py-2.5 text-[10px] font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
+                  className="rounded-lg bg-zarewa-teal px-4 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
                 >
                   MD approve register
                 </button>
@@ -1067,7 +1069,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           ) : null}
 
           {review.view === 'fallback' ? (
-            <p className="text-[11px] text-slate-600">
+            <p className="text-xs text-slate-600">
               Open the linked module to complete this review.
             </p>
           ) : null}
@@ -1079,7 +1081,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           {!isOfficeMemo && review.view === 'fallback' && item.route ? (
             <a
               href={item.route}
-              className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a]/5 px-4 py-2 text-[10px] font-black uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
+              className="rounded-lg border border-zarewa-teal/30 bg-zarewa-teal/5 px-4 py-2 text-ui-xs font-black uppercase text-zarewa-teal hover:bg-zarewa-teal/10"
             >
               Open module
             </a>
@@ -1087,7 +1089,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 px-4 py-2 text-ui-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
           >
             Close
           </button>

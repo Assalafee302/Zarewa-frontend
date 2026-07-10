@@ -45,23 +45,23 @@ export function AccountingCutoverActionPlan({ onFocusTab, deskRefresh = 0, plan 
   if (!data) return null;
 
   return (
-    <section className="rounded-xl border border-[#134e4a]/15 bg-white overflow-hidden">
+    <section className="rounded-xl border border-zarewa-teal/15 bg-white overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-teal-50/50 px-4 py-2.5">
         <div className="flex items-center gap-2">
-          <Flag size={14} className="text-[#134e4a]" />
+          <Flag size={14} className="text-zarewa-teal" />
           <div>
-            <h3 className="text-[10px] font-black uppercase tracking-wide text-[#134e4a]">Cutover action plan</h3>
-            <p className="text-[10px] text-slate-600">{data.summary}</p>
+            <h3 className="text-ui-xs font-black uppercase tracking-wide text-zarewa-teal">Cutover action plan</h3>
+            <p className="text-ui-xs text-slate-600">{data.summary}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-sm font-black tabular-nums text-[#134e4a]">{data.progressPct}%</span>
+          <span className="text-sm font-black tabular-nums text-zarewa-teal">{data.progressPct}%</span>
           {!plan ? (
             <button
               type="button"
               onClick={load}
               disabled={loading}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold uppercase text-[#134e4a]"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-ui-xs font-bold uppercase text-zarewa-teal"
             >
               <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
               Refresh
@@ -73,30 +73,30 @@ export function AccountingCutoverActionPlan({ onFocusTab, deskRefresh = 0, plan 
       <div className="px-4 py-2">
         <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
           <div
-            className="h-full bg-[#134e4a] transition-all"
+            className="h-full bg-zarewa-teal transition-all"
             style={{ width: `${data.progressPct}%` }}
           />
         </div>
-        <p className="mt-1.5 text-[9px] text-slate-500">{data.disclaimer}</p>
+        <p className="mt-1.5 text-ui-xs text-slate-500">{data.disclaimer}</p>
       </div>
 
       <div className="divide-y divide-slate-100">
         {(data.phases || []).map((phase) => (
           <div key={phase.id} className="px-4 py-3">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">{phase.title}</p>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500 mb-2">{phase.title}</p>
             <ul className="space-y-1.5">
               {(phase.items || []).map((item) => (
                 <li key={item.id} className={`${ACCOUNTING_CARD_ROW} flex items-start gap-2 py-2`}>
                   {STATUS_ICON[item.status] || STATUS_ICON.pending}
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-semibold text-slate-800">{item.label}</p>
-                    <p className="text-[10px] text-slate-600 mt-0.5 leading-snug">{item.detail}</p>
+                    <p className="text-xs font-semibold text-slate-800">{item.label}</p>
+                    <p className="text-ui-xs text-slate-600 mt-0.5 leading-snug">{item.detail}</p>
                   </div>
                   {item.focusTab && onFocusTab ? (
                     <button
                       type="button"
                       onClick={() => onFocusTab(item.focusTab)}
-                      className="shrink-0 text-[9px] font-bold uppercase text-teal-800 hover:underline"
+                      className="shrink-0 text-ui-xs font-bold uppercase text-teal-800 hover:underline"
                     >
                       Open →
                     </button>

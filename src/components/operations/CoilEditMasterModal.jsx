@@ -36,14 +36,14 @@ function PreviewTile({ label, value, hint, accent }) {
   return (
     <div
       className={`rounded-lg border px-3 py-2.5 ${
-        accent ? 'border-[#134e4a]/30 bg-[#134e4a]/5' : 'border-slate-200 bg-slate-50/80'
+        accent ? 'border-zarewa-teal/30 bg-zarewa-teal/5' : 'border-slate-200 bg-slate-50/80'
       }`}
     >
-      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-0.5 text-lg font-black tabular-nums ${accent ? 'text-[#134e4a]' : 'text-slate-800'}`}>
+      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className={`mt-0.5 text-lg font-black tabular-nums ${accent ? 'text-zarewa-teal' : 'text-slate-800'}`}>
         {value}
       </p>
-      {hint ? <p className="mt-0.5 text-[10px] text-slate-500 leading-snug">{hint}</p> : null}
+      {hint ? <p className="mt-0.5 text-ui-xs text-slate-500 leading-snug">{hint}</p> : null}
     </div>
   );
 }
@@ -183,8 +183,8 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
       <div className="z-modal-panel max-w-xl p-6 sm:p-8 overflow-y-auto max-h-[min(92vh,44rem)]">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Coil register correction</p>
-            <h3 className="text-xl font-bold text-[#134e4a] font-mono mt-0.5">{coil.coilNo}</h3>
+            <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">Coil register correction</p>
+            <h3 className="text-xl font-bold text-zarewa-teal font-mono mt-0.5">{coil.coilNo}</h3>
             <p className="text-xs text-slate-600 mt-1">
               {[coil.productID, coil.colour, coil.gaugeLabel].filter(Boolean).join(' · ') || '—'}
               {coil.currentStatus ? ` · ${coil.currentStatus}` : ''}
@@ -196,8 +196,8 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-3 mb-4">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5">
-            <Scale size={14} className="text-[#134e4a]" aria-hidden />
+          <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5">
+            <Scale size={14} className="text-zarewa-teal" aria-hidden />
             Live preview (after save)
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
@@ -207,7 +207,7 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
             <PreviewTile label="Reserved" value={`${formatKg(reservedKg)} kg`} hint="Active production jobs" />
             <PreviewTile label="Free to use" value={`${formatKg(draftFree)} kg`} accent />
           </div>
-          <p className="mt-2 text-[10px] text-slate-500 leading-snug tabular-nums">
+          <p className="mt-2 text-ui-xs text-slate-500 leading-snug tabular-nums">
             received {formatKg(draftReceived ?? coilReceivedKg(coil))} − used {formatKg(draftUsed)} = on-hand{' '}
             {formatKg(draftOnHand)} · on-hand {formatKg(draftOnHand)} − reserved {formatKg(reservedKg)} = free{' '}
             {formatKg(draftFree)} kg
@@ -216,10 +216,10 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
 
         <form className="space-y-5" onSubmit={submit}>
           <fieldset className="space-y-3">
-            <legend className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">Specification</legend>
+            <legend className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">Specification</legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block sm:col-span-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Colour</span>
+                <span className="text-ui-xs font-bold text-slate-500 uppercase">Colour</span>
                 <input
                   className="z-input w-full mt-0.5"
                   list="coil-edit-colours"
@@ -236,7 +236,7 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
                 </datalist>
               </label>
               <label className="block">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Gauge</span>
+                <span className="text-ui-xs font-bold text-slate-500 uppercase">Gauge</span>
                 <input
                   className="z-input w-full mt-0.5"
                   list="coil-edit-gauges"
@@ -251,7 +251,7 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
                 </datalist>
               </label>
               <label className="block">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Material type</span>
+                <span className="text-ui-xs font-bold text-slate-500 uppercase">Material type</span>
                 <input
                   className="z-input w-full mt-0.5"
                   value={form.materialTypeName}
@@ -260,7 +260,7 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
                 />
               </label>
               <label className="block sm:col-span-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Stock form</span>
+                <span className="text-ui-xs font-bold text-slate-500 uppercase">Stock form</span>
                 <select
                   className="z-input w-full mt-0.5"
                   value={form.stockForm}
@@ -274,10 +274,10 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
           </fieldset>
 
           <fieldset className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
-            <legend className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a] px-1">
+            <legend className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal px-1">
               Weight &amp; stock book
             </legend>
-            <label className="flex cursor-pointer items-start gap-2 text-[11px] text-slate-700">
+            <label className="flex cursor-pointer items-start gap-2 text-xs text-slate-700">
               <input
                 type="checkbox"
                 className="mt-0.5"
@@ -298,7 +298,7 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Received kg (GRN)</span>
+                <span className="text-ui-xs font-bold text-slate-500 uppercase">Received kg (GRN)</span>
                 <input
                   className="z-input w-full mt-0.5 font-semibold tabular-nums"
                   type="number"
@@ -308,10 +308,10 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
                   onChange={(e) => setLinkedReceived(e.target.value)}
                   required
                 />
-                <p className="mt-1 text-[10px] text-slate-500">Original receipt / import figure.</p>
+                <p className="mt-1 text-ui-xs text-slate-500">Original receipt / import figure.</p>
               </label>
               <label className="block">
-                <span className="text-[10px] font-bold text-slate-500 uppercase">Current on-hand kg</span>
+                <span className="text-ui-xs font-bold text-slate-500 uppercase">Current on-hand kg</span>
                 <input
                   className="z-input w-full mt-0.5 font-semibold tabular-nums"
                   type="number"
@@ -321,12 +321,12 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
                   onChange={(e) => setForm((f) => ({ ...f, currentKg: e.target.value }))}
                   required
                 />
-                <p className="mt-1 text-[10px] text-slate-500">Physical kg on the roll today — drives free kg.</p>
+                <p className="mt-1 text-ui-xs text-slate-500">Physical kg on the roll today — drives free kg.</p>
               </label>
             </div>
           </fieldset>
 
-          <p className="text-[11px] text-slate-600 leading-relaxed rounded-lg border border-slate-200 bg-white px-3 py-2">
+          <p className="text-xs text-slate-600 leading-relaxed rounded-lg border border-slate-200 bg-white px-3 py-2">
             <strong>Save</strong> updates this coil, reconciles raw product stock, normalizes status, and aligns reservations
             with active production jobs. Changes are audited.
           </p>

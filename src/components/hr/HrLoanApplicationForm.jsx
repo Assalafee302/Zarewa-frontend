@@ -103,7 +103,7 @@ export function HrLoanApplicationForm({ onSuccess, onCancel }) {
               </option>
             ))}
           </select>
-          <span className="mt-1 block font-normal text-slate-400 text-[11px]">Maximum repayment period is 12 months per company policy.</span>
+          <span className="mt-1 block font-normal text-slate-400 text-xs">Maximum repayment period is 12 months per company policy.</span>
         </label>
         <label className="text-xs font-semibold text-slate-600">
           Monthly deduction (₦)

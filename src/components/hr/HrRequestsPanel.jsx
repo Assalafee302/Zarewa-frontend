@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { useHrDashboardCounts } from '../../hooks/useHrDashboardCounts';
 import { generateLeaveDecisionLetter } from '../../lib/hrPhase2';
@@ -24,7 +25,7 @@ import { hrRequestsEmptyState } from '../../lib/hrRequestsEmptyState';
 import { HR_BTN_PILL, HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
 
 const CARD_ROW =
-  'group relative flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-3 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-[#134e4a]/25 hover:shadow-md sm:px-4';
+  'group relative flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-3 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-zarewa-teal/25 hover:shadow-md sm:px-4';
 
 /**
  * Shared HR requests list with optional approval actions.
@@ -146,7 +147,11 @@ export function HrRequestsPanel({
   };
 
   const deleteDraft = async (requestId) => {
-    if (!window.confirm('Delete this draft request?')) return;
+    if (!(await appConfirm({
+      title: 'Delete',
+      message: 'Delete this draft request?',
+      variant: 'danger',
+    }))) return;
     setBusyId(requestId);
     const { ok, data } = await apiFetch(`/api/hr/requests/${encodeURIComponent(requestId)}`, {
       method: 'DELETE',
@@ -232,7 +237,7 @@ export function HrRequestsPanel({
     return (
       <Link
         to={`${staffLinkBase}/${encodeURIComponent(r.userId)}`}
-        className="font-semibold text-[#134e4a] hover:underline"
+        className="font-semibold text-zarewa-teal hover:underline"
       >
         {r.staffDisplayName || r.userId}
       </Link>
@@ -248,7 +253,7 @@ export function HrRequestsPanel({
               type="button"
               disabled={busyId === r.id}
               onClick={() => submitDraft(r.id)}
-              className={`${HR_BTN_PILL} bg-[#134e4a] text-white disabled:opacity-50`}
+              className={`${HR_BTN_PILL} bg-zarewa-teal text-white disabled:opacity-50`}
             >
               Submit
             </button>
@@ -269,7 +274,7 @@ export function HrRequestsPanel({
               setReviewId(reviewId === r.id ? '' : r.id);
               setReviewNote('');
             }}
-            className={`${HR_BTN_PILL} border border-slate-200 bg-white text-[#134e4a]`}
+            className={`${HR_BTN_PILL} border border-slate-200 bg-white text-zarewa-teal`}
           >
             Review
           </button>
@@ -341,7 +346,7 @@ export function HrRequestsPanel({
         </div>
       ) : null}
       {reviewId === r.id ? (
-        <div className="mt-3 space-y-3 rounded-xl border border-[#134e4a]/20 bg-teal-50/40 p-3">
+        <div className="mt-3 space-y-3 rounded-xl border border-zarewa-teal/20 bg-teal-50/40 p-3">
           <div className="grid gap-2 text-xs sm:grid-cols-2">
             <p><span className="text-slate-500">Employee:</span> <strong>{r.staffDisplayName || r.userId}</strong></p>
             <p><span className="text-slate-500">Branch:</span> {r.branchId || '—'}</p>
@@ -360,7 +365,7 @@ export function HrRequestsPanel({
                     <span
                       key={step}
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        i <= currentIdx ? 'bg-[#134e4a] text-white' : 'bg-slate-200 text-slate-500'
+                        i <= currentIdx ? 'bg-zarewa-teal text-white' : 'bg-slate-200 text-slate-500'
                       }`}
                     >
                       {step}
@@ -467,7 +472,7 @@ export function HrRequestsPanel({
                   Export CSV
                 </button>
               ) : null}
-              <p className={`${selfService ? 'text-xs' : 'text-[10px]'} font-semibold ${selfService ? 'text-slate-500' : 'uppercase tracking-wide text-slate-500'}`}>
+              <p className={`${selfService ? 'text-xs' : 'text-ui-xs'} font-semibold ${selfService ? 'text-slate-500' : 'uppercase tracking-wide text-slate-500'}`}>
                 {loading ? 'Loading…' : `${visibleSortedRequests.length} ${selfService ? 'requests' : 'in queue'}`}
               </p>
             </div>
@@ -480,8 +485,8 @@ export function HrRequestsPanel({
         ) : null}
 
         {compact ? null : selectedIds.length > 0 ? (
-          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-[#134e4a]/20 bg-teal-50/60 px-4 py-2.5 text-sm">
-            <span className="font-semibold text-[#134e4a]">{selectedIds.length} request{selectedIds.length !== 1 ? 's' : ''} selected</span>
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-zarewa-teal/20 bg-teal-50/60 px-4 py-2.5 text-sm">
+            <span className="font-semibold text-zarewa-teal">{selectedIds.length} request{selectedIds.length !== 1 ? 's' : ''} selected</span>
             {bulkProgress ? (
               <span className="text-sm text-slate-600">{bulkProgress}</span>
             ) : (
@@ -546,8 +551,8 @@ export function HrRequestsPanel({
                         to={link.to}
                         className={
                           link.primary
-                            ? 'inline-flex min-h-10 items-center rounded-lg bg-[#134e4a] px-3 py-2 text-xs font-semibold text-white hover:bg-[#0f3d39] no-underline'
-                            : 'inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-[#134e4a] hover:bg-slate-50 no-underline'
+                            ? 'inline-flex min-h-10 items-center rounded-lg bg-zarewa-teal px-3 py-2 text-xs font-semibold text-white hover:bg-[#0f3d39] no-underline'
+                            : 'inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-zarewa-teal hover:bg-slate-50 no-underline'
                         }
                       >
                         {link.label}

@@ -25,14 +25,14 @@ function OverviewCard({ title, hint, icon, children, className = '' }) {
     >
       <header className="shrink-0 border-b border-slate-100 bg-slate-50/90 px-4 py-3">
         <div className="flex items-start gap-2">
-          {icon ? <span className="mt-0.5 text-[#134e4a]">{icon}</span> : null}
+          {icon ? <span className="mt-0.5 text-zarewa-teal">{icon}</span> : null}
           <div className="min-w-0">
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-[#134e4a]">{title}</h3>
-            {hint ? <p className="mt-0.5 text-[10px] font-medium text-slate-500 leading-snug">{hint}</p> : null}
+            <h3 className="text-xs font-black uppercase tracking-widest text-zarewa-teal">{title}</h3>
+            {hint ? <p className="mt-0.5 text-ui-xs font-medium text-slate-500 leading-snug">{hint}</p> : null}
           </div>
         </div>
       </header>
-      <div className="flex-1 p-4 text-[11px] text-slate-800">{children}</div>
+      <div className="flex-1 p-4 text-xs text-slate-800">{children}</div>
     </section>
   );
 }
@@ -46,7 +46,7 @@ function StatPill({ label, value, tone = 'default' }) {
   };
   return (
     <div className={`rounded-lg border px-2.5 py-2 ${tones[tone] || tones.default}`}>
-      <p className="text-[8px] font-bold uppercase tracking-wide opacity-80">{label}</p>
+      <p className="text-ui-xs font-bold uppercase tracking-wide opacity-80">{label}</p>
       <p className="mt-0.5 text-sm font-black tabular-nums">{value}</p>
     </div>
   );
@@ -56,32 +56,32 @@ function CoilFamilyBlock({ label, data }) {
   return (
     <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <p className="text-[10px] font-black uppercase tracking-wide text-slate-700">{label}</p>
-        <p className="text-sm font-black tabular-nums text-[#134e4a]">
-          {data.totalKg.toLocaleString()} <span className="text-[9px] font-semibold">kg</span>
+        <p className="text-ui-xs font-black uppercase tracking-wide text-slate-700">{label}</p>
+        <p className="text-sm font-black tabular-nums text-zarewa-teal">
+          {data.totalKg.toLocaleString()} <span className="text-ui-xs font-semibold">kg</span>
         </p>
       </div>
       {data.lowCount > 0 ? (
-        <p className="text-[10px] font-semibold text-amber-800 mb-2">
+        <p className="text-ui-xs font-semibold text-amber-800 mb-2">
           {data.lowCount} coil(s) under 100 kg
         </p>
       ) : (
-        <p className="text-[10px] text-slate-500 mb-2">No critically low coils in this family.</p>
+        <p className="text-ui-xs text-slate-500 mb-2">No critically low coils in this family.</p>
       )}
       {data.top.length === 0 ? (
-        <p className="text-[10px] text-slate-500">No active stock.</p>
+        <p className="text-ui-xs text-slate-500">No active stock.</p>
       ) : (
         <ul className="space-y-1">
           {data.top.map((row) => (
             <li
               key={`${row.gauge}-${row.colour}`}
-              className="flex justify-between gap-2 text-[10px] tabular-nums"
+              className="flex justify-between gap-2 text-ui-xs tabular-nums"
             >
               <span className="truncate text-slate-700">
                 {row.gauge} mm · {row.colour}
                 <span className="text-slate-400"> · {row.coilCount} coil(s)</span>
               </span>
-              <span className="shrink-0 font-bold text-[#134e4a]">{row.kg.toLocaleString()} kg</span>
+              <span className="shrink-0 font-bold text-zarewa-teal">{row.kg.toLocaleString()} kg</span>
             </li>
           ))}
         </ul>
@@ -92,7 +92,7 @@ function CoilFamilyBlock({ label, data }) {
 
 function SkuList({ overview, emptyLabel }) {
   if (!overview.totalSkus) {
-    return <p className="text-[10px] text-slate-500">{emptyLabel}</p>;
+    return <p className="text-ui-xs text-slate-500">{emptyLabel}</p>;
   }
   return (
     <>
@@ -115,7 +115,7 @@ function SkuList({ overview, emptyLabel }) {
             <span className="min-w-0 truncate font-medium text-slate-800" title={row.name}>
               {row.name}
             </span>
-            <span className={`shrink-0 tabular-nums font-bold ${row.low ? 'text-amber-900' : 'text-[#134e4a]'}`}>
+            <span className={`shrink-0 tabular-nums font-bold ${row.low ? 'text-amber-900' : 'text-zarewa-teal'}`}>
               {row.stock.toLocaleString()} {row.unit}
             </span>
           </li>
@@ -177,11 +177,11 @@ export function OperationsProductionOverview({
           icon={<ClipboardCheck size={16} />}
           className="border-teal-200/90 bg-gradient-to-br from-teal-50/40 to-white"
         >
-          <p className="text-[11px] text-slate-600 leading-relaxed mb-3">
+          <p className="text-xs text-slate-600 leading-relaxed mb-3">
             Run the floor count register for month-end (or any period end date). Preview and print without
             prices; forward to management when the count is complete.
           </p>
-          <button type="button" onClick={onMonthEndStock} className="z-btn-primary text-[11px]">
+          <button type="button" onClick={onMonthEndStock} className="z-btn-primary text-xs">
             Open month-end stock register
           </button>
         </OverviewCard>
@@ -213,7 +213,7 @@ export function OperationsProductionOverview({
           <button
             type="button"
             onClick={() => onGoInventory?.('coil')}
-            className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+            className="mt-3 inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
           >
             Open coil stock management <ChevronRight size={12} />
           </button>
@@ -229,14 +229,14 @@ export function OperationsProductionOverview({
             <button
               type="button"
               onClick={() => onGoInventory?.('stone_meter')}
-              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+              className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
             >
               Stone metres <ChevronRight size={12} />
             </button>
             <button
               type="button"
               onClick={() => onGoInventory?.('stone_flatsheet')}
-              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-sky-800 hover:underline"
+              className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-sky-800 hover:underline"
             >
               Stone flatsheet m² <ChevronRight size={12} />
             </button>
@@ -252,7 +252,7 @@ export function OperationsProductionOverview({
           <button
             type="button"
             onClick={() => onGoInventory?.('accessory')}
-            className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+            className="mt-3 inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
           >
             Manage accessories <ChevronRight size={12} />
           </button>
@@ -264,7 +264,7 @@ export function OperationsProductionOverview({
           icon={<Factory size={16} />}
         >
           {pendingProductions.length === 0 ? (
-            <p className="text-[10px] text-slate-500">No pending registrations or blocked jobs right now.</p>
+            <p className="text-ui-xs text-slate-500">No pending registrations or blocked jobs right now.</p>
           ) : (
             <ul className="space-y-2 max-h-[min(280px,40vh)] overflow-y-auto pr-1 custom-scrollbar">
               {pendingProductions.map((row) => (
@@ -279,11 +279,11 @@ export function OperationsProductionOverview({
                   }`}
                 >
                   <div className="flex justify-between gap-2">
-                    <span className="font-mono text-[10px] font-bold text-slate-900">{row.id}</span>
-                    <span className="text-[9px] font-black uppercase text-slate-500">{row.reason}</span>
+                    <span className="font-mono text-ui-xs font-bold text-slate-900">{row.id}</span>
+                    <span className="text-ui-xs font-black uppercase text-slate-500">{row.reason}</span>
                   </div>
-                  <p className="mt-0.5 text-[10px] font-semibold text-slate-800 truncate">{row.customer}</p>
-                  <p className="text-[10px] text-slate-500 truncate">{row.label}</p>
+                  <p className="mt-0.5 text-ui-xs font-semibold text-slate-800 truncate">{row.customer}</p>
+                  <p className="text-ui-xs text-slate-500 truncate">{row.label}</p>
                 </li>
               ))}
             </ul>
@@ -291,7 +291,7 @@ export function OperationsProductionOverview({
           <button
             type="button"
             onClick={onGoProduction}
-            className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+            className="mt-3 inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
           >
             Open production line <ChevronRight size={12} />
           </button>
@@ -320,18 +320,18 @@ export function OperationsProductionOverview({
                 : 'border-emerald-200 bg-emerald-50/80 text-emerald-950'
             }`}
           >
-            <p className="text-[10px] font-black uppercase tracking-wide flex items-center gap-1.5">
+            <p className="text-ui-xs font-black uppercase tracking-wide flex items-center gap-1.5">
               {workersBlocked ? <AlertTriangle size={12} /> : <Award size={12} />}
               Shop floor material
             </p>
-            <p className="mt-1 text-[11px] font-medium leading-snug">
+            <p className="mt-1 text-xs font-medium leading-snug">
               {workersBlocked
                 ? `${productionQueueStats.noCoil} job(s) have no coil allocated — workers cannot start until store issues or allocates coil.`
                 : 'No planned jobs are waiting on coil allocation. Check coil families above before high-volume runs.'}
             </p>
           </div>
           {conversionStats.flagged > 0 ? (
-            <p className="mt-2 text-[10px] font-semibold text-amber-900">
+            <p className="mt-2 text-ui-xs font-semibold text-amber-900">
               {conversionStats.flagged} conversion check(s) flagged for manager review.
             </p>
           ) : null}
@@ -343,7 +343,7 @@ export function OperationsProductionOverview({
           icon={<ShoppingCart size={16} />}
         >
           {buySuggestions.length === 0 ? (
-            <p className="text-[10px] text-slate-500">No urgent coil gaps detected from current stock.</p>
+            <p className="text-ui-xs text-slate-500">No urgent coil gaps detected from current stock.</p>
           ) : (
             <ul className="space-y-2 max-h-[min(260px,38vh)] overflow-y-auto pr-1 custom-scrollbar">
               {buySuggestions.map((s) => (
@@ -358,30 +358,30 @@ export function OperationsProductionOverview({
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="font-bold text-slate-900">{s.family}</span>
                     {s.kgOnHand != null ? (
-                      <span className="text-[10px] font-black tabular-nums text-[#134e4a]">
+                      <span className="text-ui-xs font-black tabular-nums text-zarewa-teal">
                         {s.kgOnHand.toLocaleString()} kg on hand
                       </span>
                     ) : null}
                   </div>
                   {s.gauge !== '—' ? (
-                    <p className="mt-0.5 text-[10px] text-slate-700">
+                    <p className="mt-0.5 text-ui-xs text-slate-700">
                       {s.gauge} mm · {s.colour}
                       {s.coilCount ? ` · ${s.coilCount} coil(s)` : ''}
                     </p>
                   ) : null}
-                  <p className="mt-1 text-[10px] text-slate-600 leading-snug">{s.note}</p>
+                  <p className="mt-1 text-ui-xs text-slate-600 leading-snug">{s.note}</p>
                 </li>
               ))}
             </ul>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={onRequestCoils} className="z-btn-primary text-[10px]">
+            <button type="button" onClick={onRequestCoils} className="z-btn-primary text-ui-xs">
               Request coils
             </button>
             <button
               type="button"
               onClick={() => onGoInventory?.('coil')}
-              className="z-btn-secondary text-[10px]"
+              className="z-btn-secondary text-ui-xs"
             >
               Receive / adjust stock
             </button>

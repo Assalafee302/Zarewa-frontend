@@ -12,7 +12,7 @@ export function HrPayslipTimeline({ runStatus, compact = false, className = '' }
 
   return (
     <ol
-      className={`flex flex-wrap items-center gap-1.5 ${compact ? 'text-[10px]' : 'text-xs'} ${className}`}
+      className={`flex flex-wrap items-center gap-1.5 ${compact ? 'text-ui-xs' : 'text-xs'} ${className}`}
       aria-label="Payslip availability"
     >
       {PAYSLIP_PIPELINE_STEPS.map((step, idx) => {
@@ -21,7 +21,7 @@ export function HrPayslipTimeline({ runStatus, compact = false, className = '' }
         const chipCls = done
           ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
           : current
-            ? 'border-[#134e4a]/30 bg-teal-50 text-[#134e4a] ring-1 ring-[#134e4a]/20'
+            ? 'border-zarewa-teal/30 bg-teal-50 text-zarewa-teal ring-1 ring-zarewa-teal/20'
             : 'border-slate-200 bg-slate-50 text-slate-400';
 
         return (

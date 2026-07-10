@@ -107,7 +107,7 @@ export function WorkspaceIntelligencePanel({
           <button
             type="button"
             onClick={() => onNavigateView?.({ view: 'needs_action' })}
-            className="mt-2 text-[11px] font-semibold text-teal-800 hover:underline"
+            className="mt-2 text-xs font-semibold text-teal-800 hover:underline"
           >
             View all priorities
           </button>
@@ -171,7 +171,7 @@ export function WorkspaceIntelligencePanel({
           </div>
         </dl>
         {degraded ? (
-          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-900">
             Reconnect for live counts and actions.
           </p>
         ) : null}
@@ -189,7 +189,7 @@ function StatCard({ label, value, tone = 'slate' }) {
   };
   return (
     <div className={`rounded-lg px-3 py-2 ring-1 ${tones[tone] || tones.slate}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">{label}</p>
+      <p className="text-ui-xs font-semibold uppercase tracking-wide opacity-80">{label}</p>
       <p className="mt-0.5 text-lg font-bold tabular-nums">{value}</p>
     </div>
   );
@@ -197,7 +197,7 @@ function StatCard({ label, value, tone = 'slate' }) {
 
 function QuickAction({ icon, label, onClick, to }) {
   const cls =
-    'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 hover:border-teal-200 hover:bg-teal-50/50';
+    'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-teal-200 hover:bg-teal-50/50';
   if (to) {
     return (
       <Link to={to} className={cls}>

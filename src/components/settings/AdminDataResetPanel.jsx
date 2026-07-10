@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -68,9 +69,11 @@ export default function AdminDataResetPanel() {
     const label = branchName || ws?.branchScope || 'this branch';
     const categoryList = selectedPresets.map((p) => `• ${p.label}`).join('\n');
     if (
-      !window.confirm(
-        `Only the ${presetIds.length} category(ies) you ticked will be deleted for ${label}.\n\n${categoryList}\n\nOther categories and other branches are NOT affected.\n\nThis cannot be undone. Continue?`
-      )
+      !(await appConfirm({
+        title: 'Delete data',
+        message: `Only the ${presetIds.length} category(ies) you ticked will be deleted for ${label}.\n\n${categoryList}\n\nOther categories and other branches are NOT affected.\n\nThis cannot be undone. Continue?`,
+        variant: 'danger',
+      }))
     ) {
       return;
     }
@@ -117,7 +120,7 @@ export default function AdminDataResetPanel() {
           <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
             Tick only the categories you want to clear. <strong>Unchecked options are never touched.</strong> All deletions
             are scoped to{' '}
-            <strong className="text-[#134e4a]">{branchName || 'your current workspace branch'}</strong> — other branches
+            <strong className="text-zarewa-teal">{branchName || 'your current workspace branch'}</strong> — other branches
             stay intact. Users, branches, suppliers, and catalog products are never removed unless you tick a category
             that includes them.
           </p>
@@ -130,7 +133,7 @@ export default function AdminDataResetPanel() {
             'Switch the workspace to a single branch (not “all branches”) before using data reset.'}
         </p>
       ) : (
-        <p className="rounded-xl border border-teal-200/80 bg-teal-50/60 px-4 py-3 text-[11px] text-teal-950 leading-relaxed">
+        <p className="rounded-xl border border-teal-200/80 bg-teal-50/60 px-4 py-3 text-xs text-teal-950 leading-relaxed">
           Active scope: <strong>{branchName}</strong>. Only ticked categories for this branch will be deleted.
         </p>
       )}
@@ -150,12 +153,12 @@ export default function AdminDataResetPanel() {
               checked={Boolean(selected[p.id])}
               onChange={() => toggle(p.id)}
               disabled={branchResetBlocked}
-              className="accent-[#134e4a] mt-0.5 w-4 h-4 shrink-0"
+              className="accent-zarewa-teal mt-0.5 w-4 h-4 shrink-0"
             />
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-slate-800">{p.label}</span>
               {p.warning ? (
-                <span className="mt-1 block text-[11px] text-slate-500 leading-snug">{p.warning}</span>
+                <span className="mt-1 block text-xs text-slate-500 leading-snug">{p.warning}</span>
               ) : null}
             </span>
           </label>
@@ -171,7 +174,7 @@ export default function AdminDataResetPanel() {
             ))}
           </ul>
           {selectedPresets.some((p) => p.id === 'hr_staff_payroll') ? (
-            <p className="mt-2 rounded-lg border border-teal-200/80 bg-teal-50/70 px-3 py-2 text-[11px] text-teal-950 leading-relaxed">
+            <p className="mt-2 rounded-lg border border-teal-200/80 bg-teal-50/70 px-3 py-2 text-xs text-teal-950 leading-relaxed">
               <strong>Usernames are safe:</strong> Team &amp; access logins (usernames, passwords, roles) are not
               removed or renamed. Only HR employee data for this branch is cleared — you can re-import staff and link
               the same usernames again.
@@ -185,7 +188,7 @@ export default function AdminDataResetPanel() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <label className="block space-y-1.5">
           <span className="z-field-label">Confirmation</span>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-xs text-slate-500">
             Type exactly: <span className="font-mono font-semibold text-slate-700">{expectedPhrase}</span>
           </p>
           <input
@@ -200,7 +203,7 @@ export default function AdminDataResetPanel() {
         </label>
         <button
           type="button"
-          disabled={busy || branchResetBlocked || !selectedPresets.length}
+          disabled={busy || branchResetBlocked || !selectedPresets.length || confirmInput.trim() !== expectedPhrase}
           onClick={() => void runReset()}
           className="z-btn-secondary border-red-200 text-red-800 hover:bg-red-50 disabled:opacity-50"
         >

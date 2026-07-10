@@ -67,38 +67,38 @@ export function ExecCustomersTab({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
-          <p className="text-[9px] font-bold uppercase tracking-wide text-teal-700 flex items-center gap-1">
+          <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-700 flex items-center gap-1">
             <Award size={12} /> Champion
           </p>
-          <p className="mt-1 text-sm font-bold text-[#134e4a] leading-tight line-clamp-2">
+          <p className="mt-1 text-sm font-bold text-zarewa-teal leading-tight line-clamp-2">
             {champion?.customerName ?? '—'}
           </p>
-          <p className="mt-2 text-[10px] text-teal-800/90 border-t border-teal-100/80 pt-2">
+          <p className="mt-2 text-ui-xs text-teal-800/90 border-t border-teal-100/80 pt-2">
             {champion?.netCollectedNgn != null ? formatNgn(champion.netCollectedNgn) : 'Top payer this period'}
           </p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+          <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
             <Users size={12} /> Core customers
           </p>
-          <p className="mt-1 text-xl font-black text-[#134e4a] tabular-nums">{summary.core ?? 0}</p>
-          <p className="mt-2 text-[10px] text-slate-500 border-t border-slate-100 pt-2">Reliable payers</p>
+          <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">{summary.core ?? 0}</p>
+          <p className="mt-2 text-ui-xs text-slate-500 border-t border-slate-100 pt-2">Reliable payers</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3">
-          <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+          <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
             <Banknote size={12} /> Champions
           </p>
-          <p className="mt-1 text-xl font-black text-[#134e4a] tabular-nums">{summary.champion ?? 0}</p>
-          <p className="mt-2 text-[10px] text-slate-500 border-t border-slate-100 pt-2">High value + clean pay</p>
+          <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">{summary.champion ?? 0}</p>
+          <p className="mt-2 text-ui-xs text-slate-500 border-t border-slate-100 pt-2">High value + clean pay</p>
         </div>
         <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3">
-          <p className="text-[9px] font-bold uppercase tracking-wide text-amber-800 flex items-center gap-1">
+          <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-800 flex items-center gap-1">
             At risk / watch
           </p>
           <p className="mt-1 text-xl font-black text-amber-950 tabular-nums">
             {(summary.watch ?? 0) + (summary.risk ?? 0)}
           </p>
-          <p className="mt-2 text-[10px] text-amber-900/80 border-t border-amber-100 pt-2">
+          <p className="mt-2 text-ui-xs text-amber-900/80 border-t border-amber-100 pt-2">
             {summary.risk ?? 0} at risk · {summary.watch ?? 0} watch
           </p>
         </div>
@@ -116,9 +116,9 @@ export function ExecCustomersTab({
             key={f.id}
             type="button"
             onClick={() => onSegmentFilterChange(f.id)}
-            className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ring-1 ${
+            className={`rounded-lg px-3 py-1.5 text-ui-xs font-black uppercase ring-1 ${
               segmentFilter === f.id
-                ? 'bg-[#134e4a] text-white ring-[#134e4a]'
+                ? 'bg-zarewa-teal text-white ring-zarewa-teal'
                 : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'
             }`}
           >
@@ -129,7 +129,7 @@ export function ExecCustomersTab({
           type="button"
           onClick={onReload}
           disabled={busy}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
           <RefreshCw size={12} className={busy ? 'animate-spin' : ''} />
           Refresh
@@ -137,7 +137,7 @@ export function ExecCustomersTab({
       </div>
 
       <section className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
-        <div className="h-1 bg-[#134e4a]" aria-hidden />
+        <div className="h-1 bg-zarewa-teal" aria-hidden />
         <SalesListTableFrame
           toolbar={
             <div className="flex flex-col gap-3">
@@ -159,7 +159,7 @@ export function ExecCustomersTab({
           <div className="overflow-x-auto">
             <table className="w-full text-xs min-w-[880px]">
               <thead>
-                <tr className="border-b text-[10px] font-black uppercase text-slate-500">
+                <tr className="border-b text-ui-xs font-black uppercase text-slate-500">
                   <th className="py-2 text-left">Segment</th>
                   <th className="py-2 text-left">Customer</th>
                   <th className="py-2 text-right">Collected</th>
@@ -181,13 +181,13 @@ export function ExecCustomersTab({
                     <tr key={c.customerId} className="border-b border-slate-50 hover:bg-slate-50/80">
                       <td className="py-2.5">
                         <span
-                          className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase ring-1 ${SEGMENT_CHIP[c.segment] || SEGMENT_CHIP.inactive}`}
+                          className={`inline-flex rounded-md px-2 py-0.5 text-ui-xs font-black uppercase ring-1 ${SEGMENT_CHIP[c.segment] || SEGMENT_CHIP.inactive}`}
                         >
                           {c.segmentLabel}
                         </span>
                       </td>
                       <td className="py-2.5 font-semibold text-slate-900">{c.customerName}</td>
-                      <td className="py-2.5 text-right tabular-nums font-bold text-[#134e4a]">
+                      <td className="py-2.5 text-right tabular-nums font-bold text-zarewa-teal">
                         {formatNgn(c.netCollectedNgn ?? 0)}
                       </td>
                       <td className="py-2.5 text-right tabular-nums">
@@ -199,7 +199,7 @@ export function ExecCustomersTab({
                         <button
                           type="button"
                           onClick={() => onSelectCustomer?.(c)}
-                          className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1.5 text-[10px] font-black uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
+                          className="rounded-lg border border-zarewa-teal/30 bg-zarewa-teal/5 px-3 py-1.5 text-ui-xs font-black uppercase text-zarewa-teal hover:bg-zarewa-teal/10"
                         >
                           View
                         </button>

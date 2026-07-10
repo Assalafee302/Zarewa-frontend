@@ -11,13 +11,13 @@ export function ProcurementFormSection({ letter, title, children, action, compac
       >
         <div className="flex min-w-0 items-center gap-2">
           <div
-            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#134e4a] text-[10px] font-bold text-white ${
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-zarewa-teal text-ui-xs font-bold text-white ${
               compact ? '' : 'sm:h-7 sm:w-7'
             }`}
           >
             {letter}
           </div>
-          <h3 className="min-w-0 text-[10px] font-semibold uppercase tracking-widest text-[#134e4a]">{title}</h3>
+          <h3 className="min-w-0 text-ui-xs font-semibold uppercase tracking-widest text-zarewa-teal">{title}</h3>
         </div>
         {action ? <div className="flex shrink-0 flex-wrap justify-start gap-2 sm:justify-end">{action}</div> : null}
       </div>

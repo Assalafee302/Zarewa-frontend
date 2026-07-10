@@ -65,7 +65,7 @@ export function BranchWorkspaceBar() {
     <div className="flex w-full min-w-0 flex-col gap-1 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
       {isHqRole ? (
         <div className="flex min-w-0 w-full items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 shadow-sm sm:gap-2 sm:rounded-2xl sm:border-gray-100/90 sm:bg-white/95 sm:px-3 sm:py-2 sm:shadow-sm">
-          <Building2 size={16} className="shrink-0 text-[#134e4a]/70" aria-hidden />
+          <Building2 size={16} className="shrink-0 text-zarewa-teal/70" aria-hidden />
           <div className="min-w-0 flex-1">
             <label htmlFor="zarewa-branch-workspace" className="sr-only">
               Workspace scope
@@ -75,7 +75,7 @@ export function BranchWorkspaceBar() {
               value={scopeSelectValue}
               onChange={canHqRollup ? onWorkspaceScopeChange : onBranchChange}
               disabled={busy}
-              className="w-full min-w-0 max-w-none cursor-pointer truncate bg-transparent text-[10px] font-bold uppercase tracking-wide text-[#134e4a] outline-none disabled:opacity-50 sm:z-toolbar-shell sm:text-[11px] sm:max-w-[280px]"
+              className="w-full min-w-0 max-w-none cursor-pointer truncate bg-transparent text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal outline-none disabled:opacity-50 sm:z-toolbar-shell sm:text-xs sm:max-w-[280px]"
             >
               {canHqRollup ? (
                 <option value="__ALL__">All branches (HQ roll-up)</option>
@@ -90,9 +90,9 @@ export function BranchWorkspaceBar() {
         </div>
       ) : (
         <div className="flex min-w-0 w-full items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 shadow-sm sm:gap-2 sm:rounded-2xl sm:border-gray-100/90 sm:bg-white/95 sm:px-3 sm:py-2 sm:shadow-sm">
-          <Building2 size={16} className="shrink-0 text-[#134e4a]/70" aria-hidden />
+          <Building2 size={16} className="shrink-0 text-zarewa-teal/70" aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#134e4a] sm:text-[11px]">
+            <p className="truncate text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal sm:text-xs">
               {activeBranch ? activeBranch.name || activeBranch.code || activeBranch.id : 'Branch'}
             </p>
           </div>
@@ -101,7 +101,7 @@ export function BranchWorkspaceBar() {
 
       {viewAll && canHqRollup ? (
         <span
-          className="hidden max-w-[280px] text-[10px] font-semibold leading-snug text-amber-800 lg:inline"
+          className="hidden max-w-[280px] text-ui-xs font-semibold leading-snug text-amber-800 lg:inline"
           title={ws.branchScopedCreateMessage}
         >
           HQ roll-up (read-only) — turn off All branches to create quotations or POs
@@ -109,7 +109,7 @@ export function BranchWorkspaceBar() {
       ) : null}
 
       {error ? (
-        <p className="text-[10px] font-semibold text-red-600 sm:max-w-[200px]" role="alert">
+        <p className="text-ui-xs font-semibold text-red-600 sm:max-w-[200px]" role="alert">
           {error}
         </p>
       ) : null}

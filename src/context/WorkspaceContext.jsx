@@ -22,6 +22,7 @@ import {
   isBranchScopedCreateBlocked,
 } from '../lib/workspaceBranchCreate';
 import { sanitizeWorkItemForCache } from '../lib/workspaceSanitize.js';
+import { invalidateAppShellQueries } from '../lib/queryClient';
 import {
   clearPendingPasswordChange,
   hasPendingPasswordChange,
@@ -342,7 +343,7 @@ export function WorkspaceProvider({ children }) {
       const effectiveMode = wantsLight ? 'dashboard' : mode;
       const qsParts = [];
       if (effectiveMode) qsParts.push(`mode=${encodeURIComponent(effectiveMode)}`);
-      if (isPoll) qsParts.push('poll=1');
+      if (isPoll) qsParts.push('poll=1', 'active=1');
       const qs = qsParts.length ? `?${qsParts.join('&')}` : '';
       if (!isPoll) {
         bootstrapPollEtagRef.current = '';
@@ -409,6 +410,7 @@ export function WorkspaceProvider({ children }) {
         fullBootstrapLoadedRef.current = true;
       }
       if (stale()) return snapshotRef.current;
+      if (!isPoll) invalidateAppShellQueries();
       return applySnapshot(withPendingPasswordSession(data), 'ok');
     } catch (e) {
       if (stale()) return snapshotRef.current;
@@ -899,7 +901,7 @@ export function WorkspaceProvider({ children }) {
     void refreshEditApprovalsPending();
     const t = setInterval(() => void refreshEditApprovalsPending(), 45000);
     return () => clearInterval(t);
-  }, [status, refreshEditApprovalsPending, refreshEpoch]);
+  }, [status, refreshEditApprovalsPending]);
 
   const refreshStaffPurchaseCreditPending = useCallback(async () => {
     const roleKey = session?.user?.roleKey;
@@ -927,7 +929,7 @@ export function WorkspaceProvider({ children }) {
     void refreshStaffPurchaseCreditPending();
     const t = setInterval(() => void refreshStaffPurchaseCreditPending(), 45000);
     return () => clearInterval(t);
-  }, [status, refreshStaffPurchaseCreditPending, refreshEpoch]);
+  }, [status, refreshStaffPurchaseCreditPending]);
 
   const canMutate = status === 'ok';
   const usingCachedData = status === 'degraded';

@@ -27,9 +27,9 @@ export function OthersJustificationField({
   return (
     <div className={`mt-3 ${className}`.trim()}>
       <div className="flex items-end justify-between gap-2 mb-1.5">
-        <label className="text-[10px] font-bold text-amber-900 uppercase">{label}</label>
+        <label className="text-ui-xs font-bold text-amber-900 uppercase">{label}</label>
         <span
-          className={`text-[9px] font-bold tabular-nums ${
+          className={`text-ui-xs font-bold tabular-nums ${
             status === 'ok' ? 'text-emerald-700' : status === 'near' ? 'text-amber-800' : 'text-rose-700'
           }`}
         >
@@ -49,7 +49,7 @@ export function OthersJustificationField({
         }
         className="w-full bg-amber-50/60 border border-amber-200/90 rounded-xl py-3 px-4 text-sm font-medium outline-none resize-y min-h-[80px] focus:border-amber-300 focus:ring-2 focus:ring-amber-200/50"
       />
-      <p className="text-[9px] text-amber-900/70 mt-1 ml-0.5">{hint}</p>
+      <p className="text-ui-xs text-amber-900/70 mt-1 ml-0.5">{hint}</p>
     </div>
   );
 }

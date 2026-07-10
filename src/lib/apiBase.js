@@ -126,3 +126,18 @@ export async function apiFetch(path, options = {}) {
   }
   return { ok: r.ok, status: r.status, data };
 }
+
+/**
+ * Normalize API error payloads to a single user-facing string.
+ * @param {unknown} data
+ * @param {string} [fallback]
+ * @returns {{ message: string; code: string|null }}
+ */
+export function parseApiError(data, fallback = 'Something went wrong. Please try again.') {
+  if (data == null) return { message: fallback, code: null };
+  if (typeof data === 'string') return { message: data.trim() || fallback, code: null };
+  const obj = /** @type {Record<string, unknown>} */ (data);
+  const message = String(obj.error || obj.message || fallback).trim() || fallback;
+  const code = obj.code != null ? String(obj.code) : null;
+  return { message, code };
+}

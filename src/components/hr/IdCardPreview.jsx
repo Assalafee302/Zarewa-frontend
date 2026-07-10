@@ -28,20 +28,20 @@ export function IdCardPreview({ request, person, onClose, onPrint, temporary = f
         }
       `}</style>
       <div id="id-card-print-root" className="flex flex-col items-center gap-4">
-        <div className="relative w-80 rounded-2xl border-2 border-[#134e4a] bg-white p-6 shadow-xl overflow-hidden">
+        <div className="relative w-80 rounded-2xl border-2 border-zarewa-teal bg-white p-6 shadow-xl overflow-hidden">
           {temporary ? (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.08]">
-              <span className="-rotate-12 text-2xl font-black uppercase tracking-widest text-[#134e4a]">Temporary</span>
+              <span className="-rotate-12 text-2xl font-black uppercase tracking-widest text-zarewa-teal">Temporary</span>
             </div>
           ) : null}
           <div className="relative text-center space-y-3">
-            <div className="text-xs font-black uppercase tracking-widest text-[#134e4a]">Zarewa Aluminium & Plastics Ltd</div>
+            <div className="text-xs font-black uppercase tracking-widest text-zarewa-teal">Zarewa Aluminium & Plastics Ltd</div>
             {temporary ? (
-              <div className="inline-block rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-900">
+              <div className="inline-block rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-ui-xs font-black uppercase tracking-widest text-amber-900">
                 Temporary Staff ID
               </div>
             ) : (
-              <div className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-slate-100 pb-2">
+              <div className="text-ui-xs uppercase tracking-widest text-slate-500 border-b border-slate-100 pb-2">
                 Staff identification
               </div>
             )}
@@ -53,14 +53,14 @@ export function IdCardPreview({ request, person, onClose, onPrint, temporary = f
               </div>
             )}
             <div>
-              <p className="font-black text-[#134e4a] text-base">{person?.displayName || request?.displayName || '—'}</p>
+              <p className="font-black text-zarewa-teal text-base">{person?.displayName || request?.displayName || '—'}</p>
               <p className="text-xs text-slate-500">{person?.employeeNo || request?.employeeNo || '—'}</p>
               <p className="text-xs text-slate-600 mt-1">{person?.jobTitle || request?.jobTitle || '—'}</p>
               <p className="text-xs text-slate-600">{person?.department || request?.department || '—'}</p>
               <p className="text-xs text-slate-500">{person?.branchId || request?.branchId || '—'}</p>
             </div>
             {(request?.bloodGroup || request?.emergencyContact) && (
-              <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-left text-[10px] text-slate-600 space-y-1">
+              <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-left text-ui-xs text-slate-600 space-y-1">
                 {request.bloodGroup ? (
                   <p>
                     <span className="font-bold">Blood group:</span> {request.bloodGroup}
@@ -73,7 +73,7 @@ export function IdCardPreview({ request, person, onClose, onPrint, temporary = f
                 ) : null}
               </div>
             )}
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div className="grid grid-cols-2 gap-2 text-ui-xs">
               <div className="rounded-lg bg-slate-50 px-2 py-1">
                 <p className="font-bold text-slate-400 uppercase">Issued</p>
                 <p className="font-semibold text-slate-700">{displayIssueDate}</p>
@@ -83,13 +83,13 @@ export function IdCardPreview({ request, person, onClose, onPrint, temporary = f
                 <p className="font-semibold text-slate-700">{displayExpiryDate}</p>
               </div>
             </div>
-            <div className="rounded-lg border border-dashed border-slate-200 px-2 py-1 text-[9px] font-mono text-slate-500">
+            <div className="rounded-lg border border-dashed border-slate-200 px-2 py-1 text-ui-xs font-mono text-slate-500">
               Verification: {verifyCode}
             </div>
-            <div className="border-t border-slate-100 pt-2 text-[9px] text-slate-400">
+            <div className="border-t border-slate-100 pt-2 text-ui-xs text-slate-400">
               Authorised signature: ___________________
             </div>
-            <p className="text-[9px] text-slate-400">Property of Zarewa Group. If found, please return to HR.</p>
+            <p className="text-ui-xs text-slate-400">Property of Zarewa Group. If found, please return to HR.</p>
           </div>
         </div>
       </div>

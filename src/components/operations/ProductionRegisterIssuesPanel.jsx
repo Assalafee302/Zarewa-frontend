@@ -30,7 +30,7 @@ const SEVERITY_STYLES = {
 export function ProductionRegisterIssuesPanel({ issues = [], compact = false, onDiscardUnsavedCoils }) {
   if (!issues.length) return null;
 
-  const textClass = compact ? 'text-[11px] leading-snug' : 'text-xs leading-snug';
+  const textClass = compact ? 'text-xs leading-snug' : 'text-xs leading-snug';
   const padClass = compact ? 'px-2.5 py-2' : 'px-3 py-2.5';
 
   return (
@@ -40,7 +40,7 @@ export function ProductionRegisterIssuesPanel({ issues = [], compact = false, on
       aria-live="polite"
       data-testid="production-register-issues-panel"
     >
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Needs attention</p>
+      <p className="text-ui-xs font-bold uppercase tracking-wider text-slate-600">Needs attention</p>
       <div className="space-y-1.5">
         {issues.map((issue) => {
           const style = SEVERITY_STYLES[issue.severity] || SEVERITY_STYLES.info;
@@ -61,7 +61,7 @@ export function ProductionRegisterIssuesPanel({ issues = [], compact = false, on
                   <button
                     type="button"
                     onClick={onDiscardUnsavedCoils}
-                    className="mt-2 rounded-md border border-current/25 bg-white/80 px-2 py-1 text-[10px] font-semibold hover:bg-white"
+                    className="mt-2 rounded-md border border-current/25 bg-white/80 px-2 py-1 text-ui-xs font-semibold hover:bg-white"
                   >
                     Remove unsaved lines from this device
                   </button>

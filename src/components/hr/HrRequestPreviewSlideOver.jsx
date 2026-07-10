@@ -96,8 +96,8 @@ export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onC
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
           <div className="min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">HR request</p>
-            <h2 className="truncate text-base font-black text-[#134e4a]">{request?.title || hrRequestKindLabel(request?.kind)}</h2>
+            <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">HR request</p>
+            <h2 className="truncate text-base font-black text-zarewa-teal">{request?.title || hrRequestKindLabel(request?.kind)}</h2>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50" aria-label="Close">
             <X size={16} />
@@ -122,7 +122,7 @@ export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onC
                   <dt className="font-bold text-slate-500">Employee</dt>
                   <dd>
                     {request.staffDisplayName && request.userId ? (
-                      <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(request.userId)}`} className="font-semibold text-[#134e4a] hover:underline">
+                      <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(request.userId)}`} className="font-semibold text-zarewa-teal hover:underline">
                         {request.staffDisplayName}
                       </Link>
                     ) : (
@@ -136,12 +136,12 @@ export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onC
                 </div>
                 <div className="flex justify-between gap-3 border-b border-slate-100 py-1">
                   <dt className="font-bold text-slate-500">Request ID</dt>
-                  <dd className="font-mono text-[10px]">{request.id}</dd>
+                  <dd className="font-mono text-ui-xs">{request.id}</dd>
                 </div>
               </dl>
 
               <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">Details</p>
+                <p className="mb-2 text-ui-xs font-bold uppercase tracking-widest text-slate-500">Details</p>
                 <HrRequestPayloadSummary request={request} />
               </div>
 
@@ -149,8 +149,8 @@ export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onC
 
               {canReviewRequest(request) ? (
                 <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-amber-900">Review action</p>
-                  <label className="block text-[10px] font-bold uppercase text-slate-500">
+                  <p className="text-ui-xs font-bold uppercase tracking-widest text-amber-900">Review action</p>
+                  <label className="block text-ui-xs font-bold uppercase text-slate-500">
                     Reason code
                     <select value={reasonCode} onChange={(e) => setReasonCode(e.target.value)} className={`${HR_FIELD_CLASS} mt-1`}>
                       {REASON_CODES.map((r) => (
@@ -160,7 +160,7 @@ export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onC
                       ))}
                     </select>
                   </label>
-                  <label className="block text-[10px] font-bold uppercase text-slate-500">
+                  <label className="block text-ui-xs font-bold uppercase text-slate-500">
                     Review note
                     <textarea
                       value={reviewNote}
@@ -186,7 +186,7 @@ export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onC
                     </button>
                     <button
                       type="button"
-                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-bold uppercase text-red-900 hover:bg-red-100"
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-ui-xs font-bold uppercase text-red-900 hover:bg-red-100"
                       disabled={busy}
                       onClick={() => void runReview(false)}
                     >

@@ -49,7 +49,7 @@ export function HrStaffSalesCustomerPanel({ userId, salesCustomerId: initialCust
       ) : null}
       {customerId ? (
         <p className="text-sm text-slate-700">
-          Linked customer: <strong className="font-mono text-[#134e4a]">{customerId}</strong>
+          Linked customer: <strong className="font-mono text-zarewa-teal">{customerId}</strong>
           {displayName ? <span className="text-slate-500"> · {displayName} (Staff)</span> : null}
         </p>
       ) : (

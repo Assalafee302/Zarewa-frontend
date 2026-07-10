@@ -77,7 +77,7 @@ function ModalPanel({ title, children, onClose, footer }) {
   return (
     <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
       <div className="mb-4 flex items-start justify-between gap-3">
-        <h3 className="text-base font-black uppercase tracking-wide text-[#134e4a]">{title}</h3>
+        <h3 className="text-base font-black uppercase tracking-wide text-zarewa-teal">{title}</h3>
         <button
           type="button"
           onClick={onClose}
@@ -490,7 +490,7 @@ export default function OperationsCoilControlTab() {
     <div className="space-y-6">
       <CoilDamageApprovalPanel />
 
-      <p className="text-[11px] text-slate-500 max-w-3xl leading-relaxed">
+      <p className="text-xs text-slate-500 max-w-3xl leading-relaxed">
         Post audited movements with <strong className="font-semibold text-slate-600">book references</strong> and{' '}
         <strong className="font-semibold text-slate-600">metres</strong> where the material is tracked by length (returns
         to the offcut pool, head trim, defects). For <strong className="font-semibold text-slate-600">damaged coil</strong>{' '}
@@ -505,11 +505,11 @@ export default function OperationsCoilControlTab() {
         <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 shadow-sm">
           <AlertTriangle size={14} aria-hidden className="text-amber-800 shrink-0" />
           <label className="inline-flex items-center gap-1.5">
-            <span className="text-[9px] font-black uppercase tracking-wide text-amber-900/70">Incident</span>
+            <span className="text-ui-xs font-black uppercase tracking-wide text-amber-900/70">Incident</span>
             <select
               value={incidentTypePick}
               onChange={(e) => setIncidentTypePick(e.target.value)}
-              className="rounded-lg border border-amber-200/80 bg-white py-1.5 pl-2 pr-7 text-[10px] font-bold text-amber-950 outline-none"
+              className="rounded-lg border border-amber-200/80 bg-white py-1.5 pl-2 pr-7 text-ui-xs font-bold text-amber-950 outline-none"
             >
               {INCIDENT_TYPES.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -521,7 +521,7 @@ export default function OperationsCoilControlTab() {
           <button
             type="button"
             onClick={() => openMaterialIncident(incidentTypePick, suggestedIncidentCoilNo)}
-            className="rounded-full bg-amber-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-white hover:bg-amber-950"
+            className="rounded-full bg-amber-900 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-amber-950"
           >
             Record incident
           </button>
@@ -529,7 +529,7 @@ export default function OperationsCoilControlTab() {
         <button
           type="button"
           onClick={() => setModal('adjust')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
         >
           <Ruler size={14} aria-hidden />
           Coil kg adjustment
@@ -537,7 +537,7 @@ export default function OperationsCoilControlTab() {
         <button
           type="button"
           onClick={() => setModal('scrap')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
         >
           <Scissors size={14} aria-hidden />
           Scrap / offcut
@@ -545,7 +545,7 @@ export default function OperationsCoilControlTab() {
         <button
           type="button"
           onClick={() => setModal('returnIn')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
         >
           <ArrowDownToLine size={14} aria-hidden />
           Return inward (offcut pool)
@@ -553,7 +553,7 @@ export default function OperationsCoilControlTab() {
         <button
           type="button"
           onClick={() => setModal('returnOut')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
         >
           <ArrowUpFromLine size={14} aria-hidden />
           Return outward
@@ -561,7 +561,7 @@ export default function OperationsCoilControlTab() {
         <button
           type="button"
           onClick={() => setModal('head')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
         >
           <Factory size={14} aria-hidden />
           Open coil — head trim
@@ -573,7 +573,7 @@ export default function OperationsCoilControlTab() {
             if (coil) setDefectForm((s) => ({ ...s, coilNo: coil }));
             openMaterialIncident('supplier_defect', coil);
           }}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
           title="Record supplier defect as a material incident (manager approval)"
         >
           <Truck size={14} aria-hidden />
@@ -582,7 +582,7 @@ export default function OperationsCoilControlTab() {
         <button
           type="button"
           onClick={() => setModal('supplier')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500 shadow-sm hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-slate-500 shadow-sm hover:bg-slate-50"
           title="Quick supplier defect log (legacy coil control)"
         >
           <Truck size={14} aria-hidden />
@@ -593,12 +593,12 @@ export default function OperationsCoilControlTab() {
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <ClipboardList size={18} className="text-[#134e4a]" aria-hidden />
-            <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Coil control register</h2>
+            <ClipboardList size={18} className="text-zarewa-teal" aria-hidden />
+            <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Coil control register</h2>
           </div>
-          <p className="text-[10px] font-semibold text-slate-600">
+          <p className="text-ui-xs font-semibold text-slate-600">
             Offcut pool (net):{' '}
-            <span className="font-mono tabular-nums text-[#134e4a]">{poolTotals.meters.toFixed(2)} m</span>
+            <span className="font-mono tabular-nums text-zarewa-teal">{poolTotals.meters.toFixed(2)} m</span>
             <span className="text-slate-500 font-normal">
               {' '}
               (in {poolTotals.inward?.toFixed(2) ?? '0'} − out {poolTotals.issue?.toFixed(2) ?? '0'} − supplier{' '}
@@ -620,8 +620,8 @@ export default function OperationsCoilControlTab() {
               key={t.id}
               type="button"
               onClick={() => setHistoryFilter(t.id)}
-              className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wide ${
-                historyFilter === t.id ? 'bg-[#134e4a] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              className={`rounded-full px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide ${
+                historyFilter === t.id ? 'bg-zarewa-teal text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               {t.label}
@@ -657,7 +657,7 @@ export default function OperationsCoilControlTab() {
                       {r.dateISO || r.createdAtISO?.slice(0, 10) || '—'}
                     </td>
                     <td className="px-3 py-2 text-xs text-slate-700">{kindLabel(r.eventKind)}</td>
-                    <td className="px-3 py-2 text-[10px] font-mono text-slate-600">{r.bookRef || r.id}</td>
+                    <td className="px-3 py-2 text-ui-xs font-mono text-slate-600">{r.bookRef || r.id}</td>
                     <td className="px-3 py-2 text-xs">
                       {r.coilNo ? (
                         <Link
@@ -679,10 +679,10 @@ export default function OperationsCoilControlTab() {
                     <td className="px-3 py-2 text-xs text-right tabular-nums">
                       {r.kgBook != null && Number.isFinite(Number(r.kgBook)) ? Number(r.kgBook).toFixed(2) : '—'}
                     </td>
-                    <td className="px-3 py-2 text-[10px] text-slate-600 max-w-[10rem] truncate" title={`${r.gaugeLabel} ${r.colour}`}>
+                    <td className="px-3 py-2 text-ui-xs text-slate-600 max-w-[10rem] truncate" title={`${r.gaugeLabel} ${r.colour}`}>
                       {r.gaugeLabel || '—'} · {r.colour || '—'}
                     </td>
-                    <td className="px-3 py-2 text-[10px] text-slate-500 max-w-[14rem] truncate" title={r.note}>
+                    <td className="px-3 py-2 text-ui-xs text-slate-500 max-w-[14rem] truncate" title={r.note}>
                       {r.cuttingListRef ? `CL ${r.cuttingListRef} · ` : ''}
                       {r.quotationRef ? `QT ${r.quotationRef} · ` : ''}
                       {r.note || '—'}
@@ -698,7 +698,7 @@ export default function OperationsCoilControlTab() {
       <ModalFrame isOpen={modal === 'adjust'} onClose={() => !saving && setModal(null)} title="Coil kg adjustment">
         <ModalPanel title="Coil kg adjustment" onClose={() => !saving && setModal(null)}>
           <form className="space-y-3" onSubmit={submitAdjust}>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Coil</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil</label>
             <select
               required
               value={adjustForm.coilNo}
@@ -712,7 +712,7 @@ export default function OperationsCoilControlTab() {
                 </option>
               ))}
             </select>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Kg delta (+ add to roll, − remove)</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Kg delta (+ add to roll, − remove)</label>
             <input
               required
               type="number"
@@ -721,7 +721,7 @@ export default function OperationsCoilControlTab() {
               onChange={(e) => setAdjustForm((s) => ({ ...s, kgDelta: e.target.value }))}
               className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm font-bold outline-none"
             />
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Book ref (optional)</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Book ref (optional)</label>
             <input
               value={adjustForm.bookRef}
               onChange={(e) => setAdjustForm((s) => ({ ...s, bookRef: e.target.value }))}
@@ -729,7 +729,7 @@ export default function OperationsCoilControlTab() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Cutting list</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Cutting list</label>
                 <select
                   value={adjustForm.cuttingListRef}
                   onChange={(e) => setAdjustForm((s) => ({ ...s, cuttingListRef: e.target.value }))}
@@ -744,7 +744,7 @@ export default function OperationsCoilControlTab() {
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Quotation ref</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Quotation ref</label>
                 <input
                   value={adjustForm.quotationRef}
                   onChange={(e) => setAdjustForm((s) => ({ ...s, quotationRef: e.target.value }))}
@@ -752,14 +752,14 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
             </div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Note</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Note</label>
             <textarea
               rows={2}
               value={adjustForm.note}
               onChange={(e) => setAdjustForm((s) => ({ ...s, note: e.target.value }))}
               className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm outline-none resize-none"
             />
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Date</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Date</label>
             <input
               type="date"
               required
@@ -777,7 +777,7 @@ export default function OperationsCoilControlTab() {
       <ModalFrame isOpen={modal === 'scrap'} onClose={() => !saving && setModal(null)} title="Scrap / offcut">
         <ModalPanel title="Scrap / offcut" onClose={() => !saving && setModal(null)}>
           <form className="space-y-3" onSubmit={submitScrap}>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Coil</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil</label>
             <select
               required
               value={scrapForm.coilNo}
@@ -796,7 +796,7 @@ export default function OperationsCoilControlTab() {
             </select>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Kg off coil</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Kg off coil</label>
                 <input
                   required
                   type="number"
@@ -808,7 +808,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Metres (offcut length)</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Metres (offcut length)</label>
                 <input
                   type="number"
                   min="0"
@@ -819,7 +819,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
             </div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Book / offcut no.</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Book / offcut no.</label>
             <input
               value={scrapForm.bookRef}
               onChange={(e) => setScrapForm((s) => ({ ...s, bookRef: e.target.value }))}
@@ -827,7 +827,7 @@ export default function OperationsCoilControlTab() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Cutting list</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Cutting list</label>
                 <select
                   value={scrapForm.cuttingListRef}
                   onChange={(e) => setScrapForm((s) => ({ ...s, cuttingListRef: e.target.value }))}
@@ -842,7 +842,7 @@ export default function OperationsCoilControlTab() {
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Quotation ref</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Quotation ref</label>
                 <input
                   value={scrapForm.quotationRef}
                   onChange={(e) => setScrapForm((s) => ({ ...s, quotationRef: e.target.value }))}
@@ -850,7 +850,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
             </div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Reason</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Reason</label>
             <select
               value={scrapForm.reason}
               onChange={(e) => setScrapForm((s) => ({ ...s, reason: e.target.value }))}
@@ -862,7 +862,7 @@ export default function OperationsCoilControlTab() {
                 </option>
               ))}
             </select>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Note</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Note</label>
             <textarea
               rows={2}
               value={scrapForm.note}
@@ -891,7 +891,7 @@ export default function OperationsCoilControlTab() {
                 ))}
               </select>
             ) : null}
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Date</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Date</label>
             <input
               type="date"
               required
@@ -909,10 +909,10 @@ export default function OperationsCoilControlTab() {
       <ModalFrame isOpen={modal === 'returnIn'} onClose={() => !saving && setModal(null)} title="Return inward">
         <ModalPanel title="Return inward (offcut pool)" onClose={() => !saving && setModal(null)}>
           <form className="space-y-3" onSubmit={submitReturnIn}>
-            <p className="text-[10px] text-slate-600 leading-snug">
+            <p className="text-ui-xs text-slate-600 leading-snug">
               Gauge and colour must match your quotation rules exactly. Optional source coil is for traceability only.
             </p>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Optional source coil</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Optional source coil</label>
             <select
               value={returnInForm.coilNo}
               onChange={(e) => {
@@ -929,7 +929,7 @@ export default function OperationsCoilControlTab() {
                 </option>
               ))}
             </select>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Raw product SKU</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Raw product SKU</label>
             <select
               required
               value={returnInForm.productID}
@@ -945,7 +945,7 @@ export default function OperationsCoilControlTab() {
             </select>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Gauge</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Gauge</label>
                 <input
                   required
                   value={returnInForm.gaugeLabel}
@@ -954,7 +954,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Colour</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Colour</label>
                 <input
                   required
                   value={returnInForm.colour}
@@ -965,7 +965,7 @@ export default function OperationsCoilControlTab() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Metres</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Metres</label>
                 <input
                   required
                   type="number"
@@ -977,7 +977,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Book kg (optional)</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Book kg (optional)</label>
                 <input
                   type="number"
                   min="0"
@@ -988,7 +988,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
             </div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Book / transaction no. *</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Book / transaction no. *</label>
             <input
               required
               value={returnInForm.bookRef}
@@ -997,7 +997,7 @@ export default function OperationsCoilControlTab() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Cutting list</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Cutting list</label>
                 <select
                   value={returnInForm.cuttingListRef}
                   onChange={(e) => setReturnInForm((s) => ({ ...s, cuttingListRef: e.target.value }))}
@@ -1012,7 +1012,7 @@ export default function OperationsCoilControlTab() {
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Quotation ref</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Quotation ref</label>
                 <input
                   value={returnInForm.quotationRef}
                   onChange={(e) => setReturnInForm((s) => ({ ...s, quotationRef: e.target.value }))}
@@ -1020,13 +1020,13 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
             </div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Customer label</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Customer label</label>
             <input
               value={returnInForm.customerLabel}
               onChange={(e) => setReturnInForm((s) => ({ ...s, customerLabel: e.target.value }))}
               className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm outline-none"
             />
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Note</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Note</label>
             <textarea
               rows={2}
               value={returnInForm.note}
@@ -1050,7 +1050,7 @@ export default function OperationsCoilControlTab() {
       <ModalFrame isOpen={modal === 'returnOut'} onClose={() => !saving && setModal(null)} title="Return outward">
         <ModalPanel title="Return outward" onClose={() => !saving && setModal(null)}>
           <form className="space-y-3" onSubmit={submitReturnOut}>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Coil</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil</label>
             <select
               required
               value={returnOutForm.coilNo}
@@ -1066,7 +1066,7 @@ export default function OperationsCoilControlTab() {
             </select>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Kg removed from coil</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Kg removed from coil</label>
                 <input
                   required
                   type="number"
@@ -1078,7 +1078,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Metres (optional)</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Metres (optional)</label>
                 <input
                   type="number"
                   min="0"
@@ -1089,7 +1089,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
             </div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Destination</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Destination</label>
             <select
               value={returnOutForm.outboundDestination}
               onChange={(e) => setReturnOutForm((s) => ({ ...s, outboundDestination: e.target.value }))}
@@ -1101,13 +1101,13 @@ export default function OperationsCoilControlTab() {
                 </option>
               ))}
             </select>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Book ref (optional)</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Book ref (optional)</label>
             <input
               value={returnOutForm.bookRef}
               onChange={(e) => setReturnOutForm((s) => ({ ...s, bookRef: e.target.value }))}
               className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm outline-none"
             />
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Note</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Note</label>
             <textarea
               rows={2}
               value={returnOutForm.note}
@@ -1131,7 +1131,7 @@ export default function OperationsCoilControlTab() {
       <ModalFrame isOpen={modal === 'head'} onClose={() => !saving && setModal(null)} title="Head trim">
         <ModalPanel title="Open coil — head trim" onClose={() => !saving && setModal(null)}>
           <form className="space-y-3" onSubmit={submitHead}>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Coil</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil</label>
             <select
               required
               value={headForm.coilNo}
@@ -1147,7 +1147,7 @@ export default function OperationsCoilControlTab() {
             </select>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Metres trimmed</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Metres trimmed</label>
                 <input
                   required
                   type="number"
@@ -1159,7 +1159,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Kg off coil</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Kg off coil</label>
                 <input
                   required
                   type="number"
@@ -1171,7 +1171,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
             </div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Book ref (optional)</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Book ref (optional)</label>
             <input
               value={headForm.bookRef}
               onChange={(e) => setHeadForm((s) => ({ ...s, bookRef: e.target.value }))}
@@ -1230,7 +1230,7 @@ export default function OperationsCoilControlTab() {
       <ModalFrame isOpen={modal === 'supplier'} onClose={() => !saving && setModal(null)} title="Supplier defect">
         <ModalPanel title="Supplier defect on coil" onClose={() => !saving && setModal(null)}>
           <form className="space-y-3" onSubmit={submitDefect}>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Coil</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil</label>
             <select
               required
               value={defectForm.coilNo}
@@ -1248,7 +1248,7 @@ export default function OperationsCoilControlTab() {
                 </option>
               ))}
             </select>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Supplier id (optional override)</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Supplier id (optional override)</label>
             <input
               value={defectForm.supplierID}
               onChange={(e) => setDefectForm((s) => ({ ...s, supplierID: e.target.value }))}
@@ -1257,7 +1257,7 @@ export default function OperationsCoilControlTab() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Defect from (m on coil)</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Defect from (m on coil)</label>
                 <input
                   type="number"
                   min="0"
@@ -1268,7 +1268,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase">Defect to (m)</label>
+                <label className="block text-ui-xs font-bold text-gray-400 uppercase">Defect to (m)</label>
                 <input
                   type="number"
                   min="0"
@@ -1279,7 +1279,7 @@ export default function OperationsCoilControlTab() {
                 />
               </div>
             </div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Resolution</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Resolution</label>
             <select
               required
               value={defectForm.supplierResolution}
@@ -1292,7 +1292,7 @@ export default function OperationsCoilControlTab() {
                 </option>
               ))}
             </select>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">
               Kg to remove from coil (optional — e.g. rust section weighed off)
             </label>
             <input
@@ -1303,7 +1303,7 @@ export default function OperationsCoilControlTab() {
               onChange={(e) => setDefectForm((s) => ({ ...s, kgRemove: e.target.value }))}
               className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm outline-none"
             />
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Book ref (optional)</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Book ref (optional)</label>
             <input
               value={defectForm.bookRef}
               onChange={(e) => setDefectForm((s) => ({ ...s, bookRef: e.target.value }))}

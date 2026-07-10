@@ -27,10 +27,10 @@ export function MyHrTaskStrip({ pendingRequests = 0, className = '' }) {
                 to={task.to}
                 className="relative flex min-h-[72px] flex-col justify-center rounded-xl border border-teal-100 bg-white px-3 py-3 text-left shadow-sm transition hover:border-teal-200 hover:shadow-md no-underline"
               >
-                <Icon size={18} className="text-[#134e4a]" aria-hidden />
+                <Icon size={18} className="text-zarewa-teal" aria-hidden />
                 <span className="mt-2 text-xs font-semibold text-slate-900">{task.label}</span>
                 {badge ? (
-                  <span className="absolute right-2 top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+                  <span className="absolute right-2 top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-ui-xs font-bold text-white">
                     {badge > 9 ? '9+' : badge}
                   </span>
                 ) : null}

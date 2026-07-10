@@ -42,7 +42,7 @@ export function QuotationLifecycleTimeline({ quotationId, className = '' }) {
 
   if (loading) {
     return (
-      <div className={`flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-4 text-[11px] text-slate-500 ${className}`}>
+      <div className={`flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-4 text-xs text-slate-500 ${className}`}>
         <RefreshCw className="animate-spin" size={16} />
         Loading lifecycle timeline…
       </div>
@@ -51,7 +51,7 @@ export function QuotationLifecycleTimeline({ quotationId, className = '' }) {
 
   if (!data?.events?.length) {
     return (
-      <div className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-[11px] text-slate-500 ${className}`}>
+      <div className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-500 ${className}`}>
         No lifecycle events recorded for this quotation yet.
       </div>
     );
@@ -59,20 +59,20 @@ export function QuotationLifecycleTimeline({ quotationId, className = '' }) {
 
   return (
     <div className={`rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm ${className}`}>
-      <p className="text-[10px] font-black uppercase tracking-widest text-[#134e4a]">Lifecycle timeline</p>
-      <p className="mt-0.5 text-[10px] text-slate-500">
+      <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">Lifecycle timeline</p>
+      <p className="mt-0.5 text-ui-xs text-slate-500">
         {formatPersonName(data.customerName || '—')} · {data.quotationId}
       </p>
       <ol className="mt-3 space-y-2 border-l-2 border-teal-200/80 pl-3">
         {data.events.map((ev, idx) => (
-          <li key={`${ev.kind}-${ev.atISO}-${idx}`} className="relative text-[11px]">
+          <li key={`${ev.kind}-${ev.atISO}-${idx}`} className="relative text-xs">
             <span className="absolute -left-[1.15rem] top-1.5 h-2 w-2 rounded-full bg-teal-500 ring-2 ring-white" />
             <p className="font-semibold text-slate-900">{ev.label}</p>
-            <p className="text-[10px] text-slate-600">
+            <p className="text-ui-xs text-slate-600">
               {(ev.atISO || '').slice(0, 16).replace('T', ' ') || '—'}
               {ev.actor ? ` · ${formatPersonName(ev.actor)}` : ''}
             </p>
-            {ev.detail ? <p className="mt-0.5 font-mono text-[10px] text-slate-700">{ev.detail}</p> : null}
+            {ev.detail ? <p className="mt-0.5 font-mono text-ui-xs text-slate-700">{ev.detail}</p> : null}
           </li>
         ))}
       </ol>
@@ -130,19 +130,19 @@ export function ProductionJobIntelBanner({ intel, formatMeters }) {
   return (
     <div className="space-y-2">
       {alerts.map((a) => (
-        <div key={a.title} className={`rounded-lg border px-2.5 py-2 text-[10px] leading-snug ${toneClass(a.tone)}`}>
+        <div key={a.title} className={`rounded-lg border px-2.5 py-2 text-ui-xs leading-snug ${toneClass(a.tone)}`}>
           <p className="font-black uppercase tracking-wide">{a.title}</p>
           <p className="mt-0.5">{a.body}</p>
         </div>
       ))}
       {supplyBits.length ? (
-        <p className="rounded-md border border-slate-200 bg-slate-50/90 px-2 py-1.5 text-[10px] text-slate-700">
+        <p className="rounded-md border border-slate-200 bg-slate-50/90 px-2 py-1.5 text-ui-xs text-slate-700">
           <span className="font-bold text-slate-800">Supply posted: </span>
           {supplyBits.join(' · ')}
         </p>
       ) : null}
       {intel.needsBmAttention || intel.needsMdAttention ? (
-        <p className="text-[9px] font-bold uppercase tracking-wide text-rose-700">
+        <p className="text-ui-xs font-bold uppercase tracking-wide text-rose-700">
           {intel.needsBmAttention ? 'Needs BM attention' : ''}
           {intel.needsBmAttention && intel.needsMdAttention ? ' · ' : ''}
           {intel.needsMdAttention ? 'Needs MD / spec review' : ''}
@@ -174,7 +174,7 @@ export function ProductionPaymentGateOverridePanel({
   if (!qid || !showPanel) return null;
   if (!canMutate || !mayOverride) {
     return (
-      <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-[9px] text-slate-600">
+      <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-ui-xs text-slate-600">
         {paidNgn <= 0 ? (
           <>
             Zero payment — only <span className="font-bold">Managing Director</span> can approve cutting list / production.
@@ -211,10 +211,10 @@ export function ProductionPaymentGateOverridePanel({
 
   return (
     <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50/70 p-2.5 space-y-2">
-      <p className="text-[9px] font-black uppercase tracking-wide text-rose-900">
+      <p className="text-ui-xs font-black uppercase tracking-wide text-rose-900">
         {paidNgn <= 0 ? 'MD zero-payment production override' : 'BM production gate override'}
       </p>
-      <p className="text-[10px] text-rose-950 leading-snug">
+      <p className="text-ui-xs text-rose-950 leading-snug">
         {paidNgn <= 0
           ? `Quote has no payment — record MD approval to document why cutting list / production may proceed.`
           : `Quote paid ${intel.quotePaidPct ?? '—'}% — record branch manager approval to document why production proceeded below the ${Math.round((intel.paymentGateMinFraction || 0.7) * 100)}% threshold.`}
@@ -224,14 +224,14 @@ export function ProductionPaymentGateOverridePanel({
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="Why production / cutting list may proceed…"
-        className="w-full rounded-md border border-rose-200 bg-white px-2 py-1.5 text-[10px] text-slate-800 resize-none"
+        className="w-full rounded-md border border-rose-200 bg-white px-2 py-1.5 text-ui-xs text-slate-800 resize-none"
       />
-      {error ? <p className="text-[9px] font-semibold text-rose-800">{error}</p> : null}
+      {error ? <p className="text-ui-xs font-semibold text-rose-800">{error}</p> : null}
       <button
         type="button"
         disabled={saving}
         onClick={() => void submit()}
-        className="w-full rounded-md bg-[#134e4a] px-2 py-1.5 text-[9px] font-black uppercase tracking-wide text-white disabled:opacity-50"
+        className="w-full rounded-md bg-zarewa-teal px-2 py-1.5 text-ui-xs font-black uppercase tracking-wide text-white disabled:opacity-50"
       >
         {saving ? 'Saving…' : 'Record BM override'}
       </button>

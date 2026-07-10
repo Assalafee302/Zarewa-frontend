@@ -36,7 +36,7 @@ const LETTER_STYLES = {
   gm_review: 'bg-violet-50 text-violet-900 border-violet-200',
   md_review: 'bg-purple-50 text-purple-900 border-purple-200',
   approved: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  issued: 'bg-teal-50 text-[#134e4a] border-teal-200',
+  issued: 'bg-teal-50 text-zarewa-teal border-teal-200',
   rejected: 'bg-red-50 text-red-800 border-red-200',
   cancelled: 'bg-slate-100 text-slate-500 border-slate-200',
 };

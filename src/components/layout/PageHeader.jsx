@@ -21,12 +21,12 @@ export function PageHeader({ eyebrow, title, subtitle, tabs, toolbar, actions })
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0 flex gap-3 sm:gap-4">
           <span
-            className="hidden sm:block w-1.5 shrink-0 rounded-full bg-gradient-to-b from-[#5eead4] via-[#2dd4bf] to-[#134e4a] self-stretch min-h-[2.5rem] shadow-sm"
+            className="hidden sm:block w-1.5 shrink-0 rounded-full bg-gradient-to-b from-[#5eead4] via-[#2dd4bf] to-zarewa-teal self-stretch min-h-[2.5rem] shadow-sm"
             aria-hidden
           />
           <div className="min-w-0">
             {eyebrow ? (
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-0.5">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400 mb-0.5">
                 {eyebrow}
               </p>
             ) : null}

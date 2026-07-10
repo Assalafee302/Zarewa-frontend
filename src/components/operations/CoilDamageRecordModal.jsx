@@ -261,10 +261,10 @@ export default function CoilDamageRecordModal({
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-xl max-h-[min(90dvh,880px)] flex flex-col overflow-hidden">
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 shrink-0">
           <div>
-            <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">
+            <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">
               Record {incidentTypeLabel(activeIncidentType)}
             </h2>
-            <p className="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-xl">{recordHint}</p>
+            <p className="mt-1 text-xs text-slate-500 leading-relaxed max-w-xl">{recordHint}</p>
           </div>
           <button
             type="button"
@@ -280,11 +280,11 @@ export default function CoilDamageRecordModal({
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
             <div className="flex flex-col items-center text-center gap-3 py-4">
               <CheckCircle2 size={40} className="text-teal-600" strokeWidth={2.5} />
-              <p className="text-sm font-bold text-[#134e4a]">Incident saved</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tracking reference</p>
-              <p className="font-mono text-3xl font-black text-[#134e4a] tracking-tight">{savedResult.id}</p>
+              <p className="text-sm font-bold text-zarewa-teal">Incident saved</p>
+              <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Tracking reference</p>
+              <p className="font-mono text-3xl font-black text-zarewa-teal tracking-tight">{savedResult.id}</p>
               <span
-                className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase ${
+                className={`rounded-full px-3 py-1 text-ui-xs font-bold uppercase ${
                   savedResult.status === 'submitted'
                     ? 'bg-amber-100 text-amber-900'
                     : 'bg-slate-100 text-slate-700'
@@ -298,8 +298,8 @@ export default function CoilDamageRecordModal({
                 </p>
               ) : null}
             </div>
-            <div className="rounded-xl border border-teal-100 bg-teal-50/50 p-4 text-[11px] text-slate-700 space-y-2">
-              <p className="font-bold text-[#134e4a] uppercase text-[9px] tracking-wide">Use this ID for</p>
+            <div className="rounded-xl border border-teal-100 bg-teal-50/50 p-4 text-xs text-slate-700 space-y-2">
+              <p className="font-bold text-zarewa-teal uppercase text-ui-xs tracking-wide">Use this ID for</p>
               <ul className="list-disc pl-4 space-y-1">
                 <li>
                   <strong>Production complete</strong> — issue metres from offcut incident{' '}
@@ -332,7 +332,7 @@ export default function CoilDamageRecordModal({
         ) : (
         <form className="flex-1 overflow-y-auto px-5 py-4 space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Incident type</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Incident type</label>
             <select
               value={activeIncidentType}
               onChange={(e) => {
@@ -345,7 +345,7 @@ export default function CoilDamageRecordModal({
                 }));
                 onIncidentTypeChange?.(next);
               }}
-              className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/15"
+              className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm font-bold text-zarewa-teal outline-none focus:ring-2 focus:ring-teal-500/15"
             >
               {INCIDENT_TYPES.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -357,7 +357,7 @@ export default function CoilDamageRecordModal({
 
           {activeIncidentType === 'customer_return' ? (
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase">Customer (optional)</label>
+              <label className="block text-ui-xs font-bold text-gray-400 uppercase">Customer (optional)</label>
               <input
                 value={form.customerLabel}
                 onChange={(e) => setForm((s) => ({ ...s, customerLabel: e.target.value }))}
@@ -368,12 +368,12 @@ export default function CoilDamageRecordModal({
           ) : null}
 
           <div className="space-y-2">
-            <label className="block text-[10px] font-bold text-gray-400 uppercase">Coil number</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil number</label>
             <select
               required
               value={form.coilNo}
               onChange={(e) => fillFromCoil(e.target.value)}
-              className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/15"
+              className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm font-bold text-zarewa-teal outline-none focus:ring-2 focus:ring-teal-500/15"
             >
               <option value="">Select coil…</option>
               {sortedCoils.map((c) => {
@@ -388,7 +388,7 @@ export default function CoilDamageRecordModal({
 
             {selectedCoil ? (
               <div className="rounded-xl border border-teal-100 bg-teal-50/50 px-4 py-3">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-teal-800/70 mb-2">From coil register</p>
+                <p className="text-ui-xs font-bold uppercase tracking-widest text-teal-800/70 mb-2">From coil register</p>
                 <div className="flex flex-wrap gap-2">
                   {[
                     selectedCoil.productID && { label: 'Product', value: selectedCoil.productID },
@@ -404,9 +404,9 @@ export default function CoilDamageRecordModal({
                     .map((chip) => (
                       <span
                         key={chip.label}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 bg-white px-2.5 py-1 text-ui-xs font-semibold text-slate-700"
                       >
-                        <span className="text-slate-400 uppercase text-[8px]">{chip.label}</span>
+                        <span className="text-slate-400 uppercase text-ui-xs">{chip.label}</span>
                         {chip.value}
                       </span>
                     ))}
@@ -417,7 +417,7 @@ export default function CoilDamageRecordModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase">Before kg (on roll)</label>
+              <label className="block text-ui-xs font-bold text-gray-400 uppercase">Before kg (on roll)</label>
               <input
                 required
                 type="number"
@@ -429,13 +429,13 @@ export default function CoilDamageRecordModal({
                 placeholder="Weigh before cutting"
               />
               {selectedCoil && freeKg > 0 ? (
-                <p className="mt-1 text-[10px] text-teal-700">
+                <p className="mt-1 text-ui-xs text-teal-700">
                   Suggested from free kg on roll — same as production register.
                 </p>
               ) : null}
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase">After kg (good steel left)</label>
+              <label className="block text-ui-xs font-bold text-gray-400 uppercase">After kg (good steel left)</label>
               <input
                 required
                 type="number"
@@ -451,12 +451,12 @@ export default function CoilDamageRecordModal({
 
           <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
-              <h3 className="text-[10px] font-bold text-[#134e4a] uppercase tracking-widest">Damaged sections</h3>
+              <h3 className="text-ui-xs font-bold text-zarewa-teal uppercase tracking-widest">Damaged sections</h3>
               {totalMeters > 0 ? (
-                <span className="text-[11px] font-bold text-orange-600 tabular-nums">{totalMeters.toLocaleString()} m total</span>
+                <span className="text-xs font-bold text-orange-600 tabular-nums">{totalMeters.toLocaleString()} m total</span>
               ) : null}
             </div>
-            <div className="hidden sm:grid grid-cols-[2rem_4.5rem_3.5rem_1fr_4.5rem] gap-1 px-1 text-[8px] font-semibold text-slate-400 uppercase tracking-wider items-center">
+            <div className="hidden sm:grid grid-cols-[2rem_4.5rem_3.5rem_1fr_4.5rem] gap-1 px-1 text-ui-xs font-semibold text-slate-400 uppercase tracking-wider items-center">
               <div>#</div>
               <div>Length (m)</div>
               <div>Qty</div>
@@ -470,9 +470,9 @@ export default function CoilDamageRecordModal({
                   key={line.id}
                   className="grid grid-cols-1 sm:grid-cols-[2rem_4.5rem_3.5rem_1fr_4.5rem] gap-1.5 sm:gap-1 items-center bg-white p-2 rounded-lg border border-slate-200"
                 >
-                  <div className="flex sm:justify-center text-[10px] font-bold text-slate-300">{idx + 1}</div>
+                  <div className="flex sm:justify-center text-ui-xs font-bold text-slate-300">{idx + 1}</div>
                   <div>
-                    <label className="sm:hidden text-[8px] font-semibold text-slate-400 uppercase">Length (m)</label>
+                    <label className="sm:hidden text-ui-xs font-semibold text-slate-400 uppercase">Length (m)</label>
                     <input
                       type="number"
                       min="0.01"
@@ -480,31 +480,31 @@ export default function CoilDamageRecordModal({
                       placeholder="4.5"
                       value={line.lengthM}
                       onChange={(e) => updateLine(line.id, { lengthM: e.target.value })}
-                      className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-[11px] font-semibold text-[#134e4a]"
+                      className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-zarewa-teal"
                     />
                   </div>
                   <div>
-                    <label className="sm:hidden text-[8px] font-semibold text-slate-400 uppercase">Qty</label>
+                    <label className="sm:hidden text-ui-xs font-semibold text-slate-400 uppercase">Qty</label>
                     <input
                       type="number"
                       min="1"
                       placeholder="Qty"
                       value={line.quantity}
                       onChange={(e) => updateLine(line.id, { quantity: e.target.value })}
-                      className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-[11px] font-semibold text-[#134e4a]"
+                      className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-zarewa-teal"
                     />
                   </div>
                   <div>
-                    <label className="sm:hidden text-[8px] font-semibold text-slate-400 uppercase">Note</label>
+                    <label className="sm:hidden text-ui-xs font-semibold text-slate-400 uppercase">Note</label>
                     <input
                       placeholder="e.g. rust band"
                       value={line.conditionNote}
                       onChange={(e) => updateLine(line.id, { conditionNote: e.target.value })}
-                      className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-[11px] text-slate-700"
+                      className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs text-slate-700"
                     />
                   </div>
                   <div className="flex items-center justify-between sm:justify-center gap-1">
-                    <span className="sm:hidden text-[11px] font-bold text-orange-600 tabular-nums">{lineM > 0 ? `${lineM} m` : ''}</span>
+                    <span className="sm:hidden text-xs font-bold text-orange-600 tabular-nums">{lineM > 0 ? `${lineM} m` : ''}</span>
                     <div className="flex gap-0.5">
                       <button
                         type="button"
@@ -530,7 +530,7 @@ export default function CoilDamageRecordModal({
           </div>
 
           <div className="space-y-2">
-            <p className="text-[10px] font-bold text-gray-400 uppercase">
+            <p className="text-ui-xs font-bold text-gray-400 uppercase">
               {activeIncidentType === 'customer_return' ? 'Return disposition' : 'What happens to the cut-out steel?'}
             </p>
             <div className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
@@ -541,13 +541,13 @@ export default function CoilDamageRecordModal({
                   onClick={() => setForm((s) => ({ ...s, returnDisposition: opt.id }))}
                   className={`rounded-lg px-4 py-2 text-left transition-colors ${
                     form.returnDisposition === opt.id
-                      ? 'bg-[#134e4a] text-white shadow-sm'
+                      ? 'bg-zarewa-teal text-white shadow-sm'
                       : 'text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <span className="block text-[11px] font-bold">{opt.label}</span>
+                  <span className="block text-xs font-bold">{opt.label}</span>
                   {opt.hint ? (
-                    <span className={`block text-[9px] ${form.returnDisposition === opt.id ? 'text-teal-100' : 'text-slate-400'}`}>
+                    <span className={`block text-ui-xs ${form.returnDisposition === opt.id ? 'text-teal-100' : 'text-slate-400'}`}>
                       {opt.hint}
                     </span>
                   ) : null}
@@ -557,8 +557,8 @@ export default function CoilDamageRecordModal({
           </div>
 
           {preview.kgDeducted != null && totalMeters > 0 ? (
-            <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-4 py-3 text-[11px] text-slate-700 space-y-1">
-              <p className="font-bold text-[#134e4a] uppercase text-[9px] tracking-wide">Conversion preview</p>
+            <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-4 py-3 text-xs text-slate-700 space-y-1">
+              <p className="font-bold text-zarewa-teal uppercase text-ui-xs tracking-wide">Conversion preview</p>
               <p>
                 <span className="font-semibold">Kg removed:</span>{' '}
                 <span className="font-mono tabular-nums">{preview.kgDeducted.toFixed(2)} kg</span>
@@ -592,7 +592,7 @@ export default function CoilDamageRecordModal({
           ) : null}
 
           <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Notes</label>
+            <label className="block text-ui-xs font-bold text-gray-400 uppercase mb-1">Notes</label>
             <textarea
               required
               rows={2}
@@ -613,7 +613,7 @@ export default function CoilDamageRecordModal({
             />
             <span>
               Submit for branch manager approval
-              <span className="block text-[10px] font-normal text-slate-500">
+              <span className="block text-ui-xs font-normal text-slate-500">
                 Coil kg and pool/scrap stock update only after approval.
               </span>
             </span>

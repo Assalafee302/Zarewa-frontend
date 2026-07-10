@@ -13,7 +13,7 @@ export function FinanceTabs({ tabs, active, onChange }) {
           onClick={() => onChange(t.id)}
           className={`rounded-full px-4 py-1.5 text-xs font-bold transition-colors ${
             active === t.id
-              ? 'bg-[#134e4a] text-white shadow-sm'
+              ? 'bg-zarewa-teal text-white shadow-sm'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
           }`}
         >

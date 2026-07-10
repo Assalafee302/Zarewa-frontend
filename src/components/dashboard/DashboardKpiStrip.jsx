@@ -54,7 +54,7 @@ function KpiCard({ title, value, sub, onClick, titleAttr, highlight, children })
     highlight === 'danger'
       ? 'border-l-4 border-l-rose-600'
       : highlight === 'success'
-        ? 'border-l-4 border-l-[#134e4a]'
+        ? 'border-l-4 border-l-zarewa-teal'
         : 'border-l-4 border-l-transparent';
   return (
     <motion.button
@@ -64,16 +64,16 @@ function KpiCard({ title, value, sub, onClick, titleAttr, highlight, children })
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       onClick={onClick}
       title={titleAttr ?? title}
-      className={`z-kpi-card text-left h-full min-h-[8.5rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/20 focus-visible:ring-offset-2 w-full flex flex-col ${accent}`}
+      className={`z-kpi-card text-left h-full min-h-[8.5rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20 focus-visible:ring-offset-2 w-full flex flex-col ${accent}`}
     >
-      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{title}</p>
-      <p className="text-2xl font-bold text-[#134e4a] tracking-tight tabular-nums leading-tight">
+      <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">{title}</p>
+      <p className="text-2xl font-bold text-zarewa-teal tracking-tight tabular-nums leading-tight">
         {value}
       </p>
       {children ? <div className="mt-3 flex-1 min-h-0">{children}</div> : null}
       {sub ? (
         <p
-          className={`text-[10px] font-medium text-slate-500 mt-3 flex items-center gap-1 tabular-nums ${children ? 'border-t border-slate-100 pt-3' : 'pt-1'}`}
+          className={`text-ui-xs font-medium text-slate-500 mt-3 flex items-center gap-1 tabular-nums ${children ? 'border-t border-slate-100 pt-3' : 'pt-1'}`}
         >
           {sub}
           <ChevronRight size={12} className="opacity-40 shrink-0 text-slate-400" />
@@ -229,12 +229,12 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
                       className="min-w-0 border-b border-slate-100 pb-2 last:border-0 sm:border-0 sm:pb-0"
                       title={`${m.label}: ${m.meters.toLocaleString()} m`}
                     >
-                      <p className="text-[9px] font-semibold text-slate-500 truncate">
+                      <p className="text-ui-xs font-semibold text-slate-500 truncate">
                         {shortPeriodLabel(m.key)}
                       </p>
-                      <p className="text-[12px] font-bold text-[#134e4a] tabular-nums text-right sm:text-left">
+                      <p className="text-[12px] font-bold text-zarewa-teal tabular-nums text-right sm:text-left">
                         {(m.meters / 1000).toFixed(0)}
-                        <span className="text-[9px] font-semibold text-slate-400 ml-0.5">k m</span>
+                        <span className="text-ui-xs font-semibold text-slate-400 ml-0.5">k m</span>
                       </p>
                     </div>
                   ))}
@@ -260,17 +260,17 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
           type="button"
           onClick={() => navigate('/accounts')}
           title="Open Finance for treasury detail"
-          className="z-kpi-card text-left h-full min-h-[8.5rem] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/20 focus-visible:ring-offset-2 flex flex-col border-l-4 border-l-transparent"
+          className="z-kpi-card text-left h-full min-h-[8.5rem] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20 focus-visible:ring-offset-2 flex flex-col border-l-4 border-l-transparent"
         >
-          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-            <Landmark size={14} className="text-[#134e4a]" />
+          <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+            <Landmark size={14} className="text-zarewa-teal" />
             Cash & bank (cleared)
           </p>
-          <p className="text-2xl font-bold text-[#134e4a] tracking-tight tabular-nums leading-tight">
+          <p className="text-2xl font-bold text-zarewa-teal tracking-tight tabular-nums leading-tight">
             {formatNgn(liquiditySplit.clearedBookNgn)}
           </p>
           {liquiditySplit.pendingClearanceNgn > 0 ? (
-            <p className="text-[10px] font-medium text-amber-800 mt-1 tabular-nums">
+            <p className="text-ui-xs font-medium text-amber-800 mt-1 tabular-nums">
               Pending clearance: {formatNgn(liquiditySplit.pendingClearanceNgn)}
               <span className="text-slate-500 font-normal"> · Book {formatNgn(liquiditySplit.bookTotalNgn)}</span>
             </p>
@@ -279,16 +279,16 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
             {liquidityBreakdown.map((row) => (
               <li
                 key={row.label}
-                className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 py-2 border-b border-slate-50 last:border-0 text-[10px] font-medium text-slate-600"
+                className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 py-2 border-b border-slate-50 last:border-0 text-ui-xs font-medium text-slate-600"
               >
                 <span className="truncate text-left">{row.label}</span>
-                <span className="tabular-nums text-right text-[#134e4a] font-semibold shrink-0">
+                <span className="tabular-nums text-right text-zarewa-teal font-semibold shrink-0">
                   {formatNgn(row.amountNgn)}
                 </span>
               </li>
             ))}
           </ul>
-          <p className="text-[10px] font-medium text-slate-400 mt-3 pt-2 border-t border-slate-100 flex items-center gap-1">
+          <p className="text-ui-xs font-medium text-slate-400 mt-3 pt-2 border-t border-slate-100 flex items-center gap-1">
             Treasury detail <ChevronRight size={12} className="opacity-50" />
           </p>
         </button>
@@ -306,22 +306,22 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
               {stockAlerts.slice(0, 3).map((s) => (
                 <li key={s.id} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 items-start text-left">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-semibold text-[#134e4a] leading-snug">
+                    <p className="text-ui-xs font-semibold text-zarewa-teal leading-snug">
                       <span className="tabular-nums">{s.gauge}</span>
                       <span className="text-slate-400 font-medium"> mm</span>
                       <span className="text-slate-600"> · {s.materialType}</span>
                     </p>
-                    <p className="text-[9px] text-slate-500 truncate">{s.colour}</p>
+                    <p className="text-ui-xs text-slate-500 truncate">{s.colour}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-[9px] font-semibold uppercase text-slate-400">{s.status}</p>
-                    <p className="text-[10px] font-bold text-slate-700 tabular-nums">{s.qty}</p>
+                    <p className="text-ui-xs font-semibold uppercase text-slate-400">{s.status}</p>
+                    <p className="text-ui-xs font-bold text-slate-700 tabular-nums">{s.qty}</p>
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-3 text-[10px] font-medium text-slate-500 border-t border-slate-100 pt-3">
+            <p className="mt-3 text-ui-xs font-medium text-slate-500 border-t border-slate-100 pt-3">
               All tracked SKUs above reorder.
             </p>
           )}

@@ -16,7 +16,7 @@ export function ExecMdReviewNav({ value = 'pack', onChange, mayViewBi = false })
 
   return (
     <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-3 sm:px-4">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+      <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">
         Monthly review
       </p>
       <PageTabs tabs={tabs} value={value} onChange={onChange} ariaLabel="Review sections" />

@@ -2,7 +2,8 @@
  * Production-mode startup test — catches TDZ during App module load.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithProviders } from './test/renderWithProviders';
 import React from 'react';
 
 vi.mock('./lib/firebase.js', () => ({
@@ -33,7 +34,7 @@ describe('production startup TDZ', () => {
 
   it('renders login shell without error boundary crash', async () => {
     const { default: App } = await import('./App.jsx');
-    render(<App />);
+    renderWithProviders(<App />);
     await waitFor(
       () => {
         expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();

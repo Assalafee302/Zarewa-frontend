@@ -170,7 +170,7 @@ export default function ExecutiveHrPayrollSummary() {
         </p>
       ) : null}
 
-      <Link to="/hr/payroll" className="text-sm font-bold text-[#134e4a] hover:underline">
+      <Link to="/hr/payroll" className="text-sm font-bold text-zarewa-teal hover:underline">
         Open payroll module →
       </Link>
     </div>

@@ -37,7 +37,7 @@ export function HrPageIntro({ title, description, actions, children }) {
     >
       {hasCopy ? (
         <div className="min-w-0 flex-1">
-          {title ? <h2 className="z-page-title text-[#134e4a]">{title}</h2> : null}
+          {title ? <h2 className="z-page-title text-zarewa-teal">{title}</h2> : null}
           {description ? <p className="z-page-subtitle">{description}</p> : null}
           {children}
         </div>
@@ -101,7 +101,7 @@ export function HrListItemButton({ active, onClick, title, meta, badge }) {
       onClick={onClick}
       className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${
         active
-          ? 'border-[#134e4a]/40 bg-teal-50/60 shadow-sm'
+          ? 'border-zarewa-teal/40 bg-teal-50/60 shadow-sm'
           : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/80'
       }`}
     >
@@ -116,7 +116,7 @@ export function HrListItemButton({ active, onClick, title, meta, badge }) {
 
 export function HrInlineLink({ to, children }) {
   return (
-    <Link to={to} className="text-sm font-semibold text-[#134e4a] hover:underline">
+    <Link to={to} className="text-sm font-semibold text-zarewa-teal hover:underline">
       {children}
     </Link>
   );

@@ -24,7 +24,7 @@ export function ExpenseCategoryLaneBadge({
 
   return (
     <span
-      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${badge.className} ${className}`.trim()}
+      className={`inline-flex items-center rounded-md px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide ${badge.className} ${className}`.trim()}
       title={title}
     >
       {badge.label}

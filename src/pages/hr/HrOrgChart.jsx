@@ -77,9 +77,9 @@ function filterChartTree(nodes, q) {
 function StatTile({ label, value, hint }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-white px-3 py-2.5 shadow-sm">
-      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-      <p className="text-lg font-black tabular-nums text-[#134e4a]">{value}</p>
-      {hint ? <p className="mt-0.5 truncate text-[10px] text-slate-500">{hint}</p> : null}
+      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-lg font-black tabular-nums text-zarewa-teal">{value}</p>
+      {hint ? <p className="mt-0.5 truncate text-ui-xs text-slate-500">{hint}</p> : null}
     </div>
   );
 }
@@ -303,7 +303,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
         />
         {summary ? (
           <div className="mt-4">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">{summaryScopeLabel}</p>
+            <p className="mb-2 text-ui-xs font-bold uppercase tracking-widest text-slate-400">{summaryScopeLabel}</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               <StatTile label="Active staff" value={summary.total} />
               <StatTile label="Top level" value={summary.roots} hint="No manager in scope" />
@@ -331,8 +331,8 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
             onClick={() => setView(v.id)}
             className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide transition ${
               view === v.id
-                ? 'bg-[#134e4a] text-white shadow-sm'
-                : 'border border-slate-200 bg-white text-slate-600 hover:border-[#134e4a]/30'
+                ? 'bg-zarewa-teal text-white shadow-sm'
+                : 'border border-slate-200 bg-white text-slate-600 hover:border-zarewa-teal/30'
             }`}
           >
             {v.label}
@@ -343,11 +343,11 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
       <p className="text-xs text-slate-500">{activeView.hint}</p>
 
       {editMode ? (
-        <div className="rounded-xl border border-[#134e4a]/25 bg-teal-50/70 px-4 py-3">
+        <div className="rounded-xl border border-zarewa-teal/25 bg-teal-50/70 px-4 py-3">
           {linkSource ? (
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-sm text-slate-800">
-                <span className="font-bold text-[#134e4a]">{linkSource.displayName || linkSource.userId}</span>
+                <span className="font-bold text-zarewa-teal">{linkSource.displayName || linkSource.userId}</span>
                 <span className="text-slate-600"> selected — click another person to set as line manager, or:</span>
               </p>
               <button type="button" className={HR_BTN_SECONDARY} onClick={openRemoveManager}>
@@ -359,7 +359,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
             </div>
           ) : (
             <p className="text-sm text-slate-700">
-              <span className="font-bold text-[#134e4a]">Link mode.</span> Click a team member, then click their line manager.
+              <span className="font-bold text-zarewa-teal">Link mode.</span> Click a team member, then click their line manager.
               Cards are highlighted when selectable.
             </p>
           )}
@@ -416,7 +416,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
           >
             <Minus size={14} />
           </button>
-          <span className="min-w-[3rem] text-center text-[10px] font-bold tabular-nums text-slate-600">
+          <span className="min-w-[3rem] text-center text-ui-xs font-bold tabular-nums text-slate-600">
             {Math.round(zoom * 100)}%
           </span>
           <button
@@ -441,7 +441,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
             onClick={toggleEditMode}
             className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold uppercase tracking-wide transition ${
               editMode
-                ? 'border-[#134e4a] bg-[#134e4a] text-white shadow-sm'
+                ? 'border-zarewa-teal bg-zarewa-teal text-white shadow-sm'
                 : 'border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
@@ -480,7 +480,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
           {(chart.summary.orgUnits || []).map((u) => (
             <span
               key={u.key}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-semibold text-slate-600"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-ui-xs font-semibold text-slate-600"
             >
               {orgUnitLabel(u.key)} · {u.count}
             </span>
@@ -493,7 +493,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
           {(chart.summary.roleFamilies || []).slice(0, 8).map((f) => (
             <span
               key={f.key}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-semibold text-slate-600"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-ui-xs font-semibold text-slate-600"
             >
               {roleFamilyLabel(f.key)} · {f.count}
             </span>

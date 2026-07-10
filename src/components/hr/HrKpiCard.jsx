@@ -11,10 +11,10 @@ const TONES = {
 
 /** HR KPI card aligned with Finance module styling. */
 export function HrKpiCard({ label, value, hint, tone = 'default', to, onClick }) {
-  const cls = `rounded-2xl border px-4 py-4 shadow-sm block transition-colors ${TONES[tone] || TONES.default} ${to || onClick ? 'hover:border-[#134e4a]/30 cursor-pointer' : ''}`;
+  const cls = `rounded-2xl border px-4 py-4 shadow-sm block transition-colors ${TONES[tone] || TONES.default} ${to || onClick ? 'hover:border-zarewa-teal/30 cursor-pointer' : ''}`;
   const inner = (
     <>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</p>
+      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">{label}</p>
       <p className="mt-2 text-2xl font-black tabular-nums">{value}</p>
       {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </>

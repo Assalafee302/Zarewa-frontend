@@ -133,7 +133,7 @@ export default function HrAttendance({
         <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
           <button
             type="button"
-            className="rounded-t-lg px-3 py-2 text-xs font-bold uppercase border border-b-white bg-white text-[#134e4a]"
+            className="rounded-t-lg px-3 py-2 text-xs font-bold uppercase border border-b-white bg-white text-zarewa-teal"
           >
             Deduction review
           </button>

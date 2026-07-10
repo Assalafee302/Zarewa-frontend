@@ -156,8 +156,8 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
         <div className="flex items-center gap-3 border-b border-slate-300 pb-3 mb-3">
           <img src={ZAREWA_LOGO_SRC} alt="" className="h-12 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <div>
-            <p className="text-[10px] font-black uppercase tracking-wide text-[#134e4a]">{ZAREWA_COMPANY_ACCOUNT_NAME}</p>
-            <h1 className="text-base font-black text-[#134e4a] mt-0.5">Material pricing workbook — internal</h1>
+            <p className="text-[10px] font-black uppercase tracking-wide text-zarewa-teal">{ZAREWA_COMPANY_ACCOUNT_NAME}</p>
+            <h1 className="text-base font-black text-zarewa-teal mt-0.5">Material pricing workbook — internal</h1>
             <p className="text-[10px] text-slate-600 mt-1">
               <strong>Branch:</strong> {branchName} · <strong>As of:</strong> {effectiveDateLabel}
             </p>
@@ -179,7 +179,7 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
               <h2 className="text-sm font-black text-[#0f766e] mb-2">{title}</h2>
               <div className="overflow-x-auto rounded-lg border border-slate-200">
                 <table className="workbook-print-table min-w-[980px] w-full border-collapse text-left">
-                  <thead className="bg-slate-100 text-[8px] font-black uppercase tracking-wide text-slate-700">
+                  <thead className="bg-slate-100 text-ui-xs font-black uppercase tracking-wide text-slate-700">
                     <tr>
                       <th className="border border-slate-300 px-2 py-1.5">Gauge (mm)</th>
                       <th className="border border-slate-300 px-2 py-1.5">Customer label</th>
@@ -232,7 +232,7 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
                           </td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">{formatNgn(oh)}</td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">{formatNgn(pr)}</td>
-                          <td className="border border-slate-200 px-2 py-1 text-right font-mono font-semibold text-[#134e4a] tabular-nums">
+                          <td className="border border-slate-200 px-2 py-1 text-right font-mono font-semibold text-zarewa-teal tabular-nums">
                             {displaySug != null && displaySug > 0 ? formatNgn(roundPublishedPrice(displaySug)) : '—'}
                           </td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">
@@ -258,7 +258,7 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
         <section className="mb-6">
           <h2 className="text-sm font-black text-[#0f766e] mb-2">Ridge / flashing add-ons (₦/m)</h2>
           <table className="workbook-print-table w-full border-collapse text-left max-w-2xl">
-            <thead className="bg-slate-100 text-[8px] font-black uppercase text-slate-700">
+            <thead className="bg-slate-100 text-ui-xs font-black uppercase text-slate-700">
               <tr>
                 <th className="border border-slate-300 px-2 py-1.5">Girth mm</th>
                 <th className="border border-slate-300 px-2 py-1.5">Material family</th>
@@ -290,7 +290,7 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
         <section>
           <h2 className="text-sm font-black text-[#0f766e] mb-2">Accessories (reference)</h2>
           <table className="workbook-print-table w-full border-collapse text-left max-w-2xl">
-            <thead className="bg-slate-100 text-[8px] font-black uppercase text-slate-700">
+            <thead className="bg-slate-100 text-ui-xs font-black uppercase text-slate-700">
               <tr>
                 <th className="border border-slate-300 px-2 py-1.5">Item</th>
                 <th className="border border-slate-300 px-2 py-1.5">Unit</th>
@@ -322,7 +322,7 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
           </table>
         </section>
 
-        <p className="mt-6 text-[9px] text-slate-500 print:mt-4">
+        <p className="mt-6 text-ui-xs text-slate-500 print:mt-4">
           Zarewa — internal pricing reference. Customer-facing sheet: use Print (customer price list). Quotations below published minima may
           require MD approval where applicable.
         </p>
@@ -470,7 +470,7 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
           All rates are in Naira per running metre
         </p>
         {branchName ? (
-          <p className="text-center text-[9px] text-slate-700 mb-2 print:mb-1 print:text-[8pt]">Branch: {branchName}</p>
+          <p className="text-center text-ui-xs text-slate-700 mb-2 print:mb-1 print:text-[8pt]">Branch: {branchName}</p>
         ) : (
           <div className="mb-2 print:mb-1" aria-hidden />
         )}
@@ -480,13 +480,13 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
         <table className="cpl-table border-collapse text-[11px] print:text-[8.5pt]">
           <thead>
             <tr className="bg-slate-100">
-              <th className="cpl-col-gauge border border-black px-2 py-1 text-left text-[9px] font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
+              <th className="cpl-col-gauge border border-black px-2 py-1 text-left text-ui-xs font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
                 Material gauge
               </th>
-              <th className="cpl-col-price border border-black px-2 py-1 text-right text-[8px] font-bold uppercase leading-tight print:px-1.5 print:py-0.5 print:text-[7.5pt]">
+              <th className="cpl-col-price border border-black px-2 py-1 text-right text-ui-xs font-bold uppercase leading-tight print:px-1.5 print:py-0.5 print:text-[7.5pt]">
                 {PROFILE_COL_LONGSPAN}
               </th>
-              <th className="cpl-col-price border border-black px-2 py-1 text-right text-[8px] font-bold uppercase leading-tight print:px-1.5 print:py-0.5 print:text-[7.5pt]">
+              <th className="cpl-col-price border border-black px-2 py-1 text-right text-ui-xs font-bold uppercase leading-tight print:px-1.5 print:py-0.5 print:text-[7.5pt]">
                 {PROFILE_COL_PREMIUM}
               </th>
             </tr>
@@ -541,10 +541,10 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
             <table className="cpl-table border-collapse text-[11px] print:text-[8.5pt]">
               <thead>
                 <tr className="bg-slate-100">
-                  <th className="cpl-col-gauge border border-black px-2 py-1 text-left text-[9px] font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
+                  <th className="cpl-col-gauge border border-black px-2 py-1 text-left text-ui-xs font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
                     Material gauge
                   </th>
-                  <th className="cpl-col-price border border-black px-2 py-1 text-right text-[9px] font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
+                  <th className="cpl-col-price border border-black px-2 py-1 text-right text-ui-xs font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
                     ₦/m
                   </th>
                 </tr>
@@ -571,13 +571,13 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
         <table className="cpl-table border-collapse text-[11px] print:text-[8.5pt]">
           <thead>
             <tr className="bg-slate-100">
-              <th className="cpl-col-gauge border border-black px-2 py-1 text-left text-[9px] font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
+              <th className="cpl-col-gauge border border-black px-2 py-1 text-left text-ui-xs font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
                 Materials gauge
               </th>
               {RIDGE_GIRTH_HEADERS_MM.map((gth) => (
                 <th
                   key={gth}
-                  className="cpl-col-girth border border-black px-2 py-1 text-right text-[9px] font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]"
+                  className="cpl-col-girth border border-black px-2 py-1 text-right text-ui-xs font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]"
                 >
                   {gth}mm
                 </th>
@@ -634,16 +634,16 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
             <table className="cpl-table border-collapse text-[11px] print:text-[8.5pt]">
               <thead>
                 <tr className="bg-slate-100">
-                  <th className="cpl-col-sn border border-black px-2 py-1 text-left text-[9px] font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
+                  <th className="cpl-col-sn border border-black px-2 py-1 text-left text-ui-xs font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
                     S/No
                   </th>
-                  <th className="cpl-col-item border border-black px-2 py-1 text-left text-[9px] font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
+                  <th className="cpl-col-item border border-black px-2 py-1 text-left text-ui-xs font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
                     Item
                   </th>
-                  <th className="cpl-col-qty border border-black px-2 py-1 text-left text-[9px] font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
+                  <th className="cpl-col-qty border border-black px-2 py-1 text-left text-ui-xs font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
                     Quantity
                   </th>
-                  <th className="cpl-col-acc-price border border-black px-2 py-1 text-right text-[9px] font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
+                  <th className="cpl-col-acc-price border border-black px-2 py-1 text-right text-ui-xs font-bold uppercase print:px-1.5 print:py-0.5 print:text-[8pt]">
                     Price in Naira
                   </th>
                 </tr>
@@ -678,7 +678,7 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
         </section>
 
         {factoryBranches.length > 0 ? (
-          <div className="mt-3 pt-2 border-t-2 border-black flex flex-col sm:flex-row gap-4 text-[9px] leading-snug text-slate-900 print:mt-2 print:pt-1 print:gap-2 print:text-[7.5pt] print:leading-snug">
+          <div className="mt-3 pt-2 border-t-2 border-black flex flex-col sm:flex-row gap-4 text-ui-xs leading-snug text-slate-900 print:mt-2 print:pt-1 print:gap-2 print:text-[7.5pt] print:leading-snug">
             {factoryBranches.map((b) => (
               <div key={b.title} className="flex-1 min-w-0">
                 <p className="font-bold uppercase mb-0.5 print:mb-0 print:text-[7.5pt]">{b.title}</p>

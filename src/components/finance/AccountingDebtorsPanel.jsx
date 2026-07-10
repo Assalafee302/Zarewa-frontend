@@ -31,8 +31,8 @@ export function AccountingDebtorsPanel({
             key={t.id}
             type="button"
             onClick={() => setSubTab(t.id)}
-            className={`rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-wide ${
-              subTab === t.id ? 'bg-[#134e4a] text-white' : 'border border-slate-200 bg-white text-slate-600'
+            className={`rounded-full px-3 py-1 text-ui-xs font-bold uppercase tracking-wide ${
+              subTab === t.id ? 'bg-zarewa-teal text-white' : 'border border-slate-200 bg-white text-slate-600'
             }`}
           >
             {t.label}

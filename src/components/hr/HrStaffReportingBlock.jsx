@@ -30,10 +30,10 @@ export function HrStaffReportingBlock({ staff, staffBasePath = '/hr/employees', 
     <HrCard title="Reporting" subtitle="Line manager, direct reports, and place in the organogram">
       <dl className="space-y-4 text-sm">
         <div>
-          <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Line manager</dt>
+          <dt className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Line manager</dt>
           <dd className="mt-1">
             {managerId && managerName ? (
-              <Link to={`${staffBasePath}/${managerId}`} className="font-semibold text-[#134e4a] hover:underline">
+              <Link to={`${staffBasePath}/${managerId}`} className="font-semibold text-zarewa-teal hover:underline">
                 {managerName}
                 {manager?.jobTitle ? <span className="font-normal text-slate-500"> · {manager.jobTitle}</span> : null}
               </Link>
@@ -43,7 +43,7 @@ export function HrStaffReportingBlock({ staff, staffBasePath = '/hr/employees', 
           </dd>
         </div>
         <div>
-          <dt className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <dt className="flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-widest text-slate-400">
             <Users size={12} aria-hidden />
             Direct reports ({reports.length})
           </dt>
@@ -52,7 +52,7 @@ export function HrStaffReportingBlock({ staff, staffBasePath = '/hr/employees', 
               <ul className="space-y-1">
                 {reports.map((r) => (
                   <li key={r.userId}>
-                    <Link to={`${staffBasePath}/${r.userId}`} className="text-[#134e4a] hover:underline">
+                    <Link to={`${staffBasePath}/${r.userId}`} className="text-zarewa-teal hover:underline">
                       {r.displayName || r.userId}
                       {r.jobTitle ? <span className="text-slate-500"> · {r.jobTitle}</span> : null}
                     </Link>
@@ -67,7 +67,7 @@ export function HrStaffReportingBlock({ staff, staffBasePath = '/hr/employees', 
         <div>
           <Link
             to={orgPath}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#134e4a]/20 bg-[#134e4a]/5 px-3 py-2 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:bg-[#134e4a]/10"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zarewa-teal/20 bg-zarewa-teal/5 px-3 py-2 text-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-zarewa-teal/10"
           >
             <GitBranch size={14} aria-hidden />
             View in organogram

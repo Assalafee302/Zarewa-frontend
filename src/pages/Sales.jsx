@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, createPortal } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 
 import SalesCustomersTab from '../components/sales/SalesCustomersTab';
+import { ListEmptyState } from '../components/ui/ListEmptyState';
 import SalesCustomerCreateModal from '../components/sales/SalesCustomerCreateModal';
 import SalesCuttingListMaterialPanel from '../components/sales/SalesCuttingListMaterialPanel';
 import { SalesRowMenu } from '../components/sales/SalesRowMenu';
@@ -44,9 +45,12 @@ import { loadLedgerEntries } from '../lib/customerLedgerStore';
 import { dismissAdvanceEntryId } from '../lib/advanceEntryUiStore';
 import LinkAdvanceModal from '../components/sales/LinkAdvanceModal';
 import { ModalFrame } from '../components/layout';
+import { PrintModalPortal } from '../components/layout/PrintModalPortal';
 import { AdvancePaymentPrintView } from '../components/receipt/ReceiptPrintViews';
-import QuotationModal from '../components/QuotationModal';
-import ReceiptModal from '../components/ReceiptModal';
+import { lazyWithRetry } from '../lib/lazyWithRetry';
+
+const QuotationModal = lazyWithRetry(() => import('../components/QuotationModal'), { id: 'QuotationModal' });
+const ReceiptModal = lazyWithRetry(() => import('../components/ReceiptModal'), { id: 'ReceiptModal' });
 import {
   receiptMatchesSalesPaymentFilter,
   receiptSalesPaymentFilterBucket,
@@ -59,9 +63,11 @@ import {
   SalesReceiptPaymentStatusFilter,
   SalesReceiptPaymentStatusLegend,
 } from '../components/sales/SalesReceiptPaymentUi';
-import AdvancePaymentModal from '../components/AdvancePaymentModal';
-import CuttingListModal from '../components/CuttingListModal';
-import RefundModal from '../components/RefundModal';
+const AdvancePaymentModal = lazyWithRetry(() => import('../components/AdvancePaymentModal'), {
+  id: 'AdvancePaymentModal',
+});
+const CuttingListModal = lazyWithRetry(() => import('../components/CuttingListModal'), { id: 'CuttingListModal' });
+const RefundModal = lazyWithRetry(() => import('../components/RefundModal'), { id: 'RefundModal' });
 import { MainPanel, PageHeader, PageShell, PageTabs } from '../components/layout';
 import SalesMobileAlertStrip from '../components/sales/SalesMobileAlertStrip';
 import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
@@ -76,6 +82,7 @@ import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { spotPricesForSalesSidebar } from '../lib/spotPricesFromMasterData';
 import { apiFetch } from '../lib/apiBase';
+import { appConfirm } from '../lib/appConfirm';
 import {
   fetchEligibleRefundQuotationsCached,
   invalidateEligibleRefundQuotationsCache,
@@ -153,7 +160,7 @@ const CARD_ROW =
   'rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm transition-colors hover:bg-white/70';
 
 const CHIP =
-  'inline-flex items-center text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border shrink-0';
+  'inline-flex items-center text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border shrink-0';
 
 /** Lift row above following siblings so overflow action menus paint on top (stacking order). */
 function salesListItemClass(rowKey, openKey) {
@@ -245,10 +252,12 @@ const Sales = () => {
   const salesRoleLabel = ws?.session?.user?.roleLabel ?? SALES_ROLE_LABELS[salesRole] ?? salesRole;
   /** Branch manager & MD hold refunds.approve; finance holds finance.approve; admin has *. Cashiers pay only (Phase 11A). */
   const canApproveRefunds = userMayApproveRefundRequests(ws);
-  const confirmDangerousDelete = useCallback((recordLabel, typedPhrase = 'DELETE') => {
-    const proceed = window.confirm(
-      `DANGER: Delete ${recordLabel} permanently?\n\nThis action is irreversible and may remove linked records.`
-    );
+  const confirmDangerousDelete = useCallback(async (recordLabel, typedPhrase = 'DELETE') => {
+    const proceed = await appConfirm({
+      title: 'Delete',
+      message: `DANGER: Delete ${recordLabel} permanently?\n\nThis action is irreversible and may remove linked records.`,
+      variant: 'danger',
+    });
     if (!proceed) return false;
     const typed = window.prompt(`Type "${typedPhrase}" to confirm deleting ${recordLabel}.`, '');
     return String(typed || '').trim().toUpperCase() === String(typedPhrase).trim().toUpperCase();
@@ -317,9 +326,10 @@ const Sales = () => {
       showToast('System offline (read-only). Reconnect and refresh, then try again.', { variant: 'error' });
       return;
     }
-    const proceed = window.confirm(
-      'Administrator maintenance: rebuild every Sales receipt mirror from ledger RECEIPT rows and recalculate paid amounts on all quotations in the current branch filter.\n\nThis does not change the ledger. It may take a while on large databases.\n\nContinue?'
-    );
+    const proceed = await appConfirm({
+      message:
+        'Administrator maintenance: rebuild every Sales receipt mirror from ledger RECEIPT rows and recalculate paid amounts on all quotations in the current branch filter.\n\nThis does not change the ledger. It may take a while on large databases.\n\nContinue?',
+    });
     if (!proceed) return;
     setAdminSalesReconcileBusy(true);
     try {
@@ -1105,7 +1115,7 @@ const Sales = () => {
         showToast('Only Admin, MD, or Branch Manager can delete quotations.', { variant: 'error' });
         return;
       }
-      if (!confirmDangerousDelete(`quotation ${quotationId}`, 'DELETE QUOTATION')) return;
+      if (!(await confirmDangerousDelete(`quotation ${quotationId}`, 'DELETE QUOTATION'))) return;
       const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(quotationId)}`, {
         method: 'DELETE',
       });
@@ -1125,7 +1135,7 @@ const Sales = () => {
         showToast('Only Admin, MD, or Branch Manager can delete payments.', { variant: 'error' });
         return;
       }
-      if (!confirmDangerousDelete(`payment ${receiptId}`, 'DELETE RECEIPT')) return;
+      if (!(await confirmDangerousDelete(`payment ${receiptId}`, 'DELETE RECEIPT'))) return;
       const { ok, data } = await apiFetch(`/api/receipts/${encodeURIComponent(receiptId)}`, {
         method: 'DELETE',
       });
@@ -1149,7 +1159,7 @@ const Sales = () => {
       const entryId = String(entry?.id || '').trim();
       const amountLabel = entry?.remainingNgn ?? entry?.amountNgn;
       const label = `advance ${formatNgn(amountLabel)} for ${entry?.customerName || entry?.customerID || entryId}`;
-      if (!confirmDangerousDelete(label, 'DELETE ADVANCE')) return false;
+      if (!(await confirmDangerousDelete(label, 'DELETE ADVANCE'))) return false;
       if (wsCanMutate) {
         const { ok, data } = await apiFetch('/api/ledger/reverse-advance', {
           method: 'POST',
@@ -1181,7 +1191,7 @@ const Sales = () => {
         showToast('Only Admin, MD, or Branch Manager can delete cutting lists.', { variant: 'error' });
         return;
       }
-      if (!confirmDangerousDelete(`cutting list ${cuttingListId}`, 'DELETE CUTTING LIST')) return;
+      if (!(await confirmDangerousDelete(`cutting list ${cuttingListId}`, 'DELETE CUTTING LIST'))) return;
       const { ok, data } = await apiFetch(`/api/cutting-lists/${encodeURIComponent(cuttingListId)}`, {
         method: 'DELETE',
       });
@@ -1318,7 +1328,7 @@ const Sales = () => {
   );
 
   const primaryActionBtnClass =
-    'inline-flex items-center justify-center gap-2 rounded-lg bg-[#134e4a] text-white px-4 py-2 text-[10px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/30 focus-visible:ring-offset-2 shrink-0';
+    'inline-flex items-center justify-center gap-2 rounded-lg bg-zarewa-teal text-white px-4 py-2 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/30 focus-visible:ring-offset-2 shrink-0';
 
   return (
     <PageShell blurred={isAnyModalOpen}>
@@ -1360,7 +1370,7 @@ const Sales = () => {
                   salesTab,
                   searchQuery,
                 }}
-                className="inline-flex items-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-teal-100/70"
+                className="inline-flex items-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-teal-100/70"
               >
                 Ask AI
               </AiAskButton>
@@ -1369,7 +1379,7 @@ const Sales = () => {
                   type="button"
                   disabled={adminSalesReconcileBusy}
                   onClick={() => void runAdminSalesDerivedReconcile()}
-                  className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-violet-950 shadow-sm hover:bg-violet-100/80 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wide text-violet-950 shadow-sm hover:bg-violet-100/80 disabled:opacity-50"
                   title="Admin only: rebuild sales_receipt rows from the customer ledger and recalculate quotation paid for this branch scope."
                 >
                   <RefreshCw size={14} strokeWidth={2} className={adminSalesReconcileBusy ? 'animate-spin' : ''} />
@@ -1401,7 +1411,7 @@ const Sales = () => {
                       }
                       setShowAdvanceModal(true);
                     }}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-950 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider shadow-sm hover:bg-amber-100 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 shrink-0"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-950 px-4 py-2 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:bg-amber-100 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 shrink-0"
                     title="Payment before quotation — customer deposit / liability"
                   >
                     <Wallet size={16} strokeWidth={2} /> Advance payment
@@ -1457,15 +1467,15 @@ const Sales = () => {
               <>
                 {/* Spot prices */}
                 <section className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
-                  <div className="h-1 bg-[#134e4a]" aria-hidden />
+                  <div className="h-1 bg-zarewa-teal" aria-hidden />
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                          <Banknote size={14} className="text-[#134e4a] shrink-0" strokeWidth={2} />
+                        <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                          <Banknote size={14} className="text-zarewa-teal shrink-0" strokeWidth={2} />
                           Spot price list
                         </p>
-                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                        <p className="text-xs text-slate-500 mt-1 leading-snug">
                           ₦ per metre — same published list as Procurement → material pricing workbook (after sync),
                           plus other Setup price list lines.
                         </p>
@@ -1473,7 +1483,7 @@ const Sales = () => {
                       <button
                         type="button"
                         onClick={() => navigate('/')}
-                        className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wide text-[#134e4a] hover:bg-white transition-colors"
+                        className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-ui-xs font-semibold uppercase tracking-wide text-zarewa-teal hover:bg-white transition-colors"
                       >
                         <Pencil size={12} strokeWidth={2} />
                         Edit
@@ -1481,15 +1491,15 @@ const Sales = () => {
                     </div>
                     <div className="max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
                       {spotPrices.length === 0 ? (
-                        <p className="text-[11px] text-slate-500 py-2">No prices found.</p>
+                        <p className="text-xs text-slate-500 py-2">No prices found.</p>
                       ) : (
                         spotPrices.map((row) => (
                           <div key={row.id} className="grid grid-cols-[1fr_auto] gap-x-2 items-start border-b border-slate-100 py-2.5 last:border-b-0">
                             <div className="min-w-0">
                               <span className="text-xs font-semibold text-slate-800">{row.gaugeLabel}</span>
-                              <span className="text-[9px] text-slate-500 ml-1">{row.productType}</span>
+                              <span className="text-ui-xs text-slate-500 ml-1">{row.productType}</span>
                             </div>
-                            <span className="text-xs font-bold text-[#134e4a] tabular-nums text-right whitespace-nowrap pt-0.5">
+                            <span className="text-xs font-bold text-zarewa-teal tabular-nums text-right whitespace-nowrap pt-0.5">
                               ₦{Number(row.priceNgn || 0).toLocaleString()}/m
                             </span>
                           </div>
@@ -1501,25 +1511,25 @@ const Sales = () => {
 
                 {/* Stock check */}
                 <section className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
-                  <div className="h-1 bg-[#134e4a]" aria-hidden />
+                  <div className="h-1 bg-zarewa-teal" aria-hidden />
                   <div className="px-5 pt-4 pb-3 border-b border-slate-100">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                      <Package size={14} className="text-[#134e4a] shrink-0" strokeWidth={2} />
+                    <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                      <Package size={14} className="text-zarewa-teal shrink-0" strokeWidth={2} />
                       Stock check
                     </p>
-                    <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                    <p className="text-ui-xs text-slate-500 mt-1 leading-snug">
                       Material, gauge, and colour lists follow Setup master data (same as new quotations). Any list
                       that is still empty in Setup falls back to values seen on current coil and yard lines.
                     </p>
                   </div>
                   <div className="p-4 space-y-3">
                     <div className="space-y-2">
-                       <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Material</label>
+                       <label className="block text-ui-xs font-semibold text-slate-400 uppercase tracking-wide">Material</label>
                        <div className="relative">
                          <select 
                            value={stockMatType} 
                            onChange={(e) => setStockMatType(e.target.value)}
-                           className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-3 pr-8 text-base sm:text-xs font-semibold text-[#134e4a] focus:ring-2 focus:ring-[#134e4a]/10 focus:border-[#134e4a]/30 outline-none"
+                           className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-3 pr-8 text-base sm:text-xs font-semibold text-zarewa-teal focus:ring-2 focus:ring-zarewa-teal/10 focus:border-zarewa-teal/30 outline-none"
                          >
                            <option value="">Any type</option>
                            {stockSearchOptions.types.map((t) => (
@@ -1533,12 +1543,12 @@ const Sales = () => {
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Gauge</label>
+                        <label className="block text-ui-xs font-semibold text-slate-400 uppercase tracking-wide">Gauge</label>
                         <div className="relative">
                           <select 
                             value={stockGaugeFilter} 
                             onChange={(e) => setStockGaugeFilter(e.target.value)}
-                            className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-xs font-semibold text-[#134e4a] outline-none"
+                            className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-xs font-semibold text-zarewa-teal outline-none"
                           >
                             <option value="">Any</option>
                             {stockSearchOptions.gauges.map((g) => (
@@ -1551,12 +1561,12 @@ const Sales = () => {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Colour</label>
+                        <label className="block text-ui-xs font-semibold text-slate-400 uppercase tracking-wide">Colour</label>
                         <div className="relative">
                           <select 
                             value={stockColourFilter} 
                             onChange={(e) => setStockColourFilter(e.target.value)}
-                            className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-xs font-semibold text-[#134e4a] outline-none"
+                            className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-xs font-semibold text-zarewa-teal outline-none"
                           >
                             <option value="">Any</option>
                             {stockSearchOptions.colours.map((c) => (
@@ -1573,13 +1583,13 @@ const Sales = () => {
                     {stockSearchActive && stockVerdict && (
                       <div className={`p-3 rounded-lg border ${stockVerdict.kind === 'ok' ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'}`}>
                         <p className="text-xs font-bold text-slate-900">{stockVerdict.title}</p>
-                        <p className="text-[10px] text-slate-600 mt-1">{stockVerdict.detail}</p>
+                        <p className="text-ui-xs text-slate-600 mt-1">{stockVerdict.detail}</p>
                       </div>
                     )}
 
                     <button 
                       onClick={() => { setStockMatType(''); setStockGaugeFilter(''); setStockColourFilter(''); }}
-                      className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                      className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-ui-xs font-black uppercase tracking-widest transition-all"
                     >
                       Clear filters
                     </button>
@@ -1589,18 +1599,18 @@ const Sales = () => {
                 <section className="rounded-xl border border-amber-200/90 bg-amber-50/40 shadow-sm overflow-hidden">
                   <div className="h-1 bg-amber-500" aria-hidden />
                   <div className="p-5">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-900/80 flex items-center gap-1.5">
+                    <p className="text-ui-xs font-semibold uppercase tracking-widest text-amber-900/80 flex items-center gap-1.5">
                       <Bell size={14} className="shrink-0" strokeWidth={2} />
                       Quote validity
                     </p>
-                    <p className="text-[11px] text-amber-950/80 mt-1 leading-snug">
+                    <p className="text-xs text-amber-950/80 mt-1 leading-snug">
                       Quotes stay open for <strong>{QUOTATION_VALIDITY_DAYS} days</strong> from the quote date. From day{' '}
                       <strong>{QUOTATION_FOLLOWUP_START_DAY}</strong> we flag follow-up if there is still no payment on
                       the quote. Day {QUOTATION_VALIDITY_DAYS}+ with no commitment auto-archives as{' '}
                       <strong>Expired</strong> (revivable). Master list price changes void quotes under 2 days old with
                       no commitment.
                     </p>
-                    <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-amber-200/80 bg-white/70 px-2.5 py-2 text-[10px] text-amber-950">
+                    <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-amber-200/80 bg-white/70 px-2.5 py-2 text-ui-xs text-amber-950">
                       <input
                         type="checkbox"
                         className="mt-0.5 h-3.5 w-3.5 rounded border-amber-300 text-amber-600"
@@ -1611,7 +1621,7 @@ const Sales = () => {
                     </label>
                     {quotationFollowUpRows.length > 0 ? (
                       <div className="mt-4 rounded-lg border border-amber-200 bg-white/90 p-2.5">
-                        <p className="text-[9px] font-bold text-amber-900 uppercase tracking-wider mb-2">
+                        <p className="text-ui-xs font-bold text-amber-900 uppercase tracking-wider mb-2">
                           Follow-up ({quotationFollowUpRows.length})
                         </p>
                         <ul className="max-h-[200px] overflow-y-auto custom-scrollbar space-y-1.5">
@@ -1626,15 +1636,15 @@ const Sales = () => {
                                 }}
                                 className="w-full text-left rounded-md border border-amber-100 bg-amber-50/50 px-2 py-1.5 hover:bg-amber-100/80 transition-colors"
                               >
-                                <span className="text-[10px] font-bold text-[#134e4a] tabular-nums">{q.id}</span>
-                                <span className="text-[9px] text-slate-600 block truncate">{q.customer}</span>
+                                <span className="text-ui-xs font-bold text-zarewa-teal tabular-nums">{q.id}</span>
+                                <span className="text-ui-xs text-slate-600 block truncate">{q.customer}</span>
                               </button>
                             </li>
                           ))}
                         </ul>
                       </div>
                     ) : (
-                      <p className="text-[10px] text-amber-800/60 mt-3 italic">No follow-up flags for current search.</p>
+                      <p className="text-ui-xs text-amber-800/60 mt-3 italic">No follow-up flags for current search.</p>
                     )}
                   </div>
                 </section>
@@ -1667,17 +1677,17 @@ const Sales = () => {
               />
             ) : salesTab === 'refund' ? (
               <section className="rounded-xl border border-dashed border-slate-200 bg-slate-50/40 p-5">
-                <p className="text-[9px] font-bold text-[#134e4a] uppercase tracking-wider mb-1.5">
+                <p className="text-ui-xs font-bold text-zarewa-teal uppercase tracking-wider mb-1.5">
                   Potential refunds ({quotationsRefundPotentialRows.length})
                 </p>
-                <p className="text-[9px] text-slate-500 leading-snug mb-3">
+                <p className="text-ui-xs text-slate-500 leading-snug mb-3">
                   Matches the refund form picker: fully paid (≥99.5% of total), production{' '}
                   <span className="font-semibold text-slate-600">completed or cancelled</span> (or{' '}
                   <span className="font-semibold text-slate-600">void with payment</span>), refundable headroom and automatic preview above ₦1,000.{' '}
                   <strong>Click a row</strong> to start <strong>New refund</strong>.
                 </p>
                 {quotationsRefundPotentialRows.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 italic">
+                  <p className="text-ui-xs text-slate-400 italic">
                     None right now — no quotation meets the server eligibility rules, or you lack refund permissions.
                   </p>
                 ) : (
@@ -1691,13 +1701,13 @@ const Sales = () => {
                             <button
                               type="button"
                               onClick={() => openRefundCreateForQuotation(q)}
-                              className="w-full text-left rounded-md border border-slate-200/80 bg-white/80 px-2 py-1.5 hover:bg-white hover:border-[#134e4a]/25 transition-colors"
+                              className="w-full text-left rounded-md border border-slate-200/80 bg-white/80 px-2 py-1.5 hover:bg-white hover:border-zarewa-teal/25 transition-colors"
                             >
                               <div className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5">
-                                <span className="text-[10px] font-bold text-[#134e4a] tabular-nums font-mono">{q.id}</span>
+                                <span className="text-ui-xs font-bold text-zarewa-teal tabular-nums font-mono">{q.id}</span>
                               </div>
-                              <span className="text-[9px] text-slate-600 block truncate">{q.customer}</span>
-                              <span className="text-[9px] font-semibold text-slate-700 tabular-nums mt-0.5">
+                              <span className="text-ui-xs text-slate-600 block truncate">{q.customer}</span>
+                              <span className="text-ui-xs font-semibold text-slate-700 tabular-nums mt-0.5">
                                 Paid {formatNgn(paid)}
                                 {payStatus ? ` · ${payStatus}` : ''}
                               </span>
@@ -1707,7 +1717,7 @@ const Sales = () => {
                       })}
                     </ul>
                     {quotationsRefundPotentialRows.length > REFUND_POTENTIAL_SIDEBAR_CAP ? (
-                      <p className="text-[9px] text-slate-400 mt-2">
+                      <p className="text-ui-xs text-slate-400 mt-2">
                         +{quotationsRefundPotentialRows.length - REFUND_POTENTIAL_SIDEBAR_CAP} more — search on{' '}
                         <strong>Quotations</strong>.
                       </p>
@@ -1732,14 +1742,14 @@ const Sales = () => {
                 : 'min-h-[min(480px,72vh)] sm:min-h-[560px]'
             }`}
           >
-            <div className="h-1 bg-[#134e4a]" aria-hidden />
+            <div className="h-1 bg-zarewa-teal" aria-hidden />
             <div className="p-5 sm:p-6 md:p-8">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-4">
                 <div className="shrink-0">
-                  <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">
+                  <h2 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
                     {TAB_LABELS[salesTab] ?? 'Records'}
                   </h2>
-                  <p className="text-[9px] font-semibold text-slate-400 mt-1 tabular-nums">
+                  <p className="text-ui-xs font-semibold text-slate-400 mt-1 tabular-nums">
                     {salesTab === 'quotations' && (
                       <>
                         {listStats.quotations.shown} showing
@@ -1791,11 +1801,11 @@ const Sales = () => {
                     }
                   >
                     {filteredQuotations.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                          No quotations match your search
-                        </p>
-                      </div>
+                      <ListEmptyState
+                        icon={FileText}
+                        title="No quotations match your search"
+                        description="Try clearing filters or create a new quotation."
+                      />
                     ) : (
                       <ul className="space-y-1.5">
                         {filteredQuotations.map((q) => {
@@ -1809,12 +1819,12 @@ const Sales = () => {
                               <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
                                 <div className="min-w-0 flex-1 leading-tight">
                                   <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                                    <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
+                                    <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
                                       <span className="tabular-nums font-mono">{q.id}</span>
                                       <span className="font-medium text-slate-600"> · {q.customer}</span>
                                     </p>
                                     <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                      <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
+                                      <span className="text-xs font-black text-zarewa-teal tabular-nums">
                                         {q.total}
                                       </span>
                                       <span className={`${CHIP} ${quoteApprovalChipBorder(q.status)}`}>
@@ -1864,7 +1874,7 @@ const Sales = () => {
                                     </div>
                                   </div>
                                   <p
-                                    className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 tabular-nums"
+                                    className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2 tabular-nums"
                                     title={meta2}
                                   >
                                     {meta2}
@@ -1881,7 +1891,7 @@ const Sales = () => {
                         <button
                           type="button"
                           onClick={() => setShowCount((c) => c + 20)}
-                          className="px-6 py-2 rounded-lg border border-slate-200 text-[10px] font-bold uppercase tracking-widest text-[#134e4a] hover:bg-slate-50 transition-colors"
+                          className="px-6 py-2 rounded-lg border border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal hover:bg-slate-50 transition-colors"
                         >
                           Show more quotations
                         </button>
@@ -1918,13 +1928,15 @@ const Sales = () => {
                     }
                   >
                     {filteredMergedReceipts.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                          {receiptPaymentStatusFilter === 'all'
+                      <ListEmptyState
+                        icon={ReceiptIcon}
+                        title={
+                          receiptPaymentStatusFilter === 'all'
                             ? 'No payments match your search'
-                            : 'No payments match this filter'}
-                        </p>
-                      </div>
+                            : 'No payments match this filter'
+                        }
+                        description="Adjust the status filter or search terms."
+                      />
                     ) : (
                       <ul className="space-y-1.5">
                         {filteredMergedReceipts.map((r) => {
@@ -1947,15 +1959,15 @@ const Sales = () => {
                                       >
                                         {r.source === 'ledger' ? 'Ledger' : 'Imported'}
                                       </span>
-                                      <p className="text-[11px] font-bold text-[#134e4a] tabular-nums shrink-0">
+                                      <p className="text-xs font-bold text-zarewa-teal tabular-nums shrink-0">
                                         {r.id}
                                       </p>
-                                      <p className="text-[11px] font-medium text-slate-600 truncate min-w-0">
+                                      <p className="text-xs font-medium text-slate-600 truncate min-w-0">
                                         · {r.customer}
                                       </p>
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
-                                      <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
+                                      <span className="text-xs font-black text-zarewa-teal tabular-nums">
                                         {r.amount}
                                       </span>
                                       <SalesRowMenu
@@ -1979,7 +1991,7 @@ const Sales = () => {
                                   <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5">
                                     {meta2 ? (
                                       <p
-                                        className="text-[8px] text-slate-500 leading-snug truncate min-w-0 flex-1 basis-full sm:basis-auto"
+                                        className="text-ui-xs text-slate-500 leading-snug truncate min-w-0 flex-1 basis-full sm:basis-auto"
                                         title={meta2}
                                       >
                                         {meta2}
@@ -2026,7 +2038,7 @@ const Sales = () => {
                         <button
                           type="button"
                           onClick={() => setShowCount((c) => c + 20)}
-                          className="px-6 py-2 rounded-lg border border-slate-200 text-[10px] font-bold uppercase tracking-widest text-[#134e4a] hover:bg-slate-50 transition-colors"
+                          className="px-6 py-2 rounded-lg border border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal hover:bg-slate-50 transition-colors"
                         >
                           Show more payments
                         </button>
@@ -2057,11 +2069,11 @@ const Sales = () => {
                     }
                   >
                     {filteredCuttingLists.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                          No cutting lists match your search
-                        </p>
-                      </div>
+                      <ListEmptyState
+                        icon={Scissors}
+                        title="No cutting lists match your search"
+                        description="Cutting lists appear here after you create them from quotations."
+                      />
                     ) : (
                       <ul className="space-y-1.5">
                         {filteredCuttingLists.map((c) => {
@@ -2072,12 +2084,12 @@ const Sales = () => {
                             <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
                               <div className="min-w-0 flex-1 leading-tight">
                                 <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                                  <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
+                                  <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
                                     <span className="tabular-nums font-mono">{c.id}</span>
                                     <span className="font-medium text-slate-600"> · {c.customer}</span>
                                   </p>
                                   <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                    <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
+                                    <span className="text-xs font-black text-zarewa-teal tabular-nums">
                                       {c.total}
                                     </span>
                                     <span
@@ -2120,7 +2132,7 @@ const Sales = () => {
                                     />
                                   </div>
                                 </div>
-                                <p className="text-[8px] text-slate-500 mt-0.5 tabular-nums">{c.date}</p>
+                                <p className="text-ui-xs text-slate-500 mt-0.5 tabular-nums">{c.date}</p>
                               </div>
                             </div>
                           </li>
@@ -2133,7 +2145,7 @@ const Sales = () => {
                         <button
                           type="button"
                           onClick={() => setShowCount((c) => c + 20)}
-                          className="px-6 py-2 rounded-lg border border-slate-200 text-[10px] font-bold uppercase tracking-widest text-[#134e4a] hover:bg-slate-50 transition-colors"
+                          className="px-6 py-2 rounded-lg border border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal hover:bg-slate-50 transition-colors"
                         >
                           Show more cutting lists
                         </button>
@@ -2164,12 +2176,11 @@ const Sales = () => {
                     }
                   >
                     {filteredRefunds.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
-                        <RotateCcw size={40} className="mx-auto text-slate-200 mb-3" strokeWidth={1.5} />
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                          No refunds match your search
-                        </p>
-                      </div>
+                      <ListEmptyState
+                        icon={RotateCcw}
+                        title="No refunds match your search"
+                        description="Refunds are created from settled quotations when returns are approved."
+                      />
                     ) : (
                       <ul className="space-y-1.5">
                         {filteredRefunds.map((r) => {
@@ -2196,12 +2207,12 @@ const Sales = () => {
                               <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
                                 <div className="min-w-0 flex-1 leading-tight">
                                   <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                                    <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
+                                    <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
                                       <span className="font-mono tabular-nums">{r.refundID}</span>
                                       <span className="font-medium text-slate-600"> · {r.customer}</span>
                                     </p>
                                     <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                      <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
+                                      <span className="text-xs font-black text-zarewa-teal tabular-nums">
                                         {formatNgn(r.amountNgn)}
                                       </span>
                                       <span className={`${CHIP} ${refundStatusChipBorder(r.status)}`}>
@@ -2219,7 +2230,7 @@ const Sales = () => {
                                     </div>
                                   </div>
                                   <p
-                                    className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 tabular-nums"
+                                    className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2 tabular-nums"
                                     title={meta2}
                                   >
                                     {meta2}
@@ -2236,7 +2247,7 @@ const Sales = () => {
                         <button
                           type="button"
                           onClick={() => setShowCount((c) => c + 20)}
-                          className="px-6 py-2 rounded-lg border border-slate-200 text-[10px] font-bold uppercase tracking-widest text-[#134e4a] hover:bg-slate-50 transition-colors"
+                          className="px-6 py-2 rounded-lg border border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal hover:bg-slate-50 transition-colors"
                         >
                           Show more refunds
                         </button>
@@ -2261,7 +2272,9 @@ const Sales = () => {
         </div>
       </div>
 
-      {/* --- MODALS --- */}
+      {/* --- MODALS (lazy-loaded on first open) --- */}
+      {showQuotationModal ? (
+      <Suspense fallback={null}>
       <QuotationModal
         isOpen={showQuotationModal}
         editData={selectedItem}
@@ -2280,12 +2293,16 @@ const Sales = () => {
         externalCustomerPick={quotationCustomerPick}
         onConsumeExternalCustomerPick={consumeQuotationCustomerPick}
       />
+      </Suspense>
+      ) : null}
       <SalesCustomerCreateModal
         isOpen={customerAddOpen}
         onClose={handleCustomerCreateModalClose}
         createdByLabel={salesRoleLabel}
         onCreated={handleCustomerCreated}
       />
+      {showReceiptModal ? (
+      <Suspense fallback={null}>
       <ReceiptModal
         isOpen={showReceiptModal}
         editData={selectedItem}
@@ -2308,6 +2325,10 @@ const Sales = () => {
             : undefined
         }
       />
+      </Suspense>
+      ) : null}
+      {showAdvanceModal ? (
+      <Suspense fallback={null}>
       <AdvancePaymentModal
         isOpen={showAdvanceModal}
         onClose={() => {
@@ -2320,6 +2341,8 @@ const Sales = () => {
         useLedgerApi={Boolean(ws?.canMutate)}
         handledByLabel={salesRoleLabel}
       />
+      </Suspense>
+      ) : null}
       <LinkAdvanceModal
         isOpen={Boolean(linkAdvanceEntry)}
         advanceEntry={linkAdvanceEntry}
@@ -2331,30 +2354,30 @@ const Sales = () => {
       />
       <ModalFrame isOpen={Boolean(advanceViewEntry)} onClose={() => setAdvanceViewEntry(null)}>
         <div className="z-modal-panel max-w-md w-full bg-white rounded-2xl border border-slate-200 p-6 shadow-xl">
-          <h3 className="text-base font-bold text-[#134e4a]">Advance payment</h3>
+          <h3 className="text-base font-bold text-zarewa-teal">Advance payment</h3>
           {advanceViewEntry ? (
-            <dl className="mt-4 space-y-2 text-[11px] text-slate-700">
+            <dl className="mt-4 space-y-2 text-xs text-slate-700">
               <div>
-                <dt className="font-semibold text-slate-400 uppercase text-[9px]">Customer</dt>
+                <dt className="font-semibold text-slate-400 uppercase text-ui-xs">Customer</dt>
                 <dd>{advanceViewEntry.customerName || advanceViewEntry.customerID}</dd>
               </div>
               <div>
-                <dt className="font-semibold text-slate-400 uppercase text-[9px]">Amount</dt>
-                <dd className="text-lg font-black text-[#134e4a] tabular-nums">
+                <dt className="font-semibold text-slate-400 uppercase text-ui-xs">Amount</dt>
+                <dd className="text-lg font-black text-zarewa-teal tabular-nums">
                   {formatNgn(advanceViewEntry.amountNgn)}
                 </dd>
               </div>
               <div>
-                <dt className="font-semibold text-slate-400 uppercase text-[9px]">Date</dt>
+                <dt className="font-semibold text-slate-400 uppercase text-ui-xs">Date</dt>
                 <dd>{(advanceViewEntry.atISO || '').slice(0, 10)}</dd>
               </div>
               <div>
-                <dt className="font-semibold text-slate-400 uppercase text-[9px]">Method / ref</dt>
+                <dt className="font-semibold text-slate-400 uppercase text-ui-xs">Method / ref</dt>
                 <dd>{advanceViewEntry.paymentMethod || '—'}</dd>
                 <dd className="text-slate-500">{advanceViewEntry.bankReference || '—'}</dd>
               </div>
               <div>
-                <dt className="font-semibold text-slate-400 uppercase text-[9px]">Purpose</dt>
+                <dt className="font-semibold text-slate-400 uppercase text-ui-xs">Purpose</dt>
                 <dd>{advanceViewEntry.purpose || advanceViewEntry.note || '—'}</dd>
               </div>
             </dl>
@@ -2363,7 +2386,7 @@ const Sales = () => {
             <button
               type="button"
               onClick={() => setAdvanceViewEntry(null)}
-              className="px-4 py-2 rounded-lg border border-slate-200 text-[10px] font-semibold uppercase text-slate-600"
+              className="px-4 py-2 rounded-lg border border-slate-200 text-ui-xs font-semibold uppercase text-slate-600"
             >
               Close
             </button>
@@ -2372,28 +2395,16 @@ const Sales = () => {
               onClick={() => {
                 if (advanceViewEntry) setAdvancePrintEntry(advanceViewEntry);
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-[10px] font-semibold uppercase"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-ui-xs font-semibold uppercase"
             >
               <Printer size={14} /> Print voucher
             </button>
           </div>
         </div>
       </ModalFrame>
-      {advancePrintEntry &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <>
-            <button
-              type="button"
-              aria-label="Close print preview"
-              className="no-print fixed inset-0 z-[10000] bg-black/50"
-              onClick={() => setAdvancePrintEntry(null)}
-            />
-            <div
-              className="print-portal-scroll fixed inset-0 z-[10001] overflow-y-auto overscroll-y-contain p-4 sm:p-8"
-              onClick={() => setAdvancePrintEntry(null)}
-            >
-              <div className="mx-auto max-w-4xl pb-16" onClick={(e) => e.stopPropagation()}>
+      {advancePrintEntry ? (
+      <PrintModalPortal open onClose={() => setAdvancePrintEntry(null)}>
+              <div className="mx-auto max-w-4xl pb-16">
                 <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
                   <AdvancePaymentPrintView
                     customerName={advancePrintEntry.customerName || advancePrintEntry.customerID}
@@ -2409,23 +2420,23 @@ const Sales = () => {
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="rounded-lg bg-amber-700 px-5 py-2.5 text-[10px] font-semibold uppercase text-white shadow-lg"
+                    className="rounded-lg bg-amber-700 px-5 py-2.5 text-ui-xs font-semibold uppercase text-white shadow-lg"
                   >
                     Print / Save PDF
                   </button>
                   <button
                     type="button"
                     onClick={() => setAdvancePrintEntry(null)}
-                    className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase text-slate-700"
+                    className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase text-slate-700"
                   >
                     Close
                   </button>
                 </div>
               </div>
-            </div>
-          </>,
-          document.body
-        )}
+      </PrintModalPortal>
+      ) : null}
+      {showCuttingModal ? (
+      <Suspense fallback={null}>
       <CuttingListModal
         isOpen={showCuttingModal}
         editData={selectedItem}
@@ -2452,6 +2463,10 @@ const Sales = () => {
             : null
         }
       />
+      </Suspense>
+      ) : null}
+      {showRefundModal ? (
+      <Suspense fallback={null}>
       <RefundModal
         key={refundModalKey}
         isOpen={showRefundModal}
@@ -2473,6 +2488,8 @@ const Sales = () => {
         cuttingLists={cuttingLists}
         availableStock={ws?.snapshot?.salesAvailableStock ?? []}
       />
+      </Suspense>
+      ) : null}
     </PageShell>
   );
 };
@@ -2496,13 +2513,13 @@ class SalesRouteErrorBoundary extends React.Component {
       return (
         <PageShell>
           <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !p-6">
-            <h2 className="text-lg font-bold text-[#134e4a]">Sales temporarily unavailable</h2>
+            <h2 className="text-lg font-bold text-zarewa-teal">Sales temporarily unavailable</h2>
             <p className="mt-2 text-sm text-slate-600">
               A screen error occurred while loading Sales. Refresh the page. If this persists, share the time with
               support so we can trace the bad row.
             </p>
             {this.state.message ? (
-              <p className="mt-2 text-[10px] font-mono text-slate-500 break-all">{this.state.message}</p>
+              <p className="mt-2 text-ui-xs font-mono text-slate-500 break-all">{this.state.message}</p>
             ) : null}
           </MainPanel>
         </PageShell>

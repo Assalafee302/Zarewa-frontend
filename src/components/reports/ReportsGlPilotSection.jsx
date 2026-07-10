@@ -105,7 +105,7 @@ export function ReportsGlPilotSection({ startDate, endDate, hasFinanceView, show
         <Link
           to="/accounts"
           state={{ accountsTab: 'audit' }}
-          className="text-[11px] font-black uppercase tracking-wide text-teal-800 underline-offset-2 hover:underline shrink-0"
+          className="text-xs font-black uppercase tracking-wide text-teal-800 underline-offset-2 hover:underline shrink-0"
         >
           Post manual journal → Accounts / Audit
         </Link>
@@ -124,7 +124,7 @@ export function ReportsGlPilotSection({ startDate, endDate, hasFinanceView, show
             maxLength={64}
           />
         </div>
-        <button type="button" className="z-btn-secondary !text-[11px]" onClick={() => void load()} disabled={loading}>
+        <button type="button" className="z-btn-secondary !text-xs" onClick={() => void load()} disabled={loading}>
           {loading ? 'Loading…' : 'Reload GL pilot'}
         </button>
       </div>
@@ -140,7 +140,7 @@ export function ReportsGlPilotSection({ startDate, endDate, hasFinanceView, show
 
       <div className="overflow-x-auto rounded-xl border border-slate-100">
         <table className="min-w-full text-left text-xs">
-          <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wide text-slate-500">
+          <thead className="bg-slate-50 text-ui-xs font-black uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-3 py-2">Account</th>
               <th className="px-3 py-2 text-right">Net (period)</th>
@@ -166,10 +166,10 @@ export function ReportsGlPilotSection({ startDate, endDate, hasFinanceView, show
                 return (
                   <tr key={code || r.accountName} className={active ? 'bg-teal-50/60' : 'hover:bg-slate-50/80'}>
                     <td className="px-3 py-2 font-semibold text-slate-800">
-                      <span className="font-mono text-[11px]">{code}</span>
+                      <span className="font-mono text-xs">{code}</span>
                       <span className="text-slate-500 font-normal"> — {r.accountName}</span>
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums font-bold text-[#134e4a]">
+                    <td className="px-3 py-2 text-right tabular-nums font-bold text-zarewa-teal">
                       {formatNgn(curNet)}
                     </td>
                     {tbPrev ? (
@@ -181,7 +181,7 @@ export function ReportsGlPilotSection({ startDate, endDate, hasFinanceView, show
                     <td className="px-3 py-2">
                       <button
                         type="button"
-                        className="text-[10px] font-black uppercase tracking-wide text-teal-800 underline-offset-2 hover:underline"
+                        className="text-ui-xs font-black uppercase tracking-wide text-teal-800 underline-offset-2 hover:underline"
                         onClick={() => setSelectedAccount(active ? '' : code)}
                       >
                         {active ? 'Clear' : 'Lines'}
@@ -197,25 +197,25 @@ export function ReportsGlPilotSection({ startDate, endDate, hasFinanceView, show
 
       {selectedAccount ? (
         <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-          <h4 className="text-[10px] font-black uppercase tracking-wide text-slate-500 mb-2">
+          <h4 className="text-ui-xs font-black uppercase tracking-wide text-slate-500 mb-2">
             Activity — {selectedAccount}
           </h4>
           {activityForAccount.length === 0 ? (
             <p className="text-xs text-slate-500">No lines in range for this account.</p>
           ) : (
-            <ul className="space-y-2 max-h-56 overflow-y-auto text-[11px]">
+            <ul className="space-y-2 max-h-56 overflow-y-auto text-xs">
               {activityForAccount.map((l, idx) => (
                 <li
                   key={`${l.journalId}-${idx}`}
                   className="flex flex-wrap justify-between gap-2 rounded-lg border border-white bg-white/80 px-2 py-1.5"
                 >
                   <div className="min-w-0">
-                    <p className="font-bold text-[#134e4a] truncate">{l.journalId}</p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="font-bold text-zarewa-teal truncate">{l.journalId}</p>
+                    <p className="text-ui-xs text-slate-500">
                       {l.entryDateISO}
                       {l.costCenter ? ` · CC: ${l.costCenter}` : ''}
                     </p>
-                    <p className="text-[10px] text-slate-600 mt-0.5 line-clamp-2">{l.lineMemo || l.journalMemo || '—'}</p>
+                    <p className="text-ui-xs text-slate-600 mt-0.5 line-clamp-2">{l.lineMemo || l.journalMemo || '—'}</p>
                   </div>
                   <div className="text-right tabular-nums shrink-0">
                     <p className="font-black text-slate-800">{formatNgn(Number(l.debitNgn) || 0)} DR</p>

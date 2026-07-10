@@ -237,7 +237,7 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled, embedded 
                 <AppTableTd>{m.staffDisplayName}</AppTableTd>
                 <AppTableTd className="max-w-xs truncate" title={m.summary}>{m.summary}</AppTableTd>
                 <AppTableTd>
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ${memoStatusTone(m.status)}`}>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${memoStatusTone(m.status)}`}>
                     {m.status}
                   </span>
                 </AppTableTd>

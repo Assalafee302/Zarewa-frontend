@@ -33,7 +33,7 @@ function TeamDashboardViewBar({ value, onChange }) {
           onClick={() => onChange(opt.id)}
           className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
             value === opt.id
-              ? 'border-[#134e4a]/30 bg-[#134e4a] text-white'
+              ? 'border-zarewa-teal/30 bg-zarewa-teal text-white'
               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
           }`}
         >
@@ -157,7 +157,7 @@ export default function TeamHrHome() {
               action={
                 <Link
                   to={teamHrTimeAbsencePath('calendar')}
-                  className="inline-flex min-h-10 items-center rounded-xl bg-[#134e4a] px-4 py-2 text-xs font-semibold text-white no-underline hover:bg-[#0f3d3a]"
+                  className="inline-flex min-h-10 items-center rounded-xl bg-zarewa-teal px-4 py-2 text-xs font-semibold text-white no-underline hover:bg-[#0f3d3a]"
                 >
                   View leave calendar →
                 </Link>
@@ -226,7 +226,7 @@ export default function TeamHrHome() {
                 <Link
                   key={a.to}
                   to={a.to}
-                  className="inline-flex min-h-10 items-center rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-2 text-xs font-semibold text-[#134e4a] no-underline hover:bg-teal-100/80"
+                  className="inline-flex min-h-10 items-center rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-2 text-xs font-semibold text-zarewa-teal no-underline hover:bg-teal-100/80"
                 >
                   {a.label} →
                 </Link>

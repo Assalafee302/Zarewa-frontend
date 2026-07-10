@@ -136,7 +136,7 @@ export function HrStaffPurchaseCreditQueue() {
                     <Link
                       to={quoteLink.to}
                       state={quoteLink.state}
-                      className="mt-1 inline-block text-xs font-semibold text-[#134e4a] underline"
+                      className="mt-1 inline-block text-xs font-semibold text-zarewa-teal underline"
                     >
                       Open quotation
                     </Link>

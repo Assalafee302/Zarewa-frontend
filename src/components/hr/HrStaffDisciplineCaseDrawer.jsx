@@ -24,7 +24,7 @@ export function HrStaffDisciplineCaseDrawer({ caseItem, isOpen, onClose }) {
     <SlideOverPanel isOpen={isOpen} onClose={onClose} title={caseItem.caseNumber || caseItem.id || 'Discipline case'}>
       <div className="space-y-4 text-sm">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${TONE_CLASS[meta.tone] || TONE_CLASS.slate}`}>
+          <span className={`inline-flex rounded-full border px-2.5 py-1 text-ui-xs font-bold uppercase ${TONE_CLASS[meta.tone] || TONE_CLASS.slate}`}>
             {meta.label || caseItem.status}
           </span>
           <span className="text-xs text-slate-500">{caseItem.caseType?.replace(/_/g, ' ') || 'Case'}</span>
@@ -45,7 +45,7 @@ export function HrStaffDisciplineCaseDrawer({ caseItem, isOpen, onClose }) {
         </dl>
         <Link
           to={`${HR_DISCIPLINE_EXIT}?tab=accountability&caseId=${encodeURIComponent(caseItem.id)}`}
-          className="inline-flex rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-2 text-xs font-bold uppercase text-[#134e4a] no-underline hover:bg-[#134e4a]/10"
+          className="inline-flex rounded-xl border border-zarewa-teal/30 bg-zarewa-teal/5 px-3 py-2 text-xs font-bold uppercase text-zarewa-teal no-underline hover:bg-zarewa-teal/10"
         >
           Open full case workflow →
         </Link>

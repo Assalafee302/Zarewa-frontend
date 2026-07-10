@@ -39,13 +39,26 @@ import {
 import { CustomersProvider } from './context/CustomersContext';
 import { InventoryProvider } from './context/InventoryContext';
 import { ToastProvider, useToast } from './context/ToastContext';
+import { ConfirmProvider, useConfirmDialog } from './context/ConfirmProvider';
+import {
+  AccountRouteErrorBoundary,
+  OperationsRouteErrorBoundary,
+  ExecutiveRouteErrorBoundary,
+  ReportsRouteErrorBoundary,
+  SettingsRouteErrorBoundary,
+  HrRouteErrorBoundary,
+} from './components/RouteErrorBoundary';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { UnsavedWorkProvider, useUnsavedWorkRegistry, UNSAVED_LEAVE_MESSAGE } from './context/UnsavedWorkContext';
 import { UnsavedWorkNavigationGuard } from './components/UnsavedWorkNavigationGuard';
 import { useWorkspace } from './context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
-import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
-import { apiFetch } from './lib/apiBase';
+import { BootstrapTruncatedBanner } from './components/workspace/BootstrapTruncatedBanner';
+import {
+  useHrNotifSummaryQuery,
+  useManagementAttentionQuery,
+  useOfficeSummaryQuery,
+} from './hooks/useAppShellSummaries';
 import { AiAskButton } from './components/AiAskButton';
 import { buildWorkspaceNotifications, WORKSPACE_NOTIFICATION_DISPLAY_LIMIT } from './lib/workspaceNotifications';
 import {
@@ -66,15 +79,6 @@ import { resolveGlobalSearchEnterFallback } from './shared/lib/workspaceSearchCo
 import { formatPersonName } from './lib/formatPersonName';
 const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'), { id: 'Dashboard' });
 const ManagerDashboard = lazyWithRetry(() => import('./pages/ManagerDashboard'), { id: 'ManagerDashboard' });
-
-/** Defer non-critical API calls until after first paint. */
-function deferUntilIdle(fn) {
-  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(() => fn(), { timeout: 2500 });
-    return;
-  }
-  window.setTimeout(fn, 150);
-}
 
 const ExecutiveCommandCentre = lazyWithRetry(
   () => import('./pages/ExecutiveCommandCentre.jsx'),
@@ -136,6 +140,7 @@ function ExecutiveHrLegacyRedirect() {
 function DegradedWorkspaceLock() {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
+  const { confirm } = useConfirmDialog();
   const [retrying, setRetrying] = useState(false);
   const wsRef = useRef(ws);
   useEffect(() => {
@@ -171,7 +176,11 @@ function DegradedWorkspaceLock() {
   };
 
   const handleSignOut = async () => {
-    if (!window.confirm('Sign out? Unsaved changes in this tab may be lost.')) return;
+    const ok = await confirm({
+      title: 'Sign out',
+      message: 'Sign out? Unsaved changes in this tab may be lost.',
+    });
+    if (!ok) return;
     try {
       await ws?.logout?.();
     } catch {
@@ -200,7 +209,7 @@ function DegradedWorkspaceLock() {
           Reconnect the API, then try again or refresh the page.
         </p>
         {ws?.lastError ? (
-          <p className="mt-3 rounded-lg border border-amber-200/80 bg-white/80 px-3 py-2 text-left font-mono text-[10px] text-amber-900/90 break-words">
+          <p className="mt-3 rounded-lg border border-amber-200/80 bg-white/80 px-3 py-2 text-left font-mono text-ui-xs text-amber-900/90 break-words">
             {ws.lastError}
           </p>
         ) : null}
@@ -209,7 +218,7 @@ function DegradedWorkspaceLock() {
             type="button"
             disabled={retrying}
             onClick={() => void handleReconnect()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#134e4a] px-4 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-lg hover:brightness-110 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-zarewa-teal px-4 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-lg hover:brightness-110 disabled:opacity-50"
           >
             <RefreshCw size={16} className={retrying ? 'animate-spin' : ''} aria-hidden />
             {retrying ? 'Reconnecting…' : 'Try reconnect'}
@@ -225,7 +234,7 @@ function DegradedWorkspaceLock() {
         <button
           type="button"
           onClick={() => void handleSignOut()}
-          className="mt-4 text-[11px] font-semibold text-amber-900/80 underline underline-offset-2 hover:text-amber-950"
+          className="mt-4 text-xs font-semibold text-amber-900/80 underline underline-offset-2 hover:text-amber-950"
         >
           Sign out
         </button>
@@ -256,6 +265,7 @@ function HomeRoute() {
 }
 
 function AppShell() {
+  const { confirm } = useConfirmDialog();
   const navigate = useNavigate();
   const { hasUnsavedWork } = useUnsavedWorkRegistry();
   const ws = useWorkspace();
@@ -264,9 +274,6 @@ function AppShell() {
   const [notificationDismissals, setNotificationDismissals] = useState(() =>
     pruneExpiredDismissals(loadNotificationDismissals(signedInUserId))
   );
-  const [officeSummary, setOfficeSummary] = useState(null);
-  const [hrNotifSummary, setHrNotifSummary] = useState(null);
-  const [managementAttention, setManagementAttention] = useState(null);
   const wsHasPermission = ws?.hasPermission;
   const wsCanAccessModule = ws?.canAccessModule;
   const wsSnapshot = ws?.snapshot;
@@ -283,63 +290,9 @@ function AppShell() {
       has('quotations.manage')
     );
   }, [wsHasPermission]);
-  useEffect(() => {
-    if (!canSeeOfficeModule) {
-      setOfficeSummary(null);
-      return;
-    }
-    let cancelled = false;
-    deferUntilIdle(() => {
-      if (cancelled) return;
-      (async () => {
-        const { ok, data } = await apiFetch('/api/office/summary');
-        if (cancelled) return;
-        if (ok && data?.ok) setOfficeSummary(data);
-        else setOfficeSummary(null);
-      })();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [canSeeOfficeModule, ws?.refreshEpoch]);
-
-  useEffect(() => {
-    if (!canSeeHrModule) {
-      setHrNotifSummary(null);
-      return;
-    }
-    let cancelled = false;
-    deferUntilIdle(() => {
-      if (cancelled) return;
-      (async () => {
-        const { ok, data } = await apiFetch('/api/hr/notification-summary');
-        if (cancelled) return;
-        if (ok && data?.ok) setHrNotifSummary(data.summary);
-        else setHrNotifSummary(null);
-      })();
-    });
-    return () => { cancelled = true; };
-  }, [canSeeHrModule, ws?.refreshEpoch]);
-
-  useEffect(() => {
-    if (!canFetchMgmtAttention) {
-      setManagementAttention(null);
-      return;
-    }
-    let cancelled = false;
-    deferUntilIdle(() => {
-      if (cancelled) return;
-      (async () => {
-        const { ok, data } = await apiFetch('/api/management/attention');
-        if (cancelled) return;
-        if (ok && data?.ok !== false) setManagementAttention(data);
-        else setManagementAttention(null);
-      })();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [canFetchMgmtAttention, ws?.refreshEpoch]);
+  const { data: officeSummary = null } = useOfficeSummaryQuery(canSeeOfficeModule);
+  const { data: hrNotifSummary = null } = useHrNotifSummaryQuery(canSeeHrModule);
+  const { data: managementAttention = null } = useManagementAttentionQuery(canFetchMgmtAttention);
 
   useEffect(() => {
     setNotificationDismissals(pruneExpiredDismissals(loadNotificationDismissals(signedInUserId)));
@@ -475,12 +428,31 @@ function AppShell() {
     setSearchActiveIdx(0);
   }, [headerSearch, flatSearchHits.length]);
 
+  useEffect(() => {
+    if (!notifOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setNotifOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [notifOpen]);
+
+  useEffect(() => {
+    const main = document.getElementById('main-content');
+    main?.focus?.({ preventScroll: true });
+  }, [location.pathname]);
+
   const guardedNavigate = useCallback(
-    (to, opts) => {
-      if (hasUnsavedWork && !window.confirm(UNSAVED_LEAVE_MESSAGE)) return;
+    async (to, opts) => {
+      if (
+        hasUnsavedWork &&
+        !(await confirm({ title: 'Unsaved changes', message: UNSAVED_LEAVE_MESSAGE }))
+      ) {
+        return;
+      }
       navigate(to, opts);
     },
-    [hasUnsavedWork, navigate]
+    [hasUnsavedWork, navigate, confirm]
   );
 
   const snoozeNotificationForToday = useCallback(
@@ -539,11 +511,11 @@ function AppShell() {
   }, [ai, headerSearch, searchHits.length]);
 
   return (
-    <div className="flex min-h-screen min-h-dvh min-w-0 w-full max-w-full z-app-bg font-sans selection:bg-teal-100 selection:text-[#134e4a]">
+    <div className="flex min-h-screen min-h-dvh min-w-0 w-full max-w-full z-app-bg font-sans selection:bg-teal-100 selection:text-zarewa-teal">
       <UnsavedWorkNavigationGuard />
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[1200] focus:rounded-xl focus:bg-[#134e4a] focus:text-white focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:shadow-xl"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[1200] focus:rounded-xl focus:bg-zarewa-teal focus:text-white focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:shadow-xl"
       >
         Skip to main content
       </a>
@@ -571,7 +543,7 @@ function AppShell() {
       >
         {ws?.usingCachedData ? (
           <div
-            className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:mx-0 mb-4 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-[11px] font-semibold text-amber-950"
+            className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:mx-0 mb-4 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-xs sm:text-sm font-semibold text-amber-950"
             role="status"
           >
             Offline — last workspace sync (read-only). Reconnect to post changes.
@@ -580,7 +552,7 @@ function AppShell() {
         <button
           type="button"
           onClick={() => setMobileNavOpen(true)}
-          className="lg:hidden fixed z-[55] flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200/80 bg-white/95 text-[#134e4a] shadow-md backdrop-blur-sm transition hover:border-teal-200 hover:shadow-lg left-[max(1rem,env(safe-area-inset-left))] top-[max(1rem,env(safe-area-inset-top))]"
+          className="lg:hidden fixed z-[55] flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200/80 bg-white/95 text-zarewa-teal shadow-md backdrop-blur-sm transition hover:border-teal-200 hover:shadow-lg left-[max(1rem,env(safe-area-inset-left))] top-[max(1rem,env(safe-area-inset-top))]"
           aria-label="Open navigation menu"
         >
           <Menu size={22} strokeWidth={2} />
@@ -600,7 +572,7 @@ function AppShell() {
                   onSubmit={runGlobalSearch}
                 >
                   <Search
-                    className="absolute left-3.5 sm:left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#134e4a] transition-colors pointer-events-none z-[1]"
+                    className="absolute left-3.5 sm:left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-zarewa-teal transition-colors pointer-events-none z-[1]"
                     size={16}
                   />
                   <input
@@ -624,6 +596,12 @@ function AppShell() {
                     aria-label="Global search"
                     aria-autocomplete="list"
                     aria-expanded={headerSearch.trim().length >= 2}
+                    aria-controls={headerSearch.trim().length >= 2 ? 'global-search-results' : undefined}
+                    aria-activedescendant={
+                      headerSearch.trim().length >= 2 && flatSearchHits[searchActiveIdx]
+                        ? `global-search-option-${searchActiveIdx}`
+                        : undefined
+                    }
                     enterKeyHint="search"
                     className="w-full min-h-10 rounded-xl border border-slate-200/90 bg-white py-2.5 pl-10 pr-12 text-[15px] font-medium shadow-sm outline-none transition focus:border-teal-300/60 focus:ring-2 focus:ring-teal-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/25 sm:z-toolbar-shell sm:min-h-12 sm:py-3 sm:pl-12 sm:pr-14 sm:text-[13px] sm:focus:ring-4"
                   />
@@ -635,7 +613,7 @@ function AppShell() {
                     title="Command palette (Ctrl+K)"
                   >
                     <Command size={10} className="text-gray-400" />
-                    <span className="text-[9px] font-black text-gray-400">K</span>
+                    <span className="text-ui-xs font-black text-gray-400">K</span>
                   </button>
                   {headerSearch.trim().length >= 2 ? (
                     <div className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-[min(22rem,55dvh)] sm:max-h-80 overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 text-left shadow-lg">
@@ -658,7 +636,7 @@ function AppShell() {
                     type="button"
                     onClick={askAiAboutSearch}
                     aria-label="Ask AI about workspace search"
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-teal-100/90 bg-white text-[#134e4a] shadow-sm transition hover:border-teal-200 hover:bg-teal-50/50 active:scale-[0.98] sm:h-12 sm:w-auto sm:gap-2 sm:rounded-2xl sm:px-3 sm:self-center"
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-teal-100/90 bg-white text-zarewa-teal shadow-sm transition hover:border-teal-200 hover:bg-teal-50/50 active:scale-[0.98] sm:h-12 sm:w-auto sm:gap-2 sm:rounded-2xl sm:px-3 sm:self-center"
                     title={
                       headerSearch.trim()
                         ? 'Ask AI to explain this workspace query'
@@ -666,14 +644,14 @@ function AppShell() {
                     }
                   >
                     <Command size={14} className="text-teal-600" aria-hidden />
-                    <span className="hidden text-[10px] font-black uppercase tracking-wider sm:inline">
+                    <span className="hidden text-ui-xs font-black uppercase tracking-wider sm:inline">
                       Ask AI
                     </span>
                   </button>
                 ) : null}
                 </div>
 
-                <p className="hidden text-[11px] text-gray-400 sm:block sm:max-w-[220px] sm:text-right lg:max-w-none">
+                <p className="hidden text-xs text-gray-400 sm:block sm:max-w-[220px] sm:text-right lg:max-w-none">
                   <span className="font-semibold text-gray-500">Tip:</span> ↑↓ to browse, Enter to open, Ctrl+K for palette.
                 </p>
               </>
@@ -695,11 +673,12 @@ function AppShell() {
                     setNotifOpen((o) => !o);
                   }}
                   className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200/80 bg-white/95 shadow-sm transition hover:border-teal-100 hover:shadow-md active:scale-[0.98] sm:h-12 sm:w-12 sm:rounded-2xl sm:border-gray-100/90"
+                  aria-label="Notifications"
                   title="Notifications"
                 >
                     <Bell size={20} className="text-gray-400" />
                     {notificationItems.length > 0 ? (
-                      <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[9px] font-black text-white">
+                      <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-ui-xs font-black text-white">
                         {urgentNotifCount || notificationItems.length}
                       </span>
                     ) : null}
@@ -711,7 +690,7 @@ function AppShell() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="mb-3 flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                      <p className="text-ui-xs font-black uppercase tracking-widest text-gray-400">
                         Action alerts
                       </p>
                       <AiAskButton
@@ -722,7 +701,7 @@ function AppShell() {
                           notificationCount: notificationItems.length,
                           urgentCount: urgentNotifCount,
                         }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-teal-100 bg-teal-50 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-[#134e4a]"
+                        className="inline-flex items-center gap-1 rounded-lg border border-teal-100 bg-teal-50 px-2 py-1 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal"
                         onAfterOpen={() => setNotifOpen(false)}
                       >
                         Ask AI
@@ -757,12 +736,12 @@ function AppShell() {
                                   }}
                                 >
                                   {n.category ? (
-                                    <span className="text-[9px] font-black uppercase tracking-wide text-slate-400 block mb-0.5">
+                                    <span className="text-ui-xs font-black uppercase tracking-wide text-slate-400 block mb-0.5">
                                       {n.category}
                                     </span>
                                   ) : null}
-                                  <span className="font-bold text-[#134e4a] block">{n.title}</span>
-                                  <span className="text-[11px] text-gray-600 mt-0.5 block leading-snug">{n.detail}</span>
+                                  <span className="font-bold text-zarewa-teal block">{n.title}</span>
+                                  <span className="text-xs text-gray-600 mt-0.5 block leading-snug">{n.detail}</span>
                                 </button>
                                 <button
                                   type="button"
@@ -786,7 +765,7 @@ function AppShell() {
                                     notificationId: n.id,
                                     targetPath: n.path,
                                   }}
-                                  className="mt-2 inline-flex items-center gap-1 rounded-lg border border-white/80 bg-white/70 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-[#134e4a]"
+                                  className="mt-2 inline-flex items-center gap-1 rounded-lg border border-white/80 bg-white/70 px-2 py-1 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal"
                                   onAfterOpen={() => setNotifOpen(false)}
                                 >
                                   Ask AI
@@ -800,7 +779,7 @@ function AppShell() {
                     {hiddenNotificationCount > 0 ? (
                       <button
                         type="button"
-                        className="mt-3 w-full rounded-lg border border-teal-100 bg-teal-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#134e4a]"
+                        className="mt-3 w-full rounded-lg border border-teal-100 bg-teal-50/80 px-3 py-2 text-left text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal"
                         onClick={() => {
                           const fallbackPath = canFetchMgmtAttention ? '/manager?inbox=attention' : '/';
                           guardedNavigate(fallbackPath);
@@ -812,7 +791,7 @@ function AppShell() {
                     ) : null}
                     <button
                       type="button"
-                      className="mt-4 text-[10px] font-bold uppercase text-[#134e4a]"
+                      className="mt-4 text-ui-xs font-bold uppercase text-zarewa-teal"
                       onClick={() => setNotifOpen(false)}
                     >
                       Close
@@ -834,14 +813,14 @@ function AppShell() {
                     }}
                     className="flex min-w-0 max-w-full items-center gap-2 rounded-zarewa border border-gray-100/90 bg-white/95 py-1.5 pl-1.5 pr-2 text-left shadow-sm transition hover:border-teal-200 hover:shadow-md max-sm:flex-none max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none sm:flex-initial sm:gap-3 sm:pr-3"
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#134e4a] text-[11px] font-black text-[#2dd4bf] shadow-inner sm:h-9 sm:w-9">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zarewa-teal text-xs font-black text-[#2dd4bf] shadow-inner sm:h-9 sm:w-9">
                       {userInitials}
                     </span>
                     <div className="hidden min-w-0 sm:block sm:flex-initial sm:max-w-[11rem]">
-                      <p className="truncate text-[10px] font-black uppercase leading-none tracking-tighter text-[#134e4a]">
+                      <p className="truncate text-ui-xs font-black uppercase leading-none tracking-tighter text-zarewa-teal">
                         {userName}
                       </p>
-                      <p className="mt-0.5 truncate text-[9px] font-bold uppercase leading-none tracking-widest text-gray-400">
+                      <p className="mt-0.5 truncate text-ui-xs font-bold uppercase leading-none tracking-widest text-gray-400">
                         {userRole}
                       </p>
                     </div>
@@ -859,15 +838,15 @@ function AppShell() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="border-b border-gray-100 bg-slate-50/80 px-4 py-3">
-                        <p className="truncate text-sm font-black text-[#134e4a]">{userName}</p>
-                        <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-600">{userRole}</p>
+                        <p className="truncate text-sm font-black text-zarewa-teal">{userName}</p>
+                        <p className="mt-0.5 truncate text-xs font-semibold text-slate-600">{userRole}</p>
                         {signedInUser?.username ? (
-                          <p className="mt-1.5 truncate font-mono text-[11px] text-slate-500">
+                          <p className="mt-1.5 truncate font-mono text-xs text-slate-500">
                             @{signedInUser.username}
                           </p>
                         ) : null}
                         {signedInUser?.email ? (
-                          <p className="mt-1 truncate text-[11px] text-slate-500">{signedInUser.email}</p>
+                          <p className="mt-1 truncate text-xs text-slate-500">{signedInUser.email}</p>
                         ) : null}
                       </div>
                       <div className="py-1">
@@ -920,7 +899,8 @@ function AppShell() {
                             const signOutMsg = hasUnsavedWork
                               ? 'You have unsaved changes. Sign out without saving?'
                               : 'Sign out of this workspace?';
-                            if (!window.confirm(signOutMsg)) return;
+                            const ok = await confirm({ title: 'Sign out', message: signOutMsg });
+                            if (!ok) return;
                             try {
                               await ws?.logout?.();
                               window.location.href = '/';
@@ -942,11 +922,14 @@ function AppShell() {
         </div>
 
         <main id="main-content" className="min-h-0 min-w-0 w-full max-w-full outline-none" tabIndex={-1}>
+          <div className="px-3 pt-3 sm:px-4">
+            <BootstrapTruncatedBanner bootstrapMeta={ws?.snapshot?.bootstrapMeta} />
+          </div>
           <Suspense fallback={<LoadingScreen />}>
           <Routes>
             <Route path="/" element={<HomeRoute />} />
             <Route path="/workspace/monitoring" element={<WorkspaceMonitoring />} />
-            <Route path="/exec" element={<ExecutiveCommandCentre />} />
+            <Route path="/exec" element={<ExecutiveRouteErrorBoundary><ExecutiveCommandCentre /></ExecutiveRouteErrorBoundary>} />
             <Route path="/exec/m" element={<Navigate to="/exec?tab=decide" replace />} />
             <Route path="/price-list" element={<PriceListAdmin />} />
             <Route path="/pricing-policy" element={<PricingPolicyAdmin />} />
@@ -1002,7 +985,9 @@ function AppShell() {
               path="/operations"
               element={
                 <ModuleRouteGuard moduleKey="operations">
-                  <Operations />
+                  <OperationsRouteErrorBoundary>
+                    <Operations />
+                  </OperationsRouteErrorBoundary>
                 </ModuleRouteGuard>
               }
             />
@@ -1048,7 +1033,9 @@ function AppShell() {
               element={
                 <ModuleRouteGuard moduleKey="finance">
                   <LegacyAccountsRouteGuard>
-                    <Account />
+                    <AccountRouteErrorBoundary>
+                      <Account />
+                    </AccountRouteErrorBoundary>
                   </LegacyAccountsRouteGuard>
                 </ModuleRouteGuard>
               }
@@ -1066,7 +1053,9 @@ function AppShell() {
               path="/reports"
               element={
                 <ModuleRouteGuard moduleKey="reports">
-                  <Reports />
+                  <ReportsRouteErrorBoundary>
+                    <Reports />
+                  </ReportsRouteErrorBoundary>
                 </ModuleRouteGuard>
               }
             />
@@ -1091,7 +1080,9 @@ function AppShell() {
               path="/settings/*"
               element={
                 <ModuleRouteGuard moduleKey="settings">
-                  <Settings />
+                  <SettingsRouteErrorBoundary>
+                    <Settings />
+                  </SettingsRouteErrorBoundary>
                 </ModuleRouteGuard>
               }
             />
@@ -1151,9 +1142,11 @@ function AppShell() {
               element={
                 <ModuleRouteGuard moduleKey="hr">
                   <HrMainRouteGuard>
+                    <HrRouteErrorBoundary>
                     <Suspense fallback={<LoadingScreen />}>
                       <HumanResources />
                     </Suspense>
+                    </HrRouteErrorBoundary>
                   </HrMainRouteGuard>
                 </ModuleRouteGuard>
               }
@@ -1205,8 +1198,8 @@ function LoadingScreen() {
           width={120}
           height={48}
         />
-        <p className="mt-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Zarewa</p>
-        <p className="mt-3 text-xl font-black text-[#134e4a]">Preparing live workspace…</p>
+        <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Zarewa</p>
+        <p className="mt-3 text-xl font-black text-zarewa-teal">Preparing live workspace…</p>
       </div>
     </div>
   );
@@ -1246,6 +1239,7 @@ function App() {
       <Router>
         <WorkspaceProvider>
           <ToastProvider>
+            <ConfirmProvider>
             <HelpChatProvider>
               <AiAssistantProvider>
                 <DocumentTitleSync />
@@ -1255,6 +1249,7 @@ function App() {
                 </Routes>
               </AiAssistantProvider>
             </HelpChatProvider>
+            </ConfirmProvider>
           </ToastProvider>
         </WorkspaceProvider>
       </Router>

@@ -1,3 +1,4 @@
+import { appConfirm } from './appConfirm';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useToast } from '../context/ToastContext';
@@ -115,8 +116,10 @@ export function useOfficeRecordActions({ workItem, threadId, onRefresh }) {
     return postDecision('return', 'returned', note.trim());
   }, [postDecision, showToast]);
 
-  const closeRecord = useCallback(() => {
-    if (!window.confirm('Close this office record?')) return Promise.resolve(false);
+  const closeRecord = useCallback(async () => {
+    if (!(await appConfirm({ title: 'Close record', message: 'Close this office record?' }))) {
+      return false;
+    }
     return postDecision('close', 'closed', 'Closed from desk');
   }, [postDecision]);
 
@@ -212,7 +215,15 @@ export function useOfficeRecordActions({ workItem, threadId, onRefresh }) {
     const tid = String(threadId || '').trim();
     if (!tid) return false;
     const itemList = String(smartMemo?.guidedFields?.itemList || '').trim();
-    if (!itemList && !window.confirm('No item list in guided fields. Convert anyway?')) return false;
+    if (
+      !itemList &&
+      !(await appConfirm({
+        title: 'Convert memo',
+        message: 'No item list in guided fields. Convert anyway?',
+      }))
+    ) {
+      return false;
+    }
     setBusy(true);
     try {
       const { ok, data } = await apiFetch(

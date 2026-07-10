@@ -32,11 +32,11 @@ function ExportCard({ item, financeLocked, onPrint, onDownload, onApiWorkbook })
         </p>
       ) : null}
       <div className="flex items-start gap-4 mb-5">
-        <div className="p-3 rounded-2xl bg-white text-[#134e4a] border border-slate-100 shadow-sm shrink-0">
+        <div className="p-3 rounded-2xl bg-white text-zarewa-teal border border-slate-100 shadow-sm shrink-0">
           <Icon size={22} strokeWidth={2} />
         </div>
         <div className="min-w-0">
-          <h3 className="text-lg font-black text-[#134e4a] tracking-tight">{item.title}</h3>
+          <h3 className="text-lg font-black text-zarewa-teal tracking-tight">{item.title}</h3>
           <p className="text-sm font-medium text-slate-600 mt-1.5 leading-relaxed">{item.desc}</p>
         </div>
       </div>

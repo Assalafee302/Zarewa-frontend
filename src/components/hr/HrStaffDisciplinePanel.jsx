@@ -46,7 +46,7 @@ export function HrStaffDisciplinePanel({ userId, profileEvents = [] }) {
       <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm text-slate-700">
         <p>
           Full case workflow:{' '}
-          <Link to={HR_DISCIPLINE_EXIT} className="font-bold text-[#134e4a] underline">
+          <Link to={HR_DISCIPLINE_EXIT} className="font-bold text-zarewa-teal underline">
             HR → Staff cases & exit
           </Link>
         </p>
@@ -74,7 +74,7 @@ export function HrStaffDisciplinePanel({ userId, profileEvents = [] }) {
                       <button
                         type="button"
                         onClick={() => setPreviewCase(c)}
-                        className="font-semibold text-[#134e4a] hover:underline"
+                        className="font-semibold text-zarewa-teal hover:underline"
                       >
                         {c.caseNumber || c.id}
                       </button>
@@ -102,7 +102,7 @@ export function HrStaffDisciplinePanel({ userId, profileEvents = [] }) {
             {profileEvents.map((e) => (
               <li key={e.id || e.createdAtIso} className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
                 <p className="font-medium text-slate-800">{e.summary || e.kind || 'Event'}</p>
-                <p className="text-[10px] text-slate-500">{e.createdAtIso?.slice(0, 16).replace('T', ' ') || ''}</p>
+                <p className="text-ui-xs text-slate-500">{e.createdAtIso?.slice(0, 16).replace('T', ' ') || ''}</p>
               </li>
             ))}
           </ul>

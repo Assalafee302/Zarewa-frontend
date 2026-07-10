@@ -14,7 +14,7 @@ export function HrSensitiveField({
   return (
     <div className={className}>
       {label ? (
-        <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</dt>
+        <dt className="text-ui-xs font-black uppercase tracking-widest text-slate-400">{label}</dt>
       ) : null}
       <dd className="mt-1 flex items-center gap-1.5 font-semibold text-slate-900">
         {redacted ? (

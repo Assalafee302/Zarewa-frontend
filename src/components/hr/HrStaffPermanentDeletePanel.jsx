@@ -85,7 +85,7 @@ export function HrStaffPermanentDeletePanel({ staff, onDeleted, redirectAfterDel
               </label>
               <label className="block text-xs font-semibold text-slate-700">
                 Type login username to confirm
-                <span className="ml-1 font-mono text-[10px] text-red-700">{username || '—'}</span>
+                <span className="ml-1 font-mono text-ui-xs text-red-700">{username || '—'}</span>
                 <input
                   className={`${HR_FIELD_CLASS} mt-1 font-mono`}
                   value={confirmUsername}

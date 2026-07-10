@@ -70,20 +70,20 @@ export function AccountingRegisterSettlementDecisionModal({ settlement, open, mo
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <ModalScrollBody className="space-y-4">
             <div>
-              <h2 className="text-lg font-bold text-[#134e4a]">
+              <h2 className="text-lg font-bold text-zarewa-teal">
                 {isApprove ? 'Approve withdrawal' : 'Reject withdrawal'}
               </h2>
-              <p className="mt-1 text-[10px] text-slate-500 leading-relaxed sm:text-[11px]">
+              <p className="mt-1 text-ui-xs text-slate-500 leading-relaxed sm:text-xs">
                 {settlement.partyName} · {settlement.settlementId} · {formatNgn(settlement.amountNgn)}
               </p>
               {settlement.reason ? (
-                <p className="mt-2 text-[11px] text-slate-600 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+                <p className="mt-2 text-xs text-slate-600 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
                   {settlement.reason}
                 </p>
               ) : null}
             </div>
 
-            <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
               {isApprove ? 'Approval note (optional)' : 'Rejection note (optional)'}
               <textarea
                 className="z-finance-field mt-1 font-medium"
@@ -94,7 +94,7 @@ export function AccountingRegisterSettlementDecisionModal({ settlement, open, mo
               />
             </label>
 
-            {error ? <p className="text-[10px] font-semibold text-rose-700">{error}</p> : null}
+            {error ? <p className="text-ui-xs font-semibold text-rose-700">{error}</p> : null}
           </ModalScrollBody>
 
           <ModalScrollFooter className="flex flex-wrap justify-end gap-2">
@@ -102,14 +102,14 @@ export function AccountingRegisterSettlementDecisionModal({ settlement, open, mo
               type="button"
               onClick={onClose}
               disabled={busy}
-              className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-[10px] font-semibold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+              className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-ui-xs font-semibold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-ui-xs"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={busy}
-              className={`min-h-11 rounded-lg px-4 py-2 text-[10px] font-semibold uppercase text-white disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px] ${
+              className={`min-h-11 rounded-lg px-4 py-2 text-ui-xs font-semibold uppercase text-white disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-ui-xs ${
                 isApprove ? 'bg-teal-800 hover:bg-teal-900' : 'bg-rose-700 hover:bg-rose-800'
               }`}
             >

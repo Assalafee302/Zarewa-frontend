@@ -16,11 +16,11 @@ export function ExecMdAlertStrip({ mdOnlyCount = 0, activeTab, onOpenDecide }) {
       >
         <span className="flex min-w-0 items-center gap-2">
           <Bell size={14} className="shrink-0 text-violet-700" aria-hidden />
-          <span className="text-[11px] font-semibold text-violet-950">
+          <span className="text-xs font-semibold text-violet-950">
             {mdOnlyCount} item{mdOnlyCount === 1 ? '' : 's'} need your sign-off
           </span>
         </span>
-        <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold uppercase text-[#134e4a]">
+        <span className="inline-flex shrink-0 items-center gap-1 text-ui-xs font-bold uppercase text-zarewa-teal">
           Decide
           <ChevronRight size={14} />
         </span>

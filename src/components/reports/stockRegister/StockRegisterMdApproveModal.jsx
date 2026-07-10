@@ -45,8 +45,8 @@ export function StockRegisterMdApproveModal({
       <div className="z-modal-panel-lg flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Executive sign-off</p>
-            <h2 className="text-lg font-bold text-[#134e4a]">Approve month-end stock</h2>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Executive sign-off</p>
+            <h2 className="text-lg font-bold text-zarewa-teal">Approve month-end stock</h2>
             <p className="text-sm text-slate-600 mt-0.5">
               {branchLabel} · {periodEnd}
             </p>
@@ -66,7 +66,7 @@ export function StockRegisterMdApproveModal({
             .
           </p>
           {total != null ? (
-            <p className="text-base font-black text-[#134e4a]">
+            <p className="text-base font-black text-zarewa-teal">
               Total closing value: {formatNgn(total || 0)}
             </p>
           ) : null}

@@ -25,19 +25,19 @@ export function AccountingDeskWizardSteps({ steps, currentStep, onStepChange }) 
                 } ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
               >
                 <span
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${
                     done
                       ? 'bg-emerald-600 text-white'
                       : active
-                        ? 'bg-[#134e4a] text-white'
+                        ? 'bg-zarewa-teal text-white'
                         : 'bg-slate-200 text-slate-600'
                   }`}
                 >
                   {done ? <CheckCircle2 size={14} /> : idx + 1}
                 </span>
                 <span
-                  className={`truncate text-[10px] font-bold uppercase tracking-wide ${
-                    active ? 'text-[#134e4a]' : 'text-slate-600'
+                  className={`truncate text-ui-xs font-bold uppercase tracking-wide ${
+                    active ? 'text-zarewa-teal' : 'text-slate-600'
                   }`}
                 >
                   {step.label}

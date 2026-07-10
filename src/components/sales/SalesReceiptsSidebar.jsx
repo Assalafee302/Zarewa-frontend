@@ -43,7 +43,7 @@ function RowMenu({ rowKey, openKey, setOpenKey, onView, onLink, onDelete }) {
         type="button"
         aria-expanded={open}
         onClick={() => setOpenKey(open ? null : rowKey)}
-        className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-[#134e4a]"
+        className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-zarewa-teal"
       >
         <MoreVertical size={16} />
       </button>
@@ -110,11 +110,11 @@ export function ReceiptsTransactionsPanel({
     <section className={`${PANEL_CLASS} ${className}`}>
       <div className="h-1 bg-emerald-600 shrink-0" aria-hidden />
       <div className="p-4 border-b border-slate-100 shrink-0">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+        <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
           <ReceiptIcon size={14} className="text-emerald-600 shrink-0" />
           Receipt payments
         </p>
-        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+        <p className="text-xs text-slate-500 mt-1 leading-snug">
           <strong>Quotation receipts only</strong> (money booked to a job). The same bank account in Finance shows{' '}
           <strong>every</strong> inflow—also <strong>advance deposits</strong>, transfers, expenses—so you may see a line
           on the treasury statement that is not listed here (check the statement badge: Sales receipt vs Advance).
@@ -124,7 +124,7 @@ export function ReceiptsTransactionsPanel({
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-[10px] font-semibold text-[#134e4a]"
+            className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-ui-xs font-semibold text-zarewa-teal"
           >
             <option value="dateDesc">Newest first</option>
             <option value="dateAsc">Oldest first</option>
@@ -140,7 +140,7 @@ export function ReceiptsTransactionsPanel({
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5">
         {sortedReceipts.length === 0 ? (
-          <p className="text-[10px] text-slate-400 px-2 py-4 text-center">No receipts match the search.</p>
+          <p className="text-ui-xs text-slate-400 px-2 py-4 text-center">No receipts match the search.</p>
         ) : (
           sortedReceipts.map((r) => (
             <button
@@ -152,7 +152,7 @@ export function ReceiptsTransactionsPanel({
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-1 min-w-0">
                   <span
-                    className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                    className={`text-ui-xs font-bold uppercase px-1.5 py-0.5 rounded ${
                       r.source === 'ledger' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-200 text-slate-600'
                     }`}
                   >
@@ -165,15 +165,15 @@ export function ReceiptsTransactionsPanel({
                     {receiptSalesPaymentStatusLabel(r)}
                   </span>
                 </div>
-                <span className="text-[10px] font-black text-emerald-700 tabular-nums">{r.amount}</span>
+                <span className="text-ui-xs font-black text-emerald-700 tabular-nums">{r.amount}</span>
               </div>
-              <p className="text-[10px] font-bold text-[#134e4a] tabular-nums">{r.id}</p>
-              <p className="text-[9px] font-semibold text-slate-700 truncate">{r.customer}</p>
-              <p className="text-[8px] text-slate-400 tabular-nums">{r.date}</p>
-              <p className="text-[8px] font-semibold text-slate-600 mt-1 leading-tight line-clamp-2" title={r._payBadge}>
+              <p className="text-ui-xs font-bold text-zarewa-teal tabular-nums">{r.id}</p>
+              <p className="text-ui-xs font-semibold text-slate-700 truncate">{r.customer}</p>
+              <p className="text-ui-xs text-slate-400 tabular-nums">{r.date}</p>
+              <p className="text-ui-xs font-semibold text-slate-600 mt-1 leading-tight line-clamp-2" title={r._payBadge}>
                 {r._payBadge}
               </p>
-              <p className="text-[8px] text-slate-400 truncate">Quote: {r.quotationRef || '—'}</p>
+              <p className="text-ui-xs text-slate-400 truncate">Quote: {r.quotationRef || '—'}</p>
             </button>
           ))
         )}
@@ -214,17 +214,17 @@ export function ReceiptsAdvancesPanel({
     <section className={`${PANEL_CLASS} border-amber-200/90 bg-amber-50/10 ${className}`}>
       <div className="h-1 bg-amber-500 shrink-0" aria-hidden />
       <div className="p-4 border-b border-amber-100/80 shrink-0">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-900/80 flex items-center gap-1.5">
+        <p className="text-ui-xs font-semibold uppercase tracking-widest text-amber-900/80 flex items-center gap-1.5">
           <Wallet size={14} className="shrink-0" />
           Advance deposits
         </p>
-        <p className="text-[10px] text-amber-900/70 mt-1 leading-snug">
+        <p className="text-ui-xs text-amber-900/70 mt-1 leading-snug">
           Not yet linked to a quote. <strong>Link</strong> applies to a quotation; fully applied advances drop off this list.
         </p>
       </div>
       <ul className="flex-1 min-h-0 overflow-y-auto overflow-x-visible custom-scrollbar p-2 space-y-1.5">
         {advanceRows.length === 0 ? (
-          <li className="text-[10px] text-amber-800/60 px-2 py-4 text-center">No pending advances.</li>
+          <li className="text-ui-xs text-amber-800/60 px-2 py-4 text-center">No pending advances.</li>
         ) : (
           advanceRows.map((e) => (
             <li
@@ -234,14 +234,14 @@ export function ReceiptsAdvancesPanel({
               }`}
             >
               <div className="min-w-0">
-                <p className="text-[10px] font-black text-[#134e4a] tabular-nums">{formatNgn(e.remainingNgn ?? e.amountNgn)}</p>
+                <p className="text-ui-xs font-black text-zarewa-teal tabular-nums">{formatNgn(e.remainingNgn ?? e.amountNgn)}</p>
                 {e.originalAmountNgn != null && e.remainingNgn < e.originalAmountNgn ? (
-                  <p className="text-[8px] font-semibold text-amber-800/80 tabular-nums">
+                  <p className="text-ui-xs font-semibold text-amber-800/80 tabular-nums">
                     of {formatNgn(e.originalAmountNgn)} remaining
                   </p>
                 ) : null}
-                <p className="text-[9px] font-semibold text-slate-700 truncate">{e.customerName || e.customerID}</p>
-                <p className="text-[8px] text-slate-400">{(e.atISO || '').slice(0, 10)}</p>
+                <p className="text-ui-xs font-semibold text-slate-700 truncate">{e.customerName || e.customerID}</p>
+                <p className="text-ui-xs text-slate-400">{(e.atISO || '').slice(0, 10)}</p>
               </div>
               <RowMenu
                 rowKey={e.id}
@@ -274,18 +274,18 @@ export function ReceiptsUnlinkedDepositsPanel({
     <section className={`${PANEL_CLASS} border-sky-200/90 bg-sky-50/10 ${className}`}>
       <div className="h-1 bg-sky-600 shrink-0" aria-hidden />
       <div className="p-4 border-b border-sky-100/80 shrink-0">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-sky-900/80 flex items-center gap-1.5">
+        <p className="text-ui-xs font-semibold uppercase tracking-widest text-sky-900/80 flex items-center gap-1.5">
           <Landmark size={14} className="shrink-0" />
           Unlinked bank payments
         </p>
-        <p className="text-[10px] text-sky-900/70 mt-1 leading-snug">
+        <p className="text-ui-xs text-sky-900/70 mt-1 leading-snug">
           Money Finance/Cashier registered from the bank — not yet linked to a customer. Use when posting a receipt or
           advance.
         </p>
       </div>
       <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5 max-h-[min(280px,40vh)]">
         {rows.length === 0 ? (
-          <li className="text-[10px] text-sky-800/60 px-2 py-4 text-center">No unlinked bank payments.</li>
+          <li className="text-ui-xs text-sky-800/60 px-2 py-4 text-center">No unlinked bank payments.</li>
         ) : (
           rows.map((d) => (
             <li
@@ -293,19 +293,19 @@ export function ReceiptsUnlinkedDepositsPanel({
               className="flex items-center justify-between gap-2 rounded-lg border border-sky-100 bg-white/90 px-2.5 py-2"
             >
               <div className="min-w-0">
-                <p className="text-[10px] font-black text-[#134e4a] tabular-nums">{formatNgn(d.remainingNgn)}</p>
-                <p className="text-[9px] font-mono text-slate-600 truncate">{d.id}</p>
-                <p className="text-[8px] text-slate-500 truncate" title={d.description}>
+                <p className="text-ui-xs font-black text-zarewa-teal tabular-nums">{formatNgn(d.remainingNgn)}</p>
+                <p className="text-ui-xs font-mono text-slate-600 truncate">{d.id}</p>
+                <p className="text-ui-xs text-slate-500 truncate" title={d.description}>
                   {d.description || d.bankReference || '—'}
                 </p>
-                <p className="text-[8px] text-slate-400">
+                <p className="text-ui-xs text-slate-400">
                   {d.bankDateISO} · {bankDepositStatusLabel(d.status)}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => onUseDeposit?.(d)}
-                className="shrink-0 rounded-md bg-sky-700 px-2 py-1 text-[8px] font-black uppercase text-white hover:bg-sky-800"
+                className="shrink-0 rounded-md bg-sky-700 px-2 py-1 text-ui-xs font-black uppercase text-white hover:bg-sky-800"
               >
                 Use
               </button>

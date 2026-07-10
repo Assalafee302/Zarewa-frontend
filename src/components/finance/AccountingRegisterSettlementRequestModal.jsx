@@ -108,12 +108,12 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
   return (
     <ModalFrame isOpen={open} onClose={onClose} title="Request withdrawal" surface="plain">
       <ModalScrollShell size="md">
-        <div className="h-1 shrink-0 bg-[#134e4a]" />
+        <div className="h-1 shrink-0 bg-zarewa-teal" />
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <ModalScrollBody className="space-y-4">
             <div>
-              <h2 className="text-lg font-bold text-[#134e4a]">Request register withdrawal</h2>
-              <p className="mt-1 text-[10px] text-slate-500 leading-relaxed sm:text-[11px]">
+              <h2 className="text-lg font-bold text-zarewa-teal">Request register withdrawal</h2>
+              <p className="mt-1 text-ui-xs text-slate-500 leading-relaxed sm:text-xs">
                 {item.partyName} · Open balance {formatNgn(displayOpen)}
                 {capacityState === 'ok' ? (
                   <>
@@ -127,17 +127,17 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
             </div>
 
             {capacityState === 'error' ? (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] text-rose-950 leading-relaxed space-y-2">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-950 leading-relaxed space-y-2">
                 <p className="font-semibold">Could not load withdrawal capacity</p>
                 <p>{capacityError}</p>
-                <p className="text-[10px] text-rose-900/90">
+                <p className="text-ui-xs text-rose-900/90">
                   This is a system/read error — not proof that balance is reserved. After backend restart, retry below.
                   If you use <span className="font-bold">All branches</span> view, ensure that mode is enabled for your role.
                 </p>
                 <button
                   type="button"
                   onClick={() => void loadCapacity()}
-                  className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-rose-900"
+                  className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-rose-900"
                 >
                   Retry
                 </button>
@@ -145,28 +145,28 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
             ) : null}
 
             {showReservedNotice ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-950 leading-relaxed space-y-2">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950 leading-relaxed space-y-2">
                 <p>
                   {formatNgn(reservedNgn)} is reserved by pending or approved unpaid withdrawals on this line. Clear
                   them before submitting a new request.
                 </p>
                 {blockingItems.length ? (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-amber-900">Blocking requests</p>
+                    <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-900">Blocking requests</p>
                     <ul className="mt-1.5 space-y-1">
                       {blockingItems.map((s) => (
                         <li
                           key={s.settlementId}
-                          className="rounded-md border border-amber-200/80 bg-white/70 px-2.5 py-1.5 text-[10px] font-medium text-amber-950"
+                          className="rounded-md border border-amber-200/80 bg-white/70 px-2.5 py-1.5 text-ui-xs font-medium text-amber-950"
                         >
                           {blockingLabel(s)}
                           {s.reason ? (
-                            <span className="block text-[9px] font-normal text-amber-900/80 mt-0.5">{s.reason}</span>
+                            <span className="block text-ui-xs font-normal text-amber-900/80 mt-0.5">{s.reason}</span>
                           ) : null}
                         </li>
                       ))}
                     </ul>
-                    <p className="text-[10px] text-amber-900/90 mt-2">
+                    <p className="text-ui-xs text-amber-900/90 mt-2">
                       On the register line detail, use <span className="font-bold">Withdraw</span> on your pending
                       request, or ask MD/finance to approve/reject. Approved requests must be paid from treasury.
                     </p>
@@ -176,13 +176,13 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
             ) : null}
 
             {capacityState === 'ok' && !canRequest && !showReservedNotice && blockedReason ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-950">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950">
                 {blockedReason}
               </div>
             ) : null}
 
             <ProcurementFormSection letter="1" title="Withdrawal" compact>
-              <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                 Amount (₦) *
                 <input
                   type="number"
@@ -194,7 +194,7 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
                   required={canRequest}
                 />
               </label>
-              <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-3">
+              <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500 mt-3">
                 Reason *
                 <textarea
                   className="z-finance-field font-medium"
@@ -206,11 +206,11 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
               </label>
             </ProcurementFormSection>
             <ProcurementFormSection letter="2" title="Payee" compact>
-              <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                 Payee name *
                 <input className="z-finance-field" value={payeeName} onChange={(e) => setPayeeName(e.target.value)} required />
               </label>
-              <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-3">
+              <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500 mt-3">
                 Bank details
                 <textarea
                   className="z-finance-field font-medium"
@@ -221,9 +221,9 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
                 />
               </label>
             </ProcurementFormSection>
-            {validationError ? <p className="text-[10px] font-medium text-rose-700">{validationError}</p> : null}
-            {error ? <p className="text-[10px] font-medium text-rose-700">{error}</p> : null}
-            <p className="text-[10px] text-slate-500">
+            {validationError ? <p className="text-ui-xs font-medium text-rose-700">{validationError}</p> : null}
+            {error ? <p className="text-ui-xs font-medium text-rose-700">{error}</p> : null}
+            <p className="text-ui-xs text-slate-500">
               After submit: MD or finance approves → Cashier pays from treasury → Debtors line reduces automatically.
             </p>
           </ModalScrollBody>
@@ -232,14 +232,14 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
               type="button"
               onClick={onClose}
               disabled={busy}
-              className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-[10px] font-semibold uppercase text-slate-700 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+              className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-ui-xs font-semibold uppercase text-slate-700 sm:min-h-0 sm:py-1.5 sm:text-ui-xs"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={busy || !canRequest}
-              className="min-h-11 rounded-lg bg-[#134e4a] text-white px-4 py-2 text-[10px] font-semibold uppercase disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+              className="min-h-11 rounded-lg bg-zarewa-teal text-white px-4 py-2 text-ui-xs font-semibold uppercase disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-ui-xs"
             >
               {busy ? 'Submitting…' : 'Submit for approval'}
             </button>

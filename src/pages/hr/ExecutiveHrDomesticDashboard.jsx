@@ -58,12 +58,12 @@ function StaffCard({ member }) {
             {member.workLocation ? ` · ${member.workLocation}` : ''}
           </p>
           {member.executiveEmployerLine ? (
-            <p className="mt-1 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
+            <p className="mt-1 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900">
               {member.executiveEmployerLine}
             </p>
           ) : null}
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${health.className}`}>
+        <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${health.className}`}>
           {health.label}
         </span>
       </div>
@@ -172,7 +172,7 @@ export default function ExecutiveHrDomesticDashboard() {
       ) : null}
       <Link
         to="/executive-hr/benefits?tab=domestic"
-        className="inline-flex rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-[#134e4a] no-underline hover:bg-slate-50"
+        className="inline-flex rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-zarewa-teal no-underline hover:bg-slate-50"
       >
         Add household staff →
       </Link>

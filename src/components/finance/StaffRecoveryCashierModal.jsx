@@ -102,12 +102,12 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
         <form onSubmit={handleSubmit}>
           <ModalScrollBody className="space-y-5">
             <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700">HR initiated — amount due</p>
+              <p className="text-ui-xs font-bold uppercase tracking-widest text-violet-700">HR initiated — amount due</p>
               <p className="text-lg font-bold text-slate-900">{recovery.staffDisplayName || recovery.userId}</p>
               {lookupLine ? (
                 <p className="text-sm font-semibold text-violet-900">Employee ID / case: {lookupLine}</p>
               ) : null}
-              <p className="text-3xl font-black tabular-nums text-[#134e4a]">{formatNgn(outstanding)}</p>
+              <p className="text-3xl font-black tabular-nums text-zarewa-teal">{formatNgn(outstanding)}</p>
               {recovery.hrInitiatedAmountNgn && recovery.hrInitiatedAmountNgn !== outstanding ? (
                 <p className="text-xs text-slate-600">
                   HR original amount {formatNgn(recovery.hrInitiatedAmountNgn)} — partial payments already recorded
@@ -141,7 +141,7 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
                 )}
                 {receipt.obligationAccountId && receipt.obligationTransactionId ? (
                   <a
-                    className="inline-flex items-center gap-2 rounded-lg bg-white border border-emerald-200 px-4 py-2 text-sm font-bold text-[#134e4a] shadow-sm hover:bg-emerald-50"
+                    className="inline-flex items-center gap-2 rounded-lg bg-white border border-emerald-200 px-4 py-2 text-sm font-bold text-zarewa-teal shadow-sm hover:bg-emerald-50"
                     href={obligationRepaymentReceiptPdfUrl(receipt.obligationAccountId, receipt.obligationTransactionId)}
                     target="_blank"
                     rel="noreferrer"
@@ -155,7 +155,7 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
               <>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Collecting today</p>
-                  <p className="mt-1 text-2xl font-black tabular-nums text-[#134e4a]">{formatNgn(amountToCollect || outstanding)}</p>
+                  <p className="mt-1 text-2xl font-black tabular-nums text-zarewa-teal">{formatNgn(amountToCollect || outstanding)}</p>
                   {!form.payInFull && amountToCollect < outstanding ? (
                     <p className="mt-1 text-xs text-slate-600">
                       Partial — {formatNgn(outstanding - amountToCollect)} will remain on HR schedule
@@ -174,7 +174,7 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
                 ) : null}
 
                 <div className="space-y-3 rounded-2xl border border-teal-100 bg-teal-50/30 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-[#134e4a] flex items-center gap-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-zarewa-teal flex items-center gap-2">
                     <Wallet size={14} aria-hidden />
                     Cashier — record what was received
                   </p>
@@ -184,7 +184,7 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
                       type="button"
                       className={`rounded-lg px-3 py-2 text-xs font-bold border ${
                         form.payInFull
-                          ? 'border-[#134e4a] bg-[#134e4a] text-white'
+                          ? 'border-zarewa-teal bg-zarewa-teal text-white'
                           : 'border-slate-200 bg-white text-slate-700'
                       }`}
                       onClick={() => setForm({ ...form, payInFull: true })}
@@ -195,7 +195,7 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
                       type="button"
                       className={`rounded-lg px-3 py-2 text-xs font-bold border ${
                         !form.payInFull
-                          ? 'border-[#134e4a] bg-[#134e4a] text-white'
+                          ? 'border-zarewa-teal bg-zarewa-teal text-white'
                           : 'border-slate-200 bg-white text-slate-700'
                       }`}
                       onClick={() => setForm({ ...form, payInFull: false })}

@@ -65,7 +65,7 @@ export function HrStaffTransferQuickStart({ userId, staff, onCreated }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1.5 text-xs font-bold uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
+        className="inline-flex rounded-xl border border-zarewa-teal/30 bg-zarewa-teal/5 px-3 py-1.5 text-xs font-bold uppercase text-zarewa-teal hover:bg-zarewa-teal/10"
       >
         Start transfer request
       </button>

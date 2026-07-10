@@ -37,7 +37,7 @@ export function HrStaffQuickPreviewSlideOver({
     <SlideOverPanel isOpen={isOpen} onClose={onClose} title="Staff preview" description="Quick staff summary" maxWidthClass="max-w-md">
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Staff preview</p>
+          <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">Staff preview</p>
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50" aria-label="Close">
             <X size={16} />
           </button>
@@ -47,7 +47,7 @@ export function HrStaffQuickPreviewSlideOver({
           <div className="flex items-center gap-3">
             <HrStaffAvatar staff={row} size="lg" />
             <div className="min-w-0">
-              <h2 className="truncate text-base font-black text-[#134e4a]">{row.displayName || row.userId}</h2>
+              <h2 className="truncate text-base font-black text-zarewa-teal">{row.displayName || row.userId}</h2>
               <p className="text-xs text-slate-600">{row.jobTitle || '—'}</p>
               <HrStatusBadge status={row.status} variant="staff" className="mt-1" />
             </div>
@@ -55,16 +55,16 @@ export function HrStaffQuickPreviewSlideOver({
 
           <div className="flex flex-wrap gap-1">
             {probation ? (
-              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${probation.cls}`}>{probation.label}</span>
+              <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${probation.cls}`}>{probation.label}</span>
             ) : null}
             {contract ? (
-              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${contract.cls}`}>{contract.label}</span>
+              <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${contract.cls}`}>{contract.label}</span>
             ) : null}
             {doc ? (
-              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${doc.cls}`}>{doc.label}</span>
+              <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${doc.cls}`}>{doc.label}</span>
             ) : null}
             {pct < 90 ? (
-              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${pctBadge.cls}`}>
+              <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${pctBadge.cls}`}>
                 Profile {pctBadge.label}
               </span>
             ) : null}

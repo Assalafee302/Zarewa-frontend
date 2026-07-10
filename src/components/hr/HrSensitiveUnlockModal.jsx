@@ -41,13 +41,13 @@ export function HrSensitiveUnlockModal({
           </p>
         </div>
         <label className="block">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Password</span>
+          <span className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Password</span>
           <input
             type="password"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/20"
+            className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm shadow-sm focus:border-zarewa-teal focus:outline-none focus:ring-2 focus:ring-zarewa-teal/20"
             required
           />
         </label>
@@ -60,14 +60,14 @@ export function HrSensitiveUnlockModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50"
+            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={busy || password.length < 1}
-            className="rounded-xl bg-[#134e4a] px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm hover:brightness-110 disabled:opacity-50"
+            className="rounded-xl bg-zarewa-teal px-4 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-sm hover:brightness-110 disabled:opacity-50"
           >
             {busy ? 'Checking…' : 'Unlock'}
           </button>

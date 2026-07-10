@@ -62,20 +62,20 @@ export function TransportCatchUpPanel({
         <div className="px-4 sm:px-5 py-4 border-b border-slate-100 bg-slate-50/80">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-widest text-[#134e4a] flex items-center gap-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-zarewa-teal flex items-center gap-2">
                 <Truck className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />
                 PO transport catch-up
               </p>
-              <p className="text-[11px] text-slate-600 mt-1 leading-relaxed max-w-2xl">
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed max-w-2xl">
                 Work through open and received POs where haulage is missing or unpaid. Assign transport in
                 Procurement, then Finance posts treasury payout so balances stay correct.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 text-[10px] font-bold uppercase">
+            <div className="flex flex-wrap gap-2 text-ui-xs font-bold uppercase">
               <button
                 type="button"
                 onClick={() => setFilter('all')}
-                className={`rounded-full px-3 py-1.5 border ${filter === 'all' ? 'border-[#134e4a] bg-[#134e4a] text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+                className={`rounded-full px-3 py-1.5 border ${filter === 'all' ? 'border-zarewa-teal bg-zarewa-teal text-white' : 'border-slate-200 bg-white text-slate-600'}`}
               >
                 All ({catchUpRows.length})
               </button>
@@ -108,9 +108,9 @@ export function TransportCatchUpPanel({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-[11px]">
+            <table className="w-full min-w-[720px] text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-100 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-slate-100 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2.5">PO</th>
                   <th className="px-4 py-2.5">Supplier</th>
                   <th className="px-4 py-2.5">Status</th>
@@ -123,7 +123,7 @@ export function TransportCatchUpPanel({
               <tbody>
                 {filteredCatchUp.map((row) => (
                   <tr key={row.poID} className="border-b border-slate-50 hover:bg-slate-50/60">
-                    <td className="px-4 py-2.5 font-mono font-bold text-[#134e4a]">
+                    <td className="px-4 py-2.5 font-mono font-bold text-zarewa-teal">
                       <button
                         type="button"
                         onClick={() => onOpenPo?.(row.poID)}
@@ -136,7 +136,7 @@ export function TransportCatchUpPanel({
                     <td className="px-4 py-2.5 text-slate-600">{row.status || '—'}</td>
                     <td className="px-4 py-2.5">
                       <span
-                        className={`inline-flex rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase ${gapTone(row.gapKind)}`}
+                        className={`inline-flex rounded-md border px-2 py-0.5 text-ui-xs font-bold uppercase ${gapTone(row.gapKind)}`}
                       >
                         {gapLabel(row.gapKind)}
                       </span>
@@ -144,13 +144,13 @@ export function TransportCatchUpPanel({
                     <td className="px-4 py-2.5 text-slate-600">
                       {row.transportAgentName || '—'}
                       {row.transportAmountNgn > 0 ? (
-                        <span className="block text-[10px] text-slate-500 tabular-nums">
+                        <span className="block text-ui-xs text-slate-500 tabular-nums">
                           Fee {formatNgn(row.transportAmountNgn)}
                           {row.transportPaidNgn > 0 ? ` · Paid ${formatNgn(row.transportPaidNgn)}` : ''}
                         </span>
                       ) : null}
                       {row.branchId ? (
-                        <span className="block text-[9px] text-slate-400">
+                        <span className="block text-ui-xs text-slate-400">
                           {branchNameById[row.branchId] || row.branchId}
                         </span>
                       ) : null}
@@ -163,7 +163,7 @@ export function TransportCatchUpPanel({
                         <button
                           type="button"
                           onClick={() => onLinkTransport?.(row.poID)}
-                          className="text-[10px] font-bold uppercase text-violet-900 bg-violet-50 border border-violet-200 rounded-lg px-2.5 py-1.5 hover:bg-violet-100"
+                          className="text-ui-xs font-bold uppercase text-violet-900 bg-violet-50 border border-violet-200 rounded-lg px-2.5 py-1.5 hover:bg-violet-100"
                         >
                           Assign transport
                         </button>
@@ -171,12 +171,12 @@ export function TransportCatchUpPanel({
                         <Link
                           to="/accounts"
                           state={{ accountsTab: 'desk' }}
-                          className="inline-block text-[10px] font-bold uppercase text-sky-900 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5 hover:bg-sky-100"
+                          className="inline-block text-ui-xs font-bold uppercase text-sky-900 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5 hover:bg-sky-100"
                         >
                           Finance desk
                         </Link>
                       ) : (
-                        <span className="text-[9px] text-slate-400">—</span>
+                        <span className="text-ui-xs text-slate-400">—</span>
                       )}
                     </td>
                   </tr>
@@ -194,27 +194,27 @@ export function TransportCatchUpPanel({
               <AlertTriangle className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />
               Orphan haulage payments
             </p>
-            <p className="text-[11px] text-rose-950/80 mt-1 leading-relaxed max-w-2xl">
+            <p className="text-xs text-rose-950/80 mt-1 leading-relaxed max-w-2xl">
               Treasury outflows that look like haulage but are not linked to a PO transport payment. Match each
               to a PO (link transport + post transport payment) or confirm as a general expense.
             </p>
           </div>
           <ul className="divide-y divide-rose-100/80 max-h-[420px] overflow-y-auto custom-scrollbar">
             {orphanRows.map((row) => (
-              <li key={row.movementId} className="px-4 sm:px-5 py-3 text-[11px]">
+              <li key={row.movementId} className="px-4 sm:px-5 py-3 text-xs">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-mono font-bold text-rose-950">{row.movementId}</p>
                     <p className="text-slate-700 mt-0.5">
                       {row.counterpartyName || row.counterpartyId || 'Counterparty —'} · {row.type}
                     </p>
-                    <p className="text-[10px] text-rose-900/80 mt-0.5">{row.reason}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
+                    <p className="text-ui-xs text-rose-900/80 mt-0.5">{row.reason}</p>
+                    <p className="text-ui-xs text-slate-500 mt-0.5">
                       {String(row.postedAtISO || '').slice(0, 10)} · {row.accountName || 'Account'}
                       {row.reference ? ` · Ref ${row.reference}` : ''}
                     </p>
                     {row.note ? (
-                      <p className="text-[10px] text-slate-600 mt-1 line-clamp-2" title={row.note}>
+                      <p className="text-ui-xs text-slate-600 mt-1 line-clamp-2" title={row.note}>
                         {row.note}
                       </p>
                     ) : null}
@@ -229,7 +229,7 @@ export function TransportCatchUpPanel({
               <Link
                 to="/accounts"
                 state={{ accountsTab: 'movements' }}
-                className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase text-rose-950 hover:underline"
+                className="inline-flex items-center gap-1.5 text-ui-xs font-bold uppercase text-rose-950 hover:underline"
               >
                 Review in Finance treasury movements
                 <ExternalLink className="size-3.5" aria-hidden />

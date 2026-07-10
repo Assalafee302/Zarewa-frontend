@@ -16,7 +16,7 @@ export function RefundGlImpactPreview({ calculationLines, hasCompletedProduction
       aria-label="Accounting impact preview"
     >
       <div className="flex items-center gap-2">
-        <BookOpen size={16} className="text-[#134e4a] shrink-0" aria-hidden />
+        <BookOpen size={16} className="text-zarewa-teal shrink-0" aria-hidden />
         <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Accounting impact (read-only)</p>
       </div>
       <p className="text-xs text-slate-600 leading-relaxed">
@@ -30,10 +30,10 @@ export function RefundGlImpactPreview({ calculationLines, hasCompletedProduction
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs leading-snug"
           >
             <p className="font-bold text-slate-800">{row.category}</p>
-            <p className="font-mono text-[11px] text-[#134e4a] mt-0.5">{row.posting}</p>
+            <p className="font-mono text-xs text-zarewa-teal mt-0.5">{row.posting}</p>
             <p className="text-slate-600 mt-1">{row.note}</p>
             {row.revenueReview ? (
-              <p className="text-amber-800 font-semibold mt-1 text-[11px]">Post-production — revenue review likely</p>
+              <p className="text-amber-800 font-semibold mt-1 text-xs">Post-production — revenue review likely</p>
             ) : null}
           </li>
         ))}

@@ -19,7 +19,7 @@ export function WorkspacePanelToolbar({
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center min-w-0 w-full sm:flex-1">
         {title ? (
-          <h2 className="text-xl font-bold text-[#134e4a] shrink-0 tracking-tight">{title}</h2>
+          <h2 className="text-xl font-bold text-zarewa-teal shrink-0 tracking-tight">{title}</h2>
         ) : null}
         {onSearchChange != null ? (
           <div className="relative flex-1 sm:max-w-xs min-w-0">

@@ -60,7 +60,7 @@ export default function TeamHrTimeAbsenceHub() {
           </div>
           <ProfileInlineAlert variant="info">
             Mark daily present, late, or absent from{' '}
-            <Link to="/manager?inbox=attendance" className="font-bold text-[#134e4a] hover:underline">
+            <Link to="/manager?inbox=attendance" className="font-bold text-zarewa-teal hover:underline">
               Management → Staff attendance
             </Link>
             . Salary figures are not shown on Team HR screens.
@@ -82,7 +82,7 @@ export default function TeamHrTimeAbsenceHub() {
         <div className="space-y-4">
           <ProfileInlineAlert variant="info">
             Daily attendance is marked in{' '}
-            <Link to="/manager?inbox=attendance" className="font-bold text-[#134e4a] hover:underline">
+            <Link to="/manager?inbox=attendance" className="font-bold text-zarewa-teal hover:underline">
               Management
             </Link>
             . This tab shows formal absence reports submitted for HR review.

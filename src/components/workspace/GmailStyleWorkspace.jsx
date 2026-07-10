@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { canApproveStaffPurchaseCredit } from '../../lib/hrAccess';
@@ -289,7 +290,7 @@ export default function GmailStyleWorkspace({
   const handleBulkArchive = useCallback(async () => {
     const ids = [...selectedIds];
     if (!ids.length) return;
-    if (!window.confirm(`Archive ${ids.length} selected item(s)?`)) return;
+    if (!(await appConfirm({ title: 'Archive', message: `Archive ${ids.length} selected item(s)?` }))) return;
     setBulkBusy(true);
     try {
       const { ok, data } = await apiFetch('/api/work-items/bulk/archive', {
@@ -345,7 +346,7 @@ export default function GmailStyleWorkspace({
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
             active ? 'bg-white text-teal-900' : 'bg-slate-200/80 text-slate-700'
-          } ${navCollapsed ? 'lg:absolute lg:right-0.5 lg:top-0.5 lg:min-h-[18px] lg:min-w-[18px] lg:px-0.5 lg:py-0 lg:text-[9px] lg:leading-[18px]' : ''}`}
+          } ${navCollapsed ? 'lg:absolute lg:right-0.5 lg:top-0.5 lg:min-h-[18px] lg:min-w-[18px] lg:px-0.5 lg:py-0 lg:text-ui-xs lg:leading-[18px]' : ''}`}
         >
           {navCollapsed && badge > 9 ? '9+' : badge}
         </span>
@@ -652,7 +653,7 @@ export default function GmailStyleWorkspace({
             {folderNav}
           </nav>
           {officeSummary && !navCollapsed ? (
-            <div className="mt-auto px-3 pb-3 text-[10px] text-slate-500">
+            <div className="mt-auto px-3 pb-3 text-ui-xs text-slate-500">
               <span className="font-mono font-semibold text-slate-700">{officeSummary.pendingActionApprox ?? 0}</span>{' '}
               pending ·{' '}
               <span className="font-mono font-semibold text-slate-700">{officeSummary.unreadApprox ?? 0}</span> unread
@@ -697,7 +698,7 @@ export default function GmailStyleWorkspace({
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2.5">
               <p className="text-sm font-semibold text-slate-800">Internal Memos</p>
               <div className="flex items-center gap-2">
-                <label className="inline-flex items-center gap-1.5 text-[11px] text-slate-600">
+                <label className="inline-flex items-center gap-1.5 text-xs text-slate-600">
                   <input
                     type="checkbox"
                     checked={mineOnly}
@@ -742,7 +743,7 @@ export default function GmailStyleWorkspace({
                             }`}
                           >
                             <span className="line-clamp-1 text-[13px] font-semibold text-slate-900">{t.subject}</span>
-                            <span className="line-clamp-1 text-[11px] text-slate-500">
+                            <span className="line-clamp-1 text-xs text-slate-500">
                               {t.id} · {String(t.status || 'open').replace(/_/g, ' ')}
                             </span>
                           </button>
@@ -776,10 +777,10 @@ export default function GmailStyleWorkspace({
 function FileSectionGroup({ section, selectedWorkItemId, mailThreadId, onActivate }) {
   return (
     <div className="px-1 py-3">
-      <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">{section.category}</p>
+      <p className="px-3 pb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{section.category}</p>
       {section.groups.map((g) => (
         <div key={`${section.category}-${g.subcategory}`} className="mb-3">
-          <p className="px-3 pb-1 text-[10px] font-semibold uppercase text-slate-400">{g.subcategory}</p>
+          <p className="px-3 pb-1 text-ui-xs font-semibold uppercase text-slate-400">{g.subcategory}</p>
           <ul>
             {g.items.map((raw) => {
               const item = normalizeWorkItem(raw);
@@ -812,7 +813,7 @@ function BulkSelectionBar({ selectedCount, bulkBusy, onMarkRead, onArchive, onCl
         type="button"
         disabled={bulkBusy}
         onClick={onMarkRead}
-        className="rounded-lg border border-teal-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-teal-900 hover:bg-teal-50 disabled:opacity-50"
+        className="rounded-lg border border-teal-200 bg-white px-2.5 py-1 text-xs font-semibold text-teal-900 hover:bg-teal-50 disabled:opacity-50"
       >
         Mark read
       </button>
@@ -820,14 +821,14 @@ function BulkSelectionBar({ selectedCount, bulkBusy, onMarkRead, onArchive, onCl
         type="button"
         disabled={bulkBusy}
         onClick={onArchive}
-        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
       >
         Archive
       </button>
       <button
         type="button"
         onClick={onClear}
-        className="ml-auto text-[11px] font-semibold text-slate-500 hover:text-slate-800"
+        className="ml-auto text-xs font-semibold text-slate-500 hover:text-slate-800"
       >
         Clear
       </button>

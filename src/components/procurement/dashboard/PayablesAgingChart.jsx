@@ -12,13 +12,13 @@ export default function PayablesAgingChart({ buckets }) {
   const max = Math.max(1, ...LABELS.map(([k]) => Number(buckets?.[k]) || 0));
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <h4 className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Payables aging</h4>
+      <h4 className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Payables aging</h4>
       <div className="mt-2 space-y-2">
         {LABELS.map(([key, label]) => (
           <div key={key} className="space-y-1">
-            <div className="flex items-center justify-between text-[10px]">
+            <div className="flex items-center justify-between text-ui-xs">
               <span className="font-semibold text-slate-600">{label}</span>
-              <span className="font-bold tabular-nums text-[#134e4a]">{formatNgn(buckets?.[key] || 0)}</span>
+              <span className="font-bold tabular-nums text-zarewa-teal">{formatNgn(buckets?.[key] || 0)}</span>
             </div>
             <div className="h-2 rounded bg-slate-100">
               <div

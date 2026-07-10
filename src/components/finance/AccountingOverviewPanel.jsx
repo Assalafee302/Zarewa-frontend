@@ -95,7 +95,7 @@ export function AccountingOverviewPanel({
   const refreshAction = (
     <button
       type="button"
-      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-50"
       onClick={reloadOverview}
       disabled={overviewLoading}
     >
@@ -130,14 +130,14 @@ export function AccountingOverviewPanel({
       )}
 
       {branchScopeLabel ? (
-        <p className="text-[11px] font-medium text-slate-600">
+        <p className="text-xs font-medium text-slate-600">
           Scope: <span className="font-bold text-slate-800">{branchScopeLabel}</span>
           {!openingPosted ? (
-            <span className="ml-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-900">
+            <span className="ml-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-ui-xs font-bold uppercase text-amber-900">
               Pre-cutover
             </span>
           ) : (
-            <span className="ml-2 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-[9px] font-bold uppercase text-teal-900">
+            <span className="ml-2 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-ui-xs font-bold uppercase text-teal-900">
               Live GL
             </span>
           )}
@@ -156,10 +156,10 @@ export function AccountingOverviewPanel({
                 className={`${ACCOUNTING_CARD_ROW} text-left w-full hover:border-teal-200/80`}
               >
                 <div className="flex items-start gap-2">
-                  <Icon size={16} className="text-[#134e4a] shrink-0 mt-0.5" />
+                  <Icon size={16} className="text-zarewa-teal shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-[11px] font-bold text-[#134e4a]">{q.label}</p>
-                    <p className="text-[10px] text-slate-500">{q.hint}</p>
+                    <p className="text-xs font-bold text-zarewa-teal">{q.label}</p>
+                    <p className="text-ui-xs text-slate-500">{q.hint}</p>
                   </div>
                 </div>
               </button>
@@ -168,7 +168,7 @@ export function AccountingOverviewPanel({
         </div>
       ) : null}
 
-      {overviewError ? <p className="text-[11px] font-medium text-rose-700">{overviewError}</p> : null}
+      {overviewError ? <p className="text-xs font-medium text-rose-700">{overviewError}</p> : null}
 
       <AccountingManagementDisclaimer />
 
@@ -239,14 +239,14 @@ export function AccountingOverviewPanel({
       {!openingPosted && pack ? (
         <section className="rounded-xl border border-slate-200/90 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-2.5">
-            <h3 className="text-[10px] font-black uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+            <h3 className="text-ui-xs font-black uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
               <Flag size={12} />
               Cutover readiness — {pack.inventoryPeriodKey || '2026-05'} register basis
             </h3>
             {onFocusTab ? (
               <button
                 type="button"
-                className="text-[10px] font-bold text-teal-800 hover:underline"
+                className="text-ui-xs font-bold text-teal-800 hover:underline"
                 onClick={() => onFocusTab('opening')}
               >
                 Open Opening tab →
@@ -254,7 +254,7 @@ export function AccountingOverviewPanel({
             ) : null}
           </div>
           {pack.summary ? (
-            <p className="px-4 py-2 text-[11px] text-slate-600 border-b border-slate-50">{pack.summary}</p>
+            <p className="px-4 py-2 text-xs text-slate-600 border-b border-slate-50">{pack.summary}</p>
           ) : null}
           {pack.blockers?.length ? (
             <div className="px-4 py-2">
@@ -271,14 +271,14 @@ export function AccountingOverviewPanel({
                     ) : (
                       <AlertTriangle size={14} className="text-amber-600 shrink-0" />
                     )}
-                    <span className="text-[11px] font-semibold text-slate-800">{s.label}</span>
+                    <span className="text-xs font-semibold text-slate-800">{s.label}</span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <span className="text-sm font-black tabular-nums text-slate-900">{formatNgn(s.amountNgn)}</span>
                     {s.drillDownTab && onFocusTab ? (
                       <button
                         type="button"
-                        className="text-[10px] font-bold text-teal-800 hover:underline"
+                        className="text-ui-xs font-bold text-teal-800 hover:underline"
                         onClick={() => onFocusTab(s.drillDownTab)}
                       >
                         Open →
@@ -290,7 +290,7 @@ export function AccountingOverviewPanel({
             ))}
           </ul>
           {cutoverSources.length === 0 && !pack.blockers?.length ? (
-            <p className="px-4 py-3 text-[11px] font-medium text-teal-800">
+            <p className="px-4 py-3 text-xs font-medium text-teal-800">
               All register sources loaded — enter owner&apos;s capital on Opening tab and post when HoA confirms.
             </p>
           ) : null}
@@ -299,18 +299,18 @@ export function AccountingOverviewPanel({
 
       {blockers.length > 0 ? (
         <section id="accounting-action-required" className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-4">
-          <h3 className="text-[11px] font-black uppercase tracking-wide text-amber-900">Action required</h3>
+          <h3 className="text-xs font-black uppercase tracking-wide text-amber-900">Action required</h3>
           <ul className="mt-3 space-y-2">
             {blockers.map((b) => (
               <li key={b.key} className={ACCOUNTING_CARD_ROW}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold text-slate-800">{b.label}</span>
+                  <span className="text-xs font-semibold text-slate-800">{b.label}</span>
                   <span className="text-sm font-black tabular-nums text-amber-900">{Number(b.count)}</span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Link
                     to={b.to}
-                    className="inline-flex rounded-lg bg-[#134e4a] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white hover:brightness-105"
+                    className="inline-flex rounded-lg bg-zarewa-teal px-3 py-1 text-ui-xs font-bold uppercase tracking-wide text-white hover:brightness-105"
                   >
                     {b.action}
                   </Link>
@@ -320,7 +320,7 @@ export function AccountingOverviewPanel({
           </ul>
         </section>
       ) : (
-        <p className="text-[11px] font-medium text-teal-800">No trial exceptions in scope — continue with registers and statements.</p>
+        <p className="text-xs font-medium text-teal-800">No trial exceptions in scope — continue with registers and statements.</p>
       )}
     </div>
   );

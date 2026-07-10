@@ -31,7 +31,7 @@ export function HrSensitiveGate({ children, label, scope = 'general' }) {
   if (sensitive.isUnlocked) {
     return (
       <>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-[11px] text-emerald-900">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-900">
           <span>Sensitive section unlocked</span>
           <button
             type="button"
@@ -55,7 +55,7 @@ export function HrSensitiveGate({ children, label, scope = 'general' }) {
         <button
           type="button"
           onClick={() => setModalOpen(true)}
-          className="mt-4 rounded-xl bg-[#134e4a] px-5 py-2.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm hover:brightness-110"
+          className="mt-4 rounded-xl bg-zarewa-teal px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-sm hover:brightness-110"
         >
           Unlock with password
         </button>

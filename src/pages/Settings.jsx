@@ -539,7 +539,7 @@ const Settings = () => {
                                 [row.key]: e.target.checked,
                               }))
                             }
-                            className="accent-[#134e4a] w-4 h-4 shrink-0"
+                            className="accent-zarewa-teal w-4 h-4 shrink-0"
                           />
                         </label>
                       ))}
@@ -555,7 +555,7 @@ const Settings = () => {
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <label className="block space-y-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                          <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                             Produced sales target (₦ / month)
                           </span>
                           <input
@@ -568,7 +568,7 @@ const Settings = () => {
                           />
                         </label>
                         <label className="block space-y-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                          <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                             Production metres target (m / month)
                           </span>
                           <input
@@ -621,12 +621,12 @@ const Settings = () => {
                             managerTargetsPersonalOverride: e.target.checked,
                           }))
                         }
-                        className="accent-[#134e4a] w-4 h-4 shrink-0"
+                        className="accent-zarewa-teal w-4 h-4 shrink-0"
                       />
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <label className="block space-y-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                        <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                           Produced sales target (₦ / month)
                         </span>
                         <input
@@ -652,7 +652,7 @@ const Settings = () => {
                         />
                       </label>
                       <label className="block space-y-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                        <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                           Production metres target (m / month)
                         </span>
                         <input
@@ -711,15 +711,15 @@ const Settings = () => {
               element={
                 <div className="space-y-5">
                   <section className="rounded-xl border border-teal-100/70 bg-gradient-to-br from-teal-50/50 to-white p-3.5 sm:p-4">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.14em] text-[#134e4a] flex items-center gap-1.5 mb-1">
+                    <h3 className="text-ui-xs font-black uppercase tracking-[0.14em] text-zarewa-teal flex items-center gap-1.5 mb-1">
                       <BadgeDollarSign size={12} strokeWidth={2.25} /> Live spot and table pricing
                     </h3>
-                    <p className="text-[10px] text-slate-600 leading-snug">
+                    <p className="text-ui-xs text-slate-600 leading-snug">
                       <span className="font-semibold text-slate-700">Operational pricing</span> (today’s spot
                       moves and quick table updates) lives on the{' '}
                       <Link
                         to="/"
-                        className="font-semibold text-[#134e4a] underline-offset-2 hover:underline"
+                        className="font-semibold text-zarewa-teal underline-offset-2 hover:underline"
                       >
                         Dashboard
                       </Link>{' '}
@@ -732,10 +732,10 @@ const Settings = () => {
 
                   <section>
                     <header className="mb-3 px-0.5">
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                      <h3 className="text-ui-xs font-black uppercase tracking-[0.16em] text-slate-500">
                         Master lists (reference catalog)
                       </h3>
-                      <p className="mt-0.5 text-[10px] text-slate-500 leading-snug max-w-2xl">
+                      <p className="mt-0.5 text-ui-xs text-slate-500 leading-snug max-w-2xl">
                         Long-lived setup data: quotation lines, colours, materials, reference price books, and
                         procurement mappings. Open a group to edit in a table; this is not the same as
                         day-to-day spot pricing on the dashboard.
@@ -833,7 +833,7 @@ const Settings = () => {
                         </p>
                         <div className="space-y-5">
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-900/80 mb-3">
+                            <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-900/80 mb-3">
                               Others lane
                             </p>
                             <div className="grid gap-4 md:grid-cols-2">
@@ -873,7 +873,7 @@ const Settings = () => {
                             </div>
                           </div>
                           <div className="border-t border-amber-100/90 pt-5">
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-violet-900/75 mb-3">
+                            <p className="text-ui-xs font-bold uppercase tracking-wide text-violet-900/75 mb-3">
                               Alerts & coaching
                             </p>
                             <div className="grid gap-4 md:grid-cols-2">
@@ -978,7 +978,7 @@ const Settings = () => {
                               className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4 md:flex-row md:items-center md:justify-between"
                             >
                               <div>
-                                <p className="text-sm font-black text-[#134e4a]">{lock.periodKey}</p>
+                                <p className="text-sm font-black text-zarewa-teal">{lock.periodKey}</p>
                                 <p className="mt-1 text-xs text-slate-500">
                                   {lock.reason || 'Locked period'} · {lock.lockedByName || 'System'}
                                 </p>
@@ -1033,8 +1033,8 @@ const Settings = () => {
                               className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-end sm:justify-between"
                             >
                               <div className="min-w-0">
-                                <p className="text-sm font-bold text-[#134e4a]">{b.name || b.code || b.id}</p>
-                                <p className="text-[10px] text-slate-500 font-mono">{b.id}</p>
+                                <p className="text-sm font-bold text-zarewa-teal">{b.name || b.code || b.id}</p>
+                                <p className="text-ui-xs text-slate-500 font-mono">{b.id}</p>
                               </div>
                               <div className="flex flex-wrap items-end gap-2">
                                 <div>
@@ -1110,12 +1110,12 @@ const Settings = () => {
                                 key={row.table}
                                 className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2"
                               >
-                                <p className="text-[11px] font-black text-slate-700">{row.table}</p>
-                                <p className="mt-1 text-[11px] text-slate-600">
+                                <p className="text-xs font-black text-slate-700">{row.table}</p>
+                                <p className="mt-1 text-xs text-slate-600">
                                   Missing: {row.missingBranchIdRows} · Invalid: {row.invalidBranchIdRows}
                                 </p>
                                 {Array.isArray(row.sampleIds) && row.sampleIds.length > 0 ? (
-                                  <p className="mt-1 text-[10px] text-slate-500">
+                                  <p className="mt-1 text-ui-xs text-slate-500">
                                     Sample IDs: {row.sampleIds.join(', ')}
                                   </p>
                                 ) : null}
@@ -1150,7 +1150,7 @@ const Settings = () => {
                                   {entry.entityId || '—'}
                                 </p>
                               </div>
-                              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                              <span className="text-ui-xs font-black uppercase tracking-[0.16em] text-slate-400">
                                 {String(entry.occurredAtISO || '').replace('T', ' ').slice(0, 16)}
                               </span>
                             </div>
@@ -1170,10 +1170,10 @@ const Settings = () => {
                   <div className="mb-8 rounded-zarewa border border-teal-100 bg-gradient-to-br from-teal-50/80 to-white p-5 sm:p-6">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="max-w-xl">
-                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-teal-800/80">
+                        <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-800/80">
                           Your role tour
                         </p>
-                        <h3 className="mt-1 text-lg font-black text-[#134e4a]">
+                        <h3 className="mt-1 text-lg font-black text-zarewa-teal">
                           {trainingGuideForRole(currentUser?.roleKey).title}
                         </h3>
                         <p className="mt-2 text-sm text-slate-600 leading-relaxed">
@@ -1184,19 +1184,19 @@ const Settings = () => {
                       <button
                         type="button"
                         onClick={() => ws?.openRoleTrainingReplay?.()}
-                        className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-xs font-black text-white hover:bg-teal-900"
+                        className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-zarewa-teal px-4 py-2.5 text-xs font-black text-white hover:bg-teal-900"
                       >
                         <BookOpen size={14} aria-hidden />
                         Replay my role tour
                       </button>
                     </div>
                   </div>
-                  <h3 className="z-section-title text-[#134e4a] mb-2">Team roles in Zarewa</h3>
+                  <h3 className="z-section-title text-zarewa-teal mb-2">Team roles in Zarewa</h3>
                   <p className="text-xs text-gray-500 mb-6 leading-relaxed">
                     Each card describes part of the workflow. Access is controlled by the role and permissions on
                     each login. The stored “department” field matches the role key so shortcuts and the post-login
                     landing page stay aligned. Bootstrap still exposes{' '}
-                    <code className="rounded bg-slate-100 px-1 py-0.5 text-[10px]">suggestedRoleByDepartment</code> for
+                    <code className="rounded bg-slate-100 px-1 py-0.5 text-ui-xs">suggestedRoleByDepartment</code> for
                     legacy workspace labels mapped onto roles.
                   </p>
                   <div className="space-y-4">
@@ -1208,24 +1208,24 @@ const Settings = () => {
                           className="group rounded-zarewa border border-gray-100 bg-gray-50/40 open:bg-white open:shadow-sm transition-all"
                         >
                           <summary className="flex cursor-pointer list-none items-start gap-3 p-5 [&::-webkit-details-marker]:hidden">
-                            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#134e4a]/10 text-[#134e4a]">
+                            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zarewa-teal/10 text-zarewa-teal">
                               <Icon size={20} />
                             </span>
                             <span className="min-w-0 flex-1 text-left">
                               <span className="flex items-center justify-between gap-2">
-                                <span className="text-sm font-black text-[#134e4a]">{d.title}</span>
+                                <span className="text-sm font-black text-zarewa-teal">{d.title}</span>
                                 <ChevronRight
                                   className="shrink-0 text-gray-300 transition-transform group-open:rotate-90"
                                   size={18}
                                 />
                               </span>
-                              <span className="mt-1 block text-[11px] font-medium text-gray-600 leading-relaxed">
+                              <span className="mt-1 block text-xs font-medium text-gray-600 leading-relaxed">
                                 {d.primary}
                               </span>
                             </span>
                           </summary>
                           <div className="border-t border-gray-100 px-5 pb-5 pt-0">
-                            <ul className="mt-3 space-y-2 text-[11px] text-gray-600 leading-relaxed list-disc pl-5">
+                            <ul className="mt-3 space-y-2 text-xs text-gray-600 leading-relaxed list-disc pl-5">
                               {d.bullets.map((b) => (
                                 <li key={b}>{b}</li>
                               ))}
@@ -1236,7 +1236,7 @@ const Settings = () => {
                                   key={`${l.to}-${l.label}-${li}`}
                                   to={l.to}
                                   state={l.state}
-                                  className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] hover:border-teal-200 hover:bg-teal-50/50 transition-colors"
+                                  className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal hover:border-teal-200 hover:bg-teal-50/50 transition-colors"
                                 >
                                   {l.label}
                                   <ChevronRight size={12} />

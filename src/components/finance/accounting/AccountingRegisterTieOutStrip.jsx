@@ -20,7 +20,7 @@ export function AccountingRegisterTieOutStrip({ checks, loading = false, onFocus
 
   if (loading && !checks.length) {
     return (
-      <p className="text-[10px] font-medium text-slate-500">Loading register ↔ GL tie-out…</p>
+      <p className="text-ui-xs font-medium text-slate-500">Loading register ↔ GL tie-out…</p>
     );
   }
 
@@ -35,7 +35,7 @@ export function AccountingRegisterTieOutStrip({ checks, loading = false, onFocus
           ) : (
             <AlertTriangle size={14} className="text-amber-600 shrink-0" />
           )}
-          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-700">
+          <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-700">
             Register ↔ GL · {summary.label}
           </p>
         </div>
@@ -43,7 +43,7 @@ export function AccountingRegisterTieOutStrip({ checks, loading = false, onFocus
           <button
             type="button"
             onClick={() => onFocusTab('close')}
-            className="text-[10px] font-bold text-teal-800 hover:underline"
+            className="text-ui-xs font-bold text-teal-800 hover:underline"
           >
             Month-end tie-out →
           </button>
@@ -55,7 +55,7 @@ export function AccountingRegisterTieOutStrip({ checks, loading = false, onFocus
           return (
             <span
               key={c.id}
-              className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+              className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${
                 ok
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                   : 'border-amber-200 bg-amber-50 text-amber-900'
@@ -69,7 +69,7 @@ export function AccountingRegisterTieOutStrip({ checks, loading = false, onFocus
         })}
       </div>
       {!summary.ok ? (
-        <p className="text-[10px] text-slate-500">
+        <p className="text-ui-xs text-slate-500">
           Tolerance {tolLabel} or ₦50k floor — resolve variances before period lock.
         </p>
       ) : null}

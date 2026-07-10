@@ -109,14 +109,14 @@ export function StaffPaymentsCashierPanel({
         data-testid="finance-staff-payments-toggle"
       >
         <Lock size={14} className="shrink-0 text-violet-800" aria-hidden />
-        <span className="text-[10px] font-black uppercase tracking-wide text-violet-950 flex items-center gap-1.5">
+        <span className="text-ui-xs font-black uppercase tracking-wide text-violet-950 flex items-center gap-1.5">
           <UserRound size={14} strokeWidth={2} aria-hidden />
           Staff payments
         </span>
-        <span className="text-[10px] font-bold tabular-nums text-violet-900">
+        <span className="text-ui-xs font-bold tabular-nums text-violet-900">
           {allRows.length} due · {formatNgn(totalDue)}
         </span>
-        <span className="ml-auto inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide text-violet-800/90">
+        <span className="ml-auto inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-violet-800/90">
           {expanded ? (
             <>
               Hide list <ChevronUp size={14} aria-hidden />
@@ -130,13 +130,13 @@ export function StaffPaymentsCashierPanel({
       </button>
 
       {!expanded ? (
-        <p className="px-3 pb-2.5 text-[9px] leading-relaxed text-violet-950/75 border-t border-violet-100/80">
+        <p className="px-3 pb-2.5 text-ui-xs leading-relaxed text-violet-950/75 border-t border-violet-100/80">
           Private — employee names stay hidden until you expand. Search by ID or name when the staff member is at
           your desk.
         </p>
       ) : (
         <div className="border-t border-violet-100/80 px-3 pb-3 pt-2 space-y-2">
-          <p className="text-[9px] leading-relaxed text-violet-950/80">
+          <p className="text-ui-xs leading-relaxed text-violet-950/80">
             Loans, purchase credit, and HR recoveries — confirm balance, then record cash or transfer to till/bank.
           </p>
           <div className="flex flex-wrap items-center gap-2">
@@ -147,20 +147,20 @@ export function StaffPaymentsCashierPanel({
               />
               <input
                 type="search"
-                className="w-full rounded-lg border border-violet-200/80 bg-white py-1.5 pl-7 pr-2 text-[10px] font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-100"
+                className="w-full rounded-lg border border-violet-200/80 bg-white py-1.5 pl-7 pr-2 text-ui-xs font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-100"
                 placeholder="Search name, employee ID, case, quote…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Search staff payments due"
               />
             </div>
-            <span className="text-[10px] font-bold tabular-nums text-violet-950">
+            <span className="text-ui-xs font-bold tabular-nums text-violet-950">
               {formatNgn(totalDue)} due · {rows.length} shown
             </span>
           </div>
 
           {rows.length === 0 ? (
-            <p className="text-[10px] text-slate-500 py-2 text-center">No matches — try another search.</p>
+            <p className="text-ui-xs text-slate-500 py-2 text-center">No matches — try another search.</p>
           ) : (
             <ul className="space-y-1.5">
               {rows.map((item) => (
@@ -171,7 +171,7 @@ export function StaffPaymentsCashierPanel({
                   title={
                     <>
                       <span>{item.staffName}</span>
-                      <span className="ml-1 text-[8px] font-bold uppercase text-violet-800">{item.badge}</span>
+                      <span className="ml-1 text-ui-xs font-bold uppercase text-violet-800">{item.badge}</span>
                     </>
                   }
                   meta={[item.meta, item.detail].filter(Boolean).join(' · ')}

@@ -84,14 +84,14 @@ export function FinanceMobileAlertStrip({
   return (
     <div className="lg:hidden flex flex-wrap gap-2 mb-4" role="status" aria-label="Finance desk alerts">
       <div className="flex w-full flex-wrap items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+        <span className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wider text-slate-500">
           <Bell size={12} aria-hidden /> Desk alerts
         </span>
         {bookTotalNgn != null ? (
           <button
             type="button"
             onClick={() => scrollToSection('desk-liquidity')}
-            className="text-[10px] font-bold tabular-nums text-[#134e4a] underline-offset-2 hover:underline"
+            className="text-ui-xs font-bold tabular-nums text-zarewa-teal underline-offset-2 hover:underline"
           >
             Book {formatNgn(bookTotalNgn)}
           </button>
@@ -105,7 +105,7 @@ export function FinanceMobileAlertStrip({
             item.onClick?.();
             scrollToSection(item.scrollTo);
           }}
-          className={`inline-flex rounded-lg border px-2.5 py-2 text-[11px] font-semibold min-h-9 items-center transition-colors ${toneCls[item.tone] || toneCls.teal}`}
+          className={`inline-flex rounded-lg border px-2.5 py-2 text-xs font-semibold min-h-9 items-center transition-colors ${toneCls[item.tone] || toneCls.teal}`}
         >
           {item.label}
         </button>

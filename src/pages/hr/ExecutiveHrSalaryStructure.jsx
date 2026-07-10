@@ -22,15 +22,15 @@ export default function ExecutiveHrSalaryStructure() {
       {insights ? (
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-100 bg-white px-4 py-3">
-            <p className="text-[10px] font-black uppercase text-slate-400">Median base</p>
+            <p className="text-ui-xs font-black uppercase text-slate-400">Median base</p>
             <p className="text-xl font-black">{formatNgn(insights.medianBaseSalaryNgn)}</p>
           </div>
           <div className="rounded-xl border border-slate-100 bg-white px-4 py-3">
-            <p className="text-[10px] font-black uppercase text-slate-400">P90</p>
+            <p className="text-ui-xs font-black uppercase text-slate-400">P90</p>
             <p className="text-xl font-black">{formatNgn(insights.p90BaseSalaryNgn)}</p>
           </div>
           <div className="rounded-xl border border-slate-100 bg-white px-4 py-3">
-            <p className="text-[10px] font-black uppercase text-slate-400">Staff in scope</p>
+            <p className="text-ui-xs font-black uppercase text-slate-400">Staff in scope</p>
             <p className="text-xl font-black">{insights.headcount ?? '—'}</p>
           </div>
         </div>

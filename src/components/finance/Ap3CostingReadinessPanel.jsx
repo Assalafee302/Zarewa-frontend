@@ -104,7 +104,7 @@ export function Ap3CostingReadinessPanel({
         type="button"
         onClick={() => load(filters)}
         disabled={loading || !enabled}
-        className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+        className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
       >
         <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
         Load readiness
@@ -113,7 +113,7 @@ export function Ap3CostingReadinessPanel({
         type="button"
         onClick={exportCsv}
         disabled={!data}
-        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50 disabled:opacity-50"
       >
         Export
       </button>
@@ -123,7 +123,7 @@ export function Ap3CostingReadinessPanel({
       type="button"
       onClick={() => load(filters)}
       disabled={loading || !enabled}
-      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
+      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50 disabled:opacity-50"
     >
       <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
       Refresh
@@ -446,20 +446,20 @@ export function Ap3CostingReadinessPanel({
                   rows={data.missingDataSamples || []}
                 />
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link to="/manager" className="text-[10px] font-bold text-[#134e4a] hover:underline">
+                  <Link to="/manager" className="text-ui-xs font-bold text-zarewa-teal hover:underline">
                     View production jobs
                   </Link>
-                  <Link to="/accounts?tab=movements" className="text-[10px] font-bold text-[#134e4a] hover:underline">
+                  <Link to="/accounts?tab=movements" className="text-ui-xs font-bold text-zarewa-teal hover:underline">
                     Expense classification (Treasury)
                   </Link>
                 </div>
               </AccountingDeskTableSection>
 
               <ProcurementFormSection letter="P" title="Proposed costing policy" compact>
-                <pre className="text-[10px] bg-slate-50 rounded-lg p-3 overflow-auto max-h-48">
+                <pre className="text-ui-xs bg-slate-50 rounded-lg p-3 overflow-auto max-h-48">
                   {JSON.stringify(data.proposedCostingPolicy, null, 2)}
                 </pre>
-                <ul className="mt-2 text-[10px] text-slate-600 list-disc pl-4 space-y-1">
+                <ul className="mt-2 text-ui-xs text-slate-600 list-disc pl-4 space-y-1">
                   {(data.policyNotes || []).map((n) => (
                     <li key={n}>{n}</li>
                   ))}

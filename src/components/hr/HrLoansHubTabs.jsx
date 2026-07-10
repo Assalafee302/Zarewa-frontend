@@ -42,7 +42,7 @@ export function HrLoansHubIntro({ embedded }) {
       ) : (
         <>
           Staff apply from{' '}
-          <Link to="/my-profile/loans" className="font-semibold text-[#134e4a] hover:underline">
+          <Link to="/my-profile/loans" className="font-semibold text-zarewa-teal hover:underline">
             My HR → Loans & credit
           </Link>
           . HR originates applications here and tracks approvals below.

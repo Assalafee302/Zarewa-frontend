@@ -40,14 +40,20 @@ describe('topCustomersByNetPaymentsAndMeters', () => {
 
 describe('buildManagerSnapshotsFromWorkspace', () => {
   it('exposes topCustomers from receipts, refunds, and cutting lists', () => {
+    const now = new Date();
+    const y = now.getUTCFullYear();
+    const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const d10 = `${y}-${m}-10`;
+    const d11 = `${y}-${m}-11`;
+    const d12 = `${y}-${m}-12`;
     const snap = buildManagerSnapshotsFromWorkspace(
-      [{ id: 'Q1', customerID: 'C1', customer: 'Alpha', dateISO: '2026-06-10', totalNgn: 900_000 }],
-      [{ customerID: 'C1', quotationRef: 'Q1', dateISO: '2026-06-11', totalMeters: 500 }],
+      [{ id: 'Q1', customerID: 'C1', customer: 'Alpha', dateISO: d10, totalNgn: 900_000 }],
+      [{ customerID: 'C1', quotationRef: 'Q1', dateISO: d11, totalMeters: 500 }],
       [],
       0,
       { nairaTarget: 1, meterTarget: 1 },
       'month',
-      [{ customerID: 'C1', customer: 'Alpha', dateISO: '2026-06-12', amountNgn: 200_000 }],
+      [{ customerID: 'C1', customer: 'Alpha', dateISO: d12, amountNgn: 200_000 }],
       []
     );
     expect(snap.topCustomers).toHaveLength(1);

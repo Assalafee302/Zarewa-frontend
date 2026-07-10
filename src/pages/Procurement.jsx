@@ -30,41 +30,35 @@ import { purchaseOrderToUnifiedDraft } from '../lib/purchaseOrderDraft';
 import CoilPurchaseOrderModal from '../components/procurement/CoilPurchaseOrderModal';
 import StonePurchaseOrderModal from '../components/procurement/StonePurchaseOrderModal';
 import AccessoryPurchaseOrderModal from '../components/procurement/AccessoryPurchaseOrderModal';
-import { ProcurementFormSection } from '../components/procurement/ProcurementFormSection';
-import { PriceListPanel } from '../components/procurement/PriceListPanel';
 import { MaterialPricingWorkbookModal } from '../components/procurement/MaterialPricingWorkbookModal';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
-import { CONVERSION_FLAG_RATIO, formatNgn } from '../Data/mockData';
+import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
 import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { apiFetch, apiUrl } from '../lib/apiBase';
+import { appConfirm } from '../lib/appConfirm';
 import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { buildTransitDisplayRows, shouldShowPoInTransit } from '../lib/inTransitVisibility.js';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import {
-  SalesListSearchInput,
-  SalesListSortBar,
-  SalesListTableFrame,
-} from '../components/sales/SalesListTableFrame';
-import {
   ProcurementPayablePreviewSlideOver,
   ProcurementPoPreviewSlideOver,
 } from '../components/procurement/ProcurementPreviewSlideOvers';
-import { PROCUREMENT_PO_SORT_FIELDS, sortPurchaseOrdersList } from '../lib/procurementPoListSorting';
-import { TransportCatchUpPanel } from '../components/procurement/TransportCatchUpPanel';
+import { sortPurchaseOrdersList } from '../lib/procurementPoListSorting';
+
 import {
   purchaseOrderCanAssignTransport,
   purchaseOrderTransportGapLabel,
 } from '../lib/purchaseOrderWorkflow';
 import { defaultTransportAgentProfile, mergeTransportAgentProfile } from '../lib/transportAgentIntel';
-import { PAYABLES_SORT_FIELDS, sortAccountsPayableList } from '../lib/procurementPayablesSorting';
+import { sortAccountsPayableList } from '../lib/procurementPayablesSorting';
 import { useAppTablePaging } from '../lib/appDataTable';
-import { AppTablePager } from '../components/ui/AppDataTable';
+
 import {
   defaultSupplierExtendedForm,
   extendedFormFromSupplier,
@@ -81,17 +75,14 @@ import {
   treasuryBookBalanceByAccountId,
   treasuryBookDisplayNgn,
 } from '../lib/financeDeskTreasury';
+
+import { TAB_LABELS, STANDARD_COIL_GAUGES_MM, PROCUREMENT_COIL_MATERIALS, procurementCoilMaterialByKey, kgPerMFromStripDensity } from './procurement/procurementTabShared.js';
+import { ProcurementPageContext } from './procurement/ProcurementPageContext.jsx';
+import { ProcurementTabPanels } from './procurement/ProcurementTabPanels.jsx';
+
 /** Rows per column for Coil / Stone-coated / Accessories lists on Purchases. */
 const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
 const PAYABLES_TABLE_PAGE_SIZE = 10;
-
-const TAB_LABELS = {
-  purchases: 'Purchases',
-  payables: 'Payments',
-  transport: 'Transport catch-up',
-  suppliers: 'Suppliers',
-  conversion: 'Conversion',
-};
 
 /** Kg coil SKUs below this on-hand level count as low stock on the Procurement KPI row. */
 const APPROVED_PURCHASE_WINDOWS = [
@@ -101,186 +92,12 @@ const APPROVED_PURCHASE_WINDOWS = [
   { id: '12m', label: '1 year', months: 12 },
 ];
 
-/** Coil materials for density-based standard conversion (maps to stock product_id). Stonecoated is excluded — different product class. */
-const PROCUREMENT_COIL_MATERIALS = [
-  { key: 'alu', label: 'Aluminium', productID: 'COIL-ALU', defaultCatalogLabel: 'Aluminium' },
-  { key: 'aluzinc', label: 'Aluzinc (PPGI)', productID: 'PRD-102', defaultCatalogLabel: 'Aluzinc (PPGI)' },
-];
-
-function procurementCoilMaterialByKey(key) {
-  return PROCUREMENT_COIL_MATERIALS.find((m) => m.key === key) ?? PROCUREMENT_COIL_MATERIALS[0];
-}
-
-/** Standard gauges (mm) used in yard / procurement. */
-const STANDARD_COIL_GAUGES_MM = ['0.18', '0.20', '0.22', '0.24', '0.28', '0.30', '0.40', '0.45', '0.50', '0.55'];
-
-/** Strip width for theoretical mass per metre (metres). */
-const PROCUREMENT_STRIP_WIDTH_M = 1.2;
-
-/** Mass density in g/cm³ (×1000 → kg/m³). Values confirmed with operations. */
-const DENSITY_ALUMINIUM_G_CM3 = 2.7;
-const DENSITY_ALUZINC_G_CM3 = 7.8;
-
-function densityKgPerM3ForProcurementKey(materialKey) {
-  if (materialKey === 'alu') return DENSITY_ALUMINIUM_G_CM3 * 1000;
-  if (materialKey === 'aluzinc') return DENSITY_ALUZINC_G_CM3 * 1000;
-  return null;
-}
-
-/** Theoretical kg/m: ρ (kg/m³) × strip width (m) × thickness (m); gaugeMm is thickness in mm. */
-function kgPerMFromStripDensity(materialKey, gaugeMm) {
-  const rho = densityKgPerM3ForProcurementKey(materialKey);
-  if (rho == null || !Number.isFinite(gaugeMm) || gaugeMm <= 0) return null;
-  return rho * PROCUREMENT_STRIP_WIDTH_M * (gaugeMm / 1000);
-}
-
-function poLineSummaryLabel(kind) {
-  if (kind === 'mixed') return 'mixed line(s)';
-  if (kind === 'stone') return 'stone line(s)';
-  if (kind === 'accessory') return 'accessory line(s)';
-  return 'coil line(s)';
-}
-
-const PILL = 'inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-semibold uppercase tracking-wide';
-
 const normalizeNairaInput = (value) => String(value ?? '').replace(/[^\d]/g, '');
 const formatNairaInput = (value) => {
   const normalized = normalizeNairaInput(value);
   if (!normalized) return '';
   return Number(normalized).toLocaleString('en-NG');
 };
-
-/** Bordered chip — matches Stock / Finance compact lists */
-const statusChipBorder = (st) => {
-  if (st === 'Received') return 'border-emerald-200 bg-emerald-50 text-emerald-800';
-  if (st === 'In Transit') return 'border-sky-200 bg-sky-50 text-sky-900';
-  if (st === 'On loading') return 'border-violet-200 bg-violet-50 text-violet-900';
-  if (st === 'Approved') return 'border-teal-200 bg-teal-50 text-teal-900';
-  if (st === 'Rejected') return 'border-rose-200 bg-rose-50 text-rose-800';
-  return 'border-amber-200 bg-amber-50 text-amber-900';
-};
-
-const CARD_ROW =
-  'rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm transition-colors hover:bg-white/70';
-
-/** Left column (~⅓ width on large screens): transport agent directory; profiles open as full pages like suppliers. */
-function ProcurementTransportAgentsAside({ agents, onEdit, onRemove, onRegister, transitRows, onPreviewTransitPo }) {
-  return (
-    <aside className="w-full lg:w-1/3 lg:max-w-md lg:shrink-0 rounded-xl border border-slate-200/90 bg-white shadow-sm flex flex-col max-h-[min(72vh,680px)] min-h-[240px]">
-      <div className="h-1 bg-[#134e4a] rounded-t-xl shrink-0" />
-      <div className="px-4 py-3 border-b border-slate-100 shrink-0">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-          <Truck size={16} className="text-[#134e4a]" />
-          Transport agents
-        </h3>
-        <p className="text-[9px] text-slate-500 mt-1 leading-snug">
-          Haulage partners. Click a name for the full profile (like a supplier). Use the list below for loads on the road.
-        </p>
-        <button
-          type="button"
-          onClick={onRegister}
-          className="mt-2 w-full rounded-lg border border-dashed border-[#134e4a]/40 bg-[#134e4a]/[0.04] py-2 text-[10px] font-semibold uppercase tracking-wide text-[#134e4a] hover:bg-[#134e4a]/10"
-        >
-          Register transport agent
-        </button>
-      </div>
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 py-2">
-        {agents.length === 0 ? (
-          <p className="text-[10px] text-slate-500 text-center py-6 px-2 leading-relaxed">
-            No agents yet. Register one here.
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {agents.map((a) => (
-              <li key={a.id} className={`${CARD_ROW} flex items-start justify-between gap-2`}>
-                <div className="min-w-0 leading-tight flex-1">
-                  <p className="text-[10px] font-mono text-slate-500 truncate">{a.id}</p>
-                  <Link
-                    to={`/procurement/transport-agents/${encodeURIComponent(a.id)}`}
-                    className="block text-[11px] font-bold text-[#134e4a] truncate hover:underline"
-                  >
-                    {a.name}
-                  </Link>
-                  <p
-                    className="text-[8px] text-slate-500 mt-0.5 truncate"
-                    title={`${a.region} · ${a.phone}`}
-                  >
-                    {a.region} · {a.phone}
-                  </p>
-                </div>
-                <div className="flex items-center gap-0 shrink-0">
-                  <button
-                    type="button"
-                    title="Edit"
-                    onClick={() => onEdit(a)}
-                    className="p-1.5 rounded-md text-slate-500 hover:bg-slate-100 hover:text-[#134e4a]"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    title="Delete"
-                    onClick={() => void onRemove(a)}
-                    className="p-1.5 rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-600"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      {transitRows && transitRows.length > 0 ? (
-        <div className="border-t border-slate-200/90 bg-slate-50/50 shrink-0">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 px-3 pt-2.5 pb-1">
-            On loading / in transit
-          </p>
-          <ul className="max-h-36 overflow-y-auto custom-scrollbar px-3 pb-2 space-y-1">
-            {transitRows.map((p) => {
-              const meta2 = [
-                p.transportAgentName ? `Agent ${p.transportAgentName}` : null,
-                p.transportReference ? `Ref ${p.transportReference}` : null,
-                p.transportNote,
-              ]
-                .filter(Boolean)
-                .join(' · ');
-              return (
-                <li key={p.poID}>
-                  <button
-                    type="button"
-                    onClick={() => onPreviewTransitPo?.(p.poID)}
-                    className={`w-full text-left ${CARD_ROW} !py-1.5 cursor-pointer`}
-                  >
-                    <div className="flex items-start justify-between gap-2 min-w-0">
-                      <div className="min-w-0 leading-tight flex-1">
-                        <p className="text-[10px] font-bold text-[#134e4a] truncate">
-                          <span className="font-mono">{p.poID}</span>
-                          <span className="font-medium text-slate-600"> · {p.supplierName}</span>
-                        </p>
-                        <p
-                          className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
-                          title={meta2}
-                        >
-                          {meta2 || '—'}
-                        </p>
-                      </div>
-                      <span
-                        className={`text-[8px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border shrink-0 ${statusChipBorder(p.status)}`}
-                      >
-                        {p.status}
-                      </span>
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
-    </aside>
-  );
-}
 
 const Procurement = () => {
   const location = useLocation();
@@ -942,7 +759,7 @@ const Procurement = () => {
   };
 
   const removeSupplier = async (s) => {
-    if (!window.confirm(`Delete supplier “${s.name}”? This cannot be undone.`)) return;
+    if (!(await appConfirm({ message: `Delete supplier “${s.name}”? This cannot be undone.`, variant: 'danger' }))) return;
     if (ws?.canMutate) {
       const { ok, data } = await apiFetch(`/api/suppliers/${encodeURIComponent(s.supplierID)}`, {
         method: 'DELETE',
@@ -1033,7 +850,7 @@ const Procurement = () => {
   };
 
   const removeAgent = async (a) => {
-    if (!window.confirm(`Delete transport agent “${a.name}”?`)) return;
+    if (!(await appConfirm({ message: `Delete transport agent “${a.name}”?`, variant: 'danger' }))) return;
     if (ws?.canMutate) {
       const { ok, data } = await apiFetch(`/api/transport-agents/${encodeURIComponent(a.id)}`, {
         method: 'DELETE',
@@ -1323,7 +1140,145 @@ const Procurement = () => {
     [inTransitLoads, purchaseOrders]
   );
 
+  const wsCanMutate = ws?.canMutate;
+  const wsCanAccessFinance = Boolean(ws?.canAccessModule?.('finance'));
+  const wsCanFinancePay = Boolean(
+    ws?.canAccessModule?.('finance') &&
+      (ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('cashier.desk.view'))
+  );
+  const wsSessionUserRoleKey = ws?.session?.user?.roleKey;
+
+  const pageContextValue = useMemo(
+    () => ({
+      activeTab,
+      setActiveTab,
+      searchQuery,
+      setSearchQuery,
+      canRecordSupplierPayment,
+      payablesOutstandingNgn,
+      payablesOpenSearchQuery,
+      setPayablesOpenSearchQuery,
+      payablesSettledSearchQuery,
+      setPayablesSettledSearchQuery,
+      payablesOpenSort,
+      setPayablesOpenSort,
+      payablesSettledSort,
+      setPayablesSettledSort,
+      sortedOpenPayables,
+      sortedSettledPayables,
+      openPayablesPage,
+      settledPayablesPage,
+      todayIso,
+      branchNameById,
+      wsCanMutate,
+      setPreviewAp,
+      setPreviewPo,
+      openApPaymentModal,
+      poTransportMissingLinkRows,
+      poTransportFilter,
+      setPoTransportFilter,
+      openPoTransportLink,
+      poTransportAwaitingTreasuryRows,
+      wsCanAccessFinance,
+      wsCanFinancePay,
+      wsSessionUserRoleKey,
+      procurementPoForApprovalUi,
+      procurementPoEditApprovalId,
+      setProcurementPoEditApprovalId,
+      poListSort,
+      setPoListSort,
+      coilPOsSorted,
+      stonePOsSorted,
+      accessoryPOsSorted,
+      mixedPOsSorted,
+      coilPoPurchasesPage,
+      stonePoPurchasesPage,
+      accessoryPoPurchasesPage,
+      mixedPoPurchasesPage,
+      poTransportMissingLinkIds,
+      poTransportCatchUpRows,
+      orphanHaulageRows,
+      canManagePo,
+      openPoPreviewById,
+      agents,
+      openEditAgent,
+      removeAgent,
+      openAgentModal,
+      transitRowsForAside,
+      purchaseOrders,
+      filteredSuppliers,
+      openEditSupplier,
+      removeSupplier,
+      canAccessPriceList,
+      saveStandardConversion,
+      standardConversionForm,
+      setStandardConversionForm,
+      standardConversionSaving,
+      standardPhysicsKgPerM,
+      standardEffectiveKgPerM,
+      stdOverrideKgPerM,
+      setShowMaterialPricingWorkbook,
+    }),
+    [
+      activeTab,
+      searchQuery,
+      canRecordSupplierPayment,
+      payablesOutstandingNgn,
+      payablesOpenSearchQuery,
+      payablesSettledSearchQuery,
+      payablesOpenSort,
+      payablesSettledSort,
+      sortedOpenPayables,
+      sortedSettledPayables,
+      openPayablesPage,
+      settledPayablesPage,
+      todayIso,
+      branchNameById,
+      wsCanMutate,
+      poTransportMissingLinkRows,
+      poTransportFilter,
+      openPoTransportLink,
+      poTransportAwaitingTreasuryRows,
+      wsCanAccessFinance,
+      wsCanFinancePay,
+      wsSessionUserRoleKey,
+      procurementPoForApprovalUi,
+      procurementPoEditApprovalId,
+      poListSort,
+      coilPOsSorted,
+      stonePOsSorted,
+      accessoryPOsSorted,
+      mixedPOsSorted,
+      coilPoPurchasesPage,
+      stonePoPurchasesPage,
+      accessoryPoPurchasesPage,
+      mixedPoPurchasesPage,
+      poTransportMissingLinkIds,
+      poTransportCatchUpRows,
+      orphanHaulageRows,
+      canManagePo,
+      openPoPreviewById,
+      agents,
+      openEditAgent,
+      removeAgent,
+      openAgentModal,
+      transitRowsForAside,
+      purchaseOrders,
+      filteredSuppliers,
+      openEditSupplier,
+      removeSupplier,
+      canAccessPriceList,
+      saveStandardConversion,
+      standardConversionForm,
+      standardConversionSaving,
+      standardPhysicsKgPerM,
+      standardEffectiveKgPerM,
+      stdOverrideKgPerM,
+    ]
+  );
+
   return (
+    <ProcurementPageContext.Provider value={pageContextValue}>
     <PageShell blurred={isAnyModalOpen}>
       <PageHeader
         title="Purchases"
@@ -1364,7 +1319,7 @@ const Procurement = () => {
                       ? `${payablesOpenSearchQuery} ${payablesSettledSearchQuery}`.trim()
                       : searchQuery,
                 }}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] shadow-sm hover:bg-teal-100/70 shrink-0"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal shadow-sm hover:bg-teal-100/70 shrink-0"
               >
                 Ask AI
               </AiAskButton>
@@ -1376,7 +1331,7 @@ const Procurement = () => {
                       onClick={openPrimaryAction}
                       disabled={ws?.blocksBranchScopedCreate}
                       title={ws?.blocksBranchScopedCreate ? ws.branchScopedCreateMessage : undefined}
-                      className={`inline-flex items-center justify-center gap-1 rounded-lg bg-[#134e4a] text-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105${ws?.blocksBranchScopedCreate ? ' opacity-50 cursor-not-allowed' : ''}`}
+                      className={`inline-flex items-center justify-center gap-1 rounded-lg bg-zarewa-teal text-white px-2.5 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105${ws?.blocksBranchScopedCreate ? ' opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <Plus size={12} strokeWidth={2} /> New purchase order
                     </button>
@@ -1387,7 +1342,7 @@ const Procurement = () => {
                 <button
                   type="button"
                   onClick={openPrimaryAction}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 shrink-0"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 shrink-0"
                 >
                   <Plus size={14} strokeWidth={2} /> {newButtonLabel}
                 </button>
@@ -1400,7 +1355,7 @@ const Procurement = () => {
       {procBranchId ? (
         <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 px-4 py-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-[#134e4a]">Month-end stock costing</p>
+            <p className="text-sm font-bold text-zarewa-teal">Month-end stock costing</p>
             <p className="text-xs text-slate-600 mt-1">
               {stockRegisterProcInbox.length
                 ? `${stockRegisterProcInbox.length} register(s) ready for net kg pricing.`
@@ -1417,44 +1372,44 @@ const Procurement = () => {
         <div className="col-span-full order-1">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
                 <Package size={12} /> Open commitments
               </p>
-              <p className="mt-1 text-xl font-black text-[#134e4a] tabular-nums">{formatNgn(openCommitmentsNgn)}</p>
-              <div className="mt-2 border-t border-slate-100 pt-2 space-y-1 text-[10px]">
+              <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">{formatNgn(openCommitmentsNgn)}</p>
+              <div className="mt-2 border-t border-slate-100 pt-2 space-y-1 text-ui-xs">
                 <p className="flex items-center justify-between text-slate-600">
                   <span>On road / loading</span>
-                  <span className="font-bold tabular-nums text-[#134e4a]">{transitLoadingCount} PO</span>
+                  <span className="font-bold tabular-nums text-zarewa-teal">{transitLoadingCount} PO</span>
                 </p>
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
                 <Banknote size={12} /> Outstanding
               </p>
-              <p className="mt-1 text-xl font-black text-[#134e4a] tabular-nums">
+              <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">
                 {formatNgn(outstandingSupplierNgn)}
               </p>
-              <p className="mt-2 text-[10px] text-slate-500 border-t border-slate-100 pt-2">Open PO value less paid</p>
+              <p className="mt-2 text-ui-xs text-slate-500 border-t border-slate-100 pt-2">Open PO value less paid</p>
             </div>
             <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-teal-700 flex items-center gap-1">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-700 flex items-center gap-1">
                 <Award size={12} /> Best supplier
               </p>
-              <p className="mt-1 text-sm font-bold text-[#134e4a] leading-tight line-clamp-2">
+              <p className="mt-1 text-sm font-bold text-zarewa-teal leading-tight line-clamp-2">
                 {bestSupplier?.s.name ?? '—'}
               </p>
-              <p className="mt-2 text-[10px] text-teal-800/90 border-t border-teal-100/80 pt-2">Quality × volume</p>
+              <p className="mt-2 text-ui-xs text-teal-800/90 border-t border-teal-100/80 pt-2">Quality × volume</p>
             </div>
             <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 flex items-center gap-1">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-700 flex items-center gap-1">
                   <DollarSign size={12} /> Approved + paid
                 </p>
                 <select
                   value={approvedPurchaseWindow}
                   onChange={(e) => setApprovedPurchaseWindow(e.target.value)}
-                  className="rounded-md border border-amber-200 bg-white px-1.5 py-1 text-[9px] font-semibold text-amber-900"
+                  className="rounded-md border border-amber-200 bg-white px-1.5 py-1 text-ui-xs font-semibold text-amber-900"
                   aria-label="Approved purchase total period"
                 >
                   {APPROVED_PURCHASE_WINDOWS.map((w) => (
@@ -1465,7 +1420,7 @@ const Procurement = () => {
                 </select>
               </div>
               <p className="mt-1 text-xl font-black text-amber-900 tabular-nums">{formatNgn(approvedAndPaidTotalNgn)}</p>
-              <p className="mt-2 text-[10px] text-amber-800/85 border-t border-amber-100 pt-2">
+              <p className="mt-2 text-ui-xs text-amber-800/85 border-t border-amber-100 pt-2">
                 Combined total for selected period: <span className="font-semibold">Approved PO value</span> plus{' '}
                 <span className="font-semibold">supplier payments posted</span>.
               </p>
@@ -1473,753 +1428,10 @@ const Procurement = () => {
           </div>
         </div>
 
-        <div className="col-span-full min-w-0 order-2">
-          {activeTab === 'payables' ? (
-            <div className="flex flex-col gap-4 min-w-0 min-h-[min(60vh,520px)]">
-              <div className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
-                <div className="h-1 bg-[#134e4a]" />
-                <div className="px-4 sm:px-5 py-4 sm:py-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <h2 className="text-xl font-bold text-[#134e4a] shrink-0">Payments</h2>
-                    <p className="w-full sm:max-w-xl text-[10px] text-slate-500 leading-snug">
-                      Use the <span className="font-semibold text-slate-600">search</span> in each payables list below
-                      (open vs settled). Each list has its own sort and shows 10 rows per page.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              {!canRecordSupplierPayment ? (
-                <p className="text-[10px] text-slate-700 bg-white rounded-lg px-3 py-2 border border-slate-200/90 shadow-sm">
-                  <span className="font-semibold">View only:</span> recording payments requires{' '}
-                  <span className="font-mono text-[9px]">finance.pay</span>.
-                </p>
-              ) : null}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch min-w-0">
-                  <div className="min-w-0 flex flex-col min-h-0">
-                  <SalesListTableFrame
-                    toolbar={
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                              <Banknote size={12} className="text-[#134e4a]" />
-                              Pending &amp; partial payment
-                            </h3>
-                            <p className="text-[11px] text-slate-600 mt-1 leading-snug max-w-2xl">
-                              Outstanding or partially paid supplier invoices. Post payments here (
-                              <span className="font-semibold text-[#134e4a]">finance.pay</span>).
-                            </p>
-                          </div>
-                          {payablesOutstandingNgn > 0 ? (
-                            <p className="text-sm font-black text-[#134e4a] tabular-nums shrink-0">
-                              {formatNgn(payablesOutstandingNgn)} outstanding
-                            </p>
-                          ) : null}
-                        </div>
-                        <SalesListSearchInput
-                          value={payablesOpenSearchQuery}
-                          onChange={setPayablesOpenSearchQuery}
-                          placeholder="Search AP id, supplier, PO, invoice ref…"
-                        />
-                        <SalesListSortBar
-                          fields={PAYABLES_SORT_FIELDS}
-                          field={payablesOpenSort.field}
-                          dir={payablesOpenSort.dir}
-                          onFieldChange={(field) => setPayablesOpenSort((s) => ({ ...s, field }))}
-                          onDirToggle={() =>
-                            setPayablesOpenSort((s) => ({
-                              ...s,
-                              dir: s.dir === 'asc' ? 'desc' : 'asc',
-                            }))
-                          }
-                        />
-                      </div>
-                    }
-                  >
-                    {sortedOpenPayables.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                          No open or partial payables match your search
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        <ul className="space-y-1.5 max-h-[min(40vh,360px)] overflow-y-auto custom-scrollbar">
-                          {openPayablesPage.slice.map((p) => (
-                            <ProcurementPayableRow
-                              key={p.apID}
-                              p={p}
-                              todayIso={todayIso}
-                              branchNameById={branchNameById}
-                              canRecordSupplierPayment={canRecordSupplierPayment}
-                              wsCanMutate={ws?.canMutate}
-                              onOpenPreview={() => {
-                                setPreviewAp(p);
-                                setPreviewPo(null);
-                              }}
-                              onOpenPay={() => {
-                                openApPaymentModal(p);
-                              }}
-                            />
-                          ))}
-                        </ul>
-                        <div className="mt-3 text-[10px] text-slate-600 [&_button]:rounded-lg [&_button]:px-2 [&_button]:py-1 [&_button]:text-[10px] [&_p]:text-[10px]">
-                          <AppTablePager
-                            showingFrom={openPayablesPage.showingFrom}
-                            showingTo={openPayablesPage.showingTo}
-                            total={openPayablesPage.total}
-                            hasPrev={openPayablesPage.hasPrev}
-                            hasNext={openPayablesPage.hasNext}
-                            onPrev={openPayablesPage.goPrev}
-                            onNext={openPayablesPage.goNext}
-                            pageSize={PAYABLES_TABLE_PAGE_SIZE}
-                          />
-                        </div>
-                      </>
-                    )}
-                  </SalesListTableFrame>
-                  </div>
+        <ProcurementTabPanels />
 
-                  <div className="min-w-0 flex flex-col min-h-0">
-                  <SalesListTableFrame
-                    toolbar={
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                              <Banknote size={12} className="text-emerald-700" />
-                              Fully paid
-                            </h3>
-                            <p className="text-[11px] text-slate-600 mt-1 leading-snug max-w-2xl">
-                              Supplier invoices that are paid in full (including when paid equals invoice amount).
-                            </p>
-                          </div>
-                          <p className="text-[10px] font-bold text-slate-500 tabular-nums shrink-0">
-                            {sortedSettledPayables.length} settled
-                          </p>
-                        </div>
-                        <SalesListSearchInput
-                          value={payablesSettledSearchQuery}
-                          onChange={setPayablesSettledSearchQuery}
-                          placeholder="Search AP id, supplier, PO, invoice ref…"
-                        />
-                        <SalesListSortBar
-                          fields={PAYABLES_SORT_FIELDS}
-                          field={payablesSettledSort.field}
-                          dir={payablesSettledSort.dir}
-                          onFieldChange={(field) => setPayablesSettledSort((s) => ({ ...s, field }))}
-                          onDirToggle={() =>
-                            setPayablesSettledSort((s) => ({
-                              ...s,
-                              dir: s.dir === 'asc' ? 'desc' : 'asc',
-                            }))
-                          }
-                        />
-                      </div>
-                    }
-                  >
-                    {sortedSettledPayables.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                          No settled payables match your search
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        <ul className="space-y-1.5 max-h-[min(40vh,360px)] overflow-y-auto custom-scrollbar">
-                          {settledPayablesPage.slice.map((p) => (
-                            <ProcurementPayableRow
-                              key={p.apID}
-                              p={p}
-                              todayIso={todayIso}
-                              branchNameById={branchNameById}
-                              canRecordSupplierPayment={canRecordSupplierPayment}
-                              wsCanMutate={ws?.canMutate}
-                              onOpenPreview={() => {
-                                setPreviewAp(p);
-                                setPreviewPo(null);
-                              }}
-                              onOpenPay={() => {
-                                openApPaymentModal(p);
-                              }}
-                            />
-                          ))}
-                        </ul>
-                        <div className="mt-3 text-[10px] text-slate-600 [&_button]:rounded-lg [&_button]:px-2 [&_button]:py-1 [&_button]:text-[10px] [&_p]:text-[10px]">
-                          <AppTablePager
-                            showingFrom={settledPayablesPage.showingFrom}
-                            showingTo={settledPayablesPage.showingTo}
-                            total={settledPayablesPage.total}
-                            hasPrev={settledPayablesPage.hasPrev}
-                            hasNext={settledPayablesPage.hasNext}
-                            onPrev={settledPayablesPage.goPrev}
-                            onNext={settledPayablesPage.goNext}
-                            pageSize={PAYABLES_TABLE_PAGE_SIZE}
-                          />
-                        </div>
-                      </>
-                    )}
-                  </SalesListTableFrame>
-                  </div>
-                  </div>
-                </div>
-          ) : (
-          <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !p-0 overflow-hidden !min-h-0 sm:!min-h-[360px]">
-            <div className="h-1 bg-[#134e4a]" />
-            <div className="p-4 sm:p-5 md:p-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                <h2 className="text-xl font-bold text-[#134e4a] shrink-0">
-                  {TAB_LABELS[activeTab] ?? 'Records'}
-                </h2>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end flex-1 w-full min-w-0">
-                  <div className="relative flex-1 w-full sm:max-w-xs min-w-0">
-                    <Search
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                      size={16}
-                    />
-                    <input
-                      type="search"
-                      placeholder="Search purchase orders & suppliers…"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-[#134e4a]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
-                    />
-                  </div>
-                  {activeTab === 'purchases' || activeTab === 'conversion' ? (
-                    <div className="flex justify-end sm:justify-center shrink-0">
-                      <details className="relative shrink-0">
-                        <summary
-                          className="list-none cursor-pointer rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 [&::-webkit-details-marker]:hidden"
-                          aria-label="About kg per metre conversion and variance flags"
-                        >
-                          <Info className="size-3.5" strokeWidth={2.25} aria-hidden />
-                        </summary>
-                        <div
-                          role="note"
-                          className="absolute right-0 top-full z-20 mt-1.5 w-[min(calc(100vw-2rem),20rem)] rounded-lg border border-slate-200 bg-white p-2.5 text-[10px] leading-snug text-slate-700 shadow-lg ring-1 ring-black/5"
-                        >
-                          <strong className="text-slate-800">Conversion</strong> — kg/m = kg ÷ metres. Flag when actual
-                          kg/m is above offer or standard by ~{Math.round((CONVERSION_FLAG_RATIO - 1) * 100)}%.
-                        </div>
-                      </details>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              {activeTab === 'purchases' && (
-                <div className="space-y-3">
-                  {poTransportMissingLinkRows.length > 0 ? (
-                    <div className="rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2.5 sm:px-4 space-y-2">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-amber-950 flex items-center gap-1.5">
-                            <AlertTriangle className="size-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
-                            POs need transport linked
-                          </p>
-                          <p className="text-[10px] text-amber-950/85 mt-1 leading-relaxed">
-                            {poTransportMissingLinkRows.length} purchase order
-                          {poTransportMissingLinkRows.length !== 1 ? 's' : ''} approved or in transit without haulier
-                          and/or quoted fee. Link transport before Finance can record haulage payout.
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('transport')}
-                          className="text-[10px] font-bold uppercase text-amber-950 underline-offset-2 hover:underline"
-                        >
-                          Open catch-up table
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPoTransportFilter((f) => (f === 'needs_transport' ? 'all' : 'needs_transport'))
-                          }
-                          className="text-[10px] font-bold uppercase text-amber-950/80 underline-offset-2 hover:underline"
-                        >
-                          {poTransportFilter === 'needs_transport' ? 'Show all POs' : 'Filter list'}
-                        </button>
-                      </div>
-                      </div>
-                      <ul className="space-y-1 max-h-28 overflow-y-auto custom-scrollbar">
-                        {poTransportMissingLinkRows.slice(0, 8).map((row) => (
-                          <li key={row.poID}>
-                            <button
-                              type="button"
-                              onClick={() => openPoTransportLink(row.poID)}
-                              className="w-full text-left rounded-lg border border-amber-200/80 bg-white/80 px-2.5 py-1.5 hover:bg-white transition-colors"
-                            >
-                              <p className="text-[10px] font-bold text-amber-950">
-                                <span className="font-mono">{row.poID}</span>
-                                <span className="font-medium text-amber-900/90"> · {row.supplierName}</span>
-                                <span className="font-normal text-amber-900/75"> · {row.status}</span>
-                              </p>
-                              <p className="text-[9px] text-amber-900/70 mt-0.5">
-                                {row.gapKind === 'fee'
-                                  ? 'Fee missing'
-                                  : row.gapKind === 'agent'
-                                    ? 'Haulier missing'
-                                    : 'Haulier and fee missing'}
-                                {Number(row.supplierPaidNgn) > 0 ? ' · Supplier already paid' : ''}
-                              </p>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                      {poTransportMissingLinkRows.length > 8 ? (
-                        <p className="text-[9px] text-amber-900/70">
-                          +{poTransportMissingLinkRows.length - 8} more — use filter to see all in the list below.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {poTransportAwaitingTreasuryRows.length > 0 ? (
-                    <div className="rounded-xl border border-sky-200/80 bg-sky-50/90 px-3 py-2.5 sm:px-4 flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-sky-950 flex items-center gap-1.5">
-                          <Truck className="size-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
-                          PO haulage awaiting treasury payout
-                        </p>
-                        <p className="text-[10px] text-sky-950/85 mt-1 leading-relaxed">
-                          {poTransportAwaitingTreasuryRows.length} open line
-                          {poTransportAwaitingTreasuryRows.length !== 1 ? 's' : ''} (quoted transport fee exceeds
-                          treasury-paid). Finance records the bank or cash payout so balances stay correct.
-                        </p>
-                      </div>
-                      {ws?.canAccessModule?.('finance') ? (
-                        <Link
-                          to="/accounts"
-                          className="shrink-0 text-[10px] font-bold uppercase text-sky-900 underline-offset-2 hover:underline"
-                        >
-                          Open Finance — Treasury
-                        </Link>
-                      ) : (
-                        <span className="shrink-0 text-[9px] font-semibold text-sky-900/80 max-w-[12rem] text-right leading-snug">
-                          Ask Finance to post haulage under Finance → Treasury.
-                        </span>
-                      )}
-                    </div>
-                  ) : null}
-                  {editMutationNeedsSecondApprovalRole(ws?.session?.user?.roleKey) && procurementPoForApprovalUi ? (
-                    <div className="mb-2">
-                      <EditSecondApprovalInline
-                        entityKind="purchase_order"
-                        changeSummary="Edit purchase order lines, dates, or supplier details"
-                        entityId={procurementPoForApprovalUi}
-                        value={procurementPoEditApprovalId}
-                        onChange={setProcurementPoEditApprovalId}
-                      />
-                    </div>
-                  ) : null}
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-3 sm:px-4">
-                    <SalesListSortBar
-                      fields={PROCUREMENT_PO_SORT_FIELDS}
-                      field={poListSort.field}
-                      dir={poListSort.dir}
-                      onFieldChange={(field) => setPoListSort((s) => ({ ...s, field }))}
-                      onDirToggle={() =>
-                        setPoListSort((s) => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))
-                      }
-                    />
-                  </div>
-                  <p className="text-[10px] text-slate-500 leading-snug">
-                    Click a PO row to open the side panel — approve, reject, transport, transport fee, and edit
-                    actions are there (fewer buttons on each row keeps the list lighter).
-                  </p>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 min-w-0">
-                    {[
-                      {
-                        title: 'Coil (kg)',
-                        list: coilPOsSorted,
-                        page: coilPoPurchasesPage,
-                        empty: 'No coil purchase orders.',
-                      },
-                      {
-                        title: 'Stone-coated (m)',
-                        list: stonePOsSorted,
-                        page: stonePoPurchasesPage,
-                        empty: 'No stone-coated POs.',
-                      },
-                      {
-                        title: 'Accessories',
-                        list: accessoryPOsSorted,
-                        page: accessoryPoPurchasesPage,
-                        empty: 'No accessory POs.',
-                      },
-                      {
-                        title: 'Mixed',
-                        list: mixedPOsSorted,
-                        page: mixedPoPurchasesPage,
-                        empty: 'No mixed purchase orders.',
-                      },
-                    ].map((col) => (
-                      <div key={col.title} className="min-w-0 flex flex-col">
-                        <h3 className="text-[10px] font-bold uppercase tracking-wide text-slate-600 mb-2 border-b border-slate-200 pb-1">
-                          {col.title}
-                        </h3>
-                        {col.list.length === 0 ? (
-                          <p className="text-[10px] text-slate-400 py-3">{col.empty}</p>
-                        ) : (
-                          <>
-                          <ul className="space-y-1.5 flex-1 min-h-0">
-                            {col.page.slice.map((p) => {
-                              const pk = procurementKindFromPo(p);
-                              const lineCount = Array.isArray(p?.lines) ? p.lines.length : 0;
-                              const meta2 = [
-                                p.orderDateISO,
-                                `${lineCount} ${poLineSummaryLabel(pk)}`,
-                                p.transportAgentName,
-                                p.transportReference ? `Ref ${p.transportReference}` : null,
-                                p.transportTreasuryMovementId ? `Treasury ${p.transportTreasuryMovementId}` : null,
-                                p.transportAmountNgn ? `Transport fee ${formatNgn(p.transportAmountNgn)}` : null,
-                                p.transportPaid ? 'Transport fee paid' : null,
-                                `Supplier paid ${formatNgn(p.supplierPaidNgn || 0)}`,
-                                p.transportNote ? `Note: ${p.transportNote}` : null,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ');
-                              return (
-                        <li
-                          key={p.poID}
-                          className={`${CARD_ROW} cursor-pointer`}
-                          onClick={() => {
-                            setPreviewPo(p);
-                            setPreviewAp(null);
-                          }}
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                            <div className="min-w-0 leading-tight flex-1">
-                              <div className="flex items-center justify-between gap-2 min-w-0">
-                                <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
-                                  <span className="font-mono">{p.poID}</span>
-                                  <span className="font-medium text-slate-600"> · {p.supplierName}</span>
-                                </p>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  {poTransportMissingLinkIds.has(p.poID) ? (
-                                    <span
-                                      className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-900"
-                                      title={purchaseOrderTransportGapLabel(p)}
-                                    >
-                                      Transport
-                                    </span>
-                                  ) : null}
-                                  <span
-                                    className="text-[11px] font-black text-[#134e4a] tabular-nums"
-                                    title="Ordered value: each line uses ₦/m (stone), ₦/unit or ₦/kg (accessory), or ₦/kg (coil), including legacy rows with only per-kg price."
-                                  >
-                                    {formatNgn(purchaseOrderOrderedValueNgn(p))}
-                                  </span>
-                                  <span
-                                    className={`text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${statusChipBorder(p.status)}`}
-                                  >
-                                    {p.status}
-                                  </span>
-                                </div>
-                              </div>
-                              <p
-                                className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
-                                title={meta2}
-                              >
-                                {meta2}
-                              </p>
-                            </div>
-                          </div>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                          <div className="mt-2 text-[10px] text-slate-600 [&_button]:rounded-lg [&_button]:px-2 [&_button]:py-1 [&_button]:text-[10px] [&_p]:text-[10px]">
-                            <AppTablePager
-                              showingFrom={col.page.showingFrom}
-                              showingTo={col.page.showingTo}
-                              total={col.page.total}
-                              hasPrev={col.page.hasPrev}
-                              hasNext={col.page.hasNext}
-                              onPrev={col.page.goPrev}
-                              onNext={col.page.goNext}
-                              pageSize={PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE}
-                            />
-                          </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'transport' && (
-                <TransportCatchUpPanel
-                  catchUpRows={poTransportCatchUpRows}
-                  orphanRows={orphanHaulageRows}
-                  branchNameById={branchNameById}
-                  canManagePo={canManagePo}
-                  canFinancePay={Boolean(
-                    ws?.canAccessModule?.('finance') &&
-                      (ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('cashier.desk.view'))
-                  )}
-                  onLinkTransport={openPoTransportLink}
-                  onOpenPo={openPoPreviewById}
-                />
-              )}
-
-              {activeTab === 'suppliers' && (
-                <div className="flex flex-col lg:flex-row gap-4 items-stretch min-h-[min(52vh,480px)]">
-                  <ProcurementTransportAgentsAside
-                    agents={agents}
-                    onEdit={openEditAgent}
-                    onRemove={removeAgent}
-                    onRegister={openAgentModal}
-                    transitRows={transitRowsForAside}
-                    onPreviewTransitPo={(poId) => {
-                      const fullPo = purchaseOrders.find((po) => po.poID === poId);
-                      if (fullPo) {
-                        setPreviewPo(fullPo);
-                        setPreviewAp(null);
-                      }
-                    }}
-                  />
-                  <div className="flex-1 min-w-0">
-                {filteredSuppliers.length === 0 ? (
-                  <p className="text-[11px] text-slate-500 py-4 text-center rounded-lg border border-dashed border-slate-200 bg-slate-50/50">
-                    No suppliers match this search.
-                  </p>
-                ) : (
-                <ul className="space-y-1.5">
-                    {filteredSuppliers.map((s) => (
-                      <li
-                        key={s.supplierID}
-                        className={`${CARD_ROW} flex items-stretch gap-0 !p-0 overflow-hidden`}
-                      >
-                        <Link
-                          to={`/procurement/suppliers/${encodeURIComponent(s.supplierID)}`}
-                          className="flex-1 min-w-0 py-1.5 px-2.5 hover:bg-[#134e4a]/[0.04] transition-colors leading-tight"
-                        >
-                          <p className="text-[11px] font-bold text-[#134e4a] truncate">
-                            <span className="font-mono">{s.supplierID}</span>
-                            <span className="font-medium text-slate-600"> · {s.name}</span>
-                          </p>
-                          <p className="text-[8px] text-slate-500 mt-0.5">
-                            {s.city || '—'} · <span className="font-semibold text-sky-800">Profile →</span>
-                          </p>
-                        </Link>
-                        <div className="flex items-center pr-1 border-l border-slate-200/80 bg-white/60 shrink-0">
-                          <button
-                            type="button"
-                            title="Edit"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              openEditSupplier(s);
-                            }}
-                            className="p-1.5 rounded-md text-slate-500 hover:bg-slate-100 hover:text-[#134e4a]"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            title="Delete"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              void removeSupplier(s);
-                            }}
-                            className="p-1.5 rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-600"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                </ul>
-                )}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'conversion' && (
-                <div
-                  className={`grid grid-cols-1 gap-4 min-w-0 items-stretch ${
-                    canAccessPriceList ? 'lg:grid-cols-2' : ''
-                  }`}
-                >
-                  <div className="rounded-xl border border-slate-200/90 bg-white/90 shadow-sm p-4 sm:p-5 min-w-0 flex flex-col">
-                    <ProcurementFormSection letter="S" title="Standard conversion (density & gauges)" compact>
-                    <p className="text-[10px] text-slate-600 mb-2 leading-relaxed">
-                      Theoretical <strong className="text-slate-800">kg/m</strong> for{' '}
-                      <strong className="text-slate-800">1.2 m</strong> strip width:{' '}
-                      <span className="font-mono">ρ × 1.2 × (gauge_mm ÷ 1000)</span>.
-                      Densities (as you specified):{' '}
-                      <strong className="text-slate-800">Aluminium 2.7 g/cm³</strong>,{' '}
-                      <strong className="text-slate-800">Aluzinc (PPGI) 7.8 g/cm³</strong>.                       Stonecoated is not included
-                      here — different material / build-up. Saved rows are matched to coils by stock product and gauge
-                      (and colour when listed) and used as the <strong className="text-slate-800">standard kg/m</strong> in
-                      production conversion checks.
-                    </p>
-                    <div className="z-scroll-x mb-3 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-                      <table className="min-w-full border-collapse text-left text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
-                            <th className="py-2.5 px-3">Gauge (mm)</th>
-                            <th className="py-2.5 px-3">Aluminium kg/m</th>
-                            <th className="py-2.5 px-3">Aluzinc (PPGI) kg/m</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {STANDARD_COIL_GAUGES_MM.map((gLabel) => {
-                            const mm = parseFloat(gLabel, 10);
-                            const alu = kgPerMFromStripDensity('alu', mm);
-                            const az = kgPerMFromStripDensity('aluzinc', mm);
-                            return (
-                              <tr key={gLabel} className="hover:bg-teal-50/30">
-                                <td className="py-2.5 px-3 font-semibold text-slate-800 tabular-nums whitespace-nowrap">
-                                  {gLabel}
-                                </td>
-                                <td className="py-2.5 px-3 font-mono tabular-nums text-[#134e4a] whitespace-nowrap">
-                                  {alu == null ? '—' : alu.toFixed(2)}
-                                </td>
-                                <td className="py-2.5 px-3 font-mono tabular-nums text-[#134e4a] whitespace-nowrap">
-                                  {az == null ? '—' : az.toFixed(2)}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    <form className="space-y-3" onSubmit={saveStandardConversion}>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Material</label>
-                          <select
-                            required
-                            value={standardConversionForm.materialKey}
-                            onChange={(e) => {
-                              const key = e.target.value;
-                              const opt = procurementCoilMaterialByKey(key);
-                              setStandardConversionForm((f) => ({
-                                ...f,
-                                materialKey: key,
-                                color: opt.defaultCatalogLabel,
-                              }));
-                            }}
-                            className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
-                          >
-                            {PROCUREMENT_COIL_MATERIALS.map((m) => (
-                              <option key={m.key} value={m.key}>
-                                {m.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Gauge (mm)</label>
-                          <select
-                            required
-                            value={standardConversionForm.gauge}
-                            onChange={(e) =>
-                              setStandardConversionForm((f) => ({ ...f, gauge: e.target.value }))
-                            }
-                            className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
-                          >
-                            {STANDARD_COIL_GAUGES_MM.map((g) => (
-                              <option key={g} value={g}>
-                                {g}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">
-                          Catalogue label (colour / grade)
-                        </label>
-                        <input
-                          value={standardConversionForm.color}
-                          onChange={(e) =>
-                            setStandardConversionForm((f) => ({ ...f, color: e.target.value }))
-                          }
-                          placeholder="Defaults from material; override e.g. IV, GB, HMB"
-                          className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">
-                          Override kg/m (optional)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.000001"
-                          value={standardConversionForm.conversionKgPerM}
-                          onChange={(e) =>
-                            setStandardConversionForm((f) => ({ ...f, conversionKgPerM: e.target.value }))
-                          }
-                          placeholder="Leave empty to use density calculation"
-                          className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold tabular-nums"
-                        />
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`${PILL} bg-sky-100 text-sky-900`}>
-                          Density kg/m:{' '}
-                          {standardPhysicsKgPerM == null ? '—' : standardPhysicsKgPerM.toFixed(2)}
-                        </span>
-                        <span className={`${PILL} border border-slate-200 bg-white text-slate-700`}>
-                          Will save:{' '}
-                          {standardEffectiveKgPerM == null ? '—' : standardEffectiveKgPerM.toFixed(2)} kg/m
-                        </span>
-                        {Number.isFinite(stdOverrideKgPerM) && stdOverrideKgPerM > 0 ? (
-                          <span className={`${PILL} bg-amber-100 text-amber-900`}>Using override</span>
-                        ) : null}
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Note</label>
-                        <input
-                          value={standardConversionForm.label}
-                          onChange={(e) =>
-                            setStandardConversionForm((f) => ({ ...f, label: e.target.value }))
-                          }
-                          placeholder="Optional (defaults to Standard (density) · material · gauge mm)"
-                          className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={standardConversionSaving || !ws?.canMutate}
-                        className="z-btn-primary w-full sm:w-auto justify-center py-2.5 px-4 text-xs disabled:opacity-50"
-                      >
-                        {standardConversionSaving ? 'Saving…' : 'Save standard conversion'}
-                      </button>
-                    </form>
-                  </ProcurementFormSection>
-                  </div>
-
-                  {canAccessPriceList ? (
-                    <div className="rounded-xl border border-slate-200/90 bg-white/90 shadow-sm p-4 sm:p-5 min-w-0 flex flex-col">
-                      <ProcurementFormSection letter="P" title="Price list (minimum ₦/m)" compact>
-                        <p className="text-[10px] text-slate-600 mb-2 leading-relaxed">
-                          Minimum price per metre by gauge and design. Production can be blocked when a quotation is
-                          below list until the MD records a price exception.
-                        </p>
-                        <div className="flex flex-wrap justify-end gap-2 mb-3">
-                          <button
-                            type="button"
-                            onClick={() => setShowMaterialPricingWorkbook(true)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
-                          >
-                            Material pricing workbook
-                          </button>
-                        </div>
-                        <PriceListPanel embedded />
-                      </ProcurementFormSection>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          </MainPanel>
-          )}
-        </div>
       </div>
+
 
       <MaterialPricingWorkbookModal
         open={showMaterialPricingWorkbook}
@@ -2477,14 +1689,14 @@ const Procurement = () => {
             }
           }}
         >
-          <div className="shrink-0 border-b border-slate-200 bg-gradient-to-r from-[#134e4a]/[0.07] to-transparent px-5 py-4 flex items-start justify-between gap-3">
+          <div className="shrink-0 border-b border-slate-200 bg-gradient-to-r from-zarewa-teal/[0.07] to-transparent px-5 py-4 flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-11 h-11 rounded-2xl bg-[#134e4a] text-white flex items-center justify-center shadow-md shadow-[#134e4a]/25 shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-zarewa-teal text-white flex items-center justify-center shadow-md shadow-zarewa-teal/25 shrink-0">
                 <Truck size={22} strokeWidth={2} />
               </div>
               <div className="min-w-0">
-                <h2 className="text-base font-bold text-[#134e4a] tracking-tight">Link transport</h2>
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mt-0.5">
+                <h2 className="text-base font-bold text-zarewa-teal tracking-tight">Link transport</h2>
+                <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mt-0.5">
                   Transporter &amp; transport fee
                 </p>
               </div>
@@ -2516,7 +1728,7 @@ const Procurement = () => {
               />
             ) : null}
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Agent</label>
+              <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Agent</label>
               <select
                 required
                 value={transportForm.agentId}
@@ -2532,7 +1744,7 @@ const Procurement = () => {
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+              <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
                 Transport reference
               </label>
               <input
@@ -2545,7 +1757,7 @@ const Procurement = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+              <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
                 Transport fee (₦)
               </label>
               <input
@@ -2561,7 +1773,7 @@ const Procurement = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+              <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
                 Advance to move in transit (₦)
               </label>
               <input
@@ -2575,13 +1787,13 @@ const Procurement = () => {
                 placeholder="Leave blank = full fee (single payment)"
                 className="w-full rounded-xl border border-slate-200 py-3 px-3 text-sm font-bold tabular-nums"
               />
-              <p className="text-[10px] text-slate-500 mt-1">
+              <p className="text-ui-xs text-slate-500 mt-1">
                 When cumulative payments reach this amount, the PO becomes In Transit. When they reach the full
                 transport fee above, transport is settled.
               </p>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+              <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
                 Operations note
               </label>
               <textarea
@@ -2593,7 +1805,7 @@ const Procurement = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+              <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
                 Finance advice (DAV / cashier)
               </label>
               <textarea
@@ -2624,7 +1836,7 @@ const Procurement = () => {
       >
         <div className="z-modal-panel max-w-lg w-full max-h-[min(92vh,820px)] flex flex-col p-0 overflow-hidden">
           <div className="shrink-0 flex justify-between items-center px-6 pt-6 pb-4 border-b border-slate-200">
-            <h3 className="text-xl font-bold text-[#134e4a] flex items-center gap-2">
+            <h3 className="text-xl font-bold text-zarewa-teal flex items-center gap-2">
               <RotateCcw size={22} className="text-rose-600" />
               Supplier payment
             </h3>
@@ -2641,19 +1853,19 @@ const Procurement = () => {
             <form className="flex-1 min-h-0 flex flex-col" onSubmit={saveApPayment}>
               <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 py-4 space-y-4">
                 <div className="bg-rose-50/80 rounded-2xl p-4 border border-rose-100 text-sm space-y-1">
-                <p className="font-mono font-bold text-[#134e4a]">{selectedAp.apID}</p>
+                <p className="font-mono font-bold text-zarewa-teal">{selectedAp.apID}</p>
                 <p className="font-bold text-gray-800">{selectedAp.supplierName}</p>
                 <p className="text-xs text-gray-600">
                   {selectedAp.invoiceRef ? `${selectedAp.invoiceRef} · ` : ''}PO {selectedAp.poRef || '—'}
                 </p>
-                <div className="grid grid-cols-3 gap-3 pt-2 text-[10px] text-gray-600 tabular-nums">
+                <div className="grid grid-cols-3 gap-3 pt-2 text-ui-xs text-gray-600 tabular-nums">
                   <div>
                     <p className="uppercase text-gray-400">Invoice</p>
-                    <p className="text-sm font-black text-[#134e4a]">{formatNgn(Number(selectedAp.amountNgn) || 0)}</p>
+                    <p className="text-sm font-black text-zarewa-teal">{formatNgn(Number(selectedAp.amountNgn) || 0)}</p>
                   </div>
                   <div>
                     <p className="uppercase text-gray-400">Paid</p>
-                    <p className="text-sm font-black text-[#134e4a]">{formatNgn(Number(selectedAp.paidNgn) || 0)}</p>
+                    <p className="text-sm font-black text-zarewa-teal">{formatNgn(Number(selectedAp.paidNgn) || 0)}</p>
                   </div>
                   <div>
                     <p className="uppercase text-gray-400">Balance</p>
@@ -2664,11 +1876,11 @@ const Procurement = () => {
                 </div>
                 </div>
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>
                 <button
                   type="button"
                   onClick={addApPayLine}
-                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-rose-800"
+                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-rose-800"
                 >
                   <Plus size={14} /> Add line
                 </button>
@@ -2682,7 +1894,7 @@ const Procurement = () => {
                     <select
                       value={line.treasuryAccountId}
                       onChange={(e) => updateApPayLine(line.id, { treasuryAccountId: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
+                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-semibold"
                     >
                       <option value="">Select account…</option>
                       {treasuryAccounts.map((a) => (
@@ -2696,7 +1908,7 @@ const Procurement = () => {
                         type="date"
                         value={line.dateISO}
                         onChange={(e) => updateApPayLine(line.id, { dateISO: e.target.value })}
-                        className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
+                        className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-semibold"
                         title="Payment date"
                       />
                       <input
@@ -2706,14 +1918,14 @@ const Procurement = () => {
                         onChange={(e) =>
                           updateApPayLine(line.id, { amount: normalizeNairaInput(e.target.value) })
                         }
-                        className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a]"
+                        className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-bold text-zarewa-teal"
                         placeholder="Amount ₦"
                       />
                       <input
                         type="text"
                         value={line.reference}
                         onChange={(e) => updateApPayLine(line.id, { reference: e.target.value })}
-                        className="sm:col-span-4 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px]"
+                        className="sm:col-span-4 rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs"
                         placeholder="Reference"
                       />
                       <button
@@ -2730,11 +1942,11 @@ const Procurement = () => {
               </div>
               <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md px-3 py-3 shadow-sm">
                 <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">This payout</span>
-                  <span className="font-black text-[#134e4a]">{formatNgn(apPayTotalNgn)}</span>
+                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">This payout</span>
+                  <span className="font-black text-zarewa-teal">{formatNgn(apPayTotalNgn)}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">Remaining after post</span>
+                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">Remaining after post</span>
                   <span className="font-black text-gray-700">
                     {formatNgn(
                       Math.max(
@@ -2745,7 +1957,7 @@ const Procurement = () => {
                   </span>
                 </div>
               </div>
-              <p className="text-[10px] text-gray-500 leading-relaxed">
+              <p className="text-ui-xs text-gray-500 leading-relaxed">
                 Saving this payout writes treasury movements and keeps the payable open until the invoice balance is fully paid.
               </p>
               </div>
@@ -2771,10 +1983,10 @@ const Procurement = () => {
         <div className="z-modal-panel max-w-3xl w-full max-h-[min(92vh,820px)] flex flex-col p-0">
           <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 shrink-0">
             <div>
-              <h3 className="text-lg font-bold text-[#134e4a]">
+              <h3 className="text-lg font-bold text-zarewa-teal">
                 {editingSupplierId ? 'Edit supplier' : 'Register supplier'}
               </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">
+              <p className="text-ui-xs text-slate-500 mt-0.5">
                 Company details, bank accounts, contacts, and agreement uploads (stored securely on your server DB).
               </p>
             </div>
@@ -2794,7 +2006,7 @@ const Procurement = () => {
           <form className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4 space-y-6" onSubmit={saveSupplier}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">Legal / trading name *</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">Legal / trading name *</label>
                 <input
                   required
                   value={supplierForm.name}
@@ -2803,7 +2015,7 @@ const Procurement = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">City / region</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">City / region</label>
                 <input
                   value={supplierForm.city}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, city: e.target.value }))}
@@ -2812,7 +2024,7 @@ const Procurement = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">Main phone</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">Main phone</label>
                 <input
                   value={supplierForm.phoneMain}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, phoneMain: e.target.value }))}
@@ -2821,7 +2033,7 @@ const Procurement = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">Company email</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">Company email</label>
                 <input
                   type="email"
                   value={supplierForm.companyEmail}
@@ -2831,7 +2043,7 @@ const Procurement = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">Website</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">Website</label>
                 <input
                   value={supplierForm.website}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, website: e.target.value }))}
@@ -2840,7 +2052,7 @@ const Procurement = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">WhatsApp</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">WhatsApp</label>
                 <input
                   value={supplierForm.whatsapp}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, whatsapp: e.target.value }))}
@@ -2849,7 +2061,7 @@ const Procurement = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">VAT / TIN</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">VAT / TIN</label>
                 <input
                   value={supplierForm.vatTin}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, vatTin: e.target.value }))}
@@ -2857,7 +2069,7 @@ const Procurement = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">RC / CAC no.</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">RC / CAC no.</label>
                 <input
                   value={supplierForm.rcNumber}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, rcNumber: e.target.value }))}
@@ -2865,7 +2077,7 @@ const Procurement = () => {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">Registered address</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">Registered address</label>
                 <textarea
                   value={supplierForm.registeredAddress}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, registeredAddress: e.target.value }))}
@@ -2874,7 +2086,7 @@ const Procurement = () => {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">Billing address (if different)</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">Billing address (if different)</label>
                 <textarea
                   value={supplierForm.billingAddress}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, billingAddress: e.target.value }))}
@@ -2885,7 +2097,7 @@ const Procurement = () => {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-3">
-              <p className="text-[10px] font-black text-[#134e4a] uppercase tracking-widest flex items-center gap-2">
+              <p className="text-ui-xs font-black text-zarewa-teal uppercase tracking-widest flex items-center gap-2">
                 <Building2 size={14} /> Bank accounts (add all accounts you pay to)
               </p>
               {padBankAccounts(supplierForm.bankAccounts, 2, 6).map((row, idx) => (
@@ -2938,7 +2150,7 @@ const Procurement = () => {
               {supplierForm.bankAccounts.length < 6 ? (
                 <button
                   type="button"
-                  className="text-[10px] font-bold text-orange-700 uppercase flex items-center gap-1"
+                  className="text-ui-xs font-bold text-orange-700 uppercase flex items-center gap-1"
                   onClick={() =>
                     setSupplierForm((f) => ({
                       ...f,
@@ -2952,7 +2164,7 @@ const Procurement = () => {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-3">
-              <p className="text-[10px] font-black text-[#134e4a] uppercase tracking-widest flex items-center gap-2">
+              <p className="text-ui-xs font-black text-zarewa-teal uppercase tracking-widest flex items-center gap-2">
                 <Users size={14} /> Contacts (sales, dispatch, accounts…)
               </p>
               {padContacts(supplierForm.contacts, 3, 6).map((row, idx) => (
@@ -3005,7 +2217,7 @@ const Procurement = () => {
               {supplierForm.contacts.length < 6 ? (
                 <button
                   type="button"
-                  className="text-[10px] font-bold text-orange-700 uppercase flex items-center gap-1"
+                  className="text-ui-xs font-bold text-orange-700 uppercase flex items-center gap-1"
                   onClick={() =>
                     setSupplierForm((f) => ({
                       ...f,
@@ -3019,7 +2231,7 @@ const Procurement = () => {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-amber-50/40 p-3 space-y-2">
-              <p className="text-[10px] font-black text-amber-900 uppercase tracking-widest flex items-center gap-2">
+              <p className="text-ui-xs font-black text-amber-900 uppercase tracking-widest flex items-center gap-2">
                 <Paperclip size={14} /> Agreements & certificates (PDF, scans — max ~700 KB each, up to 6 files)
               </p>
               {(supplierForm.agreementMeta || []).map((a) =>
@@ -3028,7 +2240,7 @@ const Procurement = () => {
                     key={a.id}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white border border-amber-100 px-3 py-2 text-xs"
                   >
-                    <span className="font-medium text-[#134e4a] truncate">{a.fileName}</span>
+                    <span className="font-medium text-zarewa-teal truncate">{a.fileName}</span>
                     <div className="flex items-center gap-2 shrink-0">
                       {a.hasFile ? (
                         <a
@@ -3037,7 +2249,7 @@ const Procurement = () => {
                           )}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-[10px] font-bold text-orange-800 underline"
+                          className="text-ui-xs font-bold text-orange-800 underline"
                           onClick={(ev) => {
                             if (!editingSupplierId) ev.preventDefault();
                           }}
@@ -3045,7 +2257,7 @@ const Procurement = () => {
                           Download
                         </a>
                       ) : (
-                        <span className="text-[10px] text-slate-400">No file</span>
+                        <span className="text-ui-xs text-slate-400">No file</span>
                       )}
                       <button
                         type="button"
@@ -3079,7 +2291,7 @@ const Procurement = () => {
                   </button>
                 </div>
               ))}
-              <label className="inline-flex items-center gap-2 text-[10px] font-bold text-amber-900 cursor-pointer">
+              <label className="inline-flex items-center gap-2 text-ui-xs font-bold text-amber-900 cursor-pointer">
                 <span className="rounded-lg border border-amber-300 bg-white px-3 py-2">Add files…</span>
                 <input
                   type="file"
@@ -3107,7 +2319,7 @@ const Procurement = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">Payment terms</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">Payment terms</label>
                 <select
                   value={supplierForm.paymentTerms}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, paymentTerms: e.target.value }))}
@@ -3118,7 +2330,7 @@ const Procurement = () => {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">Quality score (0–100)</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">Quality score (0–100)</label>
                 <input
                   type="number"
                   min="0"
@@ -3129,7 +2341,7 @@ const Procurement = () => {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">Commercial / onboarding notes</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">Commercial / onboarding notes</label>
                 <textarea
                   value={supplierForm.notesCommercial}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, notesCommercial: e.target.value }))}
@@ -3139,7 +2351,7 @@ const Procurement = () => {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">Internal procurement notes</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase ml-1 block mb-1">Internal procurement notes</label>
                 <textarea
                   value={supplierForm.notes}
                   onChange={(e) => setSupplierForm((f) => ({ ...f, notes: e.target.value }))}
@@ -3177,7 +2389,7 @@ const Procurement = () => {
       >
         <div className="z-modal-panel max-w-lg max-h-[min(92vh,720px)] overflow-y-auto custom-scrollbar p-8">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a]">
+            <h3 className="text-xl font-bold text-zarewa-teal">
               {editingAgentId ? 'Edit transport agent' : 'New transport agent'}
             </h3>
             <button
@@ -3194,7 +2406,7 @@ const Procurement = () => {
           </div>
           <form className="space-y-4" onSubmit={saveAgent}>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Name</label>
+              <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Name</label>
               <input
                 required
                 placeholder="Agent or company name"
@@ -3205,7 +2417,7 @@ const Procurement = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Phone</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Phone</label>
                 <input
                   placeholder="Primary phone"
                   value={agentForm.phone}
@@ -3214,7 +2426,7 @@ const Procurement = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
                   Region / base
                 </label>
                 <input
@@ -3225,12 +2437,12 @@ const Procurement = () => {
                 />
               </div>
             </div>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide border-t border-slate-100 pt-3">
+            <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wide border-t border-slate-100 pt-3">
               Fleet &amp; operations
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Vehicle type</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Vehicle type</label>
                 <input
                   placeholder="e.g. Flatbed, trailer"
                   value={agentForm.vehicleType}
@@ -3239,7 +2451,7 @@ const Procurement = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Registration</label>
+                <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Registration</label>
                 <input
                   placeholder="Plate / fleet ID"
                   value={agentForm.vehicleReg}
@@ -3249,7 +2461,7 @@ const Procurement = () => {
               </div>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Typical routes</label>
+              <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Typical routes</label>
               <textarea
                 placeholder="Corridors and cities this transporter usually runs"
                 value={agentForm.typicalRoutes}
@@ -3260,7 +2472,7 @@ const Procurement = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
                   Payment preference
                 </label>
                 <select
@@ -3276,7 +2488,7 @@ const Procurement = () => {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
                   Emergency contact
                 </label>
                 <input
@@ -3288,7 +2500,7 @@ const Procurement = () => {
               </div>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+              <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
                 Internal notes (reliability, timing)
               </label>
               <textarea
@@ -3344,8 +2556,7 @@ const Procurement = () => {
             showToast(`${p.poID} approved.`);
             if (
               purchaseOrderCanAssignTransport({ ...p, status: 'Approved' }) &&
-              typeof window !== 'undefined' &&
-              window.confirm(`${p.poID} approved. Assign transport (haulier and fee) now?`)
+              (await appConfirm({ message: `${p.poID} approved. Assign transport (haulier and fee) now?` }))
             ) {
               openPoTransportLink(p.poID);
             }
@@ -3381,93 +2592,10 @@ const Procurement = () => {
         }}
       />
     </PageShell>
+    </ProcurementPageContext.Provider>
   );
 };
 
-function ProcurementPayableRow({
-  p,
-  todayIso,
-  branchNameById,
-  canRecordSupplierPayment,
-  wsCanMutate,
-  onOpenPreview,
-  onOpenPay,
-}) {
-  const paid = Number(p.paidNgn) || 0;
-  const amt = Number(p.amountNgn) || 0;
-  const outstanding = Math.max(0, amt - paid);
-  const due = p.dueDateISO && String(p.dueDateISO).trim() && p.dueDateISO < todayIso;
-  const open = paid < amt;
-  const meta2 = [
-    `PO ${p.poRef}`,
-    p.invoiceRef ? `Ref ${p.invoiceRef}` : null,
-    p.dueDateISO ? `Due ${p.dueDateISO}` : null,
-    p.branchId ? branchNameById[p.branchId] || p.branchId : null,
-    due && open ? 'Past due' : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  return (
-    <li
-      className={`${CARD_ROW} cursor-pointer`}
-      onClick={() => onOpenPreview?.()}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-        <div className="min-w-0 leading-tight flex-1">
-          <p className="text-[11px] font-bold text-[#134e4a] truncate uppercase">
-            {p.apID}
-            <span className="font-medium text-slate-600 normal-case"> · {p.supplierName}</span>
-          </p>
-          <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta2}>
-            {meta2}
-          </p>
-          {open ? (
-            <p className="text-[9px] text-slate-600 mt-1 tabular-nums">
-              {formatNgn(amt)} · Paid {formatNgn(paid)} ·{' '}
-              <span className="font-bold text-amber-900">Due {formatNgn(outstanding)}</span>
-            </p>
-          ) : (
-            <p className="text-[9px] text-emerald-800 mt-1 tabular-nums font-semibold">
-              Settled · {formatNgn(amt)} paid in full
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] font-black text-[#134e4a] tabular-nums text-right">
-            {open ? (
-              <>
-                <span className="block text-[8px] font-semibold text-slate-500 uppercase tracking-wide">
-                  Outstanding
-                </span>
-                {formatNgn(outstanding)}
-              </>
-            ) : (
-              formatNgn(amt)
-            )}
-          </span>
-          {open ? (
-            <button
-              type="button"
-              disabled={!wsCanMutate || !canRecordSupplierPayment}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!canRecordSupplierPayment) return;
-                onOpenPay();
-              }}
-              className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md disabled:opacity-40"
-            >
-              Pay
-            </button>
-          ) : (
-            <span className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-800">
-              Paid
-            </span>
-          )}
-        </div>
-      </div>
-    </li>
-  );
-}
 
 class ProcurementRouteErrorBoundary extends React.Component {
   constructor(props) {
@@ -3488,7 +2616,7 @@ class ProcurementRouteErrorBoundary extends React.Component {
       return (
         <PageShell>
           <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !p-6">
-            <h2 className="text-lg font-bold text-[#134e4a]">Procurement temporarily unavailable</h2>
+            <h2 className="text-lg font-bold text-zarewa-teal">Procurement temporarily unavailable</h2>
             <p className="mt-2 text-sm text-slate-600">
               A screen error occurred while loading Procurement. Refresh the page, and if this persists, share this
               time with support so we can trace the exact row causing the issue.

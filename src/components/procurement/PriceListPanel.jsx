@@ -3,6 +3,7 @@ import { Download, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { formatNgn } from '../../Data/mockData';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTable';
 import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
@@ -106,7 +107,7 @@ export function PriceListPanel({ embedded = false }) {
 
   if (!canView) {
     return (
-      <p className={embedded ? 'text-[10px] text-slate-500' : 'text-sm text-slate-600'}>
+      <p className={embedded ? 'text-ui-xs text-slate-500' : 'text-sm text-slate-600'}>
         Price list is available to pricing managers and MD price-exception approvers.
       </p>
     );
@@ -172,7 +173,7 @@ export function PriceListPanel({ embedded = false }) {
   };
 
   const del = async (id) => {
-    if (!canManage || !window.confirm('Delete this price list row?')) return;
+    if (!canManage || !(await appConfirm({ message: 'Delete this price list row?', variant: 'danger' }))) return;
     setBusy(true);
     const { ok, data } = await apiFetch(`/api/pricing/price-list/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -189,7 +190,7 @@ export function PriceListPanel({ embedded = false }) {
   const inp = embedded
     ? 'mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-semibold'
     : 'mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm';
-  const labelCls = embedded ? 'text-[9px] font-bold text-slate-500 uppercase block' : 'text-xs font-bold text-slate-700';
+  const labelCls = embedded ? 'text-ui-xs font-bold text-slate-500 uppercase block' : 'text-xs font-bold text-slate-700';
   const formWrap = embedded
     ? 'space-y-3 rounded-xl border border-slate-200/80 bg-white/90 p-3'
     : 'mb-8 space-y-4 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm';
@@ -226,8 +227,8 @@ export function PriceListPanel({ embedded = false }) {
           <button
             type="button"
             onClick={() => setListTab('coil')}
-            className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ${
-              listTab === 'coil' ? 'bg-[#134e4a] text-white' : 'border border-slate-200 bg-white text-slate-600'
+            className={`rounded-lg px-3 py-1.5 text-ui-xs font-black uppercase ${
+              listTab === 'coil' ? 'bg-zarewa-teal text-white' : 'border border-slate-200 bg-white text-slate-600'
             }`}
           >
             Coil / sheet floors
@@ -235,8 +236,8 @@ export function PriceListPanel({ embedded = false }) {
           <button
             type="button"
             onClick={() => setListTab('stone')}
-            className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ${
-              listTab === 'stone' ? 'bg-[#134e4a] text-white' : 'border border-slate-200 bg-white text-slate-600'
+            className={`rounded-lg px-3 py-1.5 text-ui-xs font-black uppercase ${
+              listTab === 'stone' ? 'bg-zarewa-teal text-white' : 'border border-slate-200 bg-white text-slate-600'
             }`}
           >
             Stone-coated (0.20–0.24)
@@ -255,7 +256,7 @@ export function PriceListPanel({ embedded = false }) {
           />
         </label>
         {loadedAsAtIso ? (
-          <p className="text-[10px] text-slate-500 mb-1">
+          <p className="text-ui-xs text-slate-500 mb-1">
             Showing prices effective on <strong className="text-slate-700">{loadedAsAtIso}</strong>
             {!viewAsAtIso ? ' (current period)' : ''}.
           </p>
@@ -268,8 +269,8 @@ export function PriceListPanel({ embedded = false }) {
           disabled={busy}
           className={
             embedded
-              ? 'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold uppercase text-[#134e4a] disabled:opacity-50'
-              : 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-black uppercase text-[#134e4a] disabled:opacity-50'
+              ? 'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold uppercase text-zarewa-teal disabled:opacity-50'
+              : 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase text-zarewa-teal disabled:opacity-50'
           }
         >
           <Download size={embedded ? 12 : 14} />
@@ -281,8 +282,8 @@ export function PriceListPanel({ embedded = false }) {
           disabled={busy}
           className={
             embedded
-              ? 'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold uppercase text-[#134e4a] disabled:opacity-50'
-              : 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-black uppercase text-[#134e4a] disabled:opacity-50'
+              ? 'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold uppercase text-zarewa-teal disabled:opacity-50'
+              : 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase text-zarewa-teal disabled:opacity-50'
           }
         >
           <RefreshCw size={embedded ? 12 : 14} className={busy ? 'animate-spin' : ''} />
@@ -292,8 +293,8 @@ export function PriceListPanel({ embedded = false }) {
       <p
         className={
           embedded
-            ? 'text-[9px] text-slate-500 leading-snug mb-2'
-            : 'text-[11px] text-slate-600 leading-relaxed mb-4 max-w-3xl'
+            ? 'text-ui-xs text-slate-500 leading-snug mb-2'
+            : 'text-xs text-slate-600 leading-relaxed mb-4 max-w-3xl'
         }
       >
         Each row must be unique on gauge, design, branch, effective date, and optional material / colour / profile keys.
@@ -304,7 +305,7 @@ export function PriceListPanel({ embedded = false }) {
 
       {canManage ? (
         <form onSubmit={submit} className={formWrap}>
-          <h2 className={embedded ? 'text-[9px] font-black uppercase text-[#134e4a]' : 'text-[11px] font-black uppercase text-[#134e4a]'}>
+          <h2 className={embedded ? 'text-ui-xs font-black uppercase text-zarewa-teal' : 'text-xs font-black uppercase text-zarewa-teal'}>
             Add or update row
           </h2>
           <div className={`grid gap-3 ${embedded ? 'sm:grid-cols-2' : 'gap-4 sm:grid-cols-2 lg:grid-cols-3'}`}>
@@ -444,8 +445,8 @@ export function PriceListPanel({ embedded = false }) {
             disabled={busy}
             className={
               embedded
-                ? 'inline-flex items-center gap-1.5 rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50'
-                : 'inline-flex items-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-black uppercase text-white disabled:opacity-50'
+                ? 'inline-flex items-center gap-1.5 rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50'
+                : 'inline-flex items-center gap-2 rounded-xl bg-zarewa-teal px-4 py-2.5 text-xs font-black uppercase text-white disabled:opacity-50'
             }
           >
             <Plus size={embedded ? 14 : 16} />
@@ -453,7 +454,7 @@ export function PriceListPanel({ embedded = false }) {
           </button>
         </form>
       ) : (
-        <p className={embedded ? 'text-[10px] text-slate-600' : 'mb-6 text-sm text-slate-600'}>
+        <p className={embedded ? 'text-ui-xs text-slate-600' : 'mb-6 text-sm text-slate-600'}>
           You can view the list; only pricing managers can edit.
         </p>
       )}

@@ -88,7 +88,7 @@ export default function ExecutiveHrVariance() {
             <Stat
               label="Action"
               value={
-                <Link to="/hr/payroll" className="text-[#134e4a] font-bold hover:underline">
+                <Link to="/hr/payroll" className="text-zarewa-teal font-bold hover:underline">
                   Open payroll →
                 </Link>
               }
@@ -164,7 +164,7 @@ export default function ExecutiveHrVariance() {
 }
 
 function Stat({ label, value, tone }) {
-  const cls = tone === 'amber' ? 'text-amber-800' : tone === 'ok' ? 'text-emerald-700' : 'text-[#134e4a]';
+  const cls = tone === 'amber' ? 'text-amber-800' : tone === 'ok' ? 'text-emerald-700' : 'text-zarewa-teal';
   return (
     <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
       <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>

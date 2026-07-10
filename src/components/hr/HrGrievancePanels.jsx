@@ -120,7 +120,7 @@ export function HrGrievanceQueue() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <select
-                  className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-semibold"
+                  className="rounded-lg border border-slate-200 px-2 py-1 text-ui-xs font-semibold"
                   value={g.status}
                   onChange={(e) => updateStatus(g.id, e.target.value)}
                 >
@@ -129,7 +129,7 @@ export function HrGrievanceQueue() {
                   ))}
                 </select>
                 {!['resolved', 'closed', 'dismissed'].includes(g.status) ? (
-                  <button type="button" onClick={() => { setResolveModal(g); setResolveNote(''); }} className="text-[10px] font-bold uppercase text-[#134e4a] hover:underline">
+                  <button type="button" onClick={() => { setResolveModal(g); setResolveNote(''); }} className="text-ui-xs font-bold uppercase text-zarewa-teal hover:underline">
                     Resolve…
                   </button>
                 ) : null}

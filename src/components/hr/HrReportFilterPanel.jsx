@@ -19,7 +19,7 @@ export function HrReportFilterPanel({
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {branches.length ? (
-        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+        <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
           Branch
           <select className={`${HR_FIELD_CLASS} mt-1 w-full`} value={filters.branchId || ''} onChange={(e) => set('branchId', e.target.value)}>
             <option value="">All branches</option>
@@ -30,7 +30,7 @@ export function HrReportFilterPanel({
         </label>
       ) : null}
       {departments.length ? (
-        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+        <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
           Department
           <select className={`${HR_FIELD_CLASS} mt-1 w-full`} value={filters.department || ''} onChange={(e) => set('department', e.target.value)}>
             <option value="">All departments</option>
@@ -40,16 +40,16 @@ export function HrReportFilterPanel({
           </select>
         </label>
       ) : null}
-      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+      <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
         From date
         <input type="date" className={`${HR_FIELD_CLASS} mt-1 w-full`} value={filters.fromIso || ''} onChange={(e) => set('fromIso', e.target.value)} />
       </label>
-      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+      <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
         To date
         <input type="date" className={`${HR_FIELD_CLASS} mt-1 w-full`} value={filters.toIso || ''} onChange={(e) => set('toIso', e.target.value)} />
       </label>
       {showPeriod ? (
-        <div className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+        <div className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
           Payroll month
           <div className="mt-1">
             <HrPayrollPeriodFields
@@ -61,13 +61,13 @@ export function HrReportFilterPanel({
         </div>
       ) : null}
       {showStatus ? (
-        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+        <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
           Status
           <input className={`${HR_FIELD_CLASS} mt-1 w-full`} value={filters.status || ''} onChange={(e) => set('status', e.target.value)} placeholder="e.g. approved" />
         </label>
       ) : null}
       {showEmploymentType ? (
-        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+        <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
           Employment type
           <input className={`${HR_FIELD_CLASS} mt-1 w-full`} value={filters.employmentType || ''} onChange={(e) => set('employmentType', e.target.value)} placeholder="contract / permanent" />
         </label>

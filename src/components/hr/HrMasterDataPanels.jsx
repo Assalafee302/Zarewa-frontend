@@ -278,7 +278,7 @@ export function HrDesignationsPanel({ refreshKey = 0 }) {
         <div className="mt-2 flex flex-wrap gap-2 md:hidden">
           {rows.slice(0, 20).map((r) => (
             <div key={r.id} className="flex gap-2">
-              <button type="button" className="text-xs font-bold text-[#134e4a]" onClick={() => { setViewRow(r); setViewModal(true); }}>View JD — {r.title}</button>
+              <button type="button" className="text-xs font-bold text-zarewa-teal" onClick={() => { setViewRow(r); setViewModal(true); }}>View JD — {r.title}</button>
               {canEdit ? <button type="button" className="text-xs text-slate-600" onClick={() => openEdit(r)}>Edit</button> : null}
             </div>
           ))}
@@ -374,7 +374,7 @@ export function HrBranchMappingPanel() {
       )}
       <Link
         to="/settings/governance"
-        className="mt-4 inline-flex text-xs font-semibold text-[#134e4a] hover:underline"
+        className="mt-4 inline-flex text-xs font-semibold text-zarewa-teal hover:underline"
       >
         Open workspace governance →
       </Link>

@@ -64,10 +64,10 @@ export function StaffPaymentsPayGuide({
         </div>
       ) : null}
 
-      <div className="border-b border-violet-100/80 bg-[#134e4a] px-3 py-2.5 text-white">
-        <p className="text-[9px] font-bold uppercase tracking-widest text-teal-200/90">Pay at Finance desk</p>
+      <div className="border-b border-violet-100/80 bg-zarewa-teal px-3 py-2.5 text-white">
+        <p className="text-ui-xs font-bold uppercase tracking-widest text-teal-200/90">Pay at Finance desk</p>
         <p className="text-xl font-black tabular-nums">{formatNgn(totalDue)}</p>
-        <p className="text-[10px] text-teal-100/95 mt-0.5">
+        <p className="text-ui-xs text-teal-100/95 mt-0.5">
           {monthlyTotal > 0
             ? `${formatNgn(monthlyTotal)}/month via payroll on loans & credit · recoveries paid at cashier`
             : 'Loans/credit via payroll when active · recoveries at branch cashier'}
@@ -77,7 +77,7 @@ export function StaffPaymentsPayGuide({
       <div className="p-3 space-y-3 text-xs text-slate-700">
         <ol className="space-y-2">
           <li className="flex gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-black text-violet-900">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-ui-xs font-black text-violet-900">
               1
             </span>
             <span>
@@ -93,7 +93,7 @@ export function StaffPaymentsPayGuide({
             </span>
           </li>
           <li className="flex gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-black text-violet-900">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-ui-xs font-black text-violet-900">
               2
             </span>
             <span className="flex items-start gap-1.5">
@@ -105,7 +105,7 @@ export function StaffPaymentsPayGuide({
             </span>
           </li>
           <li className="flex gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-black text-violet-900">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-ui-xs font-black text-violet-900">
               3
             </span>
             <span>
@@ -116,8 +116,8 @@ export function StaffPaymentsPayGuide({
 
         {payrollLines.length ? (
           <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-2.5">
-            <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-900">Payroll (loans & credit)</p>
-            <ul className="mt-1 space-y-0.5 text-[10px] text-emerald-950">
+            <p className="text-ui-xs font-bold uppercase tracking-wide text-emerald-900">Payroll (loans & credit)</p>
+            <ul className="mt-1 space-y-0.5 text-ui-xs text-emerald-950">
               {payrollLines.slice(0, 4).map((line) => (
                 <li key={line}>• {line}</li>
               ))}
@@ -126,7 +126,7 @@ export function StaffPaymentsPayGuide({
         ) : null}
 
         <div className="rounded-lg border border-slate-200 bg-white/90 p-2.5 space-y-1.5">
-          <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+          <p className="flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
             <Building2 size={11} aria-hidden />
             Your account(s)
           </p>
@@ -136,17 +136,17 @@ export function StaffPaymentsPayGuide({
               className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-1.5 first:border-0 first:pt-0"
             >
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold text-slate-800 truncate">{o.title}</p>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-xs font-semibold text-slate-800 truncate">{o.title}</p>
+                <p className="text-ui-xs text-slate-500">
                   {o.kindLabel}
                   {o.monthlyNgn > 0 ? ` · ${formatNgn(o.monthlyNgn)}/mo payroll` : ''}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[11px] font-black tabular-nums text-[#134e4a]">{formatNgn(o.outstandingNgn)}</p>
+                <p className="text-xs font-black tabular-nums text-zarewa-teal">{formatNgn(o.outstandingNgn)}</p>
                 {o.statementId ? (
                   <a
-                    className="inline-flex items-center gap-1 text-[9px] font-semibold text-[#134e4a] underline"
+                    className="inline-flex items-center gap-1 text-ui-xs font-semibold text-zarewa-teal underline"
                     href={obligationStatementPdfUrl(o.statementId)}
                     target="_blank"
                     rel="noreferrer"

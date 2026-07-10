@@ -38,7 +38,7 @@ export function AccountingRegisterNavLink({
       to={resolved.to}
       state={resolved.state}
       onClick={onClick}
-      className={`inline-flex items-center gap-1 font-bold text-[#134e4a] hover:underline ${className}`}
+      className={`inline-flex items-center gap-1 font-bold text-zarewa-teal hover:underline ${className}`}
     >
       {hasLabel ? label : null}
       {showIcon && hasLabel ? <ExternalLink size={11} className="shrink-0 opacity-60" aria-hidden /> : null}

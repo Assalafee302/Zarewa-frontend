@@ -19,7 +19,7 @@ import {
 } from '../../components/ui/AppDataTable';
 
 const STATUTORY_BTN =
-  'inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase text-white touch-manipulation active:scale-[0.98] transition-transform sm:w-auto';
+  'inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-zarewa-teal px-4 py-2.5 text-xs font-bold uppercase text-white touch-manipulation active:scale-[0.98] transition-transform sm:w-auto';
 
 // ── CSV export helper ──────────────────────────────────────────────────────────
 function downloadCsv(filename, rows, headers) {
@@ -40,9 +40,9 @@ function downloadCsv(filename, rows, headers) {
 function StatCard({ label, value, sub }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
       <p className="mt-1 text-xl font-black tabular-nums text-slate-900">{value}</p>
-      {sub ? <p className="mt-0.5 text-[10px] text-slate-500">{sub}</p> : null}
+      {sub ? <p className="mt-0.5 text-ui-xs text-slate-500">{sub}</p> : null}
     </div>
   );
 }
@@ -63,11 +63,11 @@ function MiniBarChart({ data }) {
         const y = chartH - h;
         return (
           <g key={d.label}>
-            <rect x={x} y={y} width={barW} height={h} rx={4} fill="#134e4a" opacity={0.8} />
+            <rect x={x} y={y} width={barW} height={h} rx={4} fill="var(--color-zarewa-teal)" opacity={0.8} />
             <text x={x + barW / 2} y={chartH + 14} textAnchor="middle" fontSize={9} fill="#64748b">
               {d.label}
             </text>
-            <text x={x + barW / 2} y={y - 4} textAnchor="middle" fontSize={8} fill="#134e4a">
+            <text x={x + barW / 2} y={y - 4} textAnchor="middle" fontSize={8} fill="var(--color-zarewa-teal)">
               {formatNgn(d.value)}
             </text>
           </g>
@@ -164,7 +164,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
       {/* Per-staff table */}
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Per-staff PAYE</h3>
+          <h3 className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Per-staff PAYE</h3>
           <button type="button" onClick={exportFirs} className={STATUTORY_BTN}>
             Export FIRS Schedule
           </button>
@@ -187,7 +187,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
                   </div>
                   <div className="mt-1 flex justify-between text-xs">
                     <span className="text-slate-500">PAYE</span>
-                    <span className="tabular-nums font-bold text-[#134e4a]">
+                    <span className="tabular-nums font-bold text-zarewa-teal">
                       {s.amountsRedacted ? '—' : formatNgn(s.payeAmount)}
                     </span>
                   </div>
@@ -237,7 +237,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
       {/* Monthly trend */}
       {trendData.some((d) => d.value > 0) ? (
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <h3 className="mb-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
+          <h3 className="mb-4 text-ui-xs font-black uppercase tracking-widest text-slate-500">
             Monthly PAYE trend (last 6 months)
           </h3>
           <div className="overflow-x-auto pb-2">
@@ -249,14 +249,14 @@ function PayeTab({ runs, lines, latestRun, loading }) {
       {/* Filing history */}
       {filingHistory.length > 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <h3 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Filing history</h3>
+          <h3 className="mb-3 text-ui-xs font-black uppercase tracking-widest text-slate-500">Filing history</h3>
           <div className="space-y-2 md:hidden">
             {filingHistory.map((h) => (
               <article key={`${h.period}-m`} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-slate-800">{h.period}</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    className={`rounded-full px-2 py-0.5 text-ui-xs font-bold ${
                       h.status === 'Filed' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'
                     }`}
                   >
@@ -287,7 +287,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
                     </AppTableTd>
                     <AppTableTd>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        className={`rounded-full px-2 py-0.5 text-ui-xs font-bold ${
                           h.status === 'Filed'
                             ? 'bg-emerald-50 text-emerald-800'
                             : 'bg-amber-50 text-amber-800'
@@ -413,23 +413,23 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
 
       {/* Contribution breakdown */}
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <h3 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
+        <h3 className="mb-3 text-ui-xs font-black uppercase tracking-widest text-slate-500">
           Contribution computation (latest run)
         </h3>
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Staff count</p>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Staff count</p>
             <p className="mt-1 text-xl font-black">{staffPension.length}</p>
           </div>
           <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employee contributions</p>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Employee contributions</p>
             <p className="mt-1 text-xl font-black tabular-nums">{formatNgn(totalEmp)}</p>
-            <p className="text-[10px] text-slate-500">{policy?.pensionEmployeePercent ?? 8}% × gross (eligible staff)</p>
+            <p className="text-ui-xs text-slate-500">{policy?.pensionEmployeePercent ?? 8}% × gross (eligible staff)</p>
           </div>
           <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employer contributions</p>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Employer contributions</p>
             <p className="mt-1 text-xl font-black tabular-nums">{formatNgn(totalErr)}</p>
-            <p className="text-[10px] text-slate-500">{policy?.pensionEmployerPercent ?? 10}% × gross (eligible staff)</p>
+            <p className="text-ui-xs text-slate-500">{policy?.pensionEmployerPercent ?? 10}% × gross (eligible staff)</p>
           </div>
         </div>
       </div>
@@ -437,7 +437,7 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
       {/* Per-staff RSA table */}
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Per-staff RSA contributions</h3>
+          <h3 className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Per-staff RSA contributions</h3>
           <button type="button" onClick={exportPfa} className={STATUTORY_BTN}>
             Export PFA Schedule
           </button>
@@ -457,11 +457,11 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
                   className={`rounded-xl border p-3 ${s.missingRsa ? 'border-amber-200 bg-amber-50/40' : 'border-slate-100 bg-slate-50/50'}`}
                 >
                   <p className="text-sm font-semibold text-slate-900">{s.name}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">{s.pfaName}</p>
-                  <p className="mt-1 font-mono text-[11px] text-slate-600">
+                  <p className="mt-0.5 text-xs text-slate-500">{s.pfaName}</p>
+                  <p className="mt-1 font-mono text-xs text-slate-600">
                     RSA:{' '}
                     {s.missingRsa ? (
-                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">Missing</span>
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-ui-xs font-bold text-red-700">Missing</span>
                     ) : (
                       s.rsaPin
                     )}
@@ -512,7 +512,7 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
                     <AppTableTd>{s.pfaName}</AppTableTd>
                     <AppTableTd>
                       {s.missingRsa ? (
-                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-ui-xs font-bold text-red-700">
                           Missing
                         </span>
                       ) : (
@@ -536,14 +536,14 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
       {/* Remittance history */}
       {remittanceHistory.length > 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <h3 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Remittance history</h3>
+          <h3 className="mb-3 text-ui-xs font-black uppercase tracking-widest text-slate-500">Remittance history</h3>
           <div className="space-y-2 md:hidden">
             {remittanceHistory.map((h) => (
               <article key={`${h.period}-m`} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-slate-800">{h.period}</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    className={`rounded-full px-2 py-0.5 text-ui-xs font-bold ${
                       h.status === 'Remitted' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'
                     }`}
                   >
@@ -574,7 +574,7 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
                     </AppTableTd>
                     <AppTableTd>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        className={`rounded-full px-2 py-0.5 text-ui-xs font-bold ${
                           h.status === 'Remitted'
                             ? 'bg-emerald-50 text-emerald-800'
                             : 'bg-amber-50 text-amber-800'

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { LayoutGrid, Pencil, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { useToast } from '../../context/ToastContext';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -117,13 +118,13 @@ function renderFieldInput(field, value, onChange, disabled) {
   }
   if (field.type === 'checkbox') {
     return (
-      <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-medium text-slate-600">
+      <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-medium text-slate-600">
         <input
           type="checkbox"
           checked={Boolean(value)}
           onChange={(e) => onChange(e.target.checked)}
           disabled={disabled}
-          className="h-4 w-4 accent-[#134e4a]"
+          className="h-4 w-4 accent-zarewa-teal"
         />
         {field.checkboxLabel || field.label}
       </label>
@@ -216,7 +217,11 @@ function SetupCollectionCard({
   };
 
   const removeRow = async (row) => {
-    if (!window.confirm(`Delete “${rowSummary(row)}”?`)) return;
+    if (!(await appConfirm({
+      title: 'Delete',
+      message: `Delete “${rowSummary(row)}”?`,
+      variant: 'danger',
+    }))) return;
     const { ok, data } = await apiFetch(
       `/api/setup/${encodeURIComponent(kind)}/${encodeURIComponent(row.id)}`,
       { method: 'DELETE' }
@@ -248,12 +253,12 @@ function SetupCollectionCard({
     <section className={sectionShell}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 pr-2">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.14em] text-[#134e4a] mb-0.5">
+          <h3 className="text-ui-xs font-black uppercase tracking-[0.14em] text-zarewa-teal mb-0.5">
             {title}
           </h3>
-          <p className="text-[10px] text-slate-500 leading-snug">{description}</p>
+          <p className="text-ui-xs text-slate-500 leading-snug">{description}</p>
         </div>
-        <button type="button" onClick={resetForm} className="z-btn-secondary shrink-0 !px-3 !py-1.5 !text-[10px] gap-1">
+        <button type="button" onClick={resetForm} className="z-btn-secondary shrink-0 !px-3 !py-1.5 !text-ui-xs gap-1">
           <Plus size={14} /> New
         </button>
       </div>
@@ -277,11 +282,11 @@ function SetupCollectionCard({
         ) : null}
         <div className="md:col-span-2 flex flex-wrap justify-end gap-1.5 pt-1">
           {editingId ? (
-            <button type="button" onClick={resetForm} className="z-btn-secondary !px-3 !py-1.5 !text-[10px] gap-1">
+            <button type="button" onClick={resetForm} className="z-btn-secondary !px-3 !py-1.5 !text-ui-xs gap-1">
               <X size={14} /> Cancel
             </button>
           ) : null}
-          <button type="submit" disabled={saving} className="z-btn-primary !px-3 !py-1.5 !text-[10px] gap-1">
+          <button type="submit" disabled={saving} className="z-btn-primary !px-3 !py-1.5 !text-ui-xs gap-1">
             <Save size={14} /> {saving ? 'Saving...' : editingId ? 'Update' : 'Save'}
           </button>
         </div>
@@ -329,14 +334,14 @@ function SetupCollectionCard({
                       <button
                         type="button"
                         onClick={() => startEdit(row)}
-                        className="z-btn-secondary !inline-flex !px-2 !py-1 !text-[10px] gap-0.5 mr-1"
+                        className="z-btn-secondary !inline-flex !px-2 !py-1 !text-ui-xs gap-0.5 mr-1"
                       >
                         <Pencil size={12} /> Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => void removeRow(row)}
-                        className="z-btn-secondary !inline-flex !px-2 !py-1 !text-[10px] gap-0.5"
+                        className="z-btn-secondary !inline-flex !px-2 !py-1 !text-ui-xs gap-0.5"
                       >
                         <Trash2 size={12} /> Del
                       </button>
@@ -362,11 +367,11 @@ function SetupCollectionCard({
       {!tableLayout ? (
         <div className="mt-3 space-y-1.5">
           {rows.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-3 text-[11px] text-slate-500">
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-3 text-xs text-slate-500">
               No setup rows yet.
             </div>
           ) : visibleRows.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-amber-200/80 bg-amber-50/50 px-3 py-3 text-[11px] text-slate-600">
+            <div className="rounded-lg border border-dashed border-amber-200/80 bg-amber-50/50 px-3 py-3 text-xs text-slate-600">
               No rows match your filter.
             </div>
           ) : (
@@ -379,10 +384,10 @@ function SetupCollectionCard({
                   {rowSummary(row)} <span className="font-mono text-slate-500">· {row.id}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  <button type="button" onClick={() => startEdit(row)} className="z-btn-secondary !px-2.5 !py-1 !text-[10px] gap-1">
+                  <button type="button" onClick={() => startEdit(row)} className="z-btn-secondary !px-2.5 !py-1 !text-ui-xs gap-1">
                     <Pencil size={12} /> Edit
                   </button>
-                  <button type="button" onClick={() => void removeRow(row)} className="z-btn-secondary !px-2.5 !py-1 !text-[10px] gap-1">
+                  <button type="button" onClick={() => void removeRow(row)} className="z-btn-secondary !px-2.5 !py-1 !text-ui-xs gap-1">
                     <Trash2 size={12} /> Delete
                   </button>
                 </div>
@@ -686,7 +691,7 @@ export default function MasterDataWorkbench({ masterData }) {
   return (
     <>
       <div
-        className="md-master-workbench space-y-4 [&_.z-field-label]:mb-1 [&_.z-field-label]:text-[9px] [&_.z-input]:py-2 [&_.z-input]:px-3 [&_.z-input]:text-xs [&_.z-input]:font-medium [&_select.z-input]:py-2"
+        className="md-master-workbench space-y-4 [&_.z-field-label]:mb-1 [&_.z-field-label]:text-ui-xs [&_.z-input]:py-2 [&_.z-input]:px-3 [&_.z-input]:text-xs [&_.z-input]:font-medium [&_select.z-input]:py-2"
       >
         {WORKBENCH_GROUPS.map((group) => (
           <section
@@ -695,8 +700,8 @@ export default function MasterDataWorkbench({ masterData }) {
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <h2 className="text-[11px] font-black uppercase tracking-[0.14em] text-[#134e4a]">{group.label}</h2>
-                <p className="mt-1 text-[10px] text-slate-500 leading-snug max-w-2xl">{group.hint}</p>
+                <h2 className="text-xs font-black uppercase tracking-[0.14em] text-zarewa-teal">{group.label}</h2>
+                <p className="mt-1 text-ui-xs text-slate-500 leading-snug max-w-2xl">{group.hint}</p>
               </div>
               <button
                 type="button"
@@ -704,7 +709,7 @@ export default function MasterDataWorkbench({ masterData }) {
                   setModalSearch('');
                   setOpenGroupId(group.id);
                 }}
-                className="z-btn-primary shrink-0 gap-2 !text-[11px]"
+                className="z-btn-primary shrink-0 gap-2 !text-xs"
               >
                 <LayoutGrid size={16} /> Open catalog
               </button>

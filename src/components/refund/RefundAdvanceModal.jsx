@@ -43,7 +43,7 @@ export function RefundAdvanceModal({
 
         <div className="space-y-4 p-5">
           <p className="text-xs leading-relaxed text-slate-600">
-            Current advance balance <span className="font-bold text-[#134e4a]">{formatNgn(advanceBalanceNgn)}</span>.
+            Current advance balance <span className="font-bold text-zarewa-teal">{formatNgn(advanceBalanceNgn)}</span>.
             Posting reduces cash or bank and the customer deposit subledger (2500).
           </p>
           <div>
@@ -56,10 +56,10 @@ export function RefundAdvanceModal({
               required
               value={amount}
               onChange={(e) => onAmountChange(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-sm font-bold tabular-nums text-[#134e4a] outline-none focus:ring-2 focus:ring-rose-500/15"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-sm font-bold tabular-nums text-zarewa-teal outline-none focus:ring-2 focus:ring-rose-500/15"
             />
           </div>
-          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-600 leading-snug">
+          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 leading-snug">
             <span className="font-semibold text-slate-700">GL hint:</span> Dr 2500 Customer deposits · Cr 1000
             Cash/Bank
           </div>

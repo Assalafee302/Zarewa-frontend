@@ -80,7 +80,7 @@ export function HrOrgDataQualityPanel({ dataQuality, directoryFixPath, staffBase
             {multipleRoots ? (
               <li className="rounded-lg border border-amber-200/80 bg-white px-3 py-2 text-xs text-amber-800">
                 <span className="font-bold tabular-nums text-amber-900">{rootCount}</span> top-level roots
-                <span className="mt-0.5 block text-[10px] text-amber-700">Expected for some orgs; verify assignments</span>
+                <span className="mt-0.5 block text-ui-xs text-amber-700">Expected for some orgs; verify assignments</span>
               </li>
             ) : null}
             {cycleCount > 0 ? (

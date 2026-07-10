@@ -34,10 +34,10 @@ export default function HrDisciplinePlaybookPanel() {
         {stages.map((stage) => (
           <HrCard key={stage.stage} className="!p-4">
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#134e4a] text-xs font-black text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zarewa-teal text-xs font-black text-white">
                 {stage.stage}
               </span>
-              <h3 className="text-sm font-bold text-[#134e4a]">{stage.title}</h3>
+              <h3 className="text-sm font-bold text-zarewa-teal">{stage.title}</h3>
             </div>
             <p className="text-xs text-slate-500">
               <span className="font-semibold text-slate-600">Owner:</span> {stage.owner}

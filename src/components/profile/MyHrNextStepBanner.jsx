@@ -55,7 +55,7 @@ export function MyHrNextStepBanner({
         </div>
         <Link
           to={href}
-          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl bg-[#134e4a] px-4 py-2 text-xs font-semibold text-white no-underline hover:bg-[#0f3d3a]"
+          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl bg-zarewa-teal px-4 py-2 text-xs font-semibold text-white no-underline hover:bg-[#0f3d3a]"
         >
           {cta} →
         </Link>

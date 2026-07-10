@@ -2,7 +2,7 @@ import { formatPersonName } from '../../lib/formatPersonName';
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../../Data/companyQuotation';
 import { StandardReportPrintShell } from '../reports/StandardReportPrintShell';
 
-const TH = 'px-2 py-1.5 text-left text-[9px] font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
+const TH = 'px-2 py-1.5 text-left text-ui-xs font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
 const THR = `${TH} text-right`;
 const TD = 'px-2 py-1.5 align-top text-[11px] text-slate-800 print:text-[10pt]';
 
@@ -47,11 +47,11 @@ function QuotationPaymentHistoryBlock({ rows = [], highlightReceiptId = '', show
                   <td className={`${TD} text-slate-600`}>
                     <span className="font-semibold text-slate-800">{row.cashierStatus || '—'}</span>
                     {row.cashierDetail ? (
-                      <span className="block text-[9px] text-slate-500 print:text-[8pt]">{row.cashierDetail}</span>
+                      <span className="block text-ui-xs text-slate-500 print:text-[8pt]">{row.cashierDetail}</span>
                     ) : null}
                   </td>
                 ) : null}
-                <td className={`${TD} text-right font-semibold tabular-nums text-[#134e4a]`}>
+                <td className={`${TD} text-right font-semibold tabular-nums text-zarewa-teal`}>
                   {fmt(row.amountNgn)}
                 </td>
               </tr>
@@ -59,7 +59,7 @@ function QuotationPaymentHistoryBlock({ rows = [], highlightReceiptId = '', show
           })}
         </tbody>
       </table>
-      <p className="mt-2 text-[9px] text-slate-500">Ledger + imported rows; totals match books.</p>
+      <p className="mt-2 text-ui-xs text-slate-500">Ledger + imported rows; totals match books.</p>
     </section>
   );
 }
@@ -68,7 +68,7 @@ function CashierConfirmationBlock({ statusLabel = '', statusDetail = '' }) {
   if (!statusLabel) return null;
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 print:border-slate-300">
-      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 print:text-[8pt]">
+      <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500 print:text-[8pt]">
         Cashier confirmation
       </p>
       <p className="mt-0.5 text-[11px] font-semibold text-slate-900 print:text-[10pt]">{statusLabel}</p>
@@ -152,12 +152,12 @@ export function ReceiptPrintQuick({
               <tr key={i} className="quotation-print-line border-b border-slate-100">
                 <td className={`${TD} font-medium`}>{formatPersonName(l.payeeName || 'Payment')}</td>
                 <td className={`${TD} text-slate-600`}>{l.accountLabel || '—'}</td>
-                <td className={`${TD} text-right font-semibold tabular-nums text-[#134e4a]`}>{fmt(l.amount)}</td>
+                <td className={`${TD} text-right font-semibold tabular-nums text-zarewa-teal`}>{fmt(l.amount)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="mt-3 text-right text-[12px] font-black tabular-nums text-[#134e4a] print:text-[11pt]">
+        <p className="mt-3 text-right text-[12px] font-black tabular-nums text-zarewa-teal print:text-[11pt]">
           Total paid {fmt(total)}
         </p>
       </section>
@@ -208,7 +208,7 @@ export function ReceiptPrintFull({
           <span className="mt-1 block">
             Prepared by <span className="font-semibold text-slate-600">{displayHandledBy}</span>
           </span>
-          <span className="mt-2 block text-[9px] text-slate-400">
+          <span className="mt-2 block text-ui-xs text-slate-400">
             {ZAREWA_COMPANY_ACCOUNT_NAME}. Ledger and imported payment rows; highlighted line matches this printout.
           </span>
         </>
@@ -262,7 +262,7 @@ export function ReceiptPrintFull({
                     <td className={`${TD} font-mono`}>
                       {row.id}
                       {isThis ? (
-                        <span className="ml-1 rounded bg-amber-200/80 px-1 text-[8px] font-bold uppercase text-amber-900">
+                        <span className="ml-1 rounded bg-amber-200/80 px-1 text-ui-xs font-bold uppercase text-amber-900">
                           This receipt
                         </span>
                       ) : null}
@@ -271,10 +271,10 @@ export function ReceiptPrintFull({
                     <td className={`${TD} text-slate-600`}>
                       <span className="font-semibold text-slate-800">{row.cashierStatus || '—'}</span>
                       {row.cashierDetail ? (
-                        <span className="block text-[9px] text-slate-500 print:text-[8pt]">{row.cashierDetail}</span>
+                        <span className="block text-ui-xs text-slate-500 print:text-[8pt]">{row.cashierDetail}</span>
                       ) : null}
                     </td>
-                    <td className={`${TD} text-right font-semibold tabular-nums text-[#134e4a]`}>
+                    <td className={`${TD} text-right font-semibold tabular-nums text-zarewa-teal`}>
                       {fmt(row.amountNgn)}
                     </td>
                   </tr>
@@ -302,7 +302,7 @@ export function ReceiptPrintFull({
               <tr key={i} className="quotation-print-line border-b border-slate-100">
                 <td className={`${TD} font-medium`}>{formatPersonName(l.payeeName || '—')}</td>
                 <td className={`${TD} text-slate-600`}>{l.accountLabel || '—'}</td>
-                <td className={`${TD} text-right font-semibold tabular-nums text-[#134e4a]`}>{fmt(l.amount)}</td>
+                <td className={`${TD} text-right font-semibold tabular-nums text-zarewa-teal`}>{fmt(l.amount)}</td>
               </tr>
             ))}
           </tbody>
@@ -311,7 +311,7 @@ export function ReceiptPrintFull({
           <span className="text-[11px] font-black uppercase tracking-wide text-slate-800 print:text-[10pt]">
             Total received
           </span>
-          <span className="text-xl font-black tabular-nums text-[#134e4a] print:text-[16pt]">{fmt(total)}</span>
+          <span className="text-xl font-black tabular-nums text-zarewa-teal print:text-[16pt]">{fmt(total)}</span>
         </div>
       </section>
     </StandardReportPrintShell>
@@ -338,7 +338,7 @@ export function AdvancePaymentPrintView({
       rightColumn={
         <>
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 print:text-[9pt]">Amount</p>
-          <p className="mt-0.5 text-2xl font-black tabular-nums text-[#134e4a] print:text-[18pt]">{fmt(amountNgn)}</p>
+          <p className="mt-0.5 text-2xl font-black tabular-nums text-zarewa-teal print:text-[18pt]">{fmt(amountNgn)}</p>
           <p className="mt-2 text-slate-600">{dateStr}</p>
         </>
       }
@@ -347,27 +347,27 @@ export function AdvancePaymentPrintView({
       <section className="rounded-lg border border-amber-200/80 bg-amber-50/40 p-4 text-[11px] print:border-slate-200 print:bg-white print:text-[10pt]">
         <dl className="grid gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Customer</dt>
+            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Customer</dt>
             <dd className="mt-0.5 font-semibold text-slate-900">{displayCustomerName}</dd>
           </div>
           <div>
-            <dt className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Date</dt>
+            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Date</dt>
             <dd className="mt-0.5">{dateStr}</dd>
           </div>
           <div>
-            <dt className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Received into</dt>
+            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Received into</dt>
             <dd className="mt-0.5">{accountLabel}</dd>
           </div>
           <div>
-            <dt className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Bank / POS reference</dt>
+            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Bank / POS reference</dt>
             <dd className="mt-0.5 break-all">{reference || '—'}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Purpose</dt>
+            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Purpose</dt>
             <dd className="mt-0.5">{purpose || '—'}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Recorded by</dt>
+            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Recorded by</dt>
             <dd className="mt-0.5">{displayHandledBy}</dd>
           </div>
         </dl>

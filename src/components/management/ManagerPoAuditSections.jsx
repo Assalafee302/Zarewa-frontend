@@ -5,11 +5,11 @@ import { ManagementActivityTimeline } from './ManagementActivityTimeline';
 function ui(appearance) {
   const L = appearance === 'light';
   return {
-    spin: L ? 'text-[#134e4a]' : 'text-teal-400',
+    spin: L ? 'text-zarewa-teal' : 'text-teal-400',
     err: L ? 'text-xs text-rose-600' : 'text-xs text-rose-300/90',
-    sec: L ? 'mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500' : 'mb-2 text-[10px] font-black uppercase tracking-widest text-white/40',
+    sec: L ? 'mb-2 text-ui-xs font-black uppercase tracking-widest text-slate-500' : 'mb-2 text-ui-xs font-black uppercase tracking-widest text-white/40',
     card: L ? 'rounded-lg border border-slate-200 bg-white px-2.5 py-2' : 'rounded-xl border border-white/10 bg-white/[0.07] p-3',
-    line: L ? 'flex justify-between gap-2 text-[11px] text-slate-700 py-1 border-b border-slate-100' : 'flex justify-between gap-2 text-[11px] text-white/70 py-1 border-b border-white/10',
+    line: L ? 'flex justify-between gap-2 text-xs text-slate-700 py-1 border-b border-slate-100' : 'flex justify-between gap-2 text-xs text-white/70 py-1 border-b border-white/10',
   };
 }
 
@@ -38,10 +38,10 @@ export function ManagerPoAuditSections({ auditData, loadingAudit, formatNgn, app
         <p className={u.sec}>Purchase order</p>
         <div className={u.card}>
           <p className="font-mono font-bold">{po.poID}</p>
-          <p className="text-[11px] mt-1">
+          <p className="text-xs mt-1">
             {po.supplierName || 'Supplier'} · {po.status || '—'}
           </p>
-          <p className="text-[10px] mt-1 tabular-nums">
+          <p className="text-ui-xs mt-1 tabular-nums">
             Supplier paid {formatNgn(po.supplierPaidNgn)} · Transport paid {formatNgn(po.transportPaidNgn)}
           </p>
         </div>

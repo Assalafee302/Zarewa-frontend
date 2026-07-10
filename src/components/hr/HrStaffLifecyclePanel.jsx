@@ -103,7 +103,7 @@ export function HrStaffLifecyclePanel({ userId, staff, isSelf = false, initialLi
             {workflow === 'offboarding' ? 'Offboarding' : 'Onboarding'} tasks
           </h4>
           <span
-            className={`text-[10px] font-bold uppercase ${
+            className={`text-ui-xs font-bold uppercase ${
               block.complete ? 'text-emerald-700' : 'text-amber-700'
             }`}
           >
@@ -125,7 +125,7 @@ export function HrStaffLifecyclePanel({ userId, staff, isSelf = false, initialLi
               />
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-slate-900">{t.label}</p>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-ui-xs text-slate-500">
                   Owner: {t.ownerLabel}
                   {t.completedAtIso ? ` · Done ${t.completedAtIso.slice(0, 10)}` : ''}
                 </p>
@@ -184,9 +184,9 @@ export function HrStaffLifecyclePanel({ userId, staff, isSelf = false, initialLi
               {lastDay ? (() => {
                 const daysNotice = Math.round((new Date(lastDay).getTime() - nowMs) / (1000 * 60 * 60 * 24));
                 return daysNotice < 30 ? (
-                  <span className="mt-1 block font-normal text-red-700 text-[11px]">⚠️ This is less than the required 30-day notice period per company policy.</span>
+                  <span className="mt-1 block font-normal text-red-700 text-xs">⚠️ This is less than the required 30-day notice period per company policy.</span>
                 ) : (
-                  <span className="mt-1 block font-normal text-emerald-700 text-[11px]">✓ Meets 30-day notice requirement.</span>
+                  <span className="mt-1 block font-normal text-emerald-700 text-xs">✓ Meets 30-day notice requirement.</span>
                 );
               })() : null}
             </label>

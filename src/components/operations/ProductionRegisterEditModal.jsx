@@ -49,40 +49,40 @@ export function ProductionRegisterEditModal({ isOpen, onClose, cuttingListId, su
       <div className="z-modal-panel flex h-[min(90dvh,860px)] w-full min-w-0 max-w-[min(44rem,calc(100dvw-1.25rem))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:h-[min(88dvh,900px)] sm:max-w-[min(48rem,calc(100dvw-2rem))] sm:rounded-[28px]">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-teal-100/90 bg-gradient-to-r from-teal-50/50 via-white to-white px-3 py-2.5 sm:px-4">
           <div className="min-w-0 pr-2">
-            <p className="text-[8px] font-black uppercase tracking-widest text-[#134e4a]/75">Store &amp; production</p>
-            <h2 className="text-[15px] font-bold tracking-tight text-[#134e4a]">Edit production register</h2>
-            <p className="mt-0.5 truncate font-mono text-[11px] font-semibold text-slate-800" title={id}>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal/75">Store &amp; production</p>
+            <h2 className="text-[15px] font-bold tracking-tight text-zarewa-teal">Edit production register</h2>
+            <p className="mt-0.5 truncate font-mono text-xs font-semibold text-slate-800" title={id}>
               {id || '—'}
             </p>
             {registerHeaderMeta ? (
-              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500">
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-ui-xs text-slate-500">
                 {registerHeaderMeta.status ? (
                   <span
-                    className={`rounded-md border border-black/5 px-1.5 py-0.5 text-[8px] font-bold uppercase shadow-sm ${registerStatusTone(registerHeaderMeta.status)}`}
+                    className={`rounded-md border border-black/5 px-1.5 py-0.5 text-ui-xs font-bold uppercase shadow-sm ${registerStatusTone(registerHeaderMeta.status)}`}
                   >
                     {registerHeaderMeta.status}
                   </span>
                 ) : null}
                 {registerHeaderMeta.quotationRef ? (
-                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-[8px] font-semibold text-slate-700 shadow-sm">
+                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
                     Quote{' '}
-                    <span className="ml-0.5 font-mono text-[#134e4a]">{registerHeaderMeta.quotationRef}</span>
+                    <span className="ml-0.5 font-mono text-zarewa-teal">{registerHeaderMeta.quotationRef}</span>
                   </span>
                 ) : null}
                 {registerHeaderMeta.machineName ? (
-                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-[8px] font-semibold text-slate-700 shadow-sm">
+                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
                     {registerHeaderMeta.machineName}
                   </span>
                 ) : null}
                 {registerHeaderMeta.materialLabel ? (
-                  <span className="inline-flex items-center rounded-md border border-teal-200/80 bg-teal-50/90 px-1.5 py-0.5 text-[8px] font-semibold text-teal-900 shadow-sm">
+                  <span className="inline-flex items-center rounded-md border border-teal-200/80 bg-teal-50/90 px-1.5 py-0.5 text-ui-xs font-semibold text-teal-900 shadow-sm">
                     {registerHeaderMeta.materialLabel}
                   </span>
                 ) : null}
               </div>
             ) : null}
             {subtitle ? (
-              <p className="mt-1 line-clamp-2 text-[10px] font-semibold leading-snug text-slate-800" title={subtitle}>
+              <p className="mt-1 line-clamp-2 text-ui-xs font-semibold leading-snug text-slate-800" title={subtitle}>
                 {subtitle}
               </p>
             ) : null}
@@ -90,7 +90,7 @@ export function ProductionRegisterEditModal({ isOpen, onClose, cuttingListId, su
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
+            className="shrink-0 rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
             aria-label="Close"
           >
             <X size={22} />

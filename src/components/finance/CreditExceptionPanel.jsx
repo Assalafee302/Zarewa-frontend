@@ -46,7 +46,7 @@ export function CreditExceptionPanel({ branchId, roleKey, compact = false }) {
 
   if (compact) {
     return (
-      <p className="text-[11px] text-slate-600">
+      <p className="text-xs text-slate-600">
         {pending.length} pending · {formatNgn(exposure)} exposure
       </p>
     );
@@ -73,7 +73,7 @@ export function CreditExceptionPanel({ branchId, roleKey, compact = false }) {
                       setRequestOpen(true);
                     }
                   }}
-                  className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
+                  className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
                 >
                   <Plus size={12} /> Request
                 </button>
@@ -82,14 +82,14 @@ export function CreditExceptionPanel({ branchId, roleKey, compact = false }) {
                 type="button"
                 onClick={exportList}
                 disabled={!items.length}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50 disabled:opacity-40"
               >
                 <FileSpreadsheet size={12} /> Export
               </button>
               <button
                 type="button"
                 onClick={() => reload()}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
               >
                 <RefreshCw size={12} /> Refresh
               </button>
@@ -114,18 +114,18 @@ export function CreditExceptionPanel({ branchId, roleKey, compact = false }) {
               <button
                 type="button"
                 onClick={() => reload()}
-                className="rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider"
+                className="rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider"
               >
                 Retry
               </button>
             }
           />
         ) : loading && !items.length ? (
-          <p className="text-[11px] text-slate-500">Loading…</p>
+          <p className="text-xs text-slate-500">Loading…</p>
         ) : (
           <div className="space-y-6">
             <section>
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
+              <h3 className="text-ui-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
                 Pending approval ({pending.length})
               </h3>
               {pending.length ? (
@@ -141,7 +141,7 @@ export function CreditExceptionPanel({ branchId, roleKey, compact = false }) {
                   ))}
                 </div>
               ) : (
-                <p className="text-[11px] text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
+                <p className="text-xs text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
                   No pending requests.
                 </p>
               )}
@@ -149,7 +149,7 @@ export function CreditExceptionPanel({ branchId, roleKey, compact = false }) {
 
             {approved.length ? (
               <section>
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
+                <h3 className="text-ui-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
                   Active approvals ({approved.length})
                 </h3>
                 <div className="space-y-2">

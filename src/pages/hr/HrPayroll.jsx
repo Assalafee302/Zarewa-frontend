@@ -49,9 +49,9 @@ import { HrPayrollNextStepBanner } from '../../components/hr/HrPayrollNextStepBa
 
 /** Touch-friendly payroll action button — 44px min height for mobile. */
 const PAYROLL_BTN =
-  'inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase touch-manipulation active:scale-[0.98] transition-transform';
-const PAYROLL_BTN_PRIMARY = `${PAYROLL_BTN} bg-[#134e4a] text-white`;
-const PAYROLL_BTN_SECONDARY = `${PAYROLL_BTN} border border-slate-200 bg-white text-[#134e4a]`;
+  'inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 py-2.5 text-xs font-bold uppercase touch-manipulation active:scale-[0.98] transition-transform';
+const PAYROLL_BTN_PRIMARY = `${PAYROLL_BTN} bg-zarewa-teal text-white`;
+const PAYROLL_BTN_SECONDARY = `${PAYROLL_BTN} border border-slate-200 bg-white text-zarewa-teal`;
 const PAYROLL_BTN_DANGER = `${PAYROLL_BTN} border border-red-200 bg-red-50 text-red-800`;
 const PAYROLL_BTN_INFO = `${PAYROLL_BTN} border border-sky-200 bg-sky-50 text-sky-800`;
 const PAYROLL_BTN_MD = `${PAYROLL_BTN} bg-purple-800 text-white`;
@@ -171,7 +171,7 @@ function VarianceModal({ runId, onClose }) {
   );
 }
 
-export default function HrPayroll({ embedded = false } = {}) {
+export default function HrPayroll() {
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
   const sensitive = useHrSensitiveAccess();
@@ -204,7 +204,7 @@ export default function HrPayroll({ embedded = false } = {}) {
   const [payeAlerts, setPayeAlerts] = useState([]);
   const [holdLine, setHoldLine] = useState(null);
   const [holdBusy, setHoldBusy] = useState(false);
-  const [missingBankCount, setMissingBankCount] = useState(null);
+  const [missingBankCount] = useState(null);
   const [searchParams] = useSearchParams();
 
   const sortedRuns = useMemo(() => sortPayrollRunsByPeriod(runs), [runs]);
@@ -503,7 +503,7 @@ export default function HrPayroll({ embedded = false } = {}) {
           type="button"
           onClick={() => setPayeLine(l)}
           disabled={adjustingPaye === l.userId}
-          className="min-h-[36px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-right text-xs font-semibold tabular-nums text-[#134e4a] hover:bg-teal-50/50"
+          className="min-h-[36px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-right text-xs font-semibold tabular-nums text-zarewa-teal hover:bg-teal-50/50"
         >
           {formatNgn(l.taxNgn)}
         </button>
@@ -529,7 +529,7 @@ export default function HrPayroll({ embedded = false } = {}) {
         <button
           type="button"
           onClick={() => downloadPayslip(l.userId)}
-          className="rounded-lg border border-teal-200 px-2 py-1 text-xs font-semibold text-[#134e4a] hover:bg-teal-50/50"
+          className="rounded-lg border border-teal-200 px-2 py-1 text-xs font-semibold text-zarewa-teal hover:bg-teal-50/50"
         >
           Payslip
         </button>
@@ -685,7 +685,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                           type="button"
                           onClick={() => setPayeLine(l)}
                           disabled={adjustingPaye === l.userId}
-                          className="min-h-[36px] rounded border border-slate-200 bg-white px-2 py-1 text-right text-xs font-semibold tabular-nums text-[#134e4a] hover:bg-teal-50/50"
+                          className="min-h-[36px] rounded border border-slate-200 bg-white px-2 py-1 text-right text-xs font-semibold tabular-nums text-zarewa-teal hover:bg-teal-50/50"
                         >
                           {formatNgn(l.taxNgn)}
                         </button>
@@ -773,7 +773,7 @@ export default function HrPayroll({ embedded = false } = {}) {
 
           <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,240px)_1fr] lg:gap-6 lg:space-y-0">
             <div className="space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Monthly runs</p>
+              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Monthly runs</p>
               {loading ? <p className="text-xs text-slate-500">Loading…</p> : null}
 
               <label className="md:hidden block text-xs font-semibold text-slate-600">
@@ -799,7 +799,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                     type="button"
                     onClick={() => setSelectedId(r.id)}
                     className={`w-full rounded-xl border px-3 py-3 text-left text-sm min-h-[44px] ${
-                      selectedId === r.id ? 'border-[#134e4a] bg-teal-50/50' : 'border-slate-100 bg-white'
+                      selectedId === r.id ? 'border-zarewa-teal bg-teal-50/50' : 'border-slate-100 bg-white'
                     }`}
                   >
                     <span className="font-semibold">{formatPayrollPeriodLabel(r.periodYyyymm)}</span>
@@ -840,7 +840,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
                     <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
                       <p className="text-xs font-semibold text-slate-500">Staff</p>
-                      <p className="mt-1 text-lg font-black tabular-nums text-[#134e4a]">{totals.headcount}</p>
+                      <p className="mt-1 text-lg font-black tabular-nums text-zarewa-teal">{totals.headcount}</p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
                       <p className="text-xs font-semibold text-slate-500">Gross</p>
@@ -890,7 +890,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                 {run.status === 'locked' ? (
                   <p className="text-xs text-slate-600">
                     Ready for finance:{' '}
-                    <Link to={hrFinancePayrollPath(selectedId)} className="font-semibold text-[#134e4a] hover:underline">
+                    <Link to={hrFinancePayrollPath(selectedId)} className="font-semibold text-zarewa-teal hover:underline">
                       Open payroll bank payments in Accounting
                     </Link>
                   </p>
@@ -899,7 +899,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                 <div className="space-y-3">
                   {run.status === 'draft' && canPrepare ? (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepare</p>
+                      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Prepare</p>
                       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                         <button
                           type="button"
@@ -940,7 +940,7 @@ export default function HrPayroll({ embedded = false } = {}) {
 
                   {run.status === 'draft' && (canGm || canMd) ? (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Approve</p>
+                      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Approve</p>
                       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                         {canGm && !run.gmApprovedAtIso ? (
                           <button
@@ -981,7 +981,7 @@ export default function HrPayroll({ embedded = false } = {}) {
 
                   {canPrepare && run.status === 'draft' && (run.gmApprovedAtIso || run.mdApprovedAtIso) ? (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Lock</p>
+                      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Lock</p>
                       <button
                         type="button"
                         onClick={() =>
@@ -1002,7 +1002,7 @@ export default function HrPayroll({ embedded = false } = {}) {
 
                   {canPrepare && run.status === 'locked' ? (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Lock</p>
+                      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Lock</p>
                       <button
                         type="button"
                         onClick={() =>
@@ -1023,7 +1023,7 @@ export default function HrPayroll({ embedded = false } = {}) {
 
                   {canPay && run.status === 'locked' ? (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pay</p>
+                      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Pay</p>
                       <button
                         type="button"
                         onClick={() => setMarkPaidOpen(true)}
@@ -1037,7 +1037,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                   {(run.status === 'locked' || run.status === 'paid') && (canExport || canPay) ? (
                     <>
                       <details className="rounded-xl border border-slate-200 bg-white sm:hidden">
-                        <summary className="min-h-[44px] cursor-pointer list-none px-4 py-3 text-xs font-bold text-[#134e4a] touch-manipulation">
+                        <summary className="min-h-[44px] cursor-pointer list-none px-4 py-3 text-xs font-bold text-zarewa-teal touch-manipulation">
                           Downloads & exports
                         </summary>
                         <div className="space-y-4 border-t border-slate-100 p-3">

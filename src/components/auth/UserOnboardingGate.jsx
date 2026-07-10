@@ -19,7 +19,7 @@ export default function UserOnboardingGate({ children }) {
 
   return (
     <>
-      <div className={needsPassword ? 'pointer-events-none select-none' : undefined} aria-hidden={needsPassword}>
+      <div className={needsPassword ? 'pointer-events-none select-none opacity-40' : undefined}>
         {children}
       </div>
       {needsPassword ? <ForcePasswordChangeModal /> : null}

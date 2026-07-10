@@ -30,7 +30,7 @@ function NextUpCard({ item }) {
     <div className="rounded-2xl border border-violet-100 bg-white p-4 shadow-sm ring-1 ring-violet-50">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-violet-600">
+          <p className="flex items-center gap-2 text-ui-xs font-black uppercase tracking-widest text-violet-600">
             <span aria-hidden>{icon}</span>
             {kindLabel}
           </p>
@@ -75,7 +75,7 @@ function ChecklistCard({ checklist, checklistPct }) {
               <span className={item.done ? 'text-slate-700' : 'font-semibold text-slate-900'}>
                 {item.done ? '✓' : '○'} {item.label}
               </span>
-              {!item.done && item.hint ? <span className="text-[11px] text-slate-500">{item.hint}</span> : null}
+              {!item.done && item.hint ? <span className="text-xs text-slate-500">{item.hint}</span> : null}
             </Link>
           </li>
         ))}
@@ -159,12 +159,12 @@ export default function ScholarshipSchoolProfile() {
         />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-violet-200/90">
+            <p className="text-ui-xs font-bold uppercase tracking-[0.22em] text-violet-200/90">
               {FAMILY_BENEFITS.hubEyebrow}
             </p>
             <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">{profile.displayName}</h2>
             {parentLine ? (
-              <p className="mt-1 inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-violet-100">
+              <p className="mt-1 inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-violet-100">
                 {parentLine}
                 {profile.beneficiaryTypeLabel ? ` · ${profile.beneficiaryTypeLabel}` : ''}
               </p>
@@ -179,7 +179,7 @@ export default function ScholarshipSchoolProfile() {
               </p>
             ) : null}
           </div>
-          <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-bold ${health.className}`}>
+          <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${health.className}`}>
             {health.label}
           </span>
         </div>
@@ -268,7 +268,7 @@ export default function ScholarshipSchoolProfile() {
               <li key={pmt.id} className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0">
                 <div>
                   <p className="text-sm font-semibold text-slate-800">{pmt.label}</p>
-                  <p className="text-[11px] text-slate-500">{pmt.statusLabel}</p>
+                  <p className="text-xs text-slate-500">{pmt.statusLabel}</p>
                 </div>
                 <p className="text-sm font-bold tabular-nums text-slate-900">{formatNgn(pmt.amountNgn)}</p>
               </li>

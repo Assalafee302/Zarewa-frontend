@@ -29,7 +29,7 @@ export function OfficialNoticesPanel() {
       ) : (
         notices.map((n) => (
           <article key={n.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            {n.pinned ? <span className="text-[10px] font-bold uppercase text-amber-700">Pinned</span> : null}
+            {n.pinned ? <span className="text-ui-xs font-bold uppercase text-amber-700">Pinned</span> : null}
             <h3 className="font-semibold text-slate-900">{n.title}</h3>
             <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{n.content}</p>
             <div className="mt-3 flex flex-wrap gap-2">

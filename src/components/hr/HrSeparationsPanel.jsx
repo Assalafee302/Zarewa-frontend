@@ -65,13 +65,13 @@ export function HrSeparationsPanel({ onOpenClearance }) {
               {clearances.map((c) => (
                 <AppTableTr key={c.id}>
                   <AppTableTd>
-                    <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(c.userId)}`} className="font-semibold text-[#134e4a] hover:underline">{c.displayName}</Link>
+                    <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(c.userId)}`} className="font-semibold text-zarewa-teal hover:underline">{c.displayName}</Link>
                   </AppTableTd>
                   <AppTableTd className="capitalize">{c.separationType}</AppTableTd>
                   <AppTableTd>{c.lastWorkingDayIso}</AppTableTd>
                   <AppTableTd><HrStatusPill status={c.status} /></AppTableTd>
                   <AppTableTd>
-                    <button type="button" className="text-[10px] font-bold uppercase text-[#134e4a]" onClick={() => onOpenClearance?.(c.id)}>Open clearance</button>
+                    <button type="button" className="text-ui-xs font-bold uppercase text-zarewa-teal" onClick={() => onOpenClearance?.(c.id)}>Open clearance</button>
                   </AppTableTd>
                 </AppTableTr>
               ))}

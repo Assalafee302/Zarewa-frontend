@@ -87,7 +87,7 @@ export function OfficeRecipientStrip({ label, selectedIds, onChange, directory, 
                       <span className="font-medium text-slate-900">
                         {formatPersonName(u.displayName || u.username)}
                       </span>
-                      <span className="text-slate-500 text-[11px] ml-2">
+                      <span className="text-slate-500 text-xs ml-2">
                         {u.roleKey || '—'}
                         {branchNameById?.[u.branchId] ? ` · ${branchNameById[u.branchId]}` : ''}
                       </span>

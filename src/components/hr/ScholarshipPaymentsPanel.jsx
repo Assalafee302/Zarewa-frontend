@@ -73,7 +73,7 @@ export default function ScholarshipPaymentsPanel({
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-black tabular-nums text-slate-900">{formatNgn(pmt.amountNgn)}</p>
-                  <span className={`mt-1 inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${pill}`}>
+                  <span className={`mt-1 inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${pill}`}>
                     {pmt.statusLabel || statusKey}
                   </span>
                 </div>

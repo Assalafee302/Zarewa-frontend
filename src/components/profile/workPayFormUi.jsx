@@ -15,16 +15,16 @@ export function WorkPayStepPills({ steps, currentStep }) {
             key={label}
             className={`flex shrink-0 snap-start items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
               active
-                ? 'border-[#134e4a] bg-[#134e4a] text-white shadow-sm'
+                ? 'border-zarewa-teal bg-zarewa-teal text-white shadow-sm'
                 : done
-                  ? 'border-teal-100 bg-teal-50/80 text-[#134e4a]'
+                  ? 'border-teal-100 bg-teal-50/80 text-zarewa-teal'
                   : 'border-slate-200 bg-white text-slate-500'
             }`}
             aria-current={active ? 'step' : undefined}
           >
             <span
-              className={`flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold ${
-                active ? 'bg-white/20 text-white' : done ? 'bg-[#134e4a] text-white' : 'bg-slate-100 text-slate-400'
+              className={`flex h-5 w-5 items-center justify-center rounded-md text-ui-xs font-bold ${
+                active ? 'bg-white/20 text-white' : done ? 'bg-zarewa-teal text-white' : 'bg-slate-100 text-slate-400'
               }`}
             >
               {done ? '✓' : i + 1}
@@ -63,7 +63,7 @@ export function WorkPayHeroButton({ children, onClick, disabled }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-[#134e4a] shadow-sm ring-1 ring-white/40 transition hover:bg-teal-50 disabled:opacity-50"
+      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-zarewa-teal shadow-sm ring-1 ring-white/40 transition hover:bg-teal-50 disabled:opacity-50"
     >
       {children}
     </button>

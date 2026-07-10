@@ -104,14 +104,14 @@ export function ProfileCompletionPanel({
 
       {(docs.total || 0) > 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Document HR status</p>
+          <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Document HR status</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {['verified', 'pending', 'rejected'].map((key) => {
               const count = docs[key] || 0;
               if (!count) return null;
               const meta = VERIFY_LABEL[key];
               return (
-                <span key={key} className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${meta.cls}`}>
+                <span key={key} className={`rounded-full border px-2.5 py-1 text-xs font-bold ${meta.cls}`}>
                   {count} {meta.text.toLowerCase()}
                 </span>
               );
@@ -122,11 +122,11 @@ export function ProfileCompletionPanel({
 
       {nextSteps.length ? (
         <div className="rounded-2xl border border-teal-100 bg-teal-50/50 p-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-teal-800/80">Complete your profile</p>
+          <p className="text-ui-xs font-black uppercase tracking-widest text-teal-800/80">Complete your profile</p>
           <ol className="mt-2 space-y-2">
             {nextSteps.map((step) => (
               <li key={step.label}>
-                <Link to={step.to} className="text-sm font-semibold text-[#134e4a] hover:underline">
+                <Link to={step.to} className="text-sm font-semibold text-zarewa-teal hover:underline">
                   → {step.label}
                 </Link>
               </li>

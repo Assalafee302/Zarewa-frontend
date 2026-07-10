@@ -35,7 +35,7 @@ export function Ap1cDryRunPanel({ data, loading, error, onReload, embedded = fal
                   type="button"
                   onClick={() => onReload()}
                   disabled={loading}
-                  className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
                 >
                   <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
                   Load report
@@ -51,13 +51,13 @@ export function Ap1cDryRunPanel({ data, loading, error, onReload, embedded = fal
       ) : null}
 
       {error ? (
-        <p className="text-[11px] font-medium text-rose-800 flex items-center gap-2">
+        <p className="text-xs font-medium text-rose-800 flex items-center gap-2">
           <AlertTriangle size={16} />
           {error}
         </p>
       ) : null}
 
-      {loading && !data ? <p className="text-[11px] font-medium text-violet-800">Loading AP1c dry-run…</p> : null}
+      {loading && !data ? <p className="text-xs font-medium text-violet-800">Loading AP1c dry-run…</p> : null}
 
       {data?.status === 'dry_run_only' ? (
         <>
@@ -90,7 +90,7 @@ export function Ap1cDryRunPanel({ data, loading, error, onReload, embedded = fal
             <button
               type="button"
               onClick={() => setShowTechnical((v) => !v)}
-              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-[#134e4a]"
+              className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wider text-slate-500 hover:text-zarewa-teal"
             >
               <ChevronDown size={14} className={showTechnical ? 'rotate-180' : ''} />
               {showTechnical ? 'Hide' : 'Show'} extended counters
@@ -109,7 +109,7 @@ export function Ap1cDryRunPanel({ data, loading, error, onReload, embedded = fal
 
           {notes.length ? (
             <ProcurementFormSection letter="i" title="Notes" compact>
-              <ul className="text-[10px] font-medium text-violet-900/90 list-disc pl-4 space-y-1 leading-relaxed">
+              <ul className="text-ui-xs font-medium text-violet-900/90 list-disc pl-4 space-y-1 leading-relaxed">
                 {notes.map((n) => (
                   <li key={n}>{n}</li>
                 ))}

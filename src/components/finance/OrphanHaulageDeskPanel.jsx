@@ -22,7 +22,7 @@ export function OrphanHaulageDeskPanel({ orphanRows = [], canAccessProcurement =
           <Link
             to="/procurement"
             state={{ focusTab: 'transport' }}
-            className="text-[10px] font-bold uppercase text-rose-900 underline-offset-2 hover:underline"
+            className="text-ui-xs font-bold uppercase text-rose-900 underline-offset-2 hover:underline"
           >
             Transport catch-up
           </Link>
@@ -49,7 +49,7 @@ export function OrphanHaulageDeskPanel({ orphanRows = [], canAccessProcurement =
               <Link
                 to="/accounts"
                 state={{ accountsTab: 'movements' }}
-                className="text-[9px] font-bold uppercase text-rose-900 hover:underline"
+                className="text-ui-xs font-bold uppercase text-rose-900 hover:underline"
               >
                 View
               </Link>
@@ -58,7 +58,7 @@ export function OrphanHaulageDeskPanel({ orphanRows = [], canAccessProcurement =
         ))}
       </ul>
       {orphanRows.length > 8 ? (
-        <p className="text-[9px] text-rose-900/70 mt-2 px-1">
+        <p className="text-ui-xs text-rose-900/70 mt-2 px-1">
           +{orphanRows.length - 8} more in Procurement → Transport catch-up
         </p>
       ) : null}

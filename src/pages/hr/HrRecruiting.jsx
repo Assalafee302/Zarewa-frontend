@@ -342,7 +342,7 @@ export default function HrRecruiting({ embedded = false } = {}) {
                   type="button"
                   onClick={() => setApplicantFilter('all')}
                   className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                    applicantFilter === 'all' ? 'border-[#134e4a] bg-teal-50 text-[#134e4a]' : 'border-slate-200 text-slate-600'
+                    applicantFilter === 'all' ? 'border-zarewa-teal bg-teal-50 text-zarewa-teal' : 'border-slate-200 text-slate-600'
                   }`}
                 >
                   All ({applicants.length})
@@ -353,7 +353,7 @@ export default function HrRecruiting({ embedded = false } = {}) {
                     type="button"
                     onClick={() => setApplicantFilter(s.value)}
                     className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                      applicantFilter === s.value ? 'border-[#134e4a] bg-teal-50 text-[#134e4a]' : 'border-slate-200 text-slate-600'
+                      applicantFilter === s.value ? 'border-zarewa-teal bg-teal-50 text-zarewa-teal' : 'border-slate-200 text-slate-600'
                     }`}
                   >
                     {s.label} ({statusCounts[s.value] || 0})

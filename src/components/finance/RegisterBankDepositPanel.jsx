@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { formatNgn } from '../../Data/mockData';
 import { bankDepositReclassKindLabel, bankDepositStatusLabel, BANK_DEPOSIT_RECLASS_OPTIONS } from '../../lib/bankDeposits';
 import {
@@ -93,7 +94,7 @@ export function RegisterBankDepositPanel({
   const reverseDeposit = useCallback(
     async (depositId) => {
       if (!canPost) return;
-      if (!window.confirm('Reverse this unlinked deposit? Treasury credit will be removed.')) return;
+      if (!(await appConfirm({ message: 'Reverse this unlinked deposit? Treasury credit will be removed.', variant: 'danger' }))) return;
       setActionBusyId(depositId);
       try {
         const res = await apiFetch(`/api/bank-deposits/${encodeURIComponent(depositId)}/reverse`, {
@@ -122,7 +123,7 @@ export function RegisterBankDepositPanel({
         showToast?.('Select a reclass type.', { variant: 'error' });
         return;
       }
-      if (!window.confirm('Reclassify this deposit as non-customer income? It cannot be linked to Sales after.')) {
+      if (!(await appConfirm({ message: 'Reclassify this deposit as non-customer income? It cannot be linked to Sales after.', variant: 'danger' }))) {
         return;
       }
       setActionBusyId(depositId);
@@ -150,8 +151,8 @@ export function RegisterBankDepositPanel({
     <div className="space-y-3 rounded-lg border border-sky-200/80 bg-white p-3 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">Register bank payment</h3>
-          <p className="text-[10px] text-slate-600 mt-1 max-w-2xl">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-zarewa-teal">Register bank payment</h3>
+          <p className="text-ui-xs text-slate-600 mt-1 max-w-2xl">
             Record money that hit the bank before Sales knows the customer. Credits treasury once; Sales links when
             posting receipt or advance.
           </p>
@@ -159,7 +160,7 @@ export function RegisterBankDepositPanel({
         <button
           type="button"
           onClick={() => void onRegistered?.()}
-          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[9px] font-bold uppercase text-slate-700 hover:bg-slate-50"
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-ui-xs font-bold uppercase text-slate-700 hover:bg-slate-50"
         >
           <RefreshCw size={12} /> Refresh
         </button>
@@ -167,44 +168,44 @@ export function RegisterBankDepositPanel({
 
       {canPost ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 rounded-lg border border-slate-100 bg-slate-50/80 p-3">
-          <label className="text-[9px] font-bold text-slate-600">
+          <label className="text-ui-xs font-bold text-slate-600">
             Bank date
             <input
               type="date"
-              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px]"
+              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs"
               value={form.bankDateISO}
               onChange={(e) => setForm((f) => ({ ...f, bankDateISO: e.target.value }))}
             />
           </label>
-          <label className="text-[9px] font-bold text-slate-600 sm:col-span-2">
+          <label className="text-ui-xs font-bold text-slate-600 sm:col-span-2">
             Bank narration / description
             <input
-              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px]"
+              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs"
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               placeholder="e.g. UBA NIP INFLOW"
             />
           </label>
-          <label className="text-[9px] font-bold text-slate-600">
+          <label className="text-ui-xs font-bold text-slate-600">
             Transfer reference
             <input
-              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px] font-mono"
+              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs font-mono"
               value={form.bankReference}
               onChange={(e) => setForm((f) => ({ ...f, bankReference: e.target.value }))}
             />
           </label>
-          <label className="text-[9px] font-bold text-slate-600">
+          <label className="text-ui-xs font-bold text-slate-600">
             Amount (₦)
             <input
-              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px] tabular-nums"
+              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs tabular-nums"
               value={form.amountNgn}
               onChange={(e) => setForm((f) => ({ ...f, amountNgn: e.target.value }))}
             />
           </label>
-          <label className="text-[9px] font-bold text-slate-600">
+          <label className="text-ui-xs font-bold text-slate-600">
             Treasury account
             <select
-              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px]"
+              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs"
               value={form.treasuryAccountId}
               onChange={(e) => setForm((f) => ({ ...f, treasuryAccountId: e.target.value }))}
             >
@@ -216,10 +217,10 @@ export function RegisterBankDepositPanel({
               ))}
             </select>
           </label>
-          <label className="text-[9px] font-bold text-slate-600 sm:col-span-3">
+          <label className="text-ui-xs font-bold text-slate-600 sm:col-span-3">
             Internal note (optional)
             <input
-              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px]"
+              className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs"
               value={form.note}
               onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
             />
@@ -229,7 +230,7 @@ export function RegisterBankDepositPanel({
               type="button"
               disabled={busy}
               onClick={() => void submit()}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-black uppercase text-white disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-black uppercase text-white disabled:opacity-50"
             >
               <Plus size={14} /> {busy ? 'Saving…' : 'Register & credit treasury'}
             </button>
@@ -247,7 +248,7 @@ export function RegisterBankDepositPanel({
               key={k}
               type="button"
               onClick={() => setFilter(k)}
-              className={`rounded-md px-2 py-0.5 text-[9px] font-bold uppercase ${
+              className={`rounded-md px-2 py-0.5 text-ui-xs font-bold uppercase ${
                 filter === k ? 'bg-sky-700 text-white' : 'bg-slate-100 text-slate-600'
               }`}
             >
@@ -256,8 +257,8 @@ export function RegisterBankDepositPanel({
           ))}
         </div>
         <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="min-w-full text-[10px]">
-            <thead className="bg-slate-50 text-[9px] uppercase text-slate-500">
+          <table className="min-w-full text-ui-xs">
+            <thead className="bg-slate-50 text-ui-xs uppercase text-slate-500">
               <tr>
                 <th className="px-2 py-1.5 text-left">Id</th>
                 <th className="px-2 py-1.5 text-left">Date</th>
@@ -285,14 +286,14 @@ export function RegisterBankDepositPanel({
                   const showReclass = reclassDraft.depositId === d.id;
                   return (
                   <tr key={d.id} className="border-t border-slate-100 hover:bg-slate-50/80">
-                    <td className="px-2 py-1.5 font-mono font-bold text-[#134e4a]">{d.id}</td>
+                    <td className="px-2 py-1.5 font-mono font-bold text-zarewa-teal">{d.id}</td>
                     <td className="px-2 py-1.5 tabular-nums">{d.bankDateISO}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{formatNgn(d.amountNgn)}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{formatNgn(d.remainingNgn)}</td>
                     <td className="px-2 py-1.5">
                       {bankDepositStatusLabel(d.status)}
                       {d.reclassKind ? (
-                        <span className="block text-[9px] text-slate-500">{bankDepositReclassKindLabel(d.reclassKind)}</span>
+                        <span className="block text-ui-xs text-slate-500">{bankDepositReclassKindLabel(d.reclassKind)}</span>
                       ) : null}
                     </td>
                     <td className="px-2 py-1.5 font-mono truncate max-w-[8rem]" title={d.bankReference}>
@@ -310,7 +311,7 @@ export function RegisterBankDepositPanel({
                                 type="button"
                                 disabled={actionBusyId === d.id}
                                 onClick={() => void reverseDeposit(d.id)}
-                                className="rounded border border-rose-200 px-1.5 py-0.5 text-[9px] font-bold uppercase text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                                className="rounded border border-rose-200 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-rose-700 hover:bg-rose-50 disabled:opacity-50"
                               >
                                 Reverse
                               </button>
@@ -324,7 +325,7 @@ export function RegisterBankDepositPanel({
                                       : { depositId: d.id, kind: '', note: '' }
                                   )
                                 }
-                                className="rounded border border-violet-200 px-1.5 py-0.5 text-[9px] font-bold uppercase text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+                                className="rounded border border-violet-200 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-violet-700 hover:bg-violet-50 disabled:opacity-50"
                               >
                                 {showReclass ? 'Cancel' : 'Reclass'}
                               </button>
@@ -332,7 +333,7 @@ export function RegisterBankDepositPanel({
                             {showReclass ? (
                               <div className="mt-1 w-full max-w-[14rem] rounded border border-violet-100 bg-violet-50/50 p-1.5 text-left space-y-1">
                                 <select
-                                  className="w-full rounded border border-slate-200 px-1 py-0.5 text-[9px]"
+                                  className="w-full rounded border border-slate-200 px-1 py-0.5 text-ui-xs"
                                   value={reclassDraft.kind}
                                   onChange={(e) => setReclassDraft((f) => ({ ...f, kind: e.target.value }))}
                                 >
@@ -344,7 +345,7 @@ export function RegisterBankDepositPanel({
                                   ))}
                                 </select>
                                 <input
-                                  className="w-full rounded border border-slate-200 px-1 py-0.5 text-[9px]"
+                                  className="w-full rounded border border-slate-200 px-1 py-0.5 text-ui-xs"
                                   placeholder="Note (optional)"
                                   value={reclassDraft.note}
                                   onChange={(e) => setReclassDraft((f) => ({ ...f, note: e.target.value }))}
@@ -353,7 +354,7 @@ export function RegisterBankDepositPanel({
                                   type="button"
                                   disabled={actionBusyId === d.id}
                                   onClick={() => void submitReclass(d.id)}
-                                  className="w-full rounded bg-violet-700 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white disabled:opacity-50"
+                                  className="w-full rounded bg-violet-700 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-white disabled:opacity-50"
                                 >
                                   Confirm reclass
                                 </button>
@@ -361,7 +362,7 @@ export function RegisterBankDepositPanel({
                             ) : null}
                           </div>
                         ) : (
-                          <span className="text-[9px] text-slate-400">—</span>
+                          <span className="text-ui-xs text-slate-400">—</span>
                         )}
                       </td>
                     ) : null}

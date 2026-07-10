@@ -162,8 +162,8 @@ export default function LinkAdvanceModal({
       >
         <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
           <div>
-            <h2 className="text-base font-bold text-[#134e4a]">Link advance to quotation</h2>
-            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
+            <h2 className="text-base font-bold text-zarewa-teal">Link advance to quotation</h2>
+            <p className="text-ui-xs font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
               {advanceEntry.customerName ?? advanceEntry.customerID} · {formatNgn(advanceRemainingNgn)} available
               {advanceEntry.originalAmountNgn != null && advanceRemainingNgn < advanceEntry.originalAmountNgn
                 ? ` (of ${formatNgn(advanceEntry.originalAmountNgn)})`
@@ -179,7 +179,7 @@ export default function LinkAdvanceModal({
           </button>
         </div>
         {useLedgerApi && dateLocked ? (
-          <div className="px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] text-amber-950">
+          <div className="px-5 py-2 bg-amber-50 border-b border-amber-200 text-ui-xs text-amber-950">
             <p className="font-bold">Ledger date is in a locked period</p>
             <p className="mt-0.5 leading-snug">Applying advance uses the advance line date ({applyDateISO}). Change period lock or use a different advance line.</p>
             <Link to="/settings/governance" className="mt-1 inline-block font-semibold text-amber-900 underline underline-offset-2">
@@ -188,7 +188,7 @@ export default function LinkAdvanceModal({
           </div>
         ) : null}
         {postingHint ? (
-          <div className="px-5 py-2.5 bg-rose-50 border-b border-rose-200 text-[10px] text-rose-950 space-y-1">
+          <div className="px-5 py-2.5 bg-rose-50 border-b border-rose-200 text-ui-xs text-rose-950 space-y-1">
             <p className="font-bold">{postingHint.title}</p>
             <p className="leading-snug">{postingHint.detail}</p>
             {postingHint.links?.length ? (
@@ -204,11 +204,11 @@ export default function LinkAdvanceModal({
         ) : null}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain custom-scrollbar p-5 space-y-4">
           <div>
-            <label className="text-[9px] font-semibold text-slate-400 uppercase mb-1 block">Quotation</label>
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase mb-1 block">Quotation</label>
             <select
               value={quotationRef}
               onChange={(e) => setQuotationRef(e.target.value)}
-              className="w-full z-finance-select rounded-lg py-2.5 px-3 font-semibold text-[#134e4a]"
+              className="w-full z-finance-select rounded-lg py-2.5 px-3 font-semibold text-zarewa-teal"
             >
               <option value="">Select…</option>
               {quoteOptions.map(({ q, due }) => (
@@ -218,32 +218,32 @@ export default function LinkAdvanceModal({
               ))}
             </select>
             {quoteOptions.length === 0 ? (
-              <p className="text-[10px] text-amber-700 mt-1">No quotations for this customer.</p>
+              <p className="text-ui-xs text-amber-700 mt-1">No quotations for this customer.</p>
             ) : null}
           </div>
           {selectedQ ? (
-            <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-[10px] text-slate-600 space-y-1">
+            <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-ui-xs text-slate-600 space-y-1">
               <p>
-                <span className="font-semibold text-[#134e4a]">Quote total:</span>{' '}
+                <span className="font-semibold text-zarewa-teal">Quote total:</span>{' '}
                 {formatNgn(selectedQ.totalNgn)}
               </p>
               <p>
-                <span className="font-semibold text-[#134e4a]">Balance due (ledger):</span> {formatNgn(dueNgn)}
+                <span className="font-semibold text-zarewa-teal">Balance due (ledger):</span> {formatNgn(dueNgn)}
               </p>
               <p>
-                <span className="font-semibold text-[#134e4a]">Max apply now:</span> {formatNgn(maxApply)}
+                <span className="font-semibold text-zarewa-teal">Max apply now:</span> {formatNgn(maxApply)}
               </p>
             </div>
           ) : null}
           <div>
-            <label className="text-[9px] font-semibold text-slate-400 uppercase mb-1 block">Amount to apply (₦)</label>
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase mb-1 block">Amount to apply (₦)</label>
             <input
               type="number"
               min="1"
               max={maxApply || undefined}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full z-finance-field rounded-lg font-bold text-[#134e4a] tabular-nums"
+              className="w-full z-finance-field rounded-lg font-bold text-zarewa-teal tabular-nums"
             />
           </div>
         </div>
@@ -251,13 +251,13 @@ export default function LinkAdvanceModal({
           <button
             type="button"
             onClick={handleClose}
-            className="px-4 py-2 rounded-lg text-[10px] font-semibold uppercase border border-slate-200 text-slate-600"
+            className="px-4 py-2 rounded-lg text-ui-xs font-semibold uppercase border border-slate-200 text-slate-600"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-4 py-2 rounded-lg bg-[#134e4a] text-white text-[10px] font-semibold uppercase"
+            className="px-4 py-2 rounded-lg bg-zarewa-teal text-white text-ui-xs font-semibold uppercase"
           >
             Apply & remove from list
           </button>

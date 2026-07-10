@@ -22,6 +22,7 @@ import {
   Calculator,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { appConfirm } from '../lib/appConfirm';
 import {
   userMayAccessBranchCommandCentreClient,
   userMayAccessExecutiveCommandCentreClient,
@@ -68,7 +69,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     } ${
       active
         ? 'bg-white/10 text-[#2dd4bf] shadow-inner'
-        : 'text-white/40 hover:text-white hover:bg-white/5'
+        : 'text-white/55 hover:text-white hover:bg-white/5'
     }`;
 
   const roleKey = ws?.session?.user?.roleKey;
@@ -78,6 +79,17 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
   const hasExecNav = userMayAccessExecutiveCommandCentreClient(permissions);
   const hasBranchCommandCentre = userMayAccessBranchCommandCentreClient(roleKey, permissions);
   const showCommandCentreNav = hasExecNav || hasBranchCommandCentre;
+
+  const hasAccountingDesk = userMayViewAccountingDeskClient(roleKey, permissions);
+  const hasLegacyFinanceNav = userMaySeeLegacyAccountsNav(roleKey, permissions);
+  const financeNavLabel =
+    hasAccountingDesk && hasLegacyFinanceNav
+      ? String(roleKey || '').trim().toLowerCase() === 'cashier'
+        ? 'Cashier desk'
+        : 'Treasury & payouts'
+      : String(roleKey || '').trim().toLowerCase() === 'cashier'
+        ? 'Finance desk'
+        : 'Finance';
 
   const fullMenuItems = [
     {
@@ -121,22 +133,26 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       label: 'Accounting',
       path: '/accounting',
       active: pathMatches(p, '/accounting'),
-      visible: userMayViewAccountingDeskClient(roleKey, permissions),
+      visible: hasAccountingDesk,
+      title: 'GL, reconciliation, and period close',
     },
     {
       icon: <Landmark size={18} />,
-      label: String(roleKey || '').trim().toLowerCase() === 'cashier' ? 'Finance desk' : 'Finance',
+      label: financeNavLabel,
       to:
         String(roleKey || '').trim().toLowerCase() === 'cashier' ? '/accounts?tab=desk' : '/accounts',
       path: '/accounts',
       active: pathMatches(p, '/accounts') || pathMatches(p, '/cashier'),
-      visible: userMaySeeLegacyAccountsNav(roleKey, permissions),
+      visible: hasLegacyFinanceNav,
+      title: hasAccountingDesk
+        ? 'Receipts, payouts, and cashier workflows'
+        : 'Branch treasury, receipts, and payments',
     },
     {
       icon: <BarChart3 size={18} />,
       label: 'Reports',
       path: '/reports',
-      visible: ws?.canAccessModule?.('reports') ?? true,
+      visible: ws?.canAccessModule?.('reports') ?? false,
     },
     {
       icon: <Sparkles size={18} />,
@@ -180,14 +196,14 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       label: 'Edit approvals',
       path: '/edit-approvals',
       // Edit approvals is embedded on the workspace home (not a standalone page).
-      visible: false,
+      visible: (ws?.editApprovalsPendingCount ?? 0) > 0 || Boolean(ws?.canAccessModule?.('edit_approvals')),
       badgeCount: ws?.editApprovalsPendingCount ?? 0,
     },
     {
       icon: <Settings size={18} />,
       label: 'Settings',
       path: '/settings',
-      visible: ws?.canAccessModule?.('settings') ?? true,
+      visible: ws?.canAccessModule?.('settings') ?? false,
     },
   ];
 
@@ -224,7 +240,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
 
   return (
     <aside
-      className={`fixed left-0 top-0 max-w-[85vw] h-[100dvh] max-h-[100dvh] bg-[#134e4a] text-white flex flex-col z-[50] lg:z-40 border-r border-white/5 shadow-2xl lg:shadow-none transition-all duration-300 ease-out lg:translate-x-0 w-64 p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[max(1.5rem,env(safe-area-inset-left))] ${
+      className={`fixed left-0 top-0 max-w-[85vw] h-[100dvh] max-h-[100dvh] bg-zarewa-teal text-white flex flex-col z-[50] lg:z-40 border-r border-white/5 shadow-2xl lg:shadow-none transition-all duration-300 ease-out lg:translate-x-0 w-64 p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[max(1.5rem,env(safe-area-inset-left))] ${
         collapsed ? 'lg:w-16 lg:max-w-none lg:px-2 lg:py-5 lg:overflow-x-hidden' : 'lg:w-64 lg:max-w-none'
       } ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       aria-label="Main navigation"
@@ -248,7 +264,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
           </div>
           <div className={`min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
             <p className="font-black text-2xl uppercase leading-none tracking-tight text-white">Zarewa</p>
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/65">
+            <p className="mt-1 text-ui-xs font-bold uppercase tracking-[0.18em] text-white/65">
               Aluminium and Plastics Ltd
             </p>
           </div>
@@ -287,7 +303,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
                 to={item.to ?? item.path}
                 onClick={closeIfMobile}
                 className={linkClass(active)}
-                title={collapsed ? item.label : undefined}
+                title={item.title || (collapsed ? item.label : undefined)}
                 aria-label={item.label}
               >
                 <span className="relative inline-flex shrink-0">
@@ -299,17 +315,17 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
                     {item.icon}
                   </span>
                   {(item.badgeCount ?? 0) > 0 ? (
-                    <span className="absolute -right-1.5 -top-1 min-h-4 min-w-[1rem] rounded-full bg-amber-400 px-1 text-center text-[9px] font-black leading-4 text-teal-950 tabular-nums">
+                    <span className="absolute -right-1.5 -top-1 min-h-4 min-w-[1rem] rounded-full bg-amber-400 px-1 text-center text-ui-xs font-black leading-4 text-teal-950 tabular-nums">
                       {(item.badgeCount ?? 0) > 9 ? '9+' : item.badgeCount}
                     </span>
                   ) : null}
                 </span>
                 <span
-                  className={`flex min-w-0 flex-1 items-center justify-between gap-2 text-[11px] font-bold uppercase tracking-[0.15em] ${collapsed ? 'lg:hidden' : ''}`}
+                  className={`flex min-w-0 flex-1 items-center justify-between gap-2 text-xs font-bold uppercase tracking-[0.15em] ${collapsed ? 'lg:hidden' : ''}`}
                 >
                   <span>{item.label}</span>
                   {!collapsed && (item.badgeCount ?? 0) > 0 ? (
-                    <span className="rounded-full bg-amber-400/95 px-2 py-0.5 text-[9px] font-black tabular-nums text-teal-950">
+                    <span className="rounded-full bg-amber-400/95 px-2 py-0.5 text-ui-xs font-black tabular-nums text-teal-950">
                       {item.badgeCount > 9 ? '9+' : item.badgeCount}
                     </span>
                   ) : null}
@@ -332,7 +348,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
               : 'Offline'
         }
       >
-        <p className={`mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-white/30 ${collapsed ? 'lg:hidden' : ''}`}>
+        <p className={`mb-2 text-ui-xs font-black uppercase tracking-[0.2em] text-white/30 ${collapsed ? 'lg:hidden' : ''}`}>
           Mode
         </p>
         <div className={`flex items-center gap-2 ${collapsed ? 'lg:justify-center lg:gap-0' : ''}`}>
@@ -342,7 +358,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
             }`}
           />
           <span
-            className={`text-[10px] font-bold leading-snug text-white/70 ${collapsed ? 'lg:hidden' : ''}`}
+            className={`text-ui-xs font-bold leading-snug text-white/70 ${collapsed ? 'lg:hidden' : ''}`}
           >
             {ws?.apiOnline
               ? 'Live database connected'
@@ -357,7 +373,11 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
         variant="ghost"
         type="button"
         onClick={async () => {
-          if (!window.confirm('Sign out of this workspace?')) return;
+          const ok = await appConfirm({
+            title: 'Sign out',
+            message: 'Sign out of this workspace?',
+          });
+          if (!ok) return;
           try {
             closeIfMobile();
             await ws?.logout?.();
@@ -373,7 +393,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
         }`}
       >
         <LogOut size={18} className="shrink-0" />
-        <span className={`text-[11px] font-bold uppercase tracking-widest ${collapsed ? 'lg:hidden' : ''}`}>
+        <span className={`text-xs font-bold uppercase tracking-widest ${collapsed ? 'lg:hidden' : ''}`}>
           Sign out
         </span>
       </Button>

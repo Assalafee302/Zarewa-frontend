@@ -27,11 +27,11 @@ export function BranchManagerHealthStrip({ signals = [], onSelect, compact = fal
       aria-label="Branch health"
     >
       <div className={`flex items-center gap-2 ${compact ? 'mb-2 sm:mb-3' : 'mb-3'}`}>
-        <Activity size={compact ? 14 : 16} className="text-[#134e4a] shrink-0" aria-hidden />
-        <h2 className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.18em] text-[#134e4a]">
+        <Activity size={compact ? 14 : 16} className="text-zarewa-teal shrink-0" aria-hidden />
+        <h2 className="text-ui-xs sm:text-xs font-black uppercase tracking-[0.18em] text-zarewa-teal">
           Branch pulse
         </h2>
-        <p className="text-[10px] text-slate-500 ml-auto hidden sm:block">
+        <p className="text-ui-xs text-slate-500 ml-auto hidden sm:block">
           Green = clear · Amber = attention · Red = urgent
         </p>
       </div>
@@ -52,7 +52,7 @@ export function BranchManagerHealthStrip({ signals = [], onSelect, compact = fal
             >
               <span className={`h-2 w-2 rounded-full shrink-0 ${DOT_STYLES[tone] || DOT_STYLES.green}`} aria-hidden />
               <span className="min-w-0 text-left">
-                <span className="block text-[8px] sm:text-[9px] font-bold uppercase tracking-wide opacity-80">
+                <span className="block text-ui-xs sm:text-ui-xs font-bold uppercase tracking-wide opacity-80">
                   {s.label}
                 </span>
                 <span className={`block font-black tabular-nums leading-tight ${compact ? 'text-xs sm:text-sm' : 'text-sm'}`}>

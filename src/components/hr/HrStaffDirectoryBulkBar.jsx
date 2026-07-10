@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { HrFormModal } from './HrFormModal';
 import { HrManagerPicker } from './HrManagerPicker';
+import { appConfirm } from '../../lib/appConfirm';
 import { bulkUpdateHrStaff } from '../../lib/hrStaffExtras';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
@@ -55,8 +56,8 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onC
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#134e4a]/20 bg-teal-50/50 px-4 py-3">
-        <p className="text-xs font-bold uppercase tracking-wide text-[#134e4a]">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zarewa-teal/20 bg-teal-50/50 px-4 py-3">
+        <p className="text-xs font-bold uppercase tracking-wide text-zarewa-teal">
           {selectedIds.length} selected
         </p>
         <button type="button" className={HR_BTN_SECONDARY} onClick={() => setManagerOpen(true)} disabled={!!busy}>
@@ -79,8 +80,12 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onC
           type="button"
           className={HR_BTN_SECONDARY}
           disabled={!!busy}
-          onClick={() => {
-            if (!window.confirm(`Deactivate ${selectedIds.length} account(s)? They will lose login access.`)) return;
+          onClick={async () => {
+            if (!(await appConfirm({
+              title: 'Deactivate',
+              message: `Deactivate ${selectedIds.length} account(s)? They will lose login access.`,
+              variant: 'danger',
+            }))) return;
             runBulk({ accountStatus: 'inactive', action: 'deactivate' });
           }}
         >

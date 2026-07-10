@@ -421,7 +421,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
       <ProfileOverviewSection title="My loan requests" subtitle="Track approval progress">
         <p className="mb-3 text-xs text-slate-600">
           All requests also appear in{' '}
-          <Link to={HR_SELF_SERVICE_PATH.requests} className="font-semibold text-[#134e4a] hover:underline">
+          <Link to={HR_SELF_SERVICE_PATH.requests} className="font-semibold text-zarewa-teal hover:underline">
             My requests
           </Link>
           .
@@ -544,7 +544,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                       <Link
                         to={quoteLink.to}
                         state={quoteLink.state}
-                        className="mt-2 inline-block text-xs font-semibold text-[#134e4a] underline"
+                        className="mt-2 inline-block text-xs font-semibold text-zarewa-teal underline"
                       >
                         View quotation
                       </Link>

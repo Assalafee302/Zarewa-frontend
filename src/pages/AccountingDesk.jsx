@@ -345,7 +345,7 @@ export default function AccountingDesk() {
 
                 to="/accounts?tab=desk"
 
-                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
 
               >
 
@@ -357,7 +357,7 @@ export default function AccountingDesk() {
 
                 to="/accounts?tab=audit"
 
-                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
 
               >
 
@@ -369,7 +369,7 @@ export default function AccountingDesk() {
 
                 to="/procurement"
 
-                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
 
               >
 
@@ -387,7 +387,7 @@ export default function AccountingDesk() {
 
         <MainPanel className="mt-4 !rounded-xl !border-slate-200/90 !shadow-sm !bg-white !p-0 overflow-hidden">
 
-          <div className="h-1 bg-[#134e4a]" />
+          <div className="h-1 bg-zarewa-teal" />
 
           <div className="p-4 sm:p-5 md:p-6 space-y-4">
 
@@ -401,7 +401,7 @@ export default function AccountingDesk() {
 
             {accessDenied ? (
 
-              <p className="text-[11px] font-medium text-slate-600">{accessDenied}</p>
+              <p className="text-xs font-medium text-slate-600">{accessDenied}</p>
 
             ) : null}
 

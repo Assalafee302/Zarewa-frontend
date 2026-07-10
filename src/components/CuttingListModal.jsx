@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { createPortal } from 'react-dom';
+import { PrintModalPortal } from './layout/PrintModalPortal';
 import { useNavigate } from 'react-router-dom';
 import {
   X,
@@ -24,10 +24,13 @@ import { formatNgn } from '../Data/mockData';
 import { receiptCashReceivedNgn, normalizeReceiptMatchDashes } from '../lib/salesReceiptsList';
 import { STONE_METER_INVENTORY_MODEL } from '../lib/stoneCoatedQuotationPolicy';
 import { normalizeJobStatus } from '../lib/productionJobPick';
-import { productionGateOverrideEffective, quotationHasRecordedPayment } from '../lib/productionGateAccess';
+import { quotationHasRecordedPayment } from '../lib/productionGateAccess';
 import {
+  bookPaidTowardQuotation,
   cuttingListMinPaidFractionFromSession,
   meetsCuttingListPayThreshold,
+  receiptTillCashOnlyOnQuotation,
+  sumAdvanceAppliedNgnForQuotation,
 } from '../lib/cuttingListPaymentGate';
 import { validateCuttingListQuotedRoofingAlignment, cuttingListTotalMetresFromLines } from '../lib/refundCuttingListQuotationReconciliation';
 import { assessCuttingListQuotationConsumption } from '../lib/cuttingListBlankConsumption';
@@ -173,9 +176,9 @@ function materialSpecFromQuotation(q) {
   };
 }
 
-const label = 'text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
+const label = 'text-ui-xs font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
 const field =
-  'w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-orange-500/15';
+  'w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-orange-500/15';
 
 function CategoryBlock({
   title,
@@ -187,10 +190,10 @@ function CategoryBlock({
 }) {
   return (
     <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-3 space-y-2">
-      <h4 className="text-[10px] font-bold text-[#134e4a] uppercase tracking-widest border-b border-slate-200/80 pb-2">
+      <h4 className="text-ui-xs font-bold text-zarewa-teal uppercase tracking-widest border-b border-slate-200/80 pb-2">
         {title}
       </h4>
-      <div className="hidden sm:grid grid-cols-[2rem_4.5rem_4rem_3.5rem_4.5rem] gap-1 px-1 text-[8px] font-semibold text-slate-400 uppercase tracking-wider items-center">
+      <div className="hidden sm:grid grid-cols-[2rem_4.5rem_4rem_3.5rem_4.5rem] gap-1 px-1 text-ui-xs font-semibold text-slate-400 uppercase tracking-wider items-center">
         <div>#</div>
         <div>Length (m)</div>
         <div>Qty</div>
@@ -204,9 +207,9 @@ function CategoryBlock({
             key={line.id}
             className="grid grid-cols-1 sm:grid-cols-[2rem_4.5rem_4rem_3.5rem_4.5rem] gap-1.5 sm:gap-1 items-center bg-white p-2 rounded-lg border border-slate-200"
           >
-            <div className="flex sm:justify-center text-[10px] font-bold text-slate-300">{idx + 1}</div>
+            <div className="flex sm:justify-center text-ui-xs font-bold text-slate-300">{idx + 1}</div>
             <div>
-              <label className="sm:hidden text-[8px] font-semibold text-slate-400 uppercase">Length (m)</label>
+              <label className="sm:hidden text-ui-xs font-semibold text-slate-400 uppercase">Length (m)</label>
               <input
                 type="number"
                 min="0.01"
@@ -214,22 +217,22 @@ function CategoryBlock({
                 placeholder="4.5"
                 value={line.lengthM}
                 onChange={(e) => onUpdateLine(line.id, { lengthM: e.target.value })}
-                className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-[11px] font-semibold text-[#134e4a]"
+                className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-zarewa-teal"
               />
             </div>
             <div>
-              <label className="sm:hidden text-[8px] font-semibold text-slate-400 uppercase">Qty</label>
+              <label className="sm:hidden text-ui-xs font-semibold text-slate-400 uppercase">Qty</label>
               <input
                 type="number"
                 min="1"
                 placeholder="Qty"
                 value={line.sheets}
                 onChange={(e) => onUpdateLine(line.id, { sheets: e.target.value })}
-                className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-[11px] font-semibold text-[#134e4a]"
+                className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-zarewa-teal"
               />
             </div>
             <div className="text-center">
-              <span className="text-[11px] font-bold text-orange-600 tabular-nums">{totalM.toLocaleString()} m</span>
+              <span className="text-xs font-bold text-orange-600 tabular-nums">{totalM.toLocaleString()} m</span>
             </div>
             <div className="flex justify-end gap-0.5 sm:justify-center">
               {!readOnly ? (
@@ -311,6 +314,7 @@ const CuttingListModal = ({
   const lastCuttingListHydrateSigRef = useRef('');
   const autosaveTimerRef = useRef(null);
   const initialDraftAttemptedRef = useRef(false);
+  const [initialDraftAttempted, setInitialDraftAttempted] = useState(false);
   const pendingDraftIdRef = useRef('');
   const initialDraftInflightRef = useRef(null);
 
@@ -476,7 +480,7 @@ const CuttingListModal = ({
     ws?.canMutate &&
     hasAutosaveContent &&
     !savedCuttingListId &&
-    !initialDraftAttemptedRef.current;
+    !initialDraftAttempted;
 
   const bookPaidOnQuote = selectedQuotation ? bookPaidTowardQuotation(selectedQuotation) : 0;
   const advanceAppliedOnQuote = selectedQuotation
@@ -948,6 +952,7 @@ const CuttingListModal = ({
   useEffect(() => {
     if (!isOpen) {
       initialDraftAttemptedRef.current = false;
+      setInitialDraftAttempted(false);
       pendingDraftIdRef.current = '';
       initialDraftInflightRef.current = null;
       return;
@@ -966,6 +971,7 @@ const CuttingListModal = ({
 
     const promise = (async () => {
       initialDraftAttemptedRef.current = true;
+      setInitialDraftAttempted(true);
       setAutosaving(true);
       setAutosaveNote('Saving draft…');
       const body = buildPersistPayload({ autosave: true, draft: true });
@@ -1223,29 +1229,29 @@ const CuttingListModal = ({
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 gap-y-1">
-                <h2 className="text-base font-bold text-[#134e4a] tracking-tight">Cutting list</h2>
+                <h2 className="text-base font-bold text-zarewa-teal tracking-tight">Cutting list</h2>
                 <span
-                  className={`shrink-0 rounded-md px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${headerBadge}`}
+                  className={`shrink-0 rounded-md px-2 py-0.5 text-ui-xs font-semibold uppercase tracking-wide ${headerBadge}`}
                 >
                   {headerBadgeText}
                 </span>
               </div>
-              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5 leading-snug">
+              <p className="text-ui-xs font-semibold text-slate-400 uppercase tracking-widest mt-0.5 leading-snug">
                 {savedCuttingListId && !isDraftRecord ? (
                   <>
-                    ID <span className="font-mono text-[#134e4a]">{savedCuttingListId}</span>
+                    ID <span className="font-mono text-zarewa-teal">{savedCuttingListId}</span>
                     {' '}
-                    · status <span className="text-[#134e4a]">{displayCuttingListStatus(editData.status)}</span>
+                    · status <span className="text-zarewa-teal">{displayCuttingListStatus(editData.status)}</span>
                   </>
                 ) : isDraftRecord ? (
                   <span className="font-normal normal-case text-slate-600">
-                    ID <span className="font-mono font-semibold text-[#134e4a]">{savedCuttingListId}</span>
+                    ID <span className="font-mono font-semibold text-zarewa-teal">{savedCuttingListId}</span>
                     {' '}
                     · <span className="font-semibold text-slate-700 uppercase tracking-wide">Draft</span>
                     {autosaveNote ? (
-                      <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">{autosaveNote}</span>
+                      <span className="block text-ui-xs font-normal text-slate-500 normal-case mt-0.5">{autosaveNote}</span>
                     ) : (
-                      <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">
+                      <span className="block text-ui-xs font-normal text-slate-500 normal-case mt-0.5">
                         Click Save list when finished — your edits stay in this session until then.
                       </span>
                     )}
@@ -1256,13 +1262,13 @@ const CuttingListModal = ({
                     {quotationRef ? (
                       <>
                         {' '}
-                        · quotation <span className="font-mono font-semibold text-[#134e4a]">{quotationRef}</span>
+                        · quotation <span className="font-mono font-semibold text-zarewa-teal">{quotationRef}</span>
                       </>
                     ) : null}
                     {autosaveNote ? (
-                      <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">{autosaveNote}</span>
+                      <span className="block text-ui-xs font-normal text-slate-500 normal-case mt-0.5">{autosaveNote}</span>
                     ) : (
-                      <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">
+                      <span className="block text-ui-xs font-normal text-slate-500 normal-case mt-0.5">
                         Pick a quotation and enter lines — an initial draft is created once. Click Save list when finished.
                       </span>
                     )}
@@ -1307,7 +1313,7 @@ const CuttingListModal = ({
                       ? 'Draft is still saving'
                       : undefined
               }
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-semibold uppercase tracking-wide text-zarewa-teal hover:bg-slate-50 disabled:opacity-40"
             >
               <Printer size={14} /> Print
             </button>
@@ -1322,34 +1328,34 @@ const CuttingListModal = ({
         </div>
 
         {productionCompletedLock ? (
-          <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] font-medium text-amber-900">
+          <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-ui-xs font-medium text-amber-900">
             Production is finished for this list — editing is blocked to protect the completed record.
           </div>
         ) : null}
         {productionJobRunningLock ? (
-          <div className="no-print px-5 py-2 bg-violet-50 border-b border-violet-200 text-[10px] font-medium text-violet-950">
+          <div className="no-print px-5 py-2 bg-violet-50 border-b border-violet-200 text-ui-xs font-medium text-violet-950">
             Production is Running for this list — editing is blocked until the job finishes or is corrected on Operations. You can still print or close this window.
           </div>
         ) : null}
         {productionOnQueue && !productionJobRunningLock ? (
-          <div className="no-print px-5 py-2 bg-teal-50 border-b border-teal-200 text-[10px] font-medium text-teal-900">
+          <div className="no-print px-5 py-2 bg-teal-50 border-b border-teal-200 text-ui-xs font-medium text-teal-900">
             On the production queue — you can still update lengths and quantities until the run is completed.
           </div>
         ) : null}
         {hasUnsavedCuttingListChanges && editData?.id && !isDraftRecord ? (
-          <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] font-medium text-amber-900">
+          <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-ui-xs font-medium text-amber-900">
             Unsaved changes — save the list before printing so metres on the sheet match the system.
           </div>
         ) : null}
         {editData?.id && editData?.productionReleasePending && !productionCompletedLock ? (
-          <div className="no-print px-5 py-2.5 bg-sky-50 border-b border-sky-200 text-[10px] text-sky-950 space-y-2">
+          <div className="no-print px-5 py-2.5 bg-sky-50 border-b border-sky-200 text-ui-xs text-sky-950 space-y-2">
             <p className="font-semibold">Receipts and cutting lists are separate: this list is on hold until operations releases it for production.</p>
             {canClearProductionHold ? (
               <button
                 type="button"
                 disabled={clearingHold}
                 onClick={clearProductionHold}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300 bg-white px-3 py-2 text-[9px] font-bold uppercase tracking-wide text-sky-900 hover:bg-sky-100 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300 bg-white px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-sky-900 hover:bg-sky-100 disabled:opacity-50"
               >
                 {clearingHold ? 'Clearing…' : 'Clear production hold'}
               </button>
@@ -1359,12 +1365,12 @@ const CuttingListModal = ({
           </div>
         ) : null}
         {accessMode === 'view' ? (
-          <div className="no-print px-5 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-medium text-slate-600">
+          <div className="no-print px-5 py-2 bg-slate-50 border-b border-slate-200 text-ui-xs font-medium text-slate-600">
             View only.
           </div>
         ) : null}
         {!ws?.canMutate ? (
-          <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] font-semibold text-amber-900">
+          <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-ui-xs font-semibold text-amber-900">
             System offline (read-only). Reconnect and refresh before saving, queueing, or printing cutting lists.
           </div>
         ) : null}
@@ -1374,7 +1380,7 @@ const CuttingListModal = ({
             className={`w-full lg:flex-1 lg:min-h-0 lg:overflow-y-auto p-5 custom-scrollbar lg:border-r border-slate-100 ${readOnly ? 'pointer-events-none opacity-75' : ''}`}
           >
             <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-slate-50/50">
-              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-3">Job header</p>
+              <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Job header</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="md:col-span-2 space-y-2 relative z-20">
                   <div className="grid grid-cols-1 sm:grid-cols-[1fr_11rem] gap-3 items-end">
@@ -1423,14 +1429,14 @@ const CuttingListModal = ({
                       {showQuotePicker ? (
                         <div className="absolute z-[25] left-0 right-0 mt-1 max-h-[min(360px,55vh)] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl custom-scrollbar p-1">
                           {filteredQuotePicker.length === 0 ? (
-                            <div className="p-3 text-[10px] font-medium text-slate-600 space-y-2">
+                            <div className="p-3 text-ui-xs font-medium text-slate-600 space-y-2">
                               {knownQuotePickerBlocker?.kind === 'has_draft' ? (
                                 <div className="text-left rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900">
-                                  <p className="font-bold text-[11px]">
+                                  <p className="font-bold text-xs">
                                     {knownQuotePickerBlocker.q.id} has a saved draft{' '}
                                     <span className="font-mono">{knownQuotePickerBlocker.listId}</span>
                                   </p>
-                                  <p className="text-[9px] leading-snug mt-1">
+                                  <p className="text-ui-xs leading-snug mt-1">
                                     Continue where you left off instead of starting again.
                                   </p>
                                   <button
@@ -1439,14 +1445,14 @@ const CuttingListModal = ({
                                       resumeDraftFromServer(knownQuotePickerBlocker.draft);
                                       setShowQuotePicker(false);
                                     }}
-                                    className="mt-2 inline-flex rounded-lg border border-[#134e4a]/20 bg-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50"
+                                    className="mt-2 inline-flex rounded-lg border border-zarewa-teal/20 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-teal-50"
                                   >
                                     Resume draft
                                   </button>
                                 </div>
                               ) : knownQuotePickerBlocker?.kind === 'has_list' ? (
                                 <div className="text-left rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
-                                  <p className="font-bold text-[11px] text-amber-900">
+                                  <p className="font-bold text-xs text-amber-900">
                                     {knownQuotePickerBlocker.q.id} already has cutting list{' '}
                                     <span className="font-mono">{knownQuotePickerBlocker.listId}</span>
                                     {knownQuotePickerBlocker.branchId ? (
@@ -1456,7 +1462,7 @@ const CuttingListModal = ({
                                       </span>
                                     ) : null}
                                   </p>
-                                  <p className="text-[9px] text-amber-900/90 leading-snug mt-1">
+                                  <p className="text-ui-xs text-amber-900/90 leading-snug mt-1">
                                     It will not appear under &quot;New cutting list&quot;. Go to Sales → Cutting list and search that list
                                     ID. If you do not see it, switch the workspace branch to match the branch above, or ask an admin to remove
                                     a stray record.
@@ -1464,15 +1470,15 @@ const CuttingListModal = ({
                                 </div>
                               ) : knownQuotePickerBlocker?.kind === 'zero_total' ? (
                                 <div className="text-left rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800">
-                                  <p className="font-bold text-[11px]">Quotation {knownQuotePickerBlocker.q.id} has zero total</p>
-                                  <p className="text-[9px] leading-snug mt-1">Add priced lines to the quotation before creating a cutting list.</p>
+                                  <p className="font-bold text-xs">Quotation {knownQuotePickerBlocker.q.id} has zero total</p>
+                                  <p className="text-ui-xs leading-snug mt-1">Add priced lines to the quotation before creating a cutting list.</p>
                                 </div>
                               ) : knownQuotePickerBlocker?.kind === 'under_paid' ? (
                                 <div className="text-left rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
-                                  <p className="font-bold text-[11px] text-amber-900">
+                                  <p className="font-bold text-xs text-amber-900">
                                     {knownQuotePickerBlocker.q.id} is under {minPaidPercentLabel}% paid
                                   </p>
-                                  <p className="text-[9px] text-amber-900/90 leading-snug mt-1">
+                                  <p className="text-ui-xs text-amber-900/90 leading-snug mt-1">
                                     Record more payments on this quotation, or ask a manager for a production override on the Manager
                                     dashboard. Underpaid quotes are hidden from this list.
                                   </p>
@@ -1508,9 +1514,9 @@ const CuttingListModal = ({
                                   }`}
                                 >
                                   <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs font-bold text-[#134e4a]">{q.id}</span>
+                                    <span className="text-xs font-bold text-zarewa-teal">{q.id}</span>
                                     <span
-                                      className={`text-[8px] font-bold uppercase tracking-tight shrink-0 px-1.5 py-0.5 rounded ${
+                                      className={`text-ui-xs font-bold uppercase tracking-tight shrink-0 px-1.5 py-0.5 rounded ${
                                         okPay ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                                       }`}
                                     >
@@ -1518,8 +1524,8 @@ const CuttingListModal = ({
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                                    <span className="text-[11px] font-semibold text-slate-800 truncate">{cust || '—'}</span>
-                                    <span className="text-[10px] font-bold text-orange-700 tabular-nums shrink-0">
+                                    <span className="text-xs font-semibold text-slate-800 truncate">{cust || '—'}</span>
+                                    <span className="text-ui-xs font-bold text-orange-700 tabular-nums shrink-0">
                                       {formatNgn(bookPaidTowardQuotation(q))} /{' '}
                                       {formatNgn(Number(q.totalNgn ?? q.total_ngn) || 0)}
                                     </span>
@@ -1545,7 +1551,7 @@ const CuttingListModal = ({
                     </div>
                   </div>
                   {isCreate && selectableQuotations.length === 0 ? (
-                    <p className="text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    <p className="text-ui-xs font-medium text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                       No quotations are ready for a new cutting list. You need an order with a line total, at least{' '}
                       {minPaidPercentLabel}% paid, and no existing cutting list on that quote.
                     </p>
@@ -1563,7 +1569,7 @@ const CuttingListModal = ({
                         <p className="text-xs font-bold text-amber-900">
                           Low payment ({payPercentOnQuote}% book · need {minPaidPercentLabel}% for cutting without override)
                         </p>
-                        <p className="text-[10px] text-amber-800 leading-snug">
+                        <p className="text-ui-xs text-amber-800 leading-snug">
                           {quotationHasRecordedPayment(selectedQuotation.paidNgn ?? selectedQuotation.paid_ngn)
                             ? 'Branch Manager may approve production below the payment threshold on the Manager dashboard. After approval, refresh and try again.'
                             : 'This quotation has zero payment — only the Managing Director may approve cutting list / production on the Manager dashboard. After MD approval, refresh and try again.'}
@@ -1576,7 +1582,7 @@ const CuttingListModal = ({
                         onClose();
                         navigate(`/manager?quoteRef=${encodeURIComponent(quotationRef)}`);
                       })}
-                      className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-[#134e4a] text-white text-[9px] font-bold uppercase tracking-wider hover:bg-[#0f3d39] transition-colors"
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-zarewa-teal text-white text-ui-xs font-bold uppercase tracking-wider hover:bg-[#0f3d39] transition-colors"
                     >
                       Open Manager dashboard for this quotation
                     </button>
@@ -1588,7 +1594,7 @@ const CuttingListModal = ({
             <div className="space-y-4">
               {selectedQuotationAccessoriesOnly ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-xs text-emerald-950">
-                  <p className="font-bold uppercase tracking-wider text-[10px]">Accessories-only release</p>
+                  <p className="font-bold uppercase tracking-wider text-ui-xs">Accessories-only release</p>
                   <p className="mt-1 leading-snug">
                     This quotation has accessory quantities and no sheet product lines, so the list will save with
                     0 metres. Send it to production, start it as “Produced from offcut / accessories only”, then
@@ -1612,78 +1618,78 @@ const CuttingListModal = ({
           </div>
 
           <div className="w-full lg:w-72 lg:shrink-0 lg:min-h-0 bg-slate-50/90 p-4 flex flex-col gap-3 border-t lg:border-t-0 lg:border-l border-slate-100 lg:overflow-y-auto custom-scrollbar">
-            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+            <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
               <Info size={12} className="text-orange-500 shrink-0" />
               Job spec
             </p>
             <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
-              <p className="text-[8px] font-semibold text-slate-400 uppercase">From quotation</p>
-              <div className="flex justify-between gap-2 text-[10px] font-semibold">
+              <p className="text-ui-xs font-semibold text-slate-400 uppercase">From quotation</p>
+              <div className="flex justify-between gap-2 text-ui-xs font-semibold">
                 <span className="text-slate-500 shrink-0">Customer</span>
-                <span className="text-[#134e4a] text-right">{selectedQuotation?.customer ?? '—'}</span>
+                <span className="text-zarewa-teal text-right">{selectedQuotation?.customer ?? '—'}</span>
               </div>
-              <div className="flex justify-between gap-2 text-[10px] font-semibold">
+              <div className="flex justify-between gap-2 text-ui-xs font-semibold">
                 <span className="text-slate-500 shrink-0">Colour</span>
-                <span className="text-[#134e4a] text-right">{materialSpec.colour}</span>
+                <span className="text-zarewa-teal text-right">{materialSpec.colour}</span>
               </div>
-              <div className="flex justify-between gap-2 text-[10px] font-semibold">
+              <div className="flex justify-between gap-2 text-ui-xs font-semibold">
                 <span className="text-slate-500 shrink-0">Gauge</span>
-                <span className="text-[#134e4a] text-right tabular-nums">{materialSpec.gauge}</span>
+                <span className="text-zarewa-teal text-right tabular-nums">{materialSpec.gauge}</span>
               </div>
               {!selectedQuotationAccessoriesOnly ? (
-                <div className="flex justify-between gap-2 text-[10px] font-semibold">
+                <div className="flex justify-between gap-2 text-ui-xs font-semibold">
                   <span className="text-slate-500 shrink-0">Quoted sheet m</span>
-                  <span className="text-[#134e4a] text-right tabular-nums">
+                  <span className="text-zarewa-teal text-right tabular-nums">
                     {quotationConsumption.quotedSheetPoolM.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
                   </span>
                 </div>
               ) : null}
               {!selectedQuotationAccessoriesOnly && quotationConsumption.quotedTrimBlankM > 0 ? (
-                <div className="flex justify-between gap-2 text-[10px] font-semibold">
+                <div className="flex justify-between gap-2 text-ui-xs font-semibold">
                   <span className="text-slate-500 shrink-0">Trim blank m</span>
-                  <span className="text-[#134e4a] text-right tabular-nums">
+                  <span className="text-zarewa-teal text-right tabular-nums">
                     {quotationConsumption.quotedTrimBlankM.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
                   </span>
                 </div>
               ) : null}
               {!selectedQuotationAccessoriesOnly ? (
-                <div className="flex justify-between gap-2 text-[10px] font-semibold">
+                <div className="flex justify-between gap-2 text-ui-xs font-semibold">
                   <span className="text-slate-500 shrink-0">Expected total m</span>
-                  <span className="text-[#134e4a] text-right tabular-nums">
+                  <span className="text-zarewa-teal text-right tabular-nums">
                     {quotationConsumption.expectedTotalM.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
                   </span>
                 </div>
               ) : null}
               {!selectedQuotationAccessoriesOnly ? (
-                <div className="flex justify-between gap-2 text-[10px] font-semibold">
+                <div className="flex justify-between gap-2 text-ui-xs font-semibold">
                   <span className="text-slate-500 shrink-0">List total m</span>
-                  <span className="text-[#134e4a] text-right tabular-nums">
+                  <span className="text-zarewa-teal text-right tabular-nums">
                     {totalMeters.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
                   </span>
                 </div>
               ) : null}
-              <div className="flex justify-between gap-2 text-[10px] font-semibold">
+              <div className="flex justify-between gap-2 text-ui-xs font-semibold">
                 <span className="text-slate-500 shrink-0">Profile</span>
-                <span className="text-[#134e4a] text-right">{materialSpec.profile}</span>
+                <span className="text-zarewa-teal text-right">{materialSpec.profile}</span>
               </div>
               {selectedQuotation ? (
-                <div className="border-t border-slate-100 pt-2 mt-1 space-y-1 text-[10px]">
+                <div className="border-t border-slate-100 pt-2 mt-1 space-y-1 text-ui-xs">
                   <div className="flex justify-between gap-2 font-semibold">
                     <span className="text-slate-500">Quote total</span>
-                    <span className="text-[#134e4a] tabular-nums">
+                    <span className="text-zarewa-teal tabular-nums">
                       {selectedQuotation.total ?? formatNgn(totalQuoteNgn)}
                     </span>
                   </div>
                   <div className="flex justify-between gap-2 font-semibold">
                     <span className="text-slate-500">Booked paid</span>
-                    <span className="text-[#134e4a] tabular-nums">{formatNgn(bookPaidOnQuote)}</span>
+                    <span className="text-zarewa-teal tabular-nums">{formatNgn(bookPaidOnQuote)}</span>
                   </div>
-                  <div className="flex justify-between gap-2 text-[9px] font-semibold text-slate-600">
+                  <div className="flex justify-between gap-2 text-ui-xs font-semibold text-slate-600">
                     <span className="text-slate-500">Receipts (till)</span>
                     <span className="tabular-nums">{formatNgn(receiptTillOnQuote)}</span>
                   </div>
                   {advanceAppliedOnQuote > 0 ? (
-                    <div className="flex justify-between gap-2 text-[9px] font-semibold text-slate-600">
+                    <div className="flex justify-between gap-2 text-ui-xs font-semibold text-slate-600">
                       <span className="text-slate-500">Advance applied</span>
                       <span className="tabular-nums">{formatNgn(advanceAppliedOnQuote)}</span>
                     </div>
@@ -1697,8 +1703,8 @@ const CuttingListModal = ({
             </div>
 
             {!selectedQuotationAccessoriesOnly && selectedQuotation && !quotationMetreAlignment.ok ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[10px] text-amber-950 leading-snug">
-                <p className="font-bold uppercase tracking-wide text-[9px] text-amber-900">Quotation mismatch</p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-ui-xs text-amber-950 leading-snug">
+                <p className="font-bold uppercase tracking-wide text-ui-xs text-amber-900">Quotation mismatch</p>
                 <p className="mt-1">{quotationMetreAlignment.message}</p>
               </div>
             ) : null}
@@ -1707,8 +1713,8 @@ const CuttingListModal = ({
             selectedQuotation &&
             quotationMetreAlignment.ok &&
             quotationConsumption.warnings?.length ? (
-              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-[10px] text-sky-950 leading-snug">
-                <p className="font-bold uppercase tracking-wide text-[9px] text-sky-900">Coil consumption note</p>
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-ui-xs text-sky-950 leading-snug">
+                <p className="font-bold uppercase tracking-wide text-ui-xs text-sky-900">Coil consumption note</p>
                 <ul className="mt-1 list-disc pl-4 space-y-0.5">
                   {quotationConsumption.warnings.map((msg) => (
                     <li key={msg}>{msg}</li>
@@ -1717,14 +1723,14 @@ const CuttingListModal = ({
               </div>
             ) : null}
 
-            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest">This order — detail</p>
+            <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest">This order — detail</p>
             {!selectedQuotation ? (
-              <p className="text-[10px] text-slate-500">Select a quotation to see line items and receipts for this order.</p>
+              <p className="text-ui-xs text-slate-500">Select a quotation to see line items and receipts for this order.</p>
             ) : (
-              <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3 text-[10px] leading-snug">
+              <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-3 text-ui-xs leading-snug">
                 {quoteLineSnippet.length > 0 ? (
                   <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Quoted lines</p>
+                    <p className="text-ui-xs font-bold text-slate-400 uppercase mb-1">Quoted lines</p>
                     <ul className="space-y-0.5 max-h-36 overflow-y-auto custom-scrollbar">
                       {quoteLineSnippet.map((row, i) => (
                         <li key={`${row.cat}-${i}`} className="flex justify-between gap-2 border-b border-slate-50 pb-1 last:border-0">
@@ -1739,7 +1745,7 @@ const CuttingListModal = ({
                 )}
 
                 <div>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Receipts (this quotation)</p>
+                  <p className="text-ui-xs font-bold text-slate-400 uppercase mb-1">Receipts (this quotation)</p>
                   {quoteReceipts.length === 0 ? (
                     <p className="text-slate-500">No receipts linked.</p>
                   ) : (
@@ -1747,7 +1753,7 @@ const CuttingListModal = ({
                       {quoteReceipts.map((r) => (
                         <li key={r.id} className="flex justify-between gap-2 border-b border-slate-100 pb-1 last:border-0">
                           <span className="text-slate-600">{r.date ?? r.dateISO}</span>
-                          <span className="font-semibold text-[#134e4a] tabular-nums">
+                          <span className="font-semibold text-zarewa-teal tabular-nums">
                             {formatNgn(receiptCashReceivedNgn(r))}
                           </span>
                         </li>
@@ -1758,18 +1764,18 @@ const CuttingListModal = ({
 
                 {editData?.id ? (
                   <div className="rounded-lg border border-orange-100 bg-orange-50/60 p-2">
-                    <p className="font-bold text-orange-900 text-[9px] uppercase">This cutting list</p>
+                    <p className="font-bold text-orange-900 text-ui-xs uppercase">This cutting list</p>
                     <p className="text-slate-800 mt-1 tabular-nums">{editData.total ?? `${editData.totalMeters ?? totalMeters} m`}</p>
                   </div>
                 ) : null}
 
                 {isCreate || isDraftRecord ? (
-                  <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2 text-[10px] text-slate-700">
+                  <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2 text-ui-xs text-slate-700">
                     <input
                       type="checkbox"
                       checked={holdForProductionApproval}
                       onChange={(ev) => setHoldForProductionApproval(ev.target.checked)}
-                      className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-[#134e4a]"
+                      className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-zarewa-teal"
                     />
                     <span>
                       <span className="font-bold text-slate-800">Request operations approval</span> before this list
@@ -1781,18 +1787,18 @@ const CuttingListModal = ({
             )}
 
             {editData?.id && !editData?.productionRegistered && editData?.productionReleasePending ? (
-              <p className="text-[9px] font-medium text-amber-900 bg-amber-50 border border-amber-100 rounded-lg p-2 leading-snug">
+              <p className="text-ui-xs font-medium text-amber-900 bg-amber-50 border border-amber-100 rounded-lg p-2 leading-snug">
                 Clear the operations production hold above before sending to the queue.
               </p>
             ) : null}
 
             {editData?.id && !editData?.productionRegistered && hasUnsavedCuttingListChanges && !isDraftRecord ? (
-              <p className="text-[9px] font-medium text-amber-900 bg-amber-50 border border-amber-100 rounded-lg p-2 leading-snug">
+              <p className="text-ui-xs font-medium text-amber-900 bg-amber-50 border border-amber-100 rounded-lg p-2 leading-snug">
                 Save your changes before sending this list to the production queue.
               </p>
             ) : null}
             {editData?.id && !editData?.productionRegistered && quotationConsumption.trimBlankProductionBlocked ? (
-              <p className="text-[9px] font-medium text-rose-900 bg-rose-50 border border-rose-100 rounded-lg p-2 leading-snug">
+              <p className="text-ui-xs font-medium text-rose-900 bg-rose-50 border border-rose-100 rounded-lg p-2 leading-snug">
                 Trim blank is missing from the Flatsheet section. Add flatsheet lines for quoted ridge/trim before production.
               </p>
             ) : null}
@@ -1814,24 +1820,24 @@ const CuttingListModal = ({
                       ? 'Add trim blank under Flatsheet before production'
                       : undefined
                 }
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#134e4a]/20 bg-[#134e4a] px-3 py-2.5 text-[9px] font-semibold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-zarewa-teal/20 bg-zarewa-teal px-3 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
               >
                 <Factory size={14} className="shrink-0" />
                 {registering ? 'Sending…' : 'Send to production queue'}
               </button>
             ) : null}
             {editData?.id && !editData?.productionRegistered && ws?.canMutate && !canRegisterProduction ? (
-              <p className="text-[9px] text-slate-500 leading-snug">
+              <p className="text-ui-xs text-slate-500 leading-snug">
                 Ask an admin for sales, operations, or production access to send this list to the queue.
               </p>
             ) : null}
             {editData?.id && !editData?.productionRegistered && !ws?.canMutate ? (
-              <p className="text-[9px] text-slate-500 leading-snug">
+              <p className="text-ui-xs text-slate-500 leading-snug">
                 Connect and sign in to send this cutting list to the production queue.
               </p>
             ) : null}
 
-            <p className="text-[9px] leading-snug text-orange-900 bg-orange-50 border border-orange-100 rounded-lg p-2 font-medium">
+            <p className="text-ui-xs leading-snug text-orange-900 bg-orange-50 border border-orange-100 rounded-lg p-2 font-medium">
               {isDraftRecord
                 ? 'Draft lists save as you type. Click Save list when all lines are complete — then the list moves to Waiting for production.'
                 : 'Status: Waiting → In production when the line starts → Finished when production completes.'}
@@ -1852,43 +1858,29 @@ const CuttingListModal = ({
           </div>
         ) : null}
 
-        <div className="no-print px-5 py-4 bg-[#134e4a] flex justify-between items-center text-white shrink-0 flex-wrap gap-3">
+        <div className="no-print px-5 py-4 bg-zarewa-teal flex justify-between items-center text-white shrink-0 flex-wrap gap-3">
           <div>
-            <p className="text-[9px] font-semibold text-white/50 uppercase tracking-widest mb-0.5">
+            <p className="text-ui-xs font-semibold text-white/50 uppercase tracking-widest mb-0.5">
               Total linear metres
             </p>
             <p className="text-2xl font-bold text-white tabular-nums">
               {totalMeters.toLocaleString()} <span className="text-sm text-white/40 font-semibold ml-0.5">m</span>
             </p>
-            <p className="text-[9px] text-white/40 mt-1">Sheets (qty sum): {computedSheets.toLocaleString()}</p>
+            <p className="text-ui-xs text-white/40 mt-1">Sheets (qty sum): {computedSheets.toLocaleString()}</p>
           </div>
           <button
             type="submit"
             disabled={readOnly || saving}
-            className="bg-white/10 text-white px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide hover:bg-white/20 disabled:opacity-40"
+            className="bg-white/10 text-white px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide hover:bg-white/20 disabled:opacity-40"
           >
             {saving ? 'Saving…' : isDraftRecord || isCreate ? 'Save list' : 'Update list'}
           </button>
         </div>
       </form>
 
-      {showPrintPreview &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <>
-            <button
-              type="button"
-              aria-label="Close print preview"
-              className="no-print fixed inset-0 z-[11060] bg-black/50"
-              onClick={() => setShowPrintPreview(false)}
-            />
-            <div
-              className="print-portal-scroll fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8"
-              onClick={() => setShowPrintPreview(false)}
-            >
+      <PrintModalPortal open={showPrintPreview} onClose={() => setShowPrintPreview(false)}>
               <div
                 className="mx-auto max-w-[297mm] pb-16 print-cutting-list-a4-host"
-                onClick={(e) => e.stopPropagation()}
               >
                 <div className="rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
                   <CuttingListReportPrintView {...printPayload} />
@@ -1900,19 +1892,19 @@ const CuttingListModal = ({
                       onClick={() => void runCuttingListPrint()}
                       disabled={recordingPrint || isDraftRecord || hasUnsavedCuttingListChanges}
                       title="The layout uses A4 landscape (@page). Most browsers open the print dialog with A4 and landscape pre-selected; if not, choose them manually. Use Scale → Fit to page only if content still clips."
-                      className="rounded-lg bg-[#134e4a] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg disabled:opacity-60"
+                      className="rounded-lg bg-zarewa-teal px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-white shadow-lg disabled:opacity-60"
                     >
                       {recordingPrint ? 'Recording print…' : 'Print / Save PDF · A4 landscape'}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowPrintPreview(false)}
-                      className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700"
+                      className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-700"
                     >
                       Close
                     </button>
                   </div>
-                  <p className="text-center text-[9px] text-slate-500 max-w-sm leading-snug">
+                  <p className="text-center text-ui-xs text-slate-500 max-w-sm leading-snug">
                     Each print is counted at the bottom of the sheet for audit. Stylesheet uses{' '}
                     <span className="font-semibold text-slate-600">A4 landscape</span> (named @page) so one sheet usually fits
                     without a blank second page. If the dialog shows Letter or portrait, switch to A4 and landscape. Use{' '}
@@ -1920,10 +1912,7 @@ const CuttingListModal = ({
                   </p>
                 </div>
               </div>
-            </div>
-          </>,
-          document.body
-        )}
+      </PrintModalPortal>
     </ModalFrame>
   );
 };

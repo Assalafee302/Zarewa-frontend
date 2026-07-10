@@ -67,8 +67,8 @@ export function HrStaffDuplicateCleanupPanel({ onCleaned }) {
           <div>
             <p className="font-bold text-amber-950">Fix duplicate staff from failed imports</p>
             <p className="mt-1 text-xs text-amber-900/90">
-              Failed uploads may have created extra logins (e.g. <code className="text-[10px]">surname.51</code>,{' '}
-              <code className="text-[10px]">surname.52</code>) or accounts without HR profiles. This tool keeps one
+              Failed uploads may have created extra logins (e.g. <code className="text-ui-xs">surname.51</code>,{' '}
+              <code className="text-ui-xs">surname.52</code>) or accounts without HR profiles. This tool keeps one
               account per employee number and removes the rest.
             </p>
           </div>
@@ -87,7 +87,7 @@ export function HrStaffDuplicateCleanupPanel({ onCleaned }) {
               type="button"
               onClick={() => void runCleanup()}
               disabled={Boolean(busy)}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide ${
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-wide ${
                 confirm
                   ? 'bg-red-700 text-white hover:bg-red-800'
                   : 'border border-red-200 bg-white text-red-800 hover:bg-red-50'
@@ -142,7 +142,7 @@ export function HrStaffDuplicateCleanupPanel({ onCleaned }) {
             </AppTableBody>
           </AppTable>
           {removals.length > 40 ? (
-            <p className="px-4 py-2 text-[10px] text-amber-800">…and {removals.length - 40} more</p>
+            <p className="px-4 py-2 text-ui-xs text-amber-800">…and {removals.length - 40} more</p>
           ) : null}
         </AppTableWrap>
       ) : null}

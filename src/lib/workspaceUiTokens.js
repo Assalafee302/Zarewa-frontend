@@ -2,7 +2,7 @@
 
 export const WS_SURFACE = 'rounded-xl border border-slate-200/90 bg-white shadow-sm';
 export const WS_SECTION_LABEL =
-  'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
+  'text-xs font-semibold uppercase tracking-wide text-slate-500';
 
 export function wsBadge(tone = 'neutral') {
   const tones = {
@@ -14,7 +14,7 @@ export function wsBadge(tone = 'neutral') {
     emerald: 'bg-emerald-50 text-emerald-900 ring-emerald-100',
     restricted: 'bg-slate-100 text-slate-600 ring-slate-200',
   };
-  return `inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${tones[tone] || tones.neutral}`;
+  return `inline-flex items-center rounded-md px-2 py-0.5 text-ui-xs font-semibold ring-1 ${tones[tone] || tones.neutral}`;
 }
 
 export function wsPriorityBadge(priority) {

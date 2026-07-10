@@ -1,14 +1,30 @@
 /* eslint-disable react-refresh/only-export-components -- provider + hook */
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { CheckCircle2, Info, AlertCircle, X } from 'lucide-react';
+import { CheckCircle2, Info, AlertCircle, AlertTriangle, X } from 'lucide-react';
 
 const ToastContext = createContext(null);
 
 const VARIANT = {
-  success: { icon: CheckCircle2, bar: 'bg-emerald-500' },
-  info: { icon: Info, bar: 'bg-[#134e4a]' },
-  error: { icon: AlertCircle, bar: 'bg-rose-500' },
+  success: { icon: CheckCircle2, bar: 'bg-emerald-500', iconClass: 'text-emerald-600' },
+  info: { icon: Info, bar: 'bg-zarewa-teal', iconClass: 'text-zarewa-teal' },
+  warning: { icon: AlertTriangle, bar: 'bg-amber-500', iconClass: 'text-amber-600' },
+  error: { icon: AlertCircle, bar: 'bg-rose-500', iconClass: 'text-rose-500' },
 };
+
+const TOAST_CAP = 6;
+const MIN_DURATION_MS = 4200;
+const MAX_DURATION_MS = 12_000;
+
+function resolveVariant(opts) {
+  const raw = opts.variant ?? opts.type ?? 'success';
+  return raw in VARIANT ? raw : 'success';
+}
+
+function durationForMessage(message, opts) {
+  if (typeof opts.duration === 'number') return opts.duration;
+  const len = String(message || '').length;
+  return Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, 3200 + len * 35));
+}
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -23,9 +39,9 @@ export function ToastProvider({ children }) {
         typeof crypto !== 'undefined' && crypto.randomUUID
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random()}`;
-      const variant = opts.variant in VARIANT ? opts.variant : 'success';
-      setToasts((t) => [...t, { id, message, variant }].slice(-4));
-      const ms = typeof opts.duration === 'number' ? opts.duration : 4200;
+      const variant = resolveVariant(opts);
+      setToasts((t) => [...t, { id, message, variant }].slice(-TOAST_CAP));
+      const ms = durationForMessage(message, opts);
       window.setTimeout(() => dismiss(id), ms);
     },
     [dismiss]
@@ -33,36 +49,32 @@ export function ToastProvider({ children }) {
 
   const value = useMemo(() => ({ show, dismiss }), [show, dismiss]);
 
+  const hasError = toasts.some((t) => t.variant === 'error');
+  const liveMode = hasError ? 'assertive' : 'polite';
+
   return (
     <ToastContext.Provider value={value}>
       {children}
       <div
-        className="fixed z-[1100] flex flex-col gap-2 w-[min(100vw-2rem,380px)] pointer-events-none bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))]"
-        aria-live="polite"
+        role="region"
+        aria-label="Notifications"
+        className="fixed z-[var(--z-layer-toast)] flex flex-col gap-2 w-[min(100vw-2rem,380px)] pointer-events-none bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))]"
+        aria-live={liveMode}
         aria-relevant="additions text"
       >
         {toasts.map((t) => {
           const cfg = VARIANT[t.variant] ?? VARIANT.success;
           const Icon = cfg.icon;
+          const isError = t.variant === 'error';
           return (
             <div
               key={t.id}
               className="z-toast-item pointer-events-auto flex gap-3 rounded-2xl bg-white border border-gray-100/90 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.35)] overflow-hidden"
-              role="status"
+              role={isError ? 'alert' : 'status'}
             >
               <div className={`w-1 shrink-0 ${cfg.bar}`} aria-hidden />
               <div className="flex flex-1 items-start gap-3 py-3.5 pl-2 pr-1">
-                <Icon
-                  className={`shrink-0 mt-0.5 ${
-                    t.variant === 'error'
-                      ? 'text-rose-500'
-                      : t.variant === 'info'
-                        ? 'text-[#134e4a]'
-                        : 'text-emerald-600'
-                  }`}
-                  size={20}
-                  strokeWidth={2}
-                />
+                <Icon className={`shrink-0 mt-0.5 ${cfg.iconClass}`} size={20} strokeWidth={2} />
                 <p className="text-[13px] font-medium text-gray-800 leading-snug flex-1 pt-0.5">
                   {t.message}
                 </p>

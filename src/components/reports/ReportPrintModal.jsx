@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
+import { PrintModalPortal } from '../layout/PrintModalPortal';
 import { StandardReportPrintShell } from './StandardReportPrintShell';
 
 const TH_BASE =
-  'px-2 py-1.5 text-left text-[9px] font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
-const TD_BASE = 'px-2 py-1.5 align-top text-[11px] text-slate-800 print:text-[10pt]';
+  'px-2 py-1.5 text-left text-ui-xs font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
+const TD_BASE = 'px-2 py-1.5 align-top text-xs text-slate-800 print:text-[10pt]';
 
 /**
  * A4 management report — use inside a wrapper with `report-print-root quotation-print-preview-mode` for @media print.
@@ -81,7 +81,7 @@ export function ManagementReportSheet({
       shellClassName={shellClass}
       rightColumn={
         <>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 print:text-[9pt]">Generated</p>
+          <p className="text-ui-xs font-semibold uppercase tracking-wide text-slate-500 print:text-[9pt]">Generated</p>
           <p className="mt-0.5 font-medium text-slate-900">{generated}</p>
         </>
       }
@@ -114,7 +114,7 @@ export function ManagementReportSheet({
                   <tr className="border-b border-slate-200 bg-slate-100/80">
                     <td
                       colSpan={Math.max(1, columns.length)}
-                      className="px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-700 print:text-[9pt]"
+                      className="px-2 py-1.5 text-ui-xs font-black uppercase tracking-wide text-slate-700 print:text-[9pt]"
                     >
                       {grouping.groupLabel || 'Category'}: {group.key}
                     </td>
@@ -147,7 +147,7 @@ export function ManagementReportSheet({
                         return (
                           <td
                             key={col.key}
-                            className="px-2 py-1.5 text-right text-[10px] font-bold uppercase tracking-wide text-slate-600 print:text-[9pt]"
+                            className="px-2 py-1.5 text-right text-ui-xs font-bold uppercase tracking-wide text-slate-600 print:text-[9pt]"
                           >
                             {`${grouping.subtotalLabel || 'Subtotal'}: ${formatSubtotal(group.subtotal)}`}
                           </td>
@@ -167,7 +167,7 @@ export function ManagementReportSheet({
                     return (
                       <td
                         key={col.key}
-                        className="px-2 py-1.5 text-right text-[10px] font-black uppercase tracking-wide text-slate-700 print:text-[9pt]"
+                        className="px-2 py-1.5 text-right text-ui-xs font-black uppercase tracking-wide text-slate-700 print:text-[9pt]"
                       >
                         {`${grouping.totalLabel || 'Overall total'}: ${formatSubtotal(overallTotal)}`}
                       </td>
@@ -202,7 +202,7 @@ export function ManagementReportSheet({
       </table>
 
       {summaryLines.length > 0 ? (
-        <ul className="mt-6 space-y-2 border-t border-slate-200 pt-4 text-[10px] text-slate-700 print:text-[9pt]">
+        <ul className="mt-6 space-y-2 border-t border-slate-200 pt-4 text-ui-xs text-slate-700 print:text-[9pt]">
           {summaryLines.map((line, idx) => (
             <li key={idx} className="flex justify-between gap-4 font-semibold">
               <span className="text-slate-600">{line.label}</span>
@@ -257,50 +257,38 @@ export function ReportPrintModal({
     .filter(Boolean)
     .join(' ');
 
-  return createPortal(
-    <>
-      <button
-        type="button"
-        aria-label="Close print preview"
-        className="no-print fixed inset-0 z-[11060] bg-black/50"
-        onClick={onClose}
-      />
-      <div
-        className="print-portal-scroll fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8"
-        onClick={onClose}
-      >
-        <div className={`mx-auto ${shellMaxClass} pb-16`} onClick={(e) => e.stopPropagation()}>
-          <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Print preview</p>
-              <p className="text-sm font-bold text-[#134e4a] truncate">{title}</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button type="button" onClick={() => window.print()} className="z-btn-primary py-2.5 px-4">
-                <Printer size={16} />
-                Print
-              </button>
-              <button type="button" onClick={onClose} className="z-btn-secondary py-2.5 px-3" aria-label="Close">
-                <X size={18} />
-              </button>
-            </div>
+  return (
+    <PrintModalPortal open={isOpen} onClose={onClose}>
+      <div className={`mx-auto ${shellMaxClass} pb-16`}>
+        <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div className="min-w-0">
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Print preview</p>
+            <p className="text-sm font-bold text-zarewa-teal truncate">{title}</p>
           </div>
-          <div className={innerRootClass}>
-            <ManagementReportSheet
-              title={title}
-              periodLabel={periodLabel}
-              columns={columns}
-              rows={rows}
-              summaryLines={summaryLines}
-              documentTypeLabel={documentTypeLabel}
-              layout={layout}
-              denseSingleLine={denseSingleLine}
-              grouping={grouping}
-            />
+          <div className="flex items-center gap-2 shrink-0">
+            <button type="button" onClick={() => window.print()} className="z-btn-primary py-2.5 px-4">
+              <Printer size={16} aria-hidden />
+              Print
+            </button>
+            <button type="button" onClick={onClose} className="z-btn-secondary py-2.5 px-3" aria-label="Close">
+              <X size={18} />
+            </button>
           </div>
         </div>
+        <div className={innerRootClass}>
+          <ManagementReportSheet
+            title={title}
+            periodLabel={periodLabel}
+            columns={columns}
+            rows={rows}
+            summaryLines={summaryLines}
+            documentTypeLabel={documentTypeLabel}
+            layout={layout}
+            denseSingleLine={denseSingleLine}
+            grouping={grouping}
+          />
+        </div>
       </div>
-    </>,
-    document.body
+    </PrintModalPortal>
   );
 }

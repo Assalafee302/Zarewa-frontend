@@ -16,9 +16,9 @@ function MetricCard({ label, value, hint, tone = 'slate' }) {
   };
   return (
     <div className={`rounded-xl border p-3 ${tones[tone] || tones.slate}`}>
-      <p className="text-[10px] font-bold uppercase text-slate-500">{label}</p>
-      <p className="text-lg font-black tabular-nums text-[#134e4a]">{value}</p>
-      {hint ? <p className="text-[10px] text-slate-600 mt-1">{hint}</p> : null}
+      <p className="text-ui-xs font-bold uppercase text-slate-500">{label}</p>
+      <p className="text-lg font-black tabular-nums text-zarewa-teal">{value}</p>
+      {hint ? <p className="text-ui-xs text-slate-600 mt-1">{hint}</p> : null}
     </div>
   );
 }
@@ -87,7 +87,7 @@ export function Ap3MaterialCostSection({
     <div className="space-y-4 border-t border-teal-200/60 pt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-black text-[#134e4a]">Material cost per metre (AP3b)</p>
+          <p className="text-sm font-black text-zarewa-teal">Material cost per metre (AP3b)</p>
           <p className="text-xs font-medium text-slate-600 mt-1">
             Trusted totals from actual coil consumption — material only. Not full factory cost.
           </p>

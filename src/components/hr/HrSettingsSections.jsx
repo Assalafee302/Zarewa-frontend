@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { appConfirm } from '../../lib/appConfirm';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
 import { seedZarewaOrgStandard, previewLegacyPayBackfill, runLegacyPayBackfill, fetchOrgCatalogMeta, previewMatrixRevisionApply, runMatrixRevisionApply } from '../../lib/hrCompensation';
@@ -388,7 +389,7 @@ export function HrSettingsRelatedLinks() {
         {links.map((item) => (
           <li key={item.to}>
             <Link to={item.to} className="flex flex-col gap-0.5 px-4 py-3 hover:bg-slate-50/80 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-sm font-semibold text-[#134e4a]">{item.label}</span>
+              <span className="text-sm font-semibold text-zarewa-teal">{item.label}</span>
               <span className="text-xs text-slate-500">{item.hint}</span>
             </Link>
           </li>
@@ -425,7 +426,7 @@ export function HrLegacyPayBackfillSection({ embedded = false }) {
   };
 
   const runExecute = async () => {
-    if (!preview?.updatedCount && !window.confirm('No rows matched in preview. Run anyway?')) return;
+    if (!preview?.updatedCount && !(await appConfirm({ message: 'No rows matched in preview. Run anyway?' }))) return;
     setBusy('run');
     setMessage('');
     setError('');
@@ -453,7 +454,7 @@ export function HrLegacyPayBackfillSection({ embedded = false }) {
       {error ? <div className="mb-3"><HrAlert tone="error">{error}</HrAlert></div> : null}
       {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
       <p className="text-xs text-slate-600">
-        Run preview first. Staff who already have <code className="text-[11px]">payAdditionNgn</code> set are skipped.
+        Run preview first. Staff who already have <code className="text-xs">payAdditionNgn</code> set are skipped.
       </p>
       <label className="mt-3 flex items-center gap-2 text-xs text-slate-700">
         <input type="checkbox" checked={autoDocument} onChange={(e) => setAutoDocument(e.target.checked)} />
@@ -516,7 +517,7 @@ export function HrMatrixRevisionSection({ embedded = false }) {
   };
 
   const runExecute = async () => {
-    if (!preview?.updatedCount && !window.confirm('No profiles would change. Run anyway?')) return;
+    if (!preview?.updatedCount && !(await appConfirm({ message: 'No profiles would change. Run anyway?' }))) return;
     setBusy('run');
     setMessage('');
     setError('');
@@ -536,7 +537,7 @@ export function HrMatrixRevisionSection({ embedded = false }) {
       {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
       <p className="text-xs text-slate-600">
         After reloading the catalog or editing matrix rows, preview then apply new matrix base/housing/transport to all
-        staff on level/step. Existing <code className="text-[11px]">payAdditionNgn</code> is preserved.
+        staff on level/step. Existing <code className="text-xs">payAdditionNgn</code> is preserved.
       </p>
       <label className="mt-3 block text-xs font-semibold text-slate-600">
         Payroll group (optional)
@@ -701,14 +702,14 @@ export function HrOrgGoLiveChecklistSection({ embedded = false }) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-xs font-semibold text-[#134e4a]">
+      <p className="mt-3 text-xs font-semibold text-zarewa-teal">
         {completed} of {GO_LIVE_STEPS.length} complete
       </p>
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        <Link to={hrTabPath(HR_PAYROLL, 'salary-matrix')} className="font-semibold text-[#134e4a] hover:underline">
+        <Link to={hrTabPath(HR_PAYROLL, 'salary-matrix')} className="font-semibold text-zarewa-teal hover:underline">
           Salary matrix & variance →
         </Link>
-        <Link to={HR_EMPLOYEES} className="font-semibold text-[#134e4a] hover:underline">
+        <Link to={HR_EMPLOYEES} className="font-semibold text-zarewa-teal hover:underline">
           Staff directory →
         </Link>
       </div>
@@ -782,7 +783,7 @@ export function HrOrgCatalogSection({ onCatalogUpdated }) {
           <ul className="mt-2 space-y-1">
             {Object.entries(catalogMeta.matrixPayrollGroupScales).map(([group, cfg]) => (
               <li key={group}>
-                <span className="font-mono text-[#134e4a]">{group}</span>
+                <span className="font-mono text-zarewa-teal">{group}</span>
                 {' — '}
                 {Math.round((cfg.scale ?? 1) * 100)}%
                 {cfg.label ? ` · ${cfg.label}` : ''}

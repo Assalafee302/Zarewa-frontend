@@ -17,7 +17,7 @@ const ModalOverlay = React.forwardRef(({ className, ...props }, ref) => (
       exit={{ opacity: 0 }}
       ref={ref}
       className={cn(
-        "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm",
+        "fixed inset-0 z-[var(--z-layer-modal)] bg-black/40 backdrop-blur-sm",
         className
       )}
       {...props}
@@ -26,7 +26,7 @@ const ModalOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 ModalOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const ModalContent = React.forwardRef(({ className, children, ...props }, ref) => (
+const ModalContent = React.forwardRef(({ className, children, title, description, ...props }, ref) => (
   <ModalPortal forceMount>
     <AnimatePresence>
       <ModalOverlay />
@@ -38,15 +38,19 @@ const ModalContent = React.forwardRef(({ className, children, ...props }, ref) =
           transition={{ type: "spring", bounce: 0, duration: 0.4 }}
           ref={ref}
           className={cn(
-            "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-white/60 bg-white/95 p-6 shadow-2xl sm:rounded-3xl backdrop-blur-3xl",
+            "fixed left-[50%] top-[50%] z-[var(--z-layer-modal)] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-white/60 bg-white/95 p-6 shadow-2xl sm:rounded-3xl backdrop-blur-3xl",
             className
           )}
           {...props}
         >
-          <DialogPrimitive.Title className="sr-only">Dialog</DialogPrimitive.Title>
-          <DialogPrimitive.Description className="sr-only">
-            Modal dialog content.
-          </DialogPrimitive.Description>
+          {title ? (
+            <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
+          ) : null}
+          {description !== false ? (
+            <DialogPrimitive.Description className="sr-only">
+              {description ?? "Modal dialog content."}
+            </DialogPrimitive.Description>
+          ) : null}
           {children}
           <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 opacity-70 border border-transparent ring-offset-background transition-colors hover:opacity-100 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
             <X className="h-4 w-4" />
@@ -70,7 +74,7 @@ const ModalFooter = ({ className, ...props }) => (
 ModalFooter.displayName = "ModalFooter"
 
 const ModalTitle = React.forwardRef(({ className, ...props }, ref) => (
-  <DialogPrimitive.Title ref={ref} className={cn("text-lg font-bold leading-none tracking-tight text-[#134e4a]", className)} {...props} />
+  <DialogPrimitive.Title ref={ref} className={cn("text-lg font-bold leading-none tracking-tight text-zarewa-teal", className)} {...props} />
 ))
 ModalTitle.displayName = DialogPrimitive.Title.displayName
 

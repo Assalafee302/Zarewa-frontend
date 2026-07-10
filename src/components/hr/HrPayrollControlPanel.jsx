@@ -178,7 +178,7 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
           {netPayableNgn != null ? (
             <button
               type="button"
-              className="text-xs font-bold text-[#134e4a] hover:underline"
+              className="text-xs font-bold text-zarewa-teal hover:underline"
               onClick={() => setBankExportTotal(String(netPayableNgn))}
             >
               Use payroll net (₦{netPayableNgn.toLocaleString()})
@@ -232,10 +232,10 @@ function HrPayrollConfirmBonusModal({ isOpen, onClose, busy, onConfirm }) {
 }
 
 function Stat({ label, value, tone }) {
-  const cls = tone === 'amber' ? 'text-amber-800' : 'text-[#134e4a]';
+  const cls = tone === 'amber' ? 'text-amber-800' : 'text-zarewa-teal';
   return (
     <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
       <p className={`mt-1 text-lg font-black tabular-nums ${cls}`}>{value}</p>
     </div>
   );

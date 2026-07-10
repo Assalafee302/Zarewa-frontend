@@ -16,7 +16,7 @@ export function ExpenseCategoryPayoutReadinessPanel({ glPreview, payoutGate }) {
         <div className="rounded-xl border border-teal-200/80 bg-gradient-to-r from-teal-50/90 to-white px-4 py-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-wide text-teal-900/75 flex items-center gap-1">
+              <p className="text-ui-xs font-black uppercase tracking-wide text-teal-900/75 flex items-center gap-1">
                 <CircleDollarSign size={12} aria-hidden />
                 GL on payout
               </p>
@@ -31,12 +31,12 @@ export function ExpenseCategoryPayoutReadinessPanel({ glPreview, payoutGate }) {
                   category={glPreview.expenseCategory}
                   laneKey={glPreview.categoryLane}
                 />
-                <span className="text-[10px] font-semibold text-slate-700">{glPreview.expenseCategory}</span>
+                <span className="text-ui-xs font-semibold text-slate-700">{glPreview.expenseCategory}</span>
               </div>
             ) : null}
           </div>
           {glPreview.gl.isCapex ? (
-            <p className="text-[10px] text-teal-800 mt-2">
+            <p className="text-ui-xs text-teal-800 mt-2">
               Capex — fixed asset register updates when this request is fully paid.
             </p>
           ) : null}
@@ -52,7 +52,7 @@ export function ExpenseCategoryPayoutReadinessPanel({ glPreview, payoutGate }) {
           }`}
         >
           <p
-            className={`text-[9px] font-black uppercase tracking-wide flex items-center gap-1.5 ${
+            className={`text-ui-xs font-black uppercase tracking-wide flex items-center gap-1.5 ${
               ready ? 'text-emerald-900' : 'text-amber-950'
             }`}
           >
@@ -64,13 +64,13 @@ export function ExpenseCategoryPayoutReadinessPanel({ glPreview, payoutGate }) {
             Payout readiness — {ready ? 'ready to post' : 'complete items below'}
           </p>
           {!ready && payoutGate.error ? (
-            <p className="text-[11px] font-semibold text-amber-950 mt-2 leading-snug">{payoutGate.error}</p>
+            <p className="text-xs font-semibold text-amber-950 mt-2 leading-snug">{payoutGate.error}</p>
           ) : null}
           <ul className="mt-3 space-y-2">
             {payoutGate.checks.map((check) => (
               <li
                 key={check.key}
-                className={`flex gap-2.5 rounded-lg px-2 py-1.5 text-[11px] ${
+                className={`flex gap-2.5 rounded-lg px-2 py-1.5 text-xs ${
                   check.ok ? 'bg-white/50' : 'bg-white/80 ring-1 ring-amber-200/80'
                 }`}
               >
@@ -82,7 +82,7 @@ export function ExpenseCategoryPayoutReadinessPanel({ glPreview, payoutGate }) {
                 <span className="min-w-0">
                   <span className="font-semibold text-slate-900">{check.label}</span>
                   {check.detail ? (
-                    <span className="block text-[10px] text-slate-600 mt-0.5 leading-snug">{check.detail}</span>
+                    <span className="block text-ui-xs text-slate-600 mt-0.5 leading-snug">{check.detail}</span>
                   ) : null}
                 </span>
               </li>

@@ -70,7 +70,7 @@ export function ExecutiveReportPacksSection({ showToast }) {
     <section className="z-soft-panel p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h4 className="text-base font-black text-[#134e4a] tracking-tight flex items-center gap-2">
+          <h4 className="text-base font-black text-zarewa-teal tracking-tight flex items-center gap-2">
             <FileText size={18} />
             Executive daily &amp; weekly packs
           </h4>
@@ -142,16 +142,16 @@ export function ExecutiveReportPacksSection({ showToast }) {
       {pack ? (
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-[10px] font-black uppercase text-slate-500">Attention (open)</p>
-            <p className="text-2xl font-black text-[#134e4a] tabular-nums">{pack.attention?.totalOpen ?? 0}</p>
+            <p className="text-ui-xs font-black uppercase text-slate-500">Attention (open)</p>
+            <p className="text-2xl font-black text-zarewa-teal tabular-nums">{pack.attention?.totalOpen ?? 0}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-[10px] font-black uppercase text-slate-500">Receipts</p>
+            <p className="text-ui-xs font-black uppercase text-slate-500">Receipts</p>
             <p className="text-lg font-black tabular-nums">{pack.sales?.receiptsCount ?? 0}</p>
             <p className="text-xs text-slate-600">{formatNgn(pack.sales?.receiptsTotalNgn ?? 0)}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-[10px] font-black uppercase text-slate-500">
+            <p className="text-ui-xs font-black uppercase text-slate-500">
               {packKind === 'daily' ? 'New quotes' : 'Quotes in week'}
             </p>
             <p className="text-2xl font-black tabular-nums">
@@ -159,7 +159,7 @@ export function ExecutiveReportPacksSection({ showToast }) {
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-[10px] font-black uppercase text-slate-500">Production completed</p>
+            <p className="text-ui-xs font-black uppercase text-slate-500">Production completed</p>
             <p className="text-2xl font-black tabular-nums">
               {pack.operations?.productionJobsCompletedCount ?? pack.production?.jobsCompletedCount ?? 0}
             </p>

@@ -77,7 +77,7 @@ function ActionChip({ action }) {
   return (
     <Link
       to={action.to}
-      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-center text-xs font-semibold leading-tight text-slate-800 no-underline shadow-sm transition hover:border-[#134e4a]/40 hover:bg-teal-50/50 active:scale-[0.99] sm:rounded-full sm:px-3 sm:py-2"
+      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-center text-xs font-semibold leading-tight text-slate-800 no-underline shadow-sm transition hover:border-zarewa-teal/40 hover:bg-teal-50/50 active:scale-[0.99] sm:rounded-full sm:px-3 sm:py-2"
     >
       {action.label}
     </Link>

@@ -56,16 +56,16 @@ export function HrOperationalReadinessPanel() {
                   {c.label}
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${
+                  <span className={`rounded-full px-2 py-0.5 text-ui-xs font-bold uppercase ${
                     c.severity === 'high' ? 'bg-red-100 text-red-900' : c.severity === 'low' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-900'
                   }`}>{c.severity || 'medium'}</span>
-                  <span className="rounded-full bg-white border border-slate-200 px-2 py-0.5 text-[10px] font-black tabular-nums">
+                  <span className="rounded-full bg-white border border-slate-200 px-2 py-0.5 text-ui-xs font-black tabular-nums">
                     {c.count}
                   </span>
                 </div>
               </div>
               {c.fixPath ? (
-                <Link to={c.fixPath} className="mt-2 inline-block text-[10px] font-bold uppercase text-[#134e4a] hover:underline">
+                <Link to={c.fixPath} className="mt-2 inline-block text-ui-xs font-bold uppercase text-zarewa-teal hover:underline">
                   Fix in module →
                 </Link>
               ) : null}
@@ -74,7 +74,7 @@ export function HrOperationalReadinessPanel() {
                   {c.items.slice(0, 5).map((item, i) => (
                     <li key={i}>
                       {item.userId ? (
-                        <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="text-[#134e4a] hover:underline">
+                        <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="text-zarewa-teal hover:underline">
                           {item.displayName || item.userId}
                         </Link>
                       ) : (

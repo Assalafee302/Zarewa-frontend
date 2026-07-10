@@ -25,7 +25,7 @@ export function FinanceDeskTreasuryAccountGrid({
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-5 py-10 text-center">
         <p className="text-xs font-bold uppercase tracking-widest text-slate-400">No treasury accounts</p>
-        <p className="text-[11px] text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
+        <p className="text-xs text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
           Register branch bank or till accounts on the Treasury tab.
         </p>
         {onGoToTab ? (
@@ -66,28 +66,28 @@ export function FinanceDeskTreasuryAccountGrid({
                   if (onAccountClick) onAccountClick(acc);
                   else onGoToTab?.('treasury');
                 }}
-                className="text-left p-4 flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#134e4a]/30 rounded-t-zarewa"
+                className="text-left p-4 flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/30 rounded-t-zarewa"
               >
                 <div className="flex justify-between items-start mb-3">
-                  <div className="p-2 bg-white rounded-lg shadow-sm text-[#134e4a]">
+                  <div className="p-2 bg-white rounded-lg shadow-sm text-zarewa-teal">
                     {acc.type === 'Bank' ? <Landmark size={18} /> : <CreditCard size={18} />}
                   </div>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                  <span className="text-ui-xs font-bold text-gray-400 uppercase tracking-tighter">
                     {acc.accNo || '—'}
                   </span>
                 </div>
-                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
+                <p className="text-ui-xs font-black text-gray-400 uppercase tracking-widest mb-0.5">
                   {acc.name}
                 </p>
                 {acc.type === 'Bank' && acc.bankName ? (
-                  <p className="text-[9px] text-slate-500 font-semibold mb-1 truncate" title={acc.bankName}>
+                  <p className="text-ui-xs text-slate-500 font-semibold mb-1 truncate" title={acc.bankName}>
                     {acc.bankName}
                   </p>
                 ) : null}
-                <h4 className="text-lg font-black text-[#134e4a] italic tracking-tighter tabular-nums">
+                <h4 className="text-lg font-black text-zarewa-teal italic tracking-tighter tabular-nums">
                   {formatNgn(balance)}
                 </h4>
-                <p className="text-[9px] text-teal-700/80 font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <p className="text-ui-xs text-teal-700/80 font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   {cardActionLabel || (onAccountClick ? 'View statement' : 'View on treasury')}
                 </p>
               </button>

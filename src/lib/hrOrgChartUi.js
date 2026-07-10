@@ -56,7 +56,7 @@ export function sectionTitle(view, key, branches = []) {
 export function seniorityBadgeClass(seniority) {
   switch (seniority) {
     case 'leadership':
-      return 'bg-[#134e4a] text-white';
+      return 'bg-zarewa-teal text-white';
     case 'senior':
       return 'bg-teal-100 text-teal-900';
     case 'mid':

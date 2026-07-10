@@ -49,7 +49,7 @@ export function HrProductionReadinessPanel({ readiness }) {
       actions={
         <Link
           to={`${HR_SETTINGS}?tab=module-health`}
-          className="text-[10px] font-bold uppercase text-[#134e4a] hover:underline"
+          className="text-ui-xs font-bold uppercase text-zarewa-teal hover:underline"
         >
           Module health →
         </Link>
@@ -57,14 +57,14 @@ export function HrProductionReadinessPanel({ readiness }) {
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span
-          className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
+          className={`rounded-full px-2.5 py-0.5 text-ui-xs font-black uppercase ${
             ready ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900'
           }`}
         >
           Schema {ready ? 'ready' : 'incomplete'}
         </span>
         <span
-          className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
+          className={`rounded-full px-2.5 py-0.5 text-ui-xs font-black uppercase ${
             canCutover ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'
           }`}
         >
@@ -86,7 +86,7 @@ export function HrProductionReadinessPanel({ readiness }) {
 
       {gates && Object.keys(gates).length ? (
         <div className="mt-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">UAT gates</p>
+          <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400 mb-2">UAT gates</p>
           <ul className="space-y-1.5">
             {gateRows.map((g) => {
               const raw = gates[g.key];
@@ -106,14 +106,14 @@ export function HrProductionReadinessPanel({ readiness }) {
 
       {!ready ? (
         <div className="mt-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Missing modules</p>
+          <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400 mb-2">Missing modules</p>
           <ul className="flex flex-wrap gap-2">
             {Object.entries(modules)
               .filter(([key, ok]) => key !== 'allReady' && !ok)
               .map(([key]) => (
                 <li
                   key={key}
-                  className="rounded-full border border-red-100 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-800"
+                  className="rounded-full border border-red-100 bg-red-50 px-2 py-0.5 text-ui-xs font-bold text-red-800"
                 >
                   {MODULE_LABELS[key] || key}
                 </li>

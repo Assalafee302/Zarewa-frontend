@@ -83,10 +83,10 @@ export function BranchManagerCommandInbox(props) {
       const e = it.row || it || {};
       return (
         <div key={it.id} className={`${inboxRowBase} hover:bg-slate-50/80`}>
-          <span className="shrink-0 rounded-md bg-violet-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-violet-900">
+          <span className="shrink-0 rounded-md bg-violet-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-violet-900">
             edit
           </span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800">
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
             {e.changeSummary ? (
               <>
                 <span className="text-violet-900">{e.changeSummary}</span>
@@ -99,7 +99,7 @@ export function BranchManagerCommandInbox(props) {
           </span>
           <button
             type="button"
-            className="shrink-0 rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-black uppercase text-white hover:brightness-105"
+            className="shrink-0 rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-black uppercase text-white hover:brightness-105"
             onClick={() => openEditApprovalIntel?.(e)}
           >
             Review
@@ -117,7 +117,7 @@ export function BranchManagerCommandInbox(props) {
         className={`${inboxRowBase} hover:bg-violet-50/50 focus-visible:ring-violet-300/40`}
       >
         <span
-          className={`shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase ${
+          className={`shrink-0 rounded-md px-1.5 py-0.5 text-ui-xs font-black uppercase ${
             it.kind === 'flagged' || it.kind === 'governance'
               ? 'bg-rose-100 text-rose-900'
               : it.kind === 'staff_purchase_credit'
@@ -127,15 +127,15 @@ export function BranchManagerCommandInbox(props) {
         >
           {kindLabel}
         </span>
-        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800">
-          <span className="font-mono font-bold text-[#134e4a]">{it.title}</span>
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+          <span className="font-mono font-bold text-zarewa-teal">{it.title}</span>
           {' · '}
           {it.subtitle}
         </span>
         {it.amountNgn != null ? (
-          <span className="shrink-0 text-[10px] font-bold tabular-nums text-slate-700">{asMoney(it.amountNgn)}</span>
+          <span className="shrink-0 text-ui-xs font-bold tabular-nums text-slate-700">{asMoney(it.amountNgn)}</span>
         ) : null}
-        <span className="hidden lg:inline shrink-0 max-w-[8rem] truncate text-[9px] text-slate-500">{reasons[0] || ''}</span>
+        <span className="hidden lg:inline shrink-0 max-w-[8rem] truncate text-ui-xs text-slate-500">{reasons[0] || ''}</span>
         <ChevronRight size={14} className="shrink-0 text-slate-300" />
       </button>
     );
@@ -155,11 +155,11 @@ export function BranchManagerCommandInbox(props) {
               selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-rose-50/70' : ''
             }`}
           >
-            <span className="shrink-0 rounded-md bg-rose-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-rose-900">
+            <span className="shrink-0 rounded-md bg-rose-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-rose-900">
               flagged
             </span>
             <span className="shrink-0 text-xs font-bold text-rose-900">{row.id}</span>
-            <span className="min-w-0 flex-1 truncate text-[11px] text-slate-700">
+            <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
               <span className="font-semibold">{asPersonName(row.customer_name)}</span>
               {' · '}
               <span className="text-rose-800/90">{row.manager_flag_reason || 'Awaiting audit review.'}</span>
@@ -186,16 +186,16 @@ export function BranchManagerCommandInbox(props) {
               selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === qref ? 'bg-amber-50/80' : ''
             }`}
           >
-            <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-900">
+            <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-amber-900">
               gate
             </span>
             <span className="shrink-0 text-xs font-mono font-bold text-slate-600">{row.id}</span>
-            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
-              <span className="font-bold text-[#134e4a]">{qref}</span>
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
+              <span className="font-bold text-zarewa-teal">{qref}</span>
               {' · '}
               {asPersonName(row.customer_name)}
             </span>
-            <span className="shrink-0 text-[10px] text-slate-500 tabular-nums whitespace-nowrap">
+            <span className="shrink-0 text-ui-xs text-slate-500 tabular-nums whitespace-nowrap">
               {asMoney(row.paid_ngn)} / {asMoney(row.total_ngn)}
             </span>
             <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-amber-700" />
@@ -208,21 +208,21 @@ export function BranchManagerCommandInbox(props) {
           key={row._rowKey}
           type="button"
           onClick={() => openQuotationIntel?.(row.id, row)}
-          className={`${inboxRowBase} hover:bg-teal-50/60 focus-visible:ring-[#134e4a]/25 ${
+          className={`${inboxRowBase} hover:bg-teal-50/60 focus-visible:ring-zarewa-teal/25 ${
             selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-teal-50/80' : ''
           }`}
         >
-          <span className="shrink-0 rounded-md bg-teal-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-teal-900">
+          <span className="shrink-0 rounded-md bg-teal-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-teal-900">
             sign-off
           </span>
-          <span className="shrink-0 text-xs font-bold text-[#134e4a] tabular-nums">{row.id}</span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
+          <span className="shrink-0 text-xs font-bold text-zarewa-teal tabular-nums">{row.id}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
             {asPersonName(row.customer_name)}
           </span>
-          <span className="shrink-0 text-[10px] font-semibold text-slate-600 tabular-nums whitespace-nowrap">
+          <span className="shrink-0 text-ui-xs font-semibold text-slate-600 tabular-nums whitespace-nowrap">
             {asMoney(row.paid_ngn)} / {asMoney(row.total_ngn)}
           </span>
-          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-[#134e4a]" />
+          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-zarewa-teal" />
         </button>
       );
     }
@@ -238,7 +238,7 @@ export function BranchManagerCommandInbox(props) {
               selectedIntel?.kind === 'payment' && selectedIntel.requestId === row.request_id ? 'bg-slate-100/90' : ''
             }`}
           >
-            <span className="shrink-0 rounded-md bg-slate-200 px-1.5 py-0.5 text-[8px] font-black uppercase text-slate-800">
+            <span className="shrink-0 rounded-md bg-slate-200 px-1.5 py-0.5 text-ui-xs font-black uppercase text-slate-800">
               expense
             </span>
             {row.expense_category || row.expense_category_lane ? (
@@ -248,13 +248,13 @@ export function BranchManagerCommandInbox(props) {
               />
             ) : null}
             <span className="shrink-0 text-xs font-bold text-slate-800">{row.request_id}</span>
-            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-600">{row.description}</span>
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-600">{row.description}</span>
             {!canApprovePaymentRequests ? (
-              <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-900">
+              <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-amber-900">
                 Finance desk
               </span>
             ) : null}
-            <span className="shrink-0 text-[10px] font-bold text-rose-700 tabular-nums whitespace-nowrap">
+            <span className="shrink-0 text-ui-xs font-bold text-rose-700 tabular-nums whitespace-nowrap">
               {asMoney(row.amount_requested_ngn)}
             </span>
             <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-slate-600" />
@@ -271,18 +271,18 @@ export function BranchManagerCommandInbox(props) {
             selectedIntel?.kind === 'refund' && selectedIntel.refundId === row.refund_id ? 'bg-amber-50/80' : ''
           }`}
         >
-          <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-900">
+          <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-amber-900">
             refund
           </span>
           <span className="shrink-0 text-xs font-mono font-bold text-slate-800">{row.refund_id}</span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
             {asPersonName(row.customer_name)}
             {' · '}
             <span className="font-normal text-slate-500">
               {row.quotation_ref} · {asRefundReason(row.reason_category)}
             </span>
           </span>
-          <span className="shrink-0 text-[10px] font-bold text-amber-700 tabular-nums whitespace-nowrap">
+          <span className="shrink-0 text-ui-xs font-bold text-amber-700 tabular-nums whitespace-nowrap">
             {asMoney(row.amount_ngn)}
           </span>
           <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-amber-700" />
@@ -301,9 +301,9 @@ export function BranchManagerCommandInbox(props) {
             selectedIntel?.kind === 'conversion' && selectedIntel.jobId === row.job_id ? 'bg-violet-50/80' : ''
           }`}
         >
-          <span className="shrink-0 text-[10px] font-mono font-bold text-slate-700">{row.job_id}</span>
-          <span className="min-w-0 flex-1 truncate text-[11px] text-slate-700">
-            <span className="font-bold text-[#134e4a]">{row.quotation_ref || '—'}</span>
+          <span className="shrink-0 text-ui-xs font-mono font-bold text-slate-700">{row.job_id}</span>
+          <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
+            <span className="font-bold text-zarewa-teal">{row.quotation_ref || '—'}</span>
             {' · '}
             <span className="font-semibold">{asPersonName(row.customer_name)}</span>
             {row.product_name ? (
@@ -314,7 +314,7 @@ export function BranchManagerCommandInbox(props) {
             ) : null}
           </span>
           <span
-            className={`shrink-0 text-[9px] font-black uppercase px-2 py-0.5 rounded-md whitespace-nowrap ${
+            className={`shrink-0 text-ui-xs font-black uppercase px-2 py-0.5 rounded-md whitespace-nowrap ${
               alert === 'High'
                 ? 'bg-rose-100 text-rose-800'
                 : alert === 'Low'
@@ -324,7 +324,7 @@ export function BranchManagerCommandInbox(props) {
           >
             {alert || 'Review'}
           </span>
-          <span className="shrink-0 text-[10px] text-slate-500 tabular-nums whitespace-nowrap hidden sm:inline">
+          <span className="shrink-0 text-ui-xs text-slate-500 tabular-nums whitespace-nowrap hidden sm:inline">
             {row.actual_meters != null ? `${Number(row.actual_meters).toLocaleString()} m` : '—'}
           </span>
           <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-violet-700" />
@@ -338,20 +338,20 @@ export function BranchManagerCommandInbox(props) {
           key={row.id}
           type="button"
           onClick={() => openMaterialIncidentIntel?.(row)}
-          className={`${inboxRowBase} hover:bg-teal-50/60 focus-visible:ring-[#134e4a]/25`}
+          className={`${inboxRowBase} hover:bg-teal-50/60 focus-visible:ring-zarewa-teal/25`}
         >
-          <span className="shrink-0 rounded-md bg-teal-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-teal-900">
+          <span className="shrink-0 rounded-md bg-teal-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-teal-900">
             material
           </span>
-          <span className="shrink-0 text-xs font-mono font-bold text-[#134e4a]">{row.id}</span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
+          <span className="shrink-0 text-xs font-mono font-bold text-zarewa-teal">{row.id}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
             {String(row.incident_type || '').replace(/_/g, ' ')}
             {' · '}
             {row.gauge_label} {row.colour}
             {' · '}
             <span className="font-bold tabular-nums">{Number(row.total_meters || 0).toFixed(1)} m</span>
           </span>
-          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-[#134e4a]" />
+          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-zarewa-teal" />
         </button>
       );
     }
@@ -366,11 +366,11 @@ export function BranchManagerCommandInbox(props) {
             selectedIntel?.kind === 'purchase_order' && selectedIntel.poId === row.po_id ? 'bg-indigo-50/80' : ''
           }`}
         >
-          <span className="shrink-0 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-indigo-900">
+          <span className="shrink-0 rounded-md bg-indigo-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-indigo-900">
             PO
           </span>
-          <span className="shrink-0 text-xs font-mono font-bold text-[#134e4a]">{row.po_id}</span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
+          <span className="shrink-0 text-xs font-mono font-bold text-zarewa-teal">{row.po_id}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
             {row.supplier_name || 'Supplier pending'}
             {row.line_count != null ? (
               <>
@@ -379,7 +379,7 @@ export function BranchManagerCommandInbox(props) {
               </>
             ) : null}
           </span>
-          <span className="shrink-0 text-[10px] font-bold text-indigo-800 tabular-nums whitespace-nowrap">
+          <span className="shrink-0 text-ui-xs font-bold text-indigo-800 tabular-nums whitespace-nowrap">
             {asMoney(row.total_ngn)}
           </span>
           <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-indigo-700" />
@@ -395,16 +395,16 @@ export function BranchManagerCommandInbox(props) {
           onClick={() => openGovernanceIntel?.(row)}
           className={`${inboxRowBase} hover:bg-rose-50/50 focus-visible:ring-rose-300/40`}
         >
-          <span className="shrink-0 rounded-md bg-rose-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-rose-900">
+          <span className="shrink-0 rounded-md bg-rose-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-rose-900">
             governance
           </span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800">
-            <span className="font-mono font-bold text-[#134e4a]">{row.title || row.id}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+            <span className="font-mono font-bold text-zarewa-teal">{row.title || row.id}</span>
             {' · '}
             {row.subtitle || 'Requires management review'}
           </span>
           {row.amountNgn != null ? (
-            <span className="shrink-0 text-[10px] font-bold tabular-nums text-rose-700">{asMoney(row.amountNgn)}</span>
+            <span className="shrink-0 text-ui-xs font-bold tabular-nums text-rose-700">{asMoney(row.amountNgn)}</span>
           ) : null}
           <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-rose-700" />
         </button>
@@ -415,20 +415,20 @@ export function BranchManagerCommandInbox(props) {
       const e = row || {};
       return (
         <div key={row._rowKey || row.id} className={`${inboxRowBase} hover:bg-violet-50/40`}>
-          <span className="shrink-0 rounded-md bg-violet-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-violet-900">
+          <span className="shrink-0 rounded-md bg-violet-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-violet-900">
             edit
           </span>
-          <span className="min-w-0 flex-1 truncate text-[11px] text-slate-700">
+          <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
             <span className="font-semibold">{e.entityKind || 'record'}</span>
             {' · '}
-            <span className="font-mono font-bold text-[#134e4a]">{e.entityId || '—'}</span>
+            <span className="font-mono font-bold text-zarewa-teal">{e.entityId || '—'}</span>
             {' · '}
             <span className="text-slate-500">{asPersonName(e.requestedByDisplay || e.requestedByUserId || e.requestedBy)}</span>
           </span>
           <button
             type="button"
             onClick={() => openEditApprovalIntel?.(e)}
-            className="shrink-0 rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-black uppercase text-white hover:brightness-105"
+            className="shrink-0 rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-black uppercase text-white hover:brightness-105"
           >
             Review
           </button>
@@ -444,11 +444,11 @@ export function BranchManagerCommandInbox(props) {
       <div className="sticky top-0 z-20 p-4 border-b border-slate-100 bg-slate-50/95 backdrop-blur-sm">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <h2 className="text-sm font-black text-[#134e4a] tracking-tight flex items-center gap-2">
+            <h2 className="text-sm font-black text-zarewa-teal tracking-tight flex items-center gap-2">
               <ShieldCheck size={18} className="text-teal-600 shrink-0" />
               Command inbox
             </h2>
-            <p className="text-[11px] text-slate-500 mt-1">{tabMeta?.description}</p>
+            <p className="text-xs text-slate-500 mt-1">{tabMeta?.description}</p>
           </div>
           <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
             {activeTab === 'orders' && canManagerClearance && filteredInboxRows.some((r) => r._inboxKind === 'clearance') ? (
@@ -471,7 +471,7 @@ export function BranchManagerCommandInbox(props) {
                   value={inboxSearch}
                   onChange={(e) => setInboxSearch?.(e.target.value)}
                   placeholder="Filter this queue…"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                 />
               </div>
             ) : null}
@@ -490,14 +490,14 @@ export function BranchManagerCommandInbox(props) {
                   setActiveTab?.(t.key);
                   if (t.key !== 'attention') setAttentionFilter?.('all');
                 }}
-                className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-colors border ${
+                className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-ui-xs font-bold uppercase tracking-wide transition-colors border ${
                   active
-                    ? 'bg-[#134e4a] text-white border-[#134e4a] shadow-sm'
+                    ? 'bg-zarewa-teal text-white border-zarewa-teal shadow-sm'
                     : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                 }`}
               >
                 {t.label}
-                <span className={`tabular-nums px-1.5 py-0.5 rounded-md text-[9px] ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-700'}`}>
+                <span className={`tabular-nums px-1.5 py-0.5 rounded-md text-ui-xs ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-700'}`}>
                   {count}
                 </span>
               </button>
@@ -515,7 +515,7 @@ export function BranchManagerCommandInbox(props) {
                   key={f.key}
                   type="button"
                   onClick={() => setAttentionFilter?.(f.key)}
-                  className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide border transition-colors ${
+                  className={`shrink-0 px-2.5 py-1.5 rounded-lg text-ui-xs font-bold uppercase tracking-wide border transition-colors ${
                     active
                       ? 'bg-violet-600 text-white border-violet-600'
                       : 'bg-white text-slate-500 border-slate-200 hover:border-violet-200 hover:text-violet-800'
@@ -546,7 +546,7 @@ export function BranchManagerCommandInbox(props) {
           />
         ) : loading ? (
           <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-3">
-            <RefreshCw size={28} className="animate-spin text-[#134e4a]" />
+            <RefreshCw size={28} className="animate-spin text-zarewa-teal" />
             <p className="text-xs font-bold uppercase tracking-widest">Loading queues</p>
           </div>
         ) : filteredInboxRows.length === 0 ? (

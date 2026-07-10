@@ -35,18 +35,18 @@ function WorkTrayCard({ row, readOnly, onReview, formatNgn }) {
               {row.approvalTierLabel || 'Review'}
             </span>
             <span className={`${EXEC_CHIP} ${priorityChip(row.priority)}`}>{row.priority}</span>
-            <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+            <span className="text-ui-xs font-semibold uppercase tracking-wide text-slate-400">
               {String(row.kind || '').replace(/_/g, ' ')}
             </span>
           </div>
           <h3 className="text-sm font-bold text-slate-900 leading-snug">{row.title || 'Review'}</h3>
-          <p className="text-[11px] text-slate-600 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             {row.branchName || '—'}
             {row.amountNgn != null && typeof formatNgn === 'function'
               ? ` · ${formatNgn(row.amountNgn)}`
               : ''}
           </p>
-          <p className="text-[10px] text-slate-400 mt-0.5">
+          <p className="text-ui-xs text-slate-400 mt-0.5">
             {row.requestedBy ? `${row.requestedBy} · ` : ''}
             {row.ageLabel || row.status}
           </p>
@@ -91,7 +91,7 @@ export function ExecWorkTrayPanel({
       key={id}
       type="button"
       onClick={() => onWorkTrayFilterChange(id)}
-      className={`min-h-[44px] rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-wide ring-1 transition-colors ${
+      className={`min-h-[44px] rounded-lg px-3 py-2 text-ui-xs font-bold uppercase tracking-wide ring-1 transition-colors ${
         workTrayFilter === id
           ? activeClass
           : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'
@@ -105,13 +105,13 @@ export function ExecWorkTrayPanel({
     <div className="flex flex-col gap-3">
       {title ? (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{title}</p>
-          {subtitle ? <p className="text-[11px] text-slate-500 mt-1 leading-snug">{subtitle}</p> : null}
+          <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500">{title}</p>
+          {subtitle ? <p className="text-xs text-slate-500 mt-1 leading-snug">{subtitle}</p> : null}
         </div>
       ) : null}
       {showFilters ? (
         <div className="flex flex-wrap items-center gap-2">
-          {filterBtn('all', `All (${mdOnlyCount + sharedCount})`, 'bg-[#134e4a] text-white ring-[#134e4a]')}
+          {filterBtn('all', `All (${mdOnlyCount + sharedCount})`, 'bg-zarewa-teal text-white ring-zarewa-teal')}
           {filterBtn(
             'md_only',
             `Needs you (${mdOnlyCount})`,
@@ -145,7 +145,7 @@ export function ExecWorkTrayPanel({
       ) : null}
 
       {!busy && displayItems.length === 0 ? (
-        <p className="py-8 text-center text-[11px] text-slate-500">No pending executive items.</p>
+        <p className="py-8 text-center text-xs text-slate-500">No pending executive items.</p>
       ) : null}
 
       <div className="lg:hidden space-y-2">
@@ -163,7 +163,7 @@ export function ExecWorkTrayPanel({
       <div className="hidden lg:block overflow-x-auto -mx-1">
         <table className="w-full text-xs min-w-[720px]">
           <thead>
-            <tr className="border-b border-slate-200 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <tr className="border-b border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-slate-400">
               <th className="py-2 text-left font-bold">Priority</th>
               <th className="py-2 text-left font-bold">Approver</th>
               <th className="py-2 text-left font-bold">Type</th>
@@ -203,7 +203,7 @@ export function ExecWorkTrayPanel({
                   <button
                     type="button"
                     onClick={() => onReview?.(row)}
-                    className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-2 text-[10px] font-semibold uppercase text-[#134e4a] hover:bg-[#134e4a]/10 min-h-[36px]"
+                    className="rounded-lg border border-zarewa-teal/30 bg-zarewa-teal/5 px-3 py-2 text-ui-xs font-semibold uppercase text-zarewa-teal hover:bg-zarewa-teal/10 min-h-[36px]"
                   >
                     {row.summaryOnly ? 'View' : row.canAct && !readOnly ? 'Review' : 'View'}
                   </button>

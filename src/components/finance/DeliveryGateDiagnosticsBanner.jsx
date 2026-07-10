@@ -31,7 +31,7 @@ export default function DeliveryGateDiagnosticsBanner({ deliveryPaymentGate = 'o
   if (compact) {
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${meta.cls}`}
+        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${meta.cls}`}
         title={meta.detail}
       >
         <Icon size={11} aria-hidden />
@@ -48,7 +48,7 @@ export default function DeliveryGateDiagnosticsBanner({ deliveryPaymentGate = 'o
       </p>
       <p className="mt-1 text-xs opacity-90">{meta.detail}</p>
       {mode !== 'enforce' ? (
-        <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide opacity-80">
+        <p className="mt-2 text-ui-xs font-semibold uppercase tracking-wide opacity-80">
           Production recommendation: set DELIVERY_PAYMENT_GATE=enforce
         </p>
       ) : null}

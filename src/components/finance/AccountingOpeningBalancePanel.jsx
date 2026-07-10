@@ -239,7 +239,7 @@ export function AccountingOpeningBalancePanel({
   const statusAction = (
     <button
       type="button"
-      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase text-zarewa-teal"
       onClick={refreshAll}
       disabled={loading}
     >
@@ -264,7 +264,7 @@ export function AccountingOpeningBalancePanel({
       )}
 
       {branchScopeLabel ? (
-        <p className="text-[11px] font-medium text-slate-600">
+        <p className="text-xs font-medium text-slate-600">
           Scope: <span className="font-bold text-slate-800">{branchScopeLabel}</span>
         </p>
       ) : null}
@@ -323,7 +323,7 @@ export function AccountingOpeningBalancePanel({
           {wizardStep === 1 ? (
             <>
               <section className="rounded-xl border border-slate-200/90 overflow-hidden">
-                <h3 className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-[10px] font-black uppercase tracking-wide text-slate-700">
+                <h3 className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-ui-xs font-black uppercase tracking-wide text-slate-700">
                   Step 1 — Register sources
                 </h3>
                 <ul className="divide-y divide-slate-100">
@@ -333,8 +333,8 @@ export function AccountingOpeningBalancePanel({
                         <div className="flex items-start gap-2 min-w-0">
                           {STATUS_ICON[s.status] || STATUS_ICON.empty}
                           <div className="min-w-0">
-                            <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
-                            <p className="text-[10px] text-slate-500 mt-0.5">
+                            <p className="text-xs font-semibold text-slate-800">{s.label}</p>
+                            <p className="text-ui-xs text-slate-500 mt-0.5">
                               GL {s.glAccountCode} · {s.detail || 'Rollup from register'}
                             </p>
                           </div>
@@ -344,7 +344,7 @@ export function AccountingOpeningBalancePanel({
                           {s.drillDownTab && onFocusTab ? (
                             <button
                               type="button"
-                              className="text-[10px] font-bold text-teal-800 hover:underline"
+                              className="text-ui-xs font-bold text-teal-800 hover:underline"
                               onClick={() => onFocusTab(s.drillDownTab)}
                             >
                               Fix →
@@ -355,7 +355,7 @@ export function AccountingOpeningBalancePanel({
                     </li>
                   ))}
                   {!sourceRows.length && !loading ? (
-                    <li className="px-4 py-6 text-center text-[11px] text-slate-500">No sources loaded.</li>
+                    <li className="px-4 py-6 text-center text-xs text-slate-500">No sources loaded.</li>
                   ) : null}
                 </ul>
               </section>
@@ -364,7 +364,7 @@ export function AccountingOpeningBalancePanel({
                   type="button"
                   disabled={!registersReady}
                   onClick={() => setWizardStep(2)}
-                  className="rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
+                  className="rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-white disabled:opacity-50"
                 >
                   Continue to capital →
                 </button>
@@ -375,19 +375,19 @@ export function AccountingOpeningBalancePanel({
           {wizardStep === 2 ? (
             <>
               <section className="rounded-xl border border-slate-200/90 p-4 space-y-3">
-                <h3 className="text-[10px] font-black uppercase tracking-wide text-slate-700">
+                <h3 className="text-ui-xs font-black uppercase tracking-wide text-slate-700">
                   Step 2 — Owner&apos;s capital only
                 </h3>
-                <p className="text-[11px] text-slate-600">
+                <p className="text-xs text-slate-600">
                   Register totals roll up automatically. Enter audited owner&apos;s capital (3100). Account 3900 balances any
                   difference.
                 </p>
-                <label className="text-[10px] font-bold uppercase text-slate-500">
+                <label className="text-ui-xs font-bold uppercase text-slate-500">
                   Owner&apos;s capital (3100)
                   <input
                     type="text"
                     inputMode="numeric"
-                    className="mt-1 block w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold"
+                    className="mt-1 block w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold"
                     placeholder="From audited accounts"
                     value={capitalNgn}
                     onChange={(e) => setCapitalNgn(e.target.value)}
@@ -399,7 +399,7 @@ export function AccountingOpeningBalancePanel({
                 <button
                   type="button"
                   onClick={() => setWizardStep(1)}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-700"
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-700"
                 >
                   ← Back
                 </button>
@@ -409,7 +409,7 @@ export function AccountingOpeningBalancePanel({
                     loadPack();
                     setWizardStep(3);
                   }}
-                  className="rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white"
+                  className="rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-white"
                 >
                   Preview journal →
                 </button>
@@ -420,13 +420,13 @@ export function AccountingOpeningBalancePanel({
           {wizardStep === 3 ? (
             <>
               <section className="rounded-xl border border-slate-200/90 overflow-hidden">
-                <h3 className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-[10px] font-black uppercase tracking-wide text-slate-700">
+                <h3 className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-ui-xs font-black uppercase tracking-wide text-slate-700">
                   Step 3 — Proposed opening journal
                 </h3>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-[11px]">
+                  <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="border-b border-slate-100 text-[9px] font-bold uppercase text-slate-500">
+                      <tr className="border-b border-slate-100 text-ui-xs font-bold uppercase text-slate-500">
                         <th className="px-4 py-2">Code</th>
                         <th className="px-4 py-2">Memo</th>
                         <th className="px-4 py-2 text-right">Debit</th>
@@ -461,13 +461,13 @@ export function AccountingOpeningBalancePanel({
                 <button
                   type="button"
                   onClick={() => setWizardStep(2)}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-700"
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-700"
                 >
                   ← Back
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
+                  className="rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-white disabled:opacity-50"
                   onClick={() => setConfirmPost(true)}
                   disabled={busy || !canPostPack}
                 >
@@ -480,19 +480,19 @@ export function AccountingOpeningBalancePanel({
           {confirmPost ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
               <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
-                <h3 className="text-sm font-bold text-[#134e4a]">Post opening journal?</h3>
-                <p className="mt-2 text-[11px] text-slate-600 leading-relaxed">
+                <h3 className="text-sm font-bold text-zarewa-teal">Post opening journal?</h3>
+                <p className="mt-2 text-xs text-slate-600 leading-relaxed">
                   This posts one balanced journal on {ACCOUNTING_OPENING_DATE_LABEL} from register rollups plus owner&apos;s
                   capital. Register account lines should not be re-entered manually afterward.
                 </p>
-                <p className="mt-2 text-[11px] font-semibold text-slate-800 tabular-nums">
+                <p className="mt-2 text-xs font-semibold text-slate-800 tabular-nums">
                   Total: {formatNgn(proposed?.totalDebitsNgn || 0)}
                 </p>
                 <div className="mt-4 flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setConfirmPost(false)}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-slate-700"
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-ui-xs font-bold uppercase text-slate-700"
                   >
                     Cancel
                   </button>
@@ -500,7 +500,7 @@ export function AccountingOpeningBalancePanel({
                     type="button"
                     onClick={() => void postPack()}
                     disabled={busy}
-                    className="rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-bold uppercase text-white disabled:opacity-50"
+                    className="rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-bold uppercase text-white disabled:opacity-50"
                   >
                     {busy ? 'Posting…' : 'Confirm post'}
                   </button>
@@ -514,7 +514,7 @@ export function AccountingOpeningBalancePanel({
       <section className="rounded-xl border border-dashed border-slate-200">
         <button
           type="button"
-          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50"
+          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-ui-xs font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50"
           onClick={() => setShowAdvanced((v) => !v)}
         >
           Advanced — manual journal (legacy / exceptions only)
@@ -522,20 +522,20 @@ export function AccountingOpeningBalancePanel({
         </button>
         {showAdvanced ? (
           <div className="space-y-4 border-t border-slate-100 p-4">
-            <p className="text-[10px] text-slate-500">
+            <p className="text-ui-xs text-slate-500">
               Do not use for register accounts (1200, 2000, 2500, 1300, 1500+, per-bank cash). Use Opening Pack above.
             </p>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="text-[10px] font-bold uppercase text-slate-500">
+              <label className="text-ui-xs font-bold uppercase text-slate-500">
                 Entry date
                 <input
                   type="date"
-                  className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold"
+                  className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold"
                   value={entryDate}
                   onChange={(e) => setEntryDate(e.target.value)}
                 />
               </label>
-              <div className="text-[11px] font-semibold text-slate-700">
+              <div className="text-xs font-semibold text-slate-700">
                 Debits {formatNgn(manualTotals.debit)} · Credits {formatNgn(manualTotals.credit)}
               </div>
             </div>
@@ -544,7 +544,7 @@ export function AccountingOpeningBalancePanel({
                 <button
                   key={q.accountCode}
                   type="button"
-                  className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-bold uppercase text-slate-600 hover:bg-white"
+                  className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-ui-xs font-bold uppercase text-slate-600 hover:bg-white"
                   onClick={() => addQuick(q)}
                 >
                   + {q.label}
@@ -555,7 +555,7 @@ export function AccountingOpeningBalancePanel({
               {lines.map((line, idx) => (
                 <div key={idx} className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-12">
                   <input
-                    className="sm:col-span-2 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-mono"
+                    className="sm:col-span-2 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono"
                     placeholder="Code"
                     value={line.accountCode}
                     onChange={(e) =>
@@ -563,7 +563,7 @@ export function AccountingOpeningBalancePanel({
                     }
                   />
                   <input
-                    className="sm:col-span-2 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px]"
+                    className="sm:col-span-2 rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
                     placeholder="Debit ₦"
                     value={line.debitNgn}
                     onChange={(e) =>
@@ -571,7 +571,7 @@ export function AccountingOpeningBalancePanel({
                     }
                   />
                   <input
-                    className="sm:col-span-2 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px]"
+                    className="sm:col-span-2 rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
                     placeholder="Credit ₦"
                     value={line.creditNgn}
                     onChange={(e) =>
@@ -579,7 +579,7 @@ export function AccountingOpeningBalancePanel({
                     }
                   />
                   <input
-                    className="sm:col-span-4 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px]"
+                    className="sm:col-span-4 rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
                     placeholder="Memo"
                     value={line.memo}
                     onChange={(e) =>
@@ -588,7 +588,7 @@ export function AccountingOpeningBalancePanel({
                   />
                   <button
                     type="button"
-                    className="sm:col-span-2 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-500"
+                    className="sm:col-span-2 inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 text-ui-xs font-bold text-slate-500"
                     onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))}
                     disabled={lines.length <= 2}
                   >
@@ -601,7 +601,7 @@ export function AccountingOpeningBalancePanel({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase text-[#134e4a]"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-bold uppercase text-zarewa-teal"
                 onClick={() => setLines((prev) => [...prev, emptyLine()])}
               >
                 <Plus size={14} />
@@ -609,7 +609,7 @@ export function AccountingOpeningBalancePanel({
               </button>
               <button
                 type="button"
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-700 disabled:opacity-50"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-700 disabled:opacity-50"
                 onClick={postManual}
                 disabled={busy || !manualBalanced || lines.some((l) => l.accountCode && !allowManualCode(l.accountCode))}
               >

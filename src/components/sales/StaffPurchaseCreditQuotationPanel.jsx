@@ -141,7 +141,7 @@ export function StaffPurchaseCreditQuotationPanel({
     <>
       <div className={panelShell}>
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[#134e4a]">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-zarewa-teal">
             <HardHat size={14} aria-hidden />
             Staff purchase credit
           </p>
@@ -200,7 +200,7 @@ export function StaffPurchaseCreditQuotationPanel({
         <HrPurchaseCreditDecisionContext data={decisionData} className="mt-3" />
         {timeline.length ? (
           <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Status timeline</p>
+            <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5">Status timeline</p>
             <ul className="space-y-1.5">
               {timeline.map((ev, idx) => (
                 <li key={`${ev.atIso}-${ev.action}-${idx}`} className="text-xs text-slate-700">
@@ -223,7 +223,7 @@ export function StaffPurchaseCreditQuotationPanel({
           <Link
             to={quoteLink.to}
             state={quoteLink.state}
-            className="mt-3 inline-block text-xs font-semibold text-[#134e4a] underline"
+            className="mt-3 inline-block text-xs font-semibold text-zarewa-teal underline"
           >
             Open quotation in Sales
           </Link>

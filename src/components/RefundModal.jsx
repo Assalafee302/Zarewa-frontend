@@ -18,6 +18,7 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { ZareApprovalHint } from './ZareApprovalHint';
 import { quotationRefundBlockedPendingMdPriceConfirm } from '../lib/quotationPriceException';
 import { apiFetch } from '../lib/apiBase';
+import { appConfirm } from '../lib/appConfirm';
 import { printRefundRecord } from '../lib/refundRecordPrint';
 import {
   refundApprovedAmount,
@@ -1003,8 +1004,8 @@ const RefundModal = ({
         showToast('Enter a reason of at least 10 characters before blocking refunds.', { variant: 'error' });
         return;
       }
-      if (!window.confirm(`Permanently block all refund requests on ${ref}?`)) return;
-    } else if (!window.confirm(`Remove the refund block on ${ref}?`)) {
+      if (!(await appConfirm({ message: `Permanently block all refund requests on ${ref}?`, variant: 'danger' }))) return;
+    } else if (!(await appConfirm({ message: `Remove the refund block on ${ref}?`, variant: 'danger' }))) {
       return;
     }
     setRefundsBlockBusy(true);
@@ -1069,9 +1070,9 @@ const RefundModal = ({
       showToast('System offline (read-only). Reconnect and refresh, then try again.', { variant: 'error' });
       return;
     }
-    const proceed = window.confirm(
-      `Re-apply finance-confirmed bank amounts for ${ref} only?\n\nThis updates receipt rows, ledger splits, and paid totals from bank received figures. Use when refunds still show stale sales-posted cash (e.g. ₦1,500,000 instead of reconciled ₦1,150,000).\n\nContinue?`
-    );
+    const proceed = await appConfirm({
+      message: `Re-apply finance-confirmed bank amounts for ${ref} only?\n\nThis updates receipt rows, ledger splits, and paid totals from bank received figures. Use when refunds still show stale sales-posted cash (e.g. ₦1,500,000 instead of reconciled ₦1,150,000).\n\nContinue?`,
+    });
     if (!proceed) return;
     setFixReceiptAmountsBusy(true);
     try {
@@ -1465,9 +1466,9 @@ const RefundModal = ({
     };
   }, [derivedReasonCategories, priorRefundsOnQuote]);
 
-  const label = 'text-[11px] font-semibold text-slate-500 uppercase tracking-wide ml-0.5 mb-1 block';
+  const label = 'text-xs font-semibold text-slate-500 uppercase tracking-wide ml-0.5 mb-1 block';
   const input =
-    'w-full bg-white border border-slate-200 rounded-lg py-2.5 px-3 text-sm font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-red-500/15 disabled:opacity-60';
+    'w-full bg-white border border-slate-200 rounded-lg py-2.5 px-3 text-sm font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-red-500/15 disabled:opacity-60';
   const inputIntelDark =
     'w-full bg-slate-800/90 border border-slate-600 rounded-lg py-2.5 px-3 text-sm font-semibold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-rose-500/35 disabled:opacity-50';
 
@@ -1824,7 +1825,7 @@ const RefundModal = ({
                 <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                   {mode === 'approve' ? 'Refund Approval' : mode === 'view' ? 'Refund Record' : 'Create Refund'}
                 </h2>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${modeBadge}`}>
+                <span className={`px-2 py-0.5 rounded-full text-ui-xs font-bold uppercase tracking-wider ${modeBadge}`}>
                   {modeLabel}
                 </span>
               </div>
@@ -1892,7 +1893,7 @@ const RefundModal = ({
                     receipts, production, and delivery before submitting or approving.
                   </p>
                 </div>
-                <ul className="text-[11px] leading-relaxed text-teal-900/90 font-medium space-y-1.5 list-disc pl-4 border-t border-teal-200/60 pt-3">
+                <ul className="text-xs leading-relaxed text-teal-900/90 font-medium space-y-1.5 list-disc pl-4 border-t border-teal-200/60 pt-3">
                   <li>Choose a quotation with payment recorded; the preview fills a breakdown — uncheck lines you do not want.</li>
                   <li>Customer commission is optional: use “Add commission to preview” if it applies (capped by minimum selling ₦/m).</li>
                   <li>
@@ -1947,7 +1948,7 @@ const RefundModal = ({
                     }}
                     className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
                       createPath === 'full'
-                        ? 'bg-[#134e4a] text-white shadow-md shadow-teal-200'
+                        ? 'bg-zarewa-teal text-white shadow-md shadow-teal-200'
                         : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
@@ -1972,7 +1973,7 @@ const RefundModal = ({
 
           {record?.refundID && !showApprovalReview ? (
             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Activity timeline</p>
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Activity timeline</p>
               <ul className="text-xs text-slate-700 space-y-1.5 font-medium">
                 <li>
                   <span className="text-slate-500">Requested</span>{' '}
@@ -2004,7 +2005,7 @@ const RefundModal = ({
                         .join(' · ')}
                     </span>
                     {record.payeeAccountNo || record.payee_account_no ? (
-                      <span className="block text-[11px] font-mono text-slate-600">
+                      <span className="block text-xs font-mono text-slate-600">
                         {record.payeeAccountNo || record.payee_account_no}
                       </span>
                     ) : null}
@@ -2022,7 +2023,7 @@ const RefundModal = ({
                     <span className="text-slate-500 block mb-1">Treasury payouts</span>
                     <ul className="space-y-1 pl-2 border-l-2 border-teal-200">
                       {record.payoutHistory.map((p) => (
-                        <li key={p.id} className="text-[11px]">
+                        <li key={p.id} className="text-xs">
                           {(p.postedAtISO || '').slice(0, 16)} · ₦{Number(p.amountNgn || 0).toLocaleString('en-NG')}
                           {p.reference ? ` · ${p.reference}` : ''}
                           {p.accountName ? ` · ${p.accountName}` : ''}
@@ -2107,13 +2108,13 @@ const RefundModal = ({
             <>
           {showApproval && approvalEditMode ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3">
-              <p className="text-[11px] font-semibold text-amber-950">
+              <p className="text-xs font-semibold text-amber-950">
                 Editing request details — adjust lines or payee, then save your decision.
               </p>
               <button
                 type="button"
                 onClick={() => setApprovalEditMode(false)}
-                className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-900 hover:bg-amber-50"
+                className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-amber-900 hover:bg-amber-50"
               >
                 Back to review
               </button>
@@ -2126,7 +2127,7 @@ const RefundModal = ({
               <div className="p-5 rounded-2xl bg-white border border-slate-200/60 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-2 h-5 bg-rose-500 rounded-full" />
-                  <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Step 1: Link Quotation</h3>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Step 1: Link Quotation</h3>
                 </div>
 
                 <div className="space-y-4">
@@ -2197,7 +2198,7 @@ const RefundModal = ({
                                     <button
                                       key={q.id}
                                       type="button"
-                                      className="w-full px-3 py-2 text-left text-[11px] font-semibold text-[#134e4a] hover:bg-rose-50"
+                                      className="w-full px-3 py-2 text-left text-xs font-semibold text-zarewa-teal hover:bg-rose-50"
                                       onMouseDown={(ev) => ev.preventDefault()}
                                       onClick={() => handleQuoteChange(q.id)}
                                     >
@@ -2205,7 +2206,7 @@ const RefundModal = ({
                                         {q.id} · {q.customer_name}
                                         {preparedBy ? ` · ${preparedBy}` : ''}
                                       </span>
-                                      <span className="block text-[10px] font-medium text-slate-500 truncate">
+                                      <span className="block text-ui-xs font-medium text-slate-500 truncate">
                                         ₦{(q.cash_in_ngn ?? q.paid_ngn).toLocaleString()} received
                                         {q.cash_in_ngn != null && q.cash_in_ngn !== q.paid_ngn
                                           ? ` (booked ₦${q.paid_ngn.toLocaleString()})`
@@ -2229,14 +2230,14 @@ const RefundModal = ({
                           type="button"
                           disabled={loadingQuotes || manualQuotationVerifyBusy}
                           onClick={() => void verifyAndApplyQuotationId()}
-                          className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-teal-900 hover:bg-teal-100 disabled:opacity-50"
+                          className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-teal-900 hover:bg-teal-100 disabled:opacity-50"
                         >
                           {manualQuotationVerifyBusy ? 'Verifying…' : 'Use quotation id'}
                         </button>
                       </div>
                     ) : null}
                     {manualQuotationVerifyError ? (
-                      <p className="mt-1 text-[10px] text-rose-700 font-medium leading-snug" role="alert">
+                      <p className="mt-1 text-ui-xs text-rose-700 font-medium leading-snug" role="alert">
                         {manualQuotationVerifyError}
                       </p>
                     ) : null}
@@ -2245,14 +2246,14 @@ const RefundModal = ({
                         className="mt-3 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2.5 space-y-1"
                         role="alert"
                       >
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-rose-900">
+                        <p className="text-ui-xs font-bold uppercase tracking-wide text-rose-900">
                           Refunds permanently blocked
                         </p>
-                        <p className="text-[11px] text-rose-900 leading-snug">
+                        <p className="text-xs text-rose-900 leading-snug">
                           {selectedQuotationRefundsBlocked.reason || 'No refund requests may be submitted on this quotation.'}
                         </p>
                         {selectedQuotationRefundsBlocked.byName || selectedQuotationRefundsBlocked.atISO ? (
-                          <p className="text-[10px] text-rose-800/80">
+                          <p className="text-ui-xs text-rose-800/80">
                             {selectedQuotationRefundsBlocked.byName ? `By ${selectedQuotationRefundsBlocked.byName}` : ''}
                             {selectedQuotationRefundsBlocked.atISO
                               ? `${selectedQuotationRefundsBlocked.byName ? ' · ' : ''}${selectedQuotationRefundsBlocked.atISO.slice(0, 16).replace('T', ' ')}`
@@ -2263,15 +2264,15 @@ const RefundModal = ({
                     ) : null}
                     {canBlockQuotationRefunds && form.quotationRef ? (
                       <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 space-y-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                        <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-600">
                           MD / admin — refund control
                         </p>
                         {selectedQuotationRefundsBlocked.blocked ? (
-                          <p className="text-[11px] text-slate-700 leading-snug">
+                          <p className="text-xs text-slate-700 leading-snug">
                             This quotation is blocked from all new refund requests and payout.
                           </p>
                         ) : (
-                          <p className="text-[11px] text-slate-700 leading-snug">
+                          <p className="text-xs text-slate-700 leading-snug">
                             Block mistaken or settled quotations so they never appear in Potential refunds again.
                           </p>
                         )}
@@ -2284,13 +2285,13 @@ const RefundModal = ({
                               ? 'Optional note when unblocking…'
                               : 'Reason (required, min 10 characters) — e.g. mistaken overpayment, not a customer refund'
                           }
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-800 outline-none focus:ring-2 focus:ring-rose-200"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-rose-200"
                         />
                         <button
                           type="button"
                           disabled={refundsBlockBusy || ws?.canMutate === false}
                           onClick={() => void toggleQuotationRefundsBlocked()}
-                          className={`rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-wide disabled:opacity-50 ${
+                          className={`rounded-lg px-3 py-2 text-ui-xs font-bold uppercase tracking-wide disabled:opacity-50 ${
                             selectedQuotationRefundsBlocked.blocked
                               ? 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
                               : 'border border-rose-300 bg-rose-600 text-white hover:bg-rose-700'
@@ -2307,7 +2308,7 @@ const RefundModal = ({
                             type="button"
                             disabled={fixReceiptAmountsBusy || ws?.canMutate === false}
                             onClick={() => void fixReceiptAmountsForQuote()}
-                            className="w-full rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-violet-950 hover:bg-violet-100 disabled:opacity-50"
+                            className="w-full rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-violet-950 hover:bg-violet-100 disabled:opacity-50"
                           >
                             {fixReceiptAmountsBusy
                               ? 'Fixing receipt amounts…'
@@ -2315,7 +2316,7 @@ const RefundModal = ({
                           </button>
                         ) : null}
                         {refundMoneyBreakdown.overpay > 0 ? (
-                          <p className="text-[10px] text-slate-600 leading-snug">
+                          <p className="text-ui-xs text-slate-600 leading-snug">
                             If this is a mistaken till entry, confirm the receipt in Finance with the real bank amount
                             (₦1,150,000), then use <strong>Fix receipt amounts</strong> above — or block refunds if no
                             customer refund is due.
@@ -2346,19 +2347,19 @@ const RefundModal = ({
                               setSyncPaidError('');
                             }}
                             placeholder="Quotation id e.g. QT-KD-26-0001"
-                            className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-mono outline-none focus:ring-2 focus:ring-rose-200"
+                            className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-mono outline-none focus:ring-2 focus:ring-rose-200"
                           />
                           <button
                             type="button"
                             disabled={syncPaidBusy}
                             onClick={() => void syncPaidFromLedger()}
-                            className="shrink-0 rounded-lg bg-[#134e4a] text-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide disabled:opacity-50"
+                            className="shrink-0 rounded-lg bg-zarewa-teal text-white px-3 py-2 text-ui-xs font-bold uppercase tracking-wide disabled:opacity-50"
                           >
                             {syncPaidBusy ? 'Syncing…' : 'Sync paid from receipts'}
                           </button>
                         </div>
                         {syncPaidError ? (
-                          <p className="text-[10px] text-rose-700 font-medium">{syncPaidError}</p>
+                          <p className="text-ui-xs text-rose-700 font-medium">{syncPaidError}</p>
                         ) : null}
                       </div>
                     ) : null}
@@ -2373,7 +2374,7 @@ const RefundModal = ({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-2 h-5 bg-rose-500 rounded-full" />
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                       Refund breakdown
                     </h3>
                   </div>
@@ -2387,7 +2388,7 @@ const RefundModal = ({
                             const r = String(form.quotationRef || '').trim();
                             if (r) void generatePreview(r, true);
                           }}
-                          className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-teal-900 hover:bg-teal-100"
+                          className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-teal-900 hover:bg-teal-100"
                         >
                           + Add commission to preview
                         </button>
@@ -2399,7 +2400,7 @@ const RefundModal = ({
                             const r = String(form.quotationRef || '').trim();
                             if (r) void generatePreview(r, false);
                           }}
-                          className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-200"
+                          className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-200"
                         >
                           Remove commission from preview
                         </button>
@@ -2415,7 +2416,7 @@ const RefundModal = ({
                       derivedReasonCategories.map((c) => (
                         <span
                           key={c}
-                          className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-700"
+                          className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-ui-xs font-bold text-slate-700"
                           title={REFUND_CATEGORY_HINTS[c] || ''}
                         >
                           {c}
@@ -2426,7 +2427,7 @@ const RefundModal = ({
                     )}
                   </div>
                   {excludedRefundHints.length > 0 ? (
-                    <p className="mt-2 text-[9px] leading-snug text-slate-500">
+                    <p className="mt-2 text-ui-xs leading-snug text-slate-500">
                       <span className="font-semibold text-slate-600">Unavailable for this quote:</span>{' '}
                       {excludedRefundHints
                         .map(({ cat, reason }) =>
@@ -2443,7 +2444,7 @@ const RefundModal = ({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <div className="h-4 w-1.5 rounded-full bg-rose-500/80" />
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Lines</h4>
+                      <h4 className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Lines</h4>
                     </div>
                     {!readOnly && createPath === 'full' ? (
                       <button
@@ -2487,7 +2488,7 @@ const RefundModal = ({
                                   onChange={(e) => setLine(idx, { include: e.target.checked })}
                                   className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
                                 />
-                                <span className="text-[9px] font-bold uppercase text-slate-500">Include</span>
+                                <span className="text-ui-xs font-bold uppercase text-slate-500">Include</span>
                               </label>
                             ) : null}
                             <div className="min-w-0 flex-1 space-y-1.5">
@@ -2501,7 +2502,7 @@ const RefundModal = ({
                                 placeholder="Description (two lines OK for long substitution notes)…"
                               />
                               {labelAmountMismatch ? (
-                                <p className="text-[9px] font-semibold text-rose-700 leading-snug">
+                                <p className="text-ui-xs font-semibold text-rose-700 leading-snug">
                                   Description implies ₦{expectedFromLabel.toLocaleString('en-NG')} — adjust the amount
                                   to match or use a manual line without a formula in the label.
                                 </p>
@@ -2510,7 +2511,7 @@ const RefundModal = ({
                               (String(line.category || '').trim() === 'Substitution Difference' ||
                                 (substitutionBreakdownLineKey &&
                                   line.lineKey === substitutionBreakdownLineKey)) ? (
-                                <div className="rounded-lg border border-sky-100 bg-sky-50/90 px-2.5 py-2 text-[10px] leading-snug text-slate-700 space-y-1.5">
+                                <div className="rounded-lg border border-sky-100 bg-sky-50/90 px-2.5 py-2 text-ui-xs leading-snug text-slate-700 space-y-1.5">
                                   <p className="font-bold uppercase tracking-wide text-sky-800/90">
                                     How this amount is calculated
                                   </p>
@@ -2539,7 +2540,7 @@ const RefundModal = ({
                                           <span className="font-semibold">{row.productName || row.jobId || 'Job'}</span>
                                           {gaugeNote}
                                         </p>
-                                        <p className="font-mono text-[11px] text-slate-900 mt-0.5 tabular-nums">
+                                        <p className="font-mono text-xs text-slate-900 mt-0.5 tabular-nums">
                                           ₦{qPpm.toLocaleString('en-NG')}/m (quoted) − ₦
                                           {coilPpm.toLocaleString('en-NG')}/m (workbook floor, coil gauge)
                                           {' = '}
@@ -2549,7 +2550,7 @@ const RefundModal = ({
                                       </div>
                                     );
                                   })}
-                                  <p className="text-[9px] text-slate-500 pt-0.5 border-t border-sky-100/80">
+                                  <p className="text-ui-xs text-slate-500 pt-0.5 border-t border-sky-100/80">
                                     Quoted ₦/m comes from the quotation roofing lines. Coil ₦/m uses the material pricing
                                     workbook minimum (floor) for the allocated roll when available; otherwise the
                                     published price list row for that gauge and design.
@@ -2561,7 +2562,7 @@ const RefundModal = ({
                                   <select
                                     value={line.category || 'Other'}
                                     onChange={(e) => setLine(idx, { category: e.target.value })}
-                                    className="rounded-md border border-slate-200 bg-white py-1 px-2 text-[9px] font-bold uppercase text-slate-700"
+                                    className="rounded-md border border-slate-200 bg-white py-1 px-2 text-ui-xs font-bold uppercase text-slate-700"
                                   >
                                     {REFUND_REASON_CATEGORIES.map((c) => (
                                       <option key={c} value={c}>
@@ -2571,7 +2572,7 @@ const RefundModal = ({
                                   </select>
                                 ) : (
                                   <p
-                                    className="text-[9px] font-bold uppercase text-slate-400"
+                                    className="text-ui-xs font-bold uppercase text-slate-400"
                                     title={REFUND_CATEGORY_HINTS[line.category] || ''}
                                   >
                                     {line.category || '—'}
@@ -2586,7 +2587,7 @@ const RefundModal = ({
                                 disabled={readOnly}
                                 value={line.amountNgn}
                                 onChange={(e) => setLine(idx, { amountNgn: e.target.value })}
-                                className="w-24 rounded-lg border border-slate-200 bg-white py-1 px-2 text-right text-[11px] font-black text-slate-900 outline-none focus:ring-2 focus:ring-rose-500/10 tabular-nums"
+                                className="w-24 rounded-lg border border-slate-200 bg-white py-1 px-2 text-right text-xs font-black text-slate-900 outline-none focus:ring-2 focus:ring-rose-500/10 tabular-nums"
                               />
                               {!readOnly && isManual ? (
                                 <button
@@ -2618,11 +2619,11 @@ const RefundModal = ({
                         >
                           ₦{lineSum.toLocaleString('en-NG')}
                         </p>
-                        <p className="mt-1 text-[11px] font-medium text-rose-900/70">
+                        <p className="mt-1 text-xs font-medium text-rose-900/70">
                           From included breakdown lines — adjust lines above to change this total.
                         </p>
                         {exceedsRefundableHeadroom ? (
-                          <p className="text-[11px] font-semibold text-rose-700 mt-2 leading-snug">
+                          <p className="text-xs font-semibold text-rose-700 mt-2 leading-snug">
                             {categoryCapViolation
                               ? `${categoryCapViolation.cat} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
                               : lineArithmeticIssues[0]
@@ -2647,7 +2648,7 @@ const RefundModal = ({
                           ₦{lineSum.toLocaleString()}
                         </p>
                         {exceedsRefundableHeadroom ? (
-                          <p className="text-[11px] font-semibold text-rose-700 mt-1 leading-snug">
+                          <p className="text-xs font-semibold text-rose-700 mt-1 leading-snug">
                             {categoryCapViolation
                               ? `${categoryCapViolation.cat} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
                               : lineArithmeticIssues[0]
@@ -2681,12 +2682,12 @@ const RefundModal = ({
                         />
                       </div>
                       {sumMismatch ? (
-                        <p className="mt-1.5 text-[11px] font-semibold text-amber-800">
+                        <p className="mt-1.5 text-xs font-semibold text-amber-800">
                           Line items total does not match the requested refund amount.
                         </p>
                       ) : null}
                       {mode !== 'create' && recordOutstandingAmount > 0 ? (
-                        <p className="mt-1.5 text-[11px] font-bold uppercase tracking-wide text-rose-800/70">
+                        <p className="mt-1.5 text-xs font-bold uppercase tracking-wide text-rose-800/70">
                           Outstanding after approvals: ₦{recordOutstandingAmount.toLocaleString()}
                         </p>
                       ) : null}
@@ -2723,7 +2724,7 @@ const RefundModal = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Hash className="text-rose-400 shrink-0" size={18} aria-hidden />
-                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
                       Transaction intelligence
                     </h3>
                   </div>
@@ -2735,7 +2736,7 @@ const RefundModal = ({
                 {!form.quotationRef ? (
                   <div className="py-10 flex flex-col items-center justify-center text-center px-4">
                     <Link2 size={32} className="text-slate-700 mb-2 opacity-20" aria-hidden />
-                    <p className="text-[10px] font-bold text-slate-500 uppercase">
+                    <p className="text-ui-xs font-bold text-slate-500 uppercase">
                       Select a quotation to load
                       <br />
                       customer and audit context
@@ -2746,29 +2747,29 @@ const RefundModal = ({
                     <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3 space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="min-w-0">
-                          <p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Customer</p>
+                          <p className="text-ui-xs font-bold text-slate-500 uppercase mb-1">Customer</p>
                           <p className="text-sm font-bold text-white truncate">{form.customerName || '—'}</p>
-                          <p className="text-[10px] font-medium text-slate-400 font-mono">{form.customerID || '—'}</p>
+                          <p className="text-ui-xs font-medium text-slate-400 font-mono">{form.customerID || '—'}</p>
                           {selectedQuotationPreparedBy ? (
-                            <p className="text-[10px] font-medium text-slate-400 mt-1 truncate">
+                            <p className="text-ui-xs font-medium text-slate-400 mt-1 truncate">
                               Prepared by <span className="text-slate-200">{selectedQuotationPreparedBy}</span>
                             </p>
                           ) : null}
                         </div>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:justify-items-end sm:text-right">
                           <div>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase mb-0.5">Quote total</p>
+                            <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">Quote total</p>
                             <p className="text-sm font-black text-white tabular-nums">
                               ₦
                               {(selectedQuoteMoneyRow?.total_ngn || 0).toLocaleString()}
                             </p>
                           </div>
                           <div>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase mb-0.5">Receipts (cash view)</p>
+                            <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">Receipts (cash view)</p>
                             <p className="text-sm font-black text-emerald-400 tabular-nums">
                               ₦{refundIntelReceiptsTotalNgn.toLocaleString()}
                             </p>
-                            <p className="text-[8px] text-slate-600 mt-0.5 leading-tight">
+                            <p className="text-ui-xs text-slate-600 mt-0.5 leading-tight">
                               {intelligence.receipts.length === 0
                                 ? 'No receipts linked in workspace'
                                 : `${intelligence.receipts.length} linked receipt${intelligence.receipts.length === 1 ? '' : 's'}`}
@@ -2778,8 +2779,8 @@ const RefundModal = ({
                       </div>
                       {selectedQuotationSnapshot ? (
                         <div className="border-t border-slate-700/50 pt-3 space-y-2">
-                          <p className="text-[9px] font-bold text-slate-500 uppercase">Quotation details</p>
-                          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 text-[10px] text-slate-200">
+                          <p className="text-ui-xs font-bold text-slate-500 uppercase">Quotation details</p>
+                          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 text-ui-xs text-slate-200">
                             <div className="flex justify-between gap-2 sm:col-span-2">
                               <dt className="text-slate-500 shrink-0">Quotation</dt>
                               <dd className="font-mono text-right truncate" title={selectedQuotationSnapshot.id}>
@@ -2842,7 +2843,7 @@ const RefundModal = ({
                             </div>
                             {refundQuotationGaugeDisplay.hint ? (
                               <div className="sm:col-span-2">
-                                <p className="text-[8px] text-slate-500 leading-snug">{refundQuotationGaugeDisplay.hint}</p>
+                                <p className="text-ui-xs text-slate-500 leading-snug">{refundQuotationGaugeDisplay.hint}</p>
                               </div>
                             ) : null}
                             <div className="flex justify-between gap-2">
@@ -2866,11 +2867,11 @@ const RefundModal = ({
                       ) : null}
                       {refundProductionConversionSummary ? (
                         <div className="border-t border-slate-700/50 pt-3 space-y-2">
-                          <p className="text-[9px] font-bold text-slate-500 uppercase">
+                          <p className="text-ui-xs font-bold text-slate-500 uppercase">
                             Conversion &amp; production status
                           </p>
                           {refundProductionConversionSummary.emptyMessage ? (
-                            <p className="text-[10px] text-slate-400 leading-snug">
+                            <p className="text-ui-xs text-slate-400 leading-snug">
                               {refundProductionConversionSummary.emptyMessage}
                             </p>
                           ) : (
@@ -2878,16 +2879,16 @@ const RefundModal = ({
                               {refundProductionConversionSummary.jobs.map((j) => (
                                 <li
                                   key={j.jobID}
-                                  className="rounded-lg border border-slate-700/80 bg-slate-900/40 px-2.5 py-2 text-[10px] leading-snug"
+                                  className="rounded-lg border border-slate-700/80 bg-slate-900/40 px-2.5 py-2 text-ui-xs leading-snug"
                                 >
                                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                                     <span className="font-mono text-slate-300">{j.jobID}</span>
-                                    <span className="text-[9px] font-bold uppercase text-slate-500">{j.status}</span>
+                                    <span className="text-ui-xs font-bold uppercase text-slate-500">{j.status}</span>
                                   </div>
                                   <p className="text-slate-400 mt-0.5 truncate" title={j.productName}>
                                     {j.productName}
                                   </p>
-                                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px]">
+                                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-ui-xs">
                                     <span>
                                       <span className="text-slate-500">Conversion: </span>
                                       <span
@@ -2905,7 +2906,7 @@ const RefundModal = ({
                                     ) : null}
                                   </div>
                                   {Array.isArray(j.coilRows) && j.coilRows.length > 0 ? (
-                                    <ul className="mt-1.5 space-y-1 border-t border-slate-700/40 pt-1.5 text-[9px] text-slate-400">
+                                    <ul className="mt-1.5 space-y-1 border-t border-slate-700/40 pt-1.5 text-ui-xs text-slate-400">
                                       {j.coilRows.map((c) => {
                                         const open = Number(c.openingWeightKg);
                                         const close = Number(c.closingWeightKg);
@@ -2952,12 +2953,12 @@ const RefundModal = ({
                       {refundMoneyBreakdown.overpay > 0 ? (
                         <div className="pt-2 border-t border-slate-700/80 space-y-1">
                           <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <p className="text-[9px] font-bold text-slate-500 uppercase">Paid above quote total</p>
+                            <p className="text-ui-xs font-bold text-slate-500 uppercase">Paid above quote total</p>
                             <p className="text-sm font-black text-amber-300 tabular-nums">
                               ₦{refundMoneyBreakdown.overpay.toLocaleString()}
                             </p>
                           </div>
-                          <p className="text-[9px] text-slate-400 leading-snug">
+                          <p className="text-ui-xs text-slate-400 leading-snug">
                             Total received on this quotation ₦{refundMoneyBreakdown.cashIn.toLocaleString()} minus quote
                             total — refund as <strong className="text-slate-300">Overpayment</strong> (this quotation
                             only, not other customer balance).
@@ -2966,13 +2967,13 @@ const RefundModal = ({
                       ) : null}
                       {previewRemainingNgn != null && mode === 'create' ? (
                         <div className="pt-2 border-t border-slate-700/80">
-                          <p className="text-[9px] font-bold text-slate-500 uppercase mb-0.5">
+                          <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">
                             Remaining refundable (this quotation)
                           </p>
                           <p className="text-sm font-black text-amber-200 tabular-nums">
                             ₦{previewRemainingNgn.toLocaleString('en-NG')}
                           </p>
-                          <p className="text-[8px] text-slate-500 leading-snug mt-0.5">
+                          <p className="text-ui-xs text-slate-500 leading-snug mt-0.5">
                             Cash received on this quote minus refunds already on file.
                             {exceedsRefundableHeadroom ? ' Lower breakdown lines to continue.' : ''}
                           </p>
@@ -2980,12 +2981,12 @@ const RefundModal = ({
                       ) : null}
                       {(intelligence.dataQualityIssues || []).length > 0 ? (
                         <div className="pt-2 border-t border-amber-900/40 rounded-lg bg-amber-950/25 p-2.5 space-y-1.5">
-                          <p className="text-[9px] font-bold text-amber-200 uppercase">System alerts</p>
+                          <p className="text-ui-xs font-bold text-amber-200 uppercase">System alerts</p>
                           <ul className="space-y-1">
                             {(intelligence.dataQualityIssues || []).map((issue, idx) => (
                               <li
                                 key={issue.jobId || issue.code || idx}
-                                className={`text-[10px] leading-snug ${
+                                className={`text-ui-xs leading-snug ${
                                   issue.severity === 'critical' ? 'text-rose-100' : 'text-amber-50/95'
                                 }`}
                               >
@@ -2995,10 +2996,10 @@ const RefundModal = ({
                           </ul>
                           {mode === 'create' && String(form.quotationRef || '').trim() ? (
                             <div className="pt-2 border-t border-amber-800/40 space-y-1.5">
-                              <label className="block text-[9px] font-bold text-amber-100/90 uppercase tracking-wide">
+                              <label className="block text-ui-xs font-bold text-amber-100/90 uppercase tracking-wide">
                                 Workbook ₦/m override (produced coil)
                               </label>
-                              <p className="text-[8px] text-amber-100/70 leading-snug">
+                              <p className="text-ui-xs text-amber-100/70 leading-snug">
                                 Use when list price is missing for the <strong className="text-amber-50">allocated coil</strong>{' '}
                                 gauge + design. Leave blank to use only master data.
                               </p>
@@ -3010,7 +3011,7 @@ const RefundModal = ({
                                   placeholder="e.g. 5200"
                                   value={substitutionWorkbookPpmOverride}
                                   onChange={(e) => setSubstitutionWorkbookPpmOverride(e.target.value)}
-                                  className="w-[7.5rem] rounded-md border border-amber-800/60 bg-amber-950/40 px-2 py-1.5 text-[11px] font-mono text-amber-50 placeholder:text-amber-200/40"
+                                  className="w-[7.5rem] rounded-md border border-amber-800/60 bg-amber-950/40 px-2 py-1.5 text-xs font-mono text-amber-50 placeholder:text-amber-200/40"
                                 />
                                 <button
                                   type="button"
@@ -3018,7 +3019,7 @@ const RefundModal = ({
                                   onClick={() =>
                                     void generatePreview(String(form.quotationRef).trim(), includeCommissionInPreview)
                                   }
-                                  className="rounded-md bg-amber-200/90 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-amber-950 hover:bg-amber-100 disabled:opacity-50"
+                                  className="rounded-md bg-amber-200/90 px-2.5 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-amber-950 hover:bg-amber-100 disabled:opacity-50"
                                 >
                                   Apply to preview
                                 </button>
@@ -3034,7 +3035,7 @@ const RefundModal = ({
                         {!refundIntelExpanded ? (
                           <button
                             type="button"
-                            className="w-full rounded-xl border border-slate-600 bg-slate-800/80 py-2.5 px-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-200 hover:bg-slate-800 hover:border-slate-500 transition-colors"
+                            className="w-full rounded-xl border border-slate-600 bg-slate-800/80 py-2.5 px-3 text-center text-ui-xs font-bold uppercase tracking-wide text-slate-200 hover:bg-slate-800 hover:border-slate-500 transition-colors"
                             onClick={() => setRefundIntelExpanded(true)}
                           >
                             Show detailed lines, production &amp; substitution
@@ -3042,7 +3043,7 @@ const RefundModal = ({
                         ) : (
                           <button
                             type="button"
-                            className="w-full rounded-xl border border-transparent py-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-slate-500 hover:text-slate-300 transition-colors"
+                            className="w-full rounded-xl border border-transparent py-1.5 text-center text-ui-xs font-bold uppercase tracking-wide text-slate-500 hover:text-slate-300 transition-colors"
                             onClick={() => setRefundIntelExpanded(false)}
                           >
                             Hide detailed analysis
@@ -3054,11 +3055,11 @@ const RefundModal = ({
                     {(mode !== 'create' || refundIntelExpanded) && (
                     <>
                     <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wider">
                         Quotation order lines
                       </p>
                       {refundIntelQuotationOrderRows.length === 0 ? (
-                        <p className="text-[10px] text-slate-600 italic leading-snug">
+                        <p className="text-ui-xs text-slate-600 italic leading-snug">
                           No structured lines on this quotation (open the quote in Sales to add products, accessories, and
                           services).
                         </p>
@@ -3067,22 +3068,22 @@ const RefundModal = ({
                           <table className="w-full text-left border-collapse">
                             <thead className="sticky top-0 z-[1] bg-slate-950/95 backdrop-blur border-b border-slate-700">
                               <tr>
-                                <th className="py-2 pl-2.5 pr-1 text-[8px] font-bold text-slate-500 uppercase tracking-wide">
+                                <th className="py-2 pl-2.5 pr-1 text-ui-xs font-bold text-slate-500 uppercase tracking-wide">
                                   Type
                                 </th>
-                                <th className="py-2 px-1 text-[8px] font-bold text-slate-500 uppercase tracking-wide">
+                                <th className="py-2 px-1 text-ui-xs font-bold text-slate-500 uppercase tracking-wide">
                                   Item
                                 </th>
-                                <th className="py-2 px-1 text-[8px] font-bold text-slate-500 uppercase tracking-wide text-right">
+                                <th className="py-2 px-1 text-ui-xs font-bold text-slate-500 uppercase tracking-wide text-right">
                                   Qty
                                 </th>
-                                <th className="py-2 px-1 text-[8px] font-bold text-slate-500 uppercase tracking-wide text-right">
+                                <th className="py-2 px-1 text-ui-xs font-bold text-slate-500 uppercase tracking-wide text-right">
                                   Unit ₦
                                 </th>
-                                <th className="py-2 px-1 text-[8px] font-bold text-slate-500 uppercase tracking-wide text-right">
+                                <th className="py-2 px-1 text-ui-xs font-bold text-slate-500 uppercase tracking-wide text-right">
                                   Supplied
                                 </th>
-                                <th className="py-2 pr-2.5 pl-1 text-[8px] font-bold text-slate-500 uppercase tracking-wide text-right">
+                                <th className="py-2 pr-2.5 pl-1 text-ui-xs font-bold text-slate-500 uppercase tracking-wide text-right">
                                   Short
                                 </th>
                               </tr>
@@ -3090,29 +3091,29 @@ const RefundModal = ({
                             <tbody>
                               {refundIntelQuotationOrderRows.map((row) => (
                                 <tr key={row.key} className="border-t border-slate-800/90 align-top">
-                                  <td className="py-1.5 pl-2.5 pr-1 text-[9px] text-slate-500 whitespace-nowrap">
+                                  <td className="py-1.5 pl-2.5 pr-1 text-ui-xs text-slate-500 whitespace-nowrap">
                                     {row.categoryLabel}
                                   </td>
                                   <td
-                                    className="py-1.5 px-1 text-[9px] font-semibold text-slate-200 max-w-[7.5rem] sm:max-w-[10rem] truncate"
+                                    className="py-1.5 px-1 text-ui-xs font-semibold text-slate-200 max-w-[7.5rem] sm:max-w-[10rem] truncate"
                                     title={row.name}
                                   >
                                     {row.name}
                                   </td>
-                                  <td className="py-1.5 px-1 text-[9px] text-right tabular-nums text-slate-300">
+                                  <td className="py-1.5 px-1 text-ui-xs text-right tabular-nums text-slate-300">
                                     {row.qtyLabel}
                                   </td>
-                                  <td className="py-1.5 px-1 text-[9px] text-right tabular-nums text-slate-300">
+                                  <td className="py-1.5 px-1 text-ui-xs text-right tabular-nums text-slate-300">
                                     {row.unitPriceLabel}
                                   </td>
-                                  <td className="py-1.5 px-1 text-[9px] text-right tabular-nums text-emerald-400/95">
+                                  <td className="py-1.5 px-1 text-ui-xs text-right tabular-nums text-emerald-400/95">
                                     {row.isAccessoryTracked
                                       ? row.isStoneFlatsheetM2
                                         ? `${(Number(row.supplied) || 0).toLocaleString('en-NG', { maximumFractionDigits: 3 })} m²`
                                         : row.supplied?.toLocaleString() ?? '—'
                                       : '—'}
                                   </td>
-                                  <td className="py-1.5 pr-2.5 pl-1 text-[9px] text-right tabular-nums">
+                                  <td className="py-1.5 pr-2.5 pl-1 text-ui-xs text-right tabular-nums">
                                     {row.isAccessoryTracked && row.shortfall != null && row.shortfall > 0 ? (
                                       <span className="font-bold text-rose-400">
                                         {row.isStoneFlatsheetM2
@@ -3129,7 +3130,7 @@ const RefundModal = ({
                               ))}
                             </tbody>
                           </table>
-                          <p className="text-[8px] text-slate-600 px-2.5 py-2 border-t border-slate-800/80 leading-relaxed">
+                          <p className="text-ui-xs text-slate-600 px-2.5 py-2 border-t border-slate-800/80 leading-relaxed">
                             Supplied / Short for <strong className="text-slate-500">accessories</strong> come from
                             completed production (line id or name). <strong className="text-slate-500">Stone flatsheet</strong>{' '}
                             product rows show m² supplied / short from the same production usage when the line matches.
@@ -3141,14 +3142,14 @@ const RefundModal = ({
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Production & delivery</p>
+                      <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wider">Production & delivery</p>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
-                          <p className="text-[8px] font-bold text-slate-500 uppercase mb-0.5">Cutting lists</p>
+                          <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">Cutting lists</p>
                           <p className="text-xs font-black">{intelligence.cuttingLists.length}</p>
                         </div>
                         <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
-                          <p className="text-[8px] font-bold text-slate-500 uppercase mb-0.5">Coil-produced metres</p>
+                          <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">Coil-produced metres</p>
                           <p className="text-xs font-black text-sky-400">
                             {(lastPreviewSnapshot?.coilProducedMeters != null
                               ? Number(lastPreviewSnapshot.coilProducedMeters)
@@ -3156,7 +3157,7 @@ const RefundModal = ({
                             )?.toLocaleString() || 0}{' '}
                             m
                           </p>
-                          <p className="text-[8px] text-slate-500 mt-1 leading-snug">
+                          <p className="text-ui-xs text-slate-500 mt-1 leading-snug">
                             Metres from coil allocations.
                             {lastPreviewSnapshot?.producedMetersForUnproduced != null ? (
                               <span className="block text-emerald-400/90 mt-0.5">
@@ -3186,10 +3187,10 @@ const RefundModal = ({
                         (Number(lastPreviewSnapshot.economicFloor.producedOutputMeters) > 0 ||
                           Number(lastPreviewSnapshot.economicFloor.floorDeliveredValueNgn) > 0) ? (
                           <div className="p-2.5 rounded-xl bg-slate-800/80 border border-amber-700/50 sm:col-span-2">
-                            <p className="text-[8px] font-bold text-amber-400/90 uppercase mb-0.5">
+                            <p className="text-ui-xs font-bold text-amber-400/90 uppercase mb-0.5">
                               Economic floor check
                             </p>
-                            <p className="text-[10px] text-slate-300 leading-snug">
+                            <p className="text-ui-xs text-slate-300 leading-snug">
                               {Number(lastPreviewSnapshot.economicFloor.producedOutputMeters || 0).toLocaleString()} m
                               produced × workbook floor ≈{' '}
                               {formatNgnPrint(lastPreviewSnapshot.economicFloor.floorDeliveredValueNgn)} delivered value.
@@ -3199,7 +3200,7 @@ const RefundModal = ({
                               </strong>
                             </p>
                             {lastPreviewSnapshot.economicFloor.incompleteFloorPricing ? (
-                              <p className="text-[8px] text-amber-400/90 mt-1">
+                              <p className="text-ui-xs text-amber-400/90 mt-1">
                                 Floor ₦/m could not be resolved for all jobs — verify workbook pricing manually.
                               </p>
                             ) : null}
@@ -3208,7 +3209,7 @@ const RefundModal = ({
                         {(Number(intelligence.summary?.stoneFlatsheetSummary?.totalSuppliedM2) > 0 ||
                           (intelligence.summary?.stoneFlatsheetSummary?.lines || []).length > 0) ? (
                           <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700 sm:col-span-2">
-                            <p className="text-[8px] font-bold text-slate-500 uppercase mb-0.5">Stone flatsheet (m²)</p>
+                            <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">Stone flatsheet (m²)</p>
                             <p className="text-xs font-black text-emerald-300/95">
                               {(Number(intelligence.summary?.stoneFlatsheetSummary?.totalSuppliedM2) || 0).toLocaleString(
                                 'en-NG',
@@ -3228,7 +3229,7 @@ const RefundModal = ({
                               ) : null}
                             </p>
                             {(intelligence.summary?.stoneFlatsheetSummary?.lines || []).length > 0 ? (
-                              <ul className="mt-2 space-y-1 text-[9px] text-slate-300">
+                              <ul className="mt-2 space-y-1 text-ui-xs text-slate-300">
                                 {intelligence.summary.stoneFlatsheetSummary.lines.map((ln) => (
                                   <li key={`${ln.quoteLineId}-${ln.name}-${ln.lengthM}`} className="flex flex-wrap gap-x-2 justify-between gap-y-0.5">
                                     <span className="truncate font-medium text-slate-200" title={ln.name}>
@@ -3251,12 +3252,12 @@ const RefundModal = ({
 
                     {warnings.length > 0 && (
                       <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 space-y-2">
-                        <p className="text-[9px] font-bold text-rose-400 uppercase flex items-center gap-1.5">
+                        <p className="text-ui-xs font-bold text-rose-400 uppercase flex items-center gap-1.5">
                           <AlertTriangle size={12} aria-hidden /> System audit flags
                         </p>
                         <ul className="space-y-1">
                           {warnings.map((w, idx) => (
-                            <li key={idx} className="text-[10px] text-white/80 leading-snug">
+                            <li key={idx} className="text-ui-xs text-white/80 leading-snug">
                               • {w}
                             </li>
                           ))}
@@ -3266,7 +3267,7 @@ const RefundModal = ({
 
                     {substitutionPerMeterBreakdown.length > 0 && (
                       <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/25 space-y-2">
-                        <p className="text-[9px] font-bold text-sky-300 uppercase tracking-wide">
+                        <p className="text-ui-xs font-bold text-sky-300 uppercase tracking-wide">
                           Substitution — per-metre delta
                           {pricingAsAtIso ? (
                             <span className="normal-case font-semibold text-sky-200/80">
@@ -3277,7 +3278,7 @@ const RefundModal = ({
                         </p>
                         <ul className="space-y-2">
                           {substitutionPerMeterBreakdown.map((row) => (
-                            <li key={row.jobId || row.productName} className="text-[10px] text-white/85 leading-snug">
+                            <li key={row.jobId || row.productName} className="text-ui-xs text-white/85 leading-snug">
                               <span className="font-semibold text-white">{row.productName || row.jobId}</span>
                               <span className="text-slate-400"> · </span>
                               {Number(row.meters || 0).toFixed(2)}m × ₦
@@ -3286,7 +3287,7 @@ const RefundModal = ({
                               <span className="font-mono text-sky-200">
                                 ₦{Number(row.creditNgn || 0).toLocaleString('en-NG')}
                               </span>
-                              <div className="text-[9px] text-slate-500 mt-0.5 pl-0">
+                              <div className="text-ui-xs text-slate-500 mt-0.5 pl-0">
                                 Quoted blended ₦{Number(row.quotedPricePerMeterNgn || 0).toLocaleString('en-NG')}/m
                                 {row.quotedListPricePerMeterNgn != null && row.quotedListPricePerMeterNgn > 0 ? (
                                   <>
@@ -3308,10 +3309,10 @@ const RefundModal = ({
                     )}
 
                     <div className="rounded-xl border border-slate-600 bg-slate-800/40 p-4 space-y-3 pt-4 border-t border-slate-700/80 mt-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Pay to (for finance)</p>
+                      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">Pay to (for finance)</p>
                       {payeeSuggestions.length > 0 ? (
                         <div className="space-y-1.5">
-                          <p className="text-[8px] font-semibold uppercase tracking-wide text-slate-500">
+                          <p className="text-ui-xs font-semibold uppercase tracking-wide text-slate-500">
                             Frequent accounts (this device + past refunds for this customer)
                           </p>
                           <div className="flex flex-wrap gap-1.5">
@@ -3327,7 +3328,7 @@ const RefundModal = ({
                                     payeeBankName: s.payeeBankName,
                                   }))
                                 }
-                                className="max-w-full rounded-lg border border-slate-600/90 bg-slate-900/50 px-2 py-1 text-left text-[9px] font-medium text-slate-200 hover:border-sky-500/50 hover:bg-slate-900 transition-colors"
+                                className="max-w-full rounded-lg border border-slate-600/90 bg-slate-900/50 px-2 py-1 text-left text-ui-xs font-medium text-slate-200 hover:border-sky-500/50 hover:bg-slate-900 transition-colors"
                                 title={`${s.payeeName} · ${s.payeeBankName} · ${s.payeeAccountNo}`}
                               >
                                 <span className="font-bold text-slate-100">{s.payeeName}</span>
@@ -3336,7 +3337,7 @@ const RefundModal = ({
                                 <span className="text-slate-500"> · </span>
                                 <span className="font-mono text-sky-300/95 tabular-nums">{s.payeeAccountNo}</span>
                                 {s.source === 'recent' ? (
-                                  <span className="ml-1 text-[8px] font-bold uppercase text-emerald-400/90">saved</span>
+                                  <span className="ml-1 text-ui-xs font-bold uppercase text-emerald-400/90">saved</span>
                                 ) : null}
                               </button>
                             ))}
@@ -3399,17 +3400,17 @@ const RefundModal = ({
                 <div className="p-5 rounded-2xl bg-white border border-slate-200/60 shadow-sm space-y-4">
                    <div className="flex items-center gap-2 mb-1">
                     <div className="w-2 h-5 bg-rose-500 rounded-full" />
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Audit & Controls</h3>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Audit & Controls</h3>
                   </div>
                   
                   <div className="grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
                     <div className="space-y-1">
-                      <p className="font-bold text-slate-400 uppercase text-[9px]">Requested By</p>
+                      <p className="font-bold text-slate-400 uppercase text-ui-xs">Requested By</p>
                       <p className="font-bold text-slate-900">{record?.requestedBy || 'System'}</p>
                     </div>
                     <div className="space-y-1 sm:text-right">
-                      <p className="font-bold text-slate-400 uppercase text-[9px]">Date</p>
-                      <p className="font-bold text-slate-900 text-[11px]">{record?.requestedAtISO ? new Date(record.requestedAtISO).toLocaleDateString() : '—'}</p>
+                      <p className="font-bold text-slate-400 uppercase text-ui-xs">Date</p>
+                      <p className="font-bold text-slate-900 text-xs">{record?.requestedAtISO ? new Date(record.requestedAtISO).toLocaleDateString() : '—'}</p>
                     </div>
                   </div>
 
@@ -3437,13 +3438,13 @@ const RefundModal = ({
                         role="region"
                         aria-label="Approver verification checklist"
                       >
-                        <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wide">Before you approve</p>
-                        <p className="text-[10px] font-medium text-slate-700 leading-snug rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">
+                        <p className="text-ui-xs font-bold text-amber-900 uppercase tracking-wide">Before you approve</p>
+                        <p className="text-ui-xs font-medium text-slate-700 leading-snug rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">
                           This refund is tied to quotation{' '}
                           <span className="font-bold">{approvalQuoteRef || '—'}</span> only. Other outstanding
                           balances on the customer do not automatically block approval — review them before payout.
                         </p>
-                        <ul className="text-[10px] text-amber-950/90 font-medium space-y-1.5 list-disc list-inside leading-snug">
+                        <ul className="text-ui-xs text-amber-950/90 font-medium space-y-1.5 list-disc list-inside leading-snug">
                           <li>Quote total and paid amount (including customer advance) match the real money in.</li>
                           <li>Production metres, cutting lists, and delivery status fit the refund story.</li>
                           <li>You read system warnings; bundled transport/install may need a manual line split.</li>
@@ -3457,14 +3458,14 @@ const RefundModal = ({
                           <button
                             type="button"
                             onClick={() => setApprovalStatus('Approved')}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition-all ${approvalStatus === 'Approved' ? 'bg-teal-500 text-white shadow-xl shadow-teal-100' : 'bg-slate-100 text-slate-500'}`}
+                            className={`px-4 py-2 rounded-xl text-ui-xs font-bold uppercase transition-all ${approvalStatus === 'Approved' ? 'bg-teal-500 text-white shadow-xl shadow-teal-100' : 'bg-slate-100 text-slate-500'}`}
                           >
                             Approve
                           </button>
                           <button
                             type="button"
                             onClick={() => setApprovalStatus('Rejected')}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition-all ${approvalStatus === 'Rejected' ? 'bg-rose-500 text-white shadow-xl shadow-rose-100' : 'bg-slate-100 text-slate-500'}`}
+                            className={`px-4 py-2 rounded-xl text-ui-xs font-bold uppercase transition-all ${approvalStatus === 'Rejected' ? 'bg-rose-500 text-white shadow-xl shadow-rose-100' : 'bg-slate-100 text-slate-500'}`}
                           >
                             Reject
                           </button>
@@ -3478,10 +3479,10 @@ const RefundModal = ({
                             type="number"
                             value={approvedAmountNgn}
                             onChange={(e) => setApprovedAmountNgn(e.target.value)}
-                            className={`${input} font-black text-[#134e4a] text-sm h-11`}
+                            className={`${input} font-black text-zarewa-teal text-sm h-11`}
                           />
                           {approvalMoneyContext ? (
-                            <p className="mt-2 text-[10px] font-medium text-slate-600 leading-snug">
+                            <p className="mt-2 text-ui-xs font-medium text-slate-600 leading-snug">
                               Requested: ₦{approvalMoneyContext.requested.toLocaleString('en-NG')} · Paid on quotation:
                               ₦{approvalMoneyContext.paidNgn.toLocaleString('en-NG')} · Other open refunds (reserved): ₦
                               {approvalMoneyContext.sumOthers.toLocaleString('en-NG')} · Approvable cap: ₦
@@ -3489,13 +3490,13 @@ const RefundModal = ({
                             </p>
                           ) : null}
                           {approvalWillScaleLines ? (
-                            <p className="mt-2 text-[10px] font-semibold text-teal-800 leading-snug">
+                            <p className="mt-2 text-ui-xs font-semibold text-teal-800 leading-snug">
                               Breakdown still matches the original request total — line amounts will scale proportionally to
                               the approved amount when you submit.
                             </p>
                           ) : null}
                           {approvalSumMismatch ? (
-                            <p className="mt-2 text-[10px] font-semibold text-rose-700 leading-snug" role="alert">
+                            <p className="mt-2 text-ui-xs font-semibold text-rose-700 leading-snug" role="alert">
                               Included lines do not sum to the approved amount and no longer match the original request —
                               edit individual lines so their total equals the approved figure.
                             </p>
@@ -3524,7 +3525,7 @@ const RefundModal = ({
                 <AlertTriangle size={16} className="text-amber-700 shrink-0" />
                 <p className="text-xs font-black text-amber-950">Multi-category overlap on quotation</p>
               </div>
-              <p className="text-[11px] text-amber-950 leading-snug">
+              <p className="text-xs text-amber-950 leading-snug">
                 {multiCategoryOverlapContext.sameRequestOverpayAndCancel
                   ? 'This request combines Overpayment with Order cancellation — these double-count cash received. Remove one category before submitting.'
                   : multiCategoryOverlapContext.priorLabels.length
@@ -3546,12 +3547,12 @@ const RefundModal = ({
                   Production alignment{showApproval ? ' (approval gate)' : ''}
                 </p>
                 {alignmentCheckLoading ? (
-                  <span className="text-[10px] text-amber-800">Checking…</span>
+                  <span className="text-ui-xs text-amber-800">Checking…</span>
                 ) : null}
               </div>
               <ul className="space-y-2">
                 {productionAlignmentIssues.map((issue) => (
-                  <li key={issue.code} className="text-[11px] text-amber-950 leading-snug">
+                  <li key={issue.code} className="text-xs text-amber-950 leading-snug">
                     <span className="font-bold">{issue.title}</span>
                     {issue.message ? ` — ${issue.message}` : null}
                     {issue.submitAction === 'acknowledge' ? (
@@ -3567,7 +3568,7 @@ const RefundModal = ({
                           }
                           className="mt-0.5"
                         />
-                        <span className="text-[10px] font-semibold">I acknowledge this warning</span>
+                        <span className="text-ui-xs font-semibold">I acknowledge this warning</span>
                       </label>
                     ) : null}
                   </li>
@@ -3575,7 +3576,7 @@ const RefundModal = ({
               </ul>
               {productionAlignmentIssues.some((i) => i.submitAction === 'block') && canOverrideProductionAlignment ? (
                 <label className="block">
-                  <span className="text-[10px] font-bold uppercase text-amber-900">
+                  <span className="text-ui-xs font-bold uppercase text-amber-900">
                     Branch manager / MD override note (min 10 characters)
                   </span>
                   <textarea
@@ -3588,7 +3589,7 @@ const RefundModal = ({
                 </label>
               ) : null}
               {alignmentBlocksAction ? (
-                <p className="text-[10px] font-semibold text-rose-800" role="alert">
+                <p className="text-ui-xs font-semibold text-rose-800" role="alert">
                   Resolve alignment warnings above before {showApproval ? 'approving' : 'submitting'}.
                 </p>
               ) : null}
@@ -3620,7 +3621,7 @@ const RefundModal = ({
               type="button"
               onClick={handleClose}
               disabled={saving}
-              className="px-6 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wide text-slate-500 hover:bg-slate-100 transition-all active:scale-95"
+              className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide text-slate-500 hover:bg-slate-100 transition-all active:scale-95"
             >
               Cancel
             </button>
@@ -3636,7 +3637,7 @@ const RefundModal = ({
                   (mode === 'create' && createPath === 'quick' && lineSum <= 0 && Boolean(form.quotationRef))
                 }
                 onClick={handleFormSubmit}
-                className="group bg-rose-600 text-white px-8 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-xl shadow-rose-200 hover:brightness-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:scale-100"
+                className="group bg-rose-600 text-white px-8 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest shadow-xl shadow-rose-200 hover:brightness-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:scale-100"
               >
                 {saving ? (
                   <RotateCcw size={16} className="animate-spin" />

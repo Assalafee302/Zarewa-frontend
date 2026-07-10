@@ -20,13 +20,13 @@ export function FamilyBenefitsContextBar({ profile }) {
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-100 bg-gradient-to-r from-violet-50/80 to-white px-4 py-3 shadow-sm">
       <div className="min-w-0">
         {parent ? (
-          <p className="text-[11px] font-bold uppercase tracking-wide text-violet-700">{parent}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-violet-700">{parent}</p>
         ) : null}
         {schoolLine ? <p className="mt-0.5 text-sm font-semibold text-slate-900">{schoolLine}</p> : null}
         {sessionLine ? <p className="mt-0.5 text-xs text-slate-500">{sessionLine}</p> : null}
       </div>
       {profile.beneficiaryTypeLabel ? (
-        <span className="shrink-0 rounded-full border border-violet-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-violet-800">
+        <span className="shrink-0 rounded-full border border-violet-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-violet-800">
           {profile.beneficiaryTypeLabel}
         </span>
       ) : null}

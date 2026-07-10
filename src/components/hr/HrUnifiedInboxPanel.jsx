@@ -5,7 +5,7 @@ import { HR_TIME_ABSENCE, hrTabPath } from '../../lib/hrRoutes';
 import { hrRequestQueuePath } from '../../lib/hrDashboardUi';
 
 const CARD_ROW =
-  'group relative flex min-w-0 cursor-pointer items-center gap-3 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-3 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-[#134e4a]/25 hover:shadow-md sm:px-4';
+  'group relative flex min-w-0 cursor-pointer items-center gap-3 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-3 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-zarewa-teal/25 hover:shadow-md sm:px-4';
 
 const REVIEWABLE_STATUSES = new Set(['hr_review', 'branch_manager_review', 'gm_hr_review']);
 
@@ -50,16 +50,16 @@ export function HrUnifiedInboxPanel({
   if (!actionable.length && !totalQueue) return null;
 
   return (
-    <section className="rounded-2xl border border-[#134e4a]/15 bg-gradient-to-br from-teal-50/70 to-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-zarewa-teal/15 bg-gradient-to-br from-teal-50/70 to-white p-5 shadow-sm">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-[#134e4a]">HR inbox</h2>
+          <h2 className="text-xs font-black uppercase tracking-widest text-zarewa-teal">HR inbox</h2>
           <p className="mt-1 text-xs text-slate-600">
             {totalQueue} item{totalQueue !== 1 ? 's' : ''} in your queues
             {overdue > 0 ? ` · ${overdue} past SLA` : ''}
           </p>
         </div>
-        <Link to={hrTabPath(HR_TIME_ABSENCE, 'approvals')} className="text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
+        <Link to={hrTabPath(HR_TIME_ABSENCE, 'approvals')} className="text-xs font-bold uppercase text-zarewa-teal hover:underline">
           Full approval queue →
         </Link>
       </div>
@@ -70,7 +70,7 @@ export function HrUnifiedInboxPanel({
             <Link
               key={line.label}
               to={line.href}
-              className="inline-flex items-center gap-2 rounded-xl border border-white bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 no-underline hover:border-[#134e4a]/25"
+              className="inline-flex items-center gap-2 rounded-xl border border-white bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 no-underline hover:border-zarewa-teal/25"
             >
               <span className="tabular-nums text-lg font-black text-amber-800">{line.count}</span>
               {line.label}
@@ -81,7 +81,7 @@ export function HrUnifiedInboxPanel({
 
       {actionable.length ? (
         <div className="mt-4 space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Action now</p>
+          <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Action now</p>
           {actionable.map((r) => {
             const sla = slaBadge(r);
             return (
@@ -92,19 +92,19 @@ export function HrUnifiedInboxPanel({
                 onClick={() => onPreview?.(r)}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{hrRequestKindLabel(r.kind)}</p>
+                  <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">{hrRequestKindLabel(r.kind)}</p>
                   <p className="truncate text-sm font-bold text-slate-900">{r.staffDisplayName || r.userId || 'Employee'}</p>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-ui-xs text-slate-500">
                     {assigneeLabel(r)}
                     {r.submittedAtIso ? ` · submitted ${r.submittedAtIso.slice(0, 10)}` : ''}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}>
+                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${hrRequestStatusClass(r.status)}`}>
                     {r.status?.replace(/_/g, ' ')}
                   </span>
                   {sla ? (
-                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${sla.cls}`}>
+                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${sla.cls}`}>
                       {sla.label}
                     </span>
                   ) : null}
@@ -116,7 +116,7 @@ export function HrUnifiedInboxPanel({
       ) : (
         <p className="mt-4 text-sm text-slate-600">
           No requests awaiting your stage — check{' '}
-          <Link to={hrRequestQueuePath('hr_queue')} className="font-bold text-[#134e4a] hover:underline">
+          <Link to={hrRequestQueuePath('hr_queue')} className="font-bold text-zarewa-teal hover:underline">
             approval queues
           </Link>
           .

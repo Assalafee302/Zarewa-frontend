@@ -8,7 +8,7 @@ export function FinanceDataTable({ columns, rows }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-100">
       <table className="w-full min-w-[480px] text-left text-xs">
-        <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+        <thead className="bg-slate-50 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
           <tr>
             {columns.map((c) => (
               <th key={c.key} className={`px-3 py-2 ${c.align === 'right' ? 'text-right' : ''}`}>

@@ -183,7 +183,7 @@ export function EditSecondApprovalInline({
 
   return (
     <div
-      className={`rounded-lg border border-amber-200/90 bg-amber-50/95 p-3 text-[11px] text-amber-950 ${className}`}
+      className={`rounded-lg border border-amber-200/90 bg-amber-50/95 p-3 text-xs text-amber-950 ${className}`}
     >
       <p className="font-bold text-amber-900 mb-1">Second approval for this change</p>
       <p className="text-amber-800/95 mb-2 leading-snug">
@@ -197,7 +197,7 @@ export function EditSecondApprovalInline({
           type="button"
           disabled={busy || waitingOnApprover}
           onClick={() => void request()}
-          className="shrink-0 rounded-lg bg-amber-700 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-amber-800 disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-amber-700 px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-white hover:bg-amber-800 disabled:opacity-50"
         >
           {busy ? 'Requesting…' : waitingOnApprover ? 'Request already sent' : 'Request approval'}
         </button>
@@ -212,8 +212,8 @@ export function EditSecondApprovalInline({
           className="min-w-[8.5rem] w-[9.5rem] rounded-lg border border-amber-300/80 bg-white px-2 py-1.5 text-[13px] font-mono tracking-widest text-slate-800 text-center"
         />
       </div>
-      {saveHint ? <p className={`mt-2 text-[10px] font-semibold leading-snug ${hintClass}`}>{saveHint}</p> : null}
-      {err ? <p className="text-rose-700 font-semibold mt-2 text-[10px]">{err}</p> : null}
+      {saveHint ? <p className={`mt-2 text-ui-xs font-semibold leading-snug ${hintClass}`}>{saveHint}</p> : null}
+      {err ? <p className="text-rose-700 font-semibold mt-2 text-ui-xs">{err}</p> : null}
     </div>
   );
 }

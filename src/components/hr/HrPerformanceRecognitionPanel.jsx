@@ -70,7 +70,7 @@ export default function HrPerformanceRecognitionPanel() {
                     {r.metric?.outputAboveTargetPct != null ? `${r.metric.outputAboveTargetPct}% above target` : '—'}
                   </AppTableTd>
                   <AppTableTd>
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${r.bonusEligible ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${r.bonusEligible ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
                       {r.bonusEligible ? 'Eligible' : 'Not eligible'}
                     </span>
                   </AppTableTd>

@@ -114,7 +114,7 @@ export function HrPayrollNextStepBanner({
         })}
       </ol>
       {action?.href ? (
-        <Link to={action.href} className="mt-3 inline-block text-xs font-semibold text-[#134e4a] hover:underline">
+        <Link to={action.href} className="mt-3 inline-block text-xs font-semibold text-zarewa-teal hover:underline">
           {action.label} →
         </Link>
       ) : null}

@@ -49,7 +49,7 @@ export function ZareComposeAssistBar({
   return (
     <div className="border-b border-teal-100 bg-gradient-to-r from-teal-50/80 to-white px-3 py-2.5 sm:px-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-teal-900">
+        <p className="flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide text-teal-900">
           <LifeBuoy size={13} aria-hidden />
           Ask {HELP_BOT_NAME}
           <span className="font-normal normal-case text-teal-800/80">· memo writing guide (you submit)</span>
@@ -58,7 +58,7 @@ export function ZareComposeAssistBar({
           type="button"
           disabled={improving}
           onClick={() => openZareMemoHelp('Help me write this memo professionally and choose the right category.')}
-          className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-white px-2 py-1 text-[10px] font-semibold text-teal-900 hover:bg-teal-50 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-white px-2 py-1 text-ui-xs font-semibold text-teal-900 hover:bg-teal-50 disabled:opacity-50"
         >
           <Sparkles size={11} aria-hidden />
           Open {HELP_BOT_NAME}
@@ -79,7 +79,7 @@ export function ZareComposeAssistBar({
                 openZareMemoHelp(chip.prompt);
               }
             }}
-            className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:border-teal-300 hover:bg-teal-50 disabled:opacity-50"
+            className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-ui-xs font-semibold text-slate-700 hover:border-teal-300 hover:bg-teal-50 disabled:opacity-50"
           >
             {chip.label}
           </button>
@@ -88,7 +88,7 @@ export function ZareComposeAssistBar({
           type="button"
           disabled={improving || !hasText}
           onClick={() => onMemoAssist?.('improve')}
-          className="rounded-full border border-teal-300 bg-teal-800 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-900 disabled:opacity-50"
+          className="rounded-full border border-teal-300 bg-teal-800 px-2.5 py-1 text-ui-xs font-semibold text-white hover:bg-teal-900 disabled:opacity-50"
         >
           Improve wording
         </button>

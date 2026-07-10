@@ -150,7 +150,7 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
     <ModalFrame isOpen={open} onClose={handleClose}>
       <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-[#134e4a] flex items-center gap-2">
+          <h3 className="text-xl font-bold text-zarewa-teal flex items-center gap-2">
             <Wallet size={22} className="text-teal-700" />
             Register withdrawal payout
           </h3>
@@ -166,10 +166,10 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="bg-teal-50/80 rounded-2xl p-4 border border-teal-100 text-sm space-y-1">
-            <p className="font-mono font-bold text-[#134e4a]">{settlement.settlementId}</p>
+            <p className="font-mono font-bold text-zarewa-teal">{settlement.settlementId}</p>
             <p className="font-bold text-gray-800">{settlement.partyName || 'Register party'}</p>
             {settlement.reason ? <p className="text-xs text-gray-600">{settlement.reason}</p> : null}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[10px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-ui-xs">
               <div>
                 <p className="uppercase text-gray-400 font-bold tracking-wide">Requested by</p>
                 <p className="font-semibold text-gray-800">{settlement.requestedByName || '—'}</p>
@@ -180,24 +180,24 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
               </div>
             </div>
             {(settlement.payeeName || settlement.payeeBankDetails) ? (
-              <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-[11px] text-sky-950 space-y-1">
-                <p className="text-[9px] font-bold uppercase tracking-wide text-sky-900/90">Pay to (from request)</p>
+              <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950 space-y-1">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">Pay to (from request)</p>
                 {settlement.payeeName ? (
                   <p className="font-bold text-sky-950">{settlement.payeeName}</p>
                 ) : null}
                 {settlement.payeeBankDetails ? (
-                  <p className="font-mono text-[11px] font-semibold leading-snug">{settlement.payeeBankDetails}</p>
+                  <p className="font-mono text-xs font-semibold leading-snug">{settlement.payeeBankDetails}</p>
                 ) : null}
               </div>
             ) : null}
-            <div className="grid grid-cols-3 gap-3 pt-2 text-[10px] text-gray-600 tabular-nums">
+            <div className="grid grid-cols-3 gap-3 pt-2 text-ui-xs text-gray-600 tabular-nums">
               <div>
                 <p className="uppercase text-gray-400">Approved</p>
-                <p className="text-sm font-black text-[#134e4a]">{formatNgn(approvedNgn)}</p>
+                <p className="text-sm font-black text-zarewa-teal">{formatNgn(approvedNgn)}</p>
               </div>
               <div>
                 <p className="uppercase text-gray-400">Paid</p>
-                <p className="text-sm font-black text-[#134e4a]">{formatNgn(paidNgn)}</p>
+                <p className="text-sm font-black text-zarewa-teal">{formatNgn(paidNgn)}</p>
               </div>
               <div>
                 <p className="uppercase text-gray-400">Balance</p>
@@ -213,7 +213,7 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
           ) : (
             <>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Paid by (Finance user)
                 </label>
                 <input
@@ -225,11 +225,11 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
               </div>
 
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>
                 <button
                   type="button"
                   onClick={addPayLine}
-                  className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#134e4a]"
+                  className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal"
                 >
                   <Plus size={14} /> Add line
                 </button>
@@ -244,7 +244,7 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
                     <select
                       value={line.treasuryAccountId}
                       onChange={(e) => updatePayLine(line.id, { treasuryAccountId: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
+                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-semibold"
                     >
                       <option value="">Select account…</option>
                       {bankAccountsSelectOrder.map((a) => (
@@ -268,7 +268,7 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
                         max={outstanding}
                         value={line.amount}
                         onChange={(e) => updatePayLine(line.id, { amount: e.target.value })}
-                        className="sm:col-span-3 z-finance-field rounded-lg font-bold text-[#134e4a]"
+                        className="sm:col-span-3 z-finance-field rounded-lg font-bold text-zarewa-teal"
                         placeholder="Amount ₦"
                       />
                       <input
@@ -292,7 +292,7 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Payment note
                 </label>
                 <input
@@ -305,23 +305,23 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
 
               <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md px-3 py-3 shadow-sm">
                 <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">This payout</span>
-                  <span className="font-black text-[#134e4a]">{formatNgn(payTotalNgn)}</span>
+                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">This payout</span>
+                  <span className="font-black text-zarewa-teal">{formatNgn(payTotalNgn)}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">
+                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">
                     Remaining after post
                   </span>
                   <span className="font-black text-gray-700">{formatNgn(Math.max(0, outstanding - payTotalNgn))}</span>
                 </div>
               </div>
 
-              <p className="text-[10px] text-gray-500 leading-relaxed">
+              <p className="text-ui-xs text-gray-500 leading-relaxed">
                 Saving this payout writes treasury movements and reduces the register line balance. The withdrawal stays
                 open until the approved amount is fully paid.
               </p>
 
-              {error ? <p className="text-[11px] font-medium text-rose-700">{error}</p> : null}
+              {error ? <p className="text-xs font-medium text-rose-700">{error}</p> : null}
 
               <button
                 type="submit"

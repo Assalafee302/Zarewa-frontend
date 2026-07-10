@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Clock } from 'lucide-react';
+import { appConfirm } from '../../lib/appConfirm';
 import { updateStaffProbation } from '../../lib/hrStaffDirectoryApi';
 import { isOnProbation, isProbationEndingSoon, probationBadge } from '../../lib/hrStaffDirectoryUi';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
@@ -46,7 +47,7 @@ export function HrStaffProbationPanel({ staff, canManage, onUpdated }) {
     >
       <div className="space-y-3 text-sm">
         {badge ? (
-          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${badge.cls}`}>
+          <span className={`inline-flex rounded-full border px-2.5 py-1 text-ui-xs font-bold uppercase ${badge.cls}`}>
             {badge.label}
           </span>
         ) : null}
@@ -85,8 +86,8 @@ export function HrStaffProbationPanel({ staff, canManage, onUpdated }) {
                 type="button"
                 className={HR_BTN_PRIMARY}
                 disabled={!!busy}
-                onClick={() => {
-                  if (!window.confirm(`Confirm ${staff.displayName} has completed probation?`)) return;
+                onClick={async () => {
+                  if (!(await appConfirm({ message: `Confirm ${staff.displayName} has completed probation?` }))) return;
                   run('confirm');
                 }}
               >
@@ -113,7 +114,7 @@ export function HrStaffProbationPanel({ staff, canManage, onUpdated }) {
             </div>
             <p className="text-xs text-slate-500">
               After confirmation, issue a{' '}
-              <Link to="/hr/letters?template=confirmation" className="font-bold text-[#134e4a] hover:underline">
+              <Link to="/hr/letters?template=confirmation" className="font-bold text-zarewa-teal hover:underline">
                 confirmation letter
               </Link>
               .

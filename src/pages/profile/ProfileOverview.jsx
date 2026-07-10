@@ -202,7 +202,7 @@ export default function ProfileOverview() {
         {hasHrSelfService && cohort !== 'account_only' ? (
           <p className="text-xs leading-relaxed text-slate-500">
             Employment records and payslips are in{' '}
-            <Link to={HR_SELF_SERVICE_PATH.overview} className="font-semibold text-[#134e4a] hover:underline">
+            <Link to={HR_SELF_SERVICE_PATH.overview} className="font-semibold text-zarewa-teal hover:underline">
               My HR
             </Link>
             .

@@ -38,7 +38,7 @@ export function ReportsOversightPanel({
               {chips.map((label) => (
                 <span
                   key={label}
-                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${
                     label.includes('open exception')
                       ? 'border-rose-200 bg-rose-50 text-rose-800'
                       : 'border-slate-200 bg-slate-50 text-slate-600'
@@ -61,7 +61,7 @@ export function ReportsOversightPanel({
           <ExecutiveReportPacksSection showToast={showToast} />
 
           <section className="z-soft-panel p-5 sm:p-6">
-            <h4 className="text-base font-black text-[#134e4a] tracking-tight mb-1">Operational control centre</h4>
+            <h4 className="text-base font-black text-zarewa-teal tracking-tight mb-1">Operational control centre</h4>
             <p className="text-xs text-slate-600 mb-4 leading-relaxed">
               Pending approvals, production gate overrides, conversion reviews, production outliers, and governance pack
               export.

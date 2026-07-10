@@ -193,7 +193,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {balances.map((b) => (
               <ProfileKpiCard key={b.leaveType} label={leaveTypeLabel(b.leaveType)} className="transition hover:shadow-md">
-                <p className="text-2xl font-black tabular-nums tracking-tight text-[#134e4a]">
+                <p className="text-2xl font-black tabular-nums tracking-tight text-zarewa-teal">
                   {b.closingDays ?? b.balance ?? 0}
                   <span className="ml-1 text-xs font-bold text-slate-500">days</span>
                 </p>
@@ -346,17 +346,17 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
             <div className="space-y-4">
               <dl className="grid gap-3 rounded-xl border border-slate-100 bg-white p-4 text-sm sm:grid-cols-2">
                 <div>
-                  <dt className="text-[10px] font-black uppercase text-slate-400">Type</dt>
+                  <dt className="text-ui-xs font-black uppercase text-slate-400">Type</dt>
                   <dd className="font-semibold">{leaveTypeLabel(leaveType)}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] font-black uppercase text-slate-400">Dates</dt>
+                  <dt className="text-ui-xs font-black uppercase text-slate-400">Dates</dt>
                   <dd className="font-semibold">
                     {startDateIso} → {endDateIso} ({daysRequested} days)
                   </dd>
                 </div>
                 <div className="sm:col-span-2">
-                  <dt className="text-[10px] font-black uppercase text-slate-400">Handover</dt>
+                  <dt className="text-ui-xs font-black uppercase text-slate-400">Handover</dt>
                   <dd className="font-semibold">{handoverTo}</dd>
                 </div>
               </dl>

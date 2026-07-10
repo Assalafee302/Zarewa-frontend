@@ -110,7 +110,7 @@ function mergeCuttingLinesByLengthDesc(flatLines, categories = LINE_CATEGORIES) 
 function QuotationLinesOneTable({ rows, grandTotal }) {
   const list = Array.isArray(rows) ? rows : [];
   if (!list.length) {
-    return <p className="cl-factory-cut-empty text-[8px]">No quotation line items.</p>;
+    return <p className="cl-factory-cut-empty text-ui-xs">No quotation line items.</p>;
   }
   return (
     <div className="cl-factory-bill-block cl-factory-bill-block--flat">

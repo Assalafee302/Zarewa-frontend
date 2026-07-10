@@ -56,7 +56,7 @@ export default function WorkItemRow({
                 {item.title}
               </span>
             </div>
-            <span className="shrink-0 text-[11px] tabular-nums text-slate-500">{item.formattedDate}</span>
+            <span className="shrink-0 text-xs tabular-nums text-slate-500">{item.formattedDate}</span>
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -71,7 +71,7 @@ export default function WorkItemRow({
           </div>
 
           {!restricted ? (
-            <p className="mt-1.5 line-clamp-1 text-[11px] text-slate-600 md:text-xs">
+            <p className="mt-1.5 line-clamp-1 text-xs text-slate-600 md:text-xs">
               <span className="font-mono text-slate-500">{item.referenceNo}</span>
               <span className="text-slate-300"> · </span>
               <span>{item.branchLabel}</span>
@@ -87,25 +87,25 @@ export default function WorkItemRow({
               ) : null}
             </p>
           ) : (
-            <p className="mt-1.5 text-[11px] text-slate-500 md:text-xs">
+            <p className="mt-1.5 text-xs text-slate-500 md:text-xs">
               You do not have permission to view this item.
             </p>
           )}
 
           {item.previewText && !restricted ? (
-            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-slate-500 md:text-xs">
+            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500 md:text-xs">
               {item.previewText}
             </p>
           ) : null}
 
           {item.actionLabel ? (
-            <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+            <p className="mt-1.5 text-ui-xs font-semibold uppercase tracking-wide text-amber-800">
               {item.actionLabel}
             </p>
           ) : null}
 
           {tid && !isIntel && !restricted ? (
-            <p className="mt-1 text-[10px] font-medium text-teal-800">Internal memo thread</p>
+            <p className="mt-1 text-ui-xs font-medium text-teal-800">Internal memo thread</p>
           ) : null}
         </button>
       </div>

@@ -25,7 +25,7 @@ export function ScholarshipRemindersPanel({ reminders = [] }) {
             <p className="text-sm font-bold">{rem.title}</p>
             {rem.body ? <p className="mt-1 text-xs opacity-90">{rem.body}</p> : null}
             {rem.actionPath ? (
-              <Link to={rem.actionPath} className="mt-2 inline-block text-[11px] font-bold uppercase hover:underline">
+              <Link to={rem.actionPath} className="mt-2 inline-block text-xs font-bold uppercase hover:underline">
                 View →
               </Link>
             ) : null}

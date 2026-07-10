@@ -51,11 +51,11 @@ export default function WorkspaceEditApprovalPanel({ item, onDone }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-white px-4 py-5">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-teal-900/80">Edit approval</p>
+      <p className="text-ui-xs font-semibold uppercase tracking-wide text-teal-900/80">Edit approval</p>
       <h2 className="mt-1 text-lg font-semibold text-slate-900">{item?.title || 'Edit approval'}</h2>
       <p className="mt-2 font-mono text-xs text-slate-500">{id}</p>
       <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 text-sm text-slate-800">
-        <p className="text-[11px] font-semibold uppercase text-slate-500">Target</p>
+        <p className="text-xs font-semibold uppercase text-slate-500">Target</p>
         <p className="mt-1">{summary}</p>
       </div>
       <p className="mt-4 text-xs leading-relaxed text-slate-500">
@@ -79,7 +79,7 @@ export default function WorkspaceEditApprovalPanel({ item, onDone }) {
           type="button"
           disabled={busy || !canApproveEdit}
           onClick={() => void approve()}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3d3a] disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl bg-zarewa-teal px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3d3a] disabled:opacity-50"
         >
           {busy ? 'Working…' : 'Approve edit'}
         </button>

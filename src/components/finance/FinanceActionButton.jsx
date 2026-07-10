@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 const STYLES = {
-  primary: 'bg-[#134e4a] text-white hover:bg-teal-900 shadow-sm',
+  primary: 'bg-zarewa-teal text-white hover:bg-teal-900 shadow-sm',
   secondary: 'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50',
   danger: 'border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100',
   link: 'text-teal-800 hover:underline bg-transparent px-0 py-0',

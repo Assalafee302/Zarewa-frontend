@@ -24,7 +24,7 @@ function scoreBadge(score) {
   else if (n >= 1.5) { label = 'Needs Improvement'; cls = 'bg-amber-50 text-amber-900 border-amber-200'; }
   else { label = 'Unsatisfactory'; cls = 'bg-red-50 text-red-800 border-red-200'; }
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${cls}`}>
       {n.toFixed(1)} · {label}
     </span>
   );
@@ -38,7 +38,7 @@ function typePill(type) {
   };
   const cls = map[type] || 'bg-slate-100 text-slate-700 border-slate-200';
   return (
-    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
+    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${cls}`}>
       {type || 'note'}
     </span>
   );
@@ -47,7 +47,7 @@ function typePill(type) {
 function StatCard({ label, value }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
       <p className="mt-1 text-xl font-black tabular-nums">{value}</p>
     </div>
   );
@@ -133,7 +133,7 @@ function ScoreModal({ form, onClose, onSaved }) {
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase">Cancel</button>
-          <button type="button" disabled={busy} onClick={save} className="rounded-xl bg-[#134e4a] px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={save} className="rounded-xl bg-zarewa-teal px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
             {busy ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -192,7 +192,7 @@ function NewCycleModal({ onClose, onCreated }) {
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase">Cancel</button>
-          <button type="button" disabled={busy} onClick={save} className="rounded-xl bg-[#134e4a] px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={save} className="rounded-xl bg-zarewa-teal px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
             {busy ? 'Creating…' : 'Create'}
           </button>
         </div>
@@ -245,7 +245,7 @@ function AddFeedbackModal({ userId, onClose, onSaved }) {
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase">Cancel</button>
-          <button type="button" disabled={busy} onClick={save} className="rounded-xl bg-[#134e4a] px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={save} className="rounded-xl bg-zarewa-teal px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
             {busy ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -256,7 +256,7 @@ function AddFeedbackModal({ userId, onClose, onSaved }) {
 
 /* ─── main page ────────────────────────────────────────────── */
 
-export default function HrAppraisal({ embedded = false } = {}) {
+export default function HrAppraisal() {
   const [tab, setTab] = useState('cycles');
   const [cycles, setCycles] = useState([]);
   const [newCycleOpen, setNewCycleOpen] = useState(false);
@@ -331,7 +331,7 @@ export default function HrAppraisal({ embedded = false } = {}) {
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase ${tab === t ? 'border border-b-white bg-white text-[#134e4a]' : 'text-slate-500'}`}
+            className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase ${tab === t ? 'border border-b-white bg-white text-zarewa-teal' : 'text-slate-500'}`}
           >
             {t === 'cycles' ? 'Appraisal Cycles' : 'Feedback Notes'}
           </button>
@@ -357,7 +357,7 @@ export default function HrAppraisal({ embedded = false } = {}) {
               <button
                 type="button"
                 onClick={() => setNewCycleOpen(true)}
-                className="rounded-xl bg-[#134e4a] px-3 py-1.5 text-[11px] font-bold uppercase text-white"
+                className="rounded-xl bg-zarewa-teal px-3 py-1.5 text-xs font-bold uppercase text-white"
               >
                 + New Cycle
               </button>
@@ -390,7 +390,7 @@ export default function HrAppraisal({ embedded = false } = {}) {
                             </span>
                           </AppTableTd>
                           <AppTableTd>
-                            <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                            <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${
                               cycle.status === 'active'
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                 : 'bg-slate-100 text-slate-500 border-slate-200'
@@ -406,7 +406,7 @@ export default function HrAppraisal({ embedded = false } = {}) {
                               <button
                                 type="button"
                                 onClick={() => toggleCycle(cycle.id)}
-                                className="rounded-lg border border-slate-200 px-2.5 py-1 text-[10px] font-bold uppercase text-[#134e4a]"
+                                className="rounded-lg border border-slate-200 px-2.5 py-1 text-ui-xs font-bold uppercase text-zarewa-teal"
                               >
                                 {expandedCycleId === cycle.id ? 'Hide Forms' : 'View Forms'}
                               </button>
@@ -414,7 +414,7 @@ export default function HrAppraisal({ embedded = false } = {}) {
                                 <button
                                   type="button"
                                   onClick={() => closeCycle(cycle.id)}
-                                  className="rounded-lg border border-slate-200 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-600"
+                                  className="rounded-lg border border-slate-200 px-2.5 py-1 text-ui-xs font-bold uppercase text-slate-600"
                                 >
                                   Close Cycle
                                 </button>
@@ -428,7 +428,7 @@ export default function HrAppraisal({ embedded = false } = {}) {
                           <AppTableTr>
                             <AppTableTd colSpan={5} className="bg-slate-50/60 p-0">
                               <div className="px-4 py-3 space-y-2">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                                <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500 mb-2">
                                   Forms for {cycle.name}
                                 </p>
                                 {!cycleForms[cycle.id] ? (
@@ -452,7 +452,7 @@ export default function HrAppraisal({ embedded = false } = {}) {
                                             <AppTableTd>{f.department || '—'}</AppTableTd>
                                             <AppTableTd>{f.status === 'submitted' ? scoreBadge(f.scores?.overall) : <span className="text-slate-400 text-xs">Not scored</span>}</AppTableTd>
                                             <AppTableTd>
-                                              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                              <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${
                                                 f.status === 'submitted'
                                                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                                   : 'bg-amber-50 text-amber-900 border-amber-200'
@@ -464,7 +464,7 @@ export default function HrAppraisal({ embedded = false } = {}) {
                                               <button
                                                 type="button"
                                                 onClick={() => setScoreModal({ ...f, cycleId: cycle.id })}
-                                                className="rounded-lg bg-[#134e4a] px-2.5 py-1 text-[10px] font-bold uppercase text-white"
+                                                className="rounded-lg bg-zarewa-teal px-2.5 py-1 text-ui-xs font-bold uppercase text-white"
                                               >
                                                 {f.status === 'submitted' ? 'View' : 'Open'}
                                               </button>
@@ -499,7 +499,7 @@ export default function HrAppraisal({ embedded = false } = {}) {
                 <button
                   type="button"
                   onClick={() => setAddFeedbackOpen(true)}
-                  className="rounded-xl bg-[#134e4a] px-3 py-1.5 text-[11px] font-bold uppercase text-white"
+                  className="rounded-xl bg-zarewa-teal px-3 py-1.5 text-xs font-bold uppercase text-white"
                 >
                   + Add Feedback
                 </button>

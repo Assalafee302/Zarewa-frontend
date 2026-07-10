@@ -137,11 +137,11 @@ export default function LoginScreen() {
             width={220}
             height={68}
           />
-          <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-teal-200/70 bg-teal-50/80 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#134e4a]">
+          <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-teal-200/70 bg-teal-50/80 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-zarewa-teal">
             <ShieldCheck size={14} />
             Production-safe workspace
           </div>
-          <h1 className="mt-6 text-2xl font-black tracking-tight text-[#134e4a] sm:text-5xl">
+          <h1 className="mt-6 text-2xl font-black tracking-tight text-zarewa-teal sm:text-5xl">
             Zarewa operating system
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base sm:leading-7">
@@ -163,7 +163,7 @@ export default function LoginScreen() {
                     <Building2 size={22} />
                   </div>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">
                       Production visibility
                     </p>
                     <p className="mt-1 text-sm font-semibold text-white/90">
@@ -178,14 +178,14 @@ export default function LoginScreen() {
 
         <section className="rounded-[28px] border border-slate-200/80 bg-white/92 p-5 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.3)] backdrop-blur-xl sm:rounded-[32px] sm:p-10">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#134e4a] text-[#8ef0dc] shadow-lg shadow-teal-950/20">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zarewa-teal text-[#8ef0dc] shadow-lg shadow-teal-950/20">
               {mode === 'login' ? <LockKeyhole size={22} /> : <KeyRound size={22} />}
             </div>
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
                 {mode === 'login' ? 'Secure sign in' : mode === 'forgot' ? 'Reset request' : 'New user setup'}
               </p>
-              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#134e4a]">
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-zarewa-teal">
                 {mode === 'login'
                   ? 'Open your workspace'
                   : mode === 'forgot'
@@ -231,7 +231,7 @@ export default function LoginScreen() {
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <button
                   type="button"
-                  className="font-semibold text-[#134e4a] underline-offset-2 hover:underline"
+                  className="font-semibold text-zarewa-teal underline-offset-2 hover:underline"
                   onClick={() => switchMode('forgot')}
                 >
                   Forgot password?
@@ -246,20 +246,23 @@ export default function LoginScreen() {
               </div>
 
               {error ? (
-                <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                  <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                <div
+                  role="alert"
+                  className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+                >
+                  <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
                   <span>{error}</span>
                 </div>
               ) : null}
 
               {info ? (
-                <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+                <div role="status" className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">
                   {info}
                 </div>
               ) : null}
 
               {ws.status === 'offline' ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                   {ws.lastError ||
                     'API server is offline. Start the backend to sign in to the live database.'}
                 </div>
@@ -268,7 +271,7 @@ export default function LoginScreen() {
               <button
                 type="submit"
                 disabled={busy}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#134e4a] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-teal-950/15 transition hover:brightness-105 disabled:cursor-wait disabled:opacity-70"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-zarewa-teal px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-teal-950/15 transition hover:brightness-105 disabled:cursor-wait disabled:opacity-70"
               >
                 {busy ? 'Signing in…' : 'Enter workspace'}
                 <ArrowRight size={17} />
@@ -324,7 +327,7 @@ export default function LoginScreen() {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#134e4a] px-5 py-3 text-sm font-black text-white disabled:opacity-70"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-zarewa-teal px-5 py-3 text-sm font-black text-white disabled:opacity-70"
                 >
                   {busy ? 'Sending…' : 'Request reset code'}
                 </button>
@@ -410,7 +413,7 @@ export default function LoginScreen() {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#134e4a] px-5 py-3 text-sm font-black text-white disabled:opacity-70"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-zarewa-teal px-5 py-3 text-sm font-black text-white disabled:opacity-70"
                 >
                   {busy ? 'Saving…' : 'Set password'}
                 </button>

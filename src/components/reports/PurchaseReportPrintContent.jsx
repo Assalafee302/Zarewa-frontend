@@ -5,10 +5,10 @@ const TBL = 'w-full border-collapse table-fixed';
 const TH =
   'px-1 py-0.5 text-left text-[7px] font-bold uppercase text-slate-600 border border-slate-300 print:text-[6.5pt] align-middle';
 const THR = `${TH} text-right`;
-const TD = 'px-1 py-0.5 text-[9px] text-slate-800 border border-slate-300 print:text-[7.5pt] align-middle break-words';
+const TD = 'px-1 py-0.5 text-ui-xs text-slate-800 border border-slate-300 print:text-[7.5pt] align-middle break-words';
 const TDR = `${TD} text-right tabular-nums whitespace-nowrap`;
 const TDM = `${TD} font-mono tabular-nums whitespace-nowrap`;
-const TF = 'px-1 py-1 text-[9px] font-bold text-slate-800 border border-slate-300 bg-slate-100 print:text-[7.5pt] align-middle';
+const TF = 'px-1 py-1 text-ui-xs font-bold text-slate-800 border border-slate-300 bg-slate-100 print:text-[7.5pt] align-middle';
 const TFR = `${TF} text-right tabular-nums`;
 
 function fmtNum(v, d = 2) {
@@ -41,9 +41,9 @@ function SummarySection({ summary }) {
 
   return (
     <section className="mb-6 break-before-page break-inside-avoid border-t-2 border-slate-300 pt-4 mt-6">
-      <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Summary</h3>
+      <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">Summary</h3>
       {payments.receivedValueNgn > 0 || payments.paidInPeriodNgn > 0 ? (
-        <p className="text-[9px] text-slate-700 mb-2">
+        <p className="text-ui-xs text-slate-700 mb-2">
           GRN value: {fmtMoney(payments.receivedValueNgn)} · Paid to suppliers (period):{' '}
           {fmtMoney(payments.paidInPeriodNgn)} · PO outstanding: {fmtMoney(payments.poOutstandingNgn)}
         </p>
@@ -100,8 +100,8 @@ function SummarySection({ summary }) {
       ) : null}
       {observations.length > 0 ? (
         <div className="mb-2">
-          <p className="text-[9px] font-bold text-slate-700 mb-0.5">Observations</p>
-          <ul className="text-[9px] text-slate-700 list-disc pl-4 space-y-0.5">
+          <p className="text-ui-xs font-bold text-slate-700 mb-0.5">Observations</p>
+          <ul className="text-ui-xs text-slate-700 list-disc pl-4 space-y-0.5">
             {observations.map((t, i) => (
               <li key={`o-${i}`}>{t}</li>
             ))}
@@ -110,8 +110,8 @@ function SummarySection({ summary }) {
       ) : null}
       {recommendations.length > 0 ? (
         <div className="mb-2">
-          <p className="text-[9px] font-bold text-slate-700 mb-0.5">Recommendations</p>
-          <ul className="text-[9px] text-slate-700 list-disc pl-4 space-y-0.5">
+          <p className="text-ui-xs font-bold text-slate-700 mb-0.5">Recommendations</p>
+          <ul className="text-ui-xs text-slate-700 list-disc pl-4 space-y-0.5">
             {recommendations.map((t, i) => (
               <li key={`r-${i}`}>{t}</li>
             ))}
@@ -126,14 +126,14 @@ function CoilReceiptSection({ title, section }) {
   if (!section?.groups?.length) {
     return (
       <section className="mb-6 break-inside-avoid">
-        <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">{title}</h3>
+        <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">{title}</h3>
         <p className="text-[10px] text-slate-500 italic">No GRN receipts this period.</p>
       </section>
     );
   }
   return (
     <section className="mb-6">
-      <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">{title}</h3>
+      <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">{title}</h3>
       {section.groups.map((g) => (
         <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
           <p className="text-[10px] font-bold text-slate-800 mb-1">Gauge {g.gaugeLabel}</p>
@@ -193,7 +193,7 @@ function QtyReceiptSection({ title, section, unitDefault }) {
   if (!section?.groups?.length) {
     return (
       <section className="mb-6 break-inside-avoid">
-        <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">{title}</h3>
+        <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">{title}</h3>
         <p className="text-[10px] text-slate-500 italic">No GRN receipts this period.</p>
       </section>
     );
@@ -201,7 +201,7 @@ function QtyReceiptSection({ title, section, unitDefault }) {
   const isAccessory = unitDefault === 'units';
   return (
     <section className="mb-6">
-      <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">{title}</h3>
+      <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">{title}</h3>
       {section.groups.map((g) => (
         <div key={g.gaugeLabel || g.typeKey} className="mb-4 break-inside-avoid">
           <p className="text-[10px] font-bold text-slate-800 mb-1">{g.gaugeLabel || g.typeLabel}</p>
@@ -273,7 +273,7 @@ export function PurchaseReportPrintContent({ report, branchLabel, periodLabel })
       <div className="mb-4 border-b border-slate-200 pb-2">
         <p className="text-[10px] font-bold text-slate-600">{branchLabel}</p>
         <p className="text-[10px] text-slate-600">{periodLabel}</p>
-        <p className="text-[9px] text-slate-500 mt-1">
+        <p className="text-ui-xs text-slate-500 mt-1">
           Coil / PO = last 4–5 digits. Paid &amp; outstanding on first line per PO. Amber = balance due supplier.
         </p>
       </div>

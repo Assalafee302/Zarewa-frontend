@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
   X,
@@ -11,6 +10,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { ModalFrame } from './layout/ModalFrame';
+import { PrintModalPortal } from './layout/PrintModalPortal';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
 import { useToast } from '../context/ToastContext';
@@ -23,6 +23,7 @@ import {
 import { quotationReceiptPrintHistory } from '../lib/salesReceiptsList';
 import { formatNgn } from '../Data/mockData';
 import { apiFetch } from '../lib/apiBase';
+import { appConfirm } from '../lib/appConfirm';
 import {
   formatLedgerApiError,
   guidanceForLedgerPostFailure,
@@ -667,9 +668,9 @@ const ReceiptModal = ({
     }
     if (postingRef.current) return;
     if (receiptGuardSignals.length > 0 && !readOnly) {
-      const proceed = window.confirm(
-        `Potential duplicate or risky posting detected:\n\n- ${receiptGuardSignals.join('\n- ')}\n\nContinue posting anyway?`
-      );
+      const proceed = await appConfirm({
+        message: `Potential duplicate or risky posting detected:\n\n- ${receiptGuardSignals.join('\n- ')}\n\nContinue posting anyway?`,
+      });
       if (!proceed) return;
     }
 
@@ -706,7 +707,7 @@ const ReceiptModal = ({
         summaryParts.push(`Additional treasury cash: ${formatNgn(treasuryCashRequiredNgn)}`);
       }
     }
-    if (!window.confirm(summaryParts.join('\n'))) return;
+    if (!(await appConfirm({ message: summaryParts.join('\n') }))) return;
 
     const refParts = validLines.map((l) => {
       const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
@@ -787,9 +788,9 @@ const ReceiptModal = ({
           headers: { 'Idempotency-Key': idempotencyKey },
         });
         if (!ok && data?.code === 'QUOTATION_ALREADY_SETTLED') {
-          const proceed = window.confirm(
-            `${data?.error || 'This quotation is already paid.'}\n\nPost anyway? The full amount will be recorded on this quotation.`
-          );
+          const proceed = await appConfirm({
+            message: `${data?.error || 'This quotation is already paid.'}\n\nPost anyway? The full amount will be recorded on this quotation.`,
+          });
           if (!proceed) {
             showToast('Posting cancelled.', { variant: 'info' });
             return;
@@ -906,9 +907,9 @@ const ReceiptModal = ({
     }
   };
 
-  const label = 'text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
+  const label = 'text-ui-xs font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
   const field =
-    'w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-emerald-500/15';
+    'w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-emerald-500/15';
 
   const displayTotal = selectedQuotation?.totalNgn ?? 0;
   const displayPaid = quotationRowForPayments?.paidNgn ?? selectedQuotation?.paidNgn ?? 0;
@@ -969,9 +970,9 @@ const ReceiptModal = ({
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 gap-y-1">
-                <h2 className="text-base font-bold text-[#134e4a] tracking-tight">{modalTitle}</h2>
+                <h2 className="text-base font-bold text-zarewa-teal tracking-tight">{modalTitle}</h2>
                 <span
-                  className={`shrink-0 rounded-md px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                  className={`shrink-0 rounded-md px-2 py-0.5 text-ui-xs font-semibold uppercase tracking-wide ${
                     readOnly
                       ? 'bg-slate-200 text-slate-700'
                       : 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-600/20'
@@ -981,14 +982,14 @@ const ReceiptModal = ({
                 </span>
                 {readOnly && isExistingPayment ? (
                   <span
-                    className={`shrink-0 rounded-md border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${receiptSalesPaymentStatusChipClass(editData)}`}
+                    className={`shrink-0 rounded-md border px-2 py-0.5 text-ui-xs font-semibold uppercase tracking-wide ${receiptSalesPaymentStatusChipClass(editData)}`}
                     title={receiptSalesPaymentStatusTitle(editData)}
                   >
                     {receiptSalesPaymentStatusLabel(editData)}
                   </span>
                 ) : null}
               </div>
-              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest truncate mt-0.5">
+              <p className="text-ui-xs font-semibold text-slate-400 uppercase tracking-widest truncate mt-0.5">
                 {modalSubtitle}
               </p>
             </div>
@@ -1021,7 +1022,7 @@ const ReceiptModal = ({
         </div>
 
         {readOnly ? (
-          <div className="px-5 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-medium text-slate-600 space-y-1">
+          <div className="px-5 py-2 bg-slate-50 border-b border-slate-200 text-ui-xs font-medium text-slate-600 space-y-1">
             <p>
               {editData?.source === 'ledger'
                 ? 'Posted payment — view and print only. To fix a mistake, Finance reverses this entry and you post the correct amount again.'
@@ -1035,14 +1036,14 @@ const ReceiptModal = ({
           </div>
         ) : null}
         {!ws?.canMutate ? (
-          <div className="px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] font-semibold text-amber-900">
+          <div className="px-5 py-2 bg-amber-50 border-b border-amber-200 text-ui-xs font-semibold text-amber-900">
             System offline (read-only). Reconnect and refresh before posting or printing payments.
           </div>
         ) : null}
 
         {!readOnly && useLedgerApi && quotationLedgerHold ? (
-          <div className="px-5 py-3 bg-rose-50/90 border-b border-rose-200 text-[10px] text-rose-950 space-y-2">
-            <p className="text-[11px] font-bold">Customer ledger posting is paused</p>
+          <div className="px-5 py-3 bg-rose-50/90 border-b border-rose-200 text-ui-xs text-rose-950 space-y-2">
+            <p className="text-xs font-bold">Customer ledger posting is paused</p>
             <p className="leading-snug opacity-95">{quotationLedgerHold.detail}</p>
             <p className="leading-snug">
               {quotationLedgerHold.kind === 'cleared' && (dueNgn ?? 0) > 0
@@ -1061,7 +1062,7 @@ const ReceiptModal = ({
         ) : null}
 
         {!readOnly && useLedgerApi && voucherInLockedPeriod ? (
-          <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-[10px] text-amber-950 space-y-1">
+          <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-ui-xs text-amber-950 space-y-1">
             <p className="font-bold">Voucher month is locked for posting</p>
             <p className="leading-snug">
               The receipt date falls in a closed accounting period. Change the voucher date to an open month, or ask finance to unlock the
@@ -1074,8 +1075,8 @@ const ReceiptModal = ({
         ) : null}
 
         {!readOnly && postingHint ? (
-          <div className="px-5 py-3 bg-rose-50/90 border-b border-rose-200 text-[10px] text-rose-950 space-y-2">
-            <p className="text-[11px] font-bold">{postingHint.title}</p>
+          <div className="px-5 py-3 bg-rose-50/90 border-b border-rose-200 text-ui-xs text-rose-950 space-y-2">
+            <p className="text-xs font-bold">{postingHint.title}</p>
             <p className="leading-snug opacity-95">{postingHint.detail}</p>
             {postingHint.steps?.length ? (
               <ol className="list-decimal pl-4 space-y-1">
@@ -1101,7 +1102,7 @@ const ReceiptModal = ({
             className={`flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 custom-scrollbar xl:border-r border-slate-100 ${readOnly ? 'pointer-events-none opacity-75' : ''}`}
           >
             <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-slate-50/50">
-              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
+              <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
                 Voucher & quotation
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1145,7 +1146,7 @@ const ReceiptModal = ({
                   {showQSearch && (
                     <div className="absolute z-10 left-0 right-0 mt-1 max-h-[220px] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl custom-scrollbar p-1">
                       {filteredQSearch.length === 0 ? (
-                        <div className="p-3 text-center text-[10px] font-semibold text-slate-400 uppercase">
+                        <div className="p-3 text-center text-ui-xs font-semibold text-slate-400 uppercase">
                           No unpaid quotations found
                         </div>
                       ) : (
@@ -1163,12 +1164,12 @@ const ReceiptModal = ({
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-bold text-[#134e4a]">{qt.id}</span>
-                              <span className="text-[10px] font-bold text-emerald-700">{formatNgn(qt.totalNgn)}</span>
+                              <span className="text-xs font-bold text-zarewa-teal">{qt.id}</span>
+                              <span className="text-ui-xs font-bold text-emerald-700">{formatNgn(qt.totalNgn)}</span>
                             </div>
                             <div className="flex items-center justify-between gap-2 mt-0.5">
-                              <span className="text-[11px] font-semibold text-slate-800 truncate">{qt.customer}</span>
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter shrink-0">{qt.paymentStatus}</span>
+                              <span className="text-xs font-semibold text-slate-800 truncate">{qt.customer}</span>
+                              <span className="text-ui-xs font-bold text-slate-400 uppercase tracking-tighter shrink-0">{qt.paymentStatus}</span>
                             </div>
                           </button>
                         ))
@@ -1183,8 +1184,8 @@ const ReceiptModal = ({
                   )}
                 </div>
                 {selectedQuotation ? (
-                  <div className="sm:col-span-2 rounded-lg border border-emerald-100 bg-emerald-50/40 px-3 py-2 text-[10px] text-slate-700 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="font-bold text-[#134e4a]">{selectedQuotation.id ?? '—'}</span>
+                  <div className="sm:col-span-2 rounded-lg border border-emerald-100 bg-emerald-50/40 px-3 py-2 text-ui-xs text-slate-700 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-bold text-zarewa-teal">{selectedQuotation.id ?? '—'}</span>
                     <span className="font-medium truncate">{selectedQuotation.customer ?? '—'}</span>
                     <span className="xl:hidden font-bold text-emerald-700 tabular-nums">
                       {formatNgn(displayBalance)} due
@@ -1205,25 +1206,25 @@ const ReceiptModal = ({
                 disabled={readOnly}
               />
               {activeBankDepositId && treasuryCashRequiredNgn > 0 ? (
-                <p className="text-[9px] text-sky-800 mt-1">
+                <p className="text-ui-xs text-sky-800 mt-1">
                   Enter treasury lines for the remaining {formatNgn(treasuryCashRequiredNgn)} only.
                 </p>
               ) : null}
             </div>
 
             <div className="mb-3 flex items-center justify-between px-1">
-              <h3 className="text-[10px] font-semibold text-[#134e4a] uppercase tracking-widest">
+              <h3 className="text-ui-xs font-semibold text-zarewa-teal uppercase tracking-widest">
                 Payment breakdown
               </h3>
             </div>
 
             {treasuryList.length === 0 ? (
-              <p className="text-[10px] font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
+              <p className="text-ui-xs font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
                 No treasury accounts on file. Add accounts under Finance so receipts can post to bank or cash.
               </p>
             ) : null}
             <div className="space-y-2.5">
-              <div className="grid grid-cols-12 gap-2.5 px-1 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+              <div className="grid grid-cols-12 gap-2.5 px-1 text-ui-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <div className="col-span-12 sm:col-span-3">Payee name</div>
                 <div className="col-span-6 sm:col-span-2">Account</div>
                 <div className="col-span-4 sm:col-span-2">Date</div>
@@ -1242,7 +1243,7 @@ const ReceiptModal = ({
                       placeholder="Who paid / depositor"
                       value={line.payeeName}
                       onChange={(e) => updateLine(line.id, { payeeName: e.target.value })}
-                      className="col-span-12 sm:col-span-3 border border-slate-200 rounded-lg py-2 px-2.5 text-[12px] font-semibold text-[#134e4a] outline-none"
+                      className="col-span-12 sm:col-span-3 border border-slate-200 rounded-lg py-2 px-2.5 text-[12px] font-semibold text-zarewa-teal outline-none"
                     />
                     <div className="col-span-6 sm:col-span-2 relative">
                       <select
@@ -1252,7 +1253,7 @@ const ReceiptModal = ({
                             treasuryAccountId: e.target.value,
                           })
                         }
-                        className="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-[12px] font-semibold text-[#134e4a] appearance-none outline-none"
+                        className="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-[12px] font-semibold text-zarewa-teal appearance-none outline-none"
                       >
                         {treasuryList.map((a) => (
                           <option key={a.id} value={String(a.id)}>
@@ -1270,7 +1271,7 @@ const ReceiptModal = ({
                         type="date"
                         value={line.lineDate}
                         onChange={(e) => updateLine(line.id, { lineDate: e.target.value })}
-                        className="w-full border border-slate-200 rounded-lg py-2 px-2 text-[12px] font-semibold text-[#134e4a]"
+                        className="w-full border border-slate-200 rounded-lg py-2 px-2 text-[12px] font-semibold text-zarewa-teal"
                       />
                     </div>
                     <div className="col-span-2 sm:col-span-3">
@@ -1309,7 +1310,7 @@ const ReceiptModal = ({
               })}
             </div>
             {lineTotalNgn > 0 && postingHeadroomNgn != null && lineTotalNgn > postingHeadroomNgn ? (
-              <p className="mt-2 text-[10px] font-medium text-emerald-900">
+              <p className="mt-2 text-ui-xs font-medium text-emerald-900">
                 Total is above the remaining balance — the <strong>full amount</strong> is recorded on this quotation.
                 Any receipt vs overpay allocation is done later in Finance if needed.
               </p>
@@ -1319,23 +1320,23 @@ const ReceiptModal = ({
           <div
             className={`hidden xl:flex xl:w-56 xl:shrink-0 bg-slate-50/90 p-3 flex-col gap-2.5 border-t-0 border-l border-slate-100 min-h-0 overflow-y-auto custom-scrollbar ${readOnly ? 'opacity-85' : ''}`}
           >
-            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+            <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               Linked quote
             </p>
             {selectedQuotation ? (
               <>
                 <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                  <p className="text-[8px] font-semibold text-slate-400 uppercase mb-1">Customer (from quote)</p>
-                  <p className="text-[13px] font-bold leading-snug text-[#134e4a]">{customerName}</p>
-                  <p className="text-[9px] text-slate-500">{customerPhone}</p>
+                  <p className="text-ui-xs font-semibold text-slate-400 uppercase mb-1">Customer (from quote)</p>
+                  <p className="text-[13px] font-bold leading-snug text-zarewa-teal">{customerName}</p>
+                  <p className="text-ui-xs text-slate-500">{customerPhone}</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                  <p className="text-[8px] font-semibold text-slate-400 uppercase mb-1">Quotation total</p>
-                  <p className="text-[17px] font-bold leading-none text-[#134e4a] tabular-nums">{formatNgn(displayTotal)}</p>
+                  <p className="text-ui-xs font-semibold text-slate-400 uppercase mb-1">Quotation total</p>
+                  <p className="text-[17px] font-bold leading-none text-zarewa-teal tabular-nums">{formatNgn(displayTotal)}</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                  <p className="text-[8px] font-semibold text-slate-400 uppercase mb-0.5">Payment received</p>
+                  <p className="text-ui-xs font-semibold text-slate-400 uppercase mb-0.5">Payment received</p>
                   <p className="text-[7px] text-slate-500 mb-1 leading-tight">
                     {quotationPaymentHistory.length === 0
                       ? 'No payment posts yet on this quote'
@@ -1345,22 +1346,22 @@ const ReceiptModal = ({
                   </p>
                   <p className="text-[17px] font-bold leading-none text-sky-700 tabular-nums">{formatNgn(displayPaid)}</p>
                 </div>
-                <div className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a] p-2.5 text-white">
-                  <p className="text-[8px] font-semibold text-white/50 uppercase mb-1">Balance due (ledger)</p>
+                <div className="rounded-lg border border-zarewa-teal/30 bg-zarewa-teal p-2.5 text-white">
+                  <p className="text-ui-xs font-semibold text-white/50 uppercase mb-1">Balance due (ledger)</p>
                   <p className="text-[17px] font-bold leading-none text-emerald-200 tabular-nums">{formatNgn(displayBalance)}</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                  <p className="text-[8px] font-semibold text-slate-400 uppercase mb-1">This voucher total</p>
+                  <p className="text-ui-xs font-semibold text-slate-400 uppercase mb-1">This voucher total</p>
                   <p className="text-[20px] font-black leading-none text-emerald-700 tabular-nums">{formatNgn(lineTotalNgn)}</p>
                   {balanceAfterNgn != null ? (
-                    <p className="text-[8px] text-slate-500 mt-1">
+                    <p className="text-ui-xs text-slate-500 mt-1">
                       Est. balance after post: <span className="font-bold tabular-nums">{formatNgn(balanceAfterNgn)}</span>
                     </p>
                   ) : null}
                 </div>
               </>
             ) : (
-              <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-2.5 text-[9px] text-amber-950 leading-snug">
+              <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-2.5 text-ui-xs text-amber-950 leading-snug">
                 Select a quotation to load customer, balances, and print-ready totals.
               </div>
             )}
@@ -1380,7 +1381,7 @@ const ReceiptModal = ({
 
         <div className="px-5 py-4 bg-emerald-600 flex justify-between items-center text-white shrink-0 flex-wrap gap-3">
           <div>
-            <p className="text-[9px] font-semibold text-white/50 uppercase tracking-widest mb-0.5">
+            <p className="text-ui-xs font-semibold text-white/50 uppercase tracking-widest mb-0.5">
               Voucher total
             </p>
             <p className="text-2xl font-bold text-white tabular-nums">{formatNgn(lineTotalNgn)}</p>
@@ -1391,7 +1392,7 @@ const ReceiptModal = ({
                 type="button"
                 disabled={isPosting}
                 onClick={deleteCurrentReceipt}
-                className="bg-rose-700/90 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-rose-300/40 hover:bg-rose-700 disabled:opacity-40"
+                className="bg-rose-700/90 px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide border border-rose-300/40 hover:bg-rose-700 disabled:opacity-40"
               >
                 <Trash2 size={14} className="inline mr-1.5" /> Delete payment
               </button>
@@ -1404,7 +1405,7 @@ const ReceiptModal = ({
                 (useLedgerApi && Boolean(quotationLedgerHold)) ||
                 (useLedgerApi && voucherInLockedPeriod)
               }
-              className="bg-white/10 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
+              className="bg-white/10 px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
             >
               <Save size={14} className="inline mr-1.5" /> {isPosting ? 'Posting…' : 'Post payment'}
             </button>
@@ -1412,7 +1413,7 @@ const ReceiptModal = ({
               type="button"
               onClick={() => openPrint('quick')}
               disabled={!ws?.canMutate || !quotationRef}
-              className="bg-white/90 text-emerald-800 px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm disabled:opacity-40"
+              className="bg-white/90 text-emerald-800 px-3 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm disabled:opacity-40"
             >
               <Printer size={14} className="inline mr-1" /> Summary (A4)
             </button>
@@ -1420,7 +1421,7 @@ const ReceiptModal = ({
               type="button"
               onClick={() => openPrint('full')}
               disabled={!ws?.canMutate || !quotationRef}
-              className="bg-white text-emerald-700 px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm disabled:opacity-40"
+              className="bg-white text-emerald-700 px-3 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm disabled:opacity-40"
             >
               <Printer size={14} className="inline mr-1" /> Full detail (A4)
             </button>
@@ -1428,76 +1429,60 @@ const ReceiptModal = ({
         </div>
       </form>
 
-      {showPrint &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <>
+      <PrintModalPortal open={showPrint} onClose={() => setShowPrint(false)}>
+        <div className="mx-auto max-w-4xl pb-16">
+          <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
+            {printKind === 'quick' ? (
+              <ReceiptPrintQuick
+                receiptId={receiptIdPreview}
+                dateStr={formatDisplayDate(voucherDate)}
+                customerName={customerName || '—'}
+                quotationRef={quotationRef || '—'}
+                quotationPaymentHistory={quotationPaymentHistory}
+                highlightReceiptId={isExistingPayment ? String(editData.id) : ''}
+                lines={printLinesPayload}
+                totalNgn={lineTotalNgn}
+                reference={remarks}
+                cashierStatusLabel={receiptCashierPrintStatus.label}
+                cashierStatusDetail={receiptCashierPrintStatus.detail}
+              />
+            ) : (
+              <ReceiptPrintFull
+                receiptId={receiptIdPreview}
+                dateStr={formatDisplayDate(voucherDate)}
+                customerName={customerName || '—'}
+                customerPhone={customerPhone}
+                quotationRef={quotationRef || '—'}
+                projectName={selectedQuotation?.projectName ?? ''}
+                quotationPaymentHistory={quotationPaymentHistory}
+                highlightReceiptId={isExistingPayment ? String(editData.id) : ''}
+                lines={printLinesPayload}
+                totalNgn={lineTotalNgn}
+                reference={remarks}
+                handledBy={handledByLabel}
+                cashierStatusLabel={receiptCashierPrintStatus.label}
+                cashierStatusDetail={receiptCashierPrintStatus.detail}
+              />
+            )}
+          </div>
+          <div className="no-print mt-4 flex flex-wrap justify-center gap-2">
             <button
               type="button"
-              aria-label="Close print preview"
-              className="no-print fixed inset-0 z-[11060] bg-black/50"
-              onClick={() => setShowPrint(false)}
-            />
-            <div
-              className="print-portal-scroll fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8"
-              onClick={() => setShowPrint(false)}
+              onClick={() => window.print()}
+              className="rounded-lg bg-emerald-700 px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-white shadow-lg"
             >
-              <div className="mx-auto max-w-4xl pb-16" onClick={(e) => e.stopPropagation()}>
-                <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
-                  {printKind === 'quick' ? (
-                    <ReceiptPrintQuick
-                      receiptId={receiptIdPreview}
-                      dateStr={formatDisplayDate(voucherDate)}
-                      customerName={customerName || '—'}
-                      quotationRef={quotationRef || '—'}
-                      quotationPaymentHistory={quotationPaymentHistory}
-                      highlightReceiptId={isExistingPayment ? String(editData.id) : ''}
-                      lines={printLinesPayload}
-                      totalNgn={lineTotalNgn}
-                      reference={remarks}
-                      cashierStatusLabel={receiptCashierPrintStatus.label}
-                      cashierStatusDetail={receiptCashierPrintStatus.detail}
-                    />
-                  ) : (
-                    <ReceiptPrintFull
-                      receiptId={receiptIdPreview}
-                      dateStr={formatDisplayDate(voucherDate)}
-                      customerName={customerName || '—'}
-                      customerPhone={customerPhone}
-                      quotationRef={quotationRef || '—'}
-                      projectName={selectedQuotation?.projectName ?? ''}
-                      quotationPaymentHistory={quotationPaymentHistory}
-                      highlightReceiptId={isExistingPayment ? String(editData.id) : ''}
-                      lines={printLinesPayload}
-                      totalNgn={lineTotalNgn}
-                      reference={remarks}
-                      handledBy={handledByLabel}
-                      cashierStatusLabel={receiptCashierPrintStatus.label}
-                      cashierStatusDetail={receiptCashierPrintStatus.detail}
-                    />
-                  )}
-                </div>
-                <div className="no-print mt-4 flex flex-wrap justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="rounded-lg bg-emerald-700 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg"
-                  >
-                    Print / Save PDF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowPrint(false)}
-                    className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>,
-          document.body
-        )}
+              Print / Save PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPrint(false)}
+              className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </PrintModalPortal>
       </>
     </ModalFrame>
   );

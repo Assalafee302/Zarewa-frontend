@@ -24,7 +24,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { isBranchEmployee, isBeneficiaryOnlyPayrollGroup, isErpAccessRestrictedPayrollGroup, payrollGroupMayHaveLogin } from '../../shared/hrStaffCohorts';
 
 const fieldCls =
-  'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
+  'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-zarewa-teal focus:outline-none focus:ring-2 focus:ring-zarewa-teal/15';
 
 function Field({ label, children, hint }) {
   return (
@@ -305,7 +305,7 @@ export function HrStaffFormFields({
     <div className="space-y-8">
       {mode === 'register' ? (
         <section className="space-y-4">
-          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Login account</h3>
+          <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Login account</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Login username" hint="Same as employee ID — used to sign in. Auto-filled when you enter employee ID.">
               <input
@@ -350,7 +350,7 @@ export function HrStaffFormFields({
                 ))}
               </select>
               {erpRestricted ? (
-                <p className="mt-1 text-[11px] text-amber-800">
+                <p className="mt-1 text-xs text-amber-800">
                   Mining division staff cannot access sales, finance, or operations — HR portal and My Profile only.
                 </p>
               ) : null}
@@ -367,7 +367,7 @@ export function HrStaffFormFields({
             onClick={() => setActiveTab(tab.id)}
             className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
               activeTab === tab.id
-                ? 'bg-[#134e4a] text-white shadow-sm'
+                ? 'bg-zarewa-teal text-white shadow-sm'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -379,7 +379,7 @@ export function HrStaffFormFields({
       {activeTab === 'personal' ? (
         <section className="space-y-4">
           <div>
-            <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Personal data</h3>
+            <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Personal data</h3>
             <p className="mt-1 text-xs text-slate-500">Legal name, contact, and demographic details for HR records.</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -463,7 +463,7 @@ export function HrStaffFormFields({
       {activeTab === 'employment' ? (
       <section className="space-y-4">
         <div>
-          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Employment details</h3>
+          <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Employment details</h3>
           <p className="mt-1 text-xs text-slate-500">Branch, department, reporting structure, and employment status.</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -704,7 +704,7 @@ export function HrStaffFormFields({
       {showCompensation && activeTab === 'payroll' ? (
         <section className="space-y-4">
           <div>
-            <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Salary & payroll</h3>
+            <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Salary & payroll</h3>
             <p className="mt-1 text-xs text-slate-500">Payroll group, salary structure, and monthly compensation.</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -840,7 +840,7 @@ export function HrStaffFormFields({
               />
             </Field>
             <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-              <p className="text-xs font-black uppercase tracking-wide text-[#134e4a]">Standard matrix pay</p>
+              <p className="text-xs font-black uppercase tracking-wide text-zarewa-teal">Standard matrix pay</p>
               <div className="grid gap-3 sm:grid-cols-3 text-xs">
                 <div>
                   <span className="text-slate-500">Base</span>
@@ -906,7 +906,7 @@ export function HrStaffFormFields({
       {showCompensation && activeTab === 'bank' ? (
         <section className="space-y-4">
           <div>
-            <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Bank details</h3>
+            <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Bank details</h3>
             <p className="mt-1 text-xs text-slate-500">Salary disbursement account. Masked in general HR views.</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -960,7 +960,7 @@ export function HrStaffFormFields({
       {showCompensation && activeTab === 'statutory' ? (
         <section className="space-y-4">
           <div>
-            <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Tax, pension & NHIS</h3>
+            <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Tax, pension & NHIS</h3>
             <p className="mt-1 text-xs text-slate-500">
               {isBranchEmployee(form.payrollGroup)
                 ? 'Monthly PAYE deduction (₦) is entered manually per staff. Pension is deducted from payroll using company policy rates for eligible branch staff.'
@@ -1020,7 +1020,7 @@ export function HrStaffFormFields({
       {activeTab === 'nok' ? (
       <section className="space-y-4">
         <div>
-          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Next of kin & emergency contact</h3>
+          <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Next of kin & emergency contact</h3>
           <p className="mt-1 text-xs text-slate-500">Primary emergency contact for HR and safety records.</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -1064,7 +1064,7 @@ export function HrStaffFormFields({
       {activeTab === 'qualifications' ? (
       <section className="space-y-4">
         <div>
-          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Qualifications</h3>
+          <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Qualifications</h3>
           <p className="mt-1 text-xs text-slate-500">Education, certifications, and professional training summary.</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -1120,7 +1120,7 @@ export function HrStaffFormFields({
       {activeTab === 'notes' ? (
       <section className="space-y-4">
         <div>
-          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">HR notes & remarks</h3>
+          <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">HR notes & remarks</h3>
           <p className="mt-1 text-xs text-slate-500">Internal HR-only information — not visible to staff self-service.</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">

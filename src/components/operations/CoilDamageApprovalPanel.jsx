@@ -166,13 +166,13 @@ export default function CoilDamageApprovalPanel() {
             <h2 className="text-sm font-black uppercase tracking-wide text-amber-950">
               Pending material incident approval
             </h2>
-            <p className="text-[11px] text-amber-900/80 mt-0.5">
+            <p className="text-xs text-amber-900/80 mt-0.5">
               {enrichedRows.length} coil-linked incident{enrichedRows.length === 1 ? '' : 's'} awaiting branch manager
               sign-off before kg and metres post to stock.
             </p>
           </div>
         </div>
-        <button type="button" className="z-btn-secondary text-[10px]" onClick={() => loadPending()} disabled={loading}>
+        <button type="button" className="z-btn-secondary text-ui-xs" onClick={() => loadPending()} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
@@ -196,7 +196,7 @@ export default function CoilDamageApprovalPanel() {
               <div>
                 <button
                   type="button"
-                  className="font-mono font-bold text-sm text-[#134e4a] underline underline-offset-2 text-left"
+                  className="font-mono font-bold text-sm text-zarewa-teal underline underline-offset-2 text-left"
                   onClick={() => openIncident(r.id)}
                 >
                   {r.id}
@@ -212,35 +212,35 @@ export default function CoilDamageApprovalPanel() {
                   · {r.gaugeLabel || '—'} {r.colour || ''}
                 </p>
               </div>
-              <p className="text-[10px] font-semibold text-slate-500">{r.dateISO || '—'}</p>
+              <p className="text-ui-xs font-semibold text-slate-500">{r.dateISO || '—'}</p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[9px] font-bold uppercase text-slate-400">Before kg</p>
+                <p className="text-ui-xs font-bold uppercase text-slate-400">Before kg</p>
                 <p className="font-mono font-bold tabular-nums">{r.beforeKg != null ? Number(r.beforeKg).toFixed(0) : '—'}</p>
               </div>
               <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[9px] font-bold uppercase text-slate-400">After kg</p>
+                <p className="text-ui-xs font-bold uppercase text-slate-400">After kg</p>
                 <p className="font-mono font-bold tabular-nums">{r.afterKg != null ? Number(r.afterKg).toFixed(0) : '—'}</p>
               </div>
               <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[9px] font-bold uppercase text-slate-400">Damaged m</p>
+                <p className="text-ui-xs font-bold uppercase text-slate-400">Damaged m</p>
                 <p className="font-mono font-bold tabular-nums">{Number(r.totalMeters || 0).toFixed(2)}</p>
               </div>
               <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[9px] font-bold uppercase text-slate-400">Disposition</p>
+                <p className="text-ui-xs font-bold uppercase text-slate-400">Disposition</p>
                 <p className="font-semibold text-slate-700">{dispositionLabel(r.returnDisposition)}</p>
               </div>
             </div>
 
-            <div className="rounded-lg border border-teal-100 bg-teal-50/50 px-3 py-2 text-[11px] text-slate-700">
-              <span className="font-bold text-[#134e4a]">Kg removed:</span>{' '}
+            <div className="rounded-lg border border-teal-100 bg-teal-50/50 px-3 py-2 text-xs text-slate-700">
+              <span className="font-bold text-zarewa-teal">Kg removed:</span>{' '}
               <span className="font-mono tabular-nums">
                 {r.preview?.kgDeducted != null ? `${r.preview.kgDeducted.toFixed(2)} kg` : '—'}
               </span>
               {' · '}
-              <span className="font-bold text-[#134e4a]">Conversion:</span>{' '}
+              <span className="font-bold text-zarewa-teal">Conversion:</span>{' '}
               <span className="font-mono tabular-nums">{fmtConv2(r.preview?.actualConversionKgPerM, { suffix: 'kg/m' })}</span>
               {r.preview?.variancePct != null ? (
                 <span className={Math.abs(r.preview.variancePct) > 15 ? ' text-amber-800 font-semibold' : ''}>
@@ -252,7 +252,7 @@ export default function CoilDamageApprovalPanel() {
             </div>
 
             {(r.storekeeperRemark || r.productionJobId || r.quotationRef) && (
-              <p className="text-[11px] text-slate-600 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 {r.storekeeperRemark ? <span>{r.storekeeperRemark}</span> : null}
                 {r.productionJobId ? (
                   <span className="block text-slate-500">Job: {r.productionJobId}</span>
@@ -299,7 +299,7 @@ export default function CoilDamageApprovalPanel() {
         ))}
       </div>
 
-      <p className="text-[10px] text-amber-900/70">
+      <p className="text-ui-xs text-amber-900/70">
         Full register:{' '}
         <Link to="/operations/material-exceptions" className="font-bold underline underline-offset-2">
           Material exceptions → Pending

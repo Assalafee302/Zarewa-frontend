@@ -196,7 +196,7 @@ export function AiAssistantDock() {
           setOpen(true);
           setActiveMode((prev) => prev || inferAiModeFromPath(location.pathname));
         }}
-        className="fixed z-[170] flex h-14 w-14 items-center justify-center rounded-2xl border border-teal-200/80 bg-[#134e4a] text-[#5eead4] shadow-lg transition hover:brightness-110 active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))]"
+        className="fixed z-[170] flex h-14 w-14 items-center justify-center rounded-2xl border border-teal-200/80 bg-zarewa-teal text-[#5eead4] shadow-lg transition hover:brightness-110 active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))]"
         aria-label="Open AI assistant"
         title="AI assistant"
       >
@@ -217,19 +217,19 @@ export function AiAssistantDock() {
             aria-label="AI assistant"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-100 bg-[#134e4a] px-4 py-3 text-white">
+            <div className="flex items-center justify-between border-b border-gray-100 bg-zarewa-teal px-4 py-3 text-white">
               <div className="flex items-center gap-2 min-w-0">
                 <Sparkles size={18} className="shrink-0 text-[#5eead4]" aria-hidden />
                 <div className="min-w-0">
-                  <p className="text-[11px] font-black uppercase tracking-wider">{aiModeLabel(activeMode)}</p>
-                  <p className="truncate text-[10px] font-medium text-teal-100/90">{location.pathname}</p>
+                  <p className="text-xs font-black uppercase tracking-wider">{aiModeLabel(activeMode)}</p>
+                  <p className="truncate text-ui-xs font-medium text-teal-100/90">{location.pathname}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => resetConversation(activeMode)}
-                  className="rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white/85 transition hover:bg-white/10"
+                  className="rounded-lg px-2 py-1 text-ui-xs font-bold uppercase tracking-wide text-white/85 transition hover:bg-white/10"
                   aria-label="Reset assistant conversation"
                 >
                   Reset
@@ -248,7 +248,7 @@ export function AiAssistantDock() {
             <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-3">
               {messages.length <= 1 && quickPrompts.length > 0 ? (
                 <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-[#134e4a]">Quick prompts</p>
+                  <p className="text-ui-xs font-black uppercase tracking-wider text-zarewa-teal">Quick prompts</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {quickPrompts.map((item) => (
                       <button
@@ -263,7 +263,7 @@ export function AiAssistantDock() {
                             },
                           })
                         }
-                        className="rounded-lg border border-white bg-white/90 px-2.5 py-1.5 text-[10px] font-bold text-[#134e4a] shadow-sm transition hover:bg-teal-100/80"
+                        className="rounded-lg border border-white bg-white/90 px-2.5 py-1.5 text-ui-xs font-bold text-zarewa-teal shadow-sm transition hover:bg-teal-100/80"
                       >
                         {item.label}
                       </button>
@@ -276,7 +276,7 @@ export function AiAssistantDock() {
                   key={`${m.role}-${i}`}
                   className={`rounded-xl px-3 py-2 text-[13px] leading-snug ${
                     m.role === 'user'
-                      ? 'ml-6 bg-teal-50 text-[#134e4a] border border-teal-100'
+                      ? 'ml-6 bg-teal-50 text-zarewa-teal border border-teal-100'
                       : 'mr-4 bg-gray-50 text-gray-800 border border-gray-100'
                   }`}
                 >
@@ -284,7 +284,7 @@ export function AiAssistantDock() {
                 </div>
               ))}
               {busy ? (
-                <p className="text-[11px] font-semibold text-gray-400 px-1">Thinking…</p>
+                <p className="text-xs font-semibold text-gray-400 px-1">Thinking…</p>
               ) : null}
               {error ? (
                 <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[12px] text-red-800">{error}</p>
@@ -312,13 +312,13 @@ export function AiAssistantDock() {
                   type="button"
                   onClick={() => void send()}
                   disabled={busy || !draft.trim()}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-xl bg-[#134e4a] text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-xl bg-zarewa-teal text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"
                   aria-label="Send message"
                 >
                   <Send size={18} />
                 </button>
               </div>
-              <p className="mt-2 text-[10px] text-gray-400 leading-snug">
+              <p className="mt-2 text-ui-xs text-gray-400 leading-snug">
                 Powered by your configured AI provider. Uses role-filtered workspace context. Not financial or legal advice.
               </p>
             </div>

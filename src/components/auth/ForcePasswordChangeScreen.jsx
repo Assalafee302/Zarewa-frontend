@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LockKeyhole, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { appConfirm } from '../../lib/appConfirm';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { ZAREWA_LOGO_SRC } from '../../Data/companyQuotation';
@@ -43,7 +44,10 @@ export default function ForcePasswordChangeModal() {
   };
 
   const signOut = async () => {
-    if (!window.confirm('Sign out? You will need your temporary password to sign in again.')) return;
+    if (!(await appConfirm({
+      title: 'Sign out',
+      message: 'Sign out? You will need your temporary password to sign in again.',
+    }))) return;
     await ws?.logout?.();
     window.location.href = '/';
   };
@@ -59,8 +63,8 @@ export default function ForcePasswordChangeModal() {
       >
         <div className="flex flex-col items-center text-center">
           <img src={ZAREWA_LOGO_SRC} alt="" className="h-10 w-auto object-contain" width={100} height={40} />
-          <p className="mt-4 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">First sign-in</p>
-          <h1 id="force-password-title" className="mt-2 text-2xl font-black text-[#134e4a]">
+          <p className="mt-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">First sign-in</p>
+          <h1 id="force-password-title" className="mt-2 text-2xl font-black text-zarewa-teal">
             Set your password
           </h1>
           <p className="mt-2 text-sm text-slate-600 leading-relaxed">
@@ -116,7 +120,7 @@ export default function ForcePasswordChangeModal() {
           <button
             type="submit"
             disabled={busy}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#134e4a] px-5 py-3.5 text-sm font-black text-white shadow-lg disabled:opacity-70"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-zarewa-teal px-5 py-3.5 text-sm font-black text-white shadow-lg disabled:opacity-70"
           >
             <LockKeyhole size={17} aria-hidden />
             {busy ? 'Saving…' : 'Save password and continue'}

@@ -69,7 +69,7 @@ export function BankDepositPicker({
 
   if (!sorted.length) {
     return (
-      <p className={`text-[10px] text-slate-500 leading-snug ${className}`}>
+      <p className={`text-ui-xs text-slate-500 leading-snug ${className}`}>
         No unlinked bank deposits in this branch. Finance can register bank payments when money arrives before Sales
         identifies the customer.
       </p>
@@ -78,11 +78,11 @@ export function BankDepositPicker({
 
   return (
     <div className={`space-y-1.5 ${className}`}>
-      <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a]">
+      <label className="flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal">
         <Link2 size={12} /> Link bank deposit (optional)
       </label>
       <select
-        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-medium text-slate-800 disabled:opacity-60"
+        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-800 disabled:opacity-60"
         value={value}
         disabled={disabled}
         onChange={(e) => onChange?.(e.target.value)}
@@ -96,11 +96,11 @@ export function BankDepositPicker({
         ))}
       </select>
       {value ? (
-        <p className="text-[9px] text-teal-800 leading-snug">
+        <p className="text-ui-xs text-teal-800 leading-snug">
           Treasury will not credit again for the linked portion — cash was recorded when Finance registered this deposit.
         </p>
       ) : (
-        <p className="text-[9px] text-amber-800 leading-snug">
+        <p className="text-ui-xs text-amber-800 leading-snug">
           If this payment matches a row below, link it to avoid duplicate cash in treasury.
         </p>
       )}

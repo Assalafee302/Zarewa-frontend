@@ -29,8 +29,8 @@ function fmtIso(iso) {
 function Chip({ label, value }) {
   if (value == null || value === '') return null;
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700">
-      <span className="text-slate-400 uppercase text-[8px]">{label}</span>
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-ui-xs font-semibold text-slate-700">
+      <span className="text-slate-400 uppercase text-ui-xs">{label}</span>
       {value}
     </span>
   );
@@ -39,7 +39,7 @@ function Chip({ label, value }) {
 function Section({ title, children }) {
   return (
     <section className="space-y-2">
-      <h3 className="text-[10px] font-black uppercase tracking-widest text-[#134e4a] border-b border-slate-100 pb-1">
+      <h3 className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal border-b border-slate-100 pb-1">
         {title}
       </h3>
       {children}
@@ -137,14 +137,14 @@ export default function MaterialIncidentDetailModal({
       <div className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-xl max-h-[min(92dvh,900px)] flex flex-col overflow-hidden">
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 shrink-0">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tracking reference</p>
-            <p className="font-mono text-2xl font-black text-[#134e4a] tracking-tight truncate">
+            <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Tracking reference</p>
+            <p className="font-mono text-2xl font-black text-zarewa-teal tracking-tight truncate">
               {incident?.id || incidentId || '—'}
             </p>
             {incident ? (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                  className={`rounded-full px-2.5 py-0.5 text-ui-xs font-bold uppercase ${
                     incident.status === 'posted'
                       ? 'bg-teal-100 text-teal-900'
                       : incident.status === 'submitted'
@@ -154,8 +154,8 @@ export default function MaterialIncidentDetailModal({
                 >
                   {INCIDENT_STATUS_LABEL[incident.status] || incident.status}
                 </span>
-                <span className="text-[11px] text-slate-500">{typeLabel(incident.incidentType)}</span>
-                <span className="text-[11px] text-slate-500">· {incident.dateISO}</span>
+                <span className="text-xs text-slate-500">{typeLabel(incident.incidentType)}</span>
+                <span className="text-xs text-slate-500">· {incident.dateISO}</span>
               </div>
             ) : null}
           </div>
@@ -183,7 +183,7 @@ export default function MaterialIncidentDetailModal({
                 {incident.coilNo ? (
                   <Link
                     to={`/operations/coils/${encodeURIComponent(incident.coilNo)}`}
-                    className="text-[11px] font-semibold text-sky-800 underline underline-offset-2"
+                    className="text-xs font-semibold text-sky-800 underline underline-offset-2"
                     onClick={onClose}
                   >
                     Open coil profile
@@ -193,23 +193,23 @@ export default function MaterialIncidentDetailModal({
 
               {(incident.beforeKg != null || incident.afterKg != null) && (
                 <Section title="Kg on roll">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className="rounded-lg bg-slate-50 px-3 py-2">
-                      <p className="text-[9px] font-bold uppercase text-slate-400">Before kg</p>
+                      <p className="text-ui-xs font-bold uppercase text-slate-400">Before kg</p>
                       <p className="font-mono font-bold tabular-nums">{incident.beforeKg ?? '—'}</p>
                     </div>
                     <div className="rounded-lg bg-slate-50 px-3 py-2">
-                      <p className="text-[9px] font-bold uppercase text-slate-400">After kg</p>
+                      <p className="text-ui-xs font-bold uppercase text-slate-400">After kg</p>
                       <p className="font-mono font-bold tabular-nums">{incident.afterKg ?? '—'}</p>
                     </div>
                     <div className="rounded-lg bg-slate-50 px-3 py-2">
-                      <p className="text-[9px] font-bold uppercase text-slate-400">Kg removed</p>
+                      <p className="text-ui-xs font-bold uppercase text-slate-400">Kg removed</p>
                       <p className="font-mono font-bold tabular-nums">
                         {incident.kgDeducted ?? preview?.kgDeducted ?? '—'}
                       </p>
                     </div>
                     <div className="rounded-lg bg-slate-50 px-3 py-2">
-                      <p className="text-[9px] font-bold uppercase text-slate-400">Conversion</p>
+                      <p className="text-ui-xs font-bold uppercase text-slate-400">Conversion</p>
                       <p className="font-mono font-bold tabular-nums">
                         {fmtConv2(incident.conversionKgPerM ?? preview?.actualConversionKgPerM, { suffix: 'kg/m' })}
                       </p>
@@ -220,8 +220,8 @@ export default function MaterialIncidentDetailModal({
 
               <Section title="Damaged sections">
                 <div className="rounded-xl border border-slate-200 overflow-hidden">
-                  <table className="w-full text-[11px]">
-                    <thead className="bg-slate-50 text-[9px] uppercase text-slate-500">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-50 text-ui-xs uppercase text-slate-500">
                       <tr>
                         <th className="px-2 py-1.5 text-left">Length (m)</th>
                         <th className="px-2 py-1.5 text-left">Qty</th>
@@ -263,24 +263,24 @@ export default function MaterialIncidentDetailModal({
               </Section>
 
               <Section title="Notes">
-                <p className="text-[11px] text-slate-600">
+                <p className="text-xs text-slate-600">
                   <span className="font-bold text-slate-500">Storekeeper:</span>{' '}
                   {incident.storekeeperRemark || '—'}
                 </p>
                 {incident.managerRemark ? (
-                  <p className="text-[11px] text-slate-600">
+                  <p className="text-xs text-slate-600">
                     <span className="font-bold text-slate-500">Manager:</span> {incident.managerRemark}
                   </p>
                 ) : null}
                 {incident.reasonText ? (
-                  <p className="text-[11px] text-slate-600">
+                  <p className="text-xs text-slate-600">
                     <span className="font-bold text-slate-500">Reason:</span> {incident.reasonText}
                   </p>
                 ) : null}
               </Section>
 
               <Section title="Audit trail">
-                <ul className="text-[11px] text-slate-600 space-y-1 font-mono">
+                <ul className="text-xs text-slate-600 space-y-1 font-mono">
                   <li>Created {fmtIso(incident.createdAtIso)} · {incident.storekeeperDisplay || incident.createdByUserId || '—'}</li>
                   <li>Updated {fmtIso(incident.updatedAtIso)}</li>
                   {incident.approvedAtIso ? <li>Approved {fmtIso(incident.approvedAtIso)}</li> : null}
@@ -291,24 +291,24 @@ export default function MaterialIncidentDetailModal({
 
               {issues.length > 0 ? (
                 <Section title="Production use (metres deducted)">
-                  <ul className="space-y-1 text-[11px]">
+                  <ul className="space-y-1 text-xs">
                     {issues.map((iss) => (
                       <li key={iss.id} className="flex justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5">
-                        <span className="font-mono font-semibold text-[#134e4a]">{iss.targetRef || iss.targetKind}</span>
+                        <span className="font-mono font-semibold text-zarewa-teal">{iss.targetRef || iss.targetKind}</span>
                         <span className="tabular-nums font-bold">{Number(iss.meters).toFixed(2)} m</span>
-                        <span className="text-slate-400 text-[10px]">{fmtIso(iss.issuedAtIso)}</span>
+                        <span className="text-slate-400 text-ui-xs">{fmtIso(iss.issuedAtIso)}</span>
                       </li>
                     ))}
                   </ul>
                 </Section>
               ) : (
-                <p className="text-[10px] text-slate-500">
+                <p className="text-ui-xs text-slate-500">
                   No production deductions yet — after approval, issue metres from this MEX ID on production complete.
                 </p>
               )}
 
-              <div className="rounded-xl border border-teal-100 bg-teal-50/50 p-3 text-[11px] text-slate-700">
-                <p className="font-bold text-[#134e4a] uppercase text-[9px] mb-1">How to use this reference</p>
+              <div className="rounded-xl border border-teal-100 bg-teal-50/50 p-3 text-xs text-slate-700">
+                <p className="font-bold text-zarewa-teal uppercase text-ui-xs mb-1">How to use this reference</p>
                 <ul className="list-disc pl-4 space-y-0.5">
                   <li>
                     <strong>Production:</strong> pick <span className="font-mono">{incident.id}</span> in offcut supply when completing a job.
@@ -324,7 +324,7 @@ export default function MaterialIncidentDetailModal({
 
               {incident.status === 'submitted' && canApprove ? (
                 <label className="block text-sm">
-                  <span className="text-[10px] font-bold uppercase text-slate-500">Manager remark</span>
+                  <span className="text-ui-xs font-bold uppercase text-slate-500">Manager remark</span>
                   <input
                     className="z-input w-full mt-1 text-xs"
                     placeholder="Required to reject; optional for approve"

@@ -55,7 +55,7 @@ export function ProductionRegisterCorrectionModal({
           {copy.title}
         </h4>
         <p className="mt-2 text-sm leading-snug text-slate-600 sm:text-xs">{copy.description}</p>
-        <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-slate-500 sm:text-[10px]">
+        <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-slate-500 sm:text-ui-xs">
           Reason (≥{minLen} characters)
         </label>
         <textarea

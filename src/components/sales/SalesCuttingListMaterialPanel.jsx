@@ -14,11 +14,11 @@ export default function SalesCuttingListMaterialPanel({ ready, waitingNoMatch = 
     <section className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
       <div className="h-1 bg-sky-600" aria-hidden />
       <div className="p-5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+        <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
           <Factory size={14} className="text-sky-600 shrink-0" strokeWidth={2} />
           Material vs waiting lists
         </p>
-        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+        <p className="text-xs text-slate-500 mt-1 leading-snug">
           Waiting lists whose quote expects coil stock and has a spec that matches at least one{' '}
           <strong className="font-semibold text-slate-600">available</strong> coil lot (weight still on hand, not consumed)
           or yard register line — same gauge / colour / material check as Operations. Book-only SKU totals are not used
@@ -27,7 +27,7 @@ export default function SalesCuttingListMaterialPanel({ ready, waitingNoMatch = 
 
         {waitingNoMatch.length > 0 ? (
           <div className="mt-4 space-y-2">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-amber-900/90">
+            <p className="text-ui-xs font-bold uppercase tracking-widest text-amber-900/90">
               No matching coil
             </p>
             <ul className="max-h-[min(220px,36vh)] overflow-y-auto custom-scrollbar space-y-2 pr-0.5">
@@ -45,9 +45,9 @@ export default function SalesCuttingListMaterialPanel({ ready, waitingNoMatch = 
                         strokeWidth={2}
                         aria-hidden
                       />
-                      <p className="text-[10px] text-amber-950 leading-snug min-w-0">{alertText}</p>
+                      <p className="text-ui-xs text-amber-950 leading-snug min-w-0">{alertText}</p>
                     </div>
-                    <p className="text-[9px] text-amber-800/80 mt-1 pl-[22px] truncate">{cl.customer}</p>
+                    <p className="text-ui-xs text-amber-800/80 mt-1 pl-[22px] truncate">{cl.customer}</p>
                   </button>
                 </li>
               ))}
@@ -62,7 +62,7 @@ export default function SalesCuttingListMaterialPanel({ ready, waitingNoMatch = 
                 <CheckCircle2 size={14} className="shrink-0 text-emerald-600" strokeWidth={2} />
                 {ready.length} list{ready.length === 1 ? '' : 's'} — coil matches stock
               </p>
-              <p className="text-[10px] text-emerald-900/80 mt-1 leading-snug">
+              <p className="text-ui-xs text-emerald-900/80 mt-1 leading-snug">
                 Yard / store lines match the linked quote. Operations can prioritise these jobs.
               </p>
             </div>
@@ -76,7 +76,7 @@ export default function SalesCuttingListMaterialPanel({ ready, waitingNoMatch = 
                     className="w-full text-left rounded-lg border border-slate-200/90 bg-slate-50/60 hover:bg-white hover:border-sky-200/80 px-2.5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/25"
                   >
                     <div className="flex items-start justify-between gap-2 min-w-0">
-                      <p className="text-[11px] font-bold text-[#134e4a] tabular-nums truncate min-w-0">
+                      <p className="text-xs font-bold text-zarewa-teal tabular-nums truncate min-w-0">
                         {cl.id}
                       </p>
                       {!meterCoverageOk && needM > 0 ? (
@@ -92,8 +92,8 @@ export default function SalesCuttingListMaterialPanel({ ready, waitingNoMatch = 
                         <CheckCircle2 size={14} className="shrink-0 text-emerald-600" strokeWidth={2} aria-hidden />
                       )}
                     </div>
-                    <p className="text-[10px] text-slate-600 truncate mt-0.5">{cl.customer}</p>
-                    <p className="text-[9px] text-slate-500 mt-1 tabular-nums leading-snug">
+                    <p className="text-ui-xs text-slate-600 truncate mt-0.5">{cl.customer}</p>
+                    <p className="text-ui-xs text-slate-500 mt-1 tabular-nums leading-snug">
                       List {needM > 0 ? `~${needM.toLocaleString()} m` : 'm n/a'} · Stock ~{totalEstM.toLocaleString()} m
                       est · {totalKg.toLocaleString()} kg
                     </p>
@@ -106,8 +106,8 @@ export default function SalesCuttingListMaterialPanel({ ready, waitingNoMatch = 
 
         {ready.length === 0 && waitingNoMatch.length === 0 ? (
           <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50/70 p-3">
-            <p className="text-[11px] font-semibold text-slate-600">Nothing to flag here</p>
-            <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+            <p className="text-xs font-semibold text-slate-600">Nothing to flag here</p>
+            <p className="text-ui-xs text-slate-500 mt-1 leading-snug">
               No waiting lists with a comparable coil spec on the linked quote, or stock already lines up. Add gauge /
               colour / material on quotations, or link lists to quotes that include those fields.
             </p>

@@ -46,7 +46,7 @@ export function WorkPayFormModal({
         onChange={trackUnsaved ? captureEdited : undefined}
       >
         <header className="shrink-0 border-b border-slate-100 bg-gradient-to-r from-teal-50/80 to-white px-4 py-4 pr-14 sm:px-6">
-          {eyebrow ? <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#134e4a]">{eyebrow}</p> : null}
+          {eyebrow ? <p className="text-ui-xs font-bold uppercase tracking-[0.14em] text-zarewa-teal">{eyebrow}</p> : null}
           <h2 className="mt-0.5 text-lg font-black tracking-tight text-slate-900 sm:text-xl">{title}</h2>
           {description ? <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">{description}</p> : null}
         </header>
@@ -58,11 +58,11 @@ export function WorkPayFormModal({
                 <span className="font-semibold text-slate-600">
                   Step {currentStep + 1} of {steps.length}
                 </span>
-                <span className="font-bold tabular-nums text-[#134e4a]">{progressPct}%</span>
+                <span className="font-bold tabular-nums text-zarewa-teal">{progressPct}%</span>
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200/90">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#134e4a] to-teal-500 transition-all duration-300"
+                  className="h-full rounded-full bg-gradient-to-r from-zarewa-teal to-teal-500 transition-all duration-300"
                   style={{ width: `${progressPct}%` }}
                 />
               </div>

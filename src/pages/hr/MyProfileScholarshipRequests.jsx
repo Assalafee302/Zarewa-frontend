@@ -328,9 +328,9 @@ export default function MyProfileScholarshipRequests() {
                 <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">{r.title || r.kind}</p>
-                    <p className="text-[11px] text-slate-500">{r.createdAtIso?.slice(0, 10)}</p>
+                    <p className="text-xs text-slate-500">{r.createdAtIso?.slice(0, 10)}</p>
                   </div>
-                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold capitalize text-amber-900">
+                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold capitalize text-amber-900">
                     {String(r.status || 'pending').replace(/_/g, ' ')}
                   </span>
                 </li>

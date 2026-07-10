@@ -542,7 +542,7 @@ export default function CoilProfile() {
               <select
                 value={incidentTypePick}
                 onChange={(e) => setIncidentTypePick(e.target.value)}
-                className="rounded-lg border border-amber-200/80 bg-white py-1.5 pl-2 pr-7 text-[10px] font-bold text-amber-950 outline-none max-w-[11rem]"
+                className="rounded-lg border border-amber-200/80 bg-white py-1.5 pl-2 pr-7 text-ui-xs font-bold text-amber-950 outline-none max-w-[11rem]"
                 aria-label="Incident type"
               >
                 {INCIDENT_TYPES.map((t) => (
@@ -572,7 +572,7 @@ export default function CoilProfile() {
 
       <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start min-w-0">
         <aside className="w-full lg:w-56 shrink-0 lg:sticky lg:top-24 space-y-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-3 mb-2">On this page</p>
+          <p className="text-ui-xs font-black uppercase tracking-widest text-gray-400 px-3 mb-2">On this page</p>
           {NAV.map((item) => {
             const NavIcon = item.icon;
             return (
@@ -580,7 +580,7 @@ export default function CoilProfile() {
               key={item.id}
               type="button"
               onClick={() => go(item.id)}
-              className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-[#134e4a] hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-100 transition-all"
+              className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold text-zarewa-teal hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-100 transition-all"
             >
               <NavIcon size={14} />
               {item.label}
@@ -591,30 +591,30 @@ export default function CoilProfile() {
 
         <MainPanel className="flex-1 min-w-0 !pt-0">
           <section id="coil-overview" className="rounded-zarewa border border-gray-100 bg-white shadow-sm p-5 mb-8 scroll-mt-28">
-            <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4">Overview</h3>
+            <h3 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4">Overview</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
-                <p className="text-[9px] uppercase font-bold text-slate-400">Received at GRN</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{receivedKg.toLocaleString()}</p>
+                <p className="text-ui-xs uppercase font-bold text-slate-400">Received at GRN</p>
+                <p className="text-lg font-black text-zarewa-teal tabular-nums">{receivedKg.toLocaleString()}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
-                <p className="text-[9px] uppercase font-bold text-slate-400">Kg used</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{kgUsed.toLocaleString()}</p>
+                <p className="text-ui-xs uppercase font-bold text-slate-400">Kg used</p>
+                <p className="text-lg font-black text-zarewa-teal tabular-nums">{kgUsed.toLocaleString()}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
-                <p className="text-[9px] uppercase font-bold text-slate-400">On-hand kg</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{currentKg.toLocaleString()}</p>
+                <p className="text-ui-xs uppercase font-bold text-slate-400">On-hand kg</p>
+                <p className="text-lg font-black text-zarewa-teal tabular-nums">{currentKg.toLocaleString()}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
-                <p className="text-[9px] uppercase font-bold text-slate-400">Reserved</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{reservedKg.toLocaleString()}</p>
+                <p className="text-ui-xs uppercase font-bold text-slate-400">Reserved</p>
+                <p className="text-lg font-black text-zarewa-teal tabular-nums">{reservedKg.toLocaleString()}</p>
               </div>
-              <div className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-3 col-span-2 sm:col-span-1">
-                <p className="text-[9px] uppercase font-bold text-slate-500">Free to use</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{freeKg.toLocaleString()}</p>
+              <div className="rounded-lg border border-zarewa-teal/30 bg-zarewa-teal/5 px-3 py-3 col-span-2 sm:col-span-1">
+                <p className="text-ui-xs uppercase font-bold text-slate-500">Free to use</p>
+                <p className="text-lg font-black text-zarewa-teal tabular-nums">{freeKg.toLocaleString()}</p>
               </div>
             </div>
-            <p className="mt-3 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-[11px] text-slate-600 leading-relaxed tabular-nums">
+            <p className="mt-3 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-600 leading-relaxed tabular-nums">
               <strong className="text-slate-700">Book arithmetic:</strong>{' '}
               received <strong>{receivedKg.toLocaleString()}</strong> − used <strong>{kgUsed.toLocaleString()}</strong>{' '}
               = on-hand <strong>{currentKg.toLocaleString()}</strong>
@@ -660,7 +660,7 @@ export default function CoilProfile() {
                 {canReconcileReservation ? (
                   <button
                     type="button"
-                    className="mt-2 z-btn-secondary text-[10px]"
+                    className="mt-2 z-btn-secondary text-ui-xs"
                     disabled={reconcilingReservation}
                     onClick={submitReconcileReservation}
                   >
@@ -680,13 +680,13 @@ export default function CoilProfile() {
               </div>
             ) : null}
             {holdersLoading ? (
-              <p className="mt-3 text-[10px] text-slate-500">Loading production holders…</p>
+              <p className="mt-3 text-ui-xs text-slate-500">Loading production holders…</p>
             ) : null}
           </section>
 
           <section id="coil-links" className="rounded-zarewa border border-gray-100 bg-white shadow-sm p-5 mb-8 scroll-mt-28">
-            <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4">Production links</h3>
-            <p className="text-[10px] text-slate-500 mb-3 leading-relaxed">
+            <h3 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4">Production links</h3>
+            <p className="text-ui-xs text-slate-500 mb-3 leading-relaxed">
               All jobs that ever allocated this coil (from server). Active planned/running openings should match
               reserved kg on the overview. Per-job <strong>kg used</strong> is the booked consumed weight on each
               allocation (not opening − closing when they differ after corrections).
@@ -731,7 +731,7 @@ export default function CoilProfile() {
                 {canReconcileReservation ? (
                   <button
                     type="button"
-                    className="mt-2 z-btn-secondary text-[10px]"
+                    className="mt-2 z-btn-secondary text-ui-xs"
                     disabled={recalculatingStock}
                     onClick={submitRecalculateProductionStock}
                   >
@@ -740,7 +740,7 @@ export default function CoilProfile() {
                 ) : null}
               </div>
             ) : productionTotals && jobRows.length > 0 ? (
-              <p className="mb-3 text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 tabular-nums">
+              <p className="mb-3 text-ui-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 tabular-nums">
                 Job consumed kg sum ({productionTotals.jobsConsumedKgSum.toLocaleString(undefined, { maximumFractionDigits: 2 })}) matches coil book used ({kgUsed.toLocaleString()}).
               </p>
             ) : null}
@@ -754,7 +754,7 @@ export default function CoilProfile() {
                 jobRows.map((row, idx) => (
                   <div key={`${row.jobID || row.cuttingListId || 'job'}-${idx}`} className="rounded-lg border border-slate-200 px-3 py-2 text-xs">
                     <div className="flex justify-between gap-2">
-                      <span className="font-bold text-[#134e4a]">
+                      <span className="font-bold text-zarewa-teal">
                         {row.cuttingListId ? (
                           <span className="font-mono">{row.cuttingListId}</span>
                         ) : (
@@ -791,7 +791,7 @@ export default function CoilProfile() {
                         <button
                           type="button"
                           onClick={() => openProductionTrace(row)}
-                          className="text-[#134e4a] underline underline-offset-2 font-semibold"
+                          className="text-zarewa-teal underline underline-offset-2 font-semibold"
                         >
                           Open trace
                         </button>
@@ -807,19 +807,19 @@ export default function CoilProfile() {
             id="coil-conversion"
             className="rounded-zarewa border border-gray-100 bg-white shadow-sm p-5 mb-8 scroll-mt-28"
           >
-            <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4">Conversion history</h3>
+            <h3 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4">Conversion history</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
-                <p className="text-[9px] uppercase font-bold text-slate-400">Purchase conversion</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{fmtConv2(purchaseConversion)}</p>
+                <p className="text-ui-xs uppercase font-bold text-slate-400">Purchase conversion</p>
+                <p className="text-lg font-black text-zarewa-teal tabular-nums">{fmtConv2(purchaseConversion)}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
-                <p className="text-[9px] uppercase font-bold text-slate-400">Average conversion</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{fmtConv2(avgActualConversion)}</p>
+                <p className="text-ui-xs uppercase font-bold text-slate-400">Average conversion</p>
+                <p className="text-lg font-black text-zarewa-teal tabular-nums">{fmtConv2(avgActualConversion)}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
-                <p className="text-[9px] uppercase font-bold text-slate-400">Standard conversion</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{fmtConv2(avgStandardConversion)}</p>
+                <p className="text-ui-xs uppercase font-bold text-slate-400">Standard conversion</p>
+                <p className="text-lg font-black text-zarewa-teal tabular-nums">{fmtConv2(avgStandardConversion)}</p>
               </div>
             </div>
             {linkedChecks.length === 0 ? (
@@ -828,7 +828,7 @@ export default function CoilProfile() {
               <ul className="space-y-2 max-h-[360px] overflow-y-auto custom-scrollbar">
                 {linkedChecks.map((c) => (
                   <li key={c.id} className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs">
-                    <p className="font-bold text-[#134e4a]">
+                    <p className="font-bold text-zarewa-teal">
                       {c.cuttingListId || c.jobID || '—'} <span className="text-slate-400">· {c.atISO || c.createdAtISO || '—'}</span>
                     </p>
                     <p className="mt-1 text-slate-600">
@@ -844,7 +844,7 @@ export default function CoilProfile() {
                         <button
                           type="button"
                           onClick={() => openProductionTrace(c)}
-                          className="ml-2 text-[#134e4a] underline underline-offset-2 font-semibold"
+                          className="ml-2 text-zarewa-teal underline underline-offset-2 font-semibold"
                         >
                           Open trace
                         </button>
@@ -857,16 +857,16 @@ export default function CoilProfile() {
           </section>
 
           <section id="coil-history" className="rounded-zarewa border border-gray-100 bg-white shadow-sm p-5 scroll-mt-28">
-            <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4">Movement history</h3>
+            <h3 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4">Movement history</h3>
             {movementRows.length === 0 ? (
               <p className="text-xs text-slate-500">No movement rows referencing this coil yet.</p>
             ) : (
               <ul className="space-y-2 max-h-[420px] overflow-y-auto custom-scrollbar">
                 {movementRows.map((m) => (
                   <li key={m.id} className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs">
-                    <p className="font-bold text-[#134e4a]">{movementTitle(m)} <span className="text-slate-400">· {m.atISO || '—'}</span></p>
+                    <p className="font-bold text-zarewa-teal">{movementTitle(m)} <span className="text-slate-400">· {m.atISO || '—'}</span></p>
                     <p className="text-slate-600 mt-0.5">{m.detail || '—'}</p>
-                    {m.ref ? <p className="text-[10px] text-slate-500 mt-0.5">Ref: {m.ref}</p> : null}
+                    {m.ref ? <p className="text-ui-xs text-slate-500 mt-0.5">Ref: {m.ref}</p> : null}
                   </li>
                 ))}
               </ul>
@@ -876,7 +876,7 @@ export default function CoilProfile() {
       </div>
       <ModalFrame isOpen={actionModal === 'finish'} onClose={closeActionModal}>
         <form onSubmit={submitFinishRoll} className="space-y-3" onInput={captureEdited} onChange={captureEdited}>
-          <h3 className="text-lg font-black text-[#134e4a]">Finish roll — {coil.coilNo}</h3>
+          <h3 className="text-lg font-black text-zarewa-teal">Finish roll — {coil.coilNo}</h3>
           <p className="text-xs text-slate-600 leading-relaxed">
             Clears <strong>{freeKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg</strong> of unusable
             spool/core tail from coil and raw-material stock. Use when production metres were already posted but
@@ -903,7 +903,7 @@ export default function CoilProfile() {
       </ModalFrame>
       <ModalFrame isOpen={actionModal === 'scrap'} onClose={closeActionModal}>
         <form onSubmit={submitScrap} className="space-y-3" onInput={captureEdited} onChange={captureEdited}>
-          <h3 className="text-lg font-black text-[#134e4a]">Scrap from {coil.coilNo}</h3>
+          <h3 className="text-lg font-black text-zarewa-teal">Scrap from {coil.coilNo}</h3>
           <input className="z-input w-full" type="number" min="0.01" step="0.01" placeholder="Scrap kg" value={scrapForm.kg} onChange={(e) => setScrapForm((s) => ({ ...s, kg: e.target.value }))} />
           <input className="z-input w-full" type="number" min="0" step="0.01" placeholder="Metres (optional)" value={scrapForm.meters} onChange={(e) => setScrapForm((s) => ({ ...s, meters: e.target.value }))} />
           <input className="z-input w-full" placeholder="Book / offcut no. (optional)" value={scrapForm.bookRef} onChange={(e) => setScrapForm((s) => ({ ...s, bookRef: e.target.value }))} />
@@ -914,7 +914,7 @@ export default function CoilProfile() {
       </ModalFrame>
       <ModalFrame isOpen={actionModal === 'return'} onClose={closeActionModal}>
         <form onSubmit={submitReturn} className="space-y-3" onInput={captureEdited} onChange={captureEdited}>
-          <h3 className="text-lg font-black text-[#134e4a]">Return material to {coil.coilNo}</h3>
+          <h3 className="text-lg font-black text-zarewa-teal">Return material to {coil.coilNo}</h3>
           <input className="z-input w-full" type="number" min="0.01" step="0.01" placeholder="Return kg" value={returnForm.kg} onChange={(e) => setReturnForm((s) => ({ ...s, kg: e.target.value }))} />
           <input className="z-input w-full" placeholder="Reason" value={returnForm.reason} onChange={(e) => setReturnForm((s) => ({ ...s, reason: e.target.value }))} />
           <textarea className="z-input w-full min-h-20" placeholder="Note" value={returnForm.note} onChange={(e) => setReturnForm((s) => ({ ...s, note: e.target.value }))} />

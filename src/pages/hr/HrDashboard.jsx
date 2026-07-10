@@ -59,7 +59,7 @@ import {
 } from '../../components/profile/profileOverviewUi';
 
 const CARD_ROW =
-  'group relative flex min-w-0 cursor-pointer items-center gap-3 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-3 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-[#134e4a]/25 hover:shadow-md sm:px-4';
+  'group relative flex min-w-0 cursor-pointer items-center gap-3 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-3 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-zarewa-teal/25 hover:shadow-md sm:px-4';
 
 const ALERT_FILTER_OPTIONS = [
   { id: 'all', label: 'All alerts' },
@@ -114,7 +114,7 @@ const ALERT_CONFIGS = [
         <span className="flex items-center gap-2">
           <span className="font-mono text-amber-700">{item.probationEndIso}</span>
           {item.userId ? (
-            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}?tab=employment`} className="font-bold text-[#134e4a] hover:underline">
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}?tab=employment`} className="font-bold text-zarewa-teal hover:underline">
               Review →
             </Link>
           ) : null}
@@ -136,7 +136,7 @@ const ALERT_CONFIGS = [
         <span className="flex items-center gap-2">
           <span className="font-mono text-orange-700">{item.contractEndIso}</span>
           {item.userId ? (
-            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-[#134e4a] hover:underline">
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-zarewa-teal hover:underline">
               Open →
             </Link>
           ) : null}
@@ -155,7 +155,7 @@ const ALERT_CONFIGS = [
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
         <strong>{item.displayName}</strong>
         {item.userId ? (
-          <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-[#134e4a] hover:underline">
+          <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-zarewa-teal hover:underline">
             Open →
           </Link>
         ) : null}
@@ -179,7 +179,7 @@ const ALERT_CONFIGS = [
             </span>
           ) : null}
           {item.userId ? (
-            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-[#134e4a] hover:underline">
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-zarewa-teal hover:underline">
               Open →
             </Link>
           ) : null}
@@ -204,7 +204,7 @@ const ALERT_CONFIGS = [
         <span className="flex items-center gap-2">
           <span className="font-mono text-red-700">{item.expiryIso}</span>
           {item.userId ? (
-            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}?tab=documents`} className="font-bold text-[#134e4a] hover:underline">
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}?tab=documents`} className="font-bold text-zarewa-teal hover:underline">
               Open →
             </Link>
           ) : null}
@@ -292,7 +292,7 @@ const ACTION_ALERT_CONFIGS = [
         <span>
           <strong>{item.staffDisplayName || item.displayName || 'Staff'}</strong>
         </span>
-        <span className="text-[10px] font-bold uppercase text-violet-800">{item.status?.replace(/_/g, ' ')}</span>
+        <span className="text-ui-xs font-bold uppercase text-violet-800">{item.status?.replace(/_/g, ' ')}</span>
       </li>
     ),
   },
@@ -327,7 +327,7 @@ const ACTION_ALERT_CONFIGS = [
       <li key={i} className="border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
         <strong>{item.displayName || 'Staff'}</strong>
         {item.userId ? (
-          <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="ml-2 font-bold text-[#134e4a] hover:underline">
+          <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="ml-2 font-bold text-zarewa-teal hover:underline">
             View →
           </Link>
         ) : null}
@@ -347,7 +347,7 @@ const ACTION_ALERT_CONFIGS = [
         <span>
           <strong>{item.staffDisplayName || 'Staff'}</strong> — {String(item.transferType || '').replace(/_/g, ' ')}
         </span>
-        <span className="text-[10px] font-bold uppercase text-indigo-800">{item.status?.replace(/_/g, ' ')}</span>
+        <span className="text-ui-xs font-bold uppercase text-indigo-800">{item.status?.replace(/_/g, ' ')}</span>
       </li>
     ),
   },
@@ -398,7 +398,7 @@ const ACTION_ALERT_CONFIGS = [
               {item.endDateIso || label}
             </span>
             {item.userId ? (
-              <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-[#134e4a] hover:underline">
+              <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-zarewa-teal hover:underline">
                 Update →
               </Link>
             ) : null}
@@ -426,7 +426,7 @@ const ACTION_ALERT_CONFIGS = [
             {item.reviewDueIso || '—'}
           </span>
           {item.userId ? (
-            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-[#134e4a] hover:underline">
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-zarewa-teal hover:underline">
               Review →
             </Link>
           ) : null}
@@ -453,7 +453,7 @@ const ACTION_ALERT_CONFIGS = [
             <span className="font-mono text-orange-800">+₦{Number(item.varianceNgn).toLocaleString()}</span>
           ) : null}
           {item.userId ? (
-            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-[#134e4a] hover:underline">
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-zarewa-teal hover:underline">
               Document →
             </Link>
           ) : null}
@@ -475,7 +475,7 @@ function DashboardViewBar({ value, onChange }) {
           onClick={() => onChange(opt.id)}
           className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
             value === opt.id
-              ? 'border-[#134e4a]/30 bg-[#134e4a] text-white'
+              ? 'border-zarewa-teal/30 bg-zarewa-teal text-white'
               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
           }`}
         >
@@ -497,14 +497,14 @@ function AlertFilterBar({ value, onChange, actionCount, calendarCount, totalCoun
           onClick={() => onChange(opt.id)}
           className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
             value === opt.id
-              ? 'border-[#134e4a]/30 bg-[#134e4a] text-white'
+              ? 'border-zarewa-teal/30 bg-zarewa-teal text-white'
               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
           }`}
         >
           {opt.label}
           {counts[opt.id] > 0 ? (
             <span
-              className={`rounded-full px-1.5 py-0.5 text-[9px] tabular-nums ${
+              className={`rounded-full px-1.5 py-0.5 text-ui-xs tabular-nums ${
                 value === opt.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -532,17 +532,17 @@ function AlertCard({ cfg, items }) {
       >
         <Icon size={16} className="shrink-0 text-slate-500" aria-hidden />
         <span className="flex-1 text-sm font-semibold text-slate-800">{cfg.title}</span>
-        <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[10px] font-black ${cfg.badgeCls}`}>
+        <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-ui-xs font-black ${cfg.badgeCls}`}>
           {count}
         </span>
         {open ? <ChevronDown size={14} className="shrink-0 text-slate-400" /> : <ChevronRight size={14} className="shrink-0 text-slate-400" />}
       </button>
       {open ? (
         <div className="border-t border-slate-100 px-4 py-3">
-          <p className="mb-2 text-[11px] text-slate-500">{cfg.countLabel(count)}</p>
+          <p className="mb-2 text-xs text-slate-500">{cfg.countLabel(count)}</p>
           <ul className="space-y-0.5">{items.map((item, i) => cfg.renderItem(item, i))}</ul>
           {cfg.listLink ? (
-            <Link to={cfg.listLink} className="mt-3 inline-block text-xs font-bold text-[#134e4a] hover:underline">
+            <Link to={cfg.listLink} className="mt-3 inline-block text-xs font-bold text-zarewa-teal hover:underline">
               View all in directory →
             </Link>
           ) : null}
@@ -567,19 +567,19 @@ function ActionAlertCard({ cfg, items }) {
       >
         <Icon size={16} className="shrink-0 text-slate-500" aria-hidden />
         <span className="flex-1 text-sm font-semibold text-slate-800">{cfg.title}</span>
-        <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[10px] font-black ${cfg.badgeCls}`}>
+        <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-ui-xs font-black ${cfg.badgeCls}`}>
           {count}
         </span>
         {open ? <ChevronDown size={14} className="shrink-0 text-slate-400" /> : <ChevronRight size={14} className="shrink-0 text-slate-400" />}
       </button>
       {open ? (
         <div className="border-t border-slate-100 px-4 py-3">
-          <p className="mb-2 text-[11px] text-slate-500">{cfg.countLabel(count)}</p>
+          <p className="mb-2 text-xs text-slate-500">{cfg.countLabel(count)}</p>
           <ul className="space-y-0.5">{items.map((item, i) => cfg.renderItem(item, i))}</ul>
           {cfg.linkTo ? (
             <Link
               to={cfg.linkTo}
-              className="mt-3 inline-block text-xs font-bold text-[#134e4a] hover:underline"
+              className="mt-3 inline-block text-xs font-bold text-zarewa-teal hover:underline"
               onClick={() => {
                 if (cfg.preselectReport) sessionStorage.setItem('hrReportPreselect', cfg.preselectReport);
               }}
@@ -588,7 +588,7 @@ function ActionAlertCard({ cfg, items }) {
             </Link>
           ) : null}
           {cfg.listLink ? (
-            <Link to={cfg.listLink} className="mt-2 ml-0 inline-block text-xs font-bold text-[#134e4a] hover:underline">
+            <Link to={cfg.listLink} className="mt-2 ml-0 inline-block text-xs font-bold text-zarewa-teal hover:underline">
               View all in directory →
             </Link>
           ) : null}
@@ -774,7 +774,7 @@ export default function HrDashboard() {
                 <ul className="space-y-2">
                   {queueLines.map((line) => (
                     <li key={line.label}>
-                      <Link to={line.href} className="font-semibold text-[#134e4a] hover:underline">
+                      <Link to={line.href} className="font-semibold text-zarewa-teal hover:underline">
                         {line.label}:
                       </Link>{' '}
                       {line.count} pending
@@ -792,8 +792,8 @@ export default function HrDashboard() {
                       to={action.href}
                       className={
                         action.primary
-                          ? 'rounded-lg border border-[#134e4a]/20 bg-[#134e4a] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3d39]'
-                          : 'rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#134e4a] hover:bg-slate-50'
+                          ? 'rounded-lg border border-zarewa-teal/20 bg-zarewa-teal px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3d39]'
+                          : 'rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-zarewa-teal hover:bg-slate-50'
                       }
                     >
                       {action.label}

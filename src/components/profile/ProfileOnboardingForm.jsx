@@ -198,9 +198,9 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
                 : 'border-slate-200 bg-slate-50'
             }`}
           >
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Full name preview</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Full name preview</p>
             <p className="mt-0.5 text-base font-semibold text-slate-900">{legalName || '—'}</p>
-            <p className="mt-1 text-[11px] text-slate-500">Generated from the fields below. Not editable separately.</p>
+            <p className="mt-1 text-xs text-slate-500">Generated from the fields below. Not editable separately.</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <ProfileFormField label="First name" required>
@@ -579,11 +579,11 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
             <span className="font-semibold text-slate-600">
               {validation.ok ? 'Ready to submit' : `${validation.missing.length} required field(s) left`}
             </span>
-            <span className="font-bold tabular-nums text-[#134e4a]">{progressPct}%</span>
+            <span className="font-bold tabular-nums text-zarewa-teal">{progressPct}%</span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200/90">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#134e4a] to-teal-500 transition-all duration-300"
+              className="h-full rounded-full bg-gradient-to-r from-zarewa-teal to-teal-500 transition-all duration-300"
               style={{ width: `${progressPct}%` }}
             />
           </div>

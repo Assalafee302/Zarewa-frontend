@@ -24,6 +24,7 @@ import {
 } from '../../lib/hrCompensationStructure';
 import { HR_FUNCTIONAL_OFFICES, TITLE_TIERS } from '../../lib/hrOrgConstants';
 import { formatNgn } from '../../lib/hrFormat';
+import { appConfirm } from '../../lib/appConfirm';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
 import { HrCard, HrEmptyState } from './hrPageUi';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
@@ -91,8 +92,8 @@ function SectionTabs({ section, onChange }) {
           onClick={() => onChange(s.id)}
           className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide transition ${
             section === s.id
-              ? 'bg-[#134e4a] text-white shadow-sm'
-              : 'border border-slate-200 bg-white text-slate-600 hover:border-[#134e4a]/30'
+              ? 'bg-zarewa-teal text-white shadow-sm'
+              : 'border border-slate-200 bg-white text-slate-600 hover:border-zarewa-teal/30'
           }`}
         >
           {s.label}
@@ -105,8 +106,8 @@ function SectionTabs({ section, onChange }) {
 function StatPill({ label, value }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="text-xl font-black text-[#134e4a]">{value}</p>
+      <p className="text-ui-xs font-black uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-xl font-black text-zarewa-teal">{value}</p>
     </div>
   );
 }
@@ -221,7 +222,7 @@ function RolesTermsManager({ canEdit }) {
   };
 
   const deactivate = async (row) => {
-    if (!window.confirm(`Deactivate "${row.title}"? Staff already on this title keep their record; new assignments will hide it.`)) return;
+    if (!(await appConfirm({ message: `Deactivate "${row.title}"? Staff already on this title keep their record; new assignments will hide it.`, variant: 'danger' }))) return;
     const { ok, data } = await deleteHrDesignation(row.id);
     if (!ok || !data?.ok) {
       toast(data?.error || 'Could not deactivate.', { variant: 'error' });
@@ -236,7 +237,7 @@ function RolesTermsManager({ canEdit }) {
       toast(`Cannot delete — ${row.staffCount} staff still use this title. Deactivate or reassign first.`, { variant: 'error' });
       return;
     }
-    if (!window.confirm(`Permanently delete "${row.title}"? This cannot be undone.`)) return;
+    if (!(await appConfirm({ message: `Permanently delete "${row.title}"? This cannot be undone.`, variant: 'danger' }))) return;
     const { ok, data } = await deleteHrDesignation(row.id, { hard: true });
     if (!ok || !data?.ok) {
       toast(data?.error || 'Could not delete.', { variant: 'error' });
@@ -310,7 +311,7 @@ function RolesTermsManager({ canEdit }) {
                 <AppTableTr key={r.id}>
                   <AppTableTd>
                     <span className="font-semibold text-slate-900">{r.title}</span>
-                    {r.isActing ? <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-900">Acting</span> : null}
+                    {r.isActing ? <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-amber-900">Acting</span> : null}
                   </AppTableTd>
                   <AppTableTd>{r.departmentName || '—'}</AppTableTd>
                   <AppTableTd>{r.gradeCategory || r.seniorityBand || '—'}</AppTableTd>
@@ -324,7 +325,7 @@ function RolesTermsManager({ canEdit }) {
                   <AppTableTd>{r.active ? 'Active' : 'Inactive'}</AppTableTd>
                   <AppTableTd>
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" className="text-xs font-bold text-[#134e4a] hover:underline" onClick={() => { setViewRow(r); setTermsModal(true); }}>
+                      <button type="button" className="text-xs font-bold text-zarewa-teal hover:underline" onClick={() => { setViewRow(r); setTermsModal(true); }}>
                         Terms
                       </button>
                       {canEdit ? (
@@ -567,7 +568,7 @@ function DepartmentsManager({ canEdit }) {
   };
 
   const deactivate = async (row) => {
-    if (!window.confirm(`Deactivate department "${row.name}"?`)) return;
+    if (!(await appConfirm({ message: `Deactivate department "${row.name}"?`, variant: 'danger' }))) return;
     const { ok, data } = await deleteHrDepartment(row.id);
     if (!ok || !data?.ok) {
       toast(data?.error || 'Could not deactivate.', { variant: 'error' });
@@ -578,7 +579,7 @@ function DepartmentsManager({ canEdit }) {
   };
 
   const removePermanent = async (row) => {
-    if (!window.confirm(`Permanently delete "${row.name}"?`)) return;
+    if (!(await appConfirm({ message: `Permanently delete "${row.name}"?`, variant: 'danger' }))) return;
     const { ok, data } = await deleteHrDepartment(row.id, { hard: true });
     if (!ok || !data?.ok) {
       toast(data?.error || 'Could not delete.', { variant: 'error' });
@@ -622,7 +623,7 @@ function DepartmentsManager({ canEdit }) {
                   {canEdit ? (
                     <AppTableTd>
                       <div className="flex flex-wrap gap-2">
-                        <button type="button" className="text-xs font-bold text-[#134e4a]" onClick={() => openEdit(r)}>Edit</button>
+                        <button type="button" className="text-xs font-bold text-zarewa-teal" onClick={() => openEdit(r)}>Edit</button>
                         {r.active ? (
                           <button type="button" className="text-xs font-semibold text-amber-800" onClick={() => deactivate(r)}>Deactivate</button>
                         ) : null}
@@ -750,7 +751,7 @@ function SalaryMatrixManager({ canEdit }) {
 
   const remove = async () => {
     if (!form.id) return;
-    if (!window.confirm('Delete this salary matrix cell?')) return;
+    if (!(await appConfirm({ message: 'Delete this salary matrix cell?', variant: 'danger' }))) return;
     setBusy(true);
     const { ok, data } = await deleteSalaryMatrixRow(form.id);
     setBusy(false);
@@ -778,7 +779,7 @@ function SalaryMatrixManager({ canEdit }) {
             type="button"
             onClick={() => setGroup(g.value)}
             className={`rounded-lg px-3 py-2 text-left text-xs font-semibold ${
-              group === g.value ? 'bg-[#134e4a] text-white' : 'border border-slate-200 bg-white text-slate-700'
+              group === g.value ? 'bg-zarewa-teal text-white' : 'border border-slate-200 bg-white text-slate-700'
             }`}
           >
             {g.label}
@@ -817,12 +818,12 @@ function SalaryMatrixManager({ canEdit }) {
                               className={`text-right ${canEdit ? 'hover:underline' : ''}`}
                             >
                               <span className="block font-semibold text-slate-900">{formatNgn(total)}</span>
-                              <span className="block text-[10px] text-slate-500">
+                              <span className="block text-ui-xs text-slate-500">
                                 B {formatNgn(row.baseSalaryNgn)} · H {formatNgn(row.housingAllowanceNgn)}
                               </span>
                             </button>
                           ) : canEdit ? (
-                            <button type="button" className="text-xs text-slate-400 hover:text-[#134e4a]" onClick={() => openCell(level, step)}>
+                            <button type="button" className="text-xs text-slate-400 hover:text-zarewa-teal" onClick={() => openCell(level, step)}>
                               + Set
                             </button>
                           ) : (
@@ -868,7 +869,7 @@ function SalaryMatrixManager({ canEdit }) {
                         <AppTableTd align="right" className="font-semibold">{formatNgn(totalMatrixPay(r))}</AppTableTd>
                         {canEdit ? (
                           <AppTableTd>
-                            <button type="button" className="text-xs font-bold text-[#134e4a]" onClick={() => openCell(r.salaryLevel, r.salaryStep)}>Edit</button>
+                            <button type="button" className="text-xs font-bold text-zarewa-teal" onClick={() => openCell(r.salaryLevel, r.salaryStep)}>Edit</button>
                           </AppTableTd>
                         ) : null}
                       </AppTableTr>
@@ -990,7 +991,7 @@ export function HrExecutiveStructureHub({ defaultSection = 'roles', embedded = f
     <div className={embedded ? 'space-y-6' : 'space-y-6'}>
       {!embedded ? (
         <div className="space-y-2">
-          <h2 className="text-lg font-bold text-[#134e4a]">Roles, grades & compensation structure</h2>
+          <h2 className="text-lg font-bold text-zarewa-teal">Roles, grades & compensation structure</h2>
           <p className="max-w-3xl text-sm text-slate-600">
             Manage the full job catalog with terms of reference, department groupings, and the salary matrix that drives pay rank (level × step) across payroll groups.
           </p>

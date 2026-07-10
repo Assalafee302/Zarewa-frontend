@@ -58,7 +58,7 @@ export function ZareTransactionIssueChips({ transactionContext = {}, onSelect })
         <button
           key={chip.id}
           type="button"
-          className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:border-teal-300 hover:bg-teal-50"
+          className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-ui-xs font-semibold text-slate-700 hover:border-teal-300 hover:bg-teal-50"
           onClick={() => {
             onSelect?.(chip);
             help.openZare({

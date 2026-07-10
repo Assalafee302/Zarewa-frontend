@@ -16,7 +16,7 @@ function AccountSubnav() {
   const tabClass = (active) =>
     `shrink-0 snap-start rounded-lg px-4 py-2.5 text-sm font-semibold no-underline transition-colors min-h-11 inline-flex items-center ${
       active
-        ? 'bg-[#134e4a] text-white shadow-sm'
+        ? 'bg-zarewa-teal text-white shadow-sm'
         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
     }`;
 

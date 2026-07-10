@@ -190,8 +190,8 @@ const Reports = () => {
                       key={label}
                       className="rounded-2xl border border-slate-100 bg-white/90 px-3 py-2.5 shadow-sm"
                     >
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</p>
-                      <p className="text-lg font-black text-[#134e4a] tabular-nums mt-0.5">{Number(n) || 0}</p>
+                      <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wide">{label}</p>
+                      <p className="text-lg font-black text-zarewa-teal tabular-nums mt-0.5">{Number(n) || 0}</p>
                     </div>
                   ))}
                 </div>

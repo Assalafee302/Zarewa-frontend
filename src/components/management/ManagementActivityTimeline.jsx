@@ -3,9 +3,9 @@ import React from 'react';
 function auditUi(appearance) {
   const L = appearance === 'light';
   return {
-    sec: L ? 'mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500' : 'mb-2 text-[10px] font-black uppercase tracking-widest text-white/40',
-    row: L ? 'rounded-lg border border-slate-100 bg-white px-2.5 py-2 text-[11px]' : 'rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-[11px]',
-    when: L ? 'text-[9px] text-slate-400 tabular-nums' : 'text-[9px] text-white/30 tabular-nums',
+    sec: L ? 'mb-2 text-ui-xs font-black uppercase tracking-widest text-slate-500' : 'mb-2 text-ui-xs font-black uppercase tracking-widest text-white/40',
+    row: L ? 'rounded-lg border border-slate-100 bg-white px-2.5 py-2 text-xs' : 'rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs',
+    when: L ? 'text-ui-xs text-slate-400 tabular-nums' : 'text-ui-xs text-white/30 tabular-nums',
     action: L ? 'font-bold text-slate-900' : 'font-bold text-white',
     meta: L ? 'text-slate-600' : 'text-white/55',
     empty: L ? 'text-xs text-slate-500' : 'text-xs text-white/35',
@@ -43,7 +43,7 @@ export function ManagementActivityTimeline({ events = [], appearance = 'dark', f
               </>
             ) : null}
           </p>
-          {ev.note ? <p className={`mt-1 text-[10px] leading-snug ${u.meta}`}>{ev.note}</p> : null}
+          {ev.note ? <p className={`mt-1 text-ui-xs leading-snug ${u.meta}`}>{ev.note}</p> : null}
         </div>
       ))}
     </div>

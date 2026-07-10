@@ -3,19 +3,20 @@ import { X, Plus, Trash2, ChevronDown, Save, UserPlus, Package, Info } from 'luc
 import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from './ProcurementFormSection';
 import { formatNgn } from '../../Data/mockData';
+import { appConfirm } from '../../lib/appConfirm';
 import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
 import { colourSelectOptionsFromRows } from '../../lib/colourCanonicalization.js';
 
 const inputClass =
-  'w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2.5 text-[11px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15 min-h-[2rem]';
+  'w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15 min-h-[2rem]';
 /** Coil line controls: compact single-row layout on desktop. */
 const lineFieldClass =
-  'w-full box-border min-w-0 max-w-full bg-white border border-slate-200 rounded-md py-0.5 px-1.5 min-h-[1.625rem] h-[1.625rem] text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15 leading-none';
+  'w-full box-border min-w-0 max-w-full bg-white border border-slate-200 rounded-md py-0.5 px-1.5 min-h-[1.625rem] h-[1.625rem] text-ui-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15 leading-none';
 /** Label directly above its field (desktop + mobile) — avoids separate header column drift. */
 const lineLabelClass =
-  'text-[8px] font-semibold text-slate-500 uppercase tracking-wide leading-none block mb-0.5';
+  'text-ui-xs font-semibold text-slate-500 uppercase tracking-wide leading-none block mb-0.5';
 const labelClass =
-  'text-[8px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-0.5 block';
+  'text-ui-xs font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-0.5 block';
 
 /** Stock SKU for kg ledger: aluminium vs aluzinc only. Colour / gauge / coil # live on PO lines & coil lots. */
 const MATERIAL_OPTS = [
@@ -246,7 +247,7 @@ export default function CoilPurchaseOrderModal({
         meterOnlyRows.length === 1
           ? `Line ${meterOnlyRows[0]} is metres-only. Price will be saved as ₦/metre and kg will be finalized when receipt weight is entered. Continue?`
           : `Lines ${meterOnlyRows.join(', ')} are metres-only. Prices will be saved as ₦/metre and kg will be finalized when receipt weights are entered. Continue?`;
-      if (!window.confirm(prompt)) return;
+      if (!(await appConfirm({ message: prompt }))) return;
     }
     const payload = {
       ...(editPoId ? { poID: editPoId } : {}),
@@ -276,20 +277,20 @@ export default function CoilPurchaseOrderModal({
       <div className="z-modal-panel max-w-[min(100%,min(96vw,64rem))] w-full max-h-[min(92vh,900px)] flex flex-col mx-auto">
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0 gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 bg-[#134e4a] rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
+            <div className="w-10 h-10 bg-zarewa-teal rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
               C
             </div>
             <div className="min-w-0">
-              <h2 className="text-base font-bold text-[#134e4a] tracking-tight">
+              <h2 className="text-base font-bold text-zarewa-teal tracking-tight">
                 {editPoId ? 'Edit coil purchase' : 'New coil purchase'}
               </h2>
-              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
+              <p className="text-ui-xs font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
                 Material · colour · gauge · kg · metres · conversion · ₦/kg — coil # at GRN
               </p>
-              <p className="text-[9px] font-medium text-slate-500 mt-1 truncate">
+              <p className="text-ui-xs font-medium text-slate-500 mt-1 truncate">
                 {editPoId ? (
                   <>
-                    <span className="font-mono font-semibold text-[#134e4a]">{editPoId}</span>
+                    <span className="font-mono font-semibold text-zarewa-teal">{editPoId}</span>
                     <span className="text-slate-400"> · amending</span>
                   </>
                 ) : (
@@ -317,7 +318,7 @@ export default function CoilPurchaseOrderModal({
               <button
                 type="button"
                 onClick={onQuickAddSupplier}
-                className="text-[9px] font-semibold text-[#134e4a] uppercase flex items-center gap-1 hover:bg-slate-100 px-2 py-1 rounded-md"
+                className="text-ui-xs font-semibold text-zarewa-teal uppercase flex items-center gap-1 hover:bg-slate-100 px-2 py-1 rounded-md"
               >
                 <UserPlus size={12} /> New supplier
               </button>
@@ -375,9 +376,9 @@ export default function CoilPurchaseOrderModal({
               <button
                 type="button"
                 onClick={() => setShowCoilHelp((v) => !v)}
-                className={`text-[9px] font-semibold uppercase flex items-center gap-1 px-2 py-1 rounded-md border ${
+                className={`text-ui-xs font-semibold uppercase flex items-center gap-1 px-2 py-1 rounded-md border ${
                   showCoilHelp
-                    ? 'text-[#134e4a] bg-teal-50 border-[#134e4a]/25'
+                    ? 'text-zarewa-teal bg-teal-50 border-zarewa-teal/25'
                     : 'text-slate-500 bg-white border-slate-200 hover:bg-slate-100'
                 }`}
                 aria-expanded={showCoilHelp}
@@ -390,17 +391,17 @@ export default function CoilPurchaseOrderModal({
           >
             {showCoilHelp ? (
               <div className="mb-2 rounded-md border border-slate-200 bg-white/70 p-2 space-y-1.5">
-                <p className="text-[9px] text-slate-500 leading-snug">
+                <p className="text-ui-xs text-slate-500 leading-snug">
                   Choose <strong>Aluminium</strong> or <strong>Aluzinc</strong> for stock (kg). Add colour (HMB, TB,
                   …), gauge, ordered kg, reference metres, and price. <strong>kg/m</strong> = kg ÷ metres. Assign{' '}
                   <strong>coil number</strong> and <strong>kg received</strong> when you post store receipt — that
                   links transit → inventory → production.
                 </p>
-                <p className="text-[9px] text-amber-700 leading-snug">
+                <p className="text-ui-xs text-amber-700 leading-snug">
                   Metres-only purchase is allowed. If kg is blank but metres is entered, price is treated as{' '}
                   <strong>₦/metre</strong> and the system will ask for confirmation.
                 </p>
-                <p className="text-[9px] text-slate-500 leading-snug">
+                <p className="text-ui-xs text-slate-500 leading-snug">
                   After save, use <strong>Assign transport</strong> (on loading), then{' '}
                   <strong>Post to in transit</strong>. In Operations, enter <strong>coil #</strong> and{' '}
                   <strong>kg in</strong> at receipt — that ties the coil to this PO line for production.
@@ -421,8 +422,8 @@ export default function CoilPurchaseOrderModal({
                       key={l.rowUid}
                       className="grid w-full max-w-full grid-cols-1 gap-2 border border-slate-100 rounded-lg bg-white/90 p-2 sm:grid-cols-12 sm:items-end sm:gap-x-2 sm:gap-y-1"
                     >
-                      <div className="flex items-center gap-2 text-[9px] font-semibold text-slate-500 sm:hidden border-b border-slate-100 pb-1.5 -mt-0.5">
-                        <Package className="text-[#134e4a]/70 shrink-0" size={16} strokeWidth={1.75} />
+                      <div className="flex items-center gap-2 text-ui-xs font-semibold text-slate-500 sm:hidden border-b border-slate-100 pb-1.5 -mt-0.5">
+                        <Package className="text-zarewa-teal/70 shrink-0" size={16} strokeWidth={1.75} />
                         <span>Coil line {idx + 1}</span>
                       </div>
                       <div className="min-w-0 sm:col-span-2 flex flex-col justify-end">
@@ -524,13 +525,13 @@ export default function CoilPurchaseOrderModal({
                       <div className="flex flex-col justify-end min-w-0 sm:col-span-3 gap-0.5">
                         <label className={`${lineLabelClass} sm:text-right`}>Line ₦</label>
                         <div className="flex flex-nowrap items-center justify-end gap-1.5 min-h-[1.625rem] min-w-0">
-                          <p className="text-[10px] font-bold text-[#134e4a] tabular-nums leading-none truncate text-right flex-1 min-w-0">
+                          <p className="text-ui-xs font-bold text-zarewa-teal tabular-nums leading-none truncate text-right flex-1 min-w-0">
                             {formatNgn(lineTotals[idx])}
                           </p>
                           <button
                             type="button"
                             onClick={addRow}
-                            className="p-1 rounded-md border border-[#134e4a]/25 bg-teal-50/90 text-[#134e4a] hover:bg-teal-100 shrink-0"
+                            className="p-1 rounded-md border border-zarewa-teal/25 bg-teal-50/90 text-zarewa-teal hover:bg-teal-100 shrink-0"
                             title="Add coil line"
                             aria-label="Add coil line"
                           >
@@ -545,7 +546,7 @@ export default function CoilPurchaseOrderModal({
                             <Trash2 size={14} />
                           </button>
                         </div>
-                        <p className="text-[8px] font-semibold text-slate-500 text-right">
+                        <p className="text-ui-xs font-semibold text-slate-500 text-right">
                           {hasMetersForPricing && !hasKgForPricing
                             ? 'Line total = metres × price (kg does not affect pricing).'
                             : 'Line total = kg × price.'}
@@ -568,22 +569,22 @@ export default function CoilPurchaseOrderModal({
           {editApprovalSlot ? <div className="mt-2 shrink-0">{editApprovalSlot}</div> : null}
           </div>
 
-          <div className="px-5 py-4 bg-[#134e4a] flex flex-wrap justify-between items-center gap-3 text-white shrink-0 border-t border-[#0f3d39]/30">
+          <div className="px-5 py-4 bg-zarewa-teal flex flex-wrap justify-between items-center gap-3 text-white shrink-0 border-t border-[#0f3d39]/30">
             <div>
-              <p className="text-[9px] font-semibold text-white/50 uppercase tracking-widest mb-0.5">Order total</p>
+              <p className="text-ui-xs font-semibold text-white/50 uppercase tracking-widest mb-0.5">Order total</p>
               <p className="text-2xl font-bold text-white tabular-nums">{formatNgn(grandTotal)}</p>
             </div>
             <div className="flex gap-2 flex-wrap justify-end">
               <button
                 type="button"
                 onClick={onClose}
-                className="bg-white/10 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20"
+                className="bg-white/10 px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-white text-[#134e4a] px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-2 hover:brightness-105"
+                className="bg-white text-zarewa-teal px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-2 hover:brightness-105"
               >
                 <Save size={14} /> {editPoId ? 'Save changes' : 'Save purchase order'}
               </button>

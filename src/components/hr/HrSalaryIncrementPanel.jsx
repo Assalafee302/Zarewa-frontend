@@ -141,7 +141,7 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, permissi
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Salary history</h4>
+        <h4 className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Salary history</h4>
         {canViewAmounts ? (
           <HrAddFormButton onClick={() => setModalOpen(true)}>Record adjustment</HrAddFormButton>
         ) : null}
@@ -282,7 +282,7 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, permissi
               type="button"
               disabled={recomputeBusy}
               onClick={recomputeDrafts}
-              className="mt-2 block rounded-lg bg-[#134e4a] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+              className="mt-2 block rounded-lg bg-zarewa-teal px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
             >
               {recomputeBusy ? 'Recomputing…' : `Recompute ${draftRuns.length} draft payroll run(s)`}
             </button>

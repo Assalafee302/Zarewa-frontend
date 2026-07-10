@@ -97,7 +97,7 @@ export function HrExitClearancePanel() {
                   <AppTableTd>{c.lastWorkingDayIso}</AppTableTd>
                   <AppTableTd><HrStatusPill status={c.status} /></AppTableTd>
                   <AppTableTd>
-                    <button type="button" className="text-[10px] font-bold uppercase text-[#134e4a]" onClick={() => openDetail(c.id)}>Open</button>
+                    <button type="button" className="text-ui-xs font-bold uppercase text-zarewa-teal" onClick={() => openDetail(c.id)}>Open</button>
                   </AppTableTd>
                 </AppTableTr>
               ))}
@@ -116,7 +116,7 @@ export function HrExitClearancePanel() {
               </div>
             ) : null}
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Property checklist</p>
+              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500 mb-2">Property checklist</p>
               <ul className="space-y-2">
                 {(detail.propertyItems || []).map((it) => (
                   <li key={it.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2 text-xs">

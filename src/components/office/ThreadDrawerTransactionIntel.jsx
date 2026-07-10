@@ -82,7 +82,7 @@ function EmailCard({ children, className = '' }) {
 
 function EmailSectionTitle({ children }) {
   return (
-    <h3 className="mb-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{children}</h3>
+    <h3 className="mb-0.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">{children}</h3>
   );
 }
 
@@ -480,7 +480,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
         <div className="custom-scrollbar flex-1 space-y-5 overflow-y-auto px-5 py-5">
           {paymentDetailLoading ? (
             <div className="flex justify-center py-16">
-              <RefreshCw className="animate-spin text-[#134e4a]" size={28} />
+              <RefreshCw className="animate-spin text-zarewa-teal" size={28} />
             </div>
           ) : paymentDetailError ? (
             <div className="rounded-2xl border border-amber-200/90 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -491,24 +491,24 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
               <header className="border-b border-slate-100/90 bg-gradient-to-b from-slate-50 to-white px-5 pb-4 pt-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-medium tracking-wide text-slate-500">Payment request</p>
+                    <p className="text-xs font-medium tracking-wide text-slate-500">Payment request</p>
                     <h2 className="mt-1.5 text-[1.05rem] font-semibold leading-snug tracking-tight text-slate-900 sm:text-lg">
                       {paymentSubject}
                     </h2>
                     {paymentSubline ? (
                       <p className="mt-2 text-[12px] leading-relaxed text-slate-500">{paymentSubline}</p>
                     ) : null}
-                    <p className="mt-1 font-mono text-[11px] text-slate-400">{sourceId}</p>
+                    <p className="mt-1 font-mono text-xs text-slate-400">{sourceId}</p>
                   </div>
                   <span
-                    className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusPillClass(
+                    className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${statusPillClass(
                       paymentDetail.approvalStatus
                     )}`}
                   >
                     {paymentDetail.approvalStatus || 'Pending'}
                   </span>
                 </div>
-                <p className="mt-5 text-2xl font-semibold tabular-nums tracking-tight text-[#134e4a]">
+                <p className="mt-5 text-2xl font-semibold tabular-nums tracking-tight text-zarewa-teal">
                   {formatNgn(Number(paymentDetail.amountRequestedNgn) || 0)}
                 </p>
               </header>
@@ -533,7 +533,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                     <div className="z-scroll-x max-w-full overflow-x-auto">
                       <table className="w-full min-w-[280px] border-collapse text-left text-[12px]">
                         <thead>
-                          <tr className="border-b border-slate-200/80 bg-slate-100/40 text-[11px] font-medium text-slate-500">
+                          <tr className="border-b border-slate-200/80 bg-slate-100/40 text-xs font-medium text-slate-500">
                             <th className="px-3 py-2 font-medium">Item</th>
                             <th className="px-3 py-2 text-right font-medium">Qty</th>
                             <th className="px-3 py-2 text-right font-medium">Unit</th>
@@ -561,7 +561,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                       </table>
                     </div>
                     {paymentLineItems.length > 20 ? (
-                      <p className="border-t border-slate-200/60 px-3 py-2 text-[11px] text-slate-500">
+                      <p className="border-t border-slate-200/60 px-3 py-2 text-xs text-slate-500">
                         Showing 20 of {paymentLineItems.length} lines.
                       </p>
                     ) : null}
@@ -575,7 +575,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                     href={apiUrl(`/api/payment-requests/${encodeURIComponent(sourceId)}/attachment`)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-[12px] font-medium text-[#134e4a] hover:border-teal-200 hover:bg-teal-50/50"
+                    className="inline-flex max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-[12px] font-medium text-zarewa-teal hover:border-teal-200 hover:bg-teal-50/50"
                   >
                     <Paperclip size={15} className="shrink-0 text-slate-400" strokeWidth={2} />
                     <span className="min-w-0 truncate">{paymentDetail.attachmentName || 'View attachment'}</span>
@@ -685,7 +685,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
       <div className="custom-scrollbar flex-1 space-y-5 overflow-y-auto px-5 py-5">
         {standalone ? (
           <div className="flex flex-wrap items-baseline gap-2 border-b border-slate-200/80 pb-3">
-            <span className="rounded-full border border-slate-200/90 bg-white px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+            <span className="rounded-full border border-slate-200/90 bg-white px-2.5 py-0.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-600">
               {humanizeDocType(dt)}
             </span>
             {dt === 'conversion_review' ? (
@@ -711,15 +711,15 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
             <header className="border-b border-slate-100/90 bg-gradient-to-b from-violet-50/60 to-white px-5 pb-4 pt-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium text-slate-500">Operations · conversion review</p>
+                  <p className="text-xs font-medium text-slate-500">Operations · conversion review</p>
                   <h2 className="mt-1.5 text-lg font-semibold leading-snug tracking-tight text-slate-900">
                     {conversionJob?.customerName || workItem.summary || 'Completed job review'}
                   </h2>
-                  <p className="mt-1 font-mono text-[11px] text-slate-400">{sourceId}</p>
+                  <p className="mt-1 font-mono text-xs text-slate-400">{sourceId}</p>
                   {qref ? <p className="mt-2 font-mono text-[12px] font-medium text-teal-800">{qref}</p> : null}
                 </div>
                 <span
-                  className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                  className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${
                     conversionSigned ? statusPillClass('Approved') : statusPillClass('Pending')
                   }`}
                 >
@@ -730,11 +730,11 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                 <p className="mt-3 text-[14px] leading-relaxed text-slate-600">{conversionJob.productName}</p>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full border border-slate-200/90 bg-white px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+                <span className="rounded-full border border-slate-200/90 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600">
                   Alert: {conversionJob?.conversionAlertState || '—'}
                 </span>
                 {conversionJob?.managerReviewRequired ? (
-                  <span className="rounded-full border border-amber-200/90 bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-950">
+                  <span className="rounded-full border border-amber-200/90 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-950">
                     Manager review
                   </span>
                 ) : null}
@@ -764,7 +764,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                     onChange={(e) => setConversionSignoffRemark(e.target.value)}
                     rows={3}
                     placeholder="e.g. Variance reviewed — approved to close."
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[14px] leading-relaxed text-slate-900 shadow-sm outline-none ring-[#134e4a]/0 transition-shadow focus:ring-2 focus:ring-[#134e4a]/15"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[14px] leading-relaxed text-slate-900 shadow-sm outline-none ring-zarewa-teal/0 transition-shadow focus:ring-2 focus:ring-zarewa-teal/15"
                   />
                 </label>
                 {sourceId ? (
@@ -855,7 +855,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                   type="button"
                   disabled={decisionBusy}
                   onClick={() => void handleQuotationReview('approve_production')}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-teal-200 bg-teal-50/90 px-3 py-2 text-[12px] font-semibold text-[#134e4a] hover:bg-teal-100 disabled:opacity-50 sm:w-auto"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-teal-200 bg-teal-50/90 px-3 py-2 text-[12px] font-semibold text-zarewa-teal hover:bg-teal-100 disabled:opacity-50 sm:w-auto"
                 >
                   <Zap size={15} strokeWidth={2.25} />
                   Production override
@@ -869,7 +869,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
           <div className="space-y-4">
             {refundDetailLoading ? (
               <div className="flex justify-center py-16">
-                <RefreshCw className="animate-spin text-[#134e4a]" size={24} />
+                <RefreshCw className="animate-spin text-zarewa-teal" size={24} />
               </div>
             ) : refundDetailError ? (
               <div className="rounded-2xl border border-amber-200/90 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -880,7 +880,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                 <header className="border-b border-slate-100/90 bg-gradient-to-b from-amber-50/50 to-white px-5 pb-4 pt-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-medium text-slate-500">Refund request</p>
+                      <p className="text-xs font-medium text-slate-500">Refund request</p>
                       <h2 className="mt-1.5 text-lg font-semibold leading-snug tracking-tight text-slate-900">
                         {[refundDetail.customer_name, formatRefundReasonCategory(refundDetail.reason_category)]
                           .filter(Boolean)
@@ -890,10 +890,10 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                         {[refundDetail.quotation_ref, refundDetail.requested_at_iso].filter(Boolean).join(' · ') ||
                           '—'}
                       </p>
-                      <p className="mt-1 font-mono text-[11px] text-slate-400">{sourceId}</p>
+                      <p className="mt-1 font-mono text-xs text-slate-400">{sourceId}</p>
                     </div>
                     <span
-                      className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusPillClass(
+                      className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${statusPillClass(
                         refundDetail.status
                       )}`}
                     >
@@ -939,7 +939,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                     </div>
                     {refundCalcLines.length ? (
                       <>
-                        <p className="mb-1 mt-4 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
                           Calculation lines
                         </p>
                         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200/80 bg-white text-[13px]">
@@ -956,7 +956,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                     ) : null}
                     {refundSuggestedLines.length ? (
                       <>
-                        <p className="mb-1 mt-4 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        <p className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
                           Suggested lines
                         </p>
                         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200/80 bg-white text-[13px]">
@@ -1006,7 +1006,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
         {dt === 'refund_request' && qref ? (
           loadingRefundIntel ? (
             <div className="flex items-center justify-center py-10">
-              <RefreshCw className="animate-spin text-[#134e4a]" size={24} />
+              <RefreshCw className="animate-spin text-zarewa-teal" size={24} />
             </div>
           ) : refundIntelExtras?.receipts?.length ? (
             <section>
@@ -1021,7 +1021,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                       <p className="text-[15px] font-semibold tabular-nums text-slate-900">
                         {formatNgn(receiptCashReceivedNgn(rcpt))}
                       </p>
-                      <p className="mt-0.5 font-mono text-[11px] text-slate-400">{rcpt.id}</p>
+                      <p className="mt-0.5 font-mono text-xs text-slate-400">{rcpt.id}</p>
                     </div>
                   </div>
                 ))}

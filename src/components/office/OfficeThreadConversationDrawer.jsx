@@ -12,6 +12,7 @@ import { ExpenseRequestFormFields } from './ExpenseRequestFormFields';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { formatNgn } from '../../Data/mockData';
 import { buildOfficeInternalMemoPackHtml } from '../../lib/officeMemoPackPrint.js';
 import { escapeHtml, openPrintHtmlDocument, openPrintWindow } from '../../lib/officeDeskPrint.js';
@@ -388,7 +389,7 @@ export function OfficeThreadConversationDrawer({
     const id = String(threadId || '').trim();
     if (!id) return;
     const itemList = String(smartMemo?.guidedFields?.itemList || '').trim();
-    if (!itemList && !window.confirm('No item list found in memo guided fields. Convert anyway with memo body text?')) {
+    if (!itemList && !(await appConfirm({ message: 'No item list found in memo guided fields. Convert anyway with memo body text?' }))) {
       return;
     }
     setProcurementConvertBusy(true);
@@ -509,18 +510,18 @@ export function OfficeThreadConversationDrawer({
           >
             <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest text-teal-900/80">Memo</p>
+                <p className="text-ui-xs font-black uppercase tracking-widest text-teal-900/80">Memo</p>
                 <h2
                   className={
                     isInline
                       ? 'line-clamp-2 text-[22px] font-normal leading-snug text-[#202124]'
-                      : 'line-clamp-2 text-base font-bold text-[#134e4a]'
+                      : 'line-clamp-2 text-base font-bold text-zarewa-teal'
                   }
                 >
                   {title}
                 </h2>
                 {detail?.thread?.id ? (
-                  <p className="mt-1 font-mono text-[10px] text-slate-500">{detail.thread.id}</p>
+                  <p className="mt-1 font-mono text-ui-xs text-slate-500">{detail.thread.id}</p>
                 ) : null}
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -558,20 +559,20 @@ export function OfficeThreadConversationDrawer({
             ) : (
               <>
               <div className="shrink-0 space-y-3 border-b border-slate-100 px-4 py-3">
-                <p className="text-[10px] text-slate-500 capitalize">
+                <p className="text-ui-xs text-slate-500 capitalize">
                   {detail.thread.documentClass || 'correspondence'} · {detail.thread.officeKey || 'office_admin'}
                   {detail.thread.relatedWorkItemId ? ` · ${detail.thread.relatedWorkItemId}` : ''}
                 </p>
                 {selectedThreadWorkItem?.keyDecisionSummary ? (
-                  <p className="text-[10px] text-amber-800">
+                  <p className="text-ui-xs text-amber-800">
                     Key decision: <strong>{selectedThreadWorkItem.keyDecisionSummary}</strong>
                   </p>
                 ) : null}
                 {selectedThreadWorkItem?.confidentiality ? (
-                  <p className="text-[10px] text-slate-500 capitalize">{selectedThreadWorkItem.confidentiality}</p>
+                  <p className="text-ui-xs text-slate-500 capitalize">{selectedThreadWorkItem.confidentiality}</p>
                 ) : null}
                 {smartMemo ? (
-                  <div className="rounded-lg border border-teal-100 bg-teal-50/50 px-2.5 py-2 text-[11px] text-teal-950">
+                  <div className="rounded-lg border border-teal-100 bg-teal-50/50 px-2.5 py-2 text-xs text-teal-950">
                     <p className="font-semibold">{memoTypeLabel}</p>
                     <p className="mt-0.5 capitalize text-teal-900/80">
                       Priority: {smartMemo.priority || 'normal'}
@@ -581,7 +582,7 @@ export function OfficeThreadConversationDrawer({
                   </div>
                 ) : null}
                 {(threadPayload.memoDateIso || threadPayload.uploadedAtIso) && (
-                  <p className="text-[11px] text-slate-600">
+                  <p className="text-xs text-slate-600">
                     {threadPayload.memoDateIso ? (
                       <span>
                         Memo date: <strong>{threadPayload.memoDateIso}</strong>
@@ -603,7 +604,7 @@ export function OfficeThreadConversationDrawer({
                         key={`${a.name}-${i}`}
                         href={`data:${a.mime};base64,${a.dataBase64}`}
                         download={a.name || `attachment-${i + 1}`}
-                        className="text-[11px] font-semibold text-[#134e4a] underline"
+                        className="text-xs font-semibold text-zarewa-teal underline"
                       >
                         {a.name || 'Attachment'}
                       </a>
@@ -615,7 +616,7 @@ export function OfficeThreadConversationDrawer({
                     type="button"
                     disabled={filingAnalyzeBusy}
                     onClick={() => void analyzeAndSaveFiling()}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-[10px] font-black uppercase text-violet-900 disabled:opacity-40"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-ui-xs font-black uppercase text-violet-900 disabled:opacity-40"
                   >
                     <Sparkles size={14} className={filingAnalyzeBusy ? 'animate-pulse' : ''} />
                     {filingAnalyzeBusy ? 'Analyzing…' : 'Analyze & save to filing'}
@@ -623,7 +624,7 @@ export function OfficeThreadConversationDrawer({
                   <button
                     type="button"
                     onClick={printThreadView}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase text-slate-700"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase text-slate-700"
                   >
                     <Printer size={14} />
                     Print
@@ -631,7 +632,7 @@ export function OfficeThreadConversationDrawer({
                   <button
                     type="button"
                     onClick={printCasePack}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase text-slate-700"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase text-slate-700"
                   >
                     <Printer size={14} />
                     Case pack
@@ -639,7 +640,7 @@ export function OfficeThreadConversationDrawer({
                   <button
                     type="button"
                     onClick={printInternalMemoPackA4}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#134e4a]/30 bg-[#f0fdfa] px-3 py-2 text-[10px] font-black uppercase text-[#134e4a]"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-zarewa-teal/30 bg-[#f0fdfa] px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal"
                   >
                     <Printer size={14} />
                     Full internal pack (A4)
@@ -648,7 +649,7 @@ export function OfficeThreadConversationDrawer({
                     <button
                       type="button"
                       onClick={() => openConvert()}
-                      className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-black uppercase text-amber-900"
+                      className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-ui-xs font-black uppercase text-amber-900"
                     >
                       <ArrowLeftRight size={14} />
                       Convert to expense
@@ -659,14 +660,14 @@ export function OfficeThreadConversationDrawer({
                       type="button"
                       disabled={procurementConvertBusy}
                       onClick={() => void submitProcurementConvert()}
-                      className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[10px] font-black uppercase text-sky-900 disabled:opacity-40"
+                      className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-ui-xs font-black uppercase text-sky-900 disabled:opacity-40"
                     >
                       <ArrowLeftRight size={14} />
                       {procurementConvertBusy ? 'Converting…' : 'Convert to procurement'}
                     </button>
                   ) : null}
                 </div>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-ui-xs text-slate-500">
                   When this memo is linked to a payment request, <strong>approval</strong> and{' '}
                   <strong>treasury payment</strong> updates from Accounts appear here automatically.
                 </p>
@@ -674,15 +675,15 @@ export function OfficeThreadConversationDrawer({
 
               {threadFiling ? (
                 <div className="shrink-0 border-b border-slate-100 px-4 py-3">
-                  <div className="rounded-xl border border-teal-100 bg-teal-50/40 px-3 py-2 text-[11px] text-slate-800">
-                    <p className="mb-1 text-[9px] font-black uppercase text-teal-800">Filing card (saved)</p>
+                  <div className="rounded-xl border border-teal-100 bg-teal-50/40 px-3 py-2 text-xs text-slate-800">
+                    <p className="mb-1 text-ui-xs font-black uppercase text-teal-800">Filing card (saved)</p>
                     <p className="font-semibold capitalize">{threadFiling.categoryLabel || threadFiling.categoryKey}</p>
                     {threadFiling.costNgn != null ? (
                       <p className="mt-0.5 text-slate-700">Cost noted: {formatNgn(threadFiling.costNgn)}</p>
                     ) : null}
                     <p className="mt-1 whitespace-pre-wrap text-slate-600">{threadFiling.summary}</p>
                     {threadFiling.keyFacts && Object.keys(threadFiling.keyFacts).length > 0 ? (
-                      <ul className="mt-2 list-disc pl-4 text-[10px] text-slate-600">
+                      <ul className="mt-2 list-disc pl-4 text-ui-xs text-slate-600">
                         {Object.entries(threadFiling.keyFacts).map(([k, v]) => (
                           <li key={k}>
                             <strong className="font-semibold">{k}:</strong> {String(v)}
@@ -690,7 +691,7 @@ export function OfficeThreadConversationDrawer({
                         ))}
                       </ul>
                     ) : null}
-                    <p className="mt-2 text-[9px] text-slate-400">
+                    <p className="mt-2 text-ui-xs text-slate-400">
                       Last updated{' '}
                       {threadFiling.updatedAtIso ? new Date(threadFiling.updatedAtIso).toLocaleString() : '—'}
                     </p>
@@ -719,7 +720,7 @@ export function OfficeThreadConversationDrawer({
                             ? 'System update'
                             : nameByUserId[m.authorUserId] || m.authorUserId || '—'}
                         </p>
-                        <time className="text-[10px] text-slate-500">
+                        <time className="text-ui-xs text-slate-500">
                           {m.createdAtIso ? new Date(m.createdAtIso).toLocaleString() : ''}
                         </time>
                       </div>
@@ -731,9 +732,9 @@ export function OfficeThreadConversationDrawer({
 
               <div className="shrink-0 space-y-2 border-t border-slate-200 bg-white px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <label className="text-[10px] font-semibold uppercase text-slate-500">Manager reply</label>
+                  <label className="text-ui-xs font-semibold uppercase text-slate-500">Manager reply</label>
                   <select
-                    className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px]"
+                    className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
                     defaultValue=""
                     onChange={(e) => {
                       const tpl = MANAGER_REPLY_TEMPLATES.find((t) => t.id === e.target.value);
@@ -754,7 +755,7 @@ export function OfficeThreadConversationDrawer({
                     type="button"
                     disabled={replyPolishBusy || !replyText.trim()}
                     onClick={() => void onReplyPolish()}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[10px] font-black uppercase text-violet-900 disabled:opacity-40"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-ui-xs font-black uppercase text-violet-900 disabled:opacity-40"
                   >
                     <Sparkles size={12} className={replyPolishBusy ? 'animate-pulse' : ''} />
                     {replyPolishBusy ? 'Polishing…' : 'AI polish reply'}
@@ -766,13 +767,13 @@ export function OfficeThreadConversationDrawer({
                     onChange={(e) => setReplyText(e.target.value)}
                     rows={3}
                     placeholder="Reply…"
-                    className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                   />
                   <button
                     type="button"
                     disabled={sending || !replyText.trim()}
                     onClick={() => void sendReply()}
-                    className="h-11 shrink-0 self-end rounded-xl bg-[#134e4a] px-4 py-2 text-white disabled:opacity-40"
+                    className="h-11 shrink-0 self-end rounded-xl bg-zarewa-teal px-4 py-2 text-white disabled:opacity-40"
                     aria-label="Send reply"
                   >
                     <Send size={18} />
@@ -807,12 +808,12 @@ export function OfficeThreadConversationDrawer({
       <ModalFrame isOpen={convertOpen} onClose={() => setConvertOpen(false)} title="Convert to expense">
         <div className="z-modal-panel max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8">
           <div className="mb-4 flex items-start justify-between gap-3">
-            <h3 className="pr-8 text-xl font-bold text-[#134e4a]">Convert to expense payment request</h3>
+            <h3 className="pr-8 text-xl font-bold text-zarewa-teal">Convert to expense payment request</h3>
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={printConvertDraft}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-black uppercase text-slate-700"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-ui-xs font-black uppercase text-slate-700"
               >
                 <Printer size={14} />
                 Print
@@ -856,7 +857,7 @@ export function OfficeThreadConversationDrawer({
             <button
               type="button"
               onClick={() => setConvertOpen(false)}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-[11px] font-black uppercase text-slate-600"
+              className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black uppercase text-slate-600"
             >
               Cancel
             </button>

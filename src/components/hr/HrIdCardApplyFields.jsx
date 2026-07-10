@@ -65,7 +65,7 @@ export function HrIdCardApplyFields({
               {profileWarnings.map((w) => (
                 <li key={w.message} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-amber-900">
                   <span>{w.message}</span>
-                  <Link to={w.to} className="font-semibold text-[#134e4a] hover:underline">
+                  <Link to={w.to} className="font-semibold text-zarewa-teal hover:underline">
                     {w.linkLabel}
                   </Link>
                 </li>

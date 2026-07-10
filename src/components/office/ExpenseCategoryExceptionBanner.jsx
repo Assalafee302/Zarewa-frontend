@@ -40,7 +40,7 @@ export function ExpenseCategoryExceptionBanner({
     <div className="rounded-xl border border-amber-200/90 bg-gradient-to-br from-amber-50/95 to-orange-50/50 px-4 py-3 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-amber-900">
+          <p className="flex items-center gap-1.5 text-ui-xs font-black uppercase tracking-wide text-amber-900">
             <AlertTriangle size={13} aria-hidden />
             Category review — this month
           </p>
@@ -50,9 +50,9 @@ export function ExpenseCategoryExceptionBanner({
                 key={c.label}
                 className="rounded-lg border border-amber-200/80 bg-white/70 px-2.5 py-1.5 min-w-[7rem]"
               >
-                <p className="text-[8px] font-bold uppercase text-amber-800/80">{c.label}</p>
+                <p className="text-ui-xs font-bold uppercase text-amber-800/80">{c.label}</p>
                 <p className="text-sm font-black text-amber-950 tabular-nums">{c.value}</p>
-                {c.sub ? <p className="text-[9px] text-amber-900/70 tabular-nums">{c.sub}</p> : null}
+                {c.sub ? <p className="text-ui-xs text-amber-900/70 tabular-nums">{c.sub}</p> : null}
               </div>
             ))}
           </div>
@@ -62,7 +62,7 @@ export function ExpenseCategoryExceptionBanner({
             <button
               type="button"
               onClick={onFilterExceptions}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide transition-colors ${
                 activeFilter
                   ? 'bg-amber-800 text-white'
                   : 'border border-amber-300 bg-white text-amber-950 hover:bg-amber-100/80'
@@ -76,7 +76,7 @@ export function ExpenseCategoryExceptionBanner({
             <button
               type="button"
               onClick={onExportCsv}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-slate-700 hover:bg-slate-50"
             >
               <Download size={12} aria-hidden />
               Export

@@ -18,7 +18,7 @@ export function CustomerProfileHero({ customer, paymentRelationship }) {
   return (
     <header
       id="cd-overview"
-      className="relative overflow-hidden rounded-2xl border border-teal-900/10 bg-gradient-to-br from-[#134e4a] via-[#0f3d3a] to-[#0c3532] p-5 sm:p-6 mb-8 shadow-lg shadow-teal-950/10"
+      className="relative overflow-hidden rounded-2xl border border-teal-900/10 bg-gradient-to-br from-zarewa-teal via-[#0f3d3a] to-[#0c3532] p-5 sm:p-6 mb-8 shadow-lg shadow-teal-950/10"
     >
       <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-teal-400/10 blur-2xl" />
       <div className="pointer-events-none absolute -bottom-10 left-1/3 h-32 w-32 rounded-full bg-emerald-300/10 blur-2xl" />
@@ -30,7 +30,7 @@ export function CustomerProfileHero({ customer, paymentRelationship }) {
 
         <div className="min-w-0 flex-1 space-y-3">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-teal-200/80">
+            <p className="text-ui-xs font-bold uppercase tracking-widest text-teal-200/80">
               {customer.customerID}
             </p>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight truncate">
@@ -39,13 +39,13 @@ export function CustomerProfileHero({ customer, paymentRelationship }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase ${customerStatusTone(customer.status)}`}>
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase ${customerStatusTone(customer.status)}`}>
               {customer.status}
             </span>
-            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase ${customerTierTone(customer.tier)}`}>
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase ${customerTierTone(customer.tier)}`}>
               {customer.tier}
             </span>
-            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase ${paymentRelationshipTone(paymentRelationship.tone)}`}>
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase ${paymentRelationshipTone(paymentRelationship.tone)}`}>
               {paymentRelationship.label}
             </span>
           </div>
@@ -79,19 +79,19 @@ export function CustomerProfileHero({ customer, paymentRelationship }) {
             </p>
           ) : null}
 
-          <p className="text-[10px] text-teal-100/70 leading-relaxed">
+          <p className="text-ui-xs text-teal-100/70 leading-relaxed">
             <span className="font-bold text-teal-100/90">Account officer</span> {customer.createdBy || '—'}
             {customer.createdAtISO ? <span> · On file since {customer.createdAtISO}</span> : null}
             {customer.lastActivityISO ? <span> · Last activity {customer.lastActivityISO}</span> : null}
           </p>
 
           {(customer.addressShipping || customer.addressBilling) ? (
-            <div className="flex flex-wrap gap-3 pt-1 text-[11px] text-teal-50/85">
+            <div className="flex flex-wrap gap-3 pt-1 text-xs text-teal-50/85">
               {customer.addressShipping ? (
                 <span className="inline-flex items-start gap-1.5 max-w-md">
                   <MapPin size={12} className="text-teal-300 mt-0.5 shrink-0" />
                   <span>
-                    <span className="font-bold text-teal-100/90 uppercase text-[9px] tracking-wide block">Shipping</span>
+                    <span className="font-bold text-teal-100/90 uppercase text-ui-xs tracking-wide block">Shipping</span>
                     {customer.addressShipping}
                   </span>
                 </span>

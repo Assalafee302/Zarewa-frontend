@@ -46,6 +46,7 @@ import { useCustomers } from '../context/CustomersContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
+import { appConfirm } from '../lib/appConfirm';
 import { setCustomerStaffLink } from '../lib/customerStaffLink';
 import { formatNgn } from '../Data/mockData';
 import { refundApprovedAmount, refundOutstandingAmount } from '../lib/refundsStore';
@@ -865,9 +866,11 @@ const CustomerDashboard = () => {
 
   const handleDeleteCustomerProfile = async () => {
     if (
-      !window.confirm(
-        `Permanently delete ${customer.name} (${customerKey})? This cannot be undone.`
-      )
+      !(await appConfirm({
+        title: 'Delete',
+        message: `Permanently delete ${customer.name} (${customerKey})? This cannot be undone.`,
+        variant: 'danger',
+      }))
     ) {
       return;
     }
@@ -1009,7 +1012,7 @@ const CustomerDashboard = () => {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
               <User size={28} />
             </div>
-            <p className="text-base font-bold text-[#134e4a] mb-2">Customer not found</p>
+            <p className="text-base font-bold text-zarewa-teal mb-2">Customer not found</p>
             <p className="text-sm text-slate-500 mb-6">
               No profile matches <span className="font-mono font-semibold">{routeCustomerId}</span>.
             </p>
@@ -1066,7 +1069,7 @@ const CustomerDashboard = () => {
       <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start min-w-0">
         <aside className="w-full lg:w-60 shrink-0 lg:sticky lg:top-24">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-3 py-2">
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400 px-3 py-2">
               Sections
             </p>
             <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 custom-scrollbar">
@@ -1087,8 +1090,8 @@ const CustomerDashboard = () => {
               aria-current={isActive ? 'location' : undefined}
               className={`shrink-0 lg:w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-all ${
                 isActive
-                  ? 'text-white bg-[#134e4a] shadow-md shadow-teal-900/15'
-                  : 'text-[#134e4a] hover:bg-teal-50 border border-transparent hover:border-teal-100'
+                  ? 'text-white bg-zarewa-teal shadow-md shadow-teal-900/15'
+                  : 'text-zarewa-teal hover:bg-teal-50 border border-transparent hover:border-teal-100'
               }`}
             >
               <NavIcon size={14} />
@@ -1113,32 +1116,32 @@ const CustomerDashboard = () => {
               className="rounded-2xl border border-slate-200/80 bg-white p-5 mb-8 shadow-sm"
               aria-label="CRM profile"
             >
-              <p className="text-[10px] font-black text-[#134e4a] uppercase tracking-widest mb-4 flex items-center gap-2">
+              <p className="text-ui-xs font-black text-zarewa-teal uppercase tracking-widest mb-4 flex items-center gap-2">
                 <User size={14} className="text-teal-600" />
                 CRM profile
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
                 {customer.companyName ? (
                   <div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Company</span>
+                    <span className="text-ui-xs font-bold text-gray-400 uppercase block">Company</span>
                     <span className="font-semibold text-gray-800">{customer.companyName}</span>
                   </div>
                 ) : null}
                 {customer.leadSource ? (
                   <div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Lead source</span>
+                    <span className="text-ui-xs font-bold text-gray-400 uppercase block">Lead source</span>
                     <span className="font-semibold text-gray-800">{customer.leadSource}</span>
                   </div>
                 ) : null}
                 {customer.preferredContact ? (
                   <div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Preferred contact</span>
+                    <span className="text-ui-xs font-bold text-gray-400 uppercase block">Preferred contact</span>
                     <span className="font-semibold text-gray-800">{customer.preferredContact}</span>
                   </div>
                 ) : null}
                 {customer.followUpISO ? (
                   <div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Next follow-up</span>
+                    <span className="text-ui-xs font-bold text-gray-400 uppercase block">Next follow-up</span>
                     <span className="font-semibold text-amber-900">{customer.followUpISO}</span>
                   </div>
                 ) : null}
@@ -1148,7 +1151,7 @@ const CustomerDashboard = () => {
                   {customer.crmTags.map((tag) => (
                     <span
                       key={tag}
-                      className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-teal-50 border border-teal-100 text-[#134e4a]"
+                      className="text-ui-xs font-bold uppercase px-2.5 py-1 rounded-full bg-teal-50 border border-teal-100 text-zarewa-teal"
                     >
                       {tag}
                     </span>
@@ -1168,7 +1171,7 @@ const CustomerDashboard = () => {
               className="mb-8 rounded-2xl border border-red-100 bg-red-50/50 px-4 py-4"
               aria-label="Delete customer"
             >
-              <p className="text-[10px] font-black uppercase tracking-widest text-red-800 mb-1">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-red-800 mb-1">
                 Danger zone
               </p>
               <p className="text-xs text-red-900/85 mb-3 max-w-xl">
@@ -1199,7 +1202,7 @@ const CustomerDashboard = () => {
                   ))}
                 </ul>
                 {paymentIntegrity.issues.length > 4 ? (
-                  <p className="text-[10px] text-amber-800/80 mt-1">
+                  <p className="text-ui-xs text-amber-800/80 mt-1">
                     +{paymentIntegrity.issues.length - 4} more — see refund screen per quotation.
                   </p>
                 ) : null}
@@ -1219,7 +1222,7 @@ const CustomerDashboard = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/sales', { state: { focusSalesTab: 'quotations' } })}
-                  className="mt-2 text-[10px] font-black uppercase text-red-800 underline-offset-2 hover:underline"
+                  className="mt-2 text-ui-xs font-black uppercase text-red-800 underline-offset-2 hover:underline"
                 >
                   Open sales workspace
                 </button>
@@ -1246,11 +1249,11 @@ const CustomerDashboard = () => {
           />
 
           <section className="mb-10 rounded-zarewa border border-gray-100 bg-white p-5 shadow-sm">
-            <h2 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-1 flex items-center gap-2">
+            <h2 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-1 flex items-center gap-2">
               <BarChart3 size={16} />
               Sales trend (last 6 months)
             </h2>
-            <p className="text-[10px] text-gray-500 mb-3">
+            <p className="text-ui-xs text-gray-500 mb-3">
               Totals from this customer’s sales receipts (cash received), by calendar month. Axis in millions of naira
               (e.g. 2M = ₦2,000,000).
             </p>
@@ -1259,8 +1262,8 @@ const CustomerDashboard = () => {
                 <AreaChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="cdSalesFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#134e4a" stopOpacity={0.2} />
-                      <stop offset="100%" stopColor="#134e4a" stopOpacity={0} />
+                      <stop offset="0%" stopColor="var(--color-zarewa-teal)" stopOpacity={0.2} />
+                      <stop offset="100%" stopColor="var(--color-zarewa-teal)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -1284,7 +1287,7 @@ const CustomerDashboard = () => {
                   <Area
                     type="monotone"
                     dataKey="amountM"
-                    stroke="#134e4a"
+                    stroke="var(--color-zarewa-teal)"
                     strokeWidth={2}
                     fill="url(#cdSalesFill)"
                   />
@@ -1295,14 +1298,14 @@ const CustomerDashboard = () => {
 
           <section id="cd-quotations" className="mb-10 scroll-mt-28">
             <div className="flex items-center justify-between gap-4 mb-4">
-              <h2 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest flex items-center gap-2">
+              <h2 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest flex items-center gap-2">
                 <FileText size={16} />
                 Quotation history
               </h2>
               <button
                 type="button"
                 onClick={() => navigate('/sales', { state: { focusSalesTab: 'quotations' } })}
-                className="text-[10px] font-black uppercase text-[#134e4a] flex items-center gap-1 hover:underline"
+                className="text-ui-xs font-black uppercase text-zarewa-teal flex items-center gap-1 hover:underline"
               >
                 Sales <ChevronRight size={14} />
               </button>
@@ -1327,7 +1330,7 @@ const CustomerDashboard = () => {
                 </>
               }
             >
-              <div className="grid grid-cols-12 gap-2 px-2 py-2 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest rounded-t-lg border border-slate-100 border-b-0">
+              <div className="grid grid-cols-12 gap-2 px-2 py-2 bg-slate-50 text-ui-xs font-bold text-slate-400 uppercase tracking-widest rounded-t-lg border border-slate-100 border-b-0">
                 <div className="col-span-3">ID</div>
                 <div className="col-span-2">Date</div>
                 <div className="col-span-3 text-right">Total</div>
@@ -1348,20 +1351,20 @@ const CustomerDashboard = () => {
                       onClick={() => goSalesQuotation(q.id)}
                       className="grid grid-cols-12 gap-2 w-full px-4 py-3 text-left hover:bg-teal-50/30 transition-colors items-center"
                     >
-                      <div className="col-span-3 text-xs font-bold text-[#134e4a]">{q.id}</div>
+                      <div className="col-span-3 text-xs font-bold text-zarewa-teal">{q.id}</div>
                       <div className="col-span-2 text-xs text-gray-500">{q.date}</div>
-                      <div className="col-span-3 text-right text-sm font-black text-[#134e4a]">
+                      <div className="col-span-3 text-right text-sm font-black text-zarewa-teal">
                         {q.total}
                       </div>
                       <div className="col-span-4">
                         <span
-                          className={`text-[9px] font-bold uppercase px-2 py-1 rounded-full ${toneClass(st.tone)}`}
+                          className={`text-ui-xs font-bold uppercase px-2 py-1 rounded-full ${toneClass(st.tone)}`}
                         >
                           {st.label}
                         </span>
                       </div>
                       {q.handledBy ? (
-                        <div className="col-span-12 text-[10px] text-gray-500 mt-1">
+                        <div className="col-span-12 text-ui-xs text-gray-500 mt-1">
                           Handled by{' '}
                           <span className="font-semibold text-gray-700">{q.handledBy}</span>
                         </div>
@@ -1376,14 +1379,14 @@ const CustomerDashboard = () => {
 
           <section id="cd-cutting" className="mb-10 scroll-mt-28">
             <div className="flex items-center justify-between gap-4 mb-4">
-              <h2 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest flex items-center gap-2">
+              <h2 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest flex items-center gap-2">
                 <Scissors size={16} />
                 Cutting lists
               </h2>
               <button
                 type="button"
                 onClick={() => navigate('/sales', { state: { focusSalesTab: 'cuttinglist' } })}
-                className="text-[10px] font-black uppercase text-[#134e4a] flex items-center gap-1 hover:underline"
+                className="text-ui-xs font-black uppercase text-zarewa-teal flex items-center gap-1 hover:underline"
               >
                 Sales <ChevronRight size={14} />
               </button>
@@ -1421,18 +1424,18 @@ const CustomerDashboard = () => {
                         onClick={() => goSalesCutting(cl.id)}
                         className="w-full grid grid-cols-12 gap-2 px-4 py-3 text-left hover:bg-teal-50/30 transition-colors items-center"
                       >
-                        <div className="col-span-3 text-xs font-bold text-[#134e4a]">{cl.id}</div>
+                        <div className="col-span-3 text-xs font-bold text-zarewa-teal">{cl.id}</div>
                         <div className="col-span-3 text-xs text-gray-500">{cl.date}</div>
-                        <div className="col-span-3 text-right text-sm font-black text-[#134e4a]">
+                        <div className="col-span-3 text-right text-sm font-black text-zarewa-teal">
                           {cl.total}
                         </div>
                         <div className="col-span-3">
-                          <span className="text-[9px] font-bold uppercase px-2 py-1 rounded-full bg-sky-100 text-sky-800">
+                          <span className="text-ui-xs font-bold uppercase px-2 py-1 rounded-full bg-sky-100 text-sky-800">
                             {cl.status}
                           </span>
                         </div>
                         {cl.handledBy ? (
-                          <div className="col-span-12 text-[10px] text-gray-500">
+                          <div className="col-span-12 text-ui-xs text-gray-500">
                             By <span className="font-semibold">{cl.handledBy}</span>
                           </div>
                         ) : null}
@@ -1445,12 +1448,12 @@ const CustomerDashboard = () => {
           </section>
 
           <section id="cd-orders" className="mb-10 scroll-mt-28">
-            <h2 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h2 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4 flex items-center gap-2">
               <Package size={16} />
               Order history
             </h2>
             <div className="rounded-zarewa border border-gray-100 overflow-hidden bg-white shadow-sm">
-              <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50 text-ui-xs font-bold text-gray-400 uppercase tracking-widest">
                 <div className="col-span-2">Order</div>
                 <div className="col-span-4">Products</div>
                 <div className="col-span-2">Qty</div>
@@ -1473,17 +1476,17 @@ const CustomerDashboard = () => {
                       onClick={() => setDetail({ type: 'order', row: o })}
                       className="grid grid-cols-12 gap-2 w-full px-4 py-3 text-left border-t border-gray-50 hover:bg-teal-50/30 transition-colors items-center"
                     >
-                      <div className="col-span-2 text-xs font-bold text-[#134e4a]">{o.id}</div>
+                      <div className="col-span-2 text-xs font-bold text-zarewa-teal">{o.id}</div>
                       <div className="col-span-4 text-xs text-gray-600 line-clamp-2">
                         {prodSummary}
                       </div>
                       <div className="col-span-2 text-xs font-bold text-gray-700">{qtySum}</div>
-                      <div className="col-span-2 text-right text-sm font-black text-[#134e4a]">
+                      <div className="col-span-2 text-right text-sm font-black text-zarewa-teal">
                         {formatNgn(o.totalNgn)}
                       </div>
                       <div className="col-span-2">
                         <span
-                          className={`text-[9px] font-bold uppercase px-2 py-1 rounded-full ${orderStatusClass(o.status)}`}
+                          className={`text-ui-xs font-bold uppercase px-2 py-1 rounded-full ${orderStatusClass(o.status)}`}
                         >
                           {o.status}
                         </span>
@@ -1496,20 +1499,20 @@ const CustomerDashboard = () => {
           </section>
 
           <section id="cd-financial" className="mb-10 scroll-mt-28">
-            <h2 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h2 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4 flex items-center gap-2">
               <Wallet size={16} />
               Financial — receipts & outstanding
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="rounded-zarewa border border-gray-100 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  <p className="text-ui-xs font-bold text-gray-400 uppercase tracking-widest">
                     Payment history
                   </p>
                   <select
                     value={payWindow}
                     onChange={(e) => setPayWindow(e.target.value)}
-                    className="text-[10px] font-bold uppercase border border-gray-100 rounded-lg py-1.5 px-2 bg-gray-50"
+                    className="text-ui-xs font-bold uppercase border border-gray-100 rounded-lg py-1.5 px-2 bg-gray-50"
                   >
                     <option value="all">All (full history)</option>
                     <option value="30">Last 30 days</option>
@@ -1548,12 +1551,12 @@ const CustomerDashboard = () => {
                             className="w-full flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-left hover:border-teal-100 hover:bg-white transition-all"
                           >
                             <div>
-                              <p className="text-xs font-bold text-[#134e4a]">{r.id}</p>
-                              <p className="text-[10px] text-gray-500">
+                              <p className="text-xs font-bold text-zarewa-teal">{r.id}</p>
+                              <p className="text-ui-xs text-gray-500">
                                 {r.date} · {r.method || '—'}
                               </p>
                             </div>
-                            <span className="text-sm font-black text-[#134e4a] shrink-0">
+                            <span className="text-sm font-black text-zarewa-teal shrink-0">
                               {r.amount}
                             </span>
                           </button>
@@ -1564,7 +1567,7 @@ const CustomerDashboard = () => {
                 </SalesListTableFrame>
               </div>
               <div className="rounded-zarewa border border-gray-100 bg-white p-5 shadow-sm">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+                <p className="text-ui-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
                   Outstanding & due
                 </p>
                 {outstandingLines.length === 0 ? (
@@ -1582,15 +1585,15 @@ const CustomerDashboard = () => {
                           className="w-full flex items-center justify-between gap-2 rounded-xl border border-gray-50 px-3 py-2 text-left hover:bg-red-50/50 hover:border-red-100 transition-all"
                         >
                           <div>
-                            <p className="text-xs font-bold text-[#134e4a]">{o.id}</p>
-                            <p className="text-[10px] text-gray-500">
+                            <p className="text-xs font-bold text-zarewa-teal">{o.id}</p>
+                            <p className="text-ui-xs text-gray-500">
                               Due {o.due || '—'}
                               {o.overdue ? (
                                 <span className="ml-2 text-red-600 font-bold">Overdue</span>
                               ) : null}
                             </p>
                           </div>
-                          <span className="text-sm font-black text-[#134e4a]">
+                          <span className="text-sm font-black text-zarewa-teal">
                             {formatNgn(o.amountNgn)}
                           </span>
                         </button>
@@ -1600,10 +1603,10 @@ const CustomerDashboard = () => {
                 )}
                 {ws.hasPermission('finance.post') && outstandingLines.length > 0 ? (
                   <div className="mt-5 pt-4 border-t border-gray-100">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    <p className="text-ui-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
                       Collections follow-up (finance queue)
                     </p>
-                    <p className="text-[10px] text-slate-600 mb-2 leading-relaxed">
+                    <p className="text-ui-xs text-slate-600 mb-2 leading-relaxed">
                       Creates an office work item for finance using the current branch scope. Use for agreed call-back
                       dates or payment promises.
                     </p>
@@ -1616,7 +1619,7 @@ const CustomerDashboard = () => {
                     <button
                       type="button"
                       disabled={collectionsBusy}
-                      className="mt-2 z-btn-primary !text-[11px]"
+                      className="mt-2 z-btn-primary !text-xs"
                       onClick={async () => {
                         setCollectionsBusy(true);
                         try {
@@ -1646,7 +1649,7 @@ const CustomerDashboard = () => {
                 ) : null}
               </div>
               <div className="rounded-zarewa border border-gray-100 bg-white p-5 shadow-sm lg:col-span-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+                <p className="text-ui-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
                   Customer ledger (browser — audit trail)
                 </p>
                 {ledgerLines.length === 0 ? (
@@ -1661,15 +1664,15 @@ const CustomerDashboard = () => {
                         className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-gray-50 bg-gray-50/50 px-3 py-2 text-left"
                       >
                         <div className="min-w-0">
-                          <p className="text-[10px] font-bold text-[#134e4a]">{ledgerTypeLabel(row.type)}</p>
-                          <p className="text-[9px] text-gray-500 font-mono">
+                          <p className="text-ui-xs font-bold text-zarewa-teal">{ledgerTypeLabel(row.type)}</p>
+                          <p className="text-ui-xs text-gray-500 font-mono">
                             {(row.atISO || '').slice(0, 10)} · {row.quotationRef || '—'}
                           </p>
                           {row.note ? (
-                            <p className="text-[9px] text-gray-600 mt-0.5 line-clamp-2">{row.note}</p>
+                            <p className="text-ui-xs text-gray-600 mt-0.5 line-clamp-2">{row.note}</p>
                           ) : null}
                         </div>
-                        <span className="text-sm font-black text-[#134e4a] tabular-nums shrink-0">
+                        <span className="text-sm font-black text-zarewa-teal tabular-nums shrink-0">
                           {formatNgn(row.amountNgn)}
                         </span>
                       </li>
@@ -1681,7 +1684,7 @@ const CustomerDashboard = () => {
           </section>
 
           <section id="cd-refunds" className="mb-10 scroll-mt-28">
-            <h2 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h2 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4 flex items-center gap-2">
               <RotateCcw size={16} />
               Refunds
             </h2>
@@ -1719,16 +1722,16 @@ const CustomerDashboard = () => {
                         className="w-full flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 text-left hover:border-rose-100 hover:bg-rose-50/20 transition-all"
                       >
                         <div>
-                          <p className="text-xs font-mono font-bold text-[#134e4a]">{r.refundID}</p>
-                          <p className="text-[10px] text-gray-500">{r.reasonCategory || r.reason}</p>
+                          <p className="text-xs font-mono font-bold text-zarewa-teal">{r.refundID}</p>
+                          <p className="text-ui-xs text-gray-500">{r.reasonCategory || r.reason}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-black text-[#134e4a] tabular-nums">
+                          <p className="text-sm font-black text-zarewa-teal tabular-nums">
                             {formatNgn(r.amountNgn)}
                           </p>
-                          <p className="text-[9px] font-bold uppercase text-gray-400">{r.status}</p>
+                          <p className="text-ui-xs font-bold uppercase text-gray-400">{r.status}</p>
                           {(r.status === 'Approved' || r.status === 'Paid') && (
-                            <p className="text-[9px] text-gray-500 tabular-nums">
+                            <p className="text-ui-xs text-gray-500 tabular-nums">
                               Bal {formatNgn(refundOutstandingAmount(r))}
                             </p>
                           )}
@@ -1742,13 +1745,13 @@ const CustomerDashboard = () => {
           </section>
 
           <section id="cd-activity" className="mb-10 scroll-mt-28">
-            <h2 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h2 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4 flex items-center gap-2">
               <ScrollText size={16} />
               Transactions, interactions & notes
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
               <div className="lg:col-span-3 rounded-zarewa border border-gray-100 bg-white p-5 shadow-sm">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+                <p className="text-ui-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
                   Unified timeline
                 </p>
                 <ul className="space-y-4 border-l-2 border-gray-100 ml-2 pl-4">
@@ -1757,7 +1760,7 @@ const CustomerDashboard = () => {
                   ) : (
                     mergedTimeline.map((item, idx) => (
                       <li key={`${item.sort}-${item.source}-${idx}`} className="relative">
-                        <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-[#134e4a] ring-4 ring-white" />
+                        <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-zarewa-teal ring-4 ring-white" />
                         {item.source === 'tx' && item.txType && item.txId ? (
                           <button
                             type="button"
@@ -1769,19 +1772,19 @@ const CustomerDashboard = () => {
                               if (item.txType === 'cutting') goSalesCutting(item.txId);
                             }}
                           >
-                            <p className="text-[10px] font-bold text-gray-400 uppercase">
+                            <p className="text-ui-xs font-bold text-gray-400 uppercase">
                               {safeIso(item.sort).slice(0, 10) || '—'} · {item.kind} · record
                             </p>
-                            <p className="text-sm font-bold text-[#134e4a]">{item.title}</p>
+                            <p className="text-sm font-bold text-zarewa-teal">{item.title}</p>
                             <p className="text-xs text-gray-600 mt-0.5">{item.detail}</p>
                           </button>
                         ) : (
                           <>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase">
+                            <p className="text-ui-xs font-bold text-gray-400 uppercase">
                               {safeIso(item.sort).slice(0, 10) || '—'} · {item.kind}
                               {item.source === 'tx' ? ' · record' : ''}
                             </p>
-                            <p className="text-sm font-bold text-[#134e4a]">{item.title}</p>
+                            <p className="text-sm font-bold text-zarewa-teal">{item.title}</p>
                             <p className="text-xs text-gray-600 mt-0.5">{item.detail}</p>
                           </>
                         )}
@@ -1791,11 +1794,11 @@ const CustomerDashboard = () => {
                 </ul>
               </div>
               <div className="lg:col-span-2 rounded-zarewa border border-gray-100 bg-gray-50/50 p-5 shadow-sm">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <p className="text-ui-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <MessageSquarePlus size={14} />
                   Add staff note
                 </p>
-                <p className="text-[10px] text-gray-500 mb-3 leading-snug">
+                <p className="text-ui-xs text-gray-500 mb-3 leading-snug">
                   When signed in, notes are stored on the server for the whole sales team. Offline entries stay
                   on this browser only.
                 </p>
@@ -1805,7 +1808,7 @@ const CustomerDashboard = () => {
                     onChange={(e) => setNoteDraft(e.target.value)}
                     rows={4}
                     placeholder="Preferences, complaints, follow-up reminders…"
-                    className="w-full rounded-xl border border-gray-100 bg-white py-2.5 px-3 text-sm outline-none focus:ring-2 focus:ring-[#134e4a]/15 resize-none"
+                    className="w-full rounded-xl border border-gray-100 bg-white py-2.5 px-3 text-sm outline-none focus:ring-2 focus:ring-zarewa-teal/15 resize-none"
                   />
                   <button type="submit" className="z-btn-primary w-full justify-center py-2.5 text-xs">
                     Save note
@@ -1816,13 +1819,13 @@ const CustomerDashboard = () => {
           </section>
 
           <section id="cd-reports" className="scroll-mt-28">
-            <h2 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h2 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4 flex items-center gap-2">
               <BarChart3 size={16} />
               Reporting
             </h2>
             <div className="rounded-zarewa border border-dashed border-gray-200 bg-white/80 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <p className="text-sm font-bold text-[#134e4a]">Customer activity reports</p>
+                <p className="text-sm font-bold text-zarewa-teal">Customer activity reports</p>
                 <p className="text-xs text-gray-500 mt-1">
                   Sales, payment history, and outstanding balances for a chosen period.
                 </p>
@@ -1840,7 +1843,7 @@ const CustomerDashboard = () => {
               <div className="flex items-start gap-2">
                 <MapPin size={14} className="text-gray-400 mt-0.5 shrink-0" />
                 <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">
+                  <span className="text-ui-xs font-bold text-gray-400 uppercase block">
                     Shipping
                   </span>
                   {customer.addressShipping}
@@ -1849,7 +1852,7 @@ const CustomerDashboard = () => {
               <div className="flex items-start gap-2">
                 <Building2 size={14} className="text-gray-400 mt-0.5 shrink-0" />
                 <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">
+                  <span className="text-ui-xs font-bold text-gray-400 uppercase block">
                     Billing
                   </span>
                   {customer.addressBilling}
@@ -1858,7 +1861,7 @@ const CustomerDashboard = () => {
               <div className="flex items-start gap-2 md:col-span-2">
                 <BadgeCheck size={14} className="text-gray-400 mt-0.5 shrink-0" />
                 <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">
+                  <span className="text-ui-xs font-bold text-gray-400 uppercase block">
                     Payment terms
                   </span>
                   {customer.paymentTerms}
@@ -1880,10 +1883,10 @@ const CustomerDashboard = () => {
           <ModalScrollHeader>
             <div className="flex justify-between items-start gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600 mb-1">
+                <p className="text-ui-xs font-bold uppercase tracking-widest text-teal-600 mb-1">
                   {customerKey}
                 </p>
-                <h3 className="text-xl font-black text-[#134e4a] flex items-center gap-2">
+                <h3 className="text-xl font-black text-zarewa-teal flex items-center gap-2">
                   <Pencil size={20} className="text-teal-600 shrink-0" />
                   Edit customer
                 </h3>
@@ -1929,7 +1932,7 @@ const CustomerDashboard = () => {
       <ModalFrame isOpen={!!detail} onClose={() => setDetail(null)}>
         <div className="z-modal-panel max-w-md p-8">
           <div className="flex justify-between items-start mb-4">
-            <h3 className="text-lg font-bold text-[#134e4a]">
+            <h3 className="text-lg font-bold text-zarewa-teal">
               {detail?.type === 'quotation' && 'Quotation'}
               {detail?.type === 'order' && 'Order'}
               {detail?.type === 'receipt' && 'Receipt'}
@@ -1946,7 +1949,7 @@ const CustomerDashboard = () => {
           </div>
           {detail?.type === 'quotation' && detail.row ? (
             <div className="space-y-3 text-sm">
-              <p className="font-mono font-bold text-[#134e4a]">{detail.row.id}</p>
+              <p className="font-mono font-bold text-zarewa-teal">{detail.row.id}</p>
               <p className="text-gray-600">{detail.row.customer}</p>
               <p>
                 <span className="text-gray-400 text-xs font-bold uppercase">Total</span>{' '}
@@ -1956,7 +1959,7 @@ const CustomerDashboard = () => {
                 <span className="text-gray-400 text-xs font-bold uppercase">Payment received</span>{' '}
                 <span className="font-black">{formatNgn(detail.row.paidNgn || 0)}</span>
               </p>
-              <p className="text-[10px] text-gray-500">Total amount paid on this quotation (receipts + advance applied)</p>
+              <p className="text-ui-xs text-gray-500">Total amount paid on this quotation (receipts + advance applied)</p>
               <p className="text-xs text-gray-500">{detail.row.customerFeedback || '—'}</p>
               {detail.row.handledBy ? (
                 <p className="text-xs">
@@ -1978,24 +1981,24 @@ const CustomerDashboard = () => {
           ) : null}
           {detail?.type === 'order' && detail.row ? (
             <div className="space-y-3 text-sm">
-              <p className="font-mono font-bold text-[#134e4a]">{detail.row.id}</p>
+              <p className="font-mono font-bold text-zarewa-teal">{detail.row.id}</p>
               <p className="text-xs text-gray-500">{detail.row.date}</p>
               <ul className="border border-gray-100 rounded-xl divide-y divide-gray-50">
                 {safeLines(detail.row.lines).map((l, i) => (
                   <li key={i} className="px-3 py-2 flex justify-between gap-2">
                     <span className="text-gray-700">{l.product}</span>
-                    <span className="font-bold text-[#134e4a] shrink-0">
+                    <span className="font-bold text-zarewa-teal shrink-0">
                       {l.qty} {l.unit}
                     </span>
                   </li>
                 ))}
               </ul>
-              <p className="font-black text-[#134e4a]">{formatNgn(detail.row.totalNgn)}</p>
+              <p className="font-black text-zarewa-teal">{formatNgn(detail.row.totalNgn)}</p>
               <p className="text-xs">
                 Linked quote:{' '}
                 <button
                   type="button"
-                  className="font-bold text-[#134e4a] underline"
+                  className="font-bold text-zarewa-teal underline"
                   onClick={() => {
                     goSalesQuotation(detail.row.quotationRef);
                     setDetail(null);
@@ -2008,7 +2011,7 @@ const CustomerDashboard = () => {
           ) : null}
           {detail?.type === 'receipt' && detail.row ? (
             <div className="space-y-3 text-sm">
-              <p className="font-mono font-bold text-[#134e4a]">{detail.row.id}</p>
+              <p className="font-mono font-bold text-zarewa-teal">{detail.row.id}</p>
               <p>{detail.row.amount}</p>
               <p className="text-xs text-gray-500">
                 {detail.row.date} · {detail.row.method || '—'}
@@ -2033,7 +2036,7 @@ const CustomerDashboard = () => {
           ) : null}
           {detail?.type === 'cutting' && detail.row ? (
             <div className="space-y-3 text-sm">
-              <p className="font-mono font-bold text-[#134e4a]">{detail.row.id}</p>
+              <p className="font-mono font-bold text-zarewa-teal">{detail.row.id}</p>
               <p>
                 <span className="text-gray-400 text-xs font-bold uppercase">Total length</span>{' '}
                 <span className="font-black">{detail.row.total}</span>
@@ -2044,7 +2047,7 @@ const CustomerDashboard = () => {
                   Linked quote:{' '}
                   <button
                     type="button"
-                    className="font-bold text-[#134e4a] underline"
+                    className="font-bold text-zarewa-teal underline"
                     onClick={() => {
                       goSalesQuotation(detail.row.quotationRef);
                       setDetail(null);
@@ -2071,15 +2074,15 @@ const CustomerDashboard = () => {
           ) : null}
           {detail?.type === 'refund' && detail.row ? (
             <div className="space-y-3 text-sm">
-              <p className="font-mono font-bold text-[#134e4a]">{detail.row.refundID}</p>
-              <p className="font-black text-[#134e4a]">{formatNgn(detail.row.amountNgn)}</p>
+              <p className="font-mono font-bold text-zarewa-teal">{detail.row.refundID}</p>
+              <p className="font-black text-zarewa-teal">{formatNgn(detail.row.amountNgn)}</p>
               {(detail.row.status === 'Approved' || detail.row.status === 'Paid') && (
                 <p className="text-xs text-gray-500 tabular-nums">
                   Approved {formatNgn(refundApprovedAmount(detail.row))} · Balance {formatNgn(refundOutstandingAmount(detail.row))}
                 </p>
               )}
               <p className="text-xs text-gray-600">{detail.row.reason}</p>
-              <p className="text-[10px] text-gray-500">
+              <p className="text-ui-xs text-gray-500">
                 Status: {detail.row.status}
                 {detail.row.requestedBy ? ` · Requested by ${detail.row.requestedBy}` : ''}
                 {detail.row.approvedBy ? ` · Approved by ${detail.row.approvedBy}` : ''}
@@ -2090,7 +2093,7 @@ const CustomerDashboard = () => {
                   {detail.row.calculationLines.map((l, i) => (
                     <li key={i} className="px-3 py-2 flex justify-between gap-2">
                       <span className="text-gray-700">{l.label}</span>
-                      <span className="font-bold text-[#134e4a] tabular-nums">
+                      <span className="font-bold text-zarewa-teal tabular-nums">
                         {formatNgn(l.amountNgn)}
                       </span>
                     </li>
@@ -2117,17 +2120,17 @@ const CustomerDashboard = () => {
 
       <ModalFrame isOpen={showReports} onClose={() => setShowReports(false)}>
         <div className="z-modal-panel max-w-lg w-full p-0 overflow-hidden rounded-2xl border border-slate-200/90 shadow-xl bg-white">
-          <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-br from-[#134e4a]/[0.07] via-white to-white">
+          <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-br from-zarewa-teal/[0.07] via-white to-white">
             <div className="flex justify-between items-start gap-3">
               <div className="flex gap-3 min-w-0">
                 <div
-                  className="h-11 w-11 rounded-xl bg-[#134e4a]/10 flex items-center justify-center shrink-0"
+                  className="h-11 w-11 rounded-xl bg-zarewa-teal/10 flex items-center justify-center shrink-0"
                   aria-hidden
                 >
-                  <Printer className="text-[#134e4a]" size={22} strokeWidth={2} />
+                  <Printer className="text-zarewa-teal" size={22} strokeWidth={2} />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-[#134e4a] tracking-tight">Customer report</h3>
+                  <h3 className="text-lg font-bold text-zarewa-teal tracking-tight">Customer report</h3>
                   <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                     Pick a date range, then open a print preview. Use your browser’s print dialog to print or save as PDF.
                   </p>
@@ -2145,7 +2148,7 @@ const CustomerDashboard = () => {
           </div>
           <div className="p-6 space-y-6">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Period</p>
+              <p className="text-ui-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Period</p>
               <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="z-field-label">From</label>
@@ -2153,7 +2156,7 @@ const CustomerDashboard = () => {
                     type="date"
                     value={reportFrom}
                     onChange={(e) => setReportFrom(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/20"
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-bold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/20"
                   />
                 </div>
                 <div>
@@ -2162,32 +2165,32 @@ const CustomerDashboard = () => {
                     type="date"
                     value={reportTo}
                     onChange={(e) => setReportTo(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/20"
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-bold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/20"
                   />
                 </div>
               </div>
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">What to include</p>
+              <p className="text-ui-xs font-bold text-slate-400 uppercase tracking-widest mb-3">What to include</p>
               <ul className="flex flex-col gap-2.5">
                 <li>
                   <button
                     type="button"
                     onClick={() => openCustomerReportPreview('sales')}
-                    className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm hover:border-[#134e4a]/35 hover:bg-[#134e4a]/[0.03] transition-colors group"
+                    className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm hover:border-zarewa-teal/35 hover:bg-zarewa-teal/[0.03] transition-colors group"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-[#134e4a] group-hover:underline-offset-2">
+                        <p className="text-sm font-bold text-zarewa-teal group-hover:underline-offset-2">
                           Quotations & produced sales
                         </p>
-                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                        <p className="text-xs text-slate-500 mt-1 leading-snug">
                           Quotes dated in range plus completed production with allocated revenue.
                         </p>
                       </div>
                       <Printer
                         size={18}
-                        className="text-slate-300 group-hover:text-[#134e4a] shrink-0 mt-0.5"
+                        className="text-slate-300 group-hover:text-zarewa-teal shrink-0 mt-0.5"
                         aria-hidden
                       />
                     </div>
@@ -2197,18 +2200,18 @@ const CustomerDashboard = () => {
                   <button
                     type="button"
                     onClick={() => openCustomerReportPreview('payments')}
-                    className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm hover:border-[#134e4a]/35 hover:bg-[#134e4a]/[0.03] transition-colors group"
+                    className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm hover:border-zarewa-teal/35 hover:bg-zarewa-teal/[0.03] transition-colors group"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-[#134e4a]">Payment history</p>
-                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                        <p className="text-sm font-bold text-zarewa-teal">Payment history</p>
+                        <p className="text-xs text-slate-500 mt-1 leading-snug">
                           Receipts recorded between the dates you chose.
                         </p>
                       </div>
                       <Printer
                         size={18}
-                        className="text-slate-300 group-hover:text-[#134e4a] shrink-0 mt-0.5"
+                        className="text-slate-300 group-hover:text-zarewa-teal shrink-0 mt-0.5"
                         aria-hidden
                       />
                     </div>
@@ -2218,18 +2221,18 @@ const CustomerDashboard = () => {
                   <button
                     type="button"
                     onClick={() => openCustomerReportPreview('outstanding')}
-                    className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm hover:border-[#134e4a]/35 hover:bg-[#134e4a]/[0.03] transition-colors group"
+                    className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm hover:border-zarewa-teal/35 hover:bg-zarewa-teal/[0.03] transition-colors group"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-[#134e4a]">Outstanding & overdue</p>
-                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                        <p className="text-sm font-bold text-zarewa-teal">Outstanding & overdue</p>
+                        <p className="text-xs text-slate-500 mt-1 leading-snug">
                           Current open balances; period shows context only.
                         </p>
                       </div>
                       <Printer
                         size={18}
-                        className="text-slate-300 group-hover:text-[#134e4a] shrink-0 mt-0.5"
+                        className="text-slate-300 group-hover:text-zarewa-teal shrink-0 mt-0.5"
                         aria-hidden
                       />
                     </div>

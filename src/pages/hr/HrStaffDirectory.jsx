@@ -5,6 +5,7 @@ import { HrFormModal } from '../../components/hr/HrFormModal';
 import { HrStaffRegisterForm } from '../../components/hr/HrStaffRegisterForm';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
+import { appConfirm } from '../../lib/appConfirm';
 import { canManageHrStaff, canViewOrgSensitiveHr, canBulkImportStaff } from '../../lib/hrAccess';
 import { HrBulkStaffImportModal } from '../../components/hr/HrBulkStaffImportModal';
 import { HrStaffDuplicateCleanupPanel } from '../../components/hr/HrStaffDuplicateCleanupPanel';
@@ -64,7 +65,7 @@ function SortableTh({ label, sortId, sortKey, sortDir, onSort, align }) {
     <AppTableTh align={align}>
       <button
         type="button"
-        className={`font-bold uppercase tracking-wide ${active ? 'text-[#134e4a]' : 'text-slate-500 hover:text-slate-800'}`}
+        className={`font-bold uppercase tracking-wide ${active ? 'text-zarewa-teal' : 'text-slate-500 hover:text-slate-800'}`}
         onClick={() => onSort(sortId)}
       >
         {label}
@@ -87,22 +88,22 @@ function StaffBadges({ staff }) {
   return (
     <div className="mt-2 flex flex-wrap gap-1">
       {probation ? (
-        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${probation.cls}`}>
+        <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${probation.cls}`}>
           {probation.label}
         </span>
       ) : null}
       {contract ? (
-        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${contract.cls}`}>
+        <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${contract.cls}`}>
           {contract.label}
         </span>
       ) : null}
       {doc ? (
-        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${doc.cls}`}>
+        <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${doc.cls}`}>
           {doc.label}
         </span>
       ) : null}
       {pct < 90 ? (
-        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${pctBadge.cls}`}>
+        <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${pctBadge.cls}`}>
           Profile {pctBadge.label}
         </span>
       ) : null}
@@ -325,7 +326,11 @@ export default function HrStaffDirectory({
   };
 
   const removeSavedView = async (view) => {
-    if (!window.confirm(`Delete saved view "${view.name}"?`)) return;
+    if (!(await appConfirm({
+      title: 'Delete',
+      message: `Delete saved view "${view.name}"?`,
+      variant: 'danger',
+    }))) return;
     if (view.id) {
       const { ok, data } = await deleteHrDirectoryView(view.id);
       if (ok && data?.ok) {
@@ -444,7 +449,7 @@ export default function HrStaffDirectory({
           <button
             type="button"
             onClick={() => setImportNotice(null)}
-            className="mt-2 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+            className="mt-2 text-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
           >
             Dismiss
           </button>
@@ -466,7 +471,7 @@ export default function HrStaffDirectory({
           <p>
             Bulk update: {bulkNotice.updated} updated, {bulkNotice.failed} failed.
           </p>
-          <button type="button" className="mt-1 text-xs font-bold uppercase text-[#134e4a] hover:underline" onClick={() => setBulkNotice(null)}>
+          <button type="button" className="mt-1 text-xs font-bold uppercase text-zarewa-teal hover:underline" onClick={() => setBulkNotice(null)}>
             Dismiss
           </button>
         </div>
@@ -494,14 +499,14 @@ export default function HrStaffDirectory({
               <button
                 type="button"
                 onClick={() => applySavedView(v)}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:border-[#134e4a]/30"
+                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:border-zarewa-teal/30"
               >
                 {v.name}
               </button>
               <button
                 type="button"
                 onClick={() => removeSavedView(v)}
-                className="text-[10px] font-bold text-slate-400 hover:text-red-600"
+                className="text-ui-xs font-bold text-slate-400 hover:text-red-600"
                 aria-label={`Delete view ${v.name}`}
               >
                 ×
@@ -577,7 +582,7 @@ export default function HrStaffDirectory({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name, ID, job, department, manager…"
-              className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+              className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm shadow-sm focus:border-zarewa-teal focus:outline-none focus:ring-2 focus:ring-zarewa-teal/15"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -606,8 +611,8 @@ export default function HrStaffDirectory({
                   key={m.id}
                   type="button"
                   onClick={() => setViewMode(m.id)}
-                  className={`rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${
-                    viewMode === m.id ? 'bg-[#134e4a] text-white' : 'text-slate-600 hover:bg-slate-50'
+                  className={`rounded-lg px-3 py-2 text-ui-xs font-bold uppercase tracking-wide ${
+                    viewMode === m.id ? 'bg-zarewa-teal text-white' : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   {m.label}
@@ -618,7 +623,7 @@ export default function HrStaffDirectory({
               <button
                 type="button"
                 onClick={() => setBulkOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#134e4a] px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-zarewa-teal px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-teal-50"
               >
                 Bulk register
               </button>
@@ -654,7 +659,7 @@ export default function HrStaffDirectory({
               onClick={() => setQuickFilter(f.id)}
               className={`rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition ${
                 quickFilter === f.id
-                  ? 'border-[#134e4a] bg-[#134e4a] text-white'
+                  ? 'border-zarewa-teal bg-zarewa-teal text-white'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
               }`}
             >
@@ -801,7 +806,7 @@ export default function HrStaffDirectory({
                 <div className="flex items-start justify-between gap-3">
                   <Link
                     to={`${staffBasePath}/${encodeURIComponent(s.userId)}${s.docExpirySummary?.nextExpiryIso ? '?tab=documents' : ''}`}
-                    className="text-sm font-bold text-[#134e4a] hover:underline"
+                    className="text-sm font-bold text-zarewa-teal hover:underline"
                     onClick={(e) => {
                       if (!e.metaKey && !e.ctrlKey) {
                         e.preventDefault();
@@ -857,7 +862,7 @@ export default function HrStaffDirectory({
                 <button
                   key={s.userId}
                   type="button"
-                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-[#134e4a]/25 hover:shadow-md"
+                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-zarewa-teal/25 hover:shadow-md"
                   onClick={() => setPreviewStaff(s)}
                 >
                   <HrStaffAvatar staff={s} />
@@ -945,7 +950,7 @@ export default function HrStaffDirectory({
                             <button
                               type="button"
                               onClick={() => setPreviewStaff(s)}
-                              className="font-semibold text-[#134e4a] hover:underline text-left"
+                              className="font-semibold text-zarewa-teal hover:underline text-left"
                             >
                               {s.displayName || s.username}
                             </button>
@@ -960,7 +965,7 @@ export default function HrStaffDirectory({
                         ) : null}
                         {visibleColumns.has('profile') ? (
                           <AppTableTd>
-                            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${pctBadge.cls}`}>
+                            <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold ${pctBadge.cls}`}>
                               {pct}%
                             </span>
                           </AppTableTd>
@@ -970,7 +975,7 @@ export default function HrStaffDirectory({
                             {s.docExpirySummary?.nextExpiryIso ? (
                               <Link
                                 to={`${staffBasePath}/${encodeURIComponent(s.userId)}?tab=documents`}
-                                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${doc?.cls || 'border-red-200 bg-red-50 text-red-900'}`}
+                                className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${doc?.cls || 'border-red-200 bg-red-50 text-red-900'}`}
                               >
                                 {s.docExpirySummary.nextExpiryIso}
                               </Link>
@@ -990,17 +995,17 @@ export default function HrStaffDirectory({
                           <AppTableTd truncate={false}>
                             <HrStatusBadge status={s.status} variant="staff" />
                             {probation ? (
-                              <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${probation.cls}`}>
+                              <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${probation.cls}`}>
                                 {probation.label}
                               </span>
                             ) : null}
                             {contract ? (
-                              <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${contract.cls}`}>
+                              <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${contract.cls}`}>
                                 {contract.label}
                               </span>
                             ) : null}
                             {doc ? (
-                              <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${doc.cls}`}>
+                              <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${doc.cls}`}>
                                 {doc.label}
                               </span>
                             ) : null}

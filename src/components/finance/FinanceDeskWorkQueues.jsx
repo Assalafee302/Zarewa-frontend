@@ -435,8 +435,8 @@ export function FinanceDeskWorkQueues({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {branchLabel ? (
-        <p className="text-[11px] text-slate-600 leading-relaxed rounded-xl border border-teal-200/70 bg-teal-50/50 px-4 py-3">
-          <strong className="text-[#134e4a]">{branchLabel}</strong> finance desk
+        <p className="text-xs text-slate-600 leading-relaxed rounded-xl border border-teal-200/70 bg-teal-50/50 px-4 py-3">
+          <strong className="text-zarewa-teal">{branchLabel}</strong> finance desk
           — confirm receipts, post approved payouts, and view till/bank balances and statements here.
           Staff loan and recovery payments use the private section below when an employee pays at the desk.
           Supplier payments stay on Procurement.
@@ -807,7 +807,7 @@ export function FinanceDeskWorkQueues({
               <ArrowRightLeft size={14} />
               Treasury movements
             </h2>
-            <p className="text-[10px] text-slate-600 mb-2 leading-relaxed">
+            <p className="text-ui-xs text-slate-600 mb-2 leading-relaxed">
               Lodgements and internal transfers — use the Movements tab.
             </p>
 

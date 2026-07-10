@@ -71,9 +71,9 @@ export function AccountingExecutiveBrief({
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Accounting desk</p>
-          <h3 className="mt-1 text-base font-black text-[#134e4a]">GL statements &amp; month-end</h3>
-          <p className="mt-1 text-[11px] text-slate-600 max-w-xl">
+          <p className="text-ui-xs font-black uppercase tracking-wider text-slate-500">Accounting desk</p>
+          <h3 className="mt-1 text-base font-black text-zarewa-teal">GL statements &amp; month-end</h3>
+          <p className="mt-1 text-xs text-slate-600 max-w-xl">
             Management draft from registers and postings — same pack Head of Accounts uses on Accounting Desk.
           </p>
         </div>
@@ -82,14 +82,14 @@ export function AccountingExecutiveBrief({
             type="button"
             onClick={load}
             disabled={loading}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] min-h-9"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase text-zarewa-teal min-h-9"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Refresh
           </button>
           <Link
             to="/accounting?tab=statements"
-            className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:brightness-105 min-h-9"
+            className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-white hover:brightness-105 min-h-9"
           >
             Open desk
             <ArrowRight size={14} />

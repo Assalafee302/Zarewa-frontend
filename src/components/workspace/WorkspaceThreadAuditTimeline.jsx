@@ -47,26 +47,26 @@ export function WorkspaceThreadAuditTimeline({ threadId, workItemId }) {
   }, [threadId, workItemId]);
 
   if (loading) {
-    return <p className="text-[11px] text-slate-500">Loading timeline…</p>;
+    return <p className="text-xs text-slate-500">Loading timeline…</p>;
   }
   if (!events.length) {
     return (
-      <p className="text-[11px] text-slate-500">No audit events recorded yet for this item.</p>
+      <p className="text-xs text-slate-500">No audit events recorded yet for this item.</p>
     );
   }
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5">
-      <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+      <p className="mb-2 flex items-center gap-1.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-600">
         <Clock size={12} />
         Audit timeline
       </p>
       <ol className="space-y-2 border-l-2 border-teal-200/80 pl-3">
         {events.map((ev) => (
-          <li key={ev.id} className="relative text-[11px] text-slate-700">
+          <li key={ev.id} className="relative text-xs text-slate-700">
             <span className="absolute -left-[13px] top-1.5 h-2 w-2 rounded-full bg-teal-600" />
             <p className="font-semibold text-slate-900">{TIMELINE_KIND_LABELS[ev.kind] || ev.label}</p>
-            <p className="text-[10px] text-slate-500">
+            <p className="text-ui-xs text-slate-500">
               {ev.atIso ? new Date(ev.atIso).toLocaleString() : '—'}
               {ev.actor ? ` · ${ev.actor}` : ''}
             </p>

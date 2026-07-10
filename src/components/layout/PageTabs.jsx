@@ -1,7 +1,7 @@
 import React from 'react';
 
 const tabBtn =
-  'px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-[0.08em] transition-all flex items-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white';
+  'px-4 py-2.5 min-h-10 rounded-xl text-ui-xs font-bold uppercase tracking-[0.08em] transition-all flex items-center gap-2 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white';
 
 /**
  * Segmented control used across module pages for consistent UX.
@@ -25,8 +25,8 @@ export function PageTabs({ tabs, value, onChange, ariaLabel = 'Section' }) {
             onClick={() => onChange(tab.id)}
             className={`${tabBtn} ${
               active
-                ? 'bg-[#134e4a] text-white shadow-lg shadow-teal-950/15'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-[#134e4a]'
+                ? 'bg-zarewa-teal text-white shadow-lg shadow-teal-950/15'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-zarewa-teal'
             }`}
           >
             {tab.icon ?? null}

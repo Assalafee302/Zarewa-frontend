@@ -42,13 +42,13 @@ export default function SalesMobileAlertStrip({
 
   return (
     <div className="lg:hidden flex flex-wrap gap-2 mb-4" role="status" aria-label="Sales alerts">
-      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-500 w-full">
+      <span className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wider text-slate-500 w-full">
         <Bell size={12} aria-hidden /> Alerts
       </span>
       {items.map((item) => (
         <span
           key={item.label}
-          className={`inline-flex rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold ${toneCls[item.tone] || toneCls.slate}`}
+          className={`inline-flex rounded-lg border px-2.5 py-1.5 text-ui-xs font-semibold ${toneCls[item.tone] || toneCls.slate}`}
         >
           {item.label}
         </span>

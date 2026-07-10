@@ -63,7 +63,7 @@ export function AccountingSupplierPolicyPanel({ branchId = null, enabled = true,
       type="button"
       onClick={() => load(filters)}
       disabled={loading}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a]"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal"
     >
       <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
       Refresh
@@ -106,7 +106,7 @@ export function AccountingSupplierPolicyPanel({ branchId = null, enabled = true,
       {!flags.supplierAdvanceAccountingEnabled ? (
         <AccountingDeskNotice tone="warn">
           Supplier prepayment GL is <strong>off</strong> — all supplier payments post Dr 2000 until{' '}
-          <code className="text-[10px]">SUPPLIER_ADVANCE_ACCOUNTING_ENABLED=1</code>.
+          <code className="text-ui-xs">SUPPLIER_ADVANCE_ACCOUNTING_ENABLED=1</code>.
         </AccountingDeskNotice>
       ) : (
         <AccountingDeskNotice tone="trial">
@@ -124,11 +124,11 @@ export function AccountingSupplierPolicyPanel({ branchId = null, enabled = true,
               (step.id === 'rebuild' && flags.apReceivedBasisRebuildEnabled);
             return (
               <li key={step.id} className={ACCOUNTING_CARD_ROW}>
-                <p className="text-[11px] font-bold text-slate-900">
+                <p className="text-xs font-bold text-slate-900">
                   {on ? '✓' : '○'} {step.label}
                 </p>
-                <p className="mt-0.5 text-[10px] text-slate-600">{step.detail}</p>
-                <p className="mt-1 text-[9px] font-mono text-slate-500">{step.env}=1</p>
+                <p className="mt-0.5 text-ui-xs text-slate-600">{step.detail}</p>
+                <p className="mt-1 text-ui-xs font-mono text-slate-500">{step.env}=1</p>
               </li>
             );
           })}
@@ -147,7 +147,7 @@ export function AccountingSupplierPolicyPanel({ branchId = null, enabled = true,
         }}
       />
 
-      {error ? <p className="text-[11px] text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
     </div>
   );
 }

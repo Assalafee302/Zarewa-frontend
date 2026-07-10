@@ -1,33 +1,28 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useWorkspace } from '../context/WorkspaceContext';
+import { useQuery } from '@tanstack/react-query';
 import { fetchHrTeamSummary } from '../lib/hrMasterData';
+import { SHELL_QUERY_STALE_MS } from '../lib/queryClient';
 
 /**
- * Branch team HR summary — refreshes on workspace revision.
+ * Branch team HR summary — cached independently of workspace bootstrap poll.
  */
 export function useHrTeamSummary(scope = 'team') {
-  const ws = useWorkspace();
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const query = useQuery({
+    queryKey: ['hr', 'team-summary', scope],
+    queryFn: async () => {
+      const { ok, data } = await fetchHrTeamSummary(scope);
+      if (!ok || !data?.ok) {
+        throw new Error(data?.error || 'Could not load team summary.');
+      }
+      return data;
+    },
+    staleTime: SHELL_QUERY_STALE_MS,
+    refetchInterval: SHELL_QUERY_STALE_MS,
+  });
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    const { ok, data } = await fetchHrTeamSummary(scope);
-    setLoading(false);
-    if (!ok || !data?.ok) {
-      setSummary(null);
-      setError(data?.error || 'Could not load team summary.');
-      return { ok: false };
-    }
-    setSummary(data);
-    return { ok: true, data };
-  }, [scope]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload, ws?.refreshEpoch]);
-
-  return { summary, loading, error, reload };
+  return {
+    summary: query.data ?? null,
+    loading: query.isLoading,
+    error: query.error?.message || '',
+    reload: query.refetch,
+  };
 }

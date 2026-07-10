@@ -25,7 +25,7 @@ export function ProfileOnboardingModal({ isOpen, onClose }) {
         onChange={captureEdited}
       >
         <header className="hidden shrink-0 border-b border-slate-100 bg-gradient-to-r from-teal-50/80 to-white px-4 py-4 pr-14 sm:block sm:px-6">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#134e4a]">Employment profile</p>
+          <p className="text-ui-xs font-bold uppercase tracking-[0.14em] text-zarewa-teal">Employment profile</p>
           <h2 className="mt-0.5 text-lg font-black tracking-tight text-slate-900 sm:text-xl">Complete your details</h2>
           <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">
             Save progress as you go. Job title, salary, and org structure are maintained by HR.

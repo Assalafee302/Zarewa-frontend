@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { UNSAVED_BEFORE_UNLOAD_MESSAGE, useUnsavedWorkRegistry } from '../context/UnsavedWorkContext';
+import { appConfirm } from '../lib/appConfirm';
 
 /**
  * When any modal registers unsaved edits: warn on tab close/refresh, and confirm before
@@ -20,7 +21,7 @@ export function UnsavedWorkNavigationGuard() {
 
   useEffect(() => {
     if (!hasUnsavedWork) return undefined;
-    const onClick = (e) => {
+    const onClick = async (e) => {
       if (e.defaultPrevented) return;
       const a = e.target?.closest?.('a[href]');
       if (!a) return;
@@ -46,7 +47,11 @@ export function UnsavedWorkNavigationGuard() {
       const next = `${url.pathname}${url.search}${url.hash}`;
       const cur = `${window.location.pathname}${window.location.search}${window.location.hash}`;
       if (next === cur) return;
-      if (!window.confirm(UNSAVED_BEFORE_UNLOAD_MESSAGE)) {
+      const ok = await appConfirm({
+        title: 'Unsaved changes',
+        message: UNSAVED_BEFORE_UNLOAD_MESSAGE,
+      });
+      if (!ok) {
         e.preventDefault();
         e.stopPropagation();
       }

@@ -77,14 +77,14 @@ export function FinanceDeskColoredQueuePanel({
           {title}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`text-[10px] font-bold tabular-nums ${t.count}`}>
+          <span className={`text-ui-xs font-bold tabular-nums ${t.count}`}>
             {count} open
           </span>
           {action}
         </div>
       </div>
       {description ? (
-        <p className={`text-[10px] leading-relaxed ${t.description}`}>{description}</p>
+        <p className={`text-ui-xs leading-relaxed ${t.description}`}>{description}</p>
       ) : null}
       {children}
     </div>
@@ -120,16 +120,16 @@ export function FinanceDeskColoredQueueRow({
     >
       <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
         <div className="min-w-0 leading-tight flex-1">
-          <div className="text-[11px] font-bold text-[#134e4a] truncate">{title}</div>
+          <div className="text-xs font-bold text-zarewa-teal truncate">{title}</div>
           {meta ? (
-            <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta}>
+            <p className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta}>
               {meta}
             </p>
           ) : null}
           {extra}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <span className="text-[11px] font-black text-[#134e4a] tabular-nums">{amount}</span>
+          <span className="text-xs font-black text-zarewa-teal tabular-nums">{amount}</span>
           <div className="flex flex-wrap items-center justify-end gap-1">{actions}</div>
         </div>
       </div>
@@ -144,9 +144,9 @@ export function FinanceDeskQueueActionButton({ children, onClick, to, tone = 'sk
     teal: 'text-teal-900 bg-teal-100 hover:bg-teal-200',
     rose: 'text-rose-800 bg-rose-100 hover:bg-rose-200',
     slate: 'text-slate-700 bg-slate-100 hover:bg-slate-200',
-    primary: 'text-white bg-[#134e4a] hover:bg-[#0f3d3a]',
+    primary: 'text-white bg-zarewa-teal hover:bg-[#0f3d3a]',
   };
-  const cls = `inline-flex items-center text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md disabled:opacity-60 disabled:cursor-not-allowed ${toneCls[tone] || toneCls.sky}`;
+  const cls = `inline-flex items-center text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md disabled:opacity-60 disabled:cursor-not-allowed ${toneCls[tone] || toneCls.sky}`;
   if (to) {
     return (
       <Link to={to} className={cls} title={title}>

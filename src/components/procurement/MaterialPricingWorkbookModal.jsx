@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { PrintModalPortal } from '../layout/PrintModalPortal';
 import { Plus, Printer, Trash2, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -795,8 +795,8 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       <div className="z-modal-panel max-w-[min(96vw,1100px)] max-h-[min(90vh,820px)] flex flex-col p-0 overflow-hidden">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
           <div>
-            <h2 className="text-base font-black text-[#134e4a]">Material pricing workbook</h2>
-            <p className="text-[10px] text-slate-600 mt-1 max-w-xl leading-relaxed">
+            <h2 className="text-base font-black text-zarewa-teal">Material pricing workbook</h2>
+            <p className="text-ui-xs text-slate-600 mt-1 max-w-xl leading-relaxed">
               <strong className="text-slate-800">Std / Ref / Hist</strong> kg/m are <strong>read-only</strong> from data
               (theory/catalog, last {lookbackDays}d purchases, last {lookbackDays}d production checks).{' '}
               <strong className="text-slate-800">Used</strong> defaults to the average of those three; leave blank to keep the
@@ -823,7 +823,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
 
         <div className="flex flex-wrap items-end gap-3 px-4 py-3 sm:px-5 border-b border-slate-100 bg-white">
           <div className="min-w-[200px]">
-            <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Material</span>
+            <span className="text-ui-xs font-bold uppercase text-slate-500 block mb-1">Material</span>
             <div
               className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50/90 p-1"
               role="group"
@@ -834,9 +834,9 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                   key={m.key}
                   type="button"
                   onClick={() => setMaterialKey(m.key)}
-                  className={`rounded-md px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
+                  className={`rounded-md px-2.5 py-1.5 text-ui-xs font-black uppercase tracking-wide transition-colors ${
                     materialKey === m.key
-                      ? 'bg-[#134e4a] text-white shadow-sm'
+                      ? 'bg-zarewa-teal text-white shadow-sm'
                       : 'bg-white text-slate-600 hover:bg-slate-100'
                   }`}
                 >
@@ -845,7 +845,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               ))}
             </div>
           </div>
-          <label className="text-[10px] font-bold uppercase text-slate-500 block min-w-[180px]">
+          <label className="text-ui-xs font-bold uppercase text-slate-500 block min-w-[180px]">
             Branch
             <select
               className="mt-1 w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-sm font-semibold text-slate-800"
@@ -862,7 +862,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           </label>
           {!isReferenceTab ? (
             <label
-              className="text-[10px] font-bold uppercase text-slate-500 block min-w-[160px]"
+              className="text-ui-xs font-bold uppercase text-slate-500 block min-w-[160px]"
               title={`Suggested from weighted average unit cost on coil GRNs (last ${lookbackDays} days, this branch). You may override.`}
             >
               ₦/kg (material)
@@ -889,9 +889,9 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           ) : null}
           {!isReferenceTab ? (
             <>
-              <label className="text-[10px] font-bold uppercase text-slate-500 block min-w-[130px]">
+              <label className="text-ui-xs font-bold uppercase text-slate-500 block min-w-[130px]">
                 Sync list (all)
-                <span className="mt-1 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-semibold text-slate-700">
+                <span className="mt-1 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700">
                   <input
                     type="checkbox"
                     checked={syncListAllChecked}
@@ -905,7 +905,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 type="button"
                 disabled={busy || savingAll || !sheet}
                 onClick={() => void persistAllRows()}
-                className="rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
+                className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
               >
                 {savingAll ? 'Saving…' : 'Save all'}
               </button>
@@ -916,7 +916,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 type="button"
                 disabled={busy || !sheet || !canPolicyManage}
                 onClick={addRidgePolicyRow}
-                className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
+                className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1"
               >
                 <Plus size={14} className="shrink-0" aria-hidden />
                 Add add-on rate
@@ -925,7 +925,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 type="button"
                 disabled={busy || !sheet}
                 onClick={addRidgeRow}
-                className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
+                className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1"
               >
                 <Plus size={14} className="shrink-0" aria-hidden />
                 Add ridge row
@@ -934,7 +934,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 type="button"
                 disabled={busy || savingRidges || !sheet || !canPolicyManage}
                 onClick={() => void saveRidgeRows()}
-                className="rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
+                className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
               >
                 {savingRidges ? 'Saving…' : 'Save add-ons'}
               </button>
@@ -945,7 +945,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 type="button"
                 disabled={busy || savingAccessories || !sheet || !canSetupManage}
                 onClick={addAccessoryRow}
-                className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
+                className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1"
               >
                 <Plus size={14} className="shrink-0" aria-hidden />
                 Add accessory
@@ -954,7 +954,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 type="button"
                 disabled={busy || savingAccessories || !sheet || !canSetupManage}
                 onClick={() => void saveAccessories()}
-                className="rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
+                className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
               >
                 {savingAccessories ? 'Saving…' : 'Save accessories'}
               </button>
@@ -964,7 +964,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             type="button"
             disabled={busy || !sheet || printLoading}
             onClick={() => void loadPrintPack('official')}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1.5"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1.5"
           >
             <Printer size={14} className="shrink-0" aria-hidden />
             {printLoading ? '…' : 'Print · internal'}
@@ -973,7 +973,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             type="button"
             disabled={busy || !sheet || printLoading}
             onClick={() => void loadPrintPack('customer')}
-            className="rounded-lg border border-slate-200 bg-[#134e4a]/10 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50"
+            className="rounded-lg border border-slate-200 bg-zarewa-teal/10 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
           >
             Print · customer list
           </button>
@@ -981,7 +981,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             type="button"
             disabled={busy}
             onClick={() => void loadSheet()}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
           >
             Refresh
           </button>
@@ -990,7 +990,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               type="button"
               disabled={busy || !sheet}
               onClick={addWorkbookLine}
-              className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
+              className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1"
             >
               <Plus size={14} className="shrink-0" aria-hidden />
               Add line
@@ -1005,7 +1005,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             <p className="text-sm text-slate-500 px-2">Could not load this section.</p>
           ) : isReferenceTab && materialKey === 'ridge-flashing' ? (
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
-              <p className="text-[11px] text-slate-600 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 Ridge/flat-sheet calculator by gauge and material using your split rule:
                 <strong className="text-slate-800"> 150=÷8, 300=÷4, 400=÷3, 600=÷2 </strong>
                 plus configured add-ons. Base is the workbook published <strong className="text-slate-800">List ₦/m</strong> for the selected
@@ -1013,10 +1013,10 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 set.
               </p>
               <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">Add-on rates (policy)</p>
+                <p className="text-ui-xs font-black uppercase tracking-wide text-slate-600">Add-on rates (policy)</p>
                 <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
                   <table className="min-w-[720px] w-full border-collapse text-left text-xs">
-                    <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
+                    <thead className="bg-slate-50 text-ui-xs font-black uppercase tracking-wide text-slate-600">
                       <tr>
                         <th className="px-2 py-2 border-b border-slate-200 w-10" aria-label="Remove" />
                         <th className="px-2 py-2 border-b border-slate-200">Girth mm</th>
@@ -1107,14 +1107,14 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                     </tbody>
                   </table>
                 </div>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-ui-xs text-slate-500">
                   Customer list ₦/m is optional: when set, that add-on is what appears on the customer price list / print. Totals below use
                   internal add-on; if the list value differs, the second line shows the customer-list total.
                 </p>
               </div>
               <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-[620px] w-full border-collapse text-left text-xs">
-                  <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
+                  <thead className="bg-slate-50 text-ui-xs font-black uppercase tracking-wide text-slate-600">
                     <tr>
                       <th className="px-3 py-2 border-b border-slate-200 w-10" aria-label="Remove row" />
                       <th className="px-3 py-2 border-b border-slate-200">Gauge</th>
@@ -1198,12 +1198,12 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                               <td key={girth} className="px-3 py-2 text-right font-mono tabular-nums text-slate-900 align-top">
                                 <div>{amount > 0 ? formatNgn(amount) : '—'}</div>
                                 {amount > 0 ? (
-                                  <div className="mt-0.5 text-[9px] font-sans text-slate-500 normal-nums text-left sm:text-right">
+                                  <div className="mt-0.5 text-ui-xs font-sans text-slate-500 normal-nums text-left sm:text-right">
                                     Split {formatNgn(splitPart)} + add-on {formatNgn(calcAdd)}
                                   </div>
                                 ) : null}
                                 {showListLine ? (
-                                  <div className="mt-0.5 text-[9px] font-sans text-[#134e4a] font-semibold normal-nums">
+                                  <div className="mt-0.5 text-ui-xs font-sans text-zarewa-teal font-semibold normal-nums">
                                     Customer list total {formatNgn(listTotal)}
                                   </div>
                                 ) : null}
@@ -1216,19 +1216,19 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                   </tbody>
                 </table>
               </div>
-              <p className="text-[10px] text-slate-500">
+              <p className="text-ui-xs text-slate-500">
                 Edit add-on rates in the policy table above, then <strong>Save add-ons</strong>. Calculator updates after refresh or reload.
               </p>
             </div>
           ) : isReferenceTab && materialKey === 'accessories' ? (
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
-              <p className="text-[11px] text-slate-600 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 Edit accessory rows and default unit prices used in workbook prints and quotation master data. Use{' '}
                 <strong className="text-slate-800">Save accessories</strong> to apply changes.
               </p>
               <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-[720px] w-full border-collapse text-left text-xs">
-                  <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
+                  <thead className="bg-slate-50 text-ui-xs font-black uppercase tracking-wide text-slate-600">
                     <tr>
                       <th className="px-3 py-2 border-b border-slate-200 w-10" aria-label="Remove row" />
                       <th className="px-3 py-2 border-b border-slate-200">Item</th>
@@ -1284,7 +1284,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                               />
                             </td>
                             <td className="px-3 py-2">
-                              <label className="inline-flex items-center gap-1 text-[10px] text-slate-600">
+                              <label className="inline-flex items-center gap-1 text-ui-xs text-slate-600">
                                 <input
                                   type="checkbox"
                                   checked={a.active !== false}
@@ -1323,7 +1323,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             <>
               <div className="z-scroll-x overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
               <table className="min-w-[1120px] w-full border-collapse text-left text-xs">
-                <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600 sticky top-0 z-[1]">
+                <thead className="bg-slate-50 text-ui-xs font-black uppercase tracking-wide text-slate-600 sticky top-0 z-[1]">
                   <tr>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap w-10" aria-label="Remove row" />
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Gauge (mm)</th>
@@ -1400,9 +1400,9 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                             ? minimumNgn
                             : null;
                       const inp =
-                        'w-full min-w-[64px] rounded border border-slate-200 px-1 py-1 font-mono text-[11px] tabular-nums';
+                        'w-full min-w-[64px] rounded border border-slate-200 px-1 py-1 font-mono text-xs tabular-nums';
                       const cell =
-                        'min-w-[72px] rounded border border-slate-100 bg-slate-50/80 px-2 py-1 font-mono text-[11px] tabular-nums text-slate-800';
+                        'min-w-[72px] rounded border border-slate-100 bg-slate-50/80 px-2 py-1 font-mono text-xs tabular-nums text-slate-800';
                       const dkShow = String(line.designKey || '').trim();
                       return (
                         <tr key={line.key} className="hover:bg-teal-50/20">
@@ -1418,7 +1418,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                           </td>
                           <td className="px-2 py-1.5 align-top min-w-[100px]">
                             <select
-                              className="w-full rounded border border-slate-200 px-1 py-1 text-[11px] font-semibold text-slate-800"
+                              className="w-full rounded border border-slate-200 px-1 py-1 text-xs font-semibold text-slate-800"
                               value={g}
                               onChange={(e) => setLineGauge(line.key, e.target.value)}
                               aria-label="Gauge thickness mm"
@@ -1431,7 +1431,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                               ))}
                             </select>
                             {dkShow.startsWith('wb-') ? (
-                              <p className="text-[8px] text-slate-400 mt-0.5 font-mono truncate max-w-[96px]" title={dkShow}>
+                              <p className="text-ui-xs text-slate-400 mt-0.5 font-mono truncate max-w-[96px]" title={dkShow}>
                                 Alt line
                               </p>
                             ) : null}
@@ -1451,13 +1451,13 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                           <td className="px-2 py-1.5 align-top">
                             <div className={cell}>{g ? fmtConv2(rv.ref) : '—'}</div>
                             {!sheet?.isStoneCoatedWorkbook && g ? (
-                              <p className="text-[8px] text-slate-400 mt-0.5">Purchases {lookbackDays}d</p>
+                              <p className="text-ui-xs text-slate-400 mt-0.5">Purchases {lookbackDays}d</p>
                             ) : null}
                           </td>
                           <td className="px-2 py-1.5 align-top">
                             <div className={cell}>{g ? fmtConv2(rv.hist) : '—'}</div>
                             {!sheet?.isStoneCoatedWorkbook && g ? (
-                              <p className="text-[8px] text-slate-400 mt-0.5">Production {lookbackDays}d</p>
+                              <p className="text-ui-xs text-slate-400 mt-0.5">Production {lookbackDays}d</p>
                             ) : null}
                           </td>
                           <td className="px-2 py-1.5 align-top">
@@ -1477,11 +1477,11 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                                   onChange={(e) => updateLineDraft(line.key, { conversionUsedKgPerM: e.target.value })}
                                   disabled={!g}
                                 />
-                                <p className="text-[8px] text-slate-400 mt-0.5">Override avg (kg/m)</p>
+                                <p className="text-ui-xs text-slate-400 mt-0.5">Override avg (kg/m)</p>
                               </>
                             )}
                           </td>
-                          <td className="px-2 py-1.5 font-mono text-[11px] text-slate-600 tabular-nums">
+                          <td className="px-2 py-1.5 font-mono text-xs text-slate-600 tabular-nums">
                             {cm == null ? '—' : formatNgn(Math.round(cm))}
                           </td>
                           <td className="px-2 py-1.5">
@@ -1498,7 +1498,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                               onChange={(e) => updateLineDraft(line.key, { profitNgnPerM: e.target.value })}
                             />
                           </td>
-                          <td className="px-2 py-1.5 font-mono text-[11px] font-semibold text-[#134e4a] tabular-nums">
+                          <td className="px-2 py-1.5 font-mono text-xs font-semibold text-zarewa-teal tabular-nums">
                             {displaySug == null ? '—' : formatNgn(displaySug)}
                           </td>
                           <td className="px-2 py-1.5">
@@ -1518,11 +1518,11 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                               onChange={(e) => updateLineDraft(line.key, { commissionNgnPerM: e.target.value })}
                             />
                           </td>
-                          <td className="px-2 py-1.5 font-mono text-[11px] font-semibold text-slate-800 tabular-nums">
+                          <td className="px-2 py-1.5 font-mono text-xs font-semibold text-slate-800 tabular-nums">
                             {listNgn > 0 ? formatNgn(listNgn) : '—'}
                           </td>
                           <td className="px-2 py-1.5 align-top space-y-1">
-                            <label className="flex items-center gap-1 text-[9px] text-slate-600 whitespace-nowrap">
+                            <label className="flex items-center gap-1 text-ui-xs text-slate-600 whitespace-nowrap">
                               <input
                                 type="checkbox"
                                 checked={Boolean(dr.syncMinimumToPriceList)}
@@ -1539,14 +1539,14 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                               Sync list
                             </label>
                             <input
-                              className={`${inp} text-[10px]`}
+                              className={`${inp} text-ui-xs`}
                               placeholder={materialKey !== 'stone-coated' ? 'longspan' : 'Design key'}
                               title="Design key written to the floor price list (e.g. longspan, metcoppo). Defaults to longspan for coil materials."
                               value={dr.syncDesignKey ?? ''}
                               onChange={(e) => updateLineDraft(line.key, { syncDesignKey: e.target.value })}
                             />
                             {listNgn > 0 && !dr.syncMinimumToPriceList ? (
-                              <p className="text-[8px] text-emerald-700 font-semibold">
+                              <p className="text-ui-xs text-emerald-700 font-semibold">
                                 ✓ list ₦/m set — tick Sync list to push to floor
                               </p>
                             ) : null}
@@ -1560,9 +1560,9 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             </div>
 
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-              <h3 className="text-[10px] font-black uppercase text-[#134e4a] mb-2">Price change log</h3>
+              <h3 className="text-ui-xs font-black uppercase text-zarewa-teal mb-2">Price change log</h3>
               {events.length === 0 ? (
-                <p className="text-[11px] text-slate-500">No changes recorded for this material yet.</p>
+                <p className="text-xs text-slate-500">No changes recorded for this material yet.</p>
               ) : (
                 <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {events.map((ev) => {
@@ -1571,7 +1571,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                     return (
                       <li
                         key={ev.id}
-                        className="text-[10px] text-slate-700 border-b border-slate-200/80 pb-2 last:border-0 leading-snug"
+                        className="text-ui-xs text-slate-700 border-b border-slate-200/80 pb-2 last:border-0 leading-snug"
                       >
                         <span className="font-bold text-slate-900">{when}</span>
                         {' · '}
@@ -1600,38 +1600,25 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         </div>
       </div>
 
-      {printPreview &&
-        printPack &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <>
-            <button
-              type="button"
-              aria-label="Close print preview"
-              className="no-print fixed inset-0 z-[11060] bg-black/50"
-              onClick={() => {
-                setPrintPreview(null);
-                setPrintPack(null);
-              }}
-            />
-            <div
-              className={
-                printPreview === 'customer'
-                  ? 'print-portal-scroll fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain bg-slate-400/35 py-8 sm:py-14 px-4 sm:px-10'
-                  : 'print-portal-scroll fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8'
-              }
-              onClick={() => {
-                setPrintPreview(null);
-                setPrintPack(null);
-              }}
-            >
+      {printPreview && printPack ? (
+      <PrintModalPortal
+        open
+        onClose={() => {
+          setPrintPreview(null);
+          setPrintPack(null);
+        }}
+        className={
+          printPreview === 'customer'
+            ? 'bg-slate-400/35 py-8 sm:py-14 px-4 sm:px-10'
+            : ''
+        }
+      >
               <div
                 className={
                   printPreview === 'customer'
                     ? 'mx-auto flex w-full max-w-[calc(210mm+4rem)] flex-col items-center justify-center pb-20 print:pb-0'
                     : 'mx-auto max-w-[min(1000px,100%)] pb-16 print:pb-0'
                 }
-                onClick={(e) => e.stopPropagation()}
               >
                 <div
                   id="workbook-print-root"
@@ -1665,7 +1652,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                     <button
                       type="button"
                       onClick={() => window.print()}
-                      className="rounded-lg bg-[#134e4a] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg"
+                      className="rounded-lg bg-zarewa-teal px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-white shadow-lg"
                     >
                       Print…
                     </button>
@@ -1675,22 +1662,20 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                         setPrintPreview(null);
                         setPrintPack(null);
                       }}
-                      className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700"
+                      className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-700"
                     >
                       Close
                     </button>
                   </div>
-                  <p className="text-center text-[9px] text-slate-500 max-w-md">
+                  <p className="text-center text-ui-xs text-slate-500 max-w-md">
                     {printPreview === 'customer'
                       ? 'Customer sheet shows only gauges with a published list price (floor + commission).'
                       : 'Internal sheet includes full cost build-up for all gauges.'}
                   </p>
                 </div>
               </div>
-            </div>
-          </>,
-          document.body
-        )}
+      </PrintModalPortal>
+      ) : null}
     </ModalFrame>
   );
 }

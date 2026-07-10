@@ -54,7 +54,7 @@ export default function HrStaffRegisters() {
                 Household staff overview
               </Link>
               {' · '}
-              <Link to="/executive-hr/benefits?tab=domestic" className="font-semibold text-[#134e4a] underline">
+              <Link to="/executive-hr/benefits?tab=domestic" className="font-semibold text-zarewa-teal underline">
                 Executive benefits → Domestic staff
               </Link>
             </p>

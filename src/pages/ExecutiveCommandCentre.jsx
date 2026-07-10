@@ -109,7 +109,7 @@ function priorityChip(p) {
 
 function EstChip() {
   return (
-    <span className="inline-flex rounded px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide bg-amber-100 text-amber-900 ring-1 ring-amber-200/80">
+    <span className="inline-flex rounded px-1.5 py-0.5 text-ui-xs font-black uppercase tracking-wide bg-amber-100 text-amber-900 ring-1 ring-amber-200/80">
       Est.
     </span>
   );
@@ -141,7 +141,7 @@ function KpiCard({ label, value, sub, icon, loading, accent, estimated }) {
           : 'border-slate-200/90 bg-gradient-to-br from-white to-slate-50/80'
       }`}
     >
-      <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5 flex-wrap">
+      <p className="text-ui-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5 flex-wrap">
         {icon}
         {label}
         {estimated ? <EstChip /> : null}
@@ -149,9 +149,9 @@ function KpiCard({ label, value, sub, icon, loading, accent, estimated }) {
       {loading ? (
         <div className="mt-3 h-8 w-24 animate-pulse rounded-lg bg-slate-200" />
       ) : (
-        <p className="mt-2 text-2xl font-black tabular-nums text-[#134e4a]">{value}</p>
+        <p className="mt-2 text-2xl font-black tabular-nums text-zarewa-teal">{value}</p>
       )}
-      {sub ? <p className="mt-1 text-[10px] text-slate-500 leading-snug">{sub}</p> : null}
+      {sub ? <p className="mt-1 text-ui-xs text-slate-500 leading-snug">{sub}</p> : null}
     </div>
   );
 }
@@ -159,8 +159,8 @@ function KpiCard({ label, value, sub, icon, loading, accent, estimated }) {
 function Section({ title, subtitle, children, icon }) {
   return (
     <section className="rounded-2xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
-      <div className="border-b border-slate-100 bg-gradient-to-r from-[#134e4a]/5 to-transparent px-5 py-4 sm:px-6">
-        <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-[#134e4a]">
+      <div className="border-b border-slate-100 bg-gradient-to-r from-zarewa-teal/5 to-transparent px-5 py-4 sm:px-6">
+        <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-zarewa-teal">
           {icon}
           {title}
         </h2>
@@ -174,7 +174,7 @@ function Section({ title, subtitle, children, icon }) {
 function ScopeChip({ basis }) {
   if (basis !== 'company') return null;
   return (
-    <span className="inline-flex rounded px-1.5 py-0.5 text-[8px] font-black uppercase bg-slate-200 text-slate-700">
+    <span className="inline-flex rounded px-1.5 py-0.5 text-ui-xs font-black uppercase bg-slate-200 text-slate-700">
       Company-wide
     </span>
   );
@@ -182,7 +182,7 @@ function ScopeChip({ basis }) {
 
 function InfoChip({ children }) {
   return (
-    <span className="inline-flex rounded px-1.5 py-0.5 text-[8px] font-black uppercase bg-slate-100 text-slate-700 ring-1 ring-slate-200">
+    <span className="inline-flex rounded px-1.5 py-0.5 text-ui-xs font-black uppercase bg-slate-100 text-slate-700 ring-1 ring-slate-200">
       {children}
     </span>
   );
@@ -191,7 +191,7 @@ function InfoChip({ children }) {
 function targetStatusChip(status) {
   if (status === 'Ahead') return 'bg-emerald-100 text-emerald-900 ring-emerald-200';
   if (status === 'Behind') return 'bg-rose-100 text-rose-900 ring-rose-200';
-  if (status === 'On Track') return 'bg-teal-50 text-[#134e4a] ring-teal-100';
+  if (status === 'On Track') return 'bg-teal-50 text-zarewa-teal ring-teal-100';
   return 'bg-slate-100 text-slate-600 ring-slate-200';
 }
 
@@ -206,7 +206,7 @@ function WcLinesTable({ title, lines }) {
   if (!lines?.length) return null;
   return (
     <div className="mb-4">
-      <p className="text-[10px] font-black uppercase text-slate-500 mb-2">{title}</p>
+      <p className="text-ui-xs font-black uppercase text-slate-500 mb-2">{title}</p>
       <table className="w-full text-xs">
         <tbody>
           {lines.map((line) => (
@@ -224,7 +224,7 @@ function WcLinesTable({ title, lines }) {
                   </span>
                 ) : null}
               </td>
-              <td className="py-2 text-right tabular-nums font-bold text-[#134e4a]">
+              <td className="py-2 text-right tabular-nums font-bold text-zarewa-teal">
                 {formatWcAmount(line)}
               </td>
             </tr>
@@ -733,16 +733,16 @@ export default function ExecutiveCommandCentre() {
                   ))}
                 </select>
               ) : null}
-              <span className="hidden sm:inline-flex rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase text-slate-600">
+              <span className="hidden sm:inline-flex rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-ui-xs font-semibold uppercase text-slate-600">
                 {roleLabel}
               </span>
               {readOnly ? (
-                <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold uppercase text-amber-900">
+                <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-ui-xs font-semibold uppercase text-amber-900">
                   Read-only
                 </span>
               ) : null}
               {data?.degraded ? (
-                <span className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-semibold uppercase text-rose-900">
+                <span className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-ui-xs font-semibold uppercase text-rose-900">
                   Partial data
                 </span>
               ) : null}
@@ -953,7 +953,7 @@ export default function ExecutiveCommandCentre() {
           <Link
             to="/accounts"
             state={{ accountsTab: 'disbursements' }}
-            className="inline-flex items-center gap-1 text-[11px] font-bold uppercase text-amber-900 hover:underline ml-1"
+            className="inline-flex items-center gap-1 text-xs font-bold uppercase text-amber-900 hover:underline ml-1"
           >
             Open Finance exceptions <ArrowRight size={12} />
           </Link>
@@ -969,14 +969,14 @@ export default function ExecutiveCommandCentre() {
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <p className="text-xs text-slate-600">
               Company share:{' '}
-              <span className="font-bold tabular-nums text-[#134e4a]">
+              <span className="font-bold tabular-nums text-zarewa-teal">
                 {othersTrend?.summary?.othersPct != null ? `${othersTrend.summary.othersPct}%` : '—'}
               </span>
             </p>
             <button
               type="button"
               onClick={() => setActiveTab('finance')}
-              className="text-[10px] font-bold uppercase text-[#134e4a] hover:underline"
+              className="text-ui-xs font-bold uppercase text-zarewa-teal hover:underline"
             >
               Full finance view
             </button>
@@ -991,7 +991,7 @@ export default function ExecutiveCommandCentre() {
           <button
             type="button"
             onClick={() => setActiveTab('intelligence')}
-            className="font-bold text-[#134e4a] hover:underline"
+            className="font-bold text-zarewa-teal hover:underline"
           >
             Intelligence
           </button>{' '}
@@ -1012,7 +1012,7 @@ export default function ExecutiveCommandCentre() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs min-w-[520px]">
               <thead>
-                <tr className="border-b text-[10px] font-black uppercase text-slate-500">
+                <tr className="border-b text-ui-xs font-black uppercase text-slate-500">
                   <th className="py-2 text-left">Metric</th>
                   <th className="py-2 text-right">Target</th>
                   <th className="py-2 text-right">Actual</th>
@@ -1039,7 +1039,7 @@ export default function ExecutiveCommandCentre() {
                     </td>
                     <td className="py-2.5">
                       <span
-                        className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase ring-1 ${targetStatusChip(row.status)}`}
+                        className={`inline-flex rounded-md px-2 py-0.5 text-ui-xs font-black uppercase ring-1 ${targetStatusChip(row.status)}`}
                       >
                         {row.status}
                       </span>
@@ -1068,20 +1068,20 @@ export default function ExecutiveCommandCentre() {
                   className={`rounded-xl border p-4 ${alertTone(a.level)}`}
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[9px] font-black uppercase tracking-wider opacity-70">
+                    <span className="text-ui-xs font-black uppercase tracking-wider opacity-70">
                       {a.level}
                     </span>
                     {a.sourceSection ? (
-                      <span className="text-[9px] font-bold uppercase opacity-60">{a.sourceSection}</span>
+                      <span className="text-ui-xs font-bold uppercase opacity-60">{a.sourceSection}</span>
                     ) : null}
                     {a.estimated ? <EstChip /> : null}
                   </div>
-                  <p className="mt-1.5 text-[10px] font-black uppercase tracking-wider opacity-80">
+                  <p className="mt-1.5 text-ui-xs font-black uppercase tracking-wider opacity-80">
                     {a.title}
                   </p>
                   <p className="mt-2 text-sm font-medium leading-snug">{a.message}</p>
                   {a.metric ? (
-                    <p className="mt-1 text-[10px] font-bold tabular-nums opacity-80">{a.metric}</p>
+                    <p className="mt-1 text-ui-xs font-bold tabular-nums opacity-80">{a.metric}</p>
                   ) : null}
                   {a.route ? (
                     a.route === '/analytics' ||
@@ -1090,14 +1090,14 @@ export default function ExecutiveCommandCentre() {
                       <button
                         type="button"
                         onClick={() => setActiveTab('intelligence')}
-                        className="mt-3 inline-flex items-center gap-1 text-[10px] font-black uppercase text-[#134e4a] hover:underline"
+                        className="mt-3 inline-flex items-center gap-1 text-ui-xs font-black uppercase text-zarewa-teal hover:underline"
                       >
                         View detail <ArrowRight size={12} />
                       </button>
                     ) : (
                     <Link
                       to={a.route}
-                      className="mt-3 inline-flex items-center gap-1 text-[10px] font-black uppercase text-[#134e4a] hover:underline"
+                      className="mt-3 inline-flex items-center gap-1 text-ui-xs font-black uppercase text-zarewa-teal hover:underline"
                     >
                       View detail <ArrowRight size={12} />
                     </Link>
@@ -1129,13 +1129,13 @@ export default function ExecutiveCommandCentre() {
                   ['Best overall (index)', data?.branches?.highlights?.bestOverallBranch],
                 ].map(([label, val]) => (
                   <div key={label} className="rounded-xl border border-amber-100 bg-amber-50/50 px-3 py-2">
-                    <p className="text-[9px] font-black uppercase text-amber-900/70">{label}</p>
-                    <p className="text-sm font-bold text-[#134e4a] mt-1">{val || '—'}</p>
+                    <p className="text-ui-xs font-black uppercase text-amber-900/70">{label}</p>
+                    <p className="text-sm font-bold text-zarewa-teal mt-1">{val || '—'}</p>
                   </div>
                 ))}
               </div>
               {data?.branches?.scorecardNote ? (
-                <p className="text-[10px] text-slate-500 mb-4 leading-snug">{data.branches.scorecardNote}</p>
+                <p className="text-ui-xs text-slate-500 mb-4 leading-snug">{data.branches.scorecardNote}</p>
               ) : null}
             </>
           ) : null}
@@ -1149,7 +1149,7 @@ export default function ExecutiveCommandCentre() {
             <div className="overflow-x-auto">
               <table className="w-full text-xs min-w-[1100px]">
                 <thead>
-                  <tr className="border-b text-[10px] font-black uppercase text-slate-500">
+                  <tr className="border-b text-ui-xs font-black uppercase text-slate-500">
                     <th className="py-2 text-left">Branch</th>
                     <th className="py-2 text-right">Produced sales</th>
                     <th className="py-2 text-right">Collections</th>
@@ -1205,15 +1205,15 @@ export default function ExecutiveCommandCentre() {
               ? 'Summary and read-only items — open routes to review detail.'
               : 'MD-only items are listed first. Branch Manager and finance can handle shared queue items without you.'
           }
-          icon={<Shield size={18} className="text-[#134e4a]" />}
+          icon={<Shield size={18} className="text-zarewa-teal" />}
         >
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setWorkTrayFilter('all')}
-              className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ring-1 ${
+              className={`rounded-lg px-3 py-1.5 text-ui-xs font-black uppercase ring-1 ${
                 workTrayFilter === 'all'
-                  ? 'bg-[#134e4a] text-white ring-[#134e4a]'
+                  ? 'bg-zarewa-teal text-white ring-zarewa-teal'
                   : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'
               }`}
             >
@@ -1222,7 +1222,7 @@ export default function ExecutiveCommandCentre() {
             <button
               type="button"
               onClick={() => setWorkTrayFilter('md_only')}
-              className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ring-1 ${
+              className={`rounded-lg px-3 py-1.5 text-ui-xs font-black uppercase ring-1 ${
                 workTrayFilter === 'md_only'
                   ? 'bg-violet-700 text-white ring-violet-700'
                   : `${approvalTierChip(EXEC_APPROVAL_TIER_MD_ONLY)} hover:opacity-90`
@@ -1233,7 +1233,7 @@ export default function ExecutiveCommandCentre() {
             <button
               type="button"
               onClick={() => setWorkTrayFilter('shared')}
-              className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ring-1 ${
+              className={`rounded-lg px-3 py-1.5 text-ui-xs font-black uppercase ring-1 ${
                 workTrayFilter === 'shared'
                   ? 'bg-sky-700 text-white ring-sky-700'
                   : `${approvalTierChip(EXEC_APPROVAL_TIER_SHARED)} hover:opacity-90`
@@ -1242,7 +1242,7 @@ export default function ExecutiveCommandCentre() {
               BM / Finance ({workTraySharedCount})
             </button>
             {workTrayMdOnlyCount > 0 ? (
-              <p className="text-[10px] text-violet-900 font-semibold ml-1">
+              <p className="text-ui-xs text-violet-900 font-semibold ml-1">
                 {workTrayMdOnlyCount} item{workTrayMdOnlyCount === 1 ? '' : 's'} need your sign-off only.
               </p>
             ) : null}
@@ -1250,7 +1250,7 @@ export default function ExecutiveCommandCentre() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs min-w-[880px]">
               <thead>
-                <tr className="border-b text-[10px] font-black uppercase text-slate-500">
+                <tr className="border-b text-ui-xs font-black uppercase text-slate-500">
                   <th className="py-2 text-left">Priority</th>
                   <th className="py-2 text-left">Approver</th>
                   <th className="py-2 text-left">Type</th>
@@ -1281,14 +1281,14 @@ export default function ExecutiveCommandCentre() {
                     >
                       <td className="py-2.5">
                         <span
-                          className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase ring-1 ${priorityChip(row.priority)}`}
+                          className={`inline-flex rounded-md px-2 py-0.5 text-ui-xs font-black uppercase ring-1 ${priorityChip(row.priority)}`}
                         >
                           {row.priority}
                         </span>
                       </td>
                       <td className="py-2.5">
                         <span
-                          className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase ring-1 ${approvalTierChip(row.approvalTier)}`}
+                          className={`inline-flex rounded-md px-2 py-0.5 text-ui-xs font-black uppercase ring-1 ${approvalTierChip(row.approvalTier)}`}
                           title={row.approvalTierReason || row.approvalTierLabel || ''}
                         >
                           {row.approvalTierLabel || (row.approvalTier === EXEC_APPROVAL_TIER_MD_ONLY ? 'MD only' : 'Shared')}
@@ -1297,7 +1297,7 @@ export default function ExecutiveCommandCentre() {
                       <td className="py-2.5 font-semibold capitalize">
                         {row.kind?.replace(/_/g, ' ')}
                         {row.summaryOnly ? (
-                          <span className="ml-1.5 text-[9px] font-black uppercase text-slate-400">
+                          <span className="ml-1.5 text-ui-xs font-black uppercase text-slate-400">
                             Summary
                           </span>
                         ) : null}
@@ -1320,7 +1320,7 @@ export default function ExecutiveCommandCentre() {
                         <button
                           type="button"
                           onClick={() => handleWorkTrayAction(row)}
-                          className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1.5 text-[10px] font-black uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
+                          className="rounded-lg border border-zarewa-teal/30 bg-zarewa-teal/5 px-3 py-1.5 text-ui-xs font-black uppercase text-zarewa-teal hover:bg-zarewa-teal/10"
                         >
                           {row.summaryOnly
                             ? 'View summary'
@@ -1337,7 +1337,7 @@ export default function ExecutiveCommandCentre() {
           </div>
         </Section>
         ) : (
-          <p className="mb-6 rounded-xl border border-teal-200/80 bg-teal-50/40 px-4 py-3 text-sm text-[#134e4a]">
+          <p className="mb-6 rounded-xl border border-teal-200/80 bg-teal-50/40 px-4 py-3 text-sm text-zarewa-teal">
             Approvals and reviews are on the{' '}
             <button type="button" onClick={() => setActiveTab('decide')} className="font-bold underline">
               Decide
@@ -1346,7 +1346,7 @@ export default function ExecutiveCommandCentre() {
           </p>
         )}
 
-        <p className="text-[10px] text-slate-400 text-center pb-8">
+        <p className="text-ui-xs text-slate-400 text-center pb-8">
           Generated {data?.generatedAtISO ? new Date(data.generatedAtISO).toLocaleString() : '—'}
           {data?.period ? ` · ${data.period.startISO} – ${data.period.endISO}` : ''}
         </p>
@@ -1398,7 +1398,7 @@ export default function ExecutiveCommandCentre() {
         >
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
             <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4">
-              <h2 id="reserve-policy-title" className="text-sm font-black text-[#134e4a] uppercase tracking-wide">
+              <h2 id="reserve-policy-title" className="text-sm font-black text-zarewa-teal uppercase tracking-wide">
                 Configure Reserve Policy
               </h2>
               <button
@@ -1426,7 +1426,7 @@ export default function ExecutiveCommandCentre() {
                   ['stockPurchaseReserveNgn', 'Stock purchase reserve (₦)', true],
                   ['taxStatutoryReserveNgn', 'Tax / statutory reserve (₦)', true],
                 ].map(([field, label, required]) => (
-                  <label key={field} className="block text-[10px] font-bold uppercase text-slate-500">
+                  <label key={field} className="block text-ui-xs font-bold uppercase text-slate-500">
                     {label}
                     {required ? <InfoChip>Required</InfoChip> : null}
                     <input
@@ -1443,7 +1443,7 @@ export default function ExecutiveCommandCentre() {
                   </label>
                 ))}
                 <fieldset className="space-y-2 border border-slate-100 rounded-xl p-3">
-                  <legend className="text-[10px] font-black uppercase text-slate-500 px-1">
+                  <legend className="text-ui-xs font-black uppercase text-slate-500 px-1">
                     Indicative expansion headroom inclusion
                   </legend>
                   {[
@@ -1464,7 +1464,7 @@ export default function ExecutiveCommandCentre() {
                     </label>
                   ))}
                 </fieldset>
-                <label className="block text-[10px] font-bold uppercase text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase text-slate-500">
                   Policy notes
                   <textarea
                     value={reserveForm.policyNotes}
@@ -1480,14 +1480,14 @@ export default function ExecutiveCommandCentre() {
                   <button
                     type="submit"
                     disabled={reserveSaving}
-                    className="flex-1 rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-black uppercase text-white hover:bg-[#0f3d3a] disabled:opacity-60"
+                    className="flex-1 rounded-xl bg-zarewa-teal px-4 py-2.5 text-xs font-black uppercase text-white hover:bg-[#0f3d3a] disabled:opacity-60"
                   >
                     {reserveSaving ? 'Saving…' : 'Save reserve policy'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setReserveModalOpen(false)}
-                    className="rounded-xl border border-slate-200 px-4 py-2.5 text-[11px] font-black uppercase text-slate-600"
+                    className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black uppercase text-slate-600"
                   >
                     Cancel
                   </button>

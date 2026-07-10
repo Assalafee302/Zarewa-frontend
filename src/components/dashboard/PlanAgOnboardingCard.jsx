@@ -50,13 +50,13 @@ export function PlanAgOnboardingCard({ snapshotPrefs, showToast, onWorkspaceRefr
     <div className="rounded-xl border border-teal-100/90 bg-gradient-to-br from-teal-50/40 to-white px-4 py-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-wide text-teal-900/80">Tracks A–G checklist</p>
-          <h2 className="text-sm font-black text-[#134e4a]">Finance &amp; reporting rollout</h2>
+          <p className="text-ui-xs font-black uppercase tracking-wide text-teal-900/80">Tracks A–G checklist</p>
+          <h2 className="text-sm font-black text-zarewa-teal">Finance &amp; reporting rollout</h2>
         </div>
         <button
           type="button"
           disabled={busy}
-          className="text-[10px] font-black uppercase tracking-wide text-slate-500 hover:text-slate-800"
+          className="text-ui-xs font-black uppercase tracking-wide text-slate-500 hover:text-slate-800"
           onClick={() => persistFull({ dismissed: true })}
         >
           Dismiss
@@ -69,7 +69,7 @@ export function PlanAgOnboardingCard({ snapshotPrefs, showToast, onWorkspaceRefr
           ? row('glCostCenter', 'GL cost center tag tested (Accounts → Audit manual journal + Reports GL pilot).')
           : null}
       </ul>
-      <div className="flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wide">
+      <div className="flex flex-wrap gap-2 text-ui-xs font-bold uppercase tracking-wide">
         {hasReports ? (
           <Link
             to="/reports"

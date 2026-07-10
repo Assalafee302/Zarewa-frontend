@@ -23,7 +23,7 @@ function lineLineAmountNgn(line, kind) {
   return Math.round(qty * unit);
 }
 
-const TH = 'px-2 py-1.5 text-left text-[9px] font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
+const TH = 'px-2 py-1.5 text-left text-ui-xs font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
 const TD = 'px-2 py-1.5 align-top text-[11px] text-slate-800 print:text-[10pt]';
 
 /**
@@ -108,7 +108,7 @@ export default function PurchaseOrderPrintView({ po, printedAtIso = '' }) {
             {(po.lines || []).map((line) => (
               <tr key={line.lineKey || line.productID} className="quotation-print-line border-b border-slate-100">
                 <td className={TD}>
-                  <span className="font-mono text-[9px] text-slate-500">{line.productID}</span>
+                  <span className="font-mono text-ui-xs text-slate-500">{line.productID}</span>
                   {line.productName ? (
                     <span className="mt-0.5 block font-medium">{line.productName}</span>
                   ) : null}
@@ -123,14 +123,14 @@ export default function PurchaseOrderPrintView({ po, printedAtIso = '' }) {
                   {formatNgn(poLineBenchmarkPriceNgn(line, poLineKindForRow(line, kind)))}
                   {poLinePriceSuffixForRow(line, kind)}
                 </td>
-                <td className={`${TD} text-right font-semibold tabular-nums text-[#134e4a]`}>
+                <td className={`${TD} text-right font-semibold tabular-nums text-zarewa-teal`}>
                   {formatNgn(lineLineAmountNgn(line, kind))}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="mt-3 text-right text-[12px] font-black text-[#134e4a] tabular-nums print:text-[11pt]">
+        <p className="mt-3 text-right text-[12px] font-black text-zarewa-teal tabular-nums print:text-[11pt]">
           Ordered value {formatNgn(ordered)}
         </p>
       </section>

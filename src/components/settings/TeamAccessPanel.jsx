@@ -2,6 +2,7 @@ import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'reac
 import { AlertTriangle, LockOpen, Settings2, Trash2, UserPlus } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { useToast } from '../../context/ToastContext';
 import { WORKSPACE_DEPARTMENT_LABELS } from '../../lib/departmentWorkspace';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -262,7 +263,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
 
   const unlockAccount = async (user) => {
     if (!canManageSettings || !user?.id) return;
-    if (!window.confirm(`Unlock sign-in for ${user.username}? They can try again immediately.`)) return;
+    if (!(await appConfirm({ message: `Unlock sign-in for ${user.username}? They can try again immediately.` }))) return;
     setRowBusyId(user.id);
     try {
       const { ok, data } = await apiFetch(`/api/users/${encodeURIComponent(user.id)}/unlock-account`, {
@@ -434,9 +435,11 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
       return;
     }
     if (
-      !window.confirm(
-        `Permanently delete ${count} login(s) that have never appeared in the audit trail?\n\nAdmin and MD accounts are never included. This cannot be undone.`
-      )
+      !(await appConfirm({
+        title: 'Delete',
+        message: `Permanently delete ${count} login(s) that have never appeared in the audit trail?\n\nAdmin and MD accounts are never included. This cannot be undone.`,
+        variant: 'danger',
+      }))
     ) {
       return;
     }
@@ -548,7 +551,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
               }));
               setCreateOpen(true);
             }}
-            className="z-btn-primary gap-2 !text-[11px]"
+            className="z-btn-primary gap-2 !text-xs"
           >
             <UserPlus size={16} /> Create user
           </button>
@@ -582,12 +585,12 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                         <span className="text-slate-500"> · </span>
                         <span className="font-mono text-xs text-slate-600">{user.username}</span>
                         {user.hasCustomPermissions ? (
-                          <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
+                          <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-ui-xs font-bold text-amber-900">
                             Custom
                           </span>
                         ) : null}
                         {user.isAccountLocked ? (
-                          <span className="ml-1 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-900">
+                          <span className="ml-1 rounded bg-rose-100 px-1.5 py-0.5 text-ui-xs font-bold text-rose-900">
                             Locked
                           </span>
                         ) : null}
@@ -599,7 +602,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                           </span>
                         ) : (
                           <select
-                            className="z-input !py-1.5 !text-[11px] max-w-[11rem]"
+                            className="z-input !py-1.5 !text-xs max-w-[11rem]"
                             value={userBranchId}
                             disabled={busy}
                             onChange={(e) => void patchWorkspaceBranch(user, e.target.value)}
@@ -622,7 +625,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                       </td>
                       <td className="px-3 py-3 align-middle">
                         <select
-                          className="z-input !py-1.5 !text-[11px] max-w-[11rem]"
+                          className="z-input !py-1.5 !text-xs max-w-[11rem]"
                           value={user.roleKey}
                           disabled={busy}
                           onChange={(e) => void patchRole(user, e.target.value)}
@@ -636,7 +639,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                       </td>
                       <td className="px-3 py-3 align-middle">
                         <select
-                          className="z-input !py-1.5 !text-[11px] max-w-[9rem]"
+                          className="z-input !py-1.5 !text-xs max-w-[9rem]"
                           value={user.status}
                           disabled={busy || isSelf(user.id)}
                           title={isSelf(user.id) ? 'Use another administrator to suspend your account.' : ''}
@@ -652,7 +655,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                             type="button"
                             disabled={busy}
                             onClick={() => openPermModal(user)}
-                            className="z-btn-secondary !px-3 !py-1.5 !text-[10px] gap-1"
+                            className="z-btn-secondary !px-3 !py-1.5 !text-ui-xs gap-1"
                           >
                             <Settings2 size={14} /> Edit
                           </button>
@@ -661,7 +664,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                               type="button"
                               disabled={busy}
                               onClick={() => openPasswordModal(user)}
-                              className="z-btn-secondary !px-3 !py-1.5 !text-[10px]"
+                              className="z-btn-secondary !px-3 !py-1.5 !text-ui-xs"
                               title="Set a new password (user must change it on next sign-in)"
                             >
                               Set password
@@ -672,7 +675,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                               type="button"
                               disabled={busy}
                               onClick={() => void unlockAccount(user)}
-                              className="z-btn-secondary !px-3 !py-1.5 !text-[10px] gap-1"
+                              className="z-btn-secondary !px-3 !py-1.5 !text-ui-xs gap-1"
                               title="Clear failed sign-in lock"
                             >
                               <LockOpen size={14} /> Unlock
@@ -766,7 +769,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
               <>
                 <button
                   type="button"
-                  className="text-[11px] font-semibold text-rose-800 underline underline-offset-2 mb-3"
+                  className="text-xs font-semibold text-rose-800 underline underline-offset-2 mb-3"
                   onClick={() => setZeroAuditShowList((v) => !v)}
                 >
                   {zeroAuditShowList ? 'Hide list' : `Show all ${zeroAuditCandidates.length} usernames`}
@@ -774,7 +777,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
 
                 {zeroAuditShowList ? (
                   <div className="mb-4 max-h-40 overflow-y-auto rounded-xl border border-rose-200/80 bg-white/80 p-3">
-                    <ul className="space-y-1 text-[11px] font-mono text-rose-950">
+                    <ul className="space-y-1 text-xs font-mono text-rose-950">
                       {zeroAuditCandidates.map((c) => (
                         <li key={c.userId}>
                           {c.username}
@@ -803,7 +806,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="z-btn-secondary !text-[11px]"
+                    className="z-btn-secondary !text-xs"
                     disabled={zeroAuditBusy}
                     onClick={() => void loadZeroAuditCandidates()}
                   >
@@ -811,7 +814,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                   </button>
                   <button
                     type="button"
-                    className="z-btn-primary !text-[11px] !bg-rose-700 hover:!bg-rose-800 gap-2"
+                    className="z-btn-primary !text-xs !bg-rose-700 hover:!bg-rose-800 gap-2"
                     disabled={zeroAuditBusy || !zeroAuditCandidates.length}
                     onClick={() => void submitBulkDeleteZeroAudit()}
                   >
@@ -821,7 +824,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                 </div>
 
                 {zeroAuditLastFailed.length > 0 ? (
-                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] text-amber-950">
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-950">
                     <p className="font-bold mb-1">Could not delete ({zeroAuditLastFailed.length})</p>
                     <ul className="space-y-1 font-mono max-h-32 overflow-y-auto">
                       {zeroAuditLastFailed.slice(0, 12).map((f) => (
@@ -839,7 +842,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
             ) : (
               <button
                 type="button"
-                className="z-btn-secondary !text-[11px]"
+                className="z-btn-secondary !text-xs"
                 disabled={zeroAuditBusy}
                 onClick={() => void loadZeroAuditCandidates()}
               >
@@ -926,13 +929,13 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-[10px] text-slate-500 leading-snug">
+              <p className="mt-1 text-ui-xs text-slate-500 leading-snug">
                 Stored on the user record and used to pin workspace data for this login (unless they have HQ
                 multi-branch access).
               </p>
             </div>
           ) : (
-            <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
               No branches in the workspace snapshot. Open Settings → Organisation after branches sync, then create
               users so each login has a home branch.
             </p>
@@ -940,13 +943,13 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           <div className="flex flex-wrap gap-2 justify-end pt-2">
             <button
               type="button"
-              className="z-btn-secondary !text-[11px]"
+              className="z-btn-secondary !text-xs"
               disabled={createBusy}
               onClick={() => setCreateOpen(false)}
             >
               Cancel
             </button>
-            <button type="submit" className="z-btn-primary !text-[11px]" disabled={createBusy}>
+            <button type="submit" className="z-btn-primary !text-xs" disabled={createBusy}>
               {createBusy ? 'Creating…' : 'Create user'}
             </button>
           </div>
@@ -987,7 +990,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
             <div className="flex flex-wrap gap-2 justify-end pt-1">
               <button
                 type="button"
-                className="z-btn-secondary !text-[11px]"
+                className="z-btn-secondary !text-xs"
                 disabled={deleteBusy}
                 onClick={closeDeleteModal}
               >
@@ -995,7 +998,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
               </button>
               <button
                 type="button"
-                className="rounded-xl border border-red-300 bg-red-600 px-4 py-2 text-[11px] font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                className="rounded-xl border border-red-300 bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
                 disabled={deleteBusy}
                 onClick={() => void submitDeleteUser()}
               >
@@ -1018,7 +1021,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
             onSubmit={(e) => void submitSetPassword(e)}
             className="w-full max-w-md rounded-[28px] border border-slate-200/90 bg-white p-6 shadow-xl space-y-3"
           >
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Username:{' '}
               <span className="font-mono font-semibold text-slate-800">{passwordModalUser.username}</span>
             </p>
@@ -1037,13 +1040,13 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
             <div className="flex flex-wrap gap-2 justify-end pt-2">
               <button
                 type="button"
-                className="z-btn-secondary !text-[11px]"
+                className="z-btn-secondary !text-xs"
                 disabled={passwordModalBusy}
                 onClick={closePasswordModal}
               >
                 Cancel
               </button>
-              <button type="submit" className="z-btn-primary !text-[11px]" disabled={passwordModalBusy}>
+              <button type="submit" className="z-btn-primary !text-xs" disabled={passwordModalBusy}>
                 {passwordModalBusy ? 'Saving…' : 'Set password'}
               </button>
             </div>
@@ -1062,17 +1065,17 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           onInput={capturePermEdited}
           onChange={capturePermEdited}
         >
-          <p className="text-[11px] text-slate-500 mb-4">
+          <p className="text-xs text-slate-500 mb-4">
             Role:{' '}
             <span className="font-semibold text-slate-800">
               {permModalUser ? roleLabelByKey.get(permModalUser.roleKey) || permModalUser.roleKey : ''}
             </span>
           </p>
 
-          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-[11px] font-medium text-slate-700 mb-3">
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs font-medium text-slate-700 mb-3">
             <input
               type="checkbox"
-              className="h-4 w-4 accent-[#134e4a]"
+              className="h-4 w-4 accent-zarewa-teal"
               checked={fullAccess}
               onChange={(e) => {
                 const on = e.target.checked;
@@ -1082,7 +1085,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                   setDraftPerms(permissionsForRoleKey(permModalUser.roleKey).filter((p) => p !== '*'));
               }}
             />
-            Full access (all modules) — <code className="text-[10px]">*</code>
+            Full access (all modules) — <code className="text-ui-xs">*</code>
           </label>
 
           {!fullAccess ? (
@@ -1093,11 +1096,11 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                   .map((key) => (
                     <label
                       key={key}
-                      className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[10px] text-slate-700"
+                      className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-ui-xs text-slate-700"
                     >
                       <input
                         type="checkbox"
-                        className="mt-0.5 h-3.5 w-3.5 accent-[#134e4a] shrink-0"
+                        className="mt-0.5 h-3.5 w-3.5 accent-zarewa-teal shrink-0"
                         checked={draftPerms.includes(key)}
                         onChange={() => togglePermKey(key)}
                       />
@@ -1107,7 +1110,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
               </div>
             </div>
           ) : (
-            <p className="text-[11px] text-slate-500 mb-3">All other permission toggles are ignored while full access is on.</p>
+            <p className="text-xs text-slate-500 mb-3">All other permission toggles are ignored while full access is on.</p>
           )}
 
           {permModalUser?.id ? (
@@ -1121,17 +1124,17 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           ) : null}
 
           <div className="mt-5 flex flex-wrap gap-2 justify-end">
-            <button type="button" onClick={applyRoleTemplate} className="z-btn-secondary !text-[11px]">
+            <button type="button" onClick={applyRoleTemplate} className="z-btn-secondary !text-xs">
               Apply role template
             </button>
-            <button type="button" onClick={closePermModal} className="z-btn-secondary !text-[11px]">
+            <button type="button" onClick={closePermModal} className="z-btn-secondary !text-xs">
               Cancel
             </button>
             <button
               type="button"
               disabled={permSaving}
               onClick={() => void savePermissions()}
-              className="z-btn-primary !text-[11px]"
+              className="z-btn-primary !text-xs"
             >
               {permSaving ? 'Saving…' : 'Save permissions'}
             </button>

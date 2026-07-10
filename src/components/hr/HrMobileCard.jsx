@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 export function HrMobileCard({ title, titleLink, badge, fields = [], footer, children, onClick, className = '' }) {
   const Tag = onClick ? 'button' : 'article';
   const titleEl = titleLink ? (
-    <Link to={titleLink} className="text-sm font-bold text-[#134e4a] hover:underline" onClick={(e) => e.stopPropagation()}>
+    <Link to={titleLink} className="text-sm font-bold text-zarewa-teal hover:underline" onClick={(e) => e.stopPropagation()}>
       {title}
     </Link>
   ) : (

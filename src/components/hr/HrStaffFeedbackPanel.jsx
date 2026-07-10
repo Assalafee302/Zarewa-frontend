@@ -57,7 +57,7 @@ export function HrStaffFeedbackPanel({ userId }) {
           {notes.map((n) => (
             <li key={n.id} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm">
               <p className="text-slate-800 whitespace-pre-wrap">{n.body}</p>
-              <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              <p className="mt-2 text-ui-xs font-semibold uppercase tracking-wide text-slate-400">
                 {n.authorDisplayName || n.authorUserId || 'HR'}
                 {n.createdAtIso ? ` · ${n.createdAtIso.slice(0, 16).replace('T', ' ')}` : ''}
               </p>

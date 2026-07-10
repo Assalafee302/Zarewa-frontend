@@ -45,7 +45,7 @@ export function Ap3ReportsSection({ mayView = false }) {
   return (
     <section className="space-y-3">
       <div>
-        <p className="text-sm font-black text-[#134e4a]">AP3 — Costing (readiness)</p>
+        <p className="text-sm font-black text-zarewa-teal">AP3 — Costing (readiness)</p>
         <p className="text-xs font-medium text-slate-600">
           Readiness only — not final cost per metre. See Reports for costing diagnostics.
         </p>
@@ -60,9 +60,9 @@ export function Ap3ReportsSection({ mayView = false }) {
             <div className="flex items-start gap-2">
               <BarChart3 className="text-teal-700 shrink-0" size={18} />
               <div>
-                <p className="text-sm font-black text-[#134e4a]">{c.title}</p>
+                <p className="text-sm font-black text-zarewa-teal">{c.title}</p>
                 <p className="text-xs text-slate-600 mt-1">{c.desc}</p>
-                <span className="inline-block mt-2 text-[10px] font-bold uppercase text-amber-800 bg-amber-50 px-2 py-0.5 rounded">
+                <span className="inline-block mt-2 text-ui-xs font-bold uppercase text-amber-800 bg-amber-50 px-2 py-0.5 rounded">
                   Draft
                 </span>
               </div>

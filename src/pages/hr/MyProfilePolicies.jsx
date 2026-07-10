@@ -179,20 +179,20 @@ export default function MyProfilePolicies() {
                 <ProfileListRow>
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold text-slate-900">{p.label}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">v{p.version}</span>
+                    <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">v{p.version}</span>
                   </span>
                   <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                     <a
                       href={policyDocumentUrl(p.key)}
                       download={`${p.key}-policy.txt`}
-                      className="z-btn-secondary !px-3 !py-1.5 !text-[10px] uppercase tracking-wide no-underline"
+                      className="z-btn-secondary !px-3 !py-1.5 !text-ui-xs uppercase tracking-wide no-underline"
                     >
                       Download
                     </a>
                     {isMissing ? (
                       <button
                         type="button"
-                        className="z-btn-primary !px-3 !py-1.5 !text-[10px] uppercase tracking-wide"
+                        className="z-btn-primary !px-3 !py-1.5 !text-ui-xs uppercase tracking-wide"
                         disabled={busy}
                         onClick={() => acceptOne(p.key, p.version)}
                       >

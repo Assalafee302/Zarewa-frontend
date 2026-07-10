@@ -23,7 +23,7 @@ function fmtPrice(v, suffix = '') {
   return `${formatNgn(v)}${suffix}`;
 }
 
-const TH = 'px-1.5 py-1 text-left text-[8px] font-bold uppercase text-slate-600 border border-slate-300 print:text-[7pt]';
+const TH = 'px-1.5 py-1 text-left text-ui-xs font-bold uppercase text-slate-600 border border-slate-300 print:text-[7pt]';
 const TD = 'px-1.5 py-0.5 text-[10px] text-slate-800 border border-slate-300 print:text-[8.5pt]';
 const TDR = `${TD} text-right tabular-nums`;
 
@@ -96,7 +96,7 @@ function CoilSection({ title, section }) {
   const { activeGroups, finishedGroups } = splitCoilRows(section);
   return (
     <section className="break-inside-avoid">
-      <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">{title}</h2>
+      <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">{title}</h2>
       <CoilTable groups={activeGroups} />
       {finishedGroups.length ? (
         <div className="mt-4 pt-3 border-t border-dashed border-slate-300">
@@ -120,7 +120,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
   if (viewMode === 'procurement' && ps) {
     return (
       <div className="space-y-4 text-slate-800">
-        <h2 className="text-sm font-black uppercase text-[#134e4a]">Procurement costing summary (net kg)</h2>
+        <h2 className="text-sm font-black uppercase text-zarewa-teal">Procurement costing summary (net kg)</h2>
         {['aluminium', 'aluzinc'].map((fam) =>
           ps[fam]?.length ? (
             <div key={fam}>
@@ -162,7 +162,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
 
       {register.stoneCoated?.groups?.length ? (
         <section>
-          <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">C. Stone-coated (metres)</h2>
+          <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">C. Stone-coated (metres)</h2>
           {register.stoneCoated.groups.map((g) => (
             <div key={g.gaugeLabel} className="mb-3 break-inside-avoid">
               <p className="text-xs font-bold mb-1">{g.gaugeLabel}</p>
@@ -197,7 +197,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
 
       {register.accessories?.rows?.length ? (
         <section className="break-inside-avoid">
-          <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">D. Accessories</h2>
+          <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">D. Accessories</h2>
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-50">
@@ -227,7 +227,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
 
       {!hideMoney ? (
       <section className="break-inside-avoid">
-        <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">E. Stock summary &amp; closing value</h2>
+        <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">E. Stock summary &amp; closing value</h2>
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-slate-50">
@@ -255,7 +255,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
                   {fmtNum(data?.netClosingKg, 0)} {unit}
                 </td>
                 <td className={TDR}>{fmtPrice(data?.unitCostNgnPerKg, suffix)}</td>
-                <td className={`${TD} text-right text-[9px] text-slate-600`}>
+                <td className={`${TD} text-right text-ui-xs text-slate-600`}>
                   {priceSourceNote(data?.priceSource, data?.priceLookbackDays)}
                 </td>
                 <td className={TDR}>{formatNgn(data?.valueNgn || 0)}</td>
@@ -268,7 +268,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
               </td>
               <td className={TDR}>{fmtNum(register.summary?.stoneCoated?.totalRemainingM)} m</td>
               <td className={TDR}>{fmtPrice(register.summary?.stoneCoated?.unitPriceNgnPerM, '/m')}</td>
-              <td className={`${TD} text-right text-[9px] text-slate-600`}>
+              <td className={`${TD} text-right text-ui-xs text-slate-600`}>
                 {priceSourceNote(register.summary?.stoneCoated?.priceSource, register.summary?.stoneCoated?.priceLookbackDays)}
               </td>
               <td className={TDR}>{formatNgn(register.summary?.stoneCoated?.valueNgn || 0)}</td>
@@ -280,7 +280,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
               </td>
               <td className={TDR}>—</td>
               <td className={TDR}>{fmtPrice(register.summary?.accessories?.unitPriceNgn, '/unit')}</td>
-              <td className={`${TD} text-right text-[9px] text-slate-600`}>
+              <td className={`${TD} text-right text-ui-xs text-slate-600`}>
                 {priceSourceNote(register.summary?.accessories?.priceSource, register.summary?.accessories?.priceLookbackDays)}
               </td>
               <td className={TDR}>{formatNgn(register.summary?.accessories?.valueNgn || 0)}</td>
@@ -296,7 +296,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
       </section>
       ) : (
       <section className="break-inside-avoid">
-        <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">E. Stock summary (physical)</h2>
+        <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">E. Stock summary (physical)</h2>
         <table className="w-full max-w-md border-collapse">
           <tbody>
             {[
@@ -316,7 +316,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
 
       {register.inTransit?.length ? (
         <section>
-          <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">F. In transit (not stock)</h2>
+          <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">F. In transit (not stock)</h2>
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-50">

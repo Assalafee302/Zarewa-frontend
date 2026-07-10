@@ -17,7 +17,7 @@ import {
   canReviewHrRequests,
   hrHasPermission,
 } from '../../lib/hrAccess';
-import { HR_EMPLOYEES, HR_PAYROLL, hrStaffCreditPath, hrTabPath } from '../../lib/hrRoutes';
+import { HR_EMPLOYEES, HR_PAYROLL, hrStaffCreditPath } from '../../lib/hrRoutes';
 import HrAttendance from './HrAttendance';
 import HrLeave from './HrLeave';
 import HrLeaveCalendarPanel from './HrLeaveCalendarPanel';
@@ -158,7 +158,7 @@ export default function HrTimeAbsenceHub() {
           </ProfileOverviewSection>
           <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-sm text-slate-600">
             <strong className="text-slate-800">Loan requests</strong> are approved under{' '}
-            <Link to={hrStaffCreditPath()} className="font-semibold text-[#134e4a] hover:underline">
+            <Link to={hrStaffCreditPath()} className="font-semibold text-zarewa-teal hover:underline">
               Payroll → Staff loans & credit
             </Link>
             . Branch managers mark daily attendance from Management.

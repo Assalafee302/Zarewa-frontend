@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
+import { appConfirm } from '../lib/appConfirm';
 import { formatNgn } from '../Data/mockData';
 import { ZareApprovalHint } from './ZareApprovalHint';
 import {
@@ -107,9 +108,9 @@ export function QuotationPriceExceptionPanel({
       return;
     }
     if (
-      !window.confirm(
-        'Approve below-floor pricing for this quotation? Cutting lists and production may proceed after this step.'
-      )
+      !(await appConfirm({
+        message: 'Approve below-floor pricing for this quotation? Cutting lists and production may proceed after this step.',
+      }))
     )
       return;
     setMdApproving(true);
@@ -138,14 +139,14 @@ export function QuotationPriceExceptionPanel({
       className={`rounded-xl border border-amber-300 bg-amber-50/95 px-3 py-2.5 space-y-2 ${className}`.trim()}
       role="status"
     >
-      <p className="text-[10px] font-black text-amber-950 uppercase tracking-wide">Pricing policy</p>
-      <p className="text-[10px] text-amber-950/90 leading-relaxed">
+      <p className="text-ui-xs font-black text-amber-950 uppercase tracking-wide">Pricing policy</p>
+      <p className="text-ui-xs text-amber-950/90 leading-relaxed">
         {mdApproved
           ? 'MD below-floor approval is on file — cutting lists and production may proceed if other gates are satisfied.'
           : 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and production are blocked until the Managing Director or an administrator approves this exception.'}
       </p>
-      {loading ? <p className="text-[9px] text-amber-900/70">Checking pricing…</p> : null}
-      <ul className="text-[10px] text-amber-950 space-y-1 list-disc pl-4">
+      {loading ? <p className="text-ui-xs text-amber-900/70">Checking pricing…</p> : null}
+      <ul className="text-ui-xs text-amber-950 space-y-1 list-disc pl-4">
         {violations.map((v, i) => (
           <li key={i}>
             <span className="font-semibold capitalize">{v.lineCategory || 'line'}</span> #{Number(v.lineIndex) + 1}:{' '}
@@ -159,7 +160,7 @@ export function QuotationPriceExceptionPanel({
           type="button"
           onClick={() => void onMdPriceExceptionApprove()}
           disabled={mdApproving}
-          className="inline-flex items-center justify-center rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
+          className="inline-flex items-center justify-center rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
         >
           {mdApproving ? 'Recording…' : 'MD: approve below-floor pricing'}
         </button>
@@ -179,9 +180,9 @@ export function QuotationPriceExceptionPanel({
         />
       ) : null}
       {mdApproved ? (
-        <p className="text-[9px] text-emerald-900/90 font-medium">MD approval on file.</p>
+        <p className="text-ui-xs text-emerald-900/90 font-medium">MD approval on file.</p>
       ) : quotationBelowFloorPendingMdApproval(quoteRow) ? (
-        <p className="text-[9px] text-amber-900/85">Awaiting MD or administrator approval.</p>
+        <p className="text-ui-xs text-amber-900/85">Awaiting MD or administrator approval.</p>
       ) : null}
     </div>
   );

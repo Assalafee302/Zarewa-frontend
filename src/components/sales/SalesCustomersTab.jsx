@@ -10,6 +10,7 @@ import { useCustomers } from '../../context/CustomersContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formatNgn } from '../../Data/mockData';
+import { appConfirm } from '../../lib/appConfirm';
 import { customerPickerSearchBlob } from '../../lib/customerPickerSearch';
 import {
   customerInitials,
@@ -17,7 +18,7 @@ import {
   customerTierTone,
 } from '../customers/customerUi';
 
-const TODAY_ISO = '2026-03-28';
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
 const INSIGHT_DAYS = 90;
 
 /** Match quotation row chrome; padding lives on the link / actions so the whole row is clickable */
@@ -25,7 +26,7 @@ const CARD_ROW =
   'rounded-xl border border-slate-200/70 bg-white shadow-sm transition-all hover:border-teal-200/80 hover:shadow-md';
 
 const CHIP =
-  'inline-flex items-center text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border shrink-0';
+  'inline-flex items-center text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border shrink-0';
 
 function customerStatusChipBorder(status) {
   return customerStatusTone(status);
@@ -100,7 +101,11 @@ export default function SalesCustomersTab({
   }, [searchQuery]);
 
   const handleDeleteCustomer = async (c) => {
-    if (!window.confirm(`Delete ${c.name} (${c.customerID})? This cannot be undone.`)) return;
+    if (!(await appConfirm({
+      title: 'Delete',
+      message: `Delete ${c.name} (${c.customerID})? This cannot be undone.`,
+      variant: 'danger',
+    }))) return;
     setDeleteBusy(true);
     try {
       await deleteCustomer(c.customerID);
@@ -206,23 +211,23 @@ export default function SalesCustomersTab({
           <div className="rounded-xl border border-teal-100 bg-white p-5 space-y-6 shadow-sm overflow-hidden">
             <div className="h-1 bg-teal-600 -mx-5 -mt-5 mb-4" />
             <div>
-              <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest mb-1">Network Intel</p>
-              <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">Last {INSIGHT_DAYS} Days</h4>
+              <p className="text-ui-xs font-black text-teal-600 uppercase tracking-widest mb-1">Network Intel</p>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-tight">Last {INSIGHT_DAYS} Days</h4>
             </div>
 
             <div className="space-y-6">
               <section>
-                <p className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-2 mb-3 tracking-widest">
+                <p className="text-ui-xs font-black text-slate-400 uppercase flex items-center gap-2 mb-3 tracking-widest">
                   <TrendingUp size={14} className="text-teal-500" /> Revenue
                 </p>
                 {insights.topSpend.length === 0 ? (
-                  <p className="text-[10px] text-slate-300 italic">No activity</p>
+                  <p className="text-ui-xs text-slate-300 italic">No activity</p>
                 ) : (
                   <ul className="space-y-2">
                     {insights.topSpend.map(r => (
                       <li key={r.id} className="min-w-0">
-                        <p className="text-[11px] font-bold text-slate-700 truncate">{r.name}</p>
-                        <p className="text-[10px] font-black text-teal-600 tabular-nums">{formatNgn(r.spend)}</p>
+                        <p className="text-xs font-bold text-slate-700 truncate">{r.name}</p>
+                        <p className="text-ui-xs font-black text-teal-600 tabular-nums">{formatNgn(r.spend)}</p>
                       </li>
                     ))}
                   </ul>
@@ -230,17 +235,17 @@ export default function SalesCustomersTab({
               </section>
 
               <section>
-                <p className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-2 mb-3 tracking-widest">
+                <p className="text-ui-xs font-black text-slate-400 uppercase flex items-center gap-2 mb-3 tracking-widest">
                   <Ruler size={14} className="text-amber-500" /> Metres
                 </p>
                 {insights.topMeters.length === 0 ? (
-                  <p className="text-[10px] text-slate-300 italic">No volume</p>
+                  <p className="text-ui-xs text-slate-300 italic">No volume</p>
                 ) : (
                   <ul className="space-y-2">
                     {insights.topMeters.map(r => (
                       <li key={r.id} className="min-w-0">
-                        <p className="text-[11px] font-bold text-slate-700 truncate">{r.name}</p>
-                        <p className="text-[10px] font-black text-amber-600 tabular-nums">{r.meters.toLocaleString()} m</p>
+                        <p className="text-xs font-bold text-slate-700 truncate">{r.name}</p>
+                        <p className="text-ui-xs font-black text-amber-600 tabular-nums">{r.meters.toLocaleString()} m</p>
                       </li>
                     ))}
                   </ul>
@@ -248,10 +253,10 @@ export default function SalesCustomersTab({
               </section>
 
               <section className="pt-4 border-t border-slate-50">
-                <p className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-2 mb-2 tracking-widest">
+                <p className="text-ui-xs font-black text-slate-400 uppercase flex items-center gap-2 mb-2 tracking-widest">
                   <Moon size={14} className="text-sky-500" /> Reactivation
                 </p>
-                <p className="text-[10px] font-bold text-slate-500 leading-tight">
+                <p className="text-ui-xs font-bold text-slate-500 leading-tight">
                   <span className="text-rose-600">{insights.inactive.length} accounts</span> quiet since {insights.ciso}.
                 </p>
               </section>
@@ -278,7 +283,7 @@ export default function SalesCustomersTab({
                     onFieldChange={setSortField}
                     onDirToggle={() => setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'))}
                   />
-                  <p className="text-[11px] font-bold text-slate-400 tabular-nums shrink-0">
+                  <p className="text-xs font-bold text-slate-400 tabular-nums shrink-0">
                     Showing {paginated.length} of {sortedAndFiltered.length}
                   </p>
                 </div>
@@ -288,7 +293,7 @@ export default function SalesCustomersTab({
             {paginated.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
                 <UserCircle size={40} className="mx-auto text-slate-200 mb-3" strokeWidth={1.5} />
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">No matching customers</p>
+                <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest">No matching customers</p>
               </div>
             ) : (
               <ul className="space-y-1.5">
@@ -300,24 +305,24 @@ export default function SalesCustomersTab({
                   <li key={c.customerID} className={`${CARD_ROW} flex flex-nowrap items-stretch min-w-0 overflow-hidden`}>
                     <Link
                       to={profileTo}
-                      className="min-w-0 flex-1 flex items-center gap-3 px-3 py-3 text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#134e4a]/25"
+                      className="min-w-0 flex-1 flex items-center gap-3 px-3 py-3 text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/25"
                     >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#134e4a] to-teal-700 text-[11px] font-black text-teal-100">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-zarewa-teal to-teal-700 text-xs font-black text-teal-100">
                         {customerInitials(c.name)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                          <p className="text-sm font-bold text-[#134e4a] truncate min-w-0">
+                          <p className="text-sm font-bold text-zarewa-teal truncate min-w-0">
                             {c.name}
                           </p>
-                          <span className="text-sm font-black text-[#134e4a] tabular-nums shrink-0">
+                          <span className="text-sm font-black text-zarewa-teal tabular-nums shrink-0">
                             {formatNgn(rev)}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-500 mt-0.5 truncate tabular-nums font-mono">
+                        <p className="text-ui-xs text-slate-500 mt-0.5 truncate tabular-nums font-mono">
                           {c.customerID}
                         </p>
-                        <p className="text-[10px] text-slate-500 mt-1 leading-snug line-clamp-1" title={meta2}>
+                        <p className="text-ui-xs text-slate-500 mt-1 leading-snug line-clamp-1" title={meta2}>
                           {meta2}
                         </p>
                         <div className="flex flex-wrap items-center gap-1.5 mt-2">
@@ -353,18 +358,18 @@ export default function SalesCustomersTab({
                   type="button"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((p) => p - 1)}
-                  className="px-3 py-1 rounded-lg border border-slate-200 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-30"
+                  className="px-3 py-1 rounded-lg border border-slate-200 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-30"
                 >
                   Prev
                 </button>
-                <span className="text-[11px] font-black text-[#134e4a] tabular-nums mx-2">
+                <span className="text-xs font-black text-zarewa-teal tabular-nums mx-2">
                   Page {currentPage} of {totalPages}
                 </span>
                 <button
                   type="button"
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((p) => p + 1)}
-                  className="px-3 py-1 rounded-lg border border-slate-200 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-30"
+                  className="px-3 py-1 rounded-lg border border-slate-200 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-30"
                 >
                   Next
                 </button>

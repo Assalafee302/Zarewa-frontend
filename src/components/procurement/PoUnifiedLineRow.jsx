@@ -4,9 +4,9 @@ import { formatNgn } from '../../Data/mockData';
 import { PO_DEFAULT_SERVICE_ITEMS, PO_LINE_TYPE_LABELS, PO_LINE_TYPES } from '../../lib/poLineTypes.js';
 
 const labelClass =
-  'text-[8px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-0.5 block';
+  'text-ui-xs font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-0.5 block';
 const lineInputClass =
-  'w-full bg-white border border-slate-200 rounded-md py-0.5 px-1.5 min-h-[1.625rem] h-[1.625rem] text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15 leading-none';
+  'w-full bg-white border border-slate-200 rounded-md py-0.5 px-1.5 min-h-[1.625rem] h-[1.625rem] text-ui-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15 leading-none';
 
 const MATERIAL_OPTS = [
   { value: 'aluminium', label: 'Aluminium' },
@@ -45,11 +45,11 @@ export default function PoUnifiedLineRow({
           </select>
         </div>
         <div className="sm:col-span-9 flex justify-end items-end gap-1">
-          <p className="text-[10px] font-bold text-[#134e4a] tabular-nums mr-auto">{formatNgn(lineTotal)}</p>
+          <p className="text-ui-xs font-bold text-zarewa-teal tabular-nums mr-auto">{formatNgn(lineTotal)}</p>
           <button
             type="button"
             onClick={onAdd}
-            className="p-1 rounded-md border border-[#134e4a]/25 bg-teal-50 text-[#134e4a]"
+            className="p-1 rounded-md border border-zarewa-teal/25 bg-teal-50 text-zarewa-teal"
             title="Add line"
           >
             <Plus size={14} />
@@ -156,7 +156,7 @@ export default function PoUnifiedLineRow({
         </div>
       )}
       {lt === 'coil_meter' ? (
-        <p className="text-[9px] font-semibold text-amber-800 leading-snug">
+        <p className="text-ui-xs font-semibold text-amber-800 leading-snug">
           Roll / metre order — weighed on receipt (enter kg at GRN). You can combine kg and metre lines on one PO.
         </p>
       ) : null}
@@ -370,10 +370,10 @@ export default function PoUnifiedLineRow({
       )}
 
       {lt === 'coil_meter' && (
-        <p className="text-[9px] text-slate-500">Weighed and coil-numbered at receipt in Operations.</p>
+        <p className="text-ui-xs text-slate-500">Weighed and coil-numbered at receipt in Operations.</p>
       )}
       {lt === 'service' && (
-        <p className="text-[9px] text-slate-500">
+        <p className="text-ui-xs text-slate-500">
           Loading and other purchase-point charges — included in PO total and supplier payable (not received in stock).
         </p>
       )}

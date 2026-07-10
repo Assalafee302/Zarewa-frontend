@@ -72,7 +72,7 @@ export function HrReportEmbedPanel({ reportId, title, description, limit = 25 })
       ) : null}
       {preview && !sensitiveBlocked ? (
         <>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-xs text-slate-500">
             {preview.filtersSummary || 'All staff'} · {preview.totalCount ?? preview.rows?.length ?? 0} records
           </p>
           <HrResponsiveTable
@@ -81,7 +81,7 @@ export function HrReportEmbedPanel({ reportId, title, description, limit = 25 })
             emptyMessage="No records match current filters."
           />
           {(preview.totalCount ?? 0) > limit ? (
-            <p className="text-[11px] text-slate-500">Showing first {limit} of {preview.totalCount} records.</p>
+            <p className="text-xs text-slate-500">Showing first {limit} of {preview.totalCount} records.</p>
           ) : null}
         </>
       ) : null}
@@ -91,7 +91,7 @@ export function HrReportEmbedPanel({ reportId, title, description, limit = 25 })
         </button>
         <Link
           to={hrTabPath(HR_DOCUMENTS, 'reports', { report: reportId })}
-          className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-[#134e4a] no-underline hover:bg-slate-50"
+          className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-zarewa-teal no-underline hover:bg-slate-50"
         >
           Open full report →
         </Link>

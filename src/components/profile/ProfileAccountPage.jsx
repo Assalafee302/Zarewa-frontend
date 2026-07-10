@@ -32,7 +32,7 @@ function AvatarPreview({ url, displayName }) {
   return valid ? (
     <img src={url} alt="" className="h-14 w-14 rounded-xl border border-slate-200 object-cover shadow-sm sm:h-16 sm:w-16 sm:rounded-2xl" />
   ) : (
-    <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 bg-[#134e4a] text-base font-black text-white shadow-sm sm:h-16 sm:w-16 sm:rounded-2xl sm:text-lg">
+    <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 bg-zarewa-teal text-base font-black text-white shadow-sm sm:h-16 sm:w-16 sm:rounded-2xl sm:text-lg">
       {initials}
     </div>
   );
@@ -179,7 +179,7 @@ export default function ProfileAccountPage() {
                 <p className="mt-2 text-xs">
                   <Link
                     to={`${HR_SELF_SERVICE_PATH.employment}?form=1`}
-                    className="font-semibold text-[#134e4a] hover:underline"
+                    className="font-semibold text-zarewa-teal hover:underline"
                   >
                     Update name in Employment record
                   </Link>
@@ -221,7 +221,7 @@ export default function ProfileAccountPage() {
                     disabled={!canMutate}
                     autoComplete="username"
                   />
-                  <p className="mt-1.5 rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-2 text-[11px] leading-relaxed text-amber-900">
+                  <p className="mt-1.5 rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-900">
                     You may change your username once freely. Further changes require HR approval.
                   </p>
                 </>
@@ -230,7 +230,7 @@ export default function ProfileAccountPage() {
                   <p className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 font-mono text-sm">
                     @{user?.username}
                   </p>
-                  <p className="mt-1.5 text-[11px] text-slate-500">Request HR to change it again below.</p>
+                  <p className="mt-1.5 text-xs text-slate-500">Request HR to change it again below.</p>
                 </>
               )}
             </ProfileFormField>
@@ -305,19 +305,19 @@ export default function ProfileAccountPage() {
         <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Current role</p>
-              <p className="mt-0.5 text-sm font-black text-[#134e4a]">{user?.roleLabel || '—'}</p>
+              <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Current role</p>
+              <p className="mt-0.5 text-sm font-black text-zarewa-teal">{user?.roleLabel || '—'}</p>
             </div>
             <Shield size={20} className="shrink-0 text-slate-300" aria-hidden />
           </div>
           {cohort !== 'account_only' ? (
             <p className="mt-4 text-xs leading-relaxed text-slate-600">
               Complete your{' '}
-              <Link to={HR_SELF_SERVICE_PATH.documents} className="font-semibold text-[#134e4a] hover:underline">
+              <Link to={HR_SELF_SERVICE_PATH.documents} className="font-semibold text-zarewa-teal hover:underline">
                 documents
               </Link>{' '}
               and{' '}
-              <Link to={HR_SELF_SERVICE_PATH.policies} className="font-semibold text-[#134e4a] hover:underline">
+              <Link to={HR_SELF_SERVICE_PATH.policies} className="font-semibold text-zarewa-teal hover:underline">
                 policies
               </Link>{' '}
               in My HR so HR can verify and activate full access.

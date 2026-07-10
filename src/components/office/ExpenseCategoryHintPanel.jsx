@@ -16,8 +16,8 @@ function HintCard({ tone, icon: Icon, title, children }) {
     violet: 'border-violet-200/90 bg-violet-50/90 text-violet-950',
   };
   return (
-    <div className={`rounded-xl border px-3 py-2.5 text-[11px] leading-snug ${tones[tone] || tones.slate}`}>
-      <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide opacity-90 mb-1">
+    <div className={`rounded-xl border px-3 py-2.5 text-xs leading-snug ${tones[tone] || tones.slate}`}>
+      <p className="flex items-center gap-1.5 text-ui-xs font-black uppercase tracking-wide opacity-90 mb-1">
         {Icon ? <Icon size={12} className="shrink-0" aria-hidden /> : null}
         {title}
       </p>

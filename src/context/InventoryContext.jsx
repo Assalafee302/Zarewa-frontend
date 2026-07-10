@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { apiFetch } from '../lib/apiBase';
+import { appConfirm } from '../lib/appConfirm';
 import { roundConv2 } from '../lib/conversionKgPerM.js';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { purchaseOrderInTransitTransportWarning } from '../lib/purchaseOrderWorkflow';
@@ -610,8 +611,8 @@ export function InventoryProvider({ children }) {
       if (normalizedStatus === 'In Transit' && !ackTransportGap) {
         const po = purchaseOrders.find((p) => p.poID === poID);
         const warning = purchaseOrderInTransitTransportWarning(po);
-        if (warning && typeof window !== 'undefined') {
-          if (!window.confirm(warning)) {
+        if (warning) {
+          if (!(await appConfirm({ message: warning }))) {
             return { ok: false, cancelled: true };
           }
           ackTransportGap = true;

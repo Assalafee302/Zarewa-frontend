@@ -149,14 +149,14 @@ export function AccountingDeskReports({
             <button
               type="button"
               onClick={() => onReloadTrial?.()}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
+              className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
             >
               <RefreshCw size={12} /> Run checks
             </button>
             <button
               type="button"
               onClick={() => onReloadAp1c?.()}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
             >
               Load AP1c dry-run
             </button>
@@ -226,7 +226,7 @@ export function AccountingDeskReports({
         empty={
           !ap1cRows.length ? (
             <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-10 px-6 text-center">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+              <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest">
                 Enable diagnostics and load AP1c dry-run
               </p>
             </div>
@@ -269,18 +269,18 @@ export function AccountingDeskReports({
           </ul>
         ) : (
           <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-10 text-center">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">No reports match</p>
+            <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest">No reports match</p>
           </div>
         )}
       </AccountingDeskTableSection>
 
       <ProcurementFormSection letter="i" title="Delivery gate summary" compact>
-        <ul className={`${ACCOUNTING_CARD_ROW} space-y-1 p-3 text-[11px] font-medium text-slate-700`}>
+        <ul className={`${ACCOUNTING_CARD_ROW} space-y-1 p-3 text-xs font-medium text-slate-700`}>
           <li>Deliveries allowed by credit: {credit.deliveriesAllowedByCreditCount ?? 0}</li>
           <li>Unpaid, no credit: {credit.deliveriesWarningNoCreditCount ?? 0}</li>
           <li>
             Full pack:{' '}
-            <Link to="/accounting" state={{ focusTab: 'reconciliation' }} className="font-bold text-[#134e4a] hover:underline">
+            <Link to="/accounting" state={{ focusTab: 'reconciliation' }} className="font-bold text-zarewa-teal hover:underline">
               Reconciliation tab
             </Link>
           </li>

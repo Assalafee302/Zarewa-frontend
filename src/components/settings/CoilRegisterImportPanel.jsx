@@ -87,11 +87,11 @@ export default function CoilRegisterImportPanel() {
 
   return (
     <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm ring-1 ring-slate-900/[0.03]">
-      <h3 className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 mb-1 flex items-center gap-1.5">
-        <FileSpreadsheet size={12} strokeWidth={2.25} className="text-[#134e4a]" aria-hidden />
+      <h3 className="text-ui-xs font-black uppercase tracking-[0.16em] text-slate-500 mb-1 flex items-center gap-1.5">
+        <FileSpreadsheet size={12} strokeWidth={2.25} className="text-zarewa-teal" aria-hidden />
         Coil register (Excel)
       </h3>
-      <p className="text-[10px] text-slate-500 leading-snug mb-3 max-w-2xl">
+      <p className="text-ui-xs text-slate-500 leading-snug mb-3 max-w-2xl">
         Upload or download the template (Gauge, Colour code, Material type, Coil no, Kg — April closing example
         included). Gauge may be plain numbers (e.g. <span className="font-mono">0.24</span>) or master labels (
         <span className="font-mono">0.24mm</span>); plain numbers are normalized to match master data. Defaults to
@@ -99,7 +99,7 @@ export default function CoilRegisterImportPanel() {
         Settings → Master lists → Colours (abbreviations such as GB, IV, DG). Coils appear under{' '}
         <Link
           to="/operations"
-          className="font-semibold text-[#134e4a] underline-offset-2 hover:underline"
+          className="font-semibold text-zarewa-teal underline-offset-2 hover:underline"
         >
           Store & production
         </Link>{' '}
@@ -117,7 +117,7 @@ export default function CoilRegisterImportPanel() {
           type="button"
           disabled={!ws?.canMutate || coilImportBusy}
           onClick={() => coilImportInputRef.current?.click()}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-semibold uppercase text-[#134e4a] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-semibold uppercase text-zarewa-teal hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <FileSpreadsheet size={14} aria-hidden />
           {coilImportBusy ? 'Importing…' : 'Upload coil register'}
@@ -125,20 +125,20 @@ export default function CoilRegisterImportPanel() {
         <button
           type="button"
           onClick={() => downloadCoilImportTemplate()}
-          className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/80 px-3 py-2 text-[10px] font-semibold uppercase text-slate-600 hover:bg-slate-100"
+          className="inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/80 px-3 py-2 text-ui-xs font-semibold uppercase text-slate-600 hover:bg-slate-100"
         >
           Excel template
         </button>
         <details className="relative ml-auto shrink-0">
           <summary
-            className="list-none cursor-pointer rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 [&::-webkit-details-marker]:hidden"
+            className="list-none cursor-pointer rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 [&::-webkit-details-marker]:hidden"
             aria-label="Coil register Excel import format"
           >
             <Info className="size-3.5" strokeWidth={2.25} aria-hidden />
           </summary>
           <div
             role="note"
-            className="absolute right-0 top-full z-30 mt-1.5 w-[min(calc(100vw-2rem),22rem)] rounded-lg border border-slate-200 bg-white p-2.5 text-[9px] leading-snug text-slate-700 shadow-lg ring-1 ring-black/5"
+            className="absolute right-0 top-full z-30 mt-1.5 w-[min(calc(100vw-2rem),22rem)] rounded-lg border border-slate-200 bg-white p-2.5 text-ui-xs leading-snug text-slate-700 shadow-lg ring-1 ring-black/5"
           >
             <p className="font-semibold text-slate-800 mb-1">Simple format (recommended)</p>
             <p>

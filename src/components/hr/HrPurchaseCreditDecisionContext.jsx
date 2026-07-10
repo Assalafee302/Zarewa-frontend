@@ -30,7 +30,7 @@ export function HrPurchaseCreditDecisionContext({ item = null, data = null, clas
 
   return (
     <div className={`rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-xs text-slate-700 space-y-2 ${className}`}>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Decision context</p>
+      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Decision context</p>
       <dl className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
         {Number.isFinite(serviceYears) ? (
           <>

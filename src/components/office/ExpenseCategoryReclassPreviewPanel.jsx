@@ -14,7 +14,7 @@ export function ExpenseCategoryReclassPreviewPanel({ preview, newCategory = '' }
 
   return (
     <div className="rounded-xl border border-violet-200/90 bg-gradient-to-r from-violet-50/95 to-indigo-50/60 px-4 py-3">
-      <p className="text-[9px] font-black uppercase tracking-wide text-violet-900/80 flex items-center gap-1.5">
+      <p className="text-ui-xs font-black uppercase tracking-wide text-violet-900/80 flex items-center gap-1.5">
         <GitBranch size={12} aria-hidden />
         GL reclass preview
       </p>
@@ -22,26 +22,26 @@ export function ExpenseCategoryReclassPreviewPanel({ preview, newCategory = '' }
         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           <ExpenseCategoryLaneBadge category={priorCategory} />
           <span className="font-semibold text-slate-800 truncate">{priorCategory}</span>
-          <span className="text-[10px] font-mono text-violet-800 tabular-nums">({preview.gl.fromAccountCode})</span>
+          <span className="text-ui-xs font-mono text-violet-800 tabular-nums">({preview.gl.fromAccountCode})</span>
         </div>
         <ArrowRight size={14} className="text-violet-600 shrink-0" aria-hidden />
         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           <ExpenseCategoryLaneBadge category={targetCategory} />
           <span className="font-bold text-violet-950 truncate">{targetCategory}</span>
-          <span className="text-[10px] font-mono text-violet-800 tabular-nums">({preview.gl.toAccountCode})</span>
+          <span className="text-ui-xs font-mono text-violet-800 tabular-nums">({preview.gl.toAccountCode})</span>
         </div>
       </div>
       {sameAccount ? (
-        <p className="text-[10px] text-violet-800 mt-2 leading-snug">
+        <p className="text-ui-xs text-violet-800 mt-2 leading-snug">
           Same GL account — expense register update only; no balancing journal required.
         </p>
       ) : (
-        <p className="text-[10px] text-violet-900/85 mt-2 leading-snug">
+        <p className="text-ui-xs text-violet-900/85 mt-2 leading-snug">
           Posts Dr {preview.gl.toAccountCode} / Cr {preview.gl.fromAccountCode} for treasury-paid amounts.
         </p>
       )}
       {Number(preview.paidAmountNgn) > 0 ? (
-        <p className="text-[9px] text-violet-900/70 mt-1 tabular-nums">
+        <p className="text-ui-xs text-violet-900/70 mt-1 tabular-nums">
           Based on paid amount · review before saving
         </p>
       ) : null}

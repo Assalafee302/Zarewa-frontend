@@ -31,11 +31,11 @@ export function ProfileFormSection({ id, icon, title, subtitle, children, classN
             className={
               flat || compact
                 ? 'flex items-center gap-2 text-sm font-bold text-slate-900'
-                : 'flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500'
+                : 'flex items-center gap-2 text-ui-xs font-bold uppercase tracking-widest text-slate-500'
             }
           >
             {icon ? (
-              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${compact ? 'bg-teal-50 text-[#134e4a]' : 'text-[#134e4a]'}`}>
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${compact ? 'bg-teal-50 text-zarewa-teal' : 'text-zarewa-teal'}`}>
                 {icon}
               </span>
             ) : null}
@@ -84,9 +84,9 @@ export function ProfilePageAnchors({ items, variant = 'page' }) {
           <a
             key={item.id}
             href={`#${item.id}`}
-            className="group flex shrink-0 snap-start items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 no-underline transition hover:border-[#134e4a]/30 hover:bg-teal-50/50 hover:text-[#134e4a]"
+            className="group flex shrink-0 snap-start items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 no-underline transition hover:border-zarewa-teal/30 hover:bg-teal-50/50 hover:text-zarewa-teal"
           >
-            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white text-[10px] font-bold text-slate-400 ring-1 ring-slate-200 group-hover:text-[#134e4a]">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white text-ui-xs font-bold text-slate-400 ring-1 ring-slate-200 group-hover:text-zarewa-teal">
               {index + 1}
             </span>
             {item.label}
@@ -105,7 +105,7 @@ export function ProfilePageAnchors({ items, variant = 'page' }) {
         <a
           key={item.id}
           href={`#${item.id}`}
-          className="shrink-0 snap-start rounded-lg px-4 py-2.5 text-xs font-semibold text-slate-600 no-underline transition hover:bg-slate-50 hover:text-[#134e4a] sm:text-[11px] sm:font-bold sm:uppercase sm:tracking-[0.06em]"
+          className="shrink-0 snap-start rounded-lg px-4 py-2.5 text-xs font-semibold text-slate-600 no-underline transition hover:bg-slate-50 hover:text-zarewa-teal sm:text-xs sm:font-bold sm:uppercase sm:tracking-[0.06em]"
         >
           {item.label}
         </a>
@@ -140,7 +140,7 @@ export function ProfileSubmitRequirements({ missing, variant = 'page' }) {
   return (
     <div className={`rounded-lg border px-3 py-2.5 text-xs ${chipTone}`}>
       <p className="font-semibold text-slate-800">Required before submit</p>
-      <p className="mt-1 text-[11px] leading-relaxed text-slate-600 sm:hidden">
+      <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:hidden">
         {missing.length} field{missing.length === 1 ? '' : 's'} still needed. Jump to a section above, then return
         here to submit.
       </p>
@@ -148,7 +148,7 @@ export function ProfileSubmitRequirements({ missing, variant = 'page' }) {
         {missing.map((m) => (
           <li
             key={m.id}
-            className="rounded-md bg-white/80 px-2 py-0.5 text-[11px] font-medium text-slate-700 ring-1 ring-slate-200/80"
+            className="rounded-md bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200/80"
           >
             {m.label}
           </li>

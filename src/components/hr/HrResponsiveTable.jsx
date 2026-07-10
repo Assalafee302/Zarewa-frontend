@@ -14,7 +14,7 @@ function cellValue(row, col) {
   if (col.render) return col.render(row);
   if (col.key === 'action' && row.deepLink) {
     return (
-      <Link to={row.deepLink} className="text-xs font-bold text-[#134e4a] hover:underline">
+      <Link to={row.deepLink} className="text-xs font-bold text-zarewa-teal hover:underline">
         {row.actionLabel || 'View details'}
       </Link>
     );
@@ -30,7 +30,7 @@ function cellValue(row, col) {
   if (v == null || v === '') return '—';
   if (col.linkKey && row[col.linkKey]) {
     return (
-      <Link to={row[col.linkKey]} className="font-semibold text-[#134e4a] hover:underline">
+      <Link to={row[col.linkKey]} className="font-semibold text-zarewa-teal hover:underline">
         {String(v)}
       </Link>
     );
@@ -62,7 +62,7 @@ export function HrResponsiveTable({ columns, rows, emptyMessage = 'No records.',
             <div key={i} className="rounded-xl border border-slate-100 bg-white p-3 text-sm shadow-sm">
               {columns.map((c) => (
                 <div key={c.key} className="flex items-start justify-between gap-3 border-b border-slate-50 py-1.5 last:border-0">
-                  <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-400">{c.label}</span>
+                  <span className="shrink-0 text-ui-xs font-bold uppercase tracking-wide text-slate-400">{c.label}</span>
                   <span className={`min-w-0 text-slate-800 ${c.align === 'right' ? 'text-right tabular-nums' : 'text-right'}`}>
                     {cellValue(row, c)}
                   </span>
@@ -71,7 +71,7 @@ export function HrResponsiveTable({ columns, rows, emptyMessage = 'No records.',
               {showActionCol ? (
                 <div className="mt-2 flex flex-wrap gap-2 pt-1">
                   {row.deepLink ? (
-                    <Link to={row.deepLink} className="text-xs font-bold text-[#134e4a]">
+                    <Link to={row.deepLink} className="text-xs font-bold text-zarewa-teal">
                       {row.actionLabel || 'View details'}
                     </Link>
                   ) : null}
@@ -110,7 +110,7 @@ export function HrResponsiveTable({ columns, rows, emptyMessage = 'No records.',
                     <AppTableTd align="right" truncate={false}>
                       <div className="flex flex-wrap justify-end gap-2">
                         {row.deepLink ? (
-                          <Link to={row.deepLink} className="text-xs font-bold text-[#134e4a] hover:underline">
+                          <Link to={row.deepLink} className="text-xs font-bold text-zarewa-teal hover:underline">
                             {row.actionLabel || 'View'}
                           </Link>
                         ) : null}

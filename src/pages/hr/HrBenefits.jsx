@@ -126,7 +126,7 @@ export default function HrBenefits({ embedded = false } = {}) {
             type="button"
             onClick={() => setTab(t)}
             className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${
-              tab === t ? 'bg-[#134e4a] text-white' : 'bg-slate-100 text-slate-600'
+              tab === t ? 'bg-zarewa-teal text-white' : 'bg-slate-100 text-slate-600'
             }`}
           >
             {t}
@@ -190,7 +190,7 @@ export default function HrBenefits({ embedded = false } = {}) {
                     ]}
                     footer={
                       canManage ? (
-                        <button type="button" className="text-xs font-bold text-[#134e4a]" onClick={() => schedulePayment(b.id, b.monthlyAmountNgn)}>
+                        <button type="button" className="text-xs font-bold text-zarewa-teal" onClick={() => schedulePayment(b.id, b.monthlyAmountNgn)}>
                           Schedule {period}
                         </button>
                       ) : null
@@ -224,7 +224,7 @@ export default function HrBenefits({ embedded = false } = {}) {
                         <AppTableTd truncate={false}><HrStatusBadge status={b.status} variant="benefit" /></AppTableTd>
                         {canManage ? (
                           <AppTableTd truncate={false}>
-                            <button type="button" className="text-xs font-bold text-[#134e4a]" onClick={() => schedulePayment(b.id, b.monthlyAmountNgn)}>
+                            <button type="button" className="text-xs font-bold text-zarewa-teal" onClick={() => schedulePayment(b.id, b.monthlyAmountNgn)}>
                               Schedule {period}
                             </button>
                           </AppTableTd>

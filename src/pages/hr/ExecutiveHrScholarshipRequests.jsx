@@ -21,7 +21,7 @@ export default function ExecutiveHrScholarshipRequests() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-white p-4 sm:p-5">
-        <p className="text-[10px] font-black uppercase tracking-widest text-violet-600">
+        <p className="text-ui-xs font-black uppercase tracking-widest text-violet-600">
           {FAMILY_BENEFITS.adminRequestsEyebrow}
         </p>
         <h2 className="mt-1 text-lg font-black text-slate-900">{FAMILY_BENEFITS.adminRequestsTitle}</h2>

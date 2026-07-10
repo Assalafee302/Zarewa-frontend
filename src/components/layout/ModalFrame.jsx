@@ -54,15 +54,15 @@ export function ModalFrame({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={overlayTransition}
-                className="fixed inset-0 z-[1060] bg-[#0f172a]/60 backdrop-blur-md"
+                className="fixed inset-0 z-[var(--z-layer-modal)] bg-[#0f172a]/60 backdrop-blur-md"
               />
             </DialogPrimitive.Overlay>
             <DialogPrimitive.Content asChild>
               <div
                 className={
                   edgeToEdgeMobile
-                    ? 'fixed inset-0 z-[1060] flex items-stretch justify-center overflow-hidden outline-none sm:items-center sm:overflow-y-auto sm:overscroll-y-contain sm:px-6 sm:py-12'
-                    : 'fixed inset-0 z-[1060] flex items-start justify-center overflow-y-auto overscroll-y-contain px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] outline-none sm:items-center sm:px-6 sm:py-12'
+                    ? 'fixed inset-0 z-[var(--z-layer-modal)] flex items-stretch justify-center overflow-hidden outline-none sm:items-center sm:overflow-y-auto sm:overscroll-y-contain sm:px-6 sm:py-12'
+                    : 'fixed inset-0 z-[var(--z-layer-modal)] flex items-start justify-center overflow-y-auto overscroll-y-contain px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] outline-none sm:items-center sm:px-6 sm:py-12'
                 }
               >
                 <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
@@ -88,7 +88,7 @@ export function ModalFrame({
                         type="button"
                         disabled={closeDisabled}
                         aria-label="Close dialog"
-                        className="absolute right-3 top-3 z-[1100] flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200/90 bg-white/95 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 disabled:pointer-events-none disabled:opacity-40"
+                        className="absolute right-3 top-3 z-[var(--z-layer-modal-close,1070)] flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200/90 bg-white/95 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 disabled:pointer-events-none disabled:opacity-40"
                       >
                         <X className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
                       </button>

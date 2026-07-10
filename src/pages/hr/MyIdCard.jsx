@@ -271,7 +271,7 @@ export default function MyIdCard() {
                 <ProfileListRow key={`${r.id}-m`}>
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold text-slate-900">{idCardRequestTitle(r)}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">
                       Requested {r.createdAt?.slice(0, 10) || r.requestedAt?.slice(0, 10) || '—'}
                     </span>
                   </span>
@@ -279,7 +279,7 @@ export default function MyIdCard() {
                     <button
                       type="button"
                       onClick={() => openRequestPreview(r)}
-                      className="text-[10px] font-bold text-[#134e4a] hover:underline"
+                      className="text-ui-xs font-bold text-zarewa-teal hover:underline"
                     >
                       Preview
                     </button>
@@ -309,7 +309,7 @@ export default function MyIdCard() {
                           <button
                             type="button"
                             onClick={() => openRequestPreview(r)}
-                            className="text-xs font-bold text-[#134e4a] hover:underline"
+                            className="text-xs font-bold text-zarewa-teal hover:underline"
                           >
                             Preview
                           </button>

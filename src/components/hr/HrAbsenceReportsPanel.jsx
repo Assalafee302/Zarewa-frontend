@@ -142,7 +142,7 @@ export function HrAbsenceReportsPanel({ branchScoped = false, canManage = true, 
     <div className="space-y-4">
       {riskAlerts.length ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-          <p className="font-bold uppercase text-[10px] tracking-widest">Voluntary termination risk</p>
+          <p className="font-bold uppercase text-ui-xs tracking-widest">Voluntary termination risk</p>
           <ul className="mt-2 space-y-1 text-xs">
             {riskAlerts.map((a) => (
               <li key={`${a.userId}-${a.lastAbsentIso}`}>
@@ -212,7 +212,7 @@ export function HrAbsenceReportsPanel({ branchScoped = false, canManage = true, 
                         {review && ['reported', 'hr_review'].includes(r.status) ? (
                           <button
                             type="button"
-                            className="text-[10px] font-bold uppercase text-[#134e4a] hover:underline"
+                            className="text-ui-xs font-bold uppercase text-zarewa-teal hover:underline"
                             onClick={() => { setSelected(r); setReviewNote(''); setModal('review'); }}
                           >
                             Review
@@ -221,7 +221,7 @@ export function HrAbsenceReportsPanel({ branchScoped = false, canManage = true, 
                         {manage && r.status === 'approved' ? (
                           <button
                             type="button"
-                            className="text-[10px] font-bold uppercase text-slate-600 hover:underline"
+                            className="text-ui-xs font-bold uppercase text-slate-600 hover:underline"
                             onClick={() => { setSelected(r); setModal('close'); }}
                           >
                             Close

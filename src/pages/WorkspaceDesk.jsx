@@ -114,7 +114,7 @@ export default function WorkspaceDesk() {
         <header className="rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Zarewa Online Office</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Zarewa Online Office</p>
               <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{deskNav.title}</h1>
               <p className="mt-1 text-sm text-slate-600">Tasks, office records, approvals, and branch activity.</p>
             </div>
@@ -157,7 +157,7 @@ export default function WorkspaceDesk() {
                 type="button"
                 disabled={refreshing}
                 onClick={() => void handleRefresh()}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
               >
                 <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
                 Refresh
@@ -165,7 +165,7 @@ export default function WorkspaceDesk() {
               <button
                 type="button"
                 onClick={() => window.dispatchEvent(new CustomEvent('zarewa:open-command-palette'))}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700"
               >
                 <Search size={14} />
                 Search

@@ -33,7 +33,7 @@ export function GovernanceDetailPanel({
         <div className="flex items-start gap-3">
           <ShieldAlert size={22} className="text-rose-700 shrink-0 mt-0.5" aria-hidden />
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-widest text-rose-800">Risk & governance</p>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-rose-800">Risk & governance</p>
             <h3 className="text-base font-black text-rose-950 mt-1 font-mono">{item.title || item.id}</h3>
             <p className="text-sm text-rose-900/90 mt-2 leading-relaxed">{item.subtitle || 'Management review required.'}</p>
           </div>
@@ -42,7 +42,7 @@ export function GovernanceDetailPanel({
 
       {reasons.length > 0 ? (
         <div className="space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Why this is flagged</p>
+          <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Why this is flagged</p>
           <ul className="space-y-1.5">
             {reasons.map((r, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
@@ -98,7 +98,7 @@ export function GovernanceDetailPanel({
             </div>
             <div className="rounded-lg bg-slate-50 p-2 col-span-2">
               <dt className="text-slate-400 font-bold uppercase">Quotation</dt>
-              <dd className="font-mono font-bold text-[#134e4a]">{item.quotationRef || row.quotationRef || '—'}</dd>
+              <dd className="font-mono font-bold text-zarewa-teal">{item.quotationRef || row.quotationRef || '—'}</dd>
             </div>
           </dl>
           <div className="flex flex-wrap gap-2">

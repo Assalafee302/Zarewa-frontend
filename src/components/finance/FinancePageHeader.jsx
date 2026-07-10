@@ -7,7 +7,7 @@ export function FinancePageHeader({ title, subtitle, badges, actions }) {
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-black tracking-tight text-[#134e4a] sm:text-3xl">{title}</h1>
+        <h1 className="text-2xl font-black tracking-tight text-zarewa-teal sm:text-3xl">{title}</h1>
         {subtitle ? (
           <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600">{subtitle}</p>
         ) : null}

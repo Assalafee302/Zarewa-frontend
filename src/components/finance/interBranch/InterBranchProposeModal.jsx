@@ -16,7 +16,7 @@ import { ModalFrame } from '../../layout/ModalFrame';
 import { ProcurementFormSection } from '../../procurement/ProcurementFormSection';
 
 const INPUT =
-  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none transition-all focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10 shadow-sm';
+  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition-all focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10 shadow-sm';
 
 /**
  * @param {{
@@ -125,10 +125,10 @@ export function InterBranchProposeModal({
   return (
     <ModalFrame isOpen onClose={onClose} title="Propose inter-branch transfer" surface="plain">
       <div className="w-full max-w-2xl rounded-2xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
-        <div className="h-1 bg-[#134e4a]" />
+        <div className="h-1 bg-zarewa-teal" />
         <div className="p-5 sm:p-6 max-h-[min(85dvh,760px)] overflow-y-auto custom-scrollbar">
-          <h2 className="text-lg font-bold text-[#134e4a]">Propose inter-branch transfer</h2>
-          <p className="mt-1 text-[10px] text-slate-500 leading-relaxed max-w-xl">
+          <h2 className="text-lg font-bold text-zarewa-teal">Propose inter-branch transfer</h2>
+          <p className="mt-1 text-ui-xs text-slate-500 leading-relaxed max-w-xl">
             Treasury moves from the lending branch to the borrowing branch. Funds post only after MD approval.
             Repayment instalments are tracked for accounting — treasury repayments reduce the outstanding balance.
           </p>
@@ -136,7 +136,7 @@ export function InterBranchProposeModal({
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
             <ProcurementFormSection letter="1" title="Branches" compact>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Lending branch *
                   <select
                     className={INPUT}
@@ -158,7 +158,7 @@ export function InterBranchProposeModal({
                     ))}
                   </select>
                 </label>
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Borrowing branch *
                   <select
                     className={INPUT}
@@ -187,7 +187,7 @@ export function InterBranchProposeModal({
 
             <ProcurementFormSection letter="2" title="Treasury accounts" compact>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Debit (lender) account *
                   <select
                     className={INPUT}
@@ -203,7 +203,7 @@ export function InterBranchProposeModal({
                     ))}
                   </select>
                 </label>
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Credit (borrower) account *
                   <select
                     className={INPUT}
@@ -224,7 +224,7 @@ export function InterBranchProposeModal({
 
             <ProcurementFormSection letter="3" title="Amount & reference" compact>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Principal (₦) *
                   <input
                     type="number"
@@ -235,7 +235,7 @@ export function InterBranchProposeModal({
                     required
                   />
                 </label>
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Proposed disbursement date *
                   <input
                     type="date"
@@ -245,7 +245,7 @@ export function InterBranchProposeModal({
                     required
                   />
                 </label>
-                <label className="sm:col-span-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="sm:col-span-2 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Reference
                   <input
                     className={INPUT}
@@ -254,7 +254,7 @@ export function InterBranchProposeModal({
                     placeholder="IBT-2026-04 working capital"
                   />
                 </label>
-                <label className="sm:col-span-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="sm:col-span-2 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Business rationale
                   <textarea
                     className={INPUT}
@@ -268,7 +268,7 @@ export function InterBranchProposeModal({
             </ProcurementFormSection>
 
             <ProcurementFormSection letter="4" title="Repayment schedule (optional)" compact>
-              <p className="text-[10px] text-slate-500 mb-2">
+              <p className="text-ui-xs text-slate-500 mb-2">
                 Planned instalments for the debtors/creditors register — actual treasury repayments are posted
                 separately after disbursement.
                 {principal > 0 && planTotal > 0 ? (
@@ -283,7 +283,7 @@ export function InterBranchProposeModal({
               <div className="space-y-2">
                 {form.repaymentPlan.map((row, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                    <label className="col-span-4 text-[9px] font-bold uppercase text-slate-500">
+                    <label className="col-span-4 text-ui-xs font-bold uppercase text-slate-500">
                       Due date
                       <input
                         type="date"
@@ -292,7 +292,7 @@ export function InterBranchProposeModal({
                         onChange={(e) => updatePlanRow(idx, { dueDateISO: e.target.value })}
                       />
                     </label>
-                    <label className="col-span-3 text-[9px] font-bold uppercase text-slate-500">
+                    <label className="col-span-3 text-ui-xs font-bold uppercase text-slate-500">
                       Amount (₦)
                       <input
                         type="number"
@@ -302,7 +302,7 @@ export function InterBranchProposeModal({
                         onChange={(e) => updatePlanRow(idx, { amountNgn: e.target.value })}
                       />
                     </label>
-                    <label className="col-span-4 text-[9px] font-bold uppercase text-slate-500">
+                    <label className="col-span-4 text-ui-xs font-bold uppercase text-slate-500">
                       Note
                       <input
                         className={INPUT}
@@ -336,27 +336,27 @@ export function InterBranchProposeModal({
                     repaymentPlan: [...f.repaymentPlan, emptyRepaymentPlanRow()],
                   }))
                 }
-                className="mt-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a]"
+                className="mt-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal"
               >
                 <Plus size={12} /> Add instalment
               </button>
             </ProcurementFormSection>
 
-            {error ? <p className="text-[10px] font-medium text-rose-700">{error}</p> : null}
+            {error ? <p className="text-ui-xs font-medium text-rose-700">{error}</p> : null}
 
             <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={busy}
-                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-slate-700"
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-slate-700"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={busy}
-                className="inline-flex items-center rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider disabled:opacity-50"
+                className="inline-flex items-center rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider disabled:opacity-50"
               >
                 {busy ? 'Submitting…' : 'Submit for MD approval'}
               </button>

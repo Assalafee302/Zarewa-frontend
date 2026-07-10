@@ -28,8 +28,8 @@ export default function HrAccountabilityPhaseBar({
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Case workflow — 4 steps</p>
-        <p className="text-[10px] text-slate-500">Green = ready · click any step to jump</p>
+        <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">Case workflow — 4 steps</p>
+        <p className="text-ui-xs text-slate-500">Green = ready · click any step to jump</p>
       </div>
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {ACCOUNTABILITY_PHASES.map((p) => {

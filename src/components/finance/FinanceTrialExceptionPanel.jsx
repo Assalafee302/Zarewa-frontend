@@ -95,7 +95,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a] flex items-center gap-2">
+        <h2 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal flex items-center gap-2">
           {variant === 'oversight' ? (
             <AlertTriangle size={14} className="text-rose-700" />
           ) : (
@@ -111,7 +111,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
           <button
             type="button"
             onClick={() => onReload()}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
           >
             <RefreshCw size={12} />
             Refresh
@@ -168,7 +168,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
             />
           </div>
           <ProcurementFormSection letter="D" title="Dual-control warnings (not blocked)" compact>
-            <ul className="text-[11px] font-medium text-amber-950 space-y-1">
+            <ul className="text-xs font-medium text-amber-950 space-y-1">
               <li>Payment approve + pay same display name: {dual.paymentSameDisplayName ?? 0}</li>
               <li>Refund approve + pay same display name: {dual.refundSameDisplayName ?? 0}</li>
               <li>Refund same user requested + approved: {dual.refundSameUserRequestAndApprove ?? 0}</li>
@@ -207,7 +207,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
             <CountCard label="Unpaid deliveries, no credit" count={credit.deliveriesWarningNoCreditCount} tone="amber" />
           </div>
           {variant !== 'cashier' ? (
-            <Link to="/accounting" className="mt-2 inline-block text-[10px] font-bold text-[#134e4a] hover:underline">
+            <Link to="/accounting" className="mt-2 inline-block text-ui-xs font-bold text-zarewa-teal hover:underline">
               Review on Accounting Desk → Credit
             </Link>
           ) : null}
@@ -216,7 +216,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
 
       {flags.deliveryPaymentGateMode && flags.deliveryPaymentGateMode !== 'off' ? (
         <AccountingDeskNotice tone="warn">
-          <p className="font-bold uppercase tracking-wide text-[10px] mb-1">
+          <p className="font-bold uppercase tracking-wide text-ui-xs mb-1">
             Delivery payment gate (AP1b — {flags.deliveryPaymentGateMode})
           </p>
           <p>
@@ -253,7 +253,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
 
       {flags.accountingPolicyV1Diagnostics && ap1 ? (
         <ProcurementFormSection letter="A" title="Accounting Policy v1 diagnostics (AP1a)" compact>
-          <p className="text-[11px] font-medium text-violet-950 leading-relaxed mb-3">
+          <p className="text-xs font-medium text-violet-950 leading-relaxed mb-3">
             {data?.accountingPolicyV1Note || 'Read-only indicators; GL timing unchanged until AP1c.'}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -294,7 +294,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
           <RoleBars title="Payment approvals by role" rows={adoption.paymentApprovalsByRole} />
           <RoleBars title="Payment payouts by role" rows={adoption.paymentPayoutsByRole} />
         </div>
-        <p className="text-[10px] font-medium text-slate-600 mt-3">
+        <p className="text-ui-xs font-medium text-slate-600 mt-3">
           Active cashier users: {adoption.cashierActiveUserCount ?? 0} · Finance manager receipt confirmations:{' '}
           {adoption.financeManagerReceiptConfirmationCount ?? 0}
           {adoption.financeManagerOverrideNote ? (
@@ -303,21 +303,21 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
         </p>
       </ProcurementFormSection>
 
-      <div className="flex flex-wrap gap-3 text-[10px] font-bold">
+      <div className="flex flex-wrap gap-3 text-ui-xs font-bold">
         {variant !== 'cashier' ? (
-          <Link to="/accounts?tab=desk" className="text-[#134e4a] hover:underline">
+          <Link to="/accounts?tab=desk" className="text-zarewa-teal hover:underline">
             Cashier Desk →
           </Link>
         ) : null}
         {variant !== 'accounting' ? (
-          <Link to="/accounting" className="text-[#134e4a] hover:underline">
+          <Link to="/accounting" className="text-zarewa-teal hover:underline">
             Accounting Desk →
           </Link>
         ) : null}
-        <Link to="/accounts?tab=receipts" className="text-[#134e4a] hover:underline">
+        <Link to="/accounts?tab=receipts" className="text-zarewa-teal hover:underline">
           Finance receipts queue →
         </Link>
-        <Link to="/exec" className="text-[#134e4a] hover:underline">
+        <Link to="/exec" className="text-zarewa-teal hover:underline">
           Command Centre →
         </Link>
       </div>

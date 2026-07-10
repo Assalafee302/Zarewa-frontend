@@ -90,7 +90,7 @@ export function WorkspaceCommandPalette({ isOpen, onClose, ws, hasPermission, in
             aria-label="Command palette search"
             autoComplete="off"
           />
-          <kbd className="hidden rounded border border-slate-200 px-1.5 py-0.5 text-[10px] text-slate-500 sm:inline">
+          <kbd className="hidden rounded border border-slate-200 px-1.5 py-0.5 text-ui-xs text-slate-500 sm:inline">
             Esc
           </kbd>
           <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100" aria-label="Close">

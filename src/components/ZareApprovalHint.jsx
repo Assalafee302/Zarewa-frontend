@@ -15,7 +15,7 @@ export function ZareApprovalHint({ context = {}, className = '', compact = false
 
   return (
     <div
-      className={`rounded-lg border border-amber-200/90 bg-amber-50/90 px-3 py-2.5 text-[11px] text-amber-950 ${className}`.trim()}
+      className={`rounded-lg border border-amber-200/90 bg-amber-50/90 px-3 py-2.5 text-xs text-amber-950 ${className}`.trim()}
       role="status"
     >
       <p className="font-bold text-amber-900">{explained.summary}</p>
@@ -42,7 +42,7 @@ export function ZareApprovalHint({ context = {}, className = '', compact = false
               autoSend: true,
             })
           }
-          className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-teal-200 bg-white px-2 py-1 text-[10px] font-bold text-teal-900 hover:bg-teal-50"
+          className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-teal-200 bg-white px-2 py-1 text-ui-xs font-bold text-teal-900 hover:bg-teal-50"
         >
           <LifeBuoy size={12} aria-hidden />
           Ask {HELP_BOT_NAME} for the approval rules

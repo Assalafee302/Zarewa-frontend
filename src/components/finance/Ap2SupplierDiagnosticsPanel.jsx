@@ -112,7 +112,7 @@ export function Ap2SupplierDiagnosticsPanel({
         <span>
           {formatNgn(r.receivedValueNgn)}
           {r.receivedBasis === 'estimated_po_line' ? (
-            <span className="ml-1 text-[9px] font-bold text-amber-700">est.</span>
+            <span className="ml-1 text-ui-xs font-bold text-amber-700">est.</span>
           ) : null}
         </span>
       ),
@@ -220,7 +220,7 @@ export function Ap2SupplierDiagnosticsPanel({
               type="button"
               onClick={() => reload()}
               disabled={loading || !enabled}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
             >
               <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
               Load diagnostics
@@ -238,7 +238,7 @@ export function Ap2SupplierDiagnosticsPanel({
                   });
                 }}
                 disabled={rebuildApi.previewLoading}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50 disabled:opacity-50"
               >
                 Preview AP correction
               </button>
@@ -298,7 +298,7 @@ export function Ap2SupplierDiagnosticsPanel({
                 placeholder="optional"
               />
             </label>
-            <label className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+            <label className="inline-flex items-center gap-2 text-ui-xs font-bold uppercase tracking-wider text-slate-600">
               <input type="checkbox" checked={showDiffOnly} onChange={(e) => setShowDiffOnly(e.target.checked)} />
               AP difference only
             </label>
@@ -514,13 +514,13 @@ export function Ap2SupplierDiagnosticsPanel({
                   <button
                     type="button"
                     onClick={() => setShowTechnical((v) => !v)}
-                    className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-[#134e4a]"
+                    className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wider text-slate-500 hover:text-zarewa-teal"
                   >
                     <ChevronDown size={14} className={showTechnical ? 'rotate-180' : ''} />
                     {showTechnical ? 'Hide' : 'Show'} notes
                   </button>
                   {showTechnical && notes.length ? (
-                    <ul className="mt-2 list-disc pl-5 text-[10px] font-medium text-slate-600 space-y-1">
+                    <ul className="mt-2 list-disc pl-5 text-ui-xs font-medium text-slate-600 space-y-1">
                       {notes.map((n, i) => (
                         <li key={i}>{n}</li>
                       ))}

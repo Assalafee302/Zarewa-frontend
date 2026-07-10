@@ -108,7 +108,7 @@ export default function MyProfileDocuments() {
                 <ProfileListRow>
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold text-slate-900">{letter.title || letter.kind}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">
                       {letter.issuedAtIso ? String(letter.issuedAtIso).slice(0, 10) : '—'}
                     </span>
                   </span>

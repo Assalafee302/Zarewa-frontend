@@ -17,8 +17,8 @@ export function FinanceTabContextBanner({ tone = 'teal', title, body, action, te
       data-testid={testId}
     >
       <div className="min-w-0 max-w-3xl">
-        <p className="text-[10px] font-black uppercase tracking-wide">{title}</p>
-        <p className="text-[10px] leading-relaxed mt-0.5 opacity-95">{body}</p>
+        <p className="text-ui-xs font-black uppercase tracking-wide">{title}</p>
+        <p className="text-ui-xs leading-relaxed mt-0.5 opacity-95">{body}</p>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>

@@ -5,8 +5,8 @@ function GaugePriceTable({ title, rows, prices, onPriceChange }) {
   if (!rows?.length) return null;
   return (
     <div className="mb-4">
-      <p className="text-[10px] font-black uppercase tracking-wide text-[#134e4a] mb-2">{title}</p>
-      <table className="w-full border-collapse border border-slate-200 text-[11px] bg-white rounded-lg overflow-hidden">
+      <p className="text-ui-xs font-black uppercase tracking-wide text-zarewa-teal mb-2">{title}</p>
+      <table className="w-full border-collapse border border-slate-200 text-xs bg-white rounded-lg overflow-hidden">
         <thead>
           <tr className="bg-slate-50">
             <th className="text-left p-2 border-b border-slate-200">Gauge</th>
@@ -24,7 +24,7 @@ function GaugePriceTable({ title, rows, prices, onPriceChange }) {
               <tr key={r.gaugeLabel} className="border-b border-slate-100">
                 <td className="p-2 font-medium">{r.gaugeLabel}</td>
                 <td className="p-2 text-right tabular-nums">{r.grossClosingKg?.toLocaleString()}</td>
-                <td className="p-2 text-right tabular-nums font-bold text-[#134e4a]">
+                <td className="p-2 text-right tabular-nums font-bold text-zarewa-teal">
                   {r.netClosingKg?.toLocaleString()}
                 </td>
                 <td className="p-2">
@@ -125,7 +125,7 @@ export function StockRegisterProcurementCosting({ procurementSummary, initialPri
           />
         </label>
       </div>
-      <p className="text-sm font-black text-[#134e4a] pt-2 border-t border-teal-200">
+      <p className="text-sm font-black text-zarewa-teal pt-2 border-t border-teal-200">
         Coil closing value (preview): {formatNgn(coilTotal)}
         {stoneVal > 0 ? ` · Stone: ${formatNgn(stoneVal)}` : ''}
       </p>

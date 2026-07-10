@@ -38,13 +38,13 @@ function ChildCard({ child }) {
             {child.classLevel ? ` · ${child.classLevel}` : ''}
           </p>
           {child.linkedExecutiveLabel ? (
-            <p className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-800">
+            <p className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-800">
               {child.linkedExecutiveLabel}
               {child.beneficiaryTypeLabel ? ` · ${child.beneficiaryTypeLabel}` : ''}
             </p>
           ) : null}
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${health.className}`}>
+        <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${health.className}`}>
           {health.label}
         </span>
       </div>

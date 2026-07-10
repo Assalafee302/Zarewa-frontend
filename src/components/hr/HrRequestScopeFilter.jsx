@@ -26,16 +26,16 @@ export function HrRequestScopeFilter({ allowedScopes = [], scope, onChange, coun
             key={s}
             type="button"
             onClick={() => onChange(s)}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-ui-xs font-bold uppercase tracking-wide transition-colors ${
               active
-                ? 'border-[#134e4a]/30 bg-[#134e4a] text-white'
+                ? 'border-zarewa-teal/30 bg-zarewa-teal text-white'
                 : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
             {SCOPE_LABELS[s] || s}
             {count != null && count > 0 ? (
               <span
-                className={`rounded-full px-1.5 py-0.5 text-[9px] tabular-nums ${
+                className={`rounded-full px-1.5 py-0.5 text-ui-xs tabular-nums ${
                   active ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-900'
                 }`}
               >

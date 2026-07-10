@@ -51,15 +51,15 @@ export function ProcurementStatementPrintBlock({ kind, entityLabel, supplierId, 
     <>
       <div className="rounded-xl border border-slate-200/90 bg-white shadow-sm p-4 mb-6">
         <div className="flex flex-wrap items-center gap-2 mb-2">
-          <CalendarRange size={16} className="text-[#134e4a] shrink-0" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Statement for period</p>
+          <CalendarRange size={16} className="text-zarewa-teal shrink-0" />
+          <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Statement for period</p>
         </div>
-        <p className="text-[11px] text-slate-600 mb-3 leading-relaxed">
+        <p className="text-xs text-slate-600 mb-3 leading-relaxed">
           Choose dates (PO order date). Opens a printable A4 sheet — same layout as management reports.
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">From</label>
+            <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">From</label>
             <input
               type="date"
               value={from}
@@ -68,7 +68,7 @@ export function ProcurementStatementPrintBlock({ kind, entityLabel, supplierId, 
             />
           </div>
           <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">To</label>
+            <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">To</label>
             <input
               type="date"
               value={to}
@@ -79,7 +79,7 @@ export function ProcurementStatementPrintBlock({ kind, entityLabel, supplierId, 
           <button
             type="button"
             onClick={() => setPrintOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#134e4a] text-white px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide shadow-sm hover:brightness-105"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-zarewa-teal text-white px-4 py-2.5 text-ui-xs font-bold uppercase tracking-wide shadow-sm hover:brightness-105"
           >
             <Printer size={16} />
             Print statement

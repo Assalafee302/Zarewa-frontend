@@ -27,11 +27,11 @@ export function BranchManagerPulseSection({
   return (
     <section className="space-y-6" aria-label="Branch performance">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Performance</h2>
+        <h2 className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Performance</h2>
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-600 hover:border-slate-300"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-600 hover:border-slate-300"
           aria-expanded={expanded}
         >
           {expanded ? 'Collapse' : 'Expand'}
@@ -41,7 +41,7 @@ export function BranchManagerPulseSection({
 
       {expanded ? (
         <>
-          <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-[#134e4a] via-[#0f3d39] to-[#0a2e2c] text-white p-6 sm:p-8 shadow-lg shadow-teal-950/10">
+          <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-zarewa-teal via-[#0f3d39] to-[#0a2e2c] text-white p-6 sm:p-8 shadow-lg shadow-teal-950/10">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="flex items-start gap-4 min-w-0">
                 <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
@@ -49,27 +49,27 @@ export function BranchManagerPulseSection({
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-200/90">
+                    <p className="text-ui-xs font-bold uppercase tracking-[0.2em] text-teal-200/90">
                       {displaySnapshots.periodLabel ?? 'This month'}
                     </p>
                     {hasWorkspaceData ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-200">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide text-emerald-200">
                         <Radio size={10} className="text-emerald-300" aria-hidden />
                         Live workspace
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white/50">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/15 px-2 py-0.5 text-ui-xs font-bold uppercase tracking-wide text-white/50">
                         No workspace
                       </span>
                     )}
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${managerTargetSourceMeta.chipClass}`}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide ${managerTargetSourceMeta.chipClass}`}
                       title={managerTargetSourceMeta.title}
                     >
                       Targets: {managerTargetSourceMeta.shortLabel}
                     </span>
                   </div>
-                  <p className="text-[9px] font-semibold text-teal-200/75 mt-1.5 mb-0 tracking-wide">
+                  <p className="text-ui-xs font-semibold text-teal-200/75 mt-1.5 mb-0 tracking-wide">
                     {managerTargetSourceMeta.line}
                   </p>
                   <div className="flex flex-wrap gap-1 mt-3 mb-1" role="group" aria-label="Metrics time range">
@@ -80,7 +80,7 @@ export function BranchManagerPulseSection({
                           key={p.key}
                           type="button"
                           onClick={() => onMetricPeriodChange(p.key)}
-                          className={`shrink-0 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wide border transition-colors ${
+                          className={`shrink-0 px-2.5 py-1 rounded-lg text-ui-xs font-black uppercase tracking-wide border transition-colors ${
                             on
                               ? 'bg-white text-[#0f3d39] border-white shadow-sm'
                               : 'bg-white/5 text-teal-100/90 border-white/15 hover:bg-white/10 hover:border-white/25'
@@ -91,7 +91,7 @@ export function BranchManagerPulseSection({
                       );
                     })}
                   </div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-teal-200/90 mb-1 flex items-center gap-1.5 flex-wrap">
+                  <p className="text-ui-xs font-bold uppercase tracking-[0.18em] text-teal-200/90 mb-1 flex items-center gap-1.5 flex-wrap">
                     <span>Sales produced</span>
                     <span
                       className="inline-flex rounded-full p-0.5 text-teal-200/80 hover:text-white hover:bg-white/10 cursor-help"
@@ -103,7 +103,7 @@ export function BranchManagerPulseSection({
                   <p className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums">
                     {formatNgn(displaySnapshots.producedSalesNgn)}
                   </p>
-                  <p className="text-[11px] text-teal-100/80 mt-1.5 tabular-nums">
+                  <p className="text-xs text-teal-100/80 mt-1.5 tabular-nums">
                     Collected on quotations (quote date): {formatNgn(displaySnapshots.paidOnQuotesNgn)}
                   </p>
                   <p className="text-xs text-white/70 mt-2 max-w-md">
@@ -114,21 +114,21 @@ export function BranchManagerPulseSection({
               </div>
               <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-4 lg:max-w-xl">
                 <div className="rounded-xl bg-white/10 border border-white/10 px-3 py-3">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-teal-200/80">Quotes</p>
+                  <p className="text-ui-xs font-bold uppercase tracking-wider text-teal-200/80">Quotes</p>
                   <p className="text-lg font-black tabular-nums mt-1">{displaySnapshots.quoteCount}</p>
                 </div>
                 <div className="rounded-xl bg-white/10 border border-white/10 px-3 py-3">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-teal-200/80">Low stock SKUs</p>
+                  <p className="text-ui-xs font-bold uppercase tracking-wider text-teal-200/80">Low stock SKUs</p>
                   <p className="text-lg font-black tabular-nums mt-1">{displaySnapshots.lowStockCount}</p>
                 </div>
                 <div className="rounded-xl bg-white/10 border border-white/10 px-3 py-3 sm:col-span-2">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-teal-200/80">
+                  <p className="text-ui-xs font-bold uppercase tracking-wider text-teal-200/80">
                     Metres produced (completed jobs)
                   </p>
                   <p className="text-lg font-black tabular-nums mt-1">
                     {Number(displaySnapshots.completedProductionMetres || 0).toLocaleString()} m
                   </p>
-                  <p className="text-[8px] font-semibold text-teal-200/70 mt-1.5 leading-snug">
+                  <p className="text-ui-xs font-semibold text-teal-200/70 mt-1.5 leading-snug">
                     Cutting lists (dated in period): {Number(displaySnapshots.metersCuttingLists || 0).toLocaleString()} m
                   </p>
                 </div>
@@ -136,7 +136,7 @@ export function BranchManagerPulseSection({
             </div>
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wide text-teal-100/90 mb-1.5">
+                <div className="flex justify-between text-ui-xs font-bold uppercase tracking-wide text-teal-100/90 mb-1.5">
                   <span>Produced sales vs target</span>
                   <span className="tabular-nums">{producedSalesProgress}%</span>
                 </div>
@@ -148,7 +148,7 @@ export function BranchManagerPulseSection({
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wide text-teal-100/90 mb-1.5">
+                <div className="flex justify-between text-ui-xs font-bold uppercase tracking-wide text-teal-100/90 mb-1.5">
                   <span>Production metres vs target</span>
                   <span className="tabular-nums">{productionMetresProgress}%</span>
                 </div>
@@ -168,13 +168,13 @@ export function BranchManagerPulseSection({
 
           <Card className="p-5 border-slate-200/90 shadow-sm">
             <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.18em]">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.18em]">
                 Top customers ({(displaySnapshots.periodLabel ?? 'this month').toLowerCase()})
               </h3>
               {mayViewReports ? (
                 <Link
                   to="/exec?tab=intelligence"
-                  className="text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+                  className="text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
                 >
                   Business intelligence
                 </Link>
@@ -191,13 +191,13 @@ export function BranchManagerPulseSection({
                   <div key={c.customer_id || idx} className="flex items-center gap-4">
                     <span className="text-xs font-black text-slate-400 w-5">{idx + 1}</span>
                     <div className="flex-1 min-w-0">
-                      <div className="flex justify-between text-[11px] font-bold text-slate-800 mb-1 gap-2">
+                      <div className="flex justify-between text-xs font-bold text-slate-800 mb-1 gap-2">
                         <span className="truncate">{formatPersonName(c.customer_name)}</span>
-                        <span className="tabular-nums shrink-0 text-[#134e4a]">
+                        <span className="tabular-nums shrink-0 text-zarewa-teal">
                           {Number(c.cuttingListMeters || 0).toLocaleString()} m
                         </span>
                       </div>
-                      <p className="text-[10px] font-semibold text-slate-500 mb-1.5 tabular-nums">
+                      <p className="text-ui-xs font-semibold text-slate-500 mb-1.5 tabular-nums">
                         Net collected: {formatNgn(c.netCollectedNgn)}
                         {c.refundsNgn > 0 ? (
                           <span className="text-slate-400">
@@ -212,7 +212,7 @@ export function BranchManagerPulseSection({
                           animate={{
                             width: `${(c.cuttingListMeters / (displaySnapshots.topCustomers[0]?.cuttingListMeters || 1)) * 100}%`,
                           }}
-                          className="h-full bg-[#134e4a] rounded-full"
+                          className="h-full bg-zarewa-teal rounded-full"
                         />
                       </div>
                     </div>

@@ -50,17 +50,17 @@ export function AccountingExecutiveSummary({
   const NextIcon = next.icon;
 
   return (
-    <section className="rounded-xl border border-[#134e4a]/20 bg-gradient-to-br from-teal-50/80 to-white overflow-hidden">
-      <div className="h-1 bg-[#134e4a]" />
+    <section className="rounded-xl border border-zarewa-teal/20 bg-gradient-to-br from-teal-50/80 to-white overflow-hidden">
+      <div className="h-1 bg-zarewa-teal" />
       <div className="p-4 sm:p-5 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-teal-800">Executive summary</p>
-            <h3 className="mt-1 text-lg font-bold text-[#134e4a]">
+            <p className="text-ui-xs font-black uppercase tracking-widest text-teal-800">Executive summary</p>
+            <h3 className="mt-1 text-lg font-bold text-zarewa-teal">
               {periodKey}
               {branchScopeLabel ? ` · ${branchScopeLabel}` : ''}
             </h3>
-            <p className="mt-1 text-[11px] text-slate-600">
+            <p className="mt-1 text-xs text-slate-600">
               {openingPosted ? 'Live GL — management draft from registers and postings.' : 'Pre-cutover — complete Opening Pack before month-end lock.'}
             </p>
           </div>
@@ -68,7 +68,7 @@ export function AccountingExecutiveSummary({
             <button
               type="button"
               onClick={() => onFocusTab(next.tab)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:brightness-105 shrink-0"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-white hover:brightness-105 shrink-0"
             >
               <NextIcon size={14} />
               {next.label}
@@ -78,32 +78,32 @@ export function AccountingExecutiveSummary({
 
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div className={ACCOUNTING_CARD_ROW}>
-            <p className="text-[9px] font-bold uppercase text-slate-500">Net income</p>
-            <p className="mt-1 text-base font-black tabular-nums text-[#134e4a]">
+            <p className="text-ui-xs font-bold uppercase text-slate-500">Net income</p>
+            <p className="mt-1 text-base font-black tabular-nums text-zarewa-teal">
               {pl ? formatNgn(pl.netIncomeNgn) : '—'}
             </p>
-            <p className="mt-0.5 text-[10px] text-slate-500">Rev {pl ? formatNgn(pl.revenueTotalNgn) : '—'}</p>
+            <p className="mt-0.5 text-ui-xs text-slate-500">Rev {pl ? formatNgn(pl.revenueTotalNgn) : '—'}</p>
           </div>
           <div className={ACCOUNTING_CARD_ROW}>
-            <p className="text-[9px] font-bold uppercase text-slate-500">Balance sheet</p>
-            <p className="mt-1 text-base font-black text-[#134e4a]">{bs?.balanced ? 'Balanced' : bs ? 'Review' : '—'}</p>
-            <p className="mt-0.5 text-[10px] text-slate-500 tabular-nums">
+            <p className="text-ui-xs font-bold uppercase text-slate-500">Balance sheet</p>
+            <p className="mt-1 text-base font-black text-zarewa-teal">{bs?.balanced ? 'Balanced' : bs ? 'Review' : '—'}</p>
+            <p className="mt-0.5 text-ui-xs text-slate-500 tabular-nums">
               Assets {bs ? formatNgn(bs.assetsNgn) : '—'}
             </p>
           </div>
           <div className={ACCOUNTING_CARD_ROW}>
-            <p className="text-[9px] font-bold uppercase text-slate-500">Month-end close</p>
-            <p className="mt-1 text-base font-black text-[#134e4a]">
+            <p className="text-ui-xs font-bold uppercase text-slate-500">Month-end close</p>
+            <p className="mt-1 text-base font-black text-zarewa-teal">
               {close ? (close.readyToLock ? 'Ready to lock' : `${closeOk}/${closeSteps.length} steps`) : '—'}
             </p>
-            <p className="mt-0.5 text-[10px] text-slate-500">
+            <p className="mt-0.5 text-ui-xs text-slate-500">
               {close?.periodLock?.locked ? 'Period locked' : `${close?.warnings ?? 0} warning(s)`}
             </p>
           </div>
           <div className={ACCOUNTING_CARD_ROW}>
-            <p className="text-[9px] font-bold uppercase text-slate-500">Exceptions</p>
-            <p className="mt-1 text-base font-black text-[#134e4a]">{exceptionCount}</p>
-            <p className="mt-0.5 text-[10px] text-slate-500">Cashier & treasury follow-up</p>
+            <p className="text-ui-xs font-bold uppercase text-slate-500">Exceptions</p>
+            <p className="mt-1 text-base font-black text-zarewa-teal">{exceptionCount}</p>
+            <p className="mt-0.5 text-ui-xs text-slate-500">Cashier & treasury follow-up</p>
           </div>
         </div>
       </div>

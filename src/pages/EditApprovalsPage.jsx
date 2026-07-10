@@ -64,7 +64,7 @@ export default function EditApprovalsPage() {
             type="button"
             onClick={() => void load()}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Refresh
@@ -73,7 +73,7 @@ export default function EditApprovalsPage() {
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-2">
-            <RefreshCw size={28} className="animate-spin text-[#134e4a]" />
+            <RefreshCw size={28} className="animate-spin text-zarewa-teal" />
             <p className="text-xs font-bold uppercase tracking-widest">Loading queue</p>
           </div>
         ) : items.length === 0 ? (
@@ -92,7 +92,7 @@ export default function EditApprovalsPage() {
                 className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="min-w-0">
-                  <p className="text-[10px] font-mono font-bold text-slate-700">{e.id}</p>
+                  <p className="text-ui-xs font-mono font-bold text-slate-700">{e.id}</p>
                   <p className="text-sm font-semibold text-slate-900 mt-1">
                     {e.entityKind} · <span className="font-mono text-[13px]">{e.entityId}</span>
                   </p>
@@ -110,7 +110,7 @@ export default function EditApprovalsPage() {
                   type="button"
                   disabled={busyId === e.id}
                   onClick={() => void approve(e.id)}
-                  className="shrink-0 rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-black uppercase tracking-wide text-white hover:brightness-105 disabled:opacity-50"
+                  className="shrink-0 rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-white hover:brightness-105 disabled:opacity-50"
                 >
                   {busyId === e.id ? 'Approving…' : 'Approve'}
                 </button>

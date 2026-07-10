@@ -88,16 +88,16 @@ export function InterBranchLoanDetailModal({
     <>
       <ModalFrame isOpen onClose={onClose} title="Inter-branch transfer" surface="plain">
         <div className="w-full max-w-2xl rounded-2xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
-          <div className="h-1 bg-[#134e4a]" />
+          <div className="h-1 bg-zarewa-teal" />
           <div className="p-5 sm:p-6 max-h-[min(85dvh,720px)] overflow-y-auto custom-scrollbar">
-            {loading ? <p className="text-[11px] text-slate-500">Loading…</p> : null}
-            {error && !loan ? <p className="text-[11px] text-rose-700">{error}</p> : null}
+            {loading ? <p className="text-xs text-slate-500">Loading…</p> : null}
+            {error && !loan ? <p className="text-xs text-rose-700">{error}</p> : null}
             {loan ? (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-mono text-sm font-bold text-[#134e4a]">{loan.loanId}</p>
-                    <p className="text-[11px] text-slate-600 mt-1">
+                    <p className="font-mono text-sm font-bold text-zarewa-teal">{loan.loanId}</p>
+                    <p className="text-xs text-slate-600 mt-1">
                       {branchLabel(loan.lenderBranchId)} → {branchLabel(loan.borrowerBranchId)}
                     </p>
                   </div>
@@ -112,26 +112,26 @@ export function InterBranchLoanDetailModal({
                 </div>
 
                 {loan.reference ? (
-                  <p className="text-[10px] text-slate-600">
+                  <p className="text-ui-xs text-slate-600">
                     <span className="font-bold uppercase text-slate-500">Reference:</span> {loan.reference}
                   </p>
                 ) : null}
                 {loan.proposedNote ? (
-                  <p className="text-[11px] text-slate-700 rounded-lg border border-slate-100 bg-slate-50/80 p-3 leading-relaxed">
+                  <p className="text-xs text-slate-700 rounded-lg border border-slate-100 bg-slate-50/80 p-3 leading-relaxed">
                     {loan.proposedNote}
                   </p>
                 ) : null}
 
                 {Array.isArray(loan.repaymentPlan) && loan.repaymentPlan.length > 0 ? (
                   <section>
-                    <h3 className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-2">
+                    <h3 className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
                       Planned instalments
                     </h3>
                     <ul className="rounded-lg border border-slate-200 divide-y divide-slate-100">
                       {loan.repaymentPlan.map((line, idx) => (
-                        <li key={idx} className="flex justify-between gap-3 px-3 py-2 text-[11px] tabular-nums">
+                        <li key={idx} className="flex justify-between gap-3 px-3 py-2 text-xs tabular-nums">
                           <span>{line.dueDateISO || '—'}</span>
-                          <span className="font-semibold text-[#134e4a]">{formatNgn(line.amountNgn)}</span>
+                          <span className="font-semibold text-zarewa-teal">{formatNgn(line.amountNgn)}</span>
                           {line.note ? <span className="text-slate-500 truncate">{line.note}</span> : null}
                         </li>
                       ))}
@@ -141,24 +141,24 @@ export function InterBranchLoanDetailModal({
 
                 {repayments.length > 0 ? (
                   <section>
-                    <h3 className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-2">
+                    <h3 className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
                       Posted repayments
                     </h3>
                     <ul className="rounded-lg border border-slate-200 divide-y divide-slate-100">
                       {repayments.map((r) => (
-                        <li key={r.id} className="px-3 py-2 text-[11px]">
+                        <li key={r.id} className="px-3 py-2 text-xs">
                           <div className="flex justify-between gap-2 tabular-nums">
                             <span>{String(r.postedAtISO || '').slice(0, 10)}</span>
-                            <span className="font-semibold text-[#134e4a]">{formatNgn(r.amountNgn)}</span>
+                            <span className="font-semibold text-zarewa-teal">{formatNgn(r.amountNgn)}</span>
                           </div>
-                          {r.note ? <p className="text-[10px] text-slate-500 mt-0.5">{r.note}</p> : null}
+                          {r.note ? <p className="text-ui-xs text-slate-500 mt-0.5">{r.note}</p> : null}
                         </li>
                       ))}
                     </ul>
                   </section>
                 ) : null}
 
-                <section className="rounded-lg border border-slate-100 bg-slate-50/60 p-3 text-[10px] text-slate-600 space-y-1">
+                <section className="rounded-lg border border-slate-100 bg-slate-50/60 p-3 text-ui-xs text-slate-600 space-y-1">
                   <p>
                     Proposed by {loan.createdByName || '—'} ·{' '}
                     {String(loan.createdAtISO || '').slice(0, 10)}
@@ -180,9 +180,9 @@ export function InterBranchLoanDetailModal({
 
                 {loan.status === 'pending_md' && canMdApprove ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
-                    <p className="text-[10px] font-bold uppercase text-amber-900">MD decision</p>
+                    <p className="text-ui-xs font-bold uppercase text-amber-900">MD decision</p>
                     <input
-                      className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-[11px]"
+                      className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs"
                       placeholder="Rejection note (optional)"
                       value={rejectNote}
                       onChange={(e) => setRejectNote(e.target.value)}
@@ -192,7 +192,7 @@ export function InterBranchLoanDetailModal({
                         type="button"
                         disabled={busy}
                         onClick={() => void mdApprove()}
-                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-[9px] font-semibold uppercase disabled:opacity-50"
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-ui-xs font-semibold uppercase disabled:opacity-50"
                       >
                         <Check size={12} /> Approve disbursement
                       </button>
@@ -200,7 +200,7 @@ export function InterBranchLoanDetailModal({
                         type="button"
                         disabled={busy}
                         onClick={() => void mdReject()}
-                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white text-rose-800 px-3 py-1.5 text-[9px] font-semibold uppercase disabled:opacity-50"
+                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white text-rose-800 px-3 py-1.5 text-ui-xs font-semibold uppercase disabled:opacity-50"
                       >
                         <X size={12} /> Reject
                       </button>
@@ -212,13 +212,13 @@ export function InterBranchLoanDetailModal({
                   <button
                     type="button"
                     onClick={() => setRepayOpen(true)}
-                    className="inline-flex items-center rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider"
+                    className="inline-flex items-center rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider"
                   >
                     Record repayment
                   </button>
                 ) : null}
 
-                {error ? <p className="text-[10px] text-rose-700">{error}</p> : null}
+                {error ? <p className="text-ui-xs text-rose-700">{error}</p> : null}
               </div>
             ) : null}
 
@@ -226,7 +226,7 @@ export function InterBranchLoanDetailModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-[9px] font-semibold uppercase text-slate-700"
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-ui-xs font-semibold uppercase text-slate-700"
               >
                 Close
               </button>
@@ -255,10 +255,10 @@ export function InterBranchLoanDetailModal({
 function Metric({ label, value, highlight = false }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
       <p
         className={`mt-1 text-sm font-black tabular-nums ${
-          highlight ? 'text-[#134e4a]' : 'text-slate-800'
+          highlight ? 'text-zarewa-teal' : 'text-slate-800'
         }`}
       >
         {value}

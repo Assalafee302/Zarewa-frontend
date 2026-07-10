@@ -46,19 +46,19 @@ export default function OffcutIncidentPicker({ gaugeLabel, colour, value = [], o
 
   return (
     <div className="space-y-1">
-      <p className="text-[9px] font-bold uppercase text-slate-400">Reference incident ID when completing production</p>
+      <p className="text-ui-xs font-bold uppercase text-slate-400">Reference incident ID when completing production</p>
       <ul className="space-y-1 max-h-40 overflow-y-auto">
         {available.map((inc) => {
           const sel = selected.find((s) => s.materialIncidentId === inc.id);
           return (
-            <li key={inc.id} className="flex items-center justify-between gap-2 text-[10px] rounded-lg border border-slate-100 bg-white px-2 py-1.5">
+            <li key={inc.id} className="flex items-center justify-between gap-2 text-ui-xs rounded-lg border border-slate-100 bg-white px-2 py-1.5">
               <button
                 type="button"
-                className={`text-left min-w-0 ${sel ? 'font-bold text-[#134e4a]' : 'text-slate-700'}`}
+                className={`text-left min-w-0 ${sel ? 'font-bold text-zarewa-teal' : 'text-slate-700'}`}
                 onClick={() => toggle(inc.id, inc.metersAvailable)}
               >
                 <span className="font-mono block">{inc.id}</span>
-                <span className="text-[9px] text-slate-500">
+                <span className="text-ui-xs text-slate-500">
                   {typeLabel(inc.incidentType)} · {Number(inc.metersAvailable).toFixed(2)} m avail
                 </span>
               </button>

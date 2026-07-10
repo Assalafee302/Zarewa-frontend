@@ -60,7 +60,7 @@ function CarryOverModal({ onClose, onSuccess }) {
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase">Cancel</button>
-          <button type="button" disabled={busy} onClick={confirm} className="rounded-xl bg-[#134e4a] px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={confirm} className="rounded-xl bg-zarewa-teal px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
             {busy ? 'Processing…' : 'Confirm'}
           </button>
         </div>
@@ -131,7 +131,7 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
           <button
             type="button"
             onClick={() => setCarryOverOpen(true)}
-            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-[11px] font-bold uppercase text-amber-900"
+            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs font-bold uppercase text-amber-900"
           >
             Year-End Carry-Over
           </button>
@@ -159,7 +159,7 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
       {!embedded ? (
         <p className="text-sm text-slate-600">
           Organisation leave balances and calendar. Staff apply via{' '}
-          <Link to="/my-profile/leave" className="font-semibold text-[#134e4a] hover:underline">
+          <Link to="/my-profile/leave" className="font-semibold text-zarewa-teal hover:underline">
             My HR → Leave
           </Link>
           .
@@ -174,7 +174,7 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
               type="button"
               disabled={busy}
               onClick={recompute}
-              className="rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase text-white disabled:opacity-50"
+              className="rounded-xl bg-zarewa-teal px-4 py-2.5 text-xs font-bold uppercase text-white disabled:opacity-50"
             >
               Recompute annual
             </button>
@@ -182,7 +182,7 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
               type="button"
               disabled={busy}
               onClick={recomputeMaternity}
-              className="rounded-xl border border-[#134e4a] bg-white px-4 py-2.5 text-[11px] font-bold uppercase text-[#134e4a] disabled:opacity-50"
+              className="rounded-xl border border-zarewa-teal bg-white px-4 py-2.5 text-xs font-bold uppercase text-zarewa-teal disabled:opacity-50"
             >
               Recompute maternity
             </button>
@@ -192,7 +192,7 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
           <button
             type="button"
             onClick={() => setCarryOverOpen(true)}
-            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-[11px] font-bold uppercase text-amber-900"
+            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs font-bold uppercase text-amber-900"
           >
             Year-End Carry-Over
           </button>
@@ -240,7 +240,7 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
                     <AppTableTd>
                       <Link
                         to={`${HR_EMPLOYEES}/${encodeURIComponent(b.userId)}`}
-                        className="font-semibold text-[#134e4a] hover:underline"
+                        className="font-semibold text-zarewa-teal hover:underline"
                       >
                         {b.userId}
                       </Link>

@@ -12,7 +12,7 @@ function ComposerStep({ step, title, children, defaultOpen = false }) {
   return (
     <details open={defaultOpen} className="rounded-lg border border-slate-200/80 bg-white">
       <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold text-slate-700">
-        <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-teal-100 text-[10px] font-bold text-teal-900">
+        <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-teal-100 text-ui-xs font-bold text-teal-900">
           {step}
         </span>
         {title}
@@ -127,7 +127,7 @@ export function SmartMemoComposerPanel({
       />
       <div className="space-y-3 px-3 py-3 sm:px-4">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[11px] font-medium text-slate-500">Memo type</p>
+          <p className="text-xs font-medium text-slate-500">Memo type</p>
           {Object.entries(SMART_MEMO_TYPES)
             .filter(([k]) => k !== 'general_internal')
             .slice(0, quickMode ? 6 : 10)
@@ -136,7 +136,7 @@ export function SmartMemoComposerPanel({
                 key={key}
                 type="button"
                 onClick={() => onMemoTypeChange?.(key)}
-                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                className={`rounded-full px-2.5 py-1 text-ui-xs font-semibold ${
                   memoType === key
                     ? 'bg-teal-100 text-teal-950 ring-1 ring-teal-200'
                     : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
@@ -149,7 +149,7 @@ export function SmartMemoComposerPanel({
             type="button"
             disabled={improving || (!subject.trim() && !body.trim())}
             onClick={onImproveMemo}
-            className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-lg border border-teal-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-teal-900 hover:bg-teal-50 disabled:opacity-50"
+            className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-lg border border-teal-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-teal-900 hover:bg-teal-50 disabled:opacity-50"
           >
             <Wand2 size={13} className={improving ? 'animate-pulse' : ''} />
             Improve
@@ -170,7 +170,7 @@ export function SmartMemoComposerPanel({
                   type="button"
                   disabled={improving || (!subject.trim() && !body.trim())}
                   onClick={() => onMemoAssist?.(action)}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 >
                   {label}
                 </button>
@@ -178,7 +178,7 @@ export function SmartMemoComposerPanel({
             </div>
 
             <ComposerStep step="1" title="Routing & priority">
-              <div className="grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
                 <label className="block font-medium text-slate-700">
                   Memo type
                   <select
@@ -243,7 +243,7 @@ export function SmartMemoComposerPanel({
                   </select>
                 </label>
                 <div className="flex flex-col justify-end gap-1.5">
-                  <label className="inline-flex items-center gap-2 text-[11px]">
+                  <label className="inline-flex items-center gap-2 text-xs">
                     <input
                       type="checkbox"
                       checked={requiresResponse}
@@ -251,7 +251,7 @@ export function SmartMemoComposerPanel({
                     />
                     Requires response
                   </label>
-                  <label className="inline-flex items-center gap-2 text-[11px]">
+                  <label className="inline-flex items-center gap-2 text-xs">
                     <input
                       type="checkbox"
                       checked={requiresApproval}
@@ -263,7 +263,7 @@ export function SmartMemoComposerPanel({
               </div>
             </ComposerStep>
 
-            <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200/80 bg-white p-2.5 text-[11px] sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200/80 bg-white p-2.5 text-xs sm:grid-cols-2">
               <SuggestionRow label="Suggested office" value={suggestions.responsibleOfficeLabel} />
               <SuggestionRow label="Priority" value={suggestions.priority} />
             </div>
@@ -271,7 +271,7 @@ export function SmartMemoComposerPanel({
             <button
               type="button"
               onClick={applyOfficeAndPriority}
-              className="text-[11px] font-semibold text-teal-800 hover:underline"
+              className="text-xs font-semibold text-teal-800 hover:underline"
             >
               Apply suggested routing
             </button>
@@ -280,10 +280,10 @@ export function SmartMemoComposerPanel({
 
         {suggestions.guidedFieldDefs.length > 0 && (!quickMode || missingRequired.length > 0) ? (
           <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Extra details</p>
+            <p className="text-ui-xs font-semibold uppercase tracking-wide text-slate-500">Extra details</p>
             {(quickMode ? suggestions.guidedFieldDefs.filter((f) => f.required) : suggestions.guidedFieldDefs).map(
               (f) => (
-                <label key={f.key} className="block text-[11px] font-medium text-slate-700">
+                <label key={f.key} className="block text-xs font-medium text-slate-700">
                   {f.label}
                   {f.required ? <span className="text-rose-600"> *</span> : null}
                   {f.type === 'textarea' ? (
@@ -349,13 +349,13 @@ export function SmartMemoComposerPanel({
 
         {missingRequired.length > 0 ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-2.5">
-            <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-amber-950">
+            <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-950">
               <AlertTriangle size={14} />
               Still needed before send
             </p>
             <ul className="space-y-1">
               {missingRequired.map((item) => (
-                <li key={item.id} className="text-[11px] text-amber-900">
+                <li key={item.id} className="text-xs text-amber-900">
                   {item.label}
                 </li>
               ))}
@@ -370,7 +370,7 @@ export function SmartMemoComposerPanel({
                 .filter((item) => item.satisfied)
                 .slice(0, 4)
                 .map((item) => (
-                  <li key={item.id} className="flex items-start gap-2 text-[11px] text-emerald-900">
+                  <li key={item.id} className="flex items-start gap-2 text-xs text-emerald-900">
                     <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
                     {item.label}
                   </li>
@@ -380,7 +380,7 @@ export function SmartMemoComposerPanel({
         ) : null}
 
         {!quickMode && (suggestions.zareHints || suggestions.runaHints)?.length ? (
-          <div className="rounded border border-teal-100 bg-teal-50/50 px-2.5 py-2 text-[10px] leading-relaxed text-teal-900">
+          <div className="rounded border border-teal-100 bg-teal-50/50 px-2.5 py-2 text-ui-xs leading-relaxed text-teal-900">
             {(suggestions.zareHints || suggestions.runaHints).map((h, i) => (
               <p key={i}>{h}</p>
             ))}
@@ -388,7 +388,7 @@ export function SmartMemoComposerPanel({
         ) : null}
 
         {quickMode && suggestions.nextAction ? (
-          <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500">
+          <p className="flex items-start gap-1.5 text-xs leading-relaxed text-slate-500">
             <Sparkles size={12} className="mt-0.5 shrink-0 text-teal-700" aria-hidden />
             {suggestions.nextAction}
           </p>

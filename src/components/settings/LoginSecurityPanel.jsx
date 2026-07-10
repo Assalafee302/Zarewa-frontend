@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { LockOpen, RefreshCw, Shield } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -46,7 +47,7 @@ export default function LoginSecurityPanel() {
 
   const unlockAccount = async (userId, username) => {
     if (!canManage || !userId) return;
-    if (!window.confirm(`Unlock sign-in for ${username}? They can try again immediately.`)) return;
+    if (!(await appConfirm({ message: `Unlock sign-in for ${username}? They can try again immediately.` }))) return;
     setUnlockBusyId(userId);
     try {
       const { ok, data } = await apiFetch(`/api/users/${encodeURIComponent(userId)}/unlock-account`, {
@@ -98,7 +99,7 @@ export default function LoginSecurityPanel() {
             ['Active sessions', summary.activeSessionCount],
           ].map(([label, value]) => (
             <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
               <p className="mt-1 text-xl font-black text-slate-900">{value ?? 0}</p>
             </div>
           ))}
@@ -107,7 +108,7 @@ export default function LoginSecurityPanel() {
 
       <div className="mt-6">
         <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Locked accounts</h4>
-        <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+        <p className="mt-1 text-xs text-slate-500 leading-relaxed">
           Accounts locked after 5 failed sign-in attempts (30-minute lock).{' '}
           {canManage
             ? 'Use Unlock to let the user sign in immediately.'
@@ -115,7 +116,7 @@ export default function LoginSecurityPanel() {
         </p>
         <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
           <table className="min-w-full text-left text-xs">
-            <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500">
+            <thead className="bg-slate-50 text-ui-xs font-bold uppercase text-slate-500">
               <tr>
                 <th className="px-3 py-2">User</th>
                 <th className="px-3 py-2">Failed attempts</th>
@@ -135,7 +136,7 @@ export default function LoginSecurityPanel() {
                   <tr key={a.userId} className="border-t border-slate-100">
                     <td className="px-3 py-2 font-medium text-slate-800">
                       {a.displayName || a.username}
-                      <span className="block text-[10px] text-slate-500">@{a.username}</span>
+                      <span className="block text-ui-xs text-slate-500">@{a.username}</span>
                     </td>
                     <td className="px-3 py-2 text-slate-600">{a.failedLoginCount ?? '—'}</td>
                     <td className="px-3 py-2 text-slate-600">
@@ -147,7 +148,7 @@ export default function LoginSecurityPanel() {
                           type="button"
                           disabled={unlockBusyId === a.userId}
                           onClick={() => void unlockAccount(a.userId, a.username)}
-                          className="z-btn-secondary !py-1 !px-2 !text-[10px] gap-1"
+                          className="z-btn-secondary !py-1 !px-2 !text-ui-xs gap-1"
                         >
                           <LockOpen size={12} />
                           {unlockBusyId === a.userId ? 'Unlocking…' : 'Unlock'}
@@ -166,7 +167,7 @@ export default function LoginSecurityPanel() {
         <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Active sessions</h4>
         <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
           <table className="min-w-full text-left text-xs">
-            <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500">
+            <thead className="bg-slate-50 text-ui-xs font-bold uppercase text-slate-500">
               <tr>
                 <th className="px-3 py-2">User</th>
                 <th className="px-3 py-2">Role</th>
@@ -186,7 +187,7 @@ export default function LoginSecurityPanel() {
                   <tr key={`${s.userId}-${s.lastSeenAtIso}`} className="border-t border-slate-100">
                     <td className="px-3 py-2 font-medium text-slate-800">
                       {s.displayName || s.username}
-                      <span className="block text-[10px] text-slate-500">@{s.username}</span>
+                      <span className="block text-ui-xs text-slate-500">@{s.username}</span>
                     </td>
                     <td className="px-3 py-2 text-slate-600">{s.roleKey}</td>
                     <td className="px-3 py-2 text-slate-600">

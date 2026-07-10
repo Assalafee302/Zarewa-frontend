@@ -5,10 +5,10 @@ const TBL = 'w-full border-collapse table-fixed';
 const TH =
   'px-1 py-0.5 text-left text-[7px] font-bold uppercase text-slate-600 border border-slate-300 print:text-[6.5pt] align-middle whitespace-nowrap';
 const THR = `${TH} text-right`;
-const TD = 'px-1 py-0.5 text-[9px] text-slate-800 border border-slate-300 print:text-[7.5pt] align-middle break-words';
+const TD = 'px-1 py-0.5 text-ui-xs text-slate-800 border border-slate-300 print:text-[7.5pt] align-middle break-words';
 const TDR = `${TD} text-right tabular-nums whitespace-nowrap`;
 const TDM = `${TD} font-mono tabular-nums whitespace-nowrap`;
-const TF = 'px-1 py-1 text-[9px] font-bold text-slate-800 border border-slate-300 bg-slate-100 print:text-[7.5pt]';
+const TF = 'px-1 py-1 text-ui-xs font-bold text-slate-800 border border-slate-300 bg-slate-100 print:text-[7.5pt]';
 const TFR = `${TF} text-right tabular-nums`;
 
 function fmtNum(v, d = 2) {
@@ -29,11 +29,11 @@ function SummarySection({ summary }) {
 
   return (
     <section className="mb-6 break-before-page break-inside-avoid border-t-2 border-slate-300 pt-4 mt-6">
-      <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Summary</h3>
+      <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">Summary</h3>
 
       {byMaterial.length > 0 ? (
         <>
-          <p className="text-[9px] font-bold text-slate-700 mb-1">By material</p>
+          <p className="text-ui-xs font-bold text-slate-700 mb-1">By material</p>
           <table className={`${TBL} mb-3`}>
             <thead>
               <tr className="bg-slate-50">
@@ -65,7 +65,7 @@ function SummarySection({ summary }) {
 
       {byGauge.length > 0 ? (
         <>
-          <p className="text-[9px] font-bold text-slate-700 mb-1">By gauge</p>
+          <p className="text-ui-xs font-bold text-slate-700 mb-1">By gauge</p>
           <table className={`${TBL} mb-3`}>
             <thead>
               <tr className="bg-slate-50">
@@ -95,7 +95,7 @@ function SummarySection({ summary }) {
         </>
       ) : null}
 
-      <p className="text-[9px] text-slate-600 mb-2">
+      <p className="text-ui-xs text-slate-600 mb-2">
         {notes.balanceGapCount > 0 ? `Coil balance gaps: ${notes.balanceGapCount}. ` : ''}
         {notes.stoneGapCount > 0 ? `Stone gaps: ${notes.stoneGapCount}. ` : ''}
         {notes.notProducedCount > 0 ? `Not produced: ${notes.notProducedCount} job(s). ` : ''}
@@ -107,8 +107,8 @@ function SummarySection({ summary }) {
 
       {observations.length > 0 ? (
         <div className="mb-2">
-          <p className="text-[9px] font-bold text-slate-700 mb-0.5">Observations</p>
-          <ul className="text-[9px] text-slate-700 list-disc pl-4 space-y-0.5">
+          <p className="text-ui-xs font-bold text-slate-700 mb-0.5">Observations</p>
+          <ul className="text-ui-xs text-slate-700 list-disc pl-4 space-y-0.5">
             {observations.map((t, i) => (
               <li key={`o-${i}`}>{t}</li>
             ))}
@@ -118,8 +118,8 @@ function SummarySection({ summary }) {
 
       {recommendations.length > 0 ? (
         <div className="mb-2">
-          <p className="text-[9px] font-bold text-slate-700 mb-0.5">Recommendations</p>
-          <ul className="text-[9px] text-slate-700 list-disc pl-4 space-y-0.5">
+          <p className="text-ui-xs font-bold text-slate-700 mb-0.5">Recommendations</p>
+          <ul className="text-ui-xs text-slate-700 list-disc pl-4 space-y-0.5">
             {recommendations.map((t, i) => (
               <li key={`r-${i}`}>{t}</li>
             ))}
@@ -153,14 +153,14 @@ function CoilSection({ title, section }) {
   if (!section?.groups?.length) {
     return (
       <section className="mb-6 break-inside-avoid">
-        <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">{title}</h3>
+        <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">{title}</h3>
         <p className="text-[10px] text-slate-500 italic">No production lines this period.</p>
       </section>
     );
   }
   return (
     <section className="mb-6">
-      <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">{title}</h3>
+      <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">{title}</h3>
       {section.groups.map((g) => (
         <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
           <p className="text-[10px] font-bold text-slate-800 mb-1">Gauge {g.gaugeLabel}</p>
@@ -203,7 +203,7 @@ function CoilSection({ title, section }) {
                   <td className={TDR}>{fmtNum(r.meters)}</td>
                   <td className={TDR}>{r.conversionKgM != null ? fmtNum(r.conversionKgM) : '—'}</td>
                   <td className={TDR}>{r.offcutKg != null ? fmtNum(r.offcutKg) : '—'}</td>
-                  <td className={`${TD} text-[8px]`}>{r.remark || '—'}</td>
+                  <td className={`${TD} text-ui-xs`}>{r.remark || '—'}</td>
                   <td className={TDR}>{r.amountNetNgn != null ? fmtMoney(r.amountNetNgn) : '—'}</td>
                 </tr>
               ))}
@@ -228,14 +228,14 @@ function StoneSection({ stone }) {
   if (!stone?.groups?.length) {
     return (
       <section className="mb-6">
-        <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Stone-coated (metre stock)</h3>
+        <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">Stone-coated (metre stock)</h3>
         <p className="text-[10px] text-slate-500 italic">No stone metre draws this period.</p>
       </section>
     );
   }
   return (
     <section className="mb-6">
-      <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Stone-coated (metre stock)</h3>
+      <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">Stone-coated (metre stock)</h3>
       {stone.groups.map((g) => (
         <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
           <p className="text-[10px] font-bold text-slate-800 mb-1">Gauge {g.gaugeLabel}</p>
@@ -298,14 +298,14 @@ function AccessorySection({ accessories }) {
   if (!accessories?.groups?.length) {
     return (
       <section className="mb-6">
-        <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Accessories</h3>
+        <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">Accessories</h3>
         <p className="text-[10px] text-slate-500 italic">No accessory issues this period.</p>
       </section>
     );
   }
   return (
     <section className="mb-6">
-      <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Accessories</h3>
+      <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">Accessories</h3>
       {accessories.groups.map((g) => (
         <div key={g.typeKey} className="mb-3 break-inside-avoid">
           <p className="text-[10px] font-bold text-slate-800 mb-1">{g.typeLabel}</p>
@@ -361,7 +361,7 @@ function ListedNotProducedSection({ section }) {
       <h3 className="text-xs font-black uppercase text-slate-700 mb-2">
         Listed for production — not produced ({rows.length})
       </h3>
-      <p className="text-[9px] text-slate-500 mb-2">
+      <p className="text-ui-xs text-slate-500 mb-2">
         Registered on the production queue in this period but job not completed.
       </p>
       <table className={TBL}>
@@ -446,7 +446,7 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
       <div className="mb-4 border-b border-slate-200 pb-2">
         <p className="text-[10px] font-bold text-slate-600">{branchLabel}</p>
         <p className="text-[10px] text-slate-600">{periodLabel}</p>
-        <p className="text-[9px] text-slate-500 mt-1">
+        <p className="text-ui-xs text-slate-500 mt-1">
           DD/MM dates; Qt and coil = last 4 digits. Design from quotation (Metra, Indus 6, Metcoppo, Flatsheet).
           Remark: New coil / New roll on first production use of a coil; Finished on the line that clears the coil. Amber before = gap vs previous after.
         </p>
@@ -458,7 +458,7 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
       ) : null}
       {report.offcutProduction?.rows?.length ? (
         <section className="mb-6 break-inside-avoid">
-          <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Offcut / no coil allocation</h3>
+          <h3 className="text-xs font-black uppercase text-zarewa-teal mb-2">Offcut / no coil allocation</h3>
           <table className={TBL}>
             <thead>
               <tr className="bg-slate-50">

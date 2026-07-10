@@ -47,7 +47,7 @@ export function ProfileHubBanner({ to, title, description, tone = 'slate' }) {
       </div>
       <ChevronRight
         size={18}
-        className="shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#134e4a]"
+        className="shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-zarewa-teal"
         aria-hidden
       />
     </Link>
@@ -58,9 +58,9 @@ export function ProfileQuickAction({ to, icon: Icon, children }) {
   return (
     <Link
       to={to}
-      className="flex min-h-[4rem] flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-semibold text-slate-700 no-underline shadow-sm transition hover:border-[#134e4a]/30 hover:bg-teal-50/40"
+      className="flex min-h-[4rem] flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-semibold text-slate-700 no-underline shadow-sm transition hover:border-zarewa-teal/30 hover:bg-teal-50/40"
     >
-      {Icon ? <Icon size={20} className="text-[#134e4a]" aria-hidden /> : null}
+      {Icon ? <Icon size={20} className="text-zarewa-teal" aria-hidden /> : null}
       <span className="text-center leading-tight">{children}</span>
     </Link>
   );
@@ -125,7 +125,7 @@ export function ProfileIdentityStrip({ user, hr, cohort }) {
           className="h-14 w-14 shrink-0 rounded-xl border border-slate-200 object-cover shadow-sm"
         />
       ) : (
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#134e4a] text-lg font-bold text-white shadow-sm">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-zarewa-teal text-lg font-bold text-white shadow-sm">
           {initials}
         </div>
       )}
@@ -133,7 +133,7 @@ export function ProfileIdentityStrip({ user, hr, cohort }) {
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-lg font-black tracking-tight text-slate-900">{user?.displayName || '—'}</p>
           {cohort ? (
-            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${chipClass}`}>
+            <span className={`rounded-full px-2.5 py-0.5 text-ui-xs font-bold uppercase ${chipClass}`}>
               {chipLabel}
             </span>
           ) : null}

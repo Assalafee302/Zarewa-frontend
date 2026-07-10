@@ -14,16 +14,16 @@ export function OfficialRecordBanner({
     ? 'rounded-2xl border border-slate-200 bg-white p-3 shadow-sm'
     : 'rounded-2xl border border-white/15 bg-white/[0.07] p-3';
   const titleCls = light
-    ? 'text-[10px] font-black uppercase tracking-widest text-[#134e4a]'
-    : 'text-[10px] font-black uppercase tracking-widest text-teal-300/90';
+    ? 'text-ui-xs font-black uppercase tracking-widest text-zarewa-teal'
+    : 'text-ui-xs font-black uppercase tracking-widest text-teal-300/90';
   const refCls = light ? 'text-xs font-mono font-bold text-slate-900' : 'text-xs font-mono font-bold text-white';
-  const metaCls = light ? 'text-[10px] text-slate-500 mt-1 capitalize' : 'text-[10px] text-white/50 mt-1 capitalize';
+  const metaCls = light ? 'text-ui-xs text-slate-500 mt-1 capitalize' : 'text-ui-xs text-white/50 mt-1 capitalize';
   const summaryCls = light
-    ? 'text-[10px] text-teal-900 mt-2 line-clamp-2'
-    : 'text-[10px] text-teal-100/85 mt-2 line-clamp-2';
+    ? 'text-ui-xs text-teal-900 mt-2 line-clamp-2'
+    : 'text-ui-xs text-teal-100/85 mt-2 line-clamp-2';
   const btnCls = light
-    ? 'shrink-0 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-[9px] font-black uppercase tracking-wide text-[#134e4a] hover:bg-teal-100'
-    : 'shrink-0 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-[9px] font-black uppercase tracking-wide text-white hover:bg-white/15';
+    ? 'shrink-0 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal hover:bg-teal-100'
+    : 'shrink-0 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-white/15';
   const bodyMuted = light ? 'text-slate-600' : 'text-white/55';
 
   if (!item) {
@@ -32,7 +32,7 @@ export function OfficialRecordBanner({
     return (
       <div className={shell}>
         <p className={titleCls}>Official record</p>
-        <p className={`mt-2 text-[11px] leading-snug ${bodyMuted}`}>
+        <p className={`mt-2 text-xs leading-snug ${bodyMuted}`}>
           Filing reference for <span className="font-mono font-bold">{qid}</span> is not in your workspace inbox
           yet. Refresh the page, or open the record in Sales / Office while you complete review.
         </p>

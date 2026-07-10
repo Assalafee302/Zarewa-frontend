@@ -6,7 +6,7 @@ import { ZareHelpButton } from '../ZareHelpButton';
 const STORAGE_KEY = 'zarewa-hr-hub-tools-expanded';
 
 const AI_BTN_CLASS =
-  'inline-flex min-h-10 items-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-xs font-semibold text-[#134e4a] shadow-sm hover:bg-teal-100/70';
+  'inline-flex min-h-10 items-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-xs font-semibold text-zarewa-teal shadow-sm hover:bg-teal-100/70';
 
 /**
  * Standard HR hub toolbar — AI + Zare help alongside page actions (collapsed by default).
@@ -67,7 +67,7 @@ export function HrHubToolbar({ hub = 'hr', prompt = '', pageContext = {}, childr
           className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
           aria-expanded={false}
         >
-          <Sparkles size={14} aria-hidden className="text-[#134e4a]" />
+          <Sparkles size={14} aria-hidden className="text-zarewa-teal" />
           Help & AI
         </button>
       )}

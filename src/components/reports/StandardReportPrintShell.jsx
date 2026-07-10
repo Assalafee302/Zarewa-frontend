@@ -66,13 +66,13 @@ export function StandardReportPrintShell({
                 {subtitle ? (
                   <p className="mt-1 text-[12px] font-medium text-slate-700 print:text-[10.5pt]">{subtitle}</p>
                 ) : null}
-                <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 print:text-[9pt]">
+                <p className="mt-1 text-ui-xs font-bold uppercase tracking-widest text-slate-500 print:text-[9pt]">
                   {documentTypeLabel}
                 </p>
               </div>
             </div>
             {rightColumn ? (
-              <div className="text-right text-[11px] leading-relaxed text-slate-700 print:text-[10pt]">
+              <div className="text-right text-xs leading-relaxed text-slate-700 print:text-[10pt]">
                 {rightColumn}
               </div>
             ) : null}
@@ -81,7 +81,7 @@ export function StandardReportPrintShell({
           <div className="mt-5 print:mt-4">{children}</div>
 
           {footer ? (
-            <footer className="mt-6 border-t border-slate-200 pt-4 text-center text-[10px] leading-relaxed text-slate-500 print:mt-5 print:text-[9pt]">
+            <footer className="mt-6 border-t border-slate-200 pt-4 text-center text-ui-xs leading-relaxed text-slate-500 print:mt-5 print:text-[9pt]">
               {footer}
             </footer>
           ) : null}

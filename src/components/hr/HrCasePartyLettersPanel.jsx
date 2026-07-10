@@ -46,7 +46,7 @@ function LetterRow({ letter, canManage, canApprove, busyId, onRun }) {
             {letter.referenceNumber ? ` · ref ${letter.referenceNumber}` : ''}
           </div>
         </div>
-        <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ${statusTone(status)}`}>
+        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${statusTone(status)}`}>
           {status.replace(/_/g, ' ')}
         </span>
       </div>

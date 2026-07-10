@@ -133,7 +133,7 @@ export default function MyPayslips() {
         {lastPayslip && !loading ? (
           <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <ProfileKpiCard label="Last net pay">
-              <p className="text-2xl font-black tabular-nums tracking-tight text-[#134e4a]">
+              <p className="text-2xl font-black tabular-nums tracking-tight text-zarewa-teal">
                 {maskAmount(unlocked, lastPayslip.netNgn, lastPayslip.amountsRedacted)}
               </p>
               <p className="mt-1 text-xs font-semibold text-slate-400">
@@ -153,7 +153,7 @@ export default function MyPayslips() {
                 {!unlocked || lastPayslip.amountsRedacted ? (
                   <p className="mt-1 text-xs italic text-slate-500">Unlock to view amount</p>
                 ) : null}
-                <Link to={HR_SELF_SERVICE_PATH.attendance} className="mt-2 text-xs font-semibold text-[#134e4a] hover:underline">
+                <Link to={HR_SELF_SERVICE_PATH.attendance} className="mt-2 text-xs font-semibold text-zarewa-teal hover:underline">
                   View attendance →
                 </Link>
               </ProfileKpiCard>
@@ -191,7 +191,7 @@ export default function MyPayslips() {
                     ) : null}
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-2">
-                    <span className="text-sm font-black tabular-nums text-[#134e4a]">
+                    <span className="text-sm font-black tabular-nums text-zarewa-teal">
                       {maskAmount(unlocked, p.netNgn, p.amountsRedacted)}
                     </span>
                     <PayslipRowActions payslip={p} onView={openPayslip} />

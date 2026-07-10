@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { hrHasPermission } from '../../lib/hrAccess';
 import { createHrTrainingRecord, deleteHrTrainingRecord, fetchHrTrainingRecords } from '../../lib/hrLearning';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
@@ -85,7 +86,11 @@ export default function HrLearning({ embedded = false } = {}) {
   };
 
   const remove = async (id) => {
-    if (!canManage || !window.confirm('Delete this training record?')) return;
+    if (!canManage || !(await appConfirm({
+      title: 'Delete',
+      message: 'Delete this training record?',
+      variant: 'danger',
+    }))) return;
     const { ok, data } = await deleteHrTrainingRecord(id);
     if (ok && data?.ok) await reload();
   };
@@ -140,8 +145,8 @@ export default function HrLearning({ embedded = false } = {}) {
                     <div className="flex gap-2">
                       {canManage ? (
                         <>
-                          <button type="button" className="text-[10px] font-bold uppercase text-[#134e4a]" onClick={() => navigateToHrLetter(navigate, { letterKind: 'training_approval', userId, sourceRecordId: r.id })}>Letter</button>
-                          <button type="button" onClick={() => remove(r.id)} className="text-[10px] font-bold uppercase text-red-700">Delete</button>
+                          <button type="button" className="text-ui-xs font-bold uppercase text-zarewa-teal" onClick={() => navigateToHrLetter(navigate, { letterKind: 'training_approval', userId, sourceRecordId: r.id })}>Letter</button>
+                          <button type="button" onClick={() => remove(r.id)} className="text-ui-xs font-bold uppercase text-red-700">Delete</button>
                         </>
                       ) : null}
                     </div>

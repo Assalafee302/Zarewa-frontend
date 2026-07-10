@@ -30,7 +30,7 @@ const CATEGORIES = {
 };
 
 const INPUT =
-  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none transition-all focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10 shadow-sm';
+  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition-all focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10 shadow-sm';
 
 function branchOptionId(branch) {
   return String(branch?.id || branch?.branchId || '').trim();
@@ -191,12 +191,12 @@ export function AccountingRegisterLineModal({
       surface="plain"
     >
       <div className="w-full max-w-lg rounded-2xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
-        <div className="h-1 bg-[#134e4a]" />
+        <div className="h-1 bg-zarewa-teal" />
         <div className="p-5 sm:p-6 max-h-[min(85dvh,720px)] overflow-y-auto custom-scrollbar">
-          <h2 className="text-lg font-bold text-[#134e4a]">
+          <h2 className="text-lg font-bold text-zarewa-teal">
             {isEdit ? 'Edit inherited' : 'Add inherited'} {sideNoun}
           </h2>
-          <p className="mt-1 text-[10px] text-slate-500 leading-relaxed">
+          <p className="mt-1 text-ui-xs text-slate-500 leading-relaxed">
             {isEdit
               ? 'Update party, amount, or reference for this open legacy line.'
               : 'For balances from before go-live or not captured in live transactions (e.g. April project overpayment).'}
@@ -205,7 +205,7 @@ export function AccountingRegisterLineModal({
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
             <ProcurementFormSection letter="1" title="Party & category" compact>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="sm:col-span-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="sm:col-span-2 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Category
                   <select className={INPUT} value={category} onChange={(e) => handleCategoryChange(e.target.value)}>
                     {CATEGORIES[registerSide].map((c) => (
@@ -217,7 +217,7 @@ export function AccountingRegisterLineModal({
                 </label>
 
                 {partyKind === 'staff' ? (
-                  <label className="sm:col-span-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <label className="sm:col-span-2 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     {partyFieldLabel}
                     <select
                       className={INPUT}
@@ -234,13 +234,13 @@ export function AccountingRegisterLineModal({
                       ))}
                     </select>
                     {partyRef ? (
-                      <span className="mt-1 block text-[9px] font-mono text-slate-500">{partyRef}</span>
+                      <span className="mt-1 block text-ui-xs font-mono text-slate-500">{partyRef}</span>
                     ) : null}
                   </label>
                 ) : null}
 
                 {partyKind === 'customer' ? (
-                  <label className="sm:col-span-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <label className="sm:col-span-2 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     {partyFieldLabel}
                     <select
                       className={INPUT}
@@ -257,13 +257,13 @@ export function AccountingRegisterLineModal({
                       ))}
                     </select>
                     {partyRef ? (
-                      <span className="mt-1 block text-[9px] font-mono text-slate-500">{partyRef}</span>
+                      <span className="mt-1 block text-ui-xs font-mono text-slate-500">{partyRef}</span>
                     ) : null}
                   </label>
                 ) : null}
 
                 {partyKind === 'supplier' ? (
-                  <label className="sm:col-span-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <label className="sm:col-span-2 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     {partyFieldLabel}
                     <select
                       className={INPUT}
@@ -279,13 +279,13 @@ export function AccountingRegisterLineModal({
                       ))}
                     </select>
                     {partyRef ? (
-                      <span className="mt-1 block text-[9px] font-mono text-slate-500">{partyRef}</span>
+                      <span className="mt-1 block text-ui-xs font-mono text-slate-500">{partyRef}</span>
                     ) : null}
                   </label>
                 ) : null}
 
                 {partyKind === 'branch' ? (
-                  <label className="sm:col-span-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <label className="sm:col-span-2 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     {partyFieldLabel}
                     <select
                       className={INPUT}
@@ -304,14 +304,14 @@ export function AccountingRegisterLineModal({
                       })}
                     </select>
                     {partyRef ? (
-                      <span className="mt-1 block text-[9px] font-mono text-slate-500">{partyRef}</span>
+                      <span className="mt-1 block text-ui-xs font-mono text-slate-500">{partyRef}</span>
                     ) : null}
                   </label>
                 ) : null}
 
                 {!partyKind ? (
                   <>
-                    <label className="sm:col-span-2 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    <label className="sm:col-span-2 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                       {partyFieldLabel}
                       <input
                         className={INPUT}
@@ -321,7 +321,7 @@ export function AccountingRegisterLineModal({
                         placeholder="Customer / staff / supplier name"
                       />
                     </label>
-                    <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                       Party ref (optional)
                       <input
                         className={INPUT}
@@ -334,7 +334,7 @@ export function AccountingRegisterLineModal({
                 ) : null}
 
                 {branches.length ? (
-                  <label className={`block text-[10px] font-bold uppercase tracking-wide text-slate-500 ${!partyKind ? '' : 'sm:col-span-2'}`}>
+                  <label className={`block text-ui-xs font-bold uppercase tracking-wide text-slate-500 ${!partyKind ? '' : 'sm:col-span-2'}`}>
                     {partyKind === 'branch' ? 'This branch *' : 'Branch'}
                     {workspaceLockedBranch ? (
                       <input className={`${INPUT} bg-slate-50 text-slate-600`} value={branchOptionLabel(
@@ -371,7 +371,7 @@ export function AccountingRegisterLineModal({
 
             <ProcurementFormSection letter="2" title="Amount & date" compact>
               <div className="grid grid-cols-2 gap-3">
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Amount (₦) *
                   <input
                     type="number"
@@ -383,7 +383,7 @@ export function AccountingRegisterLineModal({
                     placeholder="8000000"
                   />
                 </label>
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   As-at date *
                   <input
                     type="date"
@@ -398,7 +398,7 @@ export function AccountingRegisterLineModal({
 
             <ProcurementFormSection letter="3" title="Reference & notes" compact>
               <div className="space-y-3">
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Reference / quote / PO
                   <input
                     className={INPUT}
@@ -407,7 +407,7 @@ export function AccountingRegisterLineModal({
                     placeholder="QT-KD-26-0001 or project name"
                   />
                 </label>
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Description
                   <textarea
                     className={INPUT}
@@ -417,28 +417,28 @@ export function AccountingRegisterLineModal({
                     placeholder="April roofing project — overpayment to withdraw"
                   />
                 </label>
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Notes (internal)
                   <textarea className={INPUT} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
                 </label>
               </div>
             </ProcurementFormSection>
 
-            {error ? <p className="text-[10px] font-medium text-rose-700">{error}</p> : null}
+            {error ? <p className="text-ui-xs font-medium text-rose-700">{error}</p> : null}
 
             <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={busy}
-                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-slate-700"
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-slate-700"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={busy || (partyKind && !partyRef.trim())}
-                className="inline-flex items-center rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider disabled:opacity-50"
+                className="inline-flex items-center rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider disabled:opacity-50"
               >
                 {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Save line'}
               </button>

@@ -123,19 +123,19 @@ export function ReportsFinanceReconciliationPackSection({
             type="button"
             disabled={loading}
             onClick={() => void load()}
-            className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             {loading ? 'Loading…' : 'Load / refresh'}
           </button>
           {branchScopeLabel ? (
-            <span className="text-[10px] font-semibold text-slate-500 pb-1">Scope: {branchScopeLabel}</span>
+            <span className="text-ui-xs font-semibold text-slate-500 pb-1">Scope: {branchScopeLabel}</span>
           ) : null}
         </div>
       </ProcurementFormSection>
 
       {data?.cashConfirmationBasis ? (
-        <p className="text-[11px] font-medium text-slate-700 leading-relaxed">
+        <p className="text-xs font-medium text-slate-700 leading-relaxed">
           <span className="font-bold text-slate-800">Receipt confirmation basis:</span> {data.cashConfirmationBasis}{' '}
           <span className="text-slate-500">
             ({data.formalBankReconciliationStatus || 'Formal bank reconciliation pending'})
@@ -168,7 +168,7 @@ export function ReportsFinanceReconciliationPackSection({
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 text-left text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                <tr className="bg-slate-50 text-left text-ui-xs font-bold uppercase tracking-wide text-slate-600">
                   <th className="px-3 py-2">Type</th>
                   <th className="px-3 py-2 text-right">Amount (₦)</th>
                 </tr>
@@ -184,7 +184,7 @@ export function ReportsFinanceReconciliationPackSection({
             </table>
           </div>
           {data?.cashFlowSummary?.netTreasuryMovementNgn != null ? (
-            <p className="text-[10px] font-semibold text-slate-600 mt-2">
+            <p className="text-ui-xs font-semibold text-slate-600 mt-2">
               Net treasury movement (signed as stored): {formatNgn(data.cashFlowSummary.netTreasuryMovementNgn)}
             </p>
           ) : null}
@@ -193,8 +193,8 @@ export function ReportsFinanceReconciliationPackSection({
 
       {warnNotes.length > 0 ? (
         <AccountingDeskNotice tone="warn">
-          <p className="text-[10px] font-bold uppercase tracking-widest mb-2">Warnings / differences</p>
-          <ul className="space-y-1 text-[11px]">
+          <p className="text-ui-xs font-bold uppercase tracking-widest mb-2">Warnings / differences</p>
+          <ul className="space-y-1 text-xs">
             {warnNotes.map((n) => (
               <li key={n.code}>{n.message}</li>
             ))}
@@ -208,7 +208,7 @@ export function ReportsFinanceReconciliationPackSection({
             {data.notes.map((n) => (
               <li
                 key={n.code}
-                className={`rounded-lg border px-3 py-2 text-[10px] font-medium ${
+                className={`rounded-lg border px-3 py-2 text-ui-xs font-medium ${
                   n.severity === 'warn'
                     ? 'border-amber-200 bg-amber-50 text-amber-900'
                     : 'border-slate-200 bg-slate-50 text-slate-700'
@@ -222,7 +222,7 @@ export function ReportsFinanceReconciliationPackSection({
       ) : null}
 
       {pack?.note ? (
-        <p className="text-[10px] font-medium text-slate-500 leading-relaxed border-t border-slate-100 pt-3">{pack.note}</p>
+        <p className="text-ui-xs font-medium text-slate-500 leading-relaxed border-t border-slate-100 pt-3">{pack.note}</p>
       ) : null}
     </div>
   );
@@ -239,7 +239,7 @@ export function ReportsFinanceReconciliationPackSection({
               type="button"
               onClick={() => void load()}
               disabled={loading}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
             >
               <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
               Refresh
@@ -264,7 +264,7 @@ export function ReportsFinanceReconciliationPackSection({
       >
         <div>
           <h3 className="z-section-title !mb-1 flex items-center gap-2">
-            <Scale size={16} className="text-[#134e4a]" />
+            <Scale size={16} className="text-zarewa-teal" />
             Finance Reconciliation &amp; Cash Confirmation Pack
           </h3>
           <p className="text-sm font-medium text-slate-600 max-w-3xl leading-relaxed">

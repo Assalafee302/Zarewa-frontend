@@ -7,4 +7,5 @@ export { FinanceSequencePanel } from './FinanceSequencePanel';
 export { PageShell } from './PageShell';
 export { ResponsiveTableShell } from './ResponsiveTableShell';
 export { ModalFrame } from './ModalFrame';
+export { PrintModalPortal } from './PrintModalPortal';
 export { SlideOverPanel } from './SlideOverPanel';

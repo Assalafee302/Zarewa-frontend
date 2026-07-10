@@ -14,8 +14,8 @@ function SummaryChip({ label, count, active, onClick }) {
       onClick={onClick}
       className={`rounded-full border px-3 py-1.5 text-left text-xs font-semibold transition-colors ${
         active
-          ? 'border-[#134e4a] bg-[#134e4a] text-white shadow-sm'
-          : 'border-slate-200 bg-white text-slate-700 hover:border-[#134e4a]/30 hover:bg-teal-50/60'
+          ? 'border-zarewa-teal bg-zarewa-teal text-white shadow-sm'
+          : 'border-slate-200 bg-white text-slate-700 hover:border-zarewa-teal/30 hover:bg-teal-50/60'
       }`}
     >
       <span className="tabular-nums">{count}</span> {label}
@@ -76,7 +76,7 @@ export function HrStaffCreditSummaryStrip() {
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-2.5">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 w-full sm:w-auto sm:mr-1">Pending</p>
+      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 w-full sm:w-auto sm:mr-1">Pending</p>
       <SummaryChip
         label="loan applications"
         count={loanPending}

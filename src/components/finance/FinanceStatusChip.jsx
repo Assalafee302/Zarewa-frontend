@@ -12,7 +12,7 @@ const STYLES = {
 export function FinanceStatusChip({ label, tone = 'neutral' }) {
   return (
     <span
-      className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+      className={`inline-flex rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${
         STYLES[tone] || STYLES.neutral
       }`}
     >

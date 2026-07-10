@@ -87,7 +87,7 @@ function PayloadGrid({ rows, compact }) {
     <dl className={`grid gap-2 ${compact ? 'grid-cols-1 text-xs' : 'sm:grid-cols-2 text-sm'}`}>
       {rows.map(([label, value]) => (
         <div key={label}>
-          <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</dt>
+          <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">{label}</dt>
           <dd className="mt-0.5 font-semibold text-slate-800">{value}</dd>
         </div>
       ))}

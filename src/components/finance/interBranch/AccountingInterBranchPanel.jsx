@@ -121,9 +121,9 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
   if (error) {
     return (
       <div className="rounded-lg border border-dashed border-rose-200 bg-rose-50/50 py-10 px-6 text-center">
-        <p className="text-[10px] font-semibold text-rose-800 uppercase tracking-widest">Could not load transfers</p>
-        <p className="mt-2 text-[11px] text-rose-700">{error}</p>
-        <button type="button" onClick={() => void refreshAll()} className="mt-3 text-[10px] font-bold text-[#134e4a] hover:underline">
+        <p className="text-ui-xs font-semibold text-rose-800 uppercase tracking-widest">Could not load transfers</p>
+        <p className="mt-2 text-xs text-rose-700">{error}</p>
+        <button type="button" onClick={() => void refreshAll()} className="mt-3 text-ui-xs font-bold text-zarewa-teal hover:underline">
           Retry
         </button>
       </div>
@@ -144,7 +144,7 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
               <button
                 type="button"
                 onClick={() => setProposeOpen(true)}
-                className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
+                className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
               >
                 <Plus size={12} /> Propose transfer
               </button>
@@ -153,7 +153,7 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
               type="button"
               onClick={() => void refreshAll()}
               disabled={loading}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50 disabled:opacity-40"
             >
               <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
@@ -163,15 +163,15 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
 
       <AccountingDeskNotice tone="info">
         Inter-branch transfers move cash between branch treasuries. They appear in the{' '}
-        <Link to="/accounting" state={{ focusTab: 'creditors' }} className="font-semibold text-[#134e4a] hover:underline">
+        <Link to="/accounting" state={{ focusTab: 'creditors' }} className="font-semibold text-zarewa-teal hover:underline">
           Creditors
         </Link>{' '}
         and{' '}
-        <Link to="/accounting" state={{ focusTab: 'debtors' }} className="font-semibold text-[#134e4a] hover:underline">
+        <Link to="/accounting" state={{ focusTab: 'debtors' }} className="font-semibold text-zarewa-teal hover:underline">
           Debtors
         </Link>{' '}
         registers once active. Same-branch movements stay on{' '}
-        <Link to="/accounts?tab=movements" className="font-semibold text-[#134e4a] hover:underline">
+        <Link to="/accounts?tab=movements" className="font-semibold text-zarewa-teal hover:underline">
           Cashier → Movements
         </Link>
         .
@@ -192,14 +192,14 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
 
       {balances.length > 0 ? (
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-3">
+          <h3 className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-3">
             Net positions in scope
           </h3>
           <ul className="grid gap-2 sm:grid-cols-2">
             {balances.map((b) => (
               <li
                 key={`${b.lenderBranchId}-${b.borrowerBranchId}`}
-                className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-[11px]"
+                className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs"
               >
                 <span className="font-semibold text-slate-800">
                   {branchNameById[b.borrowerBranchId] || b.borrowerBranchId}
@@ -208,7 +208,7 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
                 <span className="font-semibold text-slate-800">
                   {branchNameById[b.lenderBranchId] || b.lenderBranchId}
                 </span>
-                <p className="mt-1 text-sm font-black text-[#134e4a] tabular-nums">
+                <p className="mt-1 text-sm font-black text-zarewa-teal tabular-nums">
                   {formatNgn(b.outstandingNgn)}
                 </p>
               </li>
@@ -226,9 +226,9 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
                   key={f.id}
                   type="button"
                   onClick={() => setStatusFilter(f.id)}
-                  className={`rounded-lg px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide border ${
+                  className={`rounded-lg px-2.5 py-1.5 text-ui-xs font-bold uppercase tracking-wide border ${
                     statusFilter === f.id
-                      ? 'bg-[#134e4a] text-white border-[#134e4a]'
+                      ? 'bg-zarewa-teal text-white border-zarewa-teal'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
@@ -264,9 +264,9 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
         }
       >
         {loading && !loans.length ? (
-          <p className="text-[11px] text-slate-500 py-8 text-center">Loading transfers…</p>
+          <p className="text-xs text-slate-500 py-8 text-center">Loading transfers…</p>
         ) : paging.slice.length === 0 ? (
-          <p className="text-[11px] text-slate-500 py-8 text-center">No inter-branch transfers in this scope.</p>
+          <p className="text-xs text-slate-500 py-8 text-center">No inter-branch transfers in this scope.</p>
         ) : (
           <ul className="space-y-1.5">
             {paging.slice.map((loan) => (
@@ -278,7 +278,7 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-[11px] font-bold text-[#134e4a]">
+                      <p className="text-xs font-bold text-zarewa-teal">
                         <span className="font-mono">{loan.loanId}</span>
                         <span className="font-medium text-slate-600">
                           {' '}
@@ -286,24 +286,24 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
                           {branchNameById[loan.borrowerBranchId] || loan.borrowerBranchId}
                         </span>
                       </p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">
+                      <p className="text-ui-xs text-slate-500 mt-0.5">
                         {String(loan.dateISO || loan.createdAtISO || '').slice(0, 10)}
                         {loan.reference ? ` · ${loan.reference}` : ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-sm font-black text-[#134e4a] tabular-nums">
+                      <span className="text-sm font-black text-zarewa-teal tabular-nums">
                         {formatNgn(loan.principalNgn)}
                       </span>
                       <InterBranchStatusBadge status={loan.status} />
                     </div>
                   </div>
                   {loan.status === 'active' || loan.status === 'closed' ? (
-                    <p className="text-[9px] text-slate-500 mt-1 tabular-nums">
+                    <p className="text-ui-xs text-slate-500 mt-1 tabular-nums">
                       Repaid {formatNgn(loan.repaidNgn)} · Outstanding {formatNgn(loan.outstandingNgn)}
                     </p>
                   ) : loan.proposedNote ? (
-                    <p className="text-[10px] text-slate-600 mt-1 line-clamp-1">{loan.proposedNote}</p>
+                    <p className="text-ui-xs text-slate-600 mt-1 line-clamp-1">{loan.proposedNote}</p>
                   ) : null}
                 </button>
               </li>

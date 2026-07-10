@@ -45,10 +45,10 @@ import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
-import { apiFetch, apiUrl } from '../lib/apiBase';
+import { apiFetch } from '../lib/apiBase';
+import { appConfirm } from '../lib/appConfirm';
 import {
   normalizeRefund,
-  approvedRefundsAwaitingPayment,
   refundApprovedAmount,
   refundOutstandingAmount,
 } from '../lib/refundsStore';
@@ -59,7 +59,6 @@ import {
   receiptCashReceivedNgn,
   receiptLedgerReceiptTreasurySplits,
 } from '../lib/salesReceiptsList';
-import { printExpenseRequestRecord } from '../lib/expenseRequestPrint';
 import { openPrintHtmlDocument } from '../lib/officeDeskPrint';
 import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFormFields.jsx';
 import { ExpenseCategorySelect } from '../components/office/ExpenseCategorySelect.jsx';
@@ -109,9 +108,8 @@ import { FinanceTreasuryManageAccountsPanel } from '../components/finance/Financ
 import { AccountingRegisterSettlementPayModal } from '../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { StaffRecoveryCashierModal } from '../components/finance/StaffRecoveryCashierModal.jsx';
 import { StaffObligationRepaymentModal } from '../components/finance/StaffObligationRepaymentModal.jsx';
-import { registerSettlementsAwaitingPayment, registerSettlementOutstandingNgn } from '../lib/registerSettlementPay';
+import { registerSettlementsAwaitingPayment } from '../lib/registerSettlementPay';
 import {
-  treasuryAccountBranchLabel,
   treasuryAccountDisplayName,
   treasuryAccountIdForApiPayload,
   treasuryAccountsForWorkspace,
@@ -134,6 +132,9 @@ import {
   receiptClearanceBadgeLabel,
 } from '../lib/receiptClearance.js';
 
+import { AccountPageContext } from './account/AccountPageContext.jsx';
+import { AccountTabPanels } from './account/AccountTabPanels.jsx';
+
 function parseNgnInput(raw) {
   return Math.round(Number(String(raw ?? '').replace(/,/g, '')) || 0);
 }
@@ -145,7 +146,6 @@ const Account = () => {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const wsRefresh = ws?.refresh;
-  const wsHasPermission = ws?.hasPermission;
   const wsCanMutate = ws?.canMutate;
   const wsUsingCachedData = ws?.usingCachedData;
   const othersMinJustificationLen = resolveExpenseCategoryPolicyLimits(
@@ -202,7 +202,6 @@ const Account = () => {
   const [requestPayNote, setRequestPayNote] = useState('');
   const [paymentGlPreview, setPaymentGlPreview] = useState(null);
   const [cancelRefundBusyId, setCancelRefundBusyId] = useState('');
-  const [cancelPayRequestBusyId, setCancelPayRequestBusyId] = useState('');
   const [treasuryPayoutSubmitting, setTreasuryPayoutSubmitting] = useState(false);
   const [transportPayEditApprovalId, setTransportPayEditApprovalId] = useState('');
   const [customerRefunds, setCustomerRefunds] = useState([]);
@@ -687,11 +686,11 @@ const Account = () => {
     const fromDate = String(statementPrintFromDate || '').trim();
     const toDate = String(statementPrintToDate || '').trim();
     if (!fromDate || !toDate) {
-      showToast('Select both start and end dates before printing.', { type: 'warning' });
+      showToast('Select both start and end dates before printing.', { variant: 'warning' });
       return;
     }
     if (fromDate > toDate) {
-      showToast('Start date cannot be after end date.', { type: 'warning' });
+      showToast('Start date cannot be after end date.', { variant: 'warning' });
       return;
     }
     const lines = accountStatementLines.filter((line) => {
@@ -699,7 +698,7 @@ const Account = () => {
       return date >= fromDate && date <= toDate;
     });
     if (lines.length === 0) {
-      showToast('No statement lines found for the selected date range.', { type: 'warning' });
+      showToast('No statement lines found for the selected date range.', { variant: 'warning' });
       return;
     }
     const chronologicalAllLines = accountStatementLines
@@ -810,13 +809,13 @@ const Account = () => {
 </html>`;
     if (autoPrint) {
       if (!openPrintHtmlDocument(html, `Statement - ${accountTitle}`)) {
-        showToast('Could not open print preview.', { type: 'warning' });
+        showToast('Could not open print preview.', { variant: 'warning' });
         return;
       }
     } else {
       const previewWindow = window.open('', '_blank');
       if (!previewWindow) {
-        showToast('Pop-up blocked. Allow pop-ups to open the statement preview.', { type: 'warning' });
+        showToast('Pop-up blocked. Allow pop-ups to open the statement preview.', { variant: 'warning' });
         return;
       }
       previewWindow.document.write(html);
@@ -863,10 +862,6 @@ const Account = () => {
   }, [location.search, liveTreasuryMovements, bankAccounts, ws?.hasWorkspaceData]);
    
 
-  const refundsAwaitingPay = useMemo(
-    () => approvedRefundsAwaitingPayment(customerRefunds),
-    [customerRefunds]
-  );
   const auditQueue = useMemo(
     () => openAuditQueue(bankReconciliation, payRequests, customerRefunds),
     [bankReconciliation, customerRefunds, payRequests]
@@ -901,7 +896,7 @@ const Account = () => {
       const rid = String(row?.refundID || '').trim();
       if (!rid || cancelRefundBusyId) return;
       const note = window.prompt(`Optional cancellation note for ${rid}`) || '';
-      if (!window.confirm(`Cancel refund ${rid} before payout?`)) return;
+      if (!(await appConfirm({ message: `Cancel refund ${rid} before payout?`, variant: 'danger' }))) return;
       if (!ws?.canMutate) {
         showToast(
           ws?.usingCachedData
@@ -1057,43 +1052,6 @@ const Account = () => {
     setRequestPayNote(req.paymentNote || '');
     setShowPaymentEntry(true);
   }, [showToast, canPayRequests, ws?.viewAllBranches, ws?.branchScope, bankAccountsForPayout]);
-
-  const cancelPaymentRequestBeforePay = async (req) => {
-    const requestId = String(req?.requestID || '').trim();
-    if (!requestId || cancelPayRequestBusyId) return;
-    const note = window.prompt(`Optional cancellation note for ${requestId}`) || '';
-    if (!window.confirm(`Cancel payment request ${requestId} before payout?`)) return;
-    if (!ws?.canMutate) {
-      showToast(
-        ws?.usingCachedData
-          ? 'Reconnect to cancel payment requests — workspace is read-only.'
-          : 'Connect to the API to cancel payment requests.',
-        { variant: 'info' }
-      );
-      return;
-    }
-    setCancelPayRequestBusyId(requestId);
-    try {
-      const { ok, data } = await apiFetch(
-        `/api/payment-requests/${encodeURIComponent(requestId)}/cancel-before-pay`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            note: note.trim(),
-            actedAtISO: new Date().toISOString().slice(0, 10),
-          }),
-        }
-      );
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not cancel payment request before payout.', { variant: 'error' });
-        return;
-      }
-      await ws.refresh();
-      showToast(`Payment request ${requestId} cancelled before payout.`);
-    } finally {
-      setCancelPayRequestBusyId('');
-    }
-  };
 
   const openReclassifyPaymentRequest = useCallback((req) => {
     if (!req?.requestID) return;
@@ -1809,7 +1767,7 @@ const Account = () => {
       return;
     }
     if (!openReconciliationListPrint(payload)) {
-      showToast('Could not open print preview.', { type: 'warning' });
+      showToast('Could not open print preview.', { variant: 'warning' });
     }
   }, [
     waitingConfirmationReceipts,
@@ -1826,11 +1784,12 @@ const Account = () => {
       showToast('System offline (read-only). Reconnect and refresh, then try again.', { variant: 'error' });
       return;
     }
-    const proceed = window.confirm(
-      'Administrator maintenance: re-apply finance-confirmed bank amounts on every cleared receipt in the current branch scope.\n\n' +
+    const proceed = await appConfirm({
+      message:
+        'Administrator maintenance: re-apply finance-confirmed bank amounts on every cleared receipt in the current branch scope.\n\n' +
         'This replaces stale sales-posted totals with the reconciled bank figure, fixes RECEIPT / OVERPAY ledger splits, and refreshes quotation paid amounts (including refund eligibility).\n\n' +
-        'Use after correcting mistaken till entries that still show phantom overpayments.\n\nContinue?'
-    );
+        'Use after correcting mistaken till entries that still show phantom overpayments.\n\nContinue?',
+    });
     if (!proceed) return;
     setAdminFinanceReapplyBusy(true);
     try {
@@ -2407,9 +2366,10 @@ const Account = () => {
     if (!canExecTreasuryDelete) return;
     const label = String(acc?.name || 'this account').trim() || 'this account';
     if (
-      !window.confirm(
-        `Delete treasury account “${label}”? Only Admin, MD, or CEO can do this. The account must have exactly ₦0 book balance, no movement history, no bank reconciliation links, and you cannot remove the last account.`
-      )
+      !(await appConfirm({
+        message: `Delete treasury account “${label}”? Only Admin, MD, or CEO can do this. The account must have exactly ₦0 book balance, no movement history, no bank reconciliation links, and you cannot remove the last account.`,
+        variant: 'danger',
+      }))
     ) {
       return;
     }
@@ -2444,7 +2404,7 @@ const Account = () => {
         );
         return;
       }
-      if (!window.confirm(`Delete receipt ${rid}? This action is permanent and for admin cleanup only.`)) return;
+      if (!(await appConfirm({ message: `Delete receipt ${rid}? This action is permanent and for admin cleanup only.`, variant: 'danger' }))) return;
       const { ok, data } = await apiFetch(`/api/receipts/${encodeURIComponent(rid)}`, {
         method: 'DELETE',
       });
@@ -2602,9 +2562,10 @@ const Account = () => {
       return;
     }
     if (
-      !window.confirm(
-        `Delete transfer ${id}? This removes both ledger legs and restores account balances. Use this to remove mistaken or duplicate transfers.`
-      )
+      !(await appConfirm({
+        message: `Delete transfer ${id}? This removes both ledger legs and restores account balances. Use this to remove mistaken or duplicate transfers.`,
+        variant: 'danger',
+      }))
     ) {
       return;
     }
@@ -2620,32 +2581,6 @@ const Account = () => {
     await ws.refresh();
     showToast(`Transfer ${id} removed.`);
   };
-
-  const filteredPayRequests = useMemo(() => {
-    const qq = debouncedSearchQuery.trim().toLowerCase();
-    if (!qq) return payRequests;
-    return payRequests.filter((req) => {
-      const lineBlob = (req.lineItems || [])
-        .map((x) => [x.item, x.lineTotalNgn, x.unitPriceNgn].filter(Boolean).join(' '))
-        .join(' ');
-      const blob = [
-        req.requestID,
-        req.expenseID,
-        req.description,
-        req.requestReference,
-        req.expenseCategory,
-        lineBlob,
-        req.approvalStatus,
-        req.approvedBy,
-        req.paidBy,
-        req.requestDate,
-        req.attachmentName,
-      ]
-        .join(' ')
-        .toLowerCase();
-      return blob.includes(qq);
-    });
-  }, [payRequests, debouncedSearchQuery]);
 
   const disbursementsFilteredExpenses = useMemo(() => {
     const qq = (disbursementsSearch.trim() || debouncedSearchQuery.trim()).toLowerCase();
@@ -2892,54 +2827,6 @@ const Account = () => {
     editMutationNeedsSecondApprovalRole(ws?.session?.user?.roleKey)
   );
 
-  const activePayRequests = useMemo(
-    () =>
-      filteredPayRequests.filter(
-        (req) => String(req.approvalStatus || '').trim().toLowerCase() !== 'rejected'
-      ),
-    [filteredPayRequests]
-  );
-
-  /** Approved with unpaid balance — surfaced on Treasury (same pattern as refunds awaiting payout). */
-  const payRequestsAwaitingTreasuryPayout = useMemo(
-    () =>
-      activePayRequests.filter((req) => {
-        if (req.approvalStatus !== 'Approved') return false;
-        const paidAmountNgn = Number(req.paidAmountNgn) || 0;
-        const outstandingNgn = effectiveOutstandingNgn(Number(req.amountRequestedNgn) || 0, paidAmountNgn);
-        return outstandingNgn > 0;
-      }),
-    [activePayRequests]
-  );
-
-  const livePoTransportAwaitingTreasury = useMemo(
-    () =>
-      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.poTransportAwaitingTreasury)
-        ? ws.snapshot.poTransportAwaitingTreasury
-        : [],
-    [ws?.hasWorkspaceData, ws?.snapshot?.poTransportAwaitingTreasury]
-  );
-
-  const filteredPoTransportAwaitingTreasury = useMemo(() => {
-    const qq = debouncedSearchQuery.trim().toLowerCase();
-    if (!qq) return livePoTransportAwaitingTreasury;
-    return livePoTransportAwaitingTreasury.filter((row) => {
-      const blob = [
-        row.poID,
-        row.supplierName,
-        row.transportAgentName,
-        row.transportReference,
-        row.transportFinanceAdvice,
-        row.status,
-        row.procurementKind,
-        row.branchId,
-      ]
-        .join(' ')
-        .toLowerCase();
-      return blob.includes(qq);
-    });
-  }, [livePoTransportAwaitingTreasury, debouncedSearchQuery]);
-
   const filteredBankAccounts = useMemo(() => {
     const qq = debouncedSearchQuery.trim().toLowerCase();
     if (!qq) return bankAccountsVisible;
@@ -3000,9 +2887,10 @@ const Account = () => {
         return;
       }
       if (
-        !window.confirm(
-          `Delete expense ${id} (temporary rollout cleanup)? Removes this row, any linked payment requests that have no treasury payout yet, and direct EXPENSE treasury lines. Blocked if a linked request was already paid from treasury.`
-        )
+        !(await appConfirm({
+          message: `Delete expense ${id} (temporary rollout cleanup)? Removes this row, any linked payment requests that have no treasury payout yet, and direct EXPENSE treasury lines. Blocked if a linked request was already paid from treasury.`,
+          variant: 'danger',
+        }))
       ) {
         return;
       }
@@ -3059,9 +2947,10 @@ const Account = () => {
         return;
       }
       if (
-        !window.confirm(
-          `Delete payment request ${id} (temporary rollout cleanup)? Only allowed when no treasury payout was recorded; removes the request and the placeholder expense if nothing else references it.`
-        )
+        !(await appConfirm({
+          message: `Delete payment request ${id} (temporary rollout cleanup)? Only allowed when no treasury payout was recorded; removes the request and the placeholder expense if nothing else references it.`,
+          variant: 'danger',
+        }))
       ) {
         return;
       }
@@ -3121,9 +3010,10 @@ const Account = () => {
         return;
       }
       if (
-        !window.confirm(
-          `Reverse treasury payout for ${id}? This posts compensating credits to the same bank/cash accounts, sets paid balance to zero, and is audited. Use only to fix mistakes before delete or re-pay.`
-        )
+        !(await appConfirm({
+          message: `Reverse treasury payout for ${id}? This posts compensating credits to the same bank/cash accounts, sets paid balance to zero, and is audited. Use only to fix mistakes before delete or re-pay.`,
+          variant: 'danger',
+        }))
       ) {
         return;
       }
@@ -3183,9 +3073,10 @@ const Account = () => {
         return;
       }
       if (
-        !window.confirm(
-          `Reverse treasury payout for refund ${id}? This posts compensating credits, clears customer-refund paid balance (and related advance ledger slices), and is audited.`
-        )
+        !(await appConfirm({
+          message: `Reverse treasury payout for refund ${id}? This posts compensating credits, clears customer-refund paid balance (and related advance ledger slices), and is audited.`,
+          variant: 'danger',
+        }))
       ) {
         return;
       }
@@ -3238,8 +3129,244 @@ const Account = () => {
     return 'Branch finance';
   })();
 
+  const pageContextValue = useMemo(
+    () => ({
+      activeTab,
+      adminFinanceReapplyBusy,
+      auditQueue,
+      bankAccounts,
+      bankAccountsForBranch,
+      bankAccountsVisible,
+      bankReconciliation,
+      branchNameById,
+      canApprovePaymentRequests,
+      canDeleteRolloutExpenseOrRequest,
+      canEditTreasuryTransfer,
+      canExecTreasuryDelete,
+      canFinanceReceiptSettlement,
+      canManageTreasury,
+      canPayRequests,
+      canPostExpenseReclass,
+      canReversePaymentRequestTreasury,
+      deleteRolloutExpense,
+      deleteRolloutPaymentRequest,
+      deleteTreasuryTransfer,
+      deletingExpenseId,
+      deletingPayRequestId,
+      deletingTransferBatchId,
+      disbursementsActivePayRequests,
+      disbursementsArchivedRejectedPayRequests,
+      disbursementsExceptionPayRequests,
+      disbursementsFilteredExpenses,
+      disbursementsPayRequestQueue,
+      disbursementsSearch,
+      disbursementsVisiblePayRequests,
+      exceptionReportSummary,
+      expenseById,
+      expenses,
+      exportExceptionsCsv,
+      filteredBankAccounts,
+      filteredSalesReceipts,
+      handleAccountTabChange,
+      handleDeskCancelRefund,
+      handleDeskConfirmReceipt,
+      handleDeskPayPoTransport,
+      handleDeskPayRefund,
+      handleDeskPayRegisterSettlement,
+      handleDeskPayRequest,
+      handleDeskReceiveStaffObligation,
+      handleDeskReceiveStaffRecovery,
+      handleDeskViewPaymentRequest,
+      handleDeskViewPoTransport,
+      handleDeskViewReceipt,
+      isAdminRole,
+      isCashierRole,
+      liveReceipts,
+      liveTreasuryMovements,
+      movementRows,
+      needsPaymentsMutateSecondApproval,
+      openBankDepositsCount,
+      openEditTreasuryAccount,
+      openEditTreasuryTransfer,
+      openExpenseOutflowEdit,
+      openPayFromEditForTableRow,
+      openPaymentRequestOutflowEdit,
+      openReceiptFinance,
+      openReclassifyExpense,
+      openReclassifyPaymentRequest,
+      openRequestPayment,
+      openUnreconciledReceiptsPrint,
+      payRequestById,
+      PAYMENTS_PAGE_SIZE,
+      paymentsApprovalEntity,
+      paymentsListWindow,
+      paymentsMutateApprovalId,
+      paymentsTableSortDir,
+      paymentsTableSortKey,
+      prPayoutPrimaryMovementId,
+      receiptsListWindow,
+      receiptsPendingClearanceNgn,
+      receiptsSortDir,
+      receiptsSortKey,
+      receiptsTableSearch,
+      reconciliationFlags,
+      refundById,
+      refundPayoutPrimaryMovementId,
+      removeTreasuryAccount,
+      reversePaymentRequestTreasuryPayout,
+      reverseRefundTreasuryPayout,
+      reversingRefundTreasuryPayoutId,
+      reversingTreasuryPayoutId,
+      runAdminReapplyFinanceReconciledReceipts,
+      setConfirmedReceiptsPage,
+      setDisbursementsPayRequestQueue,
+      setDisbursementsSearch,
+      setEditingTransferBatchId,
+      setExpenseForm,
+      setPaymentsMutateApprovalId,
+      setPaymentsTablePage,
+      setReceiptsSortDir,
+      setReceiptsSortKey,
+      setReceiptsTableSearch,
+      setShowExpenseModal,
+      setShowTransferModal,
+      setStatementAccount,
+      setTransferForm,
+      setWaitingReceiptsPage,
+      showAllTreasuryInTab,
+      showToast,
+      sortedFilteredSalesReceipts,
+      togglePaymentsSort,
+      todayIso,
+      treasuryBookDisplayNgn,
+      treasuryInflowsNgn,
+      treasuryOutflowsNgn,
+      waitingReceiptsListWindow,
+      workspaceBranchId,
+      workspaceBranchLabel,
+      ws,
+    }),
+    [
+      activeTab,
+      adminFinanceReapplyBusy,
+      auditQueue,
+      bankAccounts,
+      bankAccountsForBranch,
+      bankAccountsVisible,
+      bankReconciliation,
+      branchNameById,
+      canApprovePaymentRequests,
+      canDeleteRolloutExpenseOrRequest,
+      canEditTreasuryTransfer,
+      canExecTreasuryDelete,
+      canFinanceReceiptSettlement,
+      canManageTreasury,
+      canPayRequests,
+      canPostExpenseReclass,
+      canReversePaymentRequestTreasury,
+      deleteRolloutExpense,
+      deleteRolloutPaymentRequest,
+      deleteTreasuryTransfer,
+      deletingExpenseId,
+      deletingPayRequestId,
+      deletingTransferBatchId,
+      disbursementsActivePayRequests,
+      disbursementsArchivedRejectedPayRequests,
+      disbursementsExceptionPayRequests,
+      disbursementsFilteredExpenses,
+      disbursementsPayRequestQueue,
+      disbursementsSearch,
+      disbursementsVisiblePayRequests,
+      exceptionReportSummary,
+      expenseById,
+      expenses,
+      exportExceptionsCsv,
+      filteredBankAccounts,
+      filteredSalesReceipts,
+      handleAccountTabChange,
+      handleDeskCancelRefund,
+      handleDeskConfirmReceipt,
+      handleDeskPayPoTransport,
+      handleDeskPayRefund,
+      handleDeskPayRegisterSettlement,
+      handleDeskPayRequest,
+      handleDeskReceiveStaffObligation,
+      handleDeskReceiveStaffRecovery,
+      handleDeskViewPaymentRequest,
+      handleDeskViewPoTransport,
+      handleDeskViewReceipt,
+      isAdminRole,
+      isCashierRole,
+      liveReceipts,
+      liveTreasuryMovements,
+      movementRows,
+      needsPaymentsMutateSecondApproval,
+      openBankDepositsCount,
+      openEditTreasuryAccount,
+      openEditTreasuryTransfer,
+      openExpenseOutflowEdit,
+      openPayFromEditForTableRow,
+      openPaymentRequestOutflowEdit,
+      openReceiptFinance,
+      openReclassifyExpense,
+      openReclassifyPaymentRequest,
+      openRequestPayment,
+      openUnreconciledReceiptsPrint,
+      payRequestById,
+      PAYMENTS_PAGE_SIZE,
+      paymentsApprovalEntity,
+      paymentsListWindow,
+      paymentsMutateApprovalId,
+      paymentsTableSortDir,
+      paymentsTableSortKey,
+      prPayoutPrimaryMovementId,
+      receiptsListWindow,
+      receiptsPendingClearanceNgn,
+      receiptsSortDir,
+      receiptsSortKey,
+      receiptsTableSearch,
+      reconciliationFlags,
+      refundById,
+      refundPayoutPrimaryMovementId,
+      removeTreasuryAccount,
+      reversePaymentRequestTreasuryPayout,
+      reverseRefundTreasuryPayout,
+      reversingRefundTreasuryPayoutId,
+      reversingTreasuryPayoutId,
+      runAdminReapplyFinanceReconciledReceipts,
+      setConfirmedReceiptsPage,
+      setDisbursementsPayRequestQueue,
+      setDisbursementsSearch,
+      setEditingTransferBatchId,
+      setExpenseForm,
+      setPaymentsMutateApprovalId,
+      setPaymentsTablePage,
+      setReceiptsSortDir,
+      setReceiptsSortKey,
+      setReceiptsTableSearch,
+      setShowExpenseModal,
+      setShowTransferModal,
+      setStatementAccount,
+      setTransferForm,
+      setWaitingReceiptsPage,
+      showAllTreasuryInTab,
+      showToast,
+      sortedFilteredSalesReceipts,
+      togglePaymentsSort,
+      todayIso,
+      treasuryBookDisplayNgn,
+      treasuryInflowsNgn,
+      treasuryOutflowsNgn,
+      waitingReceiptsListWindow,
+      workspaceBranchId,
+      workspaceBranchLabel,
+      ws,
+    ]
+  );
+
   return (
-    <PageShell blurred={isAnyModalOpen}>
+    <AccountPageContext.Provider value={pageContextValue}>
+      <PageShell blurred={isAnyModalOpen}>
       <FinancePilotHeader
         eyebrow={
           isCashierRole
@@ -3299,9 +3426,9 @@ const Account = () => {
               pageContext={{
                 source: 'finance-page',
                 activeTab,
-                debouncedSearchQuery,
+                searchQuery,
               }}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-[0_8px_24px_-18px_rgba(15,23,42,0.12)] transition hover:border-teal-200/60 hover:bg-teal-50/80"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-[0_8px_24px_-18px_rgba(15,23,42,0.12)] transition hover:border-teal-200/60 hover:bg-teal-50/80"
             >
               Ask AI
             </AiAskButton>
@@ -3314,19 +3441,19 @@ const Account = () => {
       >
         {activeTab !== 'receipts' && activeTab !== 'desk' ? (
         <div className="lg:col-span-1 space-y-6">
-          <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-[#134e4a] bg-white p-6 shadow-[var(--shadow-sequence)]">
-            <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">
+          <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-zarewa-teal bg-white p-6 shadow-[var(--shadow-sequence)]">
+            <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">
               Total liquidity
             </h3>
             <div className="space-y-1">
               <p className="text-2xl font-black tracking-tight text-slate-900 tabular-nums">
                 ₦{totals.cash.toLocaleString()}
               </p>
-              <p className="text-[10px] text-slate-500 font-medium leading-snug">
+              <p className="text-ui-xs text-slate-500 font-medium leading-snug">
                 Combined bank, cash & POS floats
               </p>
             </div>
-            <div className="mt-3 space-y-1 border-t border-slate-200 pt-2.5 text-[10px]">
+            <div className="mt-3 space-y-1 border-t border-slate-200 pt-2.5 text-ui-xs">
               <p className="flex items-center justify-between gap-2 text-slate-600">
                 <span>Cleared receipts</span>
                 <span className="font-bold tabular-nums text-emerald-700">{formatNgn(reconciledSubtotalNgn)}</span>
@@ -3347,8 +3474,8 @@ const Account = () => {
               <ArrowDownLeft size={14} />
               Accounts receivable
             </h3>
-            <p className="text-xl font-black text-[#134e4a]">{formatNgn(receivablesNgn)}</p>
-            <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-wide">
+            <p className="text-xl font-black text-zarewa-teal">{formatNgn(receivablesNgn)}</p>
+            <p className="text-ui-xs font-bold text-gray-400 mt-2 uppercase tracking-wide">
               Due after production only · unpaid quotes with no output excluded
             </p>
           </button>
@@ -3362,19 +3489,19 @@ const Account = () => {
               <Truck size={14} />
               Supplier payments
             </h3>
-            <p className="text-[10px] text-gray-600 mt-2 leading-relaxed">
+            <p className="text-ui-xs text-gray-600 mt-2 leading-relaxed">
               Pay suppliers against purchase orders on Procurement →{' '}
-              <span className="font-bold text-[#134e4a]">Payments</span> (not the finance payment register).
+              <span className="font-bold text-zarewa-teal">Payments</span> (not the finance payment register).
             </p>
           </Link>
 
           {!isCashierRole ? (
           <div className="rounded-zarewa border border-slate-200/70 bg-slate-50/70 p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.1)]">
-            <h3 className="z-section-title flex items-center gap-2 text-[10px]">
+            <h3 className="z-section-title flex items-center gap-2 text-ui-xs">
               <Activity size={12} className="shrink-0" />
               GL phase note
             </h3>
-            <p className="text-[9px] text-slate-500 leading-relaxed">
+            <p className="text-ui-xs text-slate-500 leading-relaxed">
               Operational tabs post live treasury movements today. Full double-entry GL is on{' '}
               <strong className="text-slate-700">Accounting Desk</strong>.
             </p>
@@ -3382,8 +3509,8 @@ const Account = () => {
           ) : null}
 
           {!isCashierRole ? (
-          <div className="rounded-zarewa border border-slate-200/70 bg-white p-3 text-[9px] text-slate-500 leading-relaxed shadow-[0_10px_36px_-30px_rgba(15,23,42,0.08)]">
-            <p className="font-black uppercase tracking-wider text-[#134e4a] mb-1 flex items-center gap-1">
+          <div className="rounded-zarewa border border-slate-200/70 bg-white p-3 text-ui-xs text-slate-500 leading-relaxed shadow-[0_10px_36px_-30px_rgba(15,23,42,0.08)]">
+            <p className="font-black uppercase tracking-wider text-zarewa-teal mb-1 flex items-center gap-1">
               <BookOpen size={11} />
               Principles
             </p>
@@ -3395,1530 +3522,7 @@ const Account = () => {
 
         <div className={activeTab === 'receipts' || activeTab === 'desk' ? 'min-w-0' : 'lg:col-span-3 min-w-0'}>
           <FinanceSequencePanel>
-            <>
-            {activeTab === 'desk' && (
-              <>
-                <FinanceDeskWorkQueues
-                  onConfirmReceipt={handleDeskConfirmReceipt}
-                  onViewReceipt={handleDeskViewReceipt}
-                  onPayRequest={handleDeskPayRequest}
-                  onViewPaymentRequest={handleDeskViewPaymentRequest}
-                  onPayRefund={handleDeskPayRefund}
-                  onCancelRefund={handleDeskCancelRefund}
-                  onPayRegisterSettlement={handleDeskPayRegisterSettlement}
-                  onPayPoTransport={handleDeskPayPoTransport}
-                  onViewPoTransport={handleDeskViewPoTransport}
-                  onReceiveStaffRecovery={handleDeskReceiveStaffRecovery}
-                  onReceiveStaffObligation={handleDeskReceiveStaffObligation}
-                  onGoToTab={handleAccountTabChange}
-                  onAccountClick={canManageTreasury ? undefined : setStatementAccount}
-                  hideAccountGrid={canManageTreasury}
-                  treasurySummary={{
-                    inflowsNgn: ws?.hasWorkspaceData
-                      ? treasuryInflowsNgn
-                      : liveReceipts.reduce((s, r) => s + receiptCashReceivedNgn(r), 0),
-                    outflowsNgn: ws?.hasWorkspaceData
-                      ? treasuryOutflowsNgn
-                      : expenses.reduce((s, e) => s + e.amountNgn, 0),
-                    reconciliationCount: reconciliationFlags,
-                    onGoToReceipts: () => handleAccountTabChange('receipts'),
-                  }}
-                />
-                {canManageTreasury ? (
-                  <FinanceTreasuryManageAccountsPanel
-                    workspaceBranchLabel={workspaceBranchLabel}
-                    accounts={filteredBankAccounts}
-                    bankAccountsVisibleCount={bankAccountsVisible.length}
-                    bookDisplayNgn={treasuryBookDisplayNgn}
-                    branchNameById={branchNameById}
-                    workspaceBranchId={workspaceBranchId}
-                    showAllTreasuryInTab={showAllTreasuryInTab}
-                    canManageTreasury={canManageTreasury}
-                    canMutate={Boolean(ws?.canMutate)}
-                    canExecTreasuryDelete={canExecTreasuryDelete}
-                    onOpenStatement={setStatementAccount}
-                    onEditAccount={openEditTreasuryAccount}
-                    onRemoveAccount={removeTreasuryAccount}
-                  />
-                ) : null}
-              </>
-            )}
-
-            {activeTab === 'receipts' && (
-              <div className="space-y-6 animate-in fade-in duration-300">
-                {isCashierRole ? (
-                  <FinanceTabContextBanner
-                    testId="cashier-receipts-desk-banner"
-                    tone="amber"
-                    title="Receipts & clearance"
-                    body="Confirm bank/cash here or jump to Finance desk for the same queue. Cleared receipts unlock refunds and accurate balances."
-                    action={
-                      <button
-                        type="button"
-                        onClick={() => handleAccountTabChange('desk')}
-                        className="text-[10px] font-bold uppercase tracking-wide text-white bg-[#134e4a] hover:bg-[#0f3d3a] px-3 py-1.5 rounded-lg"
-                      >
-                        Finance desk
-                      </button>
-                    }
-                  />
-                ) : null}
-                <FinanceReceiptsWorkflowStrip
-                  pendingCount={waitingReceiptsListWindow.total}
-                  confirmedCount={receiptsListWindow.total}
-                  pendingNgn={receiptsPendingClearanceNgn}
-                  openBankDeposits={openBankDepositsCount}
-                  onGoToDesk={() => handleAccountTabChange('desk')}
-                />
-                <section className="space-y-3">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
-                        Receipts confirmation & reconciliation
-                      </h3>
-                      <p className="text-[10px] text-slate-600 mt-1 max-w-3xl leading-relaxed">
-                        Confirm sales receipts, register unknown bank inflows, then match daily bank lines.
-                      </p>
-                    </div>
-                  </div>
-                  {filteredSalesReceipts.length === 0 ? (
-                    <p className="text-[10px] text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
-                      No receipts in this branch scope.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/70 bg-slate-50/80 px-2.5 py-2">
-                        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                          <div className="relative min-w-[8rem] flex-1 max-w-[14rem]">
-                            <Search
-                              className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                              size={14}
-                            />
-                            <input
-                              type="search"
-                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-2 text-[10px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                              placeholder="Search receipts…"
-                              value={receiptsTableSearch}
-                              onChange={(e) => setReceiptsTableSearch(e.target.value)}
-                              autoComplete="off"
-                              aria-label="Filter receipts table"
-                            />
-                          </div>
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">Sort by</span>
-                          <select
-                            value={receiptsSortKey}
-                            onChange={(e) => setReceiptsSortKey(e.target.value)}
-                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                          >
-                            <option value="date">Receipt date</option>
-                            <option value="id">Receipt id</option>
-                            <option value="customer">Customer</option>
-                            <option value="amount">Amount received</option>
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => setReceiptsSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-black uppercase tracking-wide text-slate-600"
-                          >
-                            {receiptsSortDir === 'asc' ? 'Ascending' : 'Descending'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={openUnreconciledReceiptsPrint}
-                            className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-amber-900 hover:bg-amber-100"
-                            title="Print full list of receipts pending finance clearance"
-                          >
-                            <Printer size={12} />
-                            Print unreconciled
-                          </button>
-                          {isAdminRole ? (
-                            <button
-                              type="button"
-                              disabled={adminFinanceReapplyBusy}
-                              onClick={() => void runAdminReapplyFinanceReconciledReceipts()}
-                              className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-violet-950 hover:bg-violet-100 disabled:opacity-50"
-                              title="Admin only: make reconciled bank amounts the real receipt total and fix quotation paid / refund overpayment"
-                            >
-                              <RefreshCw size={12} className={adminFinanceReapplyBusy ? 'animate-spin' : ''} />
-                              {adminFinanceReapplyBusy ? 'Recalculating…' : 'Fix reconciled amounts'}
-                            </button>
-                          ) : null}
-                        </div>
-                        <div className="text-[10px] text-slate-600 tabular-nums">
-                          {sortedFilteredSalesReceipts.length} receipt
-                          {sortedFilteredSalesReceipts.length !== 1 ? 's' : ''} in view
-                        </div>
-                      </div>
-                      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8 lg:items-start">
-                      <section className="space-y-2 min-w-0">
-                        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200/70 bg-amber-50/65 px-3 py-2">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-wide text-amber-900">
-                              Pending clearance
-                            </p>
-                            <p className="text-[9px] text-amber-800/90">
-                              Sales recorded these payments — Finance must confirm bank/cash before refunds and cleared balances.
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] text-amber-900">
-                            <span className="tabular-nums">
-                              {waitingReceiptsListWindow.total === 0
-                                ? '0 receipts'
-                                : `Showing ${waitingReceiptsListWindow.from}-${waitingReceiptsListWindow.to} of ${waitingReceiptsListWindow.total}`}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={waitingReceiptsListWindow.safePage <= 0}
-                              onClick={() => setWaitingReceiptsPage((p) => Math.max(0, p - 1))}
-                              className="inline-flex items-center rounded-lg border border-amber-200 bg-white px-2 py-1 disabled:opacity-40"
-                              aria-label="Previous waiting page"
-                            >
-                              <ChevronLeft size={14} />
-                            </button>
-                            <span className="text-[9px] font-bold tabular-nums text-amber-800">
-                              {waitingReceiptsListWindow.safePage + 1}/{waitingReceiptsListWindow.pageCount}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={waitingReceiptsListWindow.safePage >= waitingReceiptsListWindow.pageCount - 1}
-                              onClick={() => setWaitingReceiptsPage((p) => p + 1)}
-                              className="inline-flex items-center rounded-lg border border-amber-200 bg-white px-2 py-1 disabled:opacity-40"
-                              aria-label="Next waiting page"
-                            >
-                              <ChevronRight size={14} />
-                            </button>
-                          </div>
-                        </div>
-                        {waitingReceiptsListWindow.total === 0 ? (
-                          <p className="text-[10px] text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
-                            No waiting receipts.
-                          </p>
-                        ) : null}
-                        <ul className="space-y-1.5">
-                          {waitingReceiptsListWindow.slice.map((r) => {
-                            const allocated = Number(r.amountNgn) || 0;
-                            const cash =
-                              r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
-                            const bank =
-                              r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : null;
-                            const clearanceLabel = receiptClearanceBadgeLabel(r);
-                            const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
-                            return (
-                              <li
-                                key={r.id}
-                                className="rounded-lg border border-slate-200/75 bg-white py-1.5 px-2.5 shadow-sm flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[11px] font-bold text-[#134e4a] font-mono">{r.id}</p>
-                                  <p className="text-[9px] text-slate-500 truncate">
-                                    {r.customer || '-'} · {r.quotationRef || '-'} · {r.dateISO || r.date || '-'}
-                                  </p>
-                                  {paySplits.length > 0 ? (
-                                    <ul className="mt-1.5 space-y-0.5 border-t border-dashed border-slate-200/80 pt-1.5">
-                                      {paySplits.map((s) => (
-                                        <li
-                                          key={s.movementId}
-                                          className="flex justify-between gap-2 text-[9px] text-slate-700"
-                                        >
-                                          <span className="min-w-0 truncate font-medium" title={s.accountLabel}>
-                                            {s.accountLabel}
-                                          </span>
-                                          <span className="shrink-0 font-bold tabular-nums text-[#134e4a]">
-                                            {formatNgn(s.amountNgn)}
-                                          </span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : null}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                                  <span className="text-[10px] font-bold text-slate-600 tabular-nums">
-                                    Total {formatNgn(cash)}
-                                    {Math.round(allocated) !== Math.round(cash) ? (
-                                      <span className="text-slate-500 font-semibold"> (quote {formatNgn(allocated)})</span>
-                                    ) : null}
-                                    {bank != null && Math.round(bank) !== Math.round(cash) ? (
-                                      <span className="text-amber-800"> · Bank {formatNgn(bank)}</span>
-                                    ) : null}
-                                  </span>
-                                  <span
-                                    className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                                      clearanceLabel === 'Pending clearance'
-                                        ? 'bg-amber-100 text-amber-900'
-                                        : 'bg-slate-100 text-slate-700'
-                                    }`}
-                                  >
-                                    {clearanceLabel}
-                                  </span>
-                                  {canFinanceReceiptSettlement && ws?.canMutate ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => openReceiptFinance(r)}
-                                      className="text-[8px] font-bold uppercase px-2 py-1 rounded-md bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
-                                      >
-                                      Confirm
-                                    </button>
-                                  ) : null}
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </section>
-                      <section className="space-y-2 min-w-0">
-                        <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200/70 bg-emerald-50/65 px-3 py-2">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-wide text-emerald-900">
-                              Confirmed
-                            </p>
-                            <p className="text-[9px] text-emerald-800/90">
-                              Receipts already confirmed and reconciled by finance.
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] text-emerald-900">
-                            <span className="tabular-nums">
-                              {receiptsListWindow.total === 0
-                                ? '0 receipts'
-                                : `Showing ${receiptsListWindow.from}-${receiptsListWindow.to} of ${receiptsListWindow.total}`}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={receiptsListWindow.safePage <= 0}
-                              onClick={() => setConfirmedReceiptsPage((p) => Math.max(0, p - 1))}
-                              className="inline-flex items-center rounded-lg border border-emerald-200 bg-white px-2 py-1 disabled:opacity-40"
-                              aria-label="Previous confirmed page"
-                            >
-                              <ChevronLeft size={14} />
-                            </button>
-                            <span className="text-[9px] font-bold tabular-nums text-emerald-800">
-                              {receiptsListWindow.safePage + 1}/{receiptsListWindow.pageCount}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={receiptsListWindow.safePage >= receiptsListWindow.pageCount - 1}
-                              onClick={() => setConfirmedReceiptsPage((p) => p + 1)}
-                              className="inline-flex items-center rounded-lg border border-emerald-200 bg-white px-2 py-1 disabled:opacity-40"
-                              aria-label="Next confirmed page"
-                            >
-                              <ChevronRight size={14} />
-                            </button>
-                          </div>
-                        </div>
-                        {receiptsListWindow.total === 0 ? (
-                          <p className="text-[10px] text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
-                            No confirmed receipts yet.
-                          </p>
-                        ) : null}
-                        <ul className="space-y-1.5">
-                          {receiptsListWindow.slice.map((r) => {
-                        const allocated = Number(r.amountNgn) || 0;
-                        const cash =
-                          r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
-                        const bank =
-                          r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : null;
-                        const cleared = Boolean(r.financeDeliveryClearedAtISO);
-                        const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
-                        return (
-                          <li
-                            key={r.id}
-                            className="rounded-lg border border-slate-200/75 bg-white py-1.5 px-2.5 shadow-sm flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[11px] font-bold text-[#134e4a] font-mono">{r.id}</p>
-                              <p className="text-[9px] text-slate-500 truncate">
-                                {r.customer || '—'} · {r.quotationRef || '—'} · {r.dateISO || r.date || '—'}
-                              </p>
-                              {paySplits.length > 0 ? (
-                                <ul className="mt-1.5 space-y-0.5 border-t border-dashed border-slate-200/80 pt-1.5">
-                                  {paySplits.map((s) => (
-                                    <li
-                                      key={s.movementId}
-                                      className="flex justify-between gap-2 text-[9px] text-slate-700"
-                                    >
-                                      <span className="min-w-0 truncate font-medium" title={s.accountLabel}>
-                                        {s.accountLabel}
-                                      </span>
-                                      <span className="shrink-0 font-bold tabular-nums text-[#134e4a]">
-                                        {formatNgn(s.amountNgn)}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : null}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 shrink-0">
-                              <span className="text-[10px] font-bold text-slate-600 tabular-nums">
-                                Total {formatNgn(cash)}
-                                {Math.round(allocated) !== Math.round(cash) ? (
-                                  <span className="text-slate-500 font-semibold">
-                                    {' '}
-                                    (quote {formatNgn(allocated)})
-                                  </span>
-                                ) : null}
-                                {bank != null && Math.round(bank) !== Math.round(cash) ? (
-                                  <span className="text-amber-800"> · Bank {formatNgn(bank)}</span>
-                                ) : null}
-                              </span>
-                              {r.financeReconciliationSavedAtISO ? (
-                                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-800">
-                                  Reconciled
-                                </span>
-                              ) : null}
-                              {cleared ? (
-                                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900">
-                                  Cleared delivery
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                                  Pending
-                                </span>
-                              )}
-                              {canFinanceReceiptSettlement && ws?.canMutate ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openReceiptFinance(r)}
-                                  className="text-[8px] font-bold uppercase px-2 py-1 rounded-md bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
-                                >
-                                  {r.financeReconciliationSavedAtISO ? 'Revise' : 'Confirm'}
-                                </button>
-                              ) : null}
-                            </div>
-                          </li>
-                        );
-                      })}
-                        </ul>
-                      </section>
-                      </div>
-
-                      {ws?.hasPermission?.('finance.view') ? (
-                        <section className="space-y-3 border-t border-slate-200/80 pt-6">
-                          <RegisterBankDepositPanel
-                            snapshot={ws?.snapshot}
-                            session={ws?.session}
-                            branchScope={ws?.branchScope}
-                            viewAllBranches={ws?.viewAllBranches}
-                            canPost={Boolean(ws?.hasPermission?.('finance.post') && ws?.canMutate)}
-                            showToast={showToast}
-                            onRegistered={() => ws?.refresh?.()}
-                          />
-                          <BankDepositExceptionPanel
-                            canPost={Boolean(ws?.hasPermission?.('finance.post') && ws?.canMutate)}
-                            showToast={showToast}
-                            onChanged={() => ws?.refresh?.()}
-                          />
-                        </section>
-                      ) : null}
-
-                      {ws?.hasPermission?.('finance.view') ? (
-                        <section className="space-y-3 border-t border-slate-200/80 pt-6">
-                          <div>
-                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">
-                              Daily bank line queue
-                            </h3>
-                            <p className="text-[9px] text-slate-600 mt-0.5 max-w-3xl leading-relaxed">
-                              Match treasury to your bank app or cash count — add lines manually.
-                            </p>
-                          </div>
-                          <AccountBankReconciliationPanel
-                            lines={bankReconciliation}
-                            treasuryAccounts={bankAccounts}
-                            treasuryMovements={liveTreasuryMovements}
-                            canPost={Boolean(ws?.hasPermission?.('finance.post') && ws?.canMutate)}
-                            canApprove={Boolean(ws?.hasPermission?.('finance.approve'))}
-                            branchLabel={ws?.snapshot?.branch?.name || ws?.workspaceBranchId || ''}
-                            onWorkspaceRefresh={() => ws?.refresh?.()}
-                            showToast={showToast}
-                          />
-                        </section>
-                      ) : null}
-                    </>
-                  )}
-                </section>
-              </div>
-            )}
-
-            {activeTab === 'movements' && (
-              <div className="space-y-4 animate-in fade-in duration-300">
-                <FinanceTabContextBanner
-                  tone="sky"
-                  title="Treasury movements"
-                  body={
-                    isCashierRole
-                      ? 'Same-branch transfers only — each movement debits one till/bank and credits another. Customer receipts and payouts stay on Finance desk.'
-                      : 'Internal transfers update both accounts immediately. Cross-branch funding is on Accounting Desk → Inter-branch.'
-                  }
-                  action={
-                    isCashierRole ? (
-                      <button
-                        type="button"
-                        onClick={() => handleAccountTabChange('desk')}
-                        className="text-[10px] font-bold uppercase tracking-wide text-[#134e4a] underline-offset-2 hover:underline"
-                      >
-                        Back to desk
-                      </button>
-                    ) : null
-                  }
-                />
-
-                {ws?.hasPermission?.('finance.view') && !isCashierRole ? (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-[10px] text-slate-600 leading-relaxed">
-                    Cross-branch treasury funding on{' '}
-                    <Link
-                      to="/accounting?tab=interBranch"
-                      className="font-semibold text-[#134e4a] hover:underline"
-                    >
-                      Accounting Desk → Inter-branch
-                    </Link>
-                    .
-                  </div>
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingTransferBatchId('');
-                    setTransferForm({
-                      fromId: bankAccountsForBranch[0] ? String(bankAccountsForBranch[0].id) : '',
-                      toId: bankAccountsForBranch[1]
-                        ? String(bankAccountsForBranch[1].id)
-                        : bankAccountsForBranch[0]
-                          ? String(bankAccountsForBranch[0].id)
-                          : '',
-                      amountNgn: '',
-                      reference: '',
-                      dateISO: new Date().toISOString().slice(0, 10),
-                    });
-                    setShowTransferModal(true);
-                  }}
-                  className="z-btn-secondary"
-                >
-                  <ArrowRightLeft size={16} /> New transfer
-                </button>
-                {movementRows.length === 0 ? (
-                  <div className="z-empty-state py-12">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                      No internal transfers yet
-                    </p>
-                  </div>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {movementRows.map((m) => (
-                      <li
-                        key={m.id}
-                        className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm"
-                      >
-                        <div className="flex items-center justify-between gap-2 min-w-0">
-                          <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
-                            <span className="font-mono">{m.id}</span>
-                            <span className="font-medium text-slate-600">
-                              {' '}
-                              · {m.fromName} → {m.toName}
-                            </span>
-                          </p>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
-                              {formatNgn(m.amountNgn)}
-                            </span>
-                            {m.isTreasuryTransfer && canEditTreasuryTransfer ? (
-                              <button
-                                type="button"
-                                title="Edit transfer"
-                                onClick={() => openEditTreasuryTransfer(m)}
-                                className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:text-[#134e4a] hover:bg-teal-50 transition-colors"
-                                aria-label="Edit transfer"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                            ) : null}
-                            {m.isTreasuryTransfer && canExecTreasuryDelete ? (
-                              <button
-                                type="button"
-                                title="Delete transfer (Admin, MD, or CEO)"
-                                disabled={deletingTransferBatchId === m.id}
-                                onClick={() => void deleteTreasuryTransfer(m.id)}
-                                className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-300 hover:text-rose-600 hover:bg-rose-50/80 transition-colors disabled:opacity-40"
-                                aria-label="Delete transfer"
-                              >
-                                <Trash2 size={12} strokeWidth={1.65} />
-                              </button>
-                            ) : null}
-                          </div>
-                        </div>
-                        <p className="text-[8px] text-slate-500 mt-0.5 tabular-nums">
-                          {m.at}
-                          {m.displayReference ? ` · ${m.displayReference}` : ''}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'disbursements' && (
-              <div className="space-y-4 animate-in slide-in-from-right-5">
-                <FinanceTabContextBanner
-                  tone="slate"
-                  title="Payment register — posted outflows"
-                  body="Read-only audit trail of money that already left treasury. To pay new approved items, use Treasury payout queues or Desk (cashiers). Edit rows here only to correct the debited account."
-                />
-                <div className="rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-2 space-y-2">
-                  <label className="text-[9px] font-bold uppercase tracking-wide text-slate-500 block mb-1">
-                    Search payment register (this tab)
-                  </label>
-                  <div className="relative">
-                    <Search
-                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                      size={14}
-                    />
-                    <input
-                      type="search"
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-2 text-[11px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                      placeholder="Movement id, type, account, counterparty, reference, source id…"
-                      value={disbursementsSearch}
-                      onChange={(e) => setDisbursementsSearch(e.target.value)}
-                      autoComplete="off"
-                      aria-label="Search payments register"
-                    />
-                  </div>
-                  <p className="text-[9px] text-slate-500 leading-snug">
-                    Search posted debits (refunds, expenses, transport, AP). Officers need KPI approval to reverse or
-                    delete. Payout execution is on <strong>Desk</strong> or <strong>Treasury</strong>.
-                  </p>
-                </div>
-
-                {needsPaymentsMutateSecondApproval ? (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 space-y-2">
-                    <p className="text-[10px] text-amber-950 font-semibold leading-snug">
-                      Officer / finance roles: rollout delete and payment-request or refund payout reversal need the KPI
-                      gate below. Request an edit approval from a manager for the same expense, payment request, or
-                      refund ID, then paste the code.
-                    </p>
-                    {paymentsApprovalEntity ? (
-                      <div className="space-y-1.5">
-                        <p className="text-[9px] font-mono text-slate-800">
-                          Target:{' '}
-                          <span className="font-bold">{paymentsApprovalEntity.kind}</span> · {paymentsApprovalEntity.id}
-                        </p>
-                        <EditSecondApprovalInline
-                          entityKind={
-                            paymentsApprovalEntity.kind === 'expense'
-                              ? 'expense'
-                              : paymentsApprovalEntity.kind === 'refund'
-                                ? 'refund'
-                                : 'payment_request'
-                          }
-                          entityId={paymentsApprovalEntity.id}
-                          value={paymentsMutateApprovalId}
-                          onChange={setPaymentsMutateApprovalId}
-                        />
-                      </div>
-                    ) : (
-                      <p className="text-[9px] text-slate-600 italic">
-                        Click <strong>Reverse</strong>, <strong>Delete</strong>, or set pay-from on a row to lock this
-                        form to that expense, payment request, or refund.
-                      </p>
-                    )}
-                  </div>
-                ) : null}
-
-                <section className="space-y-2">
-                  <div className="flex flex-wrap items-end justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
-                        Posted treasury outflows
-                      </h3>
-                      <p className="text-[10px] text-slate-600 mt-0.5 max-w-3xl leading-snug">
-                        Unified register of money leaving bank/cash — purchases, refunds, expense payment requests,
-                        transport, AP, and related lines. Sort columns (date, type, description, account, amount,
-                        source); <span className="font-semibold text-slate-700">{PAYMENTS_PAGE_SIZE} rows per page</span>
-                        . Row actions where supported.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
-                      <span className="text-[10px] font-bold text-slate-500 tabular-nums">
-                        {paymentsListWindow.total} line{paymentsListWindow.total === 1 ? '' : 's'}
-                        {paymentsListWindow.total > 0
-                          ? ` · Showing ${paymentsListWindow.from}–${paymentsListWindow.to}`
-                          : ''}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={paymentsListWindow.safePage <= 0}
-                        onClick={() => setPaymentsTablePage((p) => Math.max(0, p - 1))}
-                        className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 disabled:opacity-40"
-                        aria-label="Previous payments page"
-                      >
-                        <ChevronLeft size={14} />
-                      </button>
-                      <span className="text-[9px] font-bold tabular-nums text-slate-500 min-w-[2.5rem] text-center">
-                        {paymentsListWindow.safePage + 1}/{paymentsListWindow.pageCount}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={paymentsListWindow.safePage >= paymentsListWindow.pageCount - 1}
-                        onClick={() => setPaymentsTablePage((p) => p + 1)}
-                        className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 disabled:opacity-40"
-                        aria-label="Next payments page"
-                      >
-                        <ChevronRight size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <ul className="lg:hidden space-y-2">
-                    {paymentsListWindow.slice.map((row, idx) => {
-                      const typeLabel = TREASURY_STATEMENT_TYPE_LABEL[row.type] || row.type;
-                      const rowOrdinal =
-                        paymentsListWindow.total === 0 ? idx + 1 : paymentsListWindow.from + idx;
-                      return (
-                        <li
-                          key={row.movementId || `m-${idx}`}
-                          className="rounded-lg border border-slate-200/90 bg-white py-1.5 px-2.5 shadow-sm"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-bold text-slate-400 tabular-nums">#{rowOrdinal}</p>
-                              <p className="text-[10px] font-semibold text-slate-800 line-clamp-2">{row.description}</p>
-                              <p className="mt-0.5 text-[9px] text-slate-500">
-                                {String(row.postedAtISO || '').slice(0, 10) || '—'} · {typeLabel}
-                              </p>
-                              <p className="text-[9px] text-slate-500 truncate">{row.accountName || '—'}</p>
-                            </div>
-                            <p className="shrink-0 text-[11px] font-black tabular-nums text-[#134e4a]">
-                              {formatNgn(row.amountAbs)}
-                            </p>
-                          </div>
-                          {row.sourceId ? (
-                            <p className="mt-2 text-[9px] font-mono text-slate-500 break-all">{row.sourceId}</p>
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-sm z-scroll-x">
-                    <table className="min-w-[920px] w-full text-left text-[10px]">
-                      <thead className="bg-slate-50 text-[9px] font-bold uppercase text-slate-500 tracking-wide border-b border-slate-200">
-                        <tr>
-                          <th className="px-2 py-2 w-10">#</th>
-                          <th className="px-2 py-2">
-                            <button
-                              type="button"
-                              onClick={() => togglePaymentsSort('date')}
-                              className="inline-flex items-center gap-0.5 hover:text-[#134e4a]"
-                            >
-                              Date
-                              {paymentsTableSortKey === 'date'
-                                ? paymentsTableSortDir === 'asc'
-                                  ? ' ↑'
-                                  : ' ↓'
-                                : ''}
-                            </button>
-                          </th>
-                          <th className="px-2 py-2">
-                            <button
-                              type="button"
-                              onClick={() => togglePaymentsSort('type')}
-                              className="inline-flex items-center gap-0.5 hover:text-[#134e4a]"
-                            >
-                              Type
-                              {paymentsTableSortKey === 'type'
-                                ? paymentsTableSortDir === 'asc'
-                                  ? ' ↑'
-                                  : ' ↓'
-                                : ''}
-                            </button>
-                          </th>
-                          <th className="px-2 py-2 min-w-[200px]">
-                            <button
-                              type="button"
-                              onClick={() => togglePaymentsSort('description')}
-                              className="inline-flex items-center gap-0.5 hover:text-[#134e4a] text-left"
-                            >
-                              Description
-                              {paymentsTableSortKey === 'description'
-                                ? paymentsTableSortDir === 'asc'
-                                  ? ' ↑'
-                                  : ' ↓'
-                                : ''}
-                            </button>
-                          </th>
-                          <th className="px-2 py-2">
-                            <button
-                              type="button"
-                              onClick={() => togglePaymentsSort('account')}
-                              className="inline-flex items-center gap-0.5 hover:text-[#134e4a]"
-                            >
-                              Paid from
-                              {paymentsTableSortKey === 'account'
-                                ? paymentsTableSortDir === 'asc'
-                                  ? ' ↑'
-                                  : ' ↓'
-                                : ''}
-                            </button>
-                          </th>
-                          <th className="px-2 py-2 text-right">
-                            <button
-                              type="button"
-                              onClick={() => togglePaymentsSort('amount')}
-                              className="inline-flex items-center gap-0.5 hover:text-[#134e4a] ml-auto"
-                            >
-                              Amount
-                              {paymentsTableSortKey === 'amount'
-                                ? paymentsTableSortDir === 'asc'
-                                  ? ' ↑'
-                                  : ' ↓'
-                                : ''}
-                            </button>
-                          </th>
-                          <th className="px-2 py-2 min-w-[120px]">
-                            <button
-                              type="button"
-                              onClick={() => togglePaymentsSort('source')}
-                              className="inline-flex items-center gap-0.5 hover:text-[#134e4a] text-left"
-                            >
-                              Source
-                              {paymentsTableSortKey === 'source'
-                                ? paymentsTableSortDir === 'asc'
-                                  ? ' ↑'
-                                  : ' ↓'
-                                : ''}
-                            </button>
-                          </th>
-                          <th className="px-2 py-2 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paymentsListWindow.slice.map((row, idx) => {
-                          const pr =
-                            row.sourceKind === 'PAYMENT_REQUEST' ? payRequestById[row.sourceId] : null;
-                          const ex = row.sourceKind === 'EXPENSE' ? expenseById[row.sourceId] : null;
-                          const rf = row.sourceKind === 'REFUND' ? refundById[row.sourceId] : null;
-                          const typeLabel = TREASURY_STATEMENT_TYPE_LABEL[row.type] || row.type;
-                          const rowOrdinal =
-                            paymentsListWindow.total === 0 ? idx + 1 : paymentsListWindow.from + idx;
-                          const showPayFrom =
-                            canFinanceReceiptSettlement &&
-                            ws?.canMutate &&
-                            isPayFromCorrectionTreasuryRow(row);
-                          const paidPr = pr ? Number(pr.paidAmountNgn) || 0 : 0;
-                          const paidRf = rf ? Number(rf.paidAmountNgn) || 0 : 0;
-                          const isPrPrimary =
-                            row.type === 'PAYMENT_REQUEST_OUT' &&
-                            row.sourceKind === 'PAYMENT_REQUEST' &&
-                            prPayoutPrimaryMovementId.get(row.sourceId) === row.movementId;
-                          const isRefundPrimary =
-                            row.type === 'REFUND_PAYOUT' &&
-                            row.sourceKind === 'REFUND' &&
-                            refundPayoutPrimaryMovementId.get(row.sourceId) === row.movementId;
-                          const showReverse =
-                            canReversePaymentRequestTreasury &&
-                            ws?.canMutate &&
-                            ((row.type === 'PAYMENT_REQUEST_OUT' &&
-                              pr &&
-                              paidPr > 0 &&
-                              isPrPrimary) ||
-                              (row.type === 'REFUND_PAYOUT' && rf && paidRf > 0 && isRefundPrimary));
-                          const showDeleteExpenseRow =
-                            canDeleteRolloutExpenseOrRequest &&
-                            ws?.canMutate &&
-                            row.type === 'EXPENSE' &&
-                            row.sourceKind === 'EXPENSE' &&
-                            ex;
-                          const showDeletePrRow =
-                            canDeleteRolloutExpenseOrRequest &&
-                            ws?.canMutate &&
-                            row.type === 'PAYMENT_REQUEST_OUT' &&
-                            pr &&
-                            paidPr <= 0 &&
-                            isPrPrimary;
-                          return (
-                            <tr
-                              key={row.movementId || `${idx}`}
-                              className="border-b border-slate-100/90 hover:bg-slate-50/80 align-top"
-                            >
-                              <td className="px-2 py-1.5 text-slate-400 tabular-nums">{rowOrdinal}</td>
-                              <td className="px-2 py-1.5 whitespace-nowrap text-slate-700">
-                                {String(row.postedAtISO || '').slice(0, 10) || '—'}
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <span className="inline-flex rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-700">
-                                  {typeLabel}
-                                </span>
-                              </td>
-                              <td className="px-2 py-1.5 text-slate-800 leading-snug max-w-[280px]">
-                                <span className="line-clamp-2" title={row.description}>
-                                  {row.description}
-                                </span>
-                              </td>
-                              <td className="px-2 py-1.5 text-slate-700">{row.accountName || '—'}</td>
-                              <td className="px-2 py-1.5 text-right font-bold tabular-nums text-[#134e4a]">
-                                {formatNgn(row.amountAbs)}
-                              </td>
-                              <td className="px-2 py-1.5 font-mono text-[9px] text-slate-600 break-all">
-                                {row.sourceId || '—'}
-                              </td>
-                              <td className="px-2 py-1.5 text-right">
-                                <div className="flex flex-wrap justify-end gap-1">
-                                  {showPayFrom ? (
-                                    <button
-                                      type="button"
-                                      title="Pay-from (bank/cash correction)"
-                                      onClick={() => openPayFromEditForTableRow(row)}
-                                      className="text-[8px] font-bold uppercase tracking-wide text-[#134e4a] bg-teal-100 hover:bg-teal-200 px-1.5 py-0.5 rounded"
-                                    >
-                                      Edit
-                                    </button>
-                                  ) : null}
-                                  {showReverse ? (
-                                    <button
-                                      type="button"
-                                      title={
-                                        row.type === 'REFUND_PAYOUT'
-                                          ? 'Reverse full treasury payout for this refund'
-                                          : 'Reverse full payout for this request'
-                                      }
-                                      disabled={
-                                        row.type === 'REFUND_PAYOUT'
-                                          ? reversingRefundTreasuryPayoutId === row.sourceId
-                                          : reversingTreasuryPayoutId === row.sourceId
-                                      }
-                                      onClick={() =>
-                                        row.type === 'REFUND_PAYOUT'
-                                          ? void reverseRefundTreasuryPayout(row.sourceId)
-                                          : void reversePaymentRequestTreasuryPayout(row.sourceId)
-                                      }
-                                      className="text-[8px] font-bold uppercase text-amber-900 bg-amber-100 hover:bg-amber-200 px-1.5 py-0.5 rounded disabled:opacity-50"
-                                    >
-                                      {row.type === 'REFUND_PAYOUT'
-                                        ? reversingRefundTreasuryPayoutId === row.sourceId
-                                          ? '…'
-                                          : 'Reverse'
-                                        : reversingTreasuryPayoutId === row.sourceId
-                                          ? '…'
-                                          : 'Reverse'}
-                                    </button>
-                                  ) : null}
-                                  {showDeleteExpenseRow ? (
-                                    <button
-                                      type="button"
-                                      title="Rollout delete expense (linked unpaid requests only)"
-                                      disabled={deletingExpenseId === row.sourceId}
-                                      onClick={() => void deleteRolloutExpense(row.sourceId)}
-                                      className="text-[8px] font-bold uppercase text-rose-800 bg-rose-100 hover:bg-rose-200 px-1.5 py-0.5 rounded disabled:opacity-50"
-                                    >
-                                      {deletingExpenseId === row.sourceId ? '…' : 'Del'}
-                                    </button>
-                                  ) : null}
-                                  {showDeletePrRow ? (
-                                    <button
-                                      type="button"
-                                      title="Rollout delete payment request"
-                                      disabled={deletingPayRequestId === row.sourceId}
-                                      onClick={() => void deleteRolloutPaymentRequest(row.sourceId)}
-                                      className="text-[8px] font-bold uppercase text-rose-800 bg-rose-100 hover:bg-rose-200 px-1.5 py-0.5 rounded disabled:opacity-50"
-                                    >
-                                      {deletingPayRequestId === row.sourceId ? '…' : 'Del'}
-                                    </button>
-                                  ) : null}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    {paymentsListWindow.total === 0 ? (
-                      <p className="text-[10px] text-slate-400 px-3 py-6 text-center border-t border-slate-100">
-                        No treasury outflows match this filter (or workspace has no posted payment lines yet).
-                      </p>
-                    ) : null}
-                  </div>
-                </section>
-
-                <details className="rounded-lg border border-slate-200/80 bg-white/50 px-3 py-2 group">
-                  <summary className="text-[10px] font-bold uppercase tracking-wide text-[#134e4a] cursor-pointer list-none flex items-center gap-2">
-                    <span className="group-open:rotate-90 transition-transform text-slate-400">▸</span>
-                    Payment request pipeline &amp; expense cards (detail)
-                  </summary>
-                  <div className="mt-4 space-y-8 border-t border-slate-100 pt-4">
-                <section className="space-y-4">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
-                      1) Expenses (posted records)
-                    </h3>
-                    <p className="text-[11px] text-gray-500 mt-1">
-                      Record completed spending entries. New expense requests open from the workspace; approval is in
-                      Management or workspace Needs action. After approval, post treasury payout from{' '}
-                      <span className="font-semibold text-slate-700">Desk</span> or{' '}
-                      <span className="font-semibold text-slate-700">Treasury</span>.
-                    </p>
-                  </div>
-                <ul className="space-y-1.5">
-                {disbursementsFilteredExpenses.map((ex) => {
-                  const meta2 = [
-                    ex.expenseType,
-                    ex.category,
-                    ex.branchId ? branchNameById[ex.branchId] || ex.branchId : null,
-                    `${ex.paymentMethod} · Ref ${ex.reference}`,
-                    ex.date,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ');
-                  const expenseTreasuryOut = treasuryOutflowLinesForExpense(
-                    ex.expenseID,
-                    liveTreasuryMovements
-                  );
-                  return (
-                  <li
-                    key={ex.expenseID}
-                    className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm hover:bg-white/70 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-2 min-w-0">
-                      <div className="min-w-0 leading-tight flex-1">
-                        <p className="text-[11px] font-bold text-[#134e4a] truncate uppercase">{ex.expenseID}</p>
-                        <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta2}>
-                          {meta2}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <p className="text-[11px] font-black text-[#134e4a] tabular-nums">
-                          {formatNgn(ex.amountNgn)}
-                        </p>
-                        <div className="flex flex-wrap justify-end gap-1">
-                          {canFinanceReceiptSettlement && ws?.canMutate && expenseTreasuryOut.length > 0 ? (
-                            <button
-                              type="button"
-                              title="Correct which bank or cash account this expense was paid from"
-                              onClick={() => openExpenseOutflowEdit(ex)}
-                              className="text-[8px] font-bold uppercase tracking-wide text-[#134e4a] bg-teal-100 hover:bg-teal-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
-                            >
-                              <Pencil size={10} aria-hidden />
-                              Pay-from
-                            </button>
-                          ) : null}
-                          {canPostExpenseReclass && ws?.canMutate && expenseTreasuryOut.length > 0 ? (
-                            <button
-                              type="button"
-                              title="Reclassify posted expense category (GL adjustment)"
-                              onClick={() => openReclassifyExpense(ex)}
-                              className="text-[8px] font-semibold uppercase tracking-wide text-indigo-800 bg-indigo-100 hover:bg-indigo-200 px-2 py-1 rounded-md"
-                            >
-                              Reclass
-                            </button>
-                          ) : null}
-                          {canDeleteRolloutExpenseOrRequest ? (
-                            <button
-                              type="button"
-                              title="Temporary rollout delete (unpaid links only)"
-                              disabled={deletingExpenseId === ex.expenseID}
-                              onClick={() => void deleteRolloutExpense(ex.expenseID)}
-                              className="text-[8px] font-bold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
-                            >
-                              <Trash2 size={10} aria-hidden />
-                              {deletingExpenseId === ex.expenseID ? '…' : 'Delete'}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                  );
-                })}
-                </ul>
-                </section>
-                <section className="space-y-3">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
-                      2) Expense payment requests (pipeline)
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Pending, submitted, approved (awaiting treasury), and cancelled — same rows as workspace. Approved
-                      items with balance due can be paid from here or from Desk / Treasury. Finance may reclassify category
-                      on approved, unpaid requests before payout.
-                    </p>
-                  </div>
-                  <ExpenseCategoryExceptionBanner
-                    summary={exceptionReportSummary}
-                    formatNgn={formatNgn}
-                    activeFilter={disbursementsPayRequestQueue === 'exceptions'}
-                    onFilterExceptions={() =>
-                      setDisbursementsPayRequestQueue((q) => (q === 'exceptions' ? 'all' : 'exceptions'))
-                    }
-                    onExportCsv={() => void exportExceptionsCsv()}
-                  />
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Queue</span>
-                    <button
-                      type="button"
-                      onClick={() => setDisbursementsPayRequestQueue('all')}
-                      className={`text-[9px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-md ${
-                        disbursementsPayRequestQueue === 'all'
-                          ? 'bg-[#134e4a] text-white'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      All ({disbursementsActivePayRequests.length})
-                    </button>
-                    {!exceptionReportSummary?.shouldAlert ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setDisbursementsPayRequestQueue('exceptions')}
-                          className={`text-[9px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-md ${
-                            disbursementsPayRequestQueue === 'exceptions'
-                              ? 'bg-amber-700 text-white'
-                              : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200'
-                          }`}
-                        >
-                          Finance exceptions ({disbursementsExceptionPayRequests.length})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void exportExceptionsCsv()}
-                          className="text-[9px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                        >
-                          Export CSV
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                  {disbursementsVisiblePayRequests.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
-                      {disbursementsPayRequestQueue === 'exceptions'
-                        ? 'No finance exception payment requests match this filter.'
-                        : 'No payment requests match this filter.'}
-                    </p>
-                  ) : (
-                    <ul className="space-y-1.5">
-                      {disbursementsVisiblePayRequests.map((req) => {
-                        const paid = Number(req.paidAmountNgn) || 0;
-                        const prTreasuryOut = treasuryOutflowLinesForPaymentRequest(
-                          req.requestID,
-                          liveTreasuryMovements
-                        );
-                        const meta2 = [
-                          req.expenseCategory || null,
-                          req.expenseID ? `Expense ${req.expenseID}` : null,
-                          req.requestReference ? `Ref ${req.requestReference}` : null,
-                          req.branchId ? branchNameById[req.branchId] || req.branchId : null,
-                          req.approvalStatus,
-                          paid > 0 ? `Paid ${formatNgn(paid)}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ');
-                        return (
-                          <li
-                            key={req.requestID}
-                            className="rounded-lg border border-slate-200/60 bg-white/50 py-1.5 px-2.5 shadow-sm"
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                              <div className="min-w-0 leading-tight flex-1">
-                                <p className="text-[11px] font-bold text-[#134e4a] truncate">
-                                  <span className="font-mono">{req.requestID}</span>
-                                  <span className="font-medium text-slate-600">
-                                    {' '}
-                                    · {req.description || req.expenseCategory || '—'}
-                                  </span>
-                                </p>
-                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                                  {req.expenseCategory || req.expenseCategoryLane ? (
-                                    <ExpenseCategoryLaneBadge
-                                      category={req.expenseCategory}
-                                      laneKey={req.expenseCategoryLane}
-                                    />
-                                  ) : null}
-                                  {req.expenseCategory ? (
-                                    <span className="text-[8px] font-semibold text-slate-600">{req.expenseCategory}</span>
-                                  ) : null}
-                                </div>
-                                <p className="text-[8px] text-slate-500 mt-0.5 line-clamp-2" title={meta2}>
-                                  {meta2}
-                                </p>
-                                {req.categoryJustification ? (
-                                  <p
-                                    className="text-[8px] text-amber-900/90 mt-1 line-clamp-2 italic"
-                                    title={req.categoryJustification}
-                                  >
-                                    Justification: {req.categoryJustification}
-                                  </p>
-                                ) : null}
-                                {['pending', 'submitted'].includes(
-                                  String(req.approvalStatus || '').trim().toLowerCase()
-                                ) && !canApprovePaymentRequests ? (
-                                  <ZareApprovalHint
-                                    compact
-                                    className="mt-2"
-                                    context={{
-                                      referenceNo: req.requestID,
-                                      documentType: 'payment_request',
-                                      status: req.approvalStatus,
-                                      canApprove: false,
-                                      canMutate: ws?.canMutate !== false,
-                                      missingPermission:
-                                        'Expense payment requests need finance.approve before treasury payout.',
-                                      zareQuery: `Why can't I approve payment request ${req.requestID}?`,
-                                    }}
-                                  />
-                                ) : null}
-                              </div>
-                              <div className="flex flex-col items-end gap-1 shrink-0">
-                                <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
-                                  {formatNgn(Number(req.amountRequestedNgn) || 0)}
-                                </span>
-                                <div className="flex flex-wrap justify-end gap-1">
-                                  {req.approvalStatus === 'Approved' &&
-                                  effectiveOutstandingNgn(Number(req.amountRequestedNgn) || 0, paid) > 0 &&
-                                  canPayRequests &&
-                                  ws?.canMutate ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => openRequestPayment(req)}
-                                      className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
-                                      title="Record treasury payout"
-                                    >
-                                      Pay
-                                    </button>
-                                  ) : null}
-                                  {req.approvalStatus === 'Approved' &&
-                                  paid <= 0 &&
-                                  canApprovePaymentRequests &&
-                                  ws?.canMutate ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => openReclassifyPaymentRequest(req)}
-                                      className="text-[8px] font-semibold uppercase tracking-wide text-violet-800 bg-violet-100 hover:bg-violet-200 px-2 py-1 rounded-md"
-                                      title="Change expense category before treasury payout"
-                                    >
-                                      Reclassify
-                                    </button>
-                                  ) : null}
-                                  {paid > 0 && canPostExpenseReclass && ws?.canMutate ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => openReclassifyPaymentRequest(req)}
-                                      className="text-[8px] font-semibold uppercase tracking-wide text-indigo-800 bg-indigo-100 hover:bg-indigo-200 px-2 py-1 rounded-md"
-                                      title="Reclassify category and post GL adjustment"
-                                    >
-                                      Reclass (posted)
-                                    </button>
-                                  ) : null}
-                                  {canFinanceReceiptSettlement && ws?.canMutate && prTreasuryOut.length > 0 ? (
-                                    <button
-                                      type="button"
-                                      title="Correct which bank or cash account this payout left from"
-                                      onClick={() => openPaymentRequestOutflowEdit(req)}
-                                      className="text-[8px] font-bold uppercase tracking-wide text-[#134e4a] bg-teal-100 hover:bg-teal-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
-                                    >
-                                      <Pencil size={10} aria-hidden />
-                                      Pay-from
-                                    </button>
-                                  ) : null}
-                                  {canReversePaymentRequestTreasury && ws?.canMutate && paid > 0 ? (
-                                    <button
-                                      type="button"
-                                      title="Post compensating treasury credits and reset paid balance (finance.reverse)"
-                                      disabled={reversingTreasuryPayoutId === req.requestID}
-                                      onClick={() => void reversePaymentRequestTreasuryPayout(req.requestID)}
-                                      className="text-[8px] font-bold uppercase tracking-wide text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
-                                    >
-                                      <RotateCcw size={10} aria-hidden />
-                                      {reversingTreasuryPayoutId === req.requestID ? '…' : 'Reverse payout'}
-                                    </button>
-                                  ) : null}
-                                  {canDeleteRolloutExpenseOrRequest && paid <= 0 ? (
-                                    <button
-                                      type="button"
-                                      title="Temporary rollout delete (no treasury payout)"
-                                      disabled={deletingPayRequestId === req.requestID}
-                                      onClick={() => void deleteRolloutPaymentRequest(req.requestID)}
-                                      className="text-[8px] font-bold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
-                                    >
-                                      <Trash2 size={10} aria-hidden />
-                                      {deletingPayRequestId === req.requestID ? '…' : 'Delete'}
-                                    </button>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </section>
-                <section className="space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
-                      Archived rejected expense requests
-                    </h3>
-                    <span className="text-[10px] font-bold text-slate-500 tabular-nums">
-                      {disbursementsArchivedRejectedPayRequests.length} archived
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-500">
-                    Rejected requests are hidden from active payout flow and kept here as archived history.
-                  </p>
-                  {disbursementsArchivedRejectedPayRequests.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
-                      No rejected expense requests in archive.
-                    </p>
-                  ) : (
-                    <ul className="space-y-1.5">
-                      {disbursementsArchivedRejectedPayRequests.map((req) => {
-                        const archPaid = Number(req.paidAmountNgn) || 0;
-                        const archPrTreasuryOut = treasuryOutflowLinesForPaymentRequest(
-                          req.requestID,
-                          liveTreasuryMovements
-                        );
-                        const meta2 = [
-                          req.expenseCategory ? req.expenseCategory : null,
-                          req.requestReference ? `Ref ${req.requestReference}` : null,
-                          req.branchId ? branchNameById[req.branchId] || req.branchId : null,
-                          req.requestDate,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ');
-                        return (
-                          <li
-                            key={req.requestID}
-                            className="rounded-lg border border-slate-200/60 bg-slate-50/60 py-1.5 px-2.5 shadow-sm"
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                              <div className="min-w-0 leading-tight flex-1">
-                                <p className="text-[11px] font-bold text-slate-700 truncate">
-                                  <span className="font-mono">{req.requestID}</span>
-                                  <span className="font-medium text-slate-500">
-                                    {' '}
-                                    · {req.description || 'Rejected request'}
-                                  </span>
-                                </p>
-                                <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta2}>
-                                  {meta2}
-                                </p>
-                              </div>
-                              <div className="flex flex-col items-end gap-1 shrink-0">
-                                <span className="text-[11px] font-black text-slate-700 tabular-nums">
-                                  {formatNgn(Number(req.amountRequestedNgn) || 0)}
-                                </span>
-                                <div className="flex flex-wrap justify-end gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setExpenseForm({
-                                        expenseType: 'Operational — correction entry',
-                                        amountNgn: String(Number(req.amountRequestedNgn) || ''),
-                                        date: String(req.requestDate || todayIso).slice(0, 10),
-                                        category: String(req.expenseCategory || '').trim(),
-                                        categoryJustification: String(req.categoryJustification || '').trim(),
-                                        paymentMethod: 'Bank Transfer',
-                                        debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
-                                        reference: String(
-                                          req.requestReference || req.requestID || 'Correction entry'
-                                        ).trim(),
-                                      });
-                                      setShowExpenseModal(true);
-                                    }}
-                                    className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
-                                  >
-                                    Correct entry
-                                  </button>
-                                  {canFinanceReceiptSettlement && ws?.canMutate && archPrTreasuryOut.length > 0 ? (
-                                    <button
-                                      type="button"
-                                      title="Correct which bank or cash account this payout left from"
-                                      onClick={() => openPaymentRequestOutflowEdit(req)}
-                                      className="text-[8px] font-bold uppercase tracking-wide text-[#134e4a] bg-teal-100 hover:bg-teal-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
-                                    >
-                                      <Pencil size={10} aria-hidden />
-                                      Pay-from
-                                    </button>
-                                  ) : null}
-                                  {canReversePaymentRequestTreasury && ws?.canMutate && archPaid > 0 ? (
-                                    <button
-                                      type="button"
-                                      title="Post compensating treasury credits and reset paid balance (finance.reverse)"
-                                      disabled={reversingTreasuryPayoutId === req.requestID}
-                                      onClick={() => void reversePaymentRequestTreasuryPayout(req.requestID)}
-                                      className="text-[8px] font-bold uppercase tracking-wide text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
-                                    >
-                                      <RotateCcw size={10} aria-hidden />
-                                      {reversingTreasuryPayoutId === req.requestID ? '…' : 'Reverse'}
-                                    </button>
-                                  ) : null}
-                                  {canDeleteRolloutExpenseOrRequest &&
-                                  (Number(req.paidAmountNgn) || 0) <= 0 ? (
-                                    <button
-                                      type="button"
-                                      title="Temporary rollout delete"
-                                      disabled={deletingPayRequestId === req.requestID}
-                                      onClick={() => void deleteRolloutPaymentRequest(req.requestID)}
-                                      className="text-[8px] font-bold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-0.5"
-                                    >
-                                      <Trash2 size={10} aria-hidden />
-                                      {deletingPayRequestId === req.requestID ? '…' : 'Del'}
-                                    </button>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </section>
-                  </div>
-                </details>
-              </div>
-            )}
-
-            {activeTab === 'audit' && (
-              <div className="space-y-5 animate-in slide-in-from-left-5">
-                <FinanceTabContextBanner
-                  testId="finance-audit-intro"
-                  tone="slate"
-                  title="Audit & period close — accountant surface"
-                  body="Cashiers do not see this tab. Use it before month-end: reconcile receipts, match bank lines, clear exceptions, and post manual GL journals when needed. Daily payout work stays on Desk/Treasury."
-                  action={
-                    <button
-                      type="button"
-                      onClick={() => handleAccountTabChange('receipts')}
-                      className="text-[10px] font-bold uppercase tracking-wide text-[#134e4a] underline-offset-2 hover:underline"
-                    >
-                      Receipts & recon
-                    </button>
-                  }
-                />
-                {reconciliationFlags > 0 ? (
-                  <div className="flex items-start gap-3 rounded-lg border border-red-200/80 bg-red-50/80 px-3 py-2.5 text-sm text-red-900">
-                    <AlertCircle className="shrink-0 mt-0.5" size={18} />
-                    <div>
-                      <p className="font-bold">Bank reconciliation exceptions</p>
-                      <p className="text-xs text-red-800/90 mt-0.5">
-                        {reconciliationFlags} statement line(s) are not matched to ledger entries. Resolve
-                        or post adjusting entries.
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div>
-                  <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-3">
-                    Audit checklist (period close)
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[
-                      {
-                        title: 'Customer receipts',
-                        detail: 'Receipts issued for each inflow; tie to quotations & AR.',
-                      },
-                      {
-                        title: 'Supplier payments',
-                        detail: 'PO → GRN → invoice → payment; AP balances updated.',
-                      },
-                      {
-                        title: 'Inventory vs COGS',
-                        detail: 'Stock movements align with sales and purchase postings.',
-                      },
-                      {
-                        title: 'Cash & bank',
-                        detail: 'Till, bank, and POS floats agree with counted / statement balances.',
-                      },
-                    ].map((row) => (
-                      <div
-                        key={row.title}
-                        className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md p-3 flex gap-3 shadow-sm"
-                      >
-                        <CheckCircle2 className="shrink-0 text-emerald-500" size={18} />
-                        <div>
-                          <p className="text-xs font-bold text-gray-800">{row.title}</p>
-                          <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">{row.detail}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {ws.hasPermission('finance.post') ? (
-                  <AccountGlManualJournalCard
-                    canPost
-                    showToast={showToast}
-                    onPosted={() => void ws.refresh()}
-                  />
-                ) : null}
-
-                <p className="text-[10px] text-slate-600 rounded-lg border border-slate-200/60 bg-slate-50/80 px-3 py-2">
-                  Customer receipt settlement is on the{' '}
-                  <button
-                    type="button"
-                    className="font-bold text-teal-800 underline-offset-2 hover:underline"
-                    onClick={() => handleAccountTabChange('receipts')}
-                  >
-                    Receipts &amp; recon
-                  </button>{' '}
-                  tab.
-                </p>
-
-                <div>
-                  <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-2">
-                    Exception queue (misc receipts)
-                  </h3>
-                  <p className="text-[9px] text-slate-500 mb-2 leading-relaxed">
-                    Review-only — open Receipts & recon to attach evidence and post clearance. Nothing is auto-cleared
-                    from this list.
-                  </p>
-                  <ul className="space-y-1.5">
-                    {auditQueue.map((item) => {
-                      const meta2 = [`via ${item.bank}`, item.date, item.desc].filter(Boolean).join(' · ');
-                      return (
-                      <li
-                        key={item.id}
-                        className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm hover:bg-white/70 transition-colors"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                          <div className="min-w-0 leading-tight flex-1">
-                            <p className="text-[11px] font-bold text-[#134e4a] truncate">{item.customer}</p>
-                            <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta2}>
-                              {meta2}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
-                              ₦{item.amount.toLocaleString()}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleAccountTabChange('receipts');
-                                showToast('Review on Receipts & recon — attach evidence there.', {
-                                  variant: 'info',
-                                });
-                              }}
-                              className="text-[8px] font-bold uppercase px-2 py-1 rounded-md bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
-                              title="Open Receipts tab to review"
-                            >
-                              Review
-                            </button>
-                          </div>
-                        </div>
-                      </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-
-                <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md p-4 text-xs text-gray-600 leading-relaxed shadow-sm">
-                  <p className="font-black text-[#134e4a] uppercase tracking-wider text-[10px] mb-2">
-                    Accounting basis
-                  </p>
-                  Double-entry posting, accrual recognition, revenue on delivery or billing, and expense
-                  matching to the period are the target once the general ledger service is connected.
-                  Customer installments (Net 30 / 60) remain tracked on quotations and receipts until
-                  fully paid.
-                </div>
-              </div>
-            )}
-            </>
+            <AccountTabPanels />
           </FinanceSequencePanel>
         </div>
       </div>
@@ -4926,7 +3530,7 @@ const Account = () => {
       <ModalFrame isOpen={showTransferModal} onClose={closeTransferModal}>
         <div className="z-modal-panel z-modal-scroll-y max-w-md p-4 sm:p-8">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a] flex items-center gap-2">
+            <h3 className="text-xl font-bold text-zarewa-teal flex items-center gap-2">
               <ArrowRightLeft size={22} />
               {editingTransferBatchId ? 'Edit transfer' : 'Fund movement'}
             </h3>
@@ -4943,7 +3547,7 @@ const Account = () => {
           ) : null}
           <form className="space-y-4" onSubmit={saveTransfer}>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+              <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                 From
               </label>
               <select
@@ -4963,7 +3567,7 @@ const Account = () => {
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+              <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                 To
               </label>
               <select
@@ -4983,7 +3587,7 @@ const Account = () => {
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+              <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                 Amount (₦)
               </label>
               <input
@@ -4998,7 +3602,7 @@ const Account = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+              <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                 Transfer date
               </label>
               <input
@@ -5012,7 +3616,7 @@ const Account = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+              <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                 Reference / narration
               </label>
               <input
@@ -5035,7 +3639,7 @@ const Account = () => {
         <div className="z-modal-panel max-w-lg w-full max-h-[min(100dvh,640px)] sm:max-h-[min(85vh,640px)] p-4 sm:p-8 overflow-hidden flex flex-col">
           <div className="flex justify-between items-start gap-3 mb-4 shrink-0">
             <div className="min-w-0">
-              <h3 className="text-lg sm:text-xl font-bold text-[#134e4a]">Account statement</h3>
+              <h3 className="text-lg sm:text-xl font-bold text-zarewa-teal">Account statement</h3>
               {statementAccount ? (
                 <div className="text-xs text-gray-600 mt-1 space-y-0.5">
                   <p className="font-semibold truncate" title={statementAccount.name}>
@@ -5043,15 +3647,15 @@ const Account = () => {
                     {statementAccount.bankName ? ` · ${statementAccount.bankName}` : ''}
                   </p>
                   {statementAccount.bankBranch ? (
-                    <p className="text-[11px] text-slate-500">Branch: {statementAccount.bankBranch}</p>
+                    <p className="text-xs text-slate-500">Branch: {statementAccount.bankBranch}</p>
                   ) : null}
                   {statementAccount.sortCodeOrSwift ? (
-                    <p className="text-[11px] text-slate-500 tabular-nums">
+                    <p className="text-xs text-slate-500 tabular-nums">
                       Sort / SWIFT: {statementAccount.sortCodeOrSwift}
                     </p>
                   ) : null}
                   {statementAccount.accountOfficerName || statementAccount.accountOfficerPhone ? (
-                    <p className="text-[11px] text-slate-600">
+                    <p className="text-xs text-slate-600">
                       Officer:{' '}
                       {[statementAccount.accountOfficerName, statementAccount.accountOfficerPhone]
                         .filter(Boolean)
@@ -5059,7 +3663,7 @@ const Account = () => {
                     </p>
                   ) : null}
                   {statementAccount.notes ? (
-                    <p className="text-[10px] text-slate-500 leading-snug border-t border-slate-100/80 pt-1 mt-1">
+                    <p className="text-ui-xs text-slate-500 leading-snug border-t border-slate-100/80 pt-1 mt-1">
                       {statementAccount.notes}
                     </p>
                   ) : null}
@@ -5083,7 +3687,7 @@ const Account = () => {
           ) : (
             <>
               <div className="mb-3 rounded-lg border border-slate-200/80 bg-slate-50/90 px-3 py-2 flex items-center justify-between gap-2">
-                <p className="text-[10px] text-slate-600 leading-snug">Choose a date range and print this statement.</p>
+                <p className="text-ui-xs text-slate-600 leading-snug">Choose a date range and print this statement.</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -5091,7 +3695,7 @@ const Account = () => {
                     setStatementPrintToDate(statementDateBounds.maxDate);
                     setShowStatementPrintModal(true);
                   }}
-                  className="z-btn-primary py-1.5 px-3 text-[11px] shrink-0"
+                  className="z-btn-primary py-1.5 px-3 text-xs shrink-0"
                 >
                   <Printer size={14} />
                   Print statement
@@ -5150,7 +3754,7 @@ const Account = () => {
                               }}
                               className={`w-full text-left ${
                                 canOpenReceipt
-                                  ? 'cursor-pointer rounded-md transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/20'
+                                  ? 'cursor-pointer rounded-md transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20'
                                   : 'cursor-default'
                               }`}
                               title={canOpenReceipt ? 'Open this receipt in Sales' : undefined}
@@ -5158,14 +3762,14 @@ const Account = () => {
                               <div className="flex items-center justify-between gap-2 min-w-0">
                                 <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                                   <span
-                                    className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${badge.className}`}
+                                    className={`text-ui-xs font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${badge.className}`}
                                   >
                                     {badge.label}
                                   </span>
-                                  <span className="text-[11px] font-bold tabular-nums text-slate-600">{dateStr}</span>
+                                  <span className="text-xs font-bold tabular-nums text-slate-600">{dateStr}</span>
                                 </div>
                                 <span
-                                  className={`text-[11px] font-black tabular-nums shrink-0 ${
+                                  className={`text-xs font-black tabular-nums shrink-0 ${
                                     isIn ? 'text-emerald-600' : isOut ? 'text-red-600' : 'text-slate-500'
                                   }`}
                                 >
@@ -5173,7 +3777,7 @@ const Account = () => {
                                 </span>
                               </div>
                               <p
-                                className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 break-words"
+                                className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2 break-words"
                                 title={detailWithQuotation}
                               >
                                 {detailWithQuotation}
@@ -5205,7 +3809,7 @@ const Account = () => {
       <ModalFrame isOpen={showStatementPrintModal} onClose={() => setShowStatementPrintModal(false)}>
         <div className="z-modal-panel z-modal-scroll-y max-w-md w-full p-4 sm:p-8">
           <div className="flex justify-between items-center gap-3 mb-4">
-            <h3 className="text-lg font-bold text-[#134e4a]">Print statement</h3>
+            <h3 className="text-lg font-bold text-zarewa-teal">Print statement</h3>
             <button
               type="button"
               onClick={() => setShowStatementPrintModal(false)}
@@ -5217,7 +3821,7 @@ const Account = () => {
           </div>
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">From date</label>
+              <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">From date</label>
               <input
                 type="date"
                 value={statementPrintFromDate}
@@ -5228,7 +3832,7 @@ const Account = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">End date</label>
+              <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">End date</label>
               <input
                 type="date"
                 value={statementPrintToDate}
@@ -5241,7 +3845,7 @@ const Account = () => {
             <button
               type="button"
               onClick={() => openStatementForDateRange(false)}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#134e4a]/20 bg-white px-4 py-3 text-sm font-bold text-[#134e4a] transition-colors hover:bg-[#134e4a]/5"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-zarewa-teal/20 bg-white px-4 py-3 text-sm font-bold text-zarewa-teal transition-colors hover:bg-zarewa-teal/5"
             >
               Open preview
             </button>
@@ -5280,7 +3884,7 @@ const Account = () => {
       >
         <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a] flex items-center gap-2">
+            <h3 className="text-xl font-bold text-zarewa-teal flex items-center gap-2">
               <RotateCcw size={22} className="text-rose-600" />
               Refund payout
             </h3>
@@ -5301,10 +3905,10 @@ const Account = () => {
           {refundPayTarget ? (
             <form className="space-y-4" onSubmit={confirmRefundPaid}>
               <div className="bg-rose-50/80 rounded-2xl p-4 border border-rose-100 text-sm space-y-1">
-                <p className="font-mono font-bold text-[#134e4a]">{refundPayTarget.refundID}</p>
+                <p className="font-mono font-bold text-zarewa-teal">{refundPayTarget.refundID}</p>
                 <p className="font-bold text-gray-800">{refundPayTarget.customer}</p>
                 <p className="text-xs text-gray-600">{refundPayTarget.reason}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[10px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-ui-xs">
                   <div>
                     <p className="uppercase text-gray-400 font-bold tracking-wide">Refund requested by</p>
                     <p className="font-semibold text-gray-800">{refundPayTarget.requestedBy || '—'}</p>
@@ -5317,26 +3921,26 @@ const Account = () => {
                   </div>
                 </div>
                 {(refundPayTarget.payeeName || refundPayTarget.payeeAccountNo || refundPayTarget.payeeBankName) ? (
-                  <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-[11px] text-sky-950 space-y-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-sky-900/90">Pay to (from request)</p>
+                  <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950 space-y-1">
+                    <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">Pay to (from request)</p>
                     {refundPayTarget.payeeName ? (
                       <p className="font-bold text-sky-950">{refundPayTarget.payeeName}</p>
                     ) : null}
-                    <p className="font-mono text-[11px] font-semibold tabular-nums leading-snug">
+                    <p className="font-mono text-xs font-semibold tabular-nums leading-snug">
                       {[refundPayTarget.payeeBankName, refundPayTarget.payeeAccountNo].filter(Boolean).join(' · ') ||
                         refundPayTarget.payeeAccountNo ||
                         '—'}
                     </p>
                   </div>
                 ) : null}
-                <div className="grid grid-cols-3 gap-3 pt-2 text-[10px] text-gray-600 tabular-nums">
+                <div className="grid grid-cols-3 gap-3 pt-2 text-ui-xs text-gray-600 tabular-nums">
                   <div>
                     <p className="uppercase text-gray-400">Approved</p>
-                    <p className="text-sm font-black text-[#134e4a]">{formatNgn(refundApprovedAmount(refundPayTarget))}</p>
+                    <p className="text-sm font-black text-zarewa-teal">{formatNgn(refundApprovedAmount(refundPayTarget))}</p>
                   </div>
                   <div>
                     <p className="uppercase text-gray-400">Paid</p>
-                    <p className="text-sm font-black text-[#134e4a]">{formatNgn(Number(refundPayTarget.paidAmountNgn) || 0)}</p>
+                    <p className="text-sm font-black text-zarewa-teal">{formatNgn(Number(refundPayTarget.paidAmountNgn) || 0)}</p>
                   </div>
                   <div>
                     <p className="uppercase text-gray-400">Balance</p>
@@ -5345,7 +3949,7 @@ const Account = () => {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Paid by (Finance user)
                 </label>
                 <input
@@ -5356,11 +3960,11 @@ const Account = () => {
                 />
               </div>
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>
                 <button
                   type="button"
                   onClick={addRefundPayLine}
-                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-rose-800"
+                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-rose-800"
                 >
                   <Plus size={14} /> Add line
                 </button>
@@ -5374,7 +3978,7 @@ const Account = () => {
                     <select
                       value={line.treasuryAccountId}
                       onChange={(e) => updateRefundPayLine(line.id, { treasuryAccountId: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
+                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-semibold"
                     >
                       <option value="">Select account…</option>
                       {bankAccountsSelectOrder.map((a) => (
@@ -5397,7 +4001,7 @@ const Account = () => {
                       step="1"
                       value={line.amount}
                       onChange={(e) => updateRefundPayLine(line.id, { amount: e.target.value })}
-                      className="sm:col-span-3 z-finance-field rounded-lg font-bold text-[#134e4a]"
+                      className="sm:col-span-3 z-finance-field rounded-lg font-bold text-zarewa-teal"
                       placeholder="Amount ₦"
                     />
                     <input
@@ -5420,7 +4024,7 @@ const Account = () => {
                 ))}
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Payment note
                 </label>
                 <input
@@ -5432,17 +4036,17 @@ const Account = () => {
               </div>
               <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md px-3 py-3 shadow-sm">
                 <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">This payout</span>
-                  <span className="font-black text-[#134e4a]">{formatNgn(refundPayTotalNgn)}</span>
+                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">This payout</span>
+                  <span className="font-black text-zarewa-teal">{formatNgn(refundPayTotalNgn)}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">Remaining after post</span>
+                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">Remaining after post</span>
                   <span className="font-black text-gray-700">
                     {formatNgn(Math.max(0, refundOutstandingAmount(refundPayTarget) - refundPayTotalNgn))}
                   </span>
                 </div>
               </div>
-              <p className="text-[10px] text-gray-500 leading-relaxed">
+              <p className="text-ui-xs text-gray-500 leading-relaxed">
                 Saving this payout writes the treasury movements and keeps the refund open until the approved balance is fully paid.
               </p>
               <button
@@ -5470,7 +4074,7 @@ const Account = () => {
       >
         <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-10">
           <div className="flex justify-between items-center mb-8">
-            <h3 className="text-2xl font-bold text-[#134e4a]">
+            <h3 className="text-2xl font-bold text-zarewa-teal">
               {selectedPayment?.type === 'po_transport' ? 'Post transport payment' : 'Process payment'}
             </h3>
             <button
@@ -5491,18 +4095,18 @@ const Account = () => {
           </div>
           <div className="bg-gray-50 p-6 rounded-2xl mb-6 border border-gray-100 flex justify-between items-center gap-4">
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase">Balance due</p>
-              <p className="text-2xl font-black text-[#134e4a]">
+              <p className="text-ui-xs font-bold text-gray-400 uppercase">Balance due</p>
+              <p className="text-2xl font-black text-zarewa-teal">
                 ₦
                 {(
                   (selectedPayment?.total ?? 0) - (selectedPayment?.paid ?? 0)
                 ).toLocaleString()}
               </p>
-              <p className="text-[10px] text-gray-400 mt-1">
+              <p className="text-ui-xs text-gray-400 mt-1">
                 {selectedPayment?.desc} · {selectedPayment?.category}
               </p>
             </div>
-            <span className="text-[10px] font-bold px-3 py-1 bg-white rounded-full border border-gray-100 shrink-0">
+            <span className="text-ui-xs font-bold px-3 py-1 bg-white rounded-full border border-gray-100 shrink-0">
               {selectedPayment?.type === 'po_transport' ? `PO ${selectedPayment?.id}` : selectedPayment?.id}
             </span>
           </div>
@@ -5519,13 +4123,13 @@ const Account = () => {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">
                   Payout breakdown
                 </label>
                 <button
                   type="button"
                   onClick={addRequestPayLine}
-                  className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#134e4a]"
+                  className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal"
                 >
                   <Plus size={14} /> Add line
                 </button>
@@ -5539,7 +4143,7 @@ const Account = () => {
                     <select
                       value={line.treasuryAccountId}
                       onChange={(e) => updateRequestPayLine(line.id, { treasuryAccountId: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
+                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-semibold"
                     >
                       <option value="">Select account…</option>
                       {bankAccountsSelectOrder.map((a) => (
@@ -5562,7 +4166,7 @@ const Account = () => {
                       step="1"
                       value={line.amount}
                       onChange={(e) => updateRequestPayLine(line.id, { amount: e.target.value })}
-                      className="sm:col-span-3 z-finance-field rounded-lg font-bold text-[#134e4a]"
+                      className="sm:col-span-3 z-finance-field rounded-lg font-bold text-zarewa-teal"
                       placeholder="Amount ₦"
                     />
                     <input
@@ -5585,7 +4189,7 @@ const Account = () => {
                 ))}
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Payment note</label>
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Payment note</label>
                 <input
                   value={requestPayNote}
                   onChange={(e) => setRequestPayNote(e.target.value)}
@@ -5595,11 +4199,11 @@ const Account = () => {
               </div>
               <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md px-3 py-3 shadow-sm">
                 <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">This payout</span>
-                  <span className="font-black text-[#134e4a]">{formatNgn(requestPayTotalNgn)}</span>
+                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">This payout</span>
+                  <span className="font-black text-zarewa-teal">{formatNgn(requestPayTotalNgn)}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">Remaining after post</span>
+                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">Remaining after post</span>
                   <span className="font-black text-gray-700">
                     {formatNgn(
                       Math.max(
@@ -5627,7 +4231,7 @@ const Account = () => {
                     paymentGlPreview?.payoutGate &&
                     paymentGlPreview.payoutGate.ok === false)
                 }
-                className="w-full bg-[#134e4a] text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full bg-zarewa-teal text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {treasuryPayoutSubmitting
                   ? 'Posting payout…'
@@ -5650,7 +4254,7 @@ const Account = () => {
         <div className="z-modal-panel max-w-lg w-full min-h-0 max-h-[min(100dvh,720px)] sm:max-h-[min(90dvh,720px)] flex flex-col overflow-hidden p-0">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-8 pt-8 pb-10">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-[#134e4a]">
+              <h3 className="text-xl font-bold text-zarewa-teal">
                 {newBank.id != null && newBank.id !== '' ? 'Edit account' : 'New account'}
               </h3>
               <button
@@ -5667,7 +4271,7 @@ const Account = () => {
             <form className="space-y-4" onSubmit={saveBankAccount}>
               {canAssignTreasuryBranch ? (
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Branch that uses this account
                   </label>
                   <select
@@ -5682,18 +4286,18 @@ const Account = () => {
                       </option>
                     ))}
                   </select>
-                  <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
+                  <p className="text-ui-xs text-slate-500 mt-1.5 leading-relaxed">
                     Only this branch will see the account in receipts and payouts. Use this to move Yola banks off
                     Kaduna if they were registered incorrectly.
                   </p>
                 </div>
               ) : workspaceBranchLabel ? (
-                <p className="text-[11px] text-slate-600 rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-2">
+                <p className="text-xs text-slate-600 rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-2">
                   This account will be registered for <strong>{workspaceBranchLabel}</strong>.
                 </p>
               ) : null}
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Account name
                 </label>
                 <input
@@ -5705,7 +4309,7 @@ const Account = () => {
               </div>
               {newBank.type === 'Bank' ? (
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Bank name (for quotations & receipts)
                   </label>
                   <input
@@ -5718,7 +4322,7 @@ const Account = () => {
               ) : null}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Type
                   </label>
                   <select
@@ -5731,7 +4335,7 @@ const Account = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     {newBank.id != null && newBank.id !== ''
                       ? 'Opening balance (₦) — when registered'
                       : 'Opening balance (₦)'}
@@ -5746,7 +4350,7 @@ const Account = () => {
                         onChange={(e) => setNewBank((b) => ({ ...b, openingBalanceNgn: e.target.value }))}
                         className="w-full z-finance-field rounded-xl font-bold outline-none"
                       />
-                      <p className="text-[9px] text-gray-500 mt-1 leading-snug">
+                      <p className="text-ui-xs text-gray-500 mt-1 leading-snug">
                         Book balance below updates automatically: opening plus all posted movements on this account.
                       </p>
                     </>
@@ -5764,7 +4368,7 @@ const Account = () => {
               </div>
               {newBank.id != null && newBank.id !== '' ? (
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Book balance (₦) — current
                   </label>
                   <input
@@ -5775,13 +4379,13 @@ const Account = () => {
                     value={treasuryEditImpliedBookStr}
                     className="w-full bg-gray-100 border border-gray-200 rounded-xl py-3 px-4 text-sm font-bold text-gray-800 outline-none cursor-default"
                   />
-                  <p className="text-[9px] text-gray-500 mt-1 leading-snug">
+                  <p className="text-ui-xs text-gray-500 mt-1 leading-snug">
                     Computed from opening above and posted movements. It is saved with the account when you click Save.
                   </p>
                 </div>
               ) : null}
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Account / reference no.
                 </label>
                 <input
@@ -5791,7 +4395,7 @@ const Account = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Bank branch / address
                 </label>
                 <input
@@ -5802,7 +4406,7 @@ const Account = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Sort code / SWIFT (optional)
                 </label>
                 <input
@@ -5814,7 +4418,7 @@ const Account = () => {
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Account officer name
                   </label>
                   <input
@@ -5825,7 +4429,7 @@ const Account = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Account officer phone
                   </label>
                   <input
@@ -5837,7 +4441,7 @@ const Account = () => {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Internal notes
                 </label>
                 <textarea
@@ -5859,7 +4463,7 @@ const Account = () => {
       <ModalFrame isOpen={showExpenseModal} onClose={() => setShowExpenseModal(false)}>
         <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
             <div className="flex justify-between items-center mb-6 gap-3">
-              <h3 className="text-xl font-bold text-[#134e4a]">Expense entry</h3>
+              <h3 className="text-xl font-bold text-zarewa-teal">Expense entry</h3>
               <div className="flex items-center gap-2">
                 <ZareHelpButton
                   compact
@@ -5882,7 +4486,7 @@ const Account = () => {
             </div>
             <form className="space-y-4" onSubmit={saveExpense}>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Expense type
                 </label>
                 <select
@@ -5901,7 +4505,7 @@ const Account = () => {
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Amount (₦)
                   </label>
                   <input
@@ -5916,7 +4520,7 @@ const Account = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Date
                   </label>
                   <input
@@ -5930,7 +4534,7 @@ const Account = () => {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Category
                 </label>
                 <ExpenseCategorySelect
@@ -5953,7 +4557,7 @@ const Account = () => {
                 ) : null}
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Payment method
                 </label>
                 <select
@@ -5969,7 +4573,7 @@ const Account = () => {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Pay from account
                 </label>
                 <select
@@ -5989,7 +4593,7 @@ const Account = () => {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Receipt / invoice reference
                 </label>
                 <input
@@ -6000,7 +4604,7 @@ const Account = () => {
                   className="w-full z-finance-field rounded-xl font-bold outline-none"
                 />
               </div>
-              <p className="text-[10px] text-gray-400">
+              <p className="text-ui-xs text-gray-400">
                 Expense ID is generated on save (e.g. EXP-26-015).
               </p>
               <button
@@ -6022,7 +4626,7 @@ const Account = () => {
       >
         <div className="z-modal-panel z-modal-scroll-y max-w-2xl p-4 sm:p-8">
           <div className="flex justify-between items-center mb-5">
-            <h3 className="text-xl font-bold text-[#134e4a]">Expense request</h3>
+            <h3 className="text-xl font-bold text-zarewa-teal">Expense request</h3>
             <button
               type="button"
               onClick={() => setShowPayRequestModal(false)}
@@ -6054,7 +4658,7 @@ const Account = () => {
       >
         <div className="z-modal-panel z-modal-scroll-y max-w-lg w-full p-4 sm:p-8">
           <div className="flex justify-between items-start gap-3 mb-4">
-            <h3 className="text-lg font-bold text-[#134e4a]">
+            <h3 className="text-lg font-bold text-zarewa-teal">
               {expenseOutflowEdit?.headline || 'Expense payout — pay-from'}
             </h3>
             <button
@@ -6077,18 +4681,18 @@ const Account = () => {
                 const movementId = String(row.movementId || '').trim();
                 return (
                   <>
-                    <p className="text-[10px] text-slate-600 leading-snug">{expenseOutflowEdit.subline}</p>
-                    <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-[10px] text-teal-950 leading-snug">
+                    <p className="text-ui-xs text-slate-600 leading-snug">{expenseOutflowEdit.subline}</p>
+                    <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-ui-xs text-teal-950 leading-snug">
                       <span className="font-bold">Treasury correction</span> — updates which bank or cash account this
                       payout debited (and optional date / note). Same controls as receipt payment-line corrections.
                     </div>
                     {rows.length > 1 ? (
                       <label className="block">
-                        <span className="text-[9px] font-bold text-slate-500 uppercase">Payout line</span>
+                        <span className="text-ui-xs font-bold text-slate-500 uppercase">Payout line</span>
                         <select
                           value={idx}
                           onChange={(e) => setExpenseOutflowLineIdx(Number(e.target.value))}
-                          className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                          className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                         >
                           {rows.map((r, i) => (
                             <option key={r.movementId} value={i}>
@@ -6098,23 +4702,23 @@ const Account = () => {
                         </select>
                       </label>
                     ) : null}
-                    <p className="text-[10px] text-slate-600">
+                    <p className="text-ui-xs text-slate-600">
                       Recorded amount{' '}
                       <span className="font-bold tabular-nums">{formatNgn(Math.abs(Number(row.amountNgn) || 0))}</span>
-                      <span className="text-slate-400 font-mono text-[9px] ml-2 break-all">{movementId}</span>
+                      <span className="text-slate-400 font-mono text-ui-xs ml-2 break-all">{movementId}</span>
                     </p>
                     {bankAccounts.length === 0 ? (
-                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                         Add a treasury account first, then reopen this dialog.
                       </p>
                     ) : (
                       <div className="grid grid-cols-1 gap-2.5">
                         <label className="block">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">Bank / cash paid from</span>
+                          <span className="text-ui-xs font-bold text-slate-500 uppercase">Bank / cash paid from</span>
                           <select
                             value={row.treasuryAccountId}
                             onChange={(e) => updateExpenseOutflowRowField(idx, { treasuryAccountId: e.target.value })}
-                            className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                            className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                           >
                             <option value="">Select account…</option>
                             {bankAccountsSelectOrder.map((a) => (
@@ -6125,22 +4729,22 @@ const Account = () => {
                           </select>
                         </label>
                         <label className="block">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">Posted date</span>
+                          <span className="text-ui-xs font-bold text-slate-500 uppercase">Posted date</span>
                           <input
                             type="date"
                             value={row.postedDate}
                             onChange={(e) => updateExpenseOutflowRowField(idx, { postedDate: e.target.value })}
-                            className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                            className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                           />
                         </label>
                         <label className="block">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">Note (optional)</span>
+                          <span className="text-ui-xs font-bold text-slate-500 uppercase">Note (optional)</span>
                           <input
                             type="text"
                             value={row.note}
                             placeholder="e.g. Confirmed with bank statement"
                             onChange={(e) => updateExpenseOutflowRowField(idx, { note: e.target.value })}
-                            className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                            className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                           />
                         </label>
                       </div>
@@ -6169,7 +4773,7 @@ const Account = () => {
       >
         <div className="z-modal-panel z-modal-scroll-y max-w-2xl w-full p-4 sm:p-8">
           <div className="flex justify-between items-start gap-3 mb-4">
-            <h3 className="text-lg font-bold text-[#134e4a]">Confirm payment received</h3>
+            <h3 className="text-lg font-bold text-zarewa-teal">Confirm payment received</h3>
             <button
               type="button"
               onClick={() => {
@@ -6184,7 +4788,7 @@ const Account = () => {
           </div>
           {receiptFinanceRow ? (
             <form className="space-y-4" onSubmit={saveReceiptFinance}>
-              <p className="text-[10px] text-slate-600 font-mono break-all">{receiptFinanceRow.id}</p>
+              <p className="text-ui-xs text-slate-600 font-mono break-all">{receiptFinanceRow.id}</p>
               {(() => {
                 const settleSplits = receiptLedgerReceiptTreasurySplits(
                   receiptFinanceRow,
@@ -6207,7 +4811,7 @@ const Account = () => {
 
                 return (
                   <>
-                    <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-[10px] text-teal-950 leading-snug">
+                    <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-ui-xs text-teal-950 leading-snug">
                       <span className="font-bold">One confirm step</span> — enter what was actually received. Saving
                       updates treasury, receipt, ledger, and quote paid amount, and clears for delivery unless you hold
                       it below. Revisions after the first save may need manager approval.
@@ -6215,7 +4819,7 @@ const Account = () => {
 
                 {settleSplits.length > 0 ? (
                     <div className="space-y-3">
-                      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">
+                      <p className="text-ui-xs font-bold text-slate-600 uppercase tracking-wide">
                         Payment breakdown
                       </p>
                       {settleSplits.map((s) => {
@@ -6234,14 +4838,14 @@ const Account = () => {
                             className="rounded-xl border border-slate-200 bg-white p-3 space-y-2.5 shadow-[0_8px_28px_-22px_rgba(15,23,42,0.07)]"
                           >
                             <div className="flex flex-wrap justify-between gap-2">
-                              <p className="text-[9px] font-mono text-slate-500 break-all">{s.movementId}</p>
-                              <span className="text-[9px] text-slate-400 truncate max-w-[55%]" title={s.reference}>
+                              <p className="text-ui-xs font-mono text-slate-500 break-all">{s.movementId}</p>
+                              <span className="text-ui-xs text-slate-400 truncate max-w-[55%]" title={s.reference}>
                                 {s.reference || '—'}
                               </span>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                               <div>
-                                <label className="text-[9px] font-bold text-slate-500 uppercase">
+                                <label className="text-ui-xs font-bold text-slate-500 uppercase">
                                   Amount received (₦)
                                 </label>
                                 <input
@@ -6258,9 +4862,9 @@ const Account = () => {
                                       };
                                     })
                                   }
-                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-bold tabular-nums outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:opacity-60"
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-bold tabular-nums outline-none focus:ring-2 focus:ring-zarewa-teal/15 disabled:opacity-60"
                                 />
-                                <p className="text-[9px] text-slate-500 mt-0.5">
+                                <p className="text-ui-xs text-slate-500 mt-0.5">
                                   Sales recorded {formatNgn(rec)}
                                   {varN !== 0 ? (
                                     <span
@@ -6278,7 +4882,7 @@ const Account = () => {
                                 </p>
                               </div>
                               <div>
-                                <label className="text-[9px] font-bold text-slate-500 uppercase">
+                                <label className="text-ui-xs font-bold text-slate-500 uppercase">
                                   Bank / cash account
                                 </label>
                                 <select
@@ -6293,7 +4897,7 @@ const Account = () => {
                                       };
                                     })
                                   }
-                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:opacity-60"
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-zarewa-teal/15 disabled:opacity-60"
                                 >
                                   {bankAccountsSelectOrder.map((a) => (
                                     <option key={a.id} value={a.id}>
@@ -6303,7 +4907,7 @@ const Account = () => {
                                 </select>
                               </div>
                               <div>
-                                <label className="text-[9px] font-bold text-slate-500 uppercase">
+                                <label className="text-ui-xs font-bold text-slate-500 uppercase">
                                   Payment date
                                 </label>
                                 <input
@@ -6319,11 +4923,11 @@ const Account = () => {
                                       };
                                     })
                                   }
-                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:opacity-60"
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-zarewa-teal/15 disabled:opacity-60"
                                 />
                               </div>
                               <div>
-                                <label className="text-[9px] font-bold text-slate-500 uppercase">
+                                <label className="text-ui-xs font-bold text-slate-500 uppercase">
                                   Note (optional)
                                 </label>
                                 <input
@@ -6340,7 +4944,7 @@ const Account = () => {
                                       };
                                     })
                                   }
-                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:opacity-60"
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-zarewa-teal/15 disabled:opacity-60"
                                 />
                               </div>
                             </div>
@@ -6350,7 +4954,7 @@ const Account = () => {
                     </div>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-[10px] text-amber-900 bg-amber-50/90 border border-amber-200/80 rounded-lg px-3 py-2 leading-snug">
+                    <p className="text-ui-xs text-amber-900 bg-amber-50/90 border border-amber-200/80 rounded-lg px-3 py-2 leading-snug">
                       No treasury payment lines on file — enter the amount actually received below. Saving still
                       updates receipt, ledger, and quote paid amount.
                     </p>
@@ -6369,16 +4973,16 @@ const Account = () => {
                   </div>
                 )}
 
-                    <div className="rounded-xl border border-[#134e4a]/20 bg-teal-50/40 px-3 py-3 space-y-1.5">
-                      <label className="text-[10px] font-bold text-[#134e4a] uppercase block">
+                    <div className="rounded-xl border border-zarewa-teal/20 bg-teal-50/40 px-3 py-3 space-y-1.5">
+                      <label className="text-ui-xs font-bold text-zarewa-teal uppercase block">
                         Amount actually received (₦)
                       </label>
                       {settleSplits.length > 0 ? (
                         <>
-                          <p className="text-2xl font-black tabular-nums text-[#134e4a]">
+                          <p className="text-2xl font-black tabular-nums text-zarewa-teal">
                             {formatNgn(confirmedTotalNgn)}
                           </p>
-                          <p className="text-[9px] text-slate-600 leading-snug">
+                          <p className="text-ui-xs text-slate-600 leading-snug">
                             Sum of payment lines — saved to receipt, ledger, treasury, and quote paid.
                           </p>
                         </>
@@ -6393,7 +4997,7 @@ const Account = () => {
                           className="w-full z-finance-field rounded-xl font-bold outline-none disabled:opacity-60"
                         />
                       )}
-                      <p className="text-[9px] text-slate-600">
+                      <p className="text-ui-xs text-slate-600">
                         Sales recorded{' '}
                         <span className="font-bold tabular-nums text-slate-900">{formatNgn(cashTotal)}</span>
                         {salesDeltaNgn !== 0 ? (
@@ -6414,7 +5018,7 @@ const Account = () => {
                   </>
                 );
               })()}
-              <label className="flex items-start gap-2 text-[11px] text-slate-700 cursor-pointer">
+              <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
                 <input
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-slate-300"
@@ -6433,7 +5037,7 @@ const Account = () => {
                   type="button"
                   disabled={receiptFinanceBusy || receiptReverseBusy || !ws?.canMutate}
                   onClick={() => void reverseReceiptFinanceRow()}
-                  className="w-full rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-[10px] font-bold uppercase tracking-wide text-rose-900 hover:bg-rose-100 disabled:opacity-50"
+                  className="w-full rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-ui-xs font-bold uppercase tracking-wide text-rose-900 hover:bg-rose-100 disabled:opacity-50"
                 >
                   {receiptReverseBusy ? 'Reversing…' : 'Reverse mistaken receipt'}
                 </button>
@@ -6459,20 +5063,20 @@ const Account = () => {
       <ModalFrame isOpen={Boolean(reclassifyTarget)} onClose={closeReclassifyModal}>
         <div className="space-y-4">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700/80">Reclassify category</p>
+            <p className="text-ui-xs font-bold uppercase tracking-widest text-violet-700/80">Reclassify category</p>
             <h2 className="text-lg font-black text-slate-900 mt-1">
               {reclassifyTarget?._reclassKind === 'expense'
                 ? reclassifyTarget?.expenseID
                 : reclassifyTarget?.requestID}
             </h2>
-            <p className="text-[11px] text-slate-500 mt-2 leading-snug">
+            <p className="text-xs text-slate-500 mt-2 leading-snug">
               {Number(reclassifyTarget?.paidAmountNgn) > 0 || reclassifyTarget?._reclassKind === 'expense'
                 ? 'After treasury payout — updates the expense register and posts a GL reclass journal (Dr new / Cr old).'
                 : 'Approved, unpaid requests only. Updates GL mapping on the next payout preview.'}
             </p>
           </div>
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">New category</label>
+            <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">New category</label>
             <ExpenseCategorySelect
               required
               value={reclassifyForm.expenseCategory}
@@ -6539,6 +5143,7 @@ const Account = () => {
         }}
       />
     </PageShell>
+    </AccountPageContext.Provider>
   );
 };
 

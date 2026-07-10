@@ -79,7 +79,7 @@ export default function QuotationLineIntegrityPanel() {
           {result.invalidCount > 0 ? (
             <div className="overflow-x-auto rounded-xl border border-amber-200 bg-white">
               <table className="min-w-full text-left text-xs">
-                <thead className="border-b border-amber-100 bg-amber-50/80 text-[10px] font-bold uppercase text-amber-900">
+                <thead className="border-b border-amber-100 bg-amber-50/80 text-ui-xs font-bold uppercase text-amber-900">
                   <tr>
                     <th className="px-3 py-2">Quotation</th>
                     <th className="px-3 py-2">Customer</th>

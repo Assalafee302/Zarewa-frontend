@@ -397,7 +397,7 @@ export default function QuotationPrintView({
           </div>
 
           <div
-            className="mt-6 rounded-sm px-3 py-2.5 text-center text-[9px] font-bold uppercase leading-snug tracking-wide text-white print:mt-3 print:px-2 print:py-1.5 print:text-[6.5pt] print:leading-tight"
+            className="mt-6 rounded-sm px-3 py-2.5 text-center text-ui-xs font-bold uppercase leading-snug tracking-wide text-white print:mt-3 print:px-2 print:py-1.5 print:text-[6.5pt] print:leading-tight"
             style={{ backgroundColor: ACCENT }}
           >
             {QUOTATION_PAYMENT_NOTICE}
@@ -409,8 +409,8 @@ export default function QuotationPrintView({
                 className="rounded-md border border-slate-200 px-3 py-3 print:px-2.5 print:py-2"
                 style={{ backgroundColor: ACCENT_SOFT, borderColor: ACCENT }}
               >
-                <p className="text-[8px] font-bold uppercase tracking-wide text-slate-700 print:text-[7pt]">Pay into</p>
-                <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[9px] leading-relaxed text-slate-800 print:text-[7.5pt]">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-700 print:text-[7pt]">Pay into</p>
+                <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-ui-xs leading-relaxed text-slate-800 print:text-[7.5pt]">
                   <div className="block">
                     <span className="font-semibold text-slate-600">Bank</span>
                     <span>: </span>

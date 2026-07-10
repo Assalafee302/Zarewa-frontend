@@ -66,10 +66,10 @@ export function TeamHrManagerOnboardingPanel({ className = '' }) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p id="team-hr-onboarding-heading" className="text-xs font-semibold text-[#134e4a]/70">
+          <p id="team-hr-onboarding-heading" className="text-xs font-semibold text-zarewa-teal/70">
             Getting started
           </p>
-          <p className="mt-1 text-sm font-bold text-[#134e4a]">Your manager checklist</p>
+          <p className="mt-1 text-sm font-bold text-zarewa-teal">Your manager checklist</p>
           <p className="mt-1 text-xs text-slate-600">
             {doneCount} of {steps.length} done — tick items as you explore Team HR.
           </p>
@@ -92,13 +92,13 @@ export function TeamHrManagerOnboardingPanel({ className = '' }) {
               <button
                 type="button"
                 onClick={() => setChecked((prev) => ({ ...prev, [step.id]: !prev[step.id] }))}
-                className="mt-0.5 shrink-0 text-[#134e4a]"
+                className="mt-0.5 shrink-0 text-zarewa-teal"
                 aria-label={done ? `Mark ${step.label} as not done` : `Mark ${step.label} as done`}
               >
                 {done ? <CheckCircle2 size={18} aria-hidden /> : <Circle size={18} className="text-slate-300" aria-hidden />}
               </button>
               <div className="min-w-0 flex-1">
-                <Link to={step.href} className="text-sm font-semibold text-[#134e4a] no-underline hover:underline">
+                <Link to={step.href} className="text-sm font-semibold text-zarewa-teal no-underline hover:underline">
                   {step.label}
                 </Link>
                 <p className="mt-0.5 text-xs text-slate-600">{step.hint}</p>

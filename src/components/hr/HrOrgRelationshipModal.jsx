@@ -49,14 +49,14 @@ export function HrOrgRelationshipModal({
         <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700">
           {relType === 'remove' ? (
             <p>
-              <span className="font-bold text-[#134e4a]">{sourceName}</span> will have no line manager in the
+              <span className="font-bold text-zarewa-teal">{sourceName}</span> will have no line manager in the
               organogram.
             </p>
           ) : (
             <p>
-              <span className="font-bold text-[#134e4a]">{sourceName}</span>
+              <span className="font-bold text-zarewa-teal">{sourceName}</span>
               <span className="text-slate-500"> reports to </span>
-              <span className="font-bold text-[#134e4a]">{targetName}</span>
+              <span className="font-bold text-zarewa-teal">{targetName}</span>
             </p>
           )}
         </div>
@@ -75,7 +75,7 @@ export function HrOrgRelationshipModal({
               </option>
             ))}
           </select>
-          {typeMeta.hint ? <p className="mt-1 text-[11px] text-slate-500">{typeMeta.hint}</p> : null}
+          {typeMeta.hint ? <p className="mt-1 text-xs text-slate-500">{typeMeta.hint}</p> : null}
         </label>
 
         {error ? <p className="text-sm text-red-700">{error}</p> : null}

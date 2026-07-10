@@ -108,7 +108,7 @@ export function SalesRowMenu({
               <button
                 type="button"
                 role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#134e4a] hover:bg-slate-50"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-zarewa-teal hover:bg-slate-50"
                 onClick={() => {
                   onReviewAudit();
                   setOpenKey(null);
@@ -122,7 +122,7 @@ export function SalesRowMenu({
               <button
                 type="button"
                 role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#134e4a] hover:bg-teal-50"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-zarewa-teal hover:bg-teal-50"
                 onClick={() => {
                   onPush();
                   setOpenKey(null);
@@ -176,7 +176,7 @@ export function SalesRowMenu({
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpenKey(open ? null : rowKey)}
-        className="text-slate-400 hover:text-[#134e4a] p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/20"
+        className="text-slate-400 hover:text-zarewa-teal p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20"
       >
         <MoreVertical size={18} strokeWidth={2} />
       </button>

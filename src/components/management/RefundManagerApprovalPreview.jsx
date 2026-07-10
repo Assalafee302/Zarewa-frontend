@@ -41,8 +41,8 @@ function AlertBanner({ tone, title, children }) {
         : 'border-violet-200 bg-violet-50 text-violet-950';
   return (
     <div className={`rounded-md border px-2 py-1.5 ${styles}`}>
-      <p className="text-[8px] font-black uppercase tracking-wide">{title}</p>
-      {children ? <div className="mt-0.5 text-[9px] leading-snug">{children}</div> : null}
+      <p className="text-ui-xs font-black uppercase tracking-wide">{title}</p>
+      {children ? <div className="mt-0.5 text-ui-xs leading-snug">{children}</div> : null}
     </div>
   );
 }
@@ -53,10 +53,10 @@ function Panel({ title, hint, children, className = '' }) {
       className={`flex flex-col overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-sm ${className}`}
     >
       <header className="shrink-0 border-b border-slate-100 bg-slate-50/80 px-2.5 py-1.5">
-        <h4 className="text-[9px] font-black uppercase tracking-widest text-[#134e4a]">{title}</h4>
-        {hint ? <p className="mt-0.5 text-[9px] leading-snug text-slate-500">{hint}</p> : null}
+        <h4 className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">{title}</h4>
+        {hint ? <p className="mt-0.5 text-ui-xs leading-snug text-slate-500">{hint}</p> : null}
       </header>
-      <div className="custom-scrollbar max-h-[min(38vh,320px)] overflow-y-auto px-2.5 py-2 text-[10px] text-slate-800">
+      <div className="custom-scrollbar max-h-[min(38vh,320px)] overflow-y-auto px-2.5 py-2 text-ui-xs text-slate-800">
         {children}
       </div>
     </section>
@@ -122,7 +122,7 @@ function ConversionRefGrid({ check }) {
       {cells.map(([label, val]) => (
         <div key={label} className="rounded border border-slate-200/90 bg-white px-0.5 py-0.5 text-center">
           <p className="text-[6px] font-bold uppercase text-slate-400">{label}</p>
-          <p className="text-[9px] font-bold tabular-nums text-slate-800">{formatKgPerM(val)}</p>
+          <p className="text-ui-xs font-bold tabular-nums text-slate-800">{formatKgPerM(val)}</p>
         </div>
       ))}
     </div>
@@ -734,21 +734,21 @@ export function RefundManagerApprovalPreview({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-[#134e4a]">Refund approval</span>
+              <span className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">Refund approval</span>
               {officialRecord?.referenceNo || officialRecord?.id ? (
-                <span className="text-[9px] font-mono text-slate-500">
+                <span className="text-ui-xs font-mono text-slate-500">
                   Â· Record {officialRecord.referenceNo || officialRecord.id}
                 </span>
               ) : null}
             </div>
             <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0">
               <h2 className="font-mono text-base font-black text-slate-900">{refundId}</h2>
-              <span className="text-[10px] text-slate-400">Â·</span>
+              <span className="text-ui-xs text-slate-400">Â·</span>
               <span className="text-sm font-semibold text-slate-800">
                 {formatPersonName(refund?.customer || inboxRow?.customer_name || '—')}
               </span>
             </div>
-            <p className="mt-0.5 text-[10px] text-slate-600">
+            <p className="mt-0.5 text-ui-xs text-slate-600">
               {refund?.quotationRef || inboxRow?.quotation_ref ? (
                 <span className="font-mono font-semibold">{refund?.quotationRef || inboxRow?.quotation_ref}</span>
               ) : (
@@ -761,13 +761,13 @@ export function RefundManagerApprovalPreview({
                 (inboxRow?.requested_at_iso || '').slice(0, 16).replace('T', ' ')}
             </p>
             {officialRecord?.keyDecisionSummary ? (
-              <p className="mt-1 text-[9px] leading-snug text-slate-500 line-clamp-2">
+              <p className="mt-1 text-ui-xs leading-snug text-slate-500 line-clamp-2">
                 {officialRecord.keyDecisionSummary}
               </p>
             ) : null}
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-[8px] font-bold uppercase text-slate-400">Requested</p>
+            <p className="text-ui-xs font-bold uppercase text-slate-400">Requested</p>
             <p className="text-lg font-black tabular-nums text-rose-700">
               {formatNgn(refund?.amountNgn ?? inboxRow?.amount_ngn)}
             </p>
@@ -787,24 +787,24 @@ export function RefundManagerApprovalPreview({
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-10">
-          <RefreshCw className="animate-spin text-[#134e4a]" size={22} />
-          <span className="text-[10px] font-semibold text-slate-500">Loading context…</span>
+          <RefreshCw className="animate-spin text-zarewa-teal" size={22} />
+          <span className="text-ui-xs font-semibold text-slate-500">Loading context…</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
           {/* Quotation — product spec & price comparison */}
           <Panel title="Quotation" hint="Metres/m², unit price, line amount, and floor ₦/m.">
             {!auditData || auditData.ok === false ? (
-              <p className="text-[10px] text-rose-600">{auditData?.error || 'Quotation audit unavailable.'}</p>
+              <p className="text-ui-xs text-rose-600">{auditData?.error || 'Quotation audit unavailable.'}</p>
             ) : (
               <Fragment>
                 {auditData.quotation?.projectName ? (
-                  <p className="mb-1.5 text-[10px] text-slate-600">
+                  <p className="mb-1.5 text-ui-xs text-slate-600">
                     <span className="font-semibold text-slate-800">{auditData.quotation.projectName}</span>
                   </p>
                 ) : null}
                 {(sum?.materialTypeName || sum?.materialGauge) && (
-                  <p className="mb-1.5 text-[9px] text-slate-500">
+                  <p className="mb-1.5 text-ui-xs text-slate-500">
                     {[
                       sum.materialTypeName,
                       sum.materialGauge,
@@ -816,7 +816,7 @@ export function RefundManagerApprovalPreview({
                   </p>
                 )}
                 {productRows.length === 0 && lines.filter((l) => l.category === 'products').length === 0 ? (
-                  <p className="text-[10px] text-slate-500">No product lines on file.</p>
+                  <p className="text-ui-xs text-slate-500">No product lines on file.</p>
                 ) : (
                   <div className="overflow-hidden rounded-md border border-slate-200">
                     <table className="w-full border-collapse text-left">
@@ -876,7 +876,7 @@ export function RefundManagerApprovalPreview({
                       .filter((l) => l.category !== 'products')
                       .slice(0, 6)
                       .map((ln, idx) => (
-                        <div key={idx} className="flex justify-between gap-2 text-[9px]">
+                        <div key={idx} className="flex justify-between gap-2 text-ui-xs">
                           <span className="truncate text-slate-700">{ln.name}</span>
                           <span className="shrink-0 tabular-nums text-slate-600">
                             {ln.lineTotal !== '' && ln.lineTotal != null ? formatNgn(ln.lineTotal) : '—'}
@@ -906,7 +906,7 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {deliveryGateActive && paymentPct != null ? (
               <p
-                className={`mb-2 rounded-md px-2 py-1 text-[9px] font-medium leading-snug ${
+                className={`mb-2 rounded-md px-2 py-1 text-ui-xs font-medium leading-snug ${
                   deliveryGateBreached ? 'bg-rose-50 text-rose-900' : 'bg-amber-50 text-amber-950'
                 }`}
               >
@@ -914,14 +914,14 @@ export function RefundManagerApprovalPreview({
                 cap {formatNgn(maxApprovableNgn)} after other refunds
               </p>
             ) : (
-              <p className="mb-2 text-[9px] text-slate-500">
+              <p className="mb-2 text-ui-xs text-slate-500">
                 Approvable cap {formatNgn(maxApprovableNgn)}
                 {reservedOtherRefundsNgn > 0 ? ` · ${formatNgn(reservedOtherRefundsNgn)} reserved` : ''}
               </p>
             )}
             {economicFloor && (economicFloor.producedOutputMeters > 0 || economicFloor.floorDeliveredValueNgn > 0) ? (
               <div
-                className={`mb-2 rounded-md border px-2 py-1.5 text-[9px] leading-snug ${
+                className={`mb-2 rounded-md border px-2 py-1.5 text-ui-xs leading-snug ${
                   Number(refund?.amountNgn ?? refund?.amount_ngn ?? 0) >
                   Number(economicFloor.maxDefensibleRefundNgn || 0) + 1
                     ? 'border-amber-300 bg-amber-50 text-amber-950'
@@ -929,7 +929,7 @@ export function RefundManagerApprovalPreview({
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-bold uppercase tracking-wide text-[8px] text-slate-500">
+                  <p className="font-bold uppercase tracking-wide text-ui-xs text-slate-500">
                     Economic floor (produced × workbook minimum)
                   </p>
                   {canRecalculateIntegrity ? (
@@ -937,7 +937,7 @@ export function RefundManagerApprovalPreview({
                       type="button"
                       disabled={integrityBusy || decisionBusy}
                       onClick={() => void runRecalculateIntegrity()}
-                      className="inline-flex shrink-0 items-center gap-0.5 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[8px] font-bold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                      className="inline-flex shrink-0 items-center gap-0.5 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-ui-xs font-bold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                     >
                       <RefreshCw size={10} className={integrityBusy ? 'animate-spin' : ''} />
                       Recalc
@@ -961,7 +961,7 @@ export function RefundManagerApprovalPreview({
                   type="button"
                   disabled={integrityBusy || decisionBusy}
                   onClick={() => void runRecalculateIntegrity()}
-                  className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-[8px] font-bold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-ui-xs font-bold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 >
                   <RefreshCw size={10} className={integrityBusy ? 'animate-spin' : ''} />
                   Recalculate integrity
@@ -1007,7 +1007,7 @@ export function RefundManagerApprovalPreview({
               </div>
             ) : null}
             {intelSum && (intelSum.overpayAdvanceNgn > 0 || intelSum.overpayAppliedNgn > 0) ? (
-              <p className="mb-2 text-[9px] text-slate-600">
+              <p className="mb-2 text-ui-xs text-slate-600">
                 Overpay ledger {formatNgn(intelSum.overpayAdvanceNgn)}
                 {intelSum.overpayAppliedNgn > 0 ? ` · applied ${formatNgn(intelSum.overpayAppliedNgn)}` : ''}
               </p>
@@ -1016,8 +1016,8 @@ export function RefundManagerApprovalPreview({
               <div className="mb-2 divide-y divide-slate-100 rounded-md border border-slate-200">
                 {salesReceipts.slice(0, 5).map((rc) => (
                   <div key={rc.id} className="flex items-center justify-between gap-2 px-1.5 py-1">
-                    <span className="font-mono text-[9px] text-slate-700">{rc.id}</span>
-                    <span className="text-[10px] font-bold tabular-nums">{formatNgn(rc.amount_ngn)}</span>
+                    <span className="font-mono text-ui-xs text-slate-700">{rc.id}</span>
+                    <span className="text-ui-xs font-bold tabular-nums">{formatNgn(rc.amount_ngn)}</span>
                   </div>
                 ))}
               </div>
@@ -1031,15 +1031,15 @@ export function RefundManagerApprovalPreview({
                     >
                       {(e.type || '').slice(0, 10)}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[8px] text-slate-500">
+                    <span className="min-w-0 flex-1 truncate text-ui-xs text-slate-500">
                       {e.at_iso?.slice(0, 10) || ''}
                     </span>
-                    <span className="text-[10px] font-bold tabular-nums">{formatNgn(e.amount_ngn)}</span>
+                    <span className="text-ui-xs font-bold tabular-nums">{formatNgn(e.amount_ngn)}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-[10px] text-slate-500">No payment ledger rows.</p>
+              <p className="text-ui-xs text-slate-500">No payment ledger rows.</p>
             )}
           </Panel>
 
@@ -1087,7 +1087,7 @@ export function RefundManagerApprovalPreview({
                             ? 'text-rose-700 bg-rose-50'
                             : 'text-slate-500 bg-slate-100';
                     return (
-                      <li key={i} className="flex items-center justify-between gap-2 text-[9px]">
+                      <li key={i} className="flex items-center justify-between gap-2 text-ui-xs">
                         <span className="min-w-0 truncate font-medium text-slate-800">{a.label || a.name}</span>
                         <span className={`shrink-0 rounded px-1 py-0.5 text-[7px] font-bold uppercase ${toneCls}`}>
                           {st.text}
@@ -1102,13 +1102,13 @@ export function RefundManagerApprovalPreview({
               </div>
             ) : null}
             {stone && (stone.totalSuppliedM2 > 0 || (stone.lines || []).length > 0) ? (
-              <p className="mb-2 text-[9px] text-slate-600">
+              <p className="mb-2 text-ui-xs text-slate-600">
                 Stone {Number(stone.totalSuppliedM2 || 0).toLocaleString()} m² supplied
                 {stone.totalDeductionM2 ? ` · ${Number(stone.totalDeductionM2).toLocaleString()} m² ded.` : ''}
               </p>
             ) : null}
             {cuttingLists.length > 0 ? (
-              <p className="mb-2 text-[9px] text-slate-600">
+              <p className="mb-2 text-ui-xs text-slate-600">
                 {cuttingLists.length} cutting list(s) ·{' '}
                 {cuttingLists.map((cl) => `${cl.id} ${Number(cl.total_meters || 0).toLocaleString()}m`).join(', ')}
               </p>
@@ -1126,14 +1126,14 @@ export function RefundManagerApprovalPreview({
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-1">
-                      <span className="font-mono text-[9px] font-bold text-slate-900">
+                      <span className="font-mono text-ui-xs font-bold text-slate-900">
                         {ch.job_id} · {ch.coil_no}
                       </span>
                       <span className="rounded bg-white/90 px-1.5 py-0.5 text-[7px] font-black uppercase">
                         {ch.alert_state || '—'}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-[8px] text-slate-600">
+                    <p className="mt-0.5 text-ui-xs text-slate-600">
                       {[ch.gauge_label, ch.material_type_name].filter(Boolean).join(' · ') || '—'}
                     </p>
                     <ConversionRefGrid check={ch} />
@@ -1144,10 +1144,10 @@ export function RefundManagerApprovalPreview({
               <div className="space-y-1">
                 {productionFulfillment ? (
                   <div className="mb-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
-                    <p className="text-[8px] font-bold uppercase tracking-wide text-slate-500">
+                    <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                       Roofing fulfilment
                     </p>
-                    <p className="text-[9px] text-slate-700 leading-snug">
+                    <p className="text-ui-xs text-slate-700 leading-snug">
                       Quoted {Number(productionFulfillment.quotedMeters || 0).toLocaleString()} m · Eligible
                       produced {Number(productionFulfillment.producedMetersForUnproduced || 0).toLocaleString()} m
                       {Number(productionFulfillment.coilProducedMeters || 0) > 0
@@ -1163,7 +1163,7 @@ export function RefundManagerApprovalPreview({
                       · Unproduced {Number(productionFulfillment.unproducedMetres || 0).toLocaleString()} m
                     </p>
                     {productionFulfillment.fullyProducedRoofing ? (
-                      <p className="mt-0.5 text-[8px] font-semibold text-emerald-700">
+                      <p className="mt-0.5 text-ui-xs font-semibold text-emerald-700">
                         Fully produced — unproduced meterage refund should not apply.
                       </p>
                     ) : null}
@@ -1172,10 +1172,10 @@ export function RefundManagerApprovalPreview({
                 {productionLogs.slice(0, 4).map((job) => (
                   <div key={job.job_id} className="rounded-md border border-slate-200 bg-slate-50/60 px-1.5 py-1">
                     <div className="flex justify-between gap-1">
-                      <span className="font-mono text-[9px] font-bold">{job.job_id}</span>
-                      <span className="text-[8px] uppercase text-slate-500">{job.status}</span>
+                      <span className="font-mono text-ui-xs font-bold">{job.job_id}</span>
+                      <span className="text-ui-xs uppercase text-slate-500">{job.status}</span>
                     </div>
-                    <p className="text-[9px] text-slate-600">
+                    <p className="text-ui-xs text-slate-600">
                       {Number(job.actual_meters || 0).toLocaleString()}/
                       {Number(job.planned_meters || 0).toLocaleString()} m · {job.conversion_alert_state || '—'}
                     </p>
@@ -1183,14 +1183,14 @@ export function RefundManagerApprovalPreview({
                 ))}
               </div>
             ) : (
-              <p className="text-[10px] text-slate-500">No production or conversion data.</p>
+              <p className="text-ui-xs text-slate-500">No production or conversion data.</p>
             )}
           </Panel>
 
           {/* Refund request — unique detail only */}
           <Panel title="This refund" hint="Breakdown, payee, and other refunds on the quote.">
             {refund?.reason ? (
-              <p className="mb-2 text-[10px] leading-snug text-slate-700">{refund.reason}</p>
+              <p className="mb-2 text-ui-xs leading-snug text-slate-700">{refund.reason}</p>
             ) : null}
             {calcLines.length > 0 ? (
               <Fragment>
@@ -1201,7 +1201,7 @@ export function RefundManagerApprovalPreview({
                     const mismatch = expected != null && Math.abs(amt - expected) > 1;
                     return (
                       <div key={idx} className={`flex justify-between gap-2 px-1.5 py-1 ${mismatch ? 'bg-rose-50/80' : ''}`}>
-                        <span className="min-w-0 text-[9px] text-slate-800">
+                        <span className="min-w-0 text-ui-xs text-slate-800">
                           {ln.label || ln.category || `Line ${idx + 1}`}
                         </span>
                         <span className={`shrink-0 font-bold tabular-nums ${mismatch ? 'text-rose-800' : ''}`}>
@@ -1211,28 +1211,28 @@ export function RefundManagerApprovalPreview({
                     );
                   })}
                   <div className="flex justify-between gap-2 bg-slate-50 px-1.5 py-1 font-bold">
-                    <span className="text-[9px]">Total</span>
+                    <span className="text-ui-xs">Total</span>
                     <span className="tabular-nums text-rose-800">{formatNgn(sumCalcLines(calcLines))}</span>
                   </div>
                 </div>
                 {lineArithmeticBlocksApprove ? (
-                  <p className="mb-2 text-[9px] font-semibold text-rose-800" role="alert">
+                  <p className="mb-2 text-ui-xs font-semibold text-rose-800" role="alert">
                     Line arithmetic mismatch — correct before approving.
                   </p>
                 ) : null}
               </Fragment>
             ) : null}
             {refund?.calculationNotes ? (
-              <p className="mb-2 text-[9px] italic text-slate-600">{refund.calculationNotes}</p>
+              <p className="mb-2 text-ui-xs italic text-slate-600">{refund.calculationNotes}</p>
             ) : null}
             {(refund?.payeeName || refund?.payeeAccountNo) && (
               <div className="mb-2 rounded-md border border-teal-200/80 bg-teal-50/40 px-2 py-1.5">
-                <p className="text-[8px] font-bold uppercase text-teal-800">Pay to</p>
-                <p className="text-[10px] font-semibold text-slate-900">
+                <p className="text-ui-xs font-bold uppercase text-teal-800">Pay to</p>
+                <p className="text-ui-xs font-semibold text-slate-900">
                   {[formatPersonName(refund.payeeName), refund.payeeBankName].filter(Boolean).join(' · ')}
                 </p>
                 {refund.payeeAccountNo ? (
-                  <p className="font-mono text-[9px] text-slate-600">{refund.payeeAccountNo}</p>
+                  <p className="font-mono text-ui-xs text-slate-600">{refund.payeeAccountNo}</p>
                 ) : null}
               </div>
             )}
@@ -1244,9 +1244,9 @@ export function RefundManagerApprovalPreview({
                     key={r.refund_id}
                     className="flex items-center justify-between gap-2 rounded border border-amber-200/60 bg-amber-50/50 px-1.5 py-1"
                   >
-                    <span className="font-mono text-[8px] font-bold text-amber-950">{r.refund_id}</span>
-                    <span className="text-[8px] text-slate-600">{r.status}</span>
-                    <span className="text-[10px] font-bold tabular-nums">{formatNgn(r.amount_ngn)}</span>
+                    <span className="font-mono text-ui-xs font-bold text-amber-950">{r.refund_id}</span>
+                    <span className="text-ui-xs text-slate-600">{r.status}</span>
+                    <span className="text-ui-xs font-bold tabular-nums">{formatNgn(r.amount_ngn)}</span>
                   </div>
                 ))}
               </div>
@@ -1258,13 +1258,13 @@ export function RefundManagerApprovalPreview({
       <div className="rounded-lg border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
         {productionAlignmentIssues.length > 0 ? (
           <div className="mb-2 rounded-md border border-amber-200/80 bg-amber-50/70 px-2 py-1.5 space-y-1">
-            <p className="text-[8px] font-black uppercase text-amber-950 flex items-center gap-1">
+            <p className="text-ui-xs font-black uppercase text-amber-950 flex items-center gap-1">
               <AlertTriangle size={11} /> Production alignment
               {alignmentCheckLoading ? <span className="font-normal">· checking…</span> : null}
             </p>
             <ul className="space-y-1">
               {productionAlignmentIssues.map((issue) => (
-                <li key={issue.code} className="text-[9px] text-amber-950 leading-snug">
+                <li key={issue.code} className="text-ui-xs text-amber-950 leading-snug">
                   <span className="font-semibold">{issue.title}</span>
                   {issue.message ? ` — ${issue.message}` : ''}
                   {issue.submitAction === 'acknowledge' ? (
@@ -1277,7 +1277,7 @@ export function RefundManagerApprovalPreview({
                         }
                         className="h-3 w-3"
                       />
-                      <span className="text-[8px]">Acknowledge</span>
+                      <span className="text-ui-xs">Acknowledge</span>
                     </label>
                   ) : null}
                 </li>
@@ -1289,7 +1289,7 @@ export function RefundManagerApprovalPreview({
                 value={productionAlignmentOverrideNote}
                 onChange={(e) => setProductionAlignmentOverrideNote(e.target.value)}
                 placeholder="Override note (min 10 chars)"
-                className="mt-1 w-full rounded border border-amber-200 bg-white px-2 py-1 text-[9px]"
+                className="mt-1 w-full rounded border border-amber-200 bg-white px-2 py-1 text-ui-xs"
               />
             ) : null}
           </div>
@@ -1297,7 +1297,7 @@ export function RefundManagerApprovalPreview({
 
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(7rem,9rem)_1fr_auto_auto] lg:items-end">
           <div>
-            <label className="text-[8px] font-bold uppercase text-slate-500" htmlFor="inbox-approved-amount">
+            <label className="text-ui-xs font-bold uppercase text-slate-500" htmlFor="inbox-approved-amount">
               Approved ₦
             </label>
             <input
@@ -1311,11 +1311,11 @@ export function RefundManagerApprovalPreview({
                 setApprovalAmountError('');
               }}
               disabled={decisionBusy || loading}
-              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm font-bold tabular-nums text-[#134e4a] outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:opacity-50"
+              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm font-bold tabular-nums text-zarewa-teal outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:opacity-50"
             />
           </div>
           <div>
-            <label className="text-[8px] font-bold uppercase text-slate-500" htmlFor="refund-decision-note">
+            <label className="text-ui-xs font-bold uppercase text-slate-500" htmlFor="refund-decision-note">
               Note
             </label>
             <input
@@ -1328,14 +1328,14 @@ export function RefundManagerApprovalPreview({
               }}
               disabled={decisionBusy || loading}
               placeholder="Required to reject"
-              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-50"
+              className="mt-0.5 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-zarewa-teal/20 disabled:opacity-50"
             />
           </div>
           <button
             type="button"
             disabled={decisionBusy || loading || alignmentBlocksApprove || lineArithmeticBlocksApprove}
             onClick={handleApproveClick}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-[9px] font-black uppercase tracking-wide text-white hover:bg-emerald-500 disabled:opacity-50"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-emerald-500 disabled:opacity-50"
           >
             <CheckCircle2 size={14} />
             Approve
@@ -1344,7 +1344,7 @@ export function RefundManagerApprovalPreview({
             type="button"
             disabled={decisionBusy || loading}
             onClick={handleRejectClick}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-rose-600 px-4 text-[9px] font-black uppercase tracking-wide text-white hover:bg-rose-500 disabled:opacity-50"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-rose-600 px-4 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-rose-500 disabled:opacity-50"
           >
             <RotateCcw size={14} />
             Reject
@@ -1352,7 +1352,7 @@ export function RefundManagerApprovalPreview({
         </div>
 
         {(approvalAmountError || rejectNoteError) && (
-          <p className="mt-1.5 text-[9px] font-semibold text-rose-800" role="alert">
+          <p className="mt-1.5 text-ui-xs font-semibold text-rose-800" role="alert">
             {approvalAmountError || rejectNoteError}
           </p>
         )}
@@ -1360,7 +1360,7 @@ export function RefundManagerApprovalPreview({
         requestedAmountNgn > 0 &&
         Math.round(Number(approvedAmountNgn) || 0) < requestedAmountNgn &&
         Math.abs(sumCalcLines(calcLines) - requestedAmountNgn) <= 1 ? (
-          <p className="mt-1 text-[9px] text-teal-800">Lines scale proportionally on partial approval.</p>
+          <p className="mt-1 text-ui-xs text-teal-800">Lines scale proportionally on partial approval.</p>
         ) : null}
 
         {onEditDetails ? (
@@ -1368,7 +1368,7 @@ export function RefundManagerApprovalPreview({
             type="button"
             disabled={decisionBusy}
             onClick={onEditDetails}
-            className="mt-2 text-[9px] font-bold uppercase tracking-wide text-slate-400 hover:text-slate-600"
+            className="mt-2 text-ui-xs font-bold uppercase tracking-wide text-slate-400 hover:text-slate-600"
           >
             {editDetailsLabel}
           </button>
@@ -1377,7 +1377,7 @@ export function RefundManagerApprovalPreview({
             type="button"
             disabled={decisionBusy}
             onClick={onOpenSales}
-            className="mt-2 text-[9px] font-bold uppercase tracking-wide text-slate-400 hover:text-slate-600"
+            className="mt-2 text-ui-xs font-bold uppercase tracking-wide text-slate-400 hover:text-slate-600"
           >
             Open full refund flow in Sales
           </button>

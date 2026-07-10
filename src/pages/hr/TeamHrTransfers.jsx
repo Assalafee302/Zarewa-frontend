@@ -130,7 +130,7 @@ export default function TeamHrTransfers() {
                   ]}
                   footer={
                     <div className="flex flex-wrap gap-3">
-                      <button type="button" className="text-xs font-bold uppercase text-[#134e4a]" onClick={() => setDetail(t)}>
+                      <button type="button" className="text-xs font-bold uppercase text-zarewa-teal" onClick={() => setDetail(t)}>
                         Details
                       </button>
                       <button type="button" disabled={busy} className="text-xs font-bold uppercase text-emerald-700" onClick={() => endorse(t.id)}>
@@ -166,7 +166,7 @@ export default function TeamHrTransfers() {
                       </AppTableTd>
                       <AppTableTd>{t.effectiveDateIso || '—'}</AppTableTd>
                       <AppTableTd truncate={false}>
-                        <button type="button" className="text-xs font-bold uppercase text-[#134e4a] mr-2" onClick={() => setDetail(t)}>
+                        <button type="button" className="text-xs font-bold uppercase text-zarewa-teal mr-2" onClick={() => setDetail(t)}>
                           Details
                         </button>
                         <button type="button" disabled={busy} className="text-xs font-bold uppercase text-emerald-700" onClick={() => endorse(t.id)}>

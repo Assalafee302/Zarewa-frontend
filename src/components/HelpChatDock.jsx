@@ -176,7 +176,7 @@ function HelpAvatar({ role, user }) {
   if (role === 'user') {
     return (
       <div
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#134e4a] to-[#0f766e] text-[11px] font-black text-white shadow-md ring-2 ring-white"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-zarewa-teal to-[#0f766e] text-xs font-black text-white shadow-md ring-2 ring-white"
         aria-hidden
       >
         {userInitials(user)}
@@ -185,7 +185,7 @@ function HelpAvatar({ role, user }) {
   }
   return (
     <div
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 to-emerald-50 text-[#134e4a] shadow-sm ring-2 ring-white"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 to-emerald-50 text-zarewa-teal shadow-sm ring-2 ring-white"
       aria-hidden
     >
       <LifeBuoy size={16} strokeWidth={2.2} />
@@ -234,7 +234,7 @@ function InsightSection({ icon, title, tone, children, defaultOpen = true }) {
         <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconTones[tone] || iconTones.slate}`}>
           <Icon size={14} strokeWidth={2.2} aria-hidden />
         </span>
-        <span className="flex-1 text-[11px] font-black uppercase tracking-wider text-slate-800">{title}</span>
+        <span className="flex-1 text-xs font-black uppercase tracking-wider text-slate-800">{title}</span>
         <ChevronRight size={14} className={`text-slate-400 transition ${open ? 'rotate-90' : ''}`} aria-hidden />
       </button>
       {open ? <div className="border-t border-white/60 px-3.5 pb-3.5 pt-2.5">{children}</div> : null}
@@ -749,13 +749,13 @@ export function HelpChatDock() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`z-help-launcher fixed z-[165] flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-2xl border border-teal-200/60 bg-gradient-to-br from-[#134e4a] via-[#0f766e] to-[#115e59] text-teal-50 transition hover:scale-[1.03] active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${launcherClass}`}
+        className={`z-help-launcher fixed z-[165] flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-2xl border border-teal-200/60 bg-gradient-to-br from-zarewa-teal via-[#0f766e] to-[#115e59] text-teal-50 transition hover:scale-[1.03] active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${launcherClass}`}
         aria-label={`Open ${HELP_BOT_NAME}`}
         title={`${HELP_BOT_NAME} — ${HELP_BOT_TAGLINE}`}
       >
         <LifeBuoy size={26} strokeWidth={2} aria-hidden />
         {coachingHints.length > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black text-amber-950 ring-2 ring-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-ui-xs font-black text-amber-950 ring-2 ring-white">
             !
           </span>
         ) : null}
@@ -777,7 +777,7 @@ export function HelpChatDock() {
           >
             {/* Header */}
             <header className="relative overflow-hidden border-b border-teal-900/10 px-4 py-4 text-white">
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#134e4a] via-[#0f766e] to-[#115e59]" aria-hidden />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-zarewa-teal via-[#0f766e] to-[#115e59]" aria-hidden />
               <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-teal-300/20 blur-2xl" aria-hidden />
               <div className="relative flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
@@ -787,20 +787,20 @@ export function HelpChatDock() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-black tracking-tight">{HELP_BOT_NAME}</p>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-teal-50/95 ring-1 ring-white/15">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-ui-xs font-bold uppercase tracking-wide text-teal-50/95 ring-1 ring-white/15">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.9)]" />
                         {HELP_BOT_TAGLINE}
                       </span>
-                      <span className="hidden text-[9px] text-teal-100/80 sm:inline">{HELP_BOT_ALT_TAGLINE}</span>
+                      <span className="hidden text-ui-xs text-teal-100/80 sm:inline">{HELP_BOT_ALT_TAGLINE}</span>
                     </div>
-                    <p className="mt-0.5 truncate text-[11px] font-medium text-teal-100/90">{pageName}</p>
+                    <p className="mt-0.5 truncate text-xs font-medium text-teal-100/90">{pageName}</p>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
                     onClick={resetConversation}
-                    className="inline-flex items-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-bold uppercase tracking-wide text-white/90 transition hover:bg-white/10"
+                    className="inline-flex items-center gap-1 rounded-xl px-2.5 py-2 text-ui-xs font-bold uppercase tracking-wide text-white/90 transition hover:bg-white/10"
                     aria-label="Reset conversation"
                   >
                     <RotateCcw size={12} aria-hidden />
@@ -834,7 +834,7 @@ export function HelpChatDock() {
                     <button
                       type="button"
                       onClick={() => void sendText('What should I do next based on my briefing?')}
-                      className="mt-2 text-[11px] font-bold text-teal-800 hover:underline"
+                      className="mt-2 text-xs font-bold text-teal-800 hover:underline"
                     >
                       Ask Zare what to do next
                     </button>
@@ -844,7 +844,7 @@ export function HelpChatDock() {
                 {showQuickQuestions && helpMode !== 'transaction_help' ? (
                   <InsightSection icon={Compass} title="Tour this page" tone="teal" defaultOpen>
                     <p className="mb-3 text-[12px] leading-relaxed text-slate-600">
-                      New to <span className="font-bold text-[#134e4a]">{pageTour.label}</span>? Zare coaches you{' '}
+                      New to <span className="font-bold text-zarewa-teal">{pageTour.label}</span>? Zare coaches you{' '}
                       <strong>one step at a time</strong>. After each step in the app, return here and say{' '}
                       <strong>next</strong>.
                     </p>
@@ -853,7 +853,7 @@ export function HelpChatDock() {
                         type="button"
                         disabled={busy}
                         onClick={() => void startPageTour()}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-[#134e4a] px-3 py-2 text-[11px] font-black text-white hover:bg-teal-900 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-zarewa-teal px-3 py-2 text-xs font-black text-white hover:bg-teal-900 disabled:opacity-50"
                       >
                         <Compass size={14} aria-hidden />
                         Start page tour
@@ -862,7 +862,7 @@ export function HelpChatDock() {
                         type="button"
                         disabled={busy}
                         onClick={() => ws?.openRoleTrainingReplay?.()}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3 py-2 text-[11px] font-bold text-[#134e4a] hover:bg-teal-50 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3 py-2 text-xs font-bold text-zarewa-teal hover:bg-teal-50 disabled:opacity-50"
                       >
                         <BookOpen size={14} aria-hidden />
                         My role tour
@@ -879,7 +879,7 @@ export function HelpChatDock() {
                           key={chip.id}
                           type="button"
                           onClick={() => void sendText(`Help me with: ${chip.label}`)}
-                          className="rounded-xl border border-amber-200/90 bg-white px-3 py-2 text-[11px] font-bold text-slate-800 shadow-sm transition hover:border-teal-300 hover:bg-teal-50"
+                          className="rounded-xl border border-amber-200/90 bg-white px-3 py-2 text-xs font-bold text-slate-800 shadow-sm transition hover:border-teal-300 hover:bg-teal-50"
                         >
                           {chip.label}
                         </button>
@@ -900,7 +900,7 @@ export function HelpChatDock() {
                               className="group w-full rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-left shadow-sm transition hover:border-teal-200 hover:bg-teal-50/60"
                             >
                               <span className="flex items-center justify-between gap-2">
-                                <span className="text-[12px] font-bold text-[#134e4a]">{hint.title}</span>
+                                <span className="text-[12px] font-bold text-zarewa-teal">{hint.title}</span>
                                 <ArrowRight size={14} className="shrink-0 text-teal-600 opacity-0 transition group-hover:opacity-100" />
                               </span>
                             </button>
@@ -915,7 +915,7 @@ export function HelpChatDock() {
                             key={item.label}
                             type="button"
                             onClick={() => void sendText(item.query)}
-                            className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-[11px] font-bold text-slate-800 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 hover:text-[#134e4a]"
+                            className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-xs font-bold text-slate-800 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 hover:text-zarewa-teal"
                           >
                             {item.label}
                           </button>
@@ -949,13 +949,13 @@ export function HelpChatDock() {
                         <div
                           className={`rounded-2xl px-3.5 py-3 shadow-sm ${
                             isUser
-                              ? 'rounded-br-md bg-gradient-to-br from-[#134e4a] to-[#0f766e] text-white'
+                              ? 'rounded-br-md bg-gradient-to-br from-zarewa-teal to-[#0f766e] text-white'
                               : 'rounded-bl-md border border-slate-200/80 bg-white text-slate-800'
                           }`}
                         >
                           {meta ? (
                             <p
-                              className={`mb-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ring-1 ${badgeClass}`}
+                              className={`mb-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-ui-xs font-black uppercase tracking-wider ring-1 ${badgeClass}`}
                             >
                               <MetaIcon size={10} aria-hidden />
                               {meta.label}
@@ -968,12 +968,12 @@ export function HelpChatDock() {
                           )}
 
                           {!isUser && Array.isArray(m.sources) && m.sources.length > 0 ? (
-                            <p className="mt-2 text-[9px] text-slate-400">
+                            <p className="mt-2 text-ui-xs text-slate-400">
                               Sources: {m.sources.map((s) => s.title).join(' · ')}
                             </p>
                           ) : null}
                           {!isUser && m.coaching?.active ? (
-                            <p className="mt-1 text-[9px] font-semibold uppercase tracking-wide text-teal-700">
+                            <p className="mt-1 text-ui-xs font-semibold uppercase tracking-wide text-teal-700">
                               Coaching · step {(m.coaching.stepIndex || 0) + 1}/{m.coaching.totalSteps || '?'}
                             </p>
                           ) : null}
@@ -994,7 +994,7 @@ export function HelpChatDock() {
                                     }
                                     setOpen(false);
                                   }}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-teal-200/80 bg-gradient-to-r from-teal-50 to-emerald-50/80 px-2.5 py-1.5 text-[10px] font-bold text-[#134e4a] transition hover:border-teal-300 hover:from-teal-100"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-teal-200/80 bg-gradient-to-r from-teal-50 to-emerald-50/80 px-2.5 py-1.5 text-ui-xs font-bold text-zarewa-teal transition hover:border-teal-300 hover:from-teal-100"
                                 >
                                   {link.label}
                                   <ArrowRight size={10} aria-hidden />
@@ -1005,7 +1005,7 @@ export function HelpChatDock() {
 
                           {!isUser && m.logId && m.source !== 'intro' ? (
                             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100/90 pt-2.5">
-                              <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                              <span className="text-ui-xs font-semibold uppercase tracking-wide text-slate-400">
                                 {m.feedback === 'helpful'
                                   ? 'Thanks — noted ✓'
                                   : m.feedback === 'not_helpful'
@@ -1049,7 +1049,7 @@ export function HelpChatDock() {
                     <button
                       type="button"
                       onClick={() => setError('')}
-                      className="mt-2 text-[11px] font-bold text-red-900 underline underline-offset-2"
+                      className="mt-2 text-xs font-bold text-red-900 underline underline-offset-2"
                     >
                       Dismiss
                     </button>
@@ -1087,7 +1087,7 @@ export function HelpChatDock() {
                   type="button"
                   onClick={() => void send()}
                   disabled={busy || !draft.trim()}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#134e4a] to-[#0f766e] text-white shadow-md transition hover:brightness-110 disabled:opacity-35"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-zarewa-teal to-[#0f766e] text-white shadow-md transition hover:brightness-110 disabled:opacity-35"
                   aria-label="Send message"
                 >
                   {busy ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}

@@ -70,7 +70,7 @@ export function StaffObligationBalanceCard({ obligation }) {
         ) : null}
         <div className={original > 0 && monthlyNgn > 0 ? '' : 'col-span-2'}>
           <dt className="text-slate-500">Outstanding</dt>
-          <dd className="text-lg font-black tabular-nums text-[#134e4a]">{formatNgn(outstandingNgn)}</dd>
+          <dd className="text-lg font-black tabular-nums text-zarewa-teal">{formatNgn(outstandingNgn)}</dd>
         </div>
       </dl>
       {quotationRef ? <p className="mt-1 text-xs text-slate-500">Quote {quotationRef}</p> : null}
@@ -79,7 +79,7 @@ export function StaffObligationBalanceCard({ obligation }) {
       ) : null}
       <ProfileStatusChip variant={chipVariant}>{statusLabel}</ProfileStatusChip>
       <a
-        className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#134e4a] underline"
+        className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-zarewa-teal underline"
         href={obligationStatementPdfUrl(id)}
         target="_blank"
         rel="noreferrer"

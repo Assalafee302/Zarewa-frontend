@@ -15,14 +15,14 @@ const CATEGORY_LABELS = {
 };
 
 const INPUT =
-  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10';
+  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10';
 
 function DetailField({ label, children }) {
   if (children == null || children === '') return null;
   return (
     <div>
-      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{label}</p>
-      <p className="mt-0.5 text-[11px] font-semibold text-slate-800 break-words">{children}</p>
+      <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
+      <p className="mt-0.5 text-xs font-semibold text-slate-800 break-words">{children}</p>
     </div>
   );
 }
@@ -93,14 +93,14 @@ export function AccountingAssetDetailModal({
   return (
     <ModalFrame isOpen onClose={onClose} title="Asset detail" surface="plain">
       <div className="w-full max-w-lg rounded-2xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
-        <div className="h-1 bg-[#134e4a]" />
+        <div className="h-1 bg-zarewa-teal" />
         <div className="p-5 sm:p-6 max-h-[min(85dvh,720px)] overflow-y-auto custom-scrollbar">
           <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
             <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{categoryLabel}</p>
-              <h2 className="text-lg font-bold text-[#134e4a] mt-1 break-words">{asset.name}</h2>
+              <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">{categoryLabel}</p>
+              <h2 className="text-lg font-bold text-zarewa-teal mt-1 break-words">{asset.name}</h2>
               <span
-                className={`inline-block mt-2 rounded-full px-2 py-0.5 text-[8px] font-bold uppercase ${
+                className={`inline-block mt-2 rounded-full px-2 py-0.5 text-ui-xs font-bold uppercase ${
                   asset.status === 'active' ? 'bg-emerald-50 text-emerald-900 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
                 }`}
               >
@@ -108,8 +108,8 @@ export function AccountingAssetDetailModal({
               </span>
             </div>
             <div className="text-right shrink-0">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Net book value</p>
-              <p className="text-xl font-black text-[#134e4a] tabular-nums">{formatNgn(asset.netBookValueNgn)}</p>
+              <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">Net book value</p>
+              <p className="text-xl font-black text-zarewa-teal tabular-nums">{formatNgn(asset.netBookValueNgn)}</p>
             </div>
           </div>
 
@@ -144,17 +144,17 @@ export function AccountingAssetDetailModal({
           {disposeOpen && canManage && asset.status === 'active' ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 mt-3 space-y-3">
               <div>
-                <p className="text-[10px] font-semibold text-amber-950">Sell or dispose asset</p>
-                <p className="text-[10px] text-amber-900/80 mt-1 leading-snug">
+                <p className="text-ui-xs font-semibold text-amber-950">Sell or dispose asset</p>
+                <p className="text-ui-xs text-amber-900/80 mt-1 leading-snug">
                   Records treasury receipt (if sold), clears cost and accumulated depreciation in the GL, and posts any
                   gain or loss on disposal.
                 </p>
               </div>
-              <label className="block text-[10px] font-bold uppercase text-slate-500">
+              <label className="block text-ui-xs font-bold uppercase text-slate-500">
                 Disposal date
                 <input type="date" className={INPUT} value={disposalDate} onChange={(e) => setDisposalDate(e.target.value)} />
               </label>
-              <label className="block text-[10px] font-bold uppercase text-slate-500">
+              <label className="block text-ui-xs font-bold uppercase text-slate-500">
                 Sale proceeds (₦)
                 <input
                   type="number"
@@ -166,7 +166,7 @@ export function AccountingAssetDetailModal({
                 />
               </label>
               {needsTreasury ? (
-                <label className="block text-[10px] font-bold uppercase text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase text-slate-500">
                   Receive into treasury account *
                   <select
                     className={INPUT}
@@ -183,23 +183,23 @@ export function AccountingAssetDetailModal({
                   </select>
                 </label>
               ) : null}
-              <label className="block text-[10px] font-bold uppercase text-slate-500">
+              <label className="block text-ui-xs font-bold uppercase text-slate-500">
                 Reference (optional)
                 <input className={INPUT} value={reference} onChange={(e) => setReference(e.target.value)} />
               </label>
-              <label className="block text-[10px] font-bold uppercase text-slate-500">
+              <label className="block text-ui-xs font-bold uppercase text-slate-500">
                 Note (optional)
                 <input className={INPUT} value={note} onChange={(e) => setNote(e.target.value)} />
               </label>
               <div className="flex gap-2 justify-end">
-                <button type="button" onClick={() => setDisposeOpen(false)} className="text-[9px] font-semibold uppercase text-slate-600">
+                <button type="button" onClick={() => setDisposeOpen(false)} className="text-ui-xs font-semibold uppercase text-slate-600">
                   Cancel
                 </button>
                 <button
                   type="button"
                   disabled={busy || (needsTreasury && !treasuryAccountId)}
                   onClick={handleConfirmDispose}
-                  className="rounded-lg bg-amber-800 text-white px-3 py-1 text-[9px] font-semibold uppercase disabled:opacity-50"
+                  className="rounded-lg bg-amber-800 text-white px-3 py-1 text-ui-xs font-semibold uppercase disabled:opacity-50"
                 >
                   {busy ? 'Saving…' : needsTreasury ? 'Confirm sale' : 'Confirm disposal'}
                 </button>
@@ -212,7 +212,7 @@ export function AccountingAssetDetailModal({
               <button
                 type="button"
                 onClick={() => setDisposeOpen(true)}
-                className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[9px] font-semibold uppercase text-amber-950 hover:bg-amber-100"
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-ui-xs font-semibold uppercase text-amber-950 hover:bg-amber-100"
               >
                 <Trash2 size={12} /> Sell / dispose
               </button>
@@ -220,7 +220,7 @@ export function AccountingAssetDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider"
+              className="inline-flex items-center rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider"
             >
               Close
             </button>

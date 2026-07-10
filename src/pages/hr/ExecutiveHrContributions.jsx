@@ -96,7 +96,7 @@ export default function ExecutiveHrContributions() {
                         type="button"
                         disabled={busyBranch === r.branchId}
                         onClick={() => recordContribution(r, r.expectedNgn)}
-                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold uppercase text-[#134e4a]"
+                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold uppercase text-zarewa-teal"
                       >
                         Mark full
                       </button>

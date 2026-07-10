@@ -25,17 +25,17 @@ export function AccountingDeskKpiCard({ icon, label, value, hint, tone = 'defaul
   const labelClass =
     tone === 'teal' ? 'text-teal-700' : tone === 'amber' ? 'text-amber-700' : 'text-slate-500';
   const valueClass =
-    tone === 'amber' ? 'text-amber-900' : 'text-[#134e4a]';
+    tone === 'amber' ? 'text-amber-900' : 'text-zarewa-teal';
 
   return (
     <div className={`rounded-xl border p-3 ${toneClass}`}>
-      <p className={`text-[9px] font-bold uppercase tracking-wide flex items-center gap-1 ${labelClass}`}>
+      <p className={`text-ui-xs font-bold uppercase tracking-wide flex items-center gap-1 ${labelClass}`}>
         {icon}
         {label}
       </p>
       <p className={`mt-1 text-xl font-black tabular-nums ${valueClass}`}>{value}</p>
       {hint ? (
-        <p className="mt-2 text-[10px] text-slate-500 border-t border-slate-100/80 pt-2 leading-snug">{hint}</p>
+        <p className="mt-2 text-ui-xs text-slate-500 border-t border-slate-100/80 pt-2 leading-snug">{hint}</p>
       ) : null}
     </div>
   );
@@ -47,12 +47,12 @@ export function AccountingDeskKpiCard({ icon, label, value, hint, tone = 'defaul
 export function AccountingDeskPageIntro({ title, description, action }) {
   return (
     <div className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
-      <div className="h-1 bg-[#134e4a]" />
+      <div className="h-1 bg-zarewa-teal" />
       <div className="px-4 sm:px-5 py-4 sm:py-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-xl font-bold text-[#134e4a]">{title}</h2>
+          <h2 className="text-xl font-bold text-zarewa-teal">{title}</h2>
           {description ? (
-            <p className="mt-1 text-[10px] text-slate-500 leading-snug max-w-2xl">{description}</p>
+            <p className="mt-1 text-ui-xs text-slate-500 leading-snug max-w-2xl">{description}</p>
           ) : null}
         </div>
         {action ? <div className="flex flex-wrap gap-2 shrink-0">{action}</div> : null}
@@ -67,12 +67,12 @@ export function AccountingDeskPageIntro({ title, description, action }) {
 export function AccountingDeskNotice({ tone = 'info', children }) {
   const cls =
     tone === 'trial'
-      ? 'border-teal-200/80 bg-teal-50/40 text-[#134e4a]'
+      ? 'border-teal-200/80 bg-teal-50/40 text-zarewa-teal'
       : tone === 'warn'
         ? 'border-amber-200 bg-amber-50/50 text-amber-900'
         : 'border-slate-200 bg-white text-slate-600';
   return (
-    <div className={`rounded-2xl border px-4 py-3 text-[11px] font-medium leading-relaxed ${cls}`}>{children}</div>
+    <div className={`rounded-2xl border px-4 py-3 text-xs font-medium leading-relaxed ${cls}`}>{children}</div>
   );
 }
 
@@ -114,10 +114,10 @@ export function filterRegisterItems(items, query) {
 
 /** Shared field styling — matches Procurement / Sales lists */
 export const ACCOUNTING_FIELD_LABEL =
-  'block text-[10px] font-bold uppercase tracking-wide text-slate-500';
+  'block text-ui-xs font-bold uppercase tracking-wide text-slate-500';
 
 export const ACCOUNTING_INPUT =
-  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none transition-all focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10 shadow-sm';
+  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition-all focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10 shadow-sm';
 
 /**
  * @param {{ children: React.ReactNode; className?: string }} props
@@ -138,8 +138,8 @@ export function AccountingFilterGrid({ children, className = '' }) {
 export function AccountingReportLinkRow({ title, description, to, state, onClick }) {
   const inner = (
     <>
-      <p className="text-[11px] font-bold text-[#134e4a]">{title}</p>
-      {description ? <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">{description}</p> : null}
+      <p className="text-xs font-bold text-zarewa-teal">{title}</p>
+      {description ? <p className="text-ui-xs text-slate-500 mt-0.5 leading-snug">{description}</p> : null}
     </>
   );
   if (to) {

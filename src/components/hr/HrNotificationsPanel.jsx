@@ -60,16 +60,16 @@ export function HrNotificationsPanel({ compact = false, onUnreadChange }) {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Bell size={18} className="text-[#134e4a]" aria-hidden />
-          <h3 className="text-sm font-black text-[#134e4a]">HR notifications</h3>
+          <Bell size={18} className="text-zarewa-teal" aria-hidden />
+          <h3 className="text-sm font-black text-zarewa-teal">HR notifications</h3>
           {unreadCount > 0 ? (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-ui-xs font-bold text-amber-900">
               {unreadCount} new
             </span>
           ) : null}
         </div>
         {unreadCount > 0 ? (
-          <button type="button" onClick={onReadAll} className="text-[10px] font-bold uppercase text-[#134e4a]">
+          <button type="button" onClick={onReadAll} className="text-ui-xs font-bold uppercase text-zarewa-teal">
             Mark all read
           </button>
         ) : null}
@@ -89,20 +89,20 @@ export function HrNotificationsPanel({ compact = false, onUnreadChange }) {
                 <div className="min-w-0">
                   <p className="font-semibold text-slate-900">{n.title}</p>
                   {n.body ? <p className="mt-0.5 text-xs text-slate-600">{n.body}</p> : null}
-                  <p className="mt-1 text-[10px] text-slate-400">{n.createdAtIso?.slice(0, 16).replace('T', ' ')}</p>
+                  <p className="mt-1 text-ui-xs text-slate-400">{n.createdAtIso?.slice(0, 16).replace('T', ' ')}</p>
                 </div>
                 {!n.read ? (
                   <button
                     type="button"
                     onClick={() => onRead(n.id)}
-                    className="shrink-0 text-[10px] font-bold uppercase text-[#134e4a]"
+                    className="shrink-0 text-ui-xs font-bold uppercase text-zarewa-teal"
                   >
                     Read
                   </button>
                 ) : null}
               </div>
               {n.routePath ? (
-                <Link to={n.routePath} className="mt-1 inline-block text-[10px] font-bold uppercase text-[#134e4a]">
+                <Link to={n.routePath} className="mt-1 inline-block text-ui-xs font-bold uppercase text-zarewa-teal">
                   Open
                 </Link>
               ) : null}
@@ -120,12 +120,12 @@ export function HrNotificationsPanel({ compact = false, onUnreadChange }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-[#134e4a] shadow-sm"
+        className="relative rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-zarewa-teal shadow-sm"
       >
         <Bell size={16} className="inline mr-1.5 -mt-0.5" aria-hidden />
         Notifications
         {unreadCount > 0 ? (
-          <span className="ml-1.5 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] text-white">{unreadCount}</span>
+          <span className="ml-1.5 rounded-full bg-rose-500 px-1.5 py-0.5 text-ui-xs text-white">{unreadCount}</span>
         ) : null}
       </button>
       {open ? (

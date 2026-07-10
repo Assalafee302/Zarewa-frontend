@@ -34,7 +34,7 @@ export default function OffcutAvailabilityPanel({ gaugeLabel, colour, minMeters 
   if (!gaugeLabel || !colour) return null;
   if (!rows.length) {
     return (
-      <p className="text-[10px] text-slate-500 mt-2">
+      <p className="text-ui-xs text-slate-500 mt-2">
         No matching offcut pool stock for {gaugeLabel} / {colour}.
       </p>
     );
@@ -42,8 +42,8 @@ export default function OffcutAvailabilityPanel({ gaugeLabel, colour, minMeters 
 
   return (
     <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-      <p className="text-[10px] font-black uppercase tracking-wide text-[#134e4a] mb-2">Offcut availability (guidance)</p>
-      <ul className="space-y-1 text-[10px] text-slate-700">
+      <p className="text-ui-xs font-black uppercase tracking-wide text-zarewa-teal mb-2">Offcut availability (guidance)</p>
+      <ul className="space-y-1 text-ui-xs text-slate-700">
         {rows.slice(0, 8).map((r) => (
           <li key={r.id} className="flex justify-between gap-2">
             <span className="font-mono font-semibold">{r.id}</span>
@@ -51,7 +51,7 @@ export default function OffcutAvailabilityPanel({ gaugeLabel, colour, minMeters 
           </li>
         ))}
       </ul>
-      <p className="text-[9px] text-slate-500 mt-2">Production will confirm offcut use when the job runs.</p>
+      <p className="text-ui-xs text-slate-500 mt-2">Production will confirm offcut use when the job runs.</p>
     </div>
   );
 }

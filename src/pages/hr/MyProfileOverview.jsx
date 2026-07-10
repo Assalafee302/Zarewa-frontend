@@ -205,7 +205,7 @@ export default function MyProfileOverview() {
               <p className="text-sm text-slate-700">
                 <strong>{attendance.absentDays ?? 0}</strong> absent · <strong>{attendance.lateDays ?? 0}</strong> late
               </p>
-              <p className="mt-2 text-lg font-black tabular-nums text-[#134e4a]">
+              <p className="mt-2 text-lg font-black tabular-nums text-zarewa-teal">
                 {formatNgn(attendance.deductionNgn || 0)}
               </p>
               <p className="text-xs font-semibold text-slate-400">Est. deduction</p>
@@ -325,15 +325,15 @@ export default function MyProfileOverview() {
     hr && cohort !== 'domestic' ? (
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
         <div className="z-list-row-compact">
-          <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Job title</dt>
+          <dt className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Job title</dt>
           <dd className="mt-1 font-semibold text-slate-900">{hr.jobTitle || '—'}</dd>
         </div>
         <div className="z-list-row-compact">
-          <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Date joined</dt>
+          <dt className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Date joined</dt>
           <dd className="mt-1 font-semibold text-slate-900">{hr.dateJoinedIso || '—'}</dd>
         </div>
         <div className="z-list-row-compact">
-          <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employment type</dt>
+          <dt className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Employment type</dt>
           <dd className="mt-1 font-semibold capitalize text-slate-900">{hr.employmentType || '—'}</dd>
         </div>
         {hr.compensationRedacted ? (
@@ -343,13 +343,13 @@ export default function MyProfileOverview() {
         ) : (
           <>
             <div className="z-list-row-compact">
-              <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Base salary (monthly)</dt>
+              <dt className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Base salary (monthly)</dt>
               <dd className="mt-1 font-black tabular-nums text-slate-900">
                 {hr.baseSalaryNgn != null ? formatNgn(hr.baseSalaryNgn) : '—'}
               </dd>
             </div>
             <div className="z-list-row-compact">
-              <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Bank</dt>
+              <dt className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Bank</dt>
               <dd className="mt-1 font-semibold text-slate-900">
                 {hr.bankName || '—'}
                 {hr.bankAccountNoMasked ? ` · ${hr.bankAccountNoMasked}` : ''}

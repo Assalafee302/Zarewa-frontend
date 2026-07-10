@@ -47,12 +47,12 @@ export function WorkspaceSearchResults({
   const isModal = variant === 'modal';
   const rowPad = isModal ? 'px-4 py-3' : 'px-3 py-3 sm:py-2';
   const textSize = isModal ? 'text-sm' : 'text-[12px]';
-  const subSize = isModal ? 'text-xs' : 'text-[10px]';
+  const subSize = isModal ? 'text-xs' : 'text-ui-xs';
 
   if (busy) {
     return (
       <div className={className} role="status">
-        <p className={`${rowPad} ${isModal ? 'text-center text-slate-500' : 'text-[11px] text-gray-500'}`}>
+        <p className={`${rowPad} ${isModal ? 'text-center text-slate-500' : 'text-xs text-gray-500'}`}>
           Searching…
         </p>
       </div>
@@ -63,12 +63,12 @@ export function WorkspaceSearchResults({
     return (
       <div className={className}>
         <div className="divide-y divide-amber-50">
-          <p className={`${rowPad} ${isModal ? 'text-center text-slate-500' : 'text-[11px] text-gray-500'}`}>
+          <p className={`${rowPad} ${isModal ? 'text-center text-slate-500' : 'text-xs text-gray-500'}`}>
             {query.trim().length >= 2 ? 'No results.' : emptyMessage}
           </p>
           {fromCache ? (
             <p
-              className={`${rowPad} text-[10px] font-medium text-amber-950 bg-amber-50/90`}
+              className={`${rowPad} text-ui-xs font-medium text-amber-950 bg-amber-50/90`}
               role="status"
             >
               Cached workspace — empty results may be false negatives. Reconnect for live search.
@@ -88,7 +88,7 @@ export function WorkspaceSearchResults({
           ? groups.map((group) => (
               <div key={group.kind}>
                 <p
-                  className={`sticky top-0 z-[1] border-b border-gray-100 bg-gray-50/95 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400 ${
+                  className={`sticky top-0 z-[1] border-b border-gray-100 bg-gray-50/95 px-3 py-1.5 text-ui-xs font-black uppercase tracking-widest text-gray-400 ${
                     isModal ? 'px-4' : ''
                   }`}
                 >
@@ -112,7 +112,7 @@ export function WorkspaceSearchResults({
                           onClick={() => onSelect?.(hit)}
                         >
                           <span className={`min-w-0 flex-1 ${textSize}`}>
-                            <span className={`block truncate font-semibold text-[#134e4a] ${isModal ? 'font-medium text-slate-900' : ''}`}>
+                            <span className={`block truncate font-semibold text-zarewa-teal ${isModal ? 'font-medium text-slate-900' : ''}`}>
                               <HighlightText text={hit.label} query={query} />
                             </span>
                             {hit.sublabel ? (
@@ -149,7 +149,7 @@ export function WorkspaceSearchResults({
                   onClick={() => onSelect?.(hit)}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate font-medium ${isModal ? 'text-slate-900' : 'text-[#134e4a]'}`}>
+                    <span className={`block truncate font-medium ${isModal ? 'text-slate-900' : 'text-zarewa-teal'}`}>
                       {hit.label}
                     </span>
                     {hit.sublabel ? (
@@ -163,7 +163,7 @@ export function WorkspaceSearchResults({
       </div>
       {fromCache ? (
         <p
-          className={`border-t border-amber-100 bg-amber-50/90 ${rowPad} text-[10px] font-medium text-amber-950`}
+          className={`border-t border-amber-100 bg-amber-50/90 ${rowPad} text-ui-xs font-medium text-amber-950`}
           role="status"
         >
           Cached workspace — results may be incomplete or outdated. Reconnect for live search.

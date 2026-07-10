@@ -116,13 +116,13 @@ export function StaffObligationRepaymentModal({ obligation, treasuryAccounts = [
         <form onSubmit={handleSubmit}>
           <ModalScrollBody className="space-y-5">
             <div className="rounded-2xl border border-teal-200 bg-teal-50/50 p-4 space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-teal-700">
+              <p className="text-ui-xs font-bold uppercase tracking-widest text-teal-700">
                 {obligation.kindLabel || 'Staff obligation'}
               </p>
               <p className="text-lg font-bold text-slate-900">{obligation.staffDisplayName || obligation.userId}</p>
               {lookupLine ? <p className="text-sm font-semibold text-teal-900">Lookup: {lookupLine}</p> : null}
               <p className="text-sm text-slate-700">{obligation.title || obligation.id}</p>
-              <p className="text-3xl font-black tabular-nums text-[#134e4a]">{formatNgn(outstanding)}</p>
+              <p className="text-3xl font-black tabular-nums text-zarewa-teal">{formatNgn(outstanding)}</p>
               {monthly > 0 ? (
                 <p className="text-xs text-slate-600">
                   Payroll deducts {formatNgn(monthly)}/month — early payment reduces balance; monthly stays the same
@@ -154,7 +154,7 @@ export function StaffObligationRepaymentModal({ obligation, treasuryAccounts = [
                 ) : null}
                 {obligation.id && txId ? (
                   <a
-                    className="inline-flex items-center gap-2 rounded-lg bg-white border border-emerald-200 px-4 py-2 text-sm font-bold text-[#134e4a] shadow-sm hover:bg-emerald-50"
+                    className="inline-flex items-center gap-2 rounded-lg bg-white border border-emerald-200 px-4 py-2 text-sm font-bold text-zarewa-teal shadow-sm hover:bg-emerald-50"
                     href={obligationRepaymentReceiptPdfUrl(obligation.id, txId)}
                     target="_blank"
                     rel="noreferrer"
@@ -168,7 +168,7 @@ export function StaffObligationRepaymentModal({ obligation, treasuryAccounts = [
               <>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Collecting today</p>
-                  <p className="mt-1 text-2xl font-black tabular-nums text-[#134e4a]">
+                  <p className="mt-1 text-2xl font-black tabular-nums text-zarewa-teal">
                     {formatNgn(amountToCollect || outstanding)}
                   </p>
                 </div>
@@ -206,7 +206,7 @@ export function StaffObligationRepaymentModal({ obligation, treasuryAccounts = [
                       type="button"
                       className={`rounded-lg px-3 py-2 text-xs font-bold border ${
                         form.payInFull
-                          ? 'border-[#134e4a] bg-[#134e4a] text-white'
+                          ? 'border-zarewa-teal bg-zarewa-teal text-white'
                           : 'border-slate-200 bg-white text-slate-700'
                       }`}
                       onClick={() => setForm({ ...form, payInFull: true })}
@@ -217,7 +217,7 @@ export function StaffObligationRepaymentModal({ obligation, treasuryAccounts = [
                       type="button"
                       className={`rounded-lg px-3 py-2 text-xs font-bold border ${
                         !form.payInFull
-                          ? 'border-[#134e4a] bg-[#134e4a] text-white'
+                          ? 'border-zarewa-teal bg-zarewa-teal text-white'
                           : 'border-slate-200 bg-white text-slate-700'
                       }`}
                       onClick={() => setForm({ ...form, payInFull: false })}

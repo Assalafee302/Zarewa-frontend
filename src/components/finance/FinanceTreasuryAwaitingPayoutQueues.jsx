@@ -24,10 +24,10 @@ function PaymentRequestCategoryExtra({ req }) {
     <div className="flex flex-wrap items-center gap-1 mt-0.5">
       <ExpenseCategoryLaneBadge category={req.expenseCategory} laneKey={req.expenseCategoryLane} />
       {req.expenseCategory ? (
-        <span className="text-[8px] font-semibold text-slate-600">{req.expenseCategory}</span>
+        <span className="text-ui-xs font-semibold text-slate-600">{req.expenseCategory}</span>
       ) : null}
       {isException ? (
-        <span className="text-[8px] font-black uppercase tracking-wide text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+        <span className="text-ui-xs font-black uppercase tracking-wide text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
           Review
         </span>
       ) : null}
@@ -39,7 +39,7 @@ function RefundPayeeExtra({ refund }) {
   if (!refund?.payeeAccountNo) return null;
   const payeeTitle = [refund.payeeName, refund.payeeBankName, refund.payeeAccountNo].filter(Boolean).join(' · ');
   return (
-    <p className="text-[8px] font-semibold text-sky-900/90 mt-0.5 truncate" title={payeeTitle || undefined}>
+    <p className="text-ui-xs font-semibold text-sky-900/90 mt-0.5 truncate" title={payeeTitle || undefined}>
       Pay to: <span className="font-mono tabular-nums">{refund.payeeAccountNo}</span>
       {refund.payeeName || refund.payeeBankName ? (
         <span className="font-sans text-sky-900/85">

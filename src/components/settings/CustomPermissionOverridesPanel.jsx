@@ -58,14 +58,14 @@ export default function CustomPermissionOverridesPanel() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-black text-[#134e4a]">Custom permission overrides</h3>
+          <h3 className="text-sm font-black text-zarewa-teal">Custom permission overrides</h3>
           <p className="text-xs text-slate-500 mt-0.5">
             Users with extra permissions beyond their role default. Changes are audited as{' '}
-            <code className="text-[10px]">user.update_permissions</code>.
+            <code className="text-ui-xs">user.update_permissions</code>.
           </p>
         </div>
         {generatedAtIso ? (
-          <p className="text-[10px] text-slate-400 font-mono">Generated {generatedAtIso.slice(0, 19)}</p>
+          <p className="text-ui-xs text-slate-400 font-mono">Generated {generatedAtIso.slice(0, 19)}</p>
         ) : null}
       </div>
 
@@ -90,12 +90,12 @@ export default function CustomPermissionOverridesPanel() {
                 <AppTableTr key={u.userId}>
                   <AppTableTd>
                     <p className="font-semibold text-slate-800">{u.displayName || u.username}</p>
-                    <p className="text-[10px] text-slate-500 font-mono">@{u.username}</p>
+                    <p className="text-ui-xs text-slate-500 font-mono">@{u.username}</p>
                   </AppTableTd>
                   <AppTableTd>{u.roleLabel || u.roleKey}</AppTableTd>
                   <AppTableTd>
                     <span
-                      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${RISK_CLS[u.riskLevel] || RISK_CLS.none}`}
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-ui-xs font-bold uppercase ${RISK_CLS[u.riskLevel] || RISK_CLS.none}`}
                     >
                       {(u.riskLevel === 'critical' || u.riskLevel === 'high') && (
                         <AlertTriangle size={11} aria-hidden />
@@ -104,7 +104,7 @@ export default function CustomPermissionOverridesPanel() {
                     </span>
                   </AppTableTd>
                   <AppTableTd className="text-xs">{(u.modulesAffected || []).join(', ') || '—'}</AppTableTd>
-                  <AppTableTd className="text-[10px] font-mono text-slate-600 max-w-xs break-all">
+                  <AppTableTd className="text-ui-xs font-mono text-slate-600 max-w-xs break-all">
                     {(u.extraPermissions || []).join(', ')}
                   </AppTableTd>
                 </AppTableTr>

@@ -5,8 +5,8 @@ import { NavLink, useLocation } from 'react-router-dom';
 const linkClass = ({ isActive }) =>
   `shrink-0 rounded-xl px-3 py-2 text-xs font-semibold transition no-underline ${
     isActive
-      ? 'bg-[#134e4a] text-white shadow-md shadow-teal-950/15'
-      : 'text-slate-600 hover:bg-slate-50 hover:text-[#134e4a]'
+      ? 'bg-zarewa-teal text-white shadow-md shadow-teal-950/15'
+      : 'text-slate-600 hover:bg-slate-50 hover:text-zarewa-teal'
   }`;
 
 /**
@@ -44,8 +44,8 @@ export function HrSubnav({ items, moreItems = [], moreLabel = 'Programs', sticky
               onClick={() => setMoreOpen((o) => !o)}
               className={`rounded-xl px-3 py-2 min-h-11 text-xs font-semibold transition ${
                 moreOpen || moreActive
-                  ? 'bg-[#134e4a] text-white'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-[#134e4a]'
+                  ? 'bg-zarewa-teal text-white'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-zarewa-teal'
               }`}
               aria-expanded={moreOpen}
             >
@@ -58,7 +58,7 @@ export function HrSubnav({ items, moreItems = [], moreLabel = 'Programs', sticky
                     key={item.to}
                     to={item.to}
                     end={item.end}
-                    className="block px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-teal-50 hover:text-[#134e4a] no-underline"
+                    className="block px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-teal-50 hover:text-zarewa-teal no-underline"
                     onClick={() => setMoreOpen(false)}
                   >
                     {item.label}

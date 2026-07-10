@@ -96,7 +96,7 @@ export default function OfficeRecordDetail({ workItem, onClose, onRefresh }) {
       <header className="border-b border-slate-100 px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{n.referenceNo}</p>
+            <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">{n.referenceNo}</p>
             <h2 className="text-lg font-bold text-slate-900">{n.title}</h2>
             <div className="mt-2 flex flex-wrap gap-2">
               <span className={badges.primary.className}>{badges.primary.label}</span>

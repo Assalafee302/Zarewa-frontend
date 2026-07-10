@@ -23,15 +23,15 @@ export function AccountingSectionNav({ sections, value, onChange }) {
             role="tab"
             aria-selected={active}
             onClick={() => onChange(s.id)}
-            className={`rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 ${
+            className={`rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 ${
               active
-                ? 'bg-[#134e4a] text-white shadow-sm'
+                ? 'bg-zarewa-teal text-white shadow-sm'
                 : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/80'
             }`}
           >
-            <span className="block text-[10px] font-bold leading-tight">{s.title}</span>
+            <span className="block text-ui-xs font-bold leading-tight">{s.title}</span>
             <span
-              className={`block text-[9px] tabular-nums mt-0.5 ${
+              className={`block text-ui-xs tabular-nums mt-0.5 ${
                 active ? 'text-white/85' : 'text-slate-500'
               }`}
             >
@@ -72,11 +72,11 @@ export function AccountingRegisterHeader({
     return (
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
         <div className="min-w-0 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          {subtitle ? <p className="text-[11px] text-slate-600 leading-snug max-w-2xl">{subtitle}</p> : null}
+          {subtitle ? <p className="text-xs text-slate-600 leading-snug max-w-2xl">{subtitle}</p> : null}
           {totalValue != null ? (
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 shrink-0">
+            <p className="text-ui-xs font-semibold uppercase tracking-wider text-slate-500 shrink-0">
               {totalLabel}{' '}
-              <span className="text-base font-black text-[#134e4a] tabular-nums normal-case tracking-normal">
+              <span className="text-base font-black text-zarewa-teal tabular-nums normal-case tracking-normal">
                 {totalValue}
               </span>
             </p>
@@ -90,12 +90,12 @@ export function AccountingRegisterHeader({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b border-slate-100 pb-4">
       <div className="min-w-0">
-        <h2 className="text-lg font-bold text-[#134e4a]">{title}</h2>
-        {subtitle ? <p className="mt-1 text-[11px] text-slate-600 leading-snug max-w-2xl">{subtitle}</p> : null}
+        <h2 className="text-lg font-bold text-zarewa-teal">{title}</h2>
+        {subtitle ? <p className="mt-1 text-xs text-slate-600 leading-snug max-w-2xl">{subtitle}</p> : null}
         {totalValue != null ? (
-          <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+          <p className="mt-2 text-ui-xs font-semibold uppercase tracking-wider text-slate-500">
             {totalLabel}{' '}
-            <span className="text-base font-black text-[#134e4a] tabular-nums normal-case tracking-normal">
+            <span className="text-base font-black text-zarewa-teal tabular-nums normal-case tracking-normal">
               {totalValue}
             </span>
           </p>
@@ -111,12 +111,12 @@ export function AccountingRegisterHeader({
  */
 export function AccountingFilterSelect({ label = 'Filter', value, onChange, options }) {
   return (
-    <label className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+    <label className="inline-flex items-center gap-2 text-ui-xs font-bold uppercase tracking-wider text-slate-500">
       {label}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-800 min-w-[8rem]"
+        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 min-w-[8rem]"
       >
         {options.map((o) => (
           <option key={o.id} value={o.id}>

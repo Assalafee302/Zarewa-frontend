@@ -14,7 +14,7 @@ export function ScholarshipPaymentTracker({ tracker, compact = false }) {
   }
 
   return (
-    <ol className={`flex flex-wrap items-center gap-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+    <ol className={`flex flex-wrap items-center gap-1 ${compact ? 'text-ui-xs' : 'text-xs'}`}>
       {steps.map((step, i) => {
         const done = currentIndex > i;
         const active = currentIndex === i;

@@ -18,7 +18,7 @@ import { composeLegalDisplayName } from '../../lib/hrLegalDisplayName';
 function DetailRow({ label, value }) {
   return (
     <div className="z-list-row-compact">
-      <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</dt>
+      <dt className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">{label}</dt>
       <dd className="mt-1 text-sm font-semibold text-slate-900">{value || '—'}</dd>
     </div>
   );

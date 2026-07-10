@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
+import { renderWithProviders } from './test/renderWithProviders';
 import React, { StrictMode } from 'react';
 
 vi.mock('./lib/firebase.js', () => ({
@@ -196,6 +197,21 @@ function bootstrapPayload(sessionUser, permissions) {
 function installFetchMock(overrides = {}) {
   return vi.fn(async (input) => {
     const path = apiPathFromFetchInput(input);
+    if (path.includes('/api/office/summary')) {
+      return jsonFetchResponse({ ok: true, pendingTasks: 0, overdueTasks: 0 });
+    }
+    if (path.includes('/api/management/attention')) {
+      return jsonFetchResponse({ ok: true, items: [] });
+    }
+    if (path.includes('/api/hr/notification-summary')) {
+      return jsonFetchResponse({ ok: true, summary: { unread: 0, pending: 0 } });
+    }
+    if (path.includes('/api/reports/summary')) {
+      return jsonFetchResponse({ ok: true, counts: {} });
+    }
+    if (path.includes('/api/material-incidents')) {
+      return jsonFetchResponse({ ok: true, rows: [] });
+    }
     if (path.includes('/api/bootstrap')) {
       return jsonFetchResponse(overrides.bootstrap ?? bootstrapPayload(
         {
@@ -366,7 +382,7 @@ describe('authenticated startup TDZ', () => {
     async () => {
       window.history.pushState({}, '', '/');
       const { default: App } = await import('./App.jsx');
-      render(
+      renderWithProviders(
         <StrictMode>
           <App />
         </StrictMode>
@@ -399,7 +415,7 @@ describe('authenticated startup TDZ', () => {
     );
     window.history.pushState({}, '', '/');
     const { default: App } = await import('./App.jsx');
-    render(
+    renderWithProviders(
       <StrictMode>
         <App />
       </StrictMode>
@@ -432,7 +448,7 @@ describe('authenticated startup TDZ', () => {
     );
     window.history.pushState({}, '', '/accounting');
     const { default: App } = await import('./App.jsx');
-    render(
+    renderWithProviders(
       <StrictMode>
         <App />
       </StrictMode>
@@ -462,7 +478,7 @@ describe('authenticated startup TDZ', () => {
     );
     window.history.pushState({}, '', '/accounts?tab=desk');
     const { default: App } = await import('./App.jsx');
-    render(
+    renderWithProviders(
       <StrictMode>
         <App />
       </StrictMode>
@@ -490,7 +506,7 @@ describe('authenticated startup TDZ', () => {
     );
     window.history.pushState({}, '', '/accounts?tab=treasury');
     const { default: App } = await import('./App.jsx');
-    render(
+    renderWithProviders(
       <StrictMode>
         <App />
       </StrictMode>
@@ -531,7 +547,7 @@ describe('authenticated startup TDZ', () => {
     );
     window.history.pushState({}, '', '/my-profile/overview');
     const { default: App } = await import('./App.jsx');
-    render(
+    renderWithProviders(
       <StrictMode>
         <App />
       </StrictMode>
@@ -568,7 +584,7 @@ describe('authenticated startup TDZ', () => {
     );
     window.history.pushState({}, '', '/my-profile/loans');
     const { default: App } = await import('./App.jsx');
-    render(
+    renderWithProviders(
       <StrictMode>
         <App />
       </StrictMode>
@@ -606,7 +622,7 @@ describe('authenticated startup TDZ', () => {
     );
     window.history.pushState({}, '', '/exec?tab=finance');
     const { default: App } = await import('./App.jsx');
-    render(
+    renderWithProviders(
       <StrictMode>
         <App />
       </StrictMode>
@@ -626,7 +642,7 @@ describe('authenticated startup TDZ', () => {
       },
       { timeout: 15000 }
     );
-    fireEvent.click(screen.getByRole('button', { name: /^Overview$/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Review$/i }));
     await waitFor(
       () => {
         expect(screen.getByRole('heading', { name: /Targets vs Actuals/i })).toBeInTheDocument();

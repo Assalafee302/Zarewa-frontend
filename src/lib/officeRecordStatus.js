@@ -52,7 +52,7 @@ export function officeRecordStatusBadges(item) {
   const wrap = (b) => ({
     label: b.label,
     tone: b.tone,
-    className: `inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${TONE_CLASS[b.tone] || TONE_CLASS.slate}`,
+    className: `inline-flex items-center rounded-md px-2 py-0.5 text-ui-xs font-semibold ring-1 ring-inset ${TONE_CLASS[b.tone] || TONE_CLASS.slate}`,
   });
 
   return {

@@ -36,7 +36,7 @@ function RowList({ rows, render }) {
   return (
     <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
       {rows.map((row) => (
-        <li key={render.key(row)} className="px-3 py-2 text-[11px]">
+        <li key={render.key(row)} className="px-3 py-2 text-xs">
           {render.body(row)}
         </li>
       ))}
@@ -105,7 +105,7 @@ export function OperationalReportsPanel() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] text-slate-500">
+        <p className="text-ui-xs text-slate-500">
           Phase 11B operational reports · Phase 11C governance pack export
         </p>
         <button
@@ -116,7 +116,7 @@ export function OperationalReportsPanel() {
             await downloadGovernancePackCsv();
             setPackDownloading(false);
           }}
-          className="inline-flex items-center rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-teal-900 hover:bg-teal-100 disabled:opacity-50"
+          className="inline-flex items-center rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-teal-900 hover:bg-teal-100 disabled:opacity-50"
         >
           {packDownloading ? 'Preparing…' : 'Download governance pack (CSV)'}
         </button>
@@ -129,8 +129,8 @@ export function OperationalReportsPanel() {
           ['QC gaps', production?.qcGaps?.length ?? 0],
         ].map(([label, value]) => (
           <div key={label} className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-            <p className="text-[10px] font-bold uppercase text-slate-500">{label}</p>
-            <p className="text-2xl font-black tabular-nums text-[#134e4a]">{value}</p>
+            <p className="text-ui-xs font-bold uppercase text-slate-500">{label}</p>
+            <p className="text-2xl font-black tabular-nums text-zarewa-teal">{value}</p>
           </div>
         ))}
       </div>
@@ -206,14 +206,14 @@ export function OperationalReportsPanel() {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {['Planned', 'Running', 'Completed', 'Cancelled'].map((st) => (
             <div key={st} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <p className="text-[10px] font-bold uppercase text-slate-500">{st}</p>
+              <p className="text-ui-xs font-bold uppercase text-slate-500">{st}</p>
               <p className="text-lg font-black text-slate-900">{mix[st] ?? 0}</p>
             </div>
           ))}
         </div>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <p className="mb-1 text-[10px] font-black uppercase text-slate-500">Metre outliers (&gt;5%)</p>
+            <p className="mb-1 text-ui-xs font-black uppercase text-slate-500">Metre outliers (&gt;5%)</p>
             <RowList
               rows={production?.plannedActualOutliers}
               render={{
@@ -227,7 +227,7 @@ export function OperationalReportsPanel() {
             />
           </div>
           <div>
-            <p className="mb-1 text-[10px] font-black uppercase text-slate-500">Payment gate breaches</p>
+            <p className="mb-1 text-ui-xs font-black uppercase text-slate-500">Payment gate breaches</p>
             <RowList
               rows={production?.paymentGateExceptions}
               render={{

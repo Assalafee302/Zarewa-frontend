@@ -18,11 +18,11 @@ export default function HrMobileAlertStrip({ items = [] }) {
 
   return (
     <div className="mb-4 flex flex-wrap gap-2 lg:hidden" role="status" aria-label="HR alerts">
-      <span className="inline-flex w-full items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+      <span className="inline-flex w-full items-center gap-1 text-ui-xs font-bold uppercase tracking-wider text-slate-500">
         <Bell size={12} aria-hidden /> Queues
       </span>
       {visible.map((item) => {
-        const cls = `inline-flex rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold ${TONE_CLS[item.tone] || TONE_CLS.slate}`;
+        const cls = `inline-flex rounded-lg border px-2.5 py-1.5 text-ui-xs font-semibold ${TONE_CLS[item.tone] || TONE_CLS.slate}`;
         const label = item.count != null ? `${item.count} ${item.label}` : item.label;
         if (item.href) {
           return (

@@ -129,7 +129,7 @@ export default function HrIncidentRegistryPanel({ onOpenCase, focusRegistryId, o
                     <AppTableTd className="max-w-xs truncate" title={r.summary}>{r.summary || '—'}</AppTableTd>
                     <AppTableTd className="text-xs capitalize">{r.severity || '—'}</AppTableTd>
                     <AppTableTd>
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone(r.status)}`}>
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${statusTone(r.status)}`}>
                         {r.status || '—'}
                       </span>
                     </AppTableTd>

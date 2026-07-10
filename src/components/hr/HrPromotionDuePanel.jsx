@@ -65,7 +65,7 @@ export function HrPromotionDuePanel() {
               {rows.map((r) => (
                 <AppTableTr key={r.userId}>
                   <AppTableTd>
-                    <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(r.userId)}`} className="font-semibold text-[#134e4a] hover:underline">
+                    <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(r.userId)}`} className="font-semibold text-zarewa-teal hover:underline">
                       {r.displayName}
                     </Link>
                   </AppTableTd>
@@ -79,7 +79,7 @@ export function HrPromotionDuePanel() {
                   </AppTableTd>
                   <AppTableTd>
                     {r.eligibility === 'due' && !r.promotionBlocked ? (
-                      <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(r.userId)}?increment=1`} className="text-[10px] font-bold uppercase text-[#134e4a] hover:underline">
+                      <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(r.userId)}?increment=1`} className="text-ui-xs font-bold uppercase text-zarewa-teal hover:underline">
                         Apply increment
                       </Link>
                     ) : (

@@ -216,7 +216,7 @@ export function FinancePayrollPaymentsPanel() {
             type="button"
             onClick={loadRuns}
             disabled={loading}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -224,21 +224,21 @@ export function FinancePayrollPaymentsPanel() {
       />
 
       {error ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50/50 px-4 py-3 text-[11px] font-medium text-rose-800">
+        <div className="rounded-xl border border-rose-200 bg-rose-50/50 px-4 py-3 text-xs font-medium text-rose-800">
           {error}
         </div>
       ) : null}
       {message ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 text-[11px] font-medium text-emerald-900">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 text-xs font-medium text-emerald-900">
           {message}
         </div>
       ) : null}
 
-      {loading ? <p className="text-[11px] text-slate-500">Loading payroll queue…</p> : null}
+      {loading ? <p className="text-xs text-slate-500">Loading payroll queue…</p> : null}
 
       {!loading && runs.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
-          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+          <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest">
             No approved or locked payroll runs yet
           </p>
         </div>
@@ -292,12 +292,12 @@ export function FinancePayrollPaymentsPanel() {
               </label>
             </div>
             {totals && !totals.amountsRedacted ? (
-              <p className="mt-3 text-[10px] text-slate-600">
+              <p className="mt-3 text-ui-xs text-slate-600">
                 PAYE total: <span className="font-bold tabular-nums">{formatNgn(totals.taxTotalNgn)}</span>
               </p>
             ) : null}
             {glStatus ? (
-              <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-semibold">
+              <div className="mt-3 flex flex-wrap gap-2 text-ui-xs font-semibold">
                 <span
                   className={`rounded-md px-2 py-0.5 ${glStatus.accrualPosted ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}
                 >
@@ -318,7 +318,7 @@ export function FinancePayrollPaymentsPanel() {
                 type="button"
                 onClick={postAccrualGl}
                 disabled={glBusy}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-[#134e4a] bg-white px-4 py-2.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] disabled:opacity-50"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-zarewa-teal bg-white px-4 py-2.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal disabled:opacity-50"
               >
                 Post accrual to GL
               </button>
@@ -327,7 +327,7 @@ export function FinancePayrollPaymentsPanel() {
               type="button"
               onClick={downloadBankFile}
               disabled={!selectedId || selected?.status === 'draft'}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-[#134e4a] px-4 py-2.5 text-[9px] font-semibold uppercase tracking-wider text-white disabled:opacity-50"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-zarewa-teal px-4 py-2.5 text-ui-xs font-semibold uppercase tracking-wider text-white disabled:opacity-50"
             >
               Download bank payment file
             </button>
@@ -336,13 +336,13 @@ export function FinancePayrollPaymentsPanel() {
                 type="button"
                 onClick={() => setMarkPaidOpen(true)}
                 disabled={busy || !treasuryAccountId}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-4 py-2.5 text-[9px] font-semibold uppercase tracking-wider text-white disabled:opacity-50"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-4 py-2.5 text-ui-xs font-semibold uppercase tracking-wider text-white disabled:opacity-50"
               >
                 Mark paid & post treasury
               </button>
             ) : null}
             {selected?.status === 'draft' ? (
-              <span className="text-[10px] text-amber-800 leading-relaxed self-center">
+              <span className="text-ui-xs text-amber-800 leading-relaxed self-center">
                 Lock run in HR after GM/MD approval before bank upload.
               </span>
             ) : null}
@@ -352,7 +352,7 @@ export function FinancePayrollPaymentsPanel() {
 
       {runs.length > 0 && totals && !totals.amountsRedacted ? (
         <ProcurementFormSection letter="2" title="Statutory remittance (PAYE / pension)" compact>
-          <p className="text-[10px] text-slate-600 mb-3">
+          <p className="text-ui-xs text-slate-600 mb-3">
             When you pay FIRS / pension administrator, post Dr 2300/2400 and Cr bank to clear payables.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -390,7 +390,7 @@ export function FinancePayrollPaymentsPanel() {
             type="button"
             onClick={postStatutoryRemittance}
             disabled={remitBusy || !treasuryAccountId}
-            className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-lg border border-[#134e4a] bg-white px-4 py-2.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] disabled:opacity-50"
+            className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-lg border border-zarewa-teal bg-white px-4 py-2.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal disabled:opacity-50"
           >
             Post remittance to GL
           </button>

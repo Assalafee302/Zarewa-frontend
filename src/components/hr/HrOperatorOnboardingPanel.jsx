@@ -74,10 +74,10 @@ export function HrOperatorOnboardingPanel({ className = '' }) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p id="hr-onboarding-heading" className="text-xs font-semibold text-[#134e4a]/70">
+          <p id="hr-onboarding-heading" className="text-xs font-semibold text-zarewa-teal/70">
             Getting started
           </p>
-          <p className="mt-1 text-sm font-bold text-[#134e4a]">Your HR operator checklist</p>
+          <p className="mt-1 text-sm font-bold text-zarewa-teal">Your HR operator checklist</p>
           <p className="mt-1 text-xs text-slate-600">
             {doneCount} of {steps.length} completed — tick items as you go, or dismiss when you are comfortable.
           </p>
@@ -103,7 +103,7 @@ export function HrOperatorOnboardingPanel({ className = '' }) {
                 <button
                   type="button"
                   onClick={() => setChecked((c) => ({ ...c, [step.id]: !c[step.id] }))}
-                  className="mt-0.5 shrink-0 text-[#134e4a]"
+                  className="mt-0.5 shrink-0 text-zarewa-teal"
                   aria-label={done ? `Mark ${step.label} as not done` : `Mark ${step.label} as done`}
                 >
                   {done ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Circle size={18} className="text-slate-300" />}
@@ -111,7 +111,7 @@ export function HrOperatorOnboardingPanel({ className = '' }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-900">{step.label}</p>
                   <p className="mt-0.5 text-xs text-slate-600">{step.hint}</p>
-                  <Link to={step.href} className="mt-2 inline-block text-xs font-semibold text-[#134e4a] hover:underline">
+                  <Link to={step.href} className="mt-2 inline-block text-xs font-semibold text-zarewa-teal hover:underline">
                     Open →
                   </Link>
                 </div>

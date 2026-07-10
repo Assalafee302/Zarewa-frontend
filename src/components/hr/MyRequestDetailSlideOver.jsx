@@ -25,7 +25,7 @@ export function MyRequestDetailSlideOver({ request, isOpen, onClose }) {
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
           <div className="min-w-0">
             <p className="z-meta-text font-semibold text-slate-500">{hrRequestKindLabel(request.kind)}</p>
-            <h2 className="truncate text-base font-bold text-[#134e4a]">{request.title || 'Request'}</h2>
+            <h2 className="truncate text-base font-bold text-zarewa-teal">{request.title || 'Request'}</h2>
           </div>
           <button
             type="button"
@@ -84,7 +84,7 @@ export function MyRequestDetailSlideOver({ request, isOpen, onClose }) {
         <div className="border-t border-slate-200 px-4 py-3 sm:px-5">
           <Link
             to="/my-profile/requests"
-            className="text-xs font-semibold text-[#134e4a] hover:underline"
+            className="text-xs font-semibold text-zarewa-teal hover:underline"
             onClick={onClose}
           >
             Back to all requests

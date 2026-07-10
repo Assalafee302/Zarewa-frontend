@@ -39,7 +39,7 @@ export function HrProfileCompleteness({ completeness, staffBasePath, userId, onF
         {!compact && !embedded && userId && staffBasePath ? (
           <Link
             to={`${staffBasePath}/${encodeURIComponent(userId)}?tab=documents`}
-            className="text-xs font-semibold text-[#134e4a] hover:underline"
+            className="text-xs font-semibold text-zarewa-teal hover:underline"
           >
             Fix missing items →
           </Link>
@@ -62,7 +62,7 @@ export function HrProfileCompleteness({ completeness, staffBasePath, userId, onF
               {s.pct < 100 && onFixSection && s.fixTab ? (
                 <button
                   type="button"
-                  className="rounded-md px-2 py-1 text-[10px] font-semibold text-[#134e4a] hover:bg-teal-50"
+                  className="rounded-md px-2 py-1 text-ui-xs font-semibold text-zarewa-teal hover:bg-teal-50"
                   onClick={() => onFixSection(s.fixTab)}
                 >
                   Fix

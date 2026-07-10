@@ -69,11 +69,11 @@ export default function RoleTrainingGuideModal({ variant = 'onboarding', onClose
           <div className="flex items-start gap-4">
             <img src={ZAREWA_LOGO_SRC} alt="" className="h-9 w-auto shrink-0" width={90} height={36} />
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-teal-700/80 flex items-center gap-1.5">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-teal-700/80 flex items-center gap-1.5">
                 <BookOpen size={14} aria-hidden />
                 Role training · {user?.roleLabel || user?.roleKey}
               </p>
-              <h1 id="role-training-title" className="mt-1 text-xl font-black text-[#134e4a] sm:text-2xl">
+              <h1 id="role-training-title" className="mt-1 text-xl font-black text-zarewa-teal sm:text-2xl">
                 {guide.title}
               </h1>
               <p className="mt-1 text-sm text-slate-600 leading-relaxed">{guide.subtitle}</p>
@@ -83,7 +83,7 @@ export default function RoleTrainingGuideModal({ variant = 'onboarding', onClose
             {steps.map((_, i) => (
               <div
                 key={i}
-                className={`h-1.5 flex-1 rounded-full ${i <= stepIndex ? 'bg-[#134e4a]' : 'bg-slate-200'}`}
+                className={`h-1.5 flex-1 rounded-full ${i <= stepIndex ? 'bg-zarewa-teal' : 'bg-slate-200'}`}
                 aria-hidden
               />
             ))}
@@ -91,7 +91,7 @@ export default function RoleTrainingGuideModal({ variant = 'onboarding', onClose
         </div>
 
         <div className="px-6 py-6 sm:px-8 sm:py-7">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
             Step {stepIndex + 1} of {steps.length}
           </p>
           <h2 className="mt-2 text-lg font-black text-slate-900">{step.heading}</h2>
@@ -117,7 +117,7 @@ export default function RoleTrainingGuideModal({ variant = 'onboarding', onClose
                     type="button"
                     disabled={busy}
                     onClick={() => goQuickLink(link.path)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-[#134e4a] hover:bg-teal-50 disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-zarewa-teal hover:bg-teal-50 disabled:opacity-60"
                   >
                     {link.label}
                     <ExternalLink size={12} aria-hidden />
@@ -156,7 +156,7 @@ export default function RoleTrainingGuideModal({ variant = 'onboarding', onClose
                 type="button"
                 disabled={busy}
                 onClick={() => setStepIndex((i) => Math.min(steps.length - 1, i + 1))}
-                className="inline-flex items-center justify-center gap-1 rounded-xl bg-[#134e4a] px-5 py-2.5 text-xs font-black text-white"
+                className="inline-flex items-center justify-center gap-1 rounded-xl bg-zarewa-teal px-5 py-2.5 text-xs font-black text-white"
               >
                 Next
                 <ChevronRight size={16} aria-hidden />
@@ -166,7 +166,7 @@ export default function RoleTrainingGuideModal({ variant = 'onboarding', onClose
                 type="button"
                 disabled={busy}
                 onClick={() => void finish()}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#134e4a] px-5 py-2.5 text-xs font-black text-white"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-zarewa-teal px-5 py-2.5 text-xs font-black text-white"
               >
                 <CheckCircle2 size={16} aria-hidden />
                 {busy ? 'Saving…' : isReplay ? 'Done' : 'Finish and open workspace'}

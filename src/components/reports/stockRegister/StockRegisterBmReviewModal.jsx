@@ -197,8 +197,8 @@ export function StockRegisterBmReviewModal({
         <div className="z-modal-panel-lg flex max-h-[92dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
           <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Branch manager review</p>
-              <h2 className="text-lg font-bold text-[#134e4a]">Stock register clearance</h2>
+              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Branch manager review</p>
+              <h2 className="text-lg font-bold text-zarewa-teal">Stock register clearance</h2>
               <p className="text-sm text-slate-600 mt-0.5">
                 {branchLabel} · period ending {periodEnd}
               </p>
@@ -217,7 +217,7 @@ export function StockRegisterBmReviewModal({
               <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
                 <div className="h-full bg-teal-700 transition-all" style={{ width: `${pct}%` }} />
               </div>
-              <p className="text-[10px] text-slate-500 mt-1">
+              <p className="text-ui-xs text-slate-500 mt-1">
                 OK {progress.cleared} · Adjusted {progress.adjusted} · Query {progress.query} · Pending{' '}
                 {progress.pending + progress.finishedPending}
               </p>
@@ -228,7 +228,7 @@ export function StockRegisterBmReviewModal({
                 <button
                   key={t.key}
                   type="button"
-                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                  className={`text-ui-xs font-bold px-2.5 py-1 rounded-full border ${
                     tab === t.key ? 'bg-teal-700 text-white border-teal-700' : 'bg-white text-slate-600 border-slate-200'
                   }`}
                   onClick={() => setTab(t.key)}
@@ -243,7 +243,7 @@ export function StockRegisterBmReviewModal({
                 <button
                   key={f.key}
                   type="button"
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                  className={`text-ui-xs font-bold px-2 py-0.5 rounded border ${
                     statusFilter === f.key ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200'
                   }`}
                   onClick={() => setStatusFilter(f.key)}
@@ -275,7 +275,7 @@ export function StockRegisterBmReviewModal({
                           <p className="text-sm font-semibold text-slate-800 truncate">{lineLabel(item)}</p>
                           <p className="text-xs text-slate-500">{lineQty(item)}</p>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${badge.cls}`}>
+                        <span className={`text-ui-xs font-bold px-2 py-0.5 rounded-full border shrink-0 ${badge.cls}`}>
                           {badge.label}
                         </span>
                       </button>

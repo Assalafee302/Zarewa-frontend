@@ -165,7 +165,7 @@ export default function UnifiedWorkItemsPanel({ hideFooter = false, view: viewPr
           className="group flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-[#f2f6fc] md:gap-4 md:px-4 md:py-3.5"
         >
           <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#134e4a] text-[13px] font-semibold text-white md:h-10 md:w-10"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zarewa-teal text-[13px] font-semibold text-white md:h-10 md:w-10"
             aria-hidden
           >
             {initial}
@@ -195,12 +195,12 @@ export default function UnifiedWorkItemsPanel({ hideFooter = false, view: viewPr
 
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
-      <div className="h-1 bg-[#134e4a]" aria-hidden />
+      <div className="h-1 bg-zarewa-teal" aria-hidden />
       <div className="px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5">
         <div className="mb-4 min-w-0 md:mb-5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Workspace</p>
+          <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500">Workspace</p>
           <h2 className="mt-0.5 flex items-center gap-2 text-xl font-normal tracking-tight text-[#202124]">
-            <Inbox size={22} className="shrink-0 text-[#134e4a]" strokeWidth={1.75} aria-hidden />
+            <Inbox size={22} className="shrink-0 text-zarewa-teal" strokeWidth={1.75} aria-hidden />
             {view === 'file' ? 'File' : view === 'unfiled' ? 'Unfiled' : view === 'all' ? 'In tray' : 'Action inbox'}
           </h2>
           <p className="mt-1.5 max-w-2xl text-[13px] leading-snug text-[#5f6368]">
@@ -226,13 +226,13 @@ export default function UnifiedWorkItemsPanel({ hideFooter = false, view: viewPr
           <div className="space-y-8">
             {fileSections.map((section) => (
               <div key={section.category}>
-                <h3 className="mb-3 border-b border-slate-200 pb-1 text-[11px] font-black uppercase tracking-widest text-slate-500">
+                <h3 className="mb-3 border-b border-slate-200 pb-1 text-xs font-black uppercase tracking-widest text-slate-500">
                   {section.category}
                 </h3>
                 <div className="space-y-5">
                   {section.groups.map((g) => (
                     <div key={`${section.category}-${g.subcategory}`}>
-                      <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">{g.subcategory}</p>
+                      <p className="mb-2 text-ui-xs font-bold uppercase tracking-wide text-slate-400">{g.subcategory}</p>
                       <ul className="overflow-hidden rounded-lg border border-[#e8eaed] bg-white">
                         {g.items.map((item) => renderItemRow(item))}
                       </ul>
@@ -252,14 +252,14 @@ export default function UnifiedWorkItemsPanel({ hideFooter = false, view: viewPr
           <div className="mt-5 flex flex-wrap gap-2">
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase tracking-wide text-slate-700 hover:bg-slate-50"
             >
               <FileText size={14} />
               Workspace home
             </Link>
             <Link
               to="/manager"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase tracking-wide text-slate-700 hover:bg-slate-50"
             >
               <ShieldCheck size={14} />
               Open management view

@@ -153,12 +153,12 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
       description="Direct receipt without a purchase order — for corrections only. Prefer a purchase order for normal buying."
     >
       <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white shadow-xl overflow-hidden">
-        <div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold text-amber-950 leading-snug">
+        <div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-ui-xs font-semibold text-amber-950 leading-snug">
           Prefer a purchase order in Procurement, then receive in Operations. Use this form only when stock must be
           posted without a PO (admin / MD).
         </div>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/80">
-          <h2 className="text-sm font-bold text-[#134e4a]">Non-coil receipts</h2>
+          <h2 className="text-sm font-bold text-zarewa-teal">Non-coil receipts</h2>
           <button
             type="button"
             onClick={onClose}
@@ -177,9 +177,9 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wide rounded-t-lg border-b-2 -mb-px ${
+              className={`px-3 py-2 text-ui-xs font-bold uppercase tracking-wide rounded-t-lg border-b-2 -mb-px ${
                 tab === t.id
-                  ? 'border-[#134e4a] text-[#134e4a] bg-white'
+                  ? 'border-zarewa-teal text-zarewa-teal bg-white'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -189,7 +189,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
         </div>
         <div className="p-5 max-h-[min(70vh,520px)] overflow-y-auto">
           {err ? (
-            <p className="mb-3 text-[11px] text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2" role="alert">
+            <p className="mb-3 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2" role="alert">
               {err}
             </p>
           ) : null}
@@ -197,10 +197,10 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
             <form onSubmit={submitStone} className="space-y-4">
               <ProcurementFormSection letter="S" title="Stone-coated (metres)" compact>
                 {stoneProfiles.length === 0 ? (
-                  <p className="text-[11px] text-slate-600">No stone designs in master data (MAT-005 profiles).</p>
+                  <p className="text-xs text-slate-600">No stone designs in master data (MAT-005 profiles).</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label className="block text-[10px] font-semibold text-slate-600">
+                    <label className="block text-ui-xs font-semibold text-slate-600">
                       Design
                       <select
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
@@ -214,7 +214,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
                         ))}
                       </select>
                     </label>
-                    <label className="block text-[10px] font-semibold text-slate-600">
+                    <label className="block text-ui-xs font-semibold text-slate-600">
                       Colour
                       <select
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
@@ -228,7 +228,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
                         ))}
                       </select>
                     </label>
-                    <label className="block text-[10px] font-semibold text-slate-600">
+                    <label className="block text-ui-xs font-semibold text-slate-600">
                       Gauge
                       <select
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
@@ -242,7 +242,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
                         ))}
                       </select>
                     </label>
-                    <label className="block text-[10px] font-semibold text-slate-600" htmlFor="zarewa-stone-receipt-metres">
+                    <label className="block text-ui-xs font-semibold text-slate-600" htmlFor="zarewa-stone-receipt-metres">
                       Metres received
                       <input
                         id="zarewa-stone-receipt-metres"
@@ -254,7 +254,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
                         onChange={(e) => setStoneForm((s) => ({ ...s, metres: e.target.value }))}
                       />
                     </label>
-                    <label className="block text-[10px] font-semibold text-slate-600 sm:col-span-2">
+                    <label className="block text-ui-xs font-semibold text-slate-600 sm:col-span-2">
                       Cost / metre (₦, optional — posts inventory GL when &gt; 0)
                       <input
                         type="number"
@@ -265,7 +265,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
                         onChange={(e) => setStoneForm((s) => ({ ...s, unitPricePerMeterNgn: e.target.value }))}
                       />
                     </label>
-                    <label className="block text-[10px] font-semibold text-slate-600 sm:col-span-2">
+                    <label className="block text-ui-xs font-semibold text-slate-600 sm:col-span-2">
                       Supplier (optional)
                       <input
                         type="text"
@@ -274,7 +274,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
                         onChange={(e) => setStoneForm((s) => ({ ...s, supplierName: e.target.value }))}
                       />
                     </label>
-                    <label className="block text-[10px] font-semibold text-slate-600 sm:col-span-2">
+                    <label className="block text-ui-xs font-semibold text-slate-600 sm:col-span-2">
                       Reference note
                       <input
                         type="text"
@@ -289,7 +289,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
               <button
                 type="submit"
                 disabled={stoneDisabled}
-                className="w-full rounded-xl bg-[#134e4a] text-white py-2.5 text-[10px] font-bold uppercase tracking-wide hover:brightness-105 disabled:opacity-40"
+                className="w-full rounded-xl bg-zarewa-teal text-white py-2.5 text-ui-xs font-bold uppercase tracking-wide hover:brightness-105 disabled:opacity-40"
               >
                 {busy ? 'Posting…' : 'Post stone receipt'}
               </button>
@@ -298,7 +298,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
             <form onSubmit={submitAccessory} className="space-y-4">
               <ProcurementFormSection letter="A" title="Accessory" compact>
                 <div className="grid grid-cols-1 gap-3">
-                  <label className="block text-[10px] font-semibold text-slate-600">
+                  <label className="block text-ui-xs font-semibold text-slate-600">
                     Product
                     <select
                       className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-mono"
@@ -315,7 +315,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
                       ))}
                     </select>
                   </label>
-                  <label className="block text-[10px] font-semibold text-slate-600">
+                  <label className="block text-ui-xs font-semibold text-slate-600">
                     Quantity
                     <input
                       type="number"
@@ -326,7 +326,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
                       onChange={(e) => setAccForm((a) => ({ ...a, qty: e.target.value }))}
                     />
                   </label>
-                  <label className="block text-[10px] font-semibold text-slate-600">
+                  <label className="block text-ui-xs font-semibold text-slate-600">
                     Unit cost (₦, optional)
                     <input
                       type="number"
@@ -337,7 +337,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
                       onChange={(e) => setAccForm((a) => ({ ...a, unitCostNgn: e.target.value }))}
                     />
                   </label>
-                  <label className="block text-[10px] font-semibold text-slate-600">
+                  <label className="block text-ui-xs font-semibold text-slate-600">
                     Note
                     <input
                       type="text"
@@ -351,7 +351,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
               <button
                 type="submit"
                 disabled={accDisabled}
-                className="w-full rounded-xl bg-[#134e4a] text-white py-2.5 text-[10px] font-bold uppercase tracking-wide hover:brightness-105 disabled:opacity-40"
+                className="w-full rounded-xl bg-zarewa-teal text-white py-2.5 text-ui-xs font-bold uppercase tracking-wide hover:brightness-105 disabled:opacity-40"
               >
                 {busy ? 'Posting…' : 'Post accessory receipt'}
               </button>

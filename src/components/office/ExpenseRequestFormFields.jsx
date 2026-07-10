@@ -74,10 +74,10 @@ export function ExpenseRequestFormFields({
   const fields = (
     <>
       <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-4 space-y-4">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Request details</p>
+        <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Request details</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Request date</label>
+          <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">Request date</label>
           <input
             type="date"
             required
@@ -87,7 +87,7 @@ export function ExpenseRequestFormFields({
           />
         </div>
         <div>
-          <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Reference</label>
+          <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">Reference</label>
           <input
             value={form.requestReference}
             onChange={(e) => setForm((f) => ({ ...f, requestReference: e.target.value }))}
@@ -97,7 +97,7 @@ export function ExpenseRequestFormFields({
         </div>
       </div>
       <div>
-        <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Description</label>
+        <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">Description</label>
         <textarea
           rows={4}
           value={form.description}
@@ -107,7 +107,7 @@ export function ExpenseRequestFormFields({
         />
       </div>
       <div>
-        <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Expense category</label>
+        <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">Expense category</label>
         {activeRecommendation?.category ? (
           <ExpenseCategoryRecommendationCard
             category={activeRecommendation.category}
@@ -141,17 +141,17 @@ export function ExpenseRequestFormFields({
       </div>
       <div className="rounded-xl border border-slate-200/70 bg-white p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Line items</label>
+          <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Line items</label>
           <button
             type="button"
             onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, createExpenseRequestLineItem()] }))}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] inline-flex items-center gap-1"
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal inline-flex items-center gap-1"
           >
             <Plus size={12} /> Add item
           </button>
         </div>
         <div className="rounded-xl border border-slate-200/80 overflow-hidden max-h-[min(42vh,320px)] overflow-y-auto overscroll-contain">
-          <div className="hidden sm:grid grid-cols-[1fr_72px_100px_96px_40px] gap-2 px-3 py-2 bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-500 sticky top-0 z-[1]">
+          <div className="hidden sm:grid grid-cols-[1fr_72px_100px_96px_40px] gap-2 px-3 py-2 bg-slate-50 text-ui-xs font-black uppercase tracking-wide text-slate-500 sticky top-0 z-[1]">
             <span>Item</span>
             <span className="text-center">Unit</span>
             <span className="text-right">Unit price</span>
@@ -173,7 +173,7 @@ export function ExpenseRequestFormFields({
                     }))
                   }
                   placeholder="Description of item or service"
-                  className="w-full bg-white border border-slate-200 rounded-lg py-2 px-2 text-[11px] font-semibold outline-none"
+                  className="w-full bg-white border border-slate-200 rounded-lg py-2 px-2 text-xs font-semibold outline-none"
                 />
                 <input
                   type="number"
@@ -187,7 +187,7 @@ export function ExpenseRequestFormFields({
                     }))
                   }
                   placeholder="Qty"
-                  className="w-full bg-white border border-slate-200 rounded-lg py-2 px-2 text-[11px] font-bold outline-none text-center"
+                  className="w-full bg-white border border-slate-200 rounded-lg py-2 px-2 text-xs font-bold outline-none text-center"
                 />
                 <input
                   type="number"
@@ -201,9 +201,9 @@ export function ExpenseRequestFormFields({
                     }))
                   }
                   placeholder="₦"
-                  className="w-full bg-white border border-slate-200 rounded-lg py-2 px-2 text-[11px] font-bold outline-none text-right tabular-nums"
+                  className="w-full bg-white border border-slate-200 rounded-lg py-2 px-2 text-xs font-bold outline-none text-right tabular-nums"
                 />
-                <p className="text-[11px] font-black text-[#134e4a] tabular-nums text-right py-2 sm:py-0">
+                <p className="text-xs font-black text-zarewa-teal tabular-nums text-right py-2 sm:py-0">
                   {formatNgn(expenseRequestLineTotal(row))}
                 </p>
                 <div className="flex justify-end">
@@ -226,13 +226,13 @@ export function ExpenseRequestFormFields({
             ))}
           </ul>
         </div>
-        <p className="text-[10px] text-slate-500">
+        <p className="text-ui-xs text-slate-500">
           Total requested:{' '}
-          <span className="font-black text-[#134e4a] tabular-nums">{formatNgn(requestTotalNgn)}</span>
+          <span className="font-black text-zarewa-teal tabular-nums">{formatNgn(requestTotalNgn)}</span>
         </p>
       </div>
       <div className="rounded-xl border border-slate-200/70 bg-slate-50/40 p-4">
-        <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+        <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
           <span className="inline-flex items-center gap-1">
             <Paperclip size={12} className="opacity-60" />
             Attachment (invoice / receipt)
@@ -267,7 +267,7 @@ export function ExpenseRequestFormFields({
               };
               reader.readAsDataURL(f);
             }}
-            className="block w-full text-[11px] text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-teal-50 file:text-[#134e4a]"
+            className="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-ui-xs file:font-bold file:bg-teal-50 file:text-zarewa-teal"
           />
           {form.attachment ? (
             <button
@@ -276,18 +276,18 @@ export function ExpenseRequestFormFields({
                 setForm((f) => ({ ...f, attachment: null }));
                 if (fileInputRef?.current) fileInputRef.current.value = '';
               }}
-              className="text-[10px] font-bold uppercase text-rose-700 bg-rose-50 px-3 py-2 rounded-lg"
+              className="text-ui-xs font-bold uppercase text-rose-700 bg-rose-50 px-3 py-2 rounded-lg"
             >
               Remove file
             </button>
           ) : null}
         </div>
         {form.attachment ? (
-          <p className="text-[10px] text-slate-500 mt-1 truncate" title={form.attachment.name}>
+          <p className="text-ui-xs text-slate-500 mt-1 truncate" title={form.attachment.name}>
             Selected: {form.attachment.name}
           </p>
         ) : (
-          <p className="text-[10px] text-gray-400 mt-1">PDF or image. Optional but recommended.</p>
+          <p className="text-ui-xs text-gray-400 mt-1">PDF or image. Optional but recommended.</p>
         )}
       </div>
     </>
@@ -295,7 +295,7 @@ export function ExpenseRequestFormFields({
 
   const footer = (
     <>
-      {hintBeforeSubmit ? <p className="text-[10px] text-slate-500 leading-snug">{hintBeforeSubmit}</p> : null}
+      {hintBeforeSubmit ? <p className="text-ui-xs text-slate-500 leading-snug">{hintBeforeSubmit}</p> : null}
       <button
         type="submit"
         disabled={submitting}
@@ -312,8 +312,8 @@ export function ExpenseRequestFormFields({
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 -mr-1">{fields}</div>
         <div className="mt-4 shrink-0 space-y-3 border-t border-slate-200/80 bg-white/95 pt-4 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-3 rounded-lg bg-teal-50/80 px-3 py-2">
-            <span className="text-[10px] font-bold uppercase tracking-wide text-teal-900/80">Total</span>
-            <span className="text-sm font-black tabular-nums text-[#134e4a]">{formatNgn(requestTotalNgn)}</span>
+            <span className="text-ui-xs font-bold uppercase tracking-wide text-teal-900/80">Total</span>
+            <span className="text-sm font-black tabular-nums text-zarewa-teal">{formatNgn(requestTotalNgn)}</span>
           </div>
           {footer}
         </div>

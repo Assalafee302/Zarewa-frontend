@@ -47,24 +47,24 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
           </div>
         ) : null}
         {auditData.quotation?.projectName ? (
-          <p className="mb-2 text-[11px] text-slate-600">
+          <p className="mb-2 text-xs text-slate-600">
             <span className="font-bold text-slate-800">Project:</span> {auditData.quotation.projectName}
           </p>
         ) : null}
         {quotationMaterialSpecRows(auditData).length > 0 ? (
           <div className="mb-3 rounded-lg border border-teal-200/80 bg-teal-50/50 px-2.5 py-2 space-y-1">
-            <p className="text-[9px] font-black uppercase tracking-wide text-teal-900/80">Material specification</p>
+            <p className="text-ui-xs font-black uppercase tracking-wide text-teal-900/80">Material specification</p>
             {quotationMaterialSpecRows(auditData).map((row) => (
               <IntelDetailRow key={row.label} label={row.label} value={row.value} />
             ))}
           </div>
         ) : (
-          <p className="mb-3 text-[10px] text-amber-800 leading-snug rounded-lg border border-amber-200/80 bg-amber-50/60 px-2 py-1.5">
+          <p className="mb-3 text-ui-xs text-amber-800 leading-snug rounded-lg border border-amber-200/80 bg-amber-50/60 px-2 py-1.5">
             Gauge, colour, and design are not recorded on this quotation — check Sales for the full quote.
           </p>
         )}
         {(sum?.managerClearedAtIso || sum?.managerFlaggedAtIso || sum?.managerProductionApprovedAtIso) && (
-          <p className="mb-2 text-[10px] text-slate-500">
+          <p className="mb-2 text-ui-xs text-slate-500">
             {sum.managerClearedAtIso ? `Cleared ${sum.managerClearedAtIso.slice(0, 10)}` : ''}
             {sum.managerProductionApprovedAtIso
               ? ` · Prod override ${sum.managerProductionApprovedAtIso.slice(0, 10)}`
@@ -74,7 +74,7 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
             ) : null}
           </p>
         )}
-        <p className="mb-1 text-[9px] font-black uppercase tracking-wide text-slate-400">Order lines ({lines.length})</p>
+        <p className="mb-1 text-ui-xs font-black uppercase tracking-wide text-slate-400">Order lines ({lines.length})</p>
         {lines.length === 0 ? (
           <p className="text-xs text-slate-500">No structured lines — open Sales for full quote.</p>
         ) : (
@@ -82,7 +82,7 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
             {lines.map((ln, idx) => (
               <div key={`${ln.category}-${idx}`} className="flex flex-wrap items-baseline justify-between gap-2 px-2 py-1.5">
                 <div className="min-w-0">
-                  <span className="mr-1.5 text-[8px] font-black uppercase text-slate-400">{ln.category}</span>
+                  <span className="mr-1.5 text-ui-xs font-black uppercase text-slate-400">{ln.category}</span>
                   <span className="font-semibold text-slate-900">{ln.name}</span>
                   {ln.qty !== '' && ln.qty != null ? (
                     <span className="ml-1 text-slate-500">
@@ -91,7 +91,7 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
                     </span>
                   ) : null}
                   {lineMaterialSubtitle(ln) ? (
-                    <p className="mt-0.5 w-full basis-full text-[9px] text-slate-500 leading-snug">
+                    <p className="mt-0.5 w-full basis-full text-ui-xs text-slate-500 leading-snug">
                       {lineMaterialSubtitle(ln)}
                     </p>
                   ) : null}
@@ -120,7 +120,7 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
             <IntelStat label="Overpay applied" value={formatNgn(intelSum.overpayAppliedNgn)} />
           </div>
         ) : null}
-        <p className="mb-1 text-[9px] font-black uppercase tracking-wide text-slate-400">Ledger ({ledger.length})</p>
+        <p className="mb-1 text-ui-xs font-black uppercase tracking-wide text-slate-400">Ledger ({ledger.length})</p>
         {ledger.length === 0 ? (
           <p className="text-xs text-slate-500">No ledger rows for this quotation.</p>
         ) : (
@@ -136,10 +136,10 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
                       {(e.type || '—').slice(0, 14)}
                     </span>
                     <span className="text-xs font-bold tabular-nums text-slate-900">{formatNgn(e.amount_ngn)}</span>
-                    <span className="shrink-0 font-mono text-[9px] text-slate-400">{e.at_iso?.slice(0, 10) || '—'}</span>
+                    <span className="shrink-0 font-mono text-ui-xs text-slate-400">{e.at_iso?.slice(0, 10) || '—'}</span>
                   </div>
                   {(e.payment_method || e.purpose || e.note) && (
-                    <p className="mt-0.5 truncate text-[10px] text-slate-500">{hint}</p>
+                    <p className="mt-0.5 truncate text-ui-xs text-slate-500">{hint}</p>
                   )}
                 </div>
               );
@@ -162,14 +162,14 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
           <IntelStat label="All job actuals" value={`${Number(totals.productionJobsMetersSum || 0).toLocaleString()} m`} />
         </div>
         {intelSum?.producedMeters != null ? (
-          <p className="mb-2 text-[10px] text-slate-600">
+          <p className="mb-2 text-ui-xs text-slate-600">
             Effective output: <strong>{Number(intelSum.producedMeters).toLocaleString()} m</strong>
           </p>
         ) : null}
         {dataQuality.length > 0 ? (
           <ul className="mb-3 space-y-1 rounded-lg border border-amber-200 bg-amber-50/80 p-2">
             {dataQuality.map((issue, i) => (
-              <li key={i} className="text-[10px] leading-snug text-amber-950">
+              <li key={i} className="text-ui-xs leading-snug text-amber-950">
                 {typeof issue === 'string' ? issue : issue?.message || issue?.code || JSON.stringify(issue)}
               </li>
             ))}
@@ -177,10 +177,10 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
         ) : null}
         {accLines.length > 0 ? (
           <Fragment>
-            <p className="mb-1 text-[9px] font-black uppercase text-slate-400">Accessories</p>
+            <p className="mb-1 text-ui-xs font-black uppercase text-slate-400">Accessories</p>
             <ul className="mb-3 space-y-0.5 rounded-lg border border-slate-200 bg-slate-50/50 p-2">
               {accLines.map((a, i) => (
-                <li key={i} className="flex justify-between gap-2 text-[10px]">
+                <li key={i} className="flex justify-between gap-2 text-ui-xs">
                   <span className="min-w-0 truncate font-medium text-slate-800">{a.label || a.name || '—'}</span>
                   <span className="shrink-0 tabular-nums text-slate-600">
                     {a.issuedQty != null ? `${a.issuedQty} issued` : ''}
@@ -192,12 +192,12 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
           </Fragment>
         ) : null}
         {stone && (stone.totalSuppliedM2 > 0 || stone.totalDeductionM2 > 0 || (stone.lines || []).length > 0) ? (
-          <p className="mb-2 text-[10px] text-slate-600">
+          <p className="mb-2 text-ui-xs text-slate-600">
             Stone flatsheet: supplied <strong>{Number(stone.totalSuppliedM2 || 0).toLocaleString()} m²</strong>
             {stone.totalDeductionM2 ? ` · deduction ${Number(stone.totalDeductionM2).toLocaleString()} m²` : ''}
           </p>
         ) : null}
-        <p className="mb-1 text-[9px] font-black uppercase text-slate-400">Cutting lists ({cuttingLists.length})</p>
+        <p className="mb-1 text-ui-xs font-black uppercase text-slate-400">Cutting lists ({cuttingLists.length})</p>
         {cuttingLists.length === 0 ? (
           <p className="mb-3 text-xs text-slate-500">None linked.</p>
         ) : (
@@ -205,7 +205,7 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
             {cuttingLists.map((cl) => (
               <span
                 key={cl.id}
-                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-800"
+                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-ui-xs font-mono text-slate-800"
                 title={`${cl.status || ''} · ${Number(cl.total_meters || 0).toLocaleString()} m`}
               >
                 {cl.id} · {Number(cl.total_meters || 0).toLocaleString()} m
@@ -213,7 +213,7 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
             ))}
           </div>
         )}
-        <p className="mb-1 text-[9px] font-black uppercase text-slate-400">Production ({productionLogs.length})</p>
+        <p className="mb-1 text-ui-xs font-black uppercase text-slate-400">Production ({productionLogs.length})</p>
         {productionLogs.length === 0 ? (
           <p className="text-xs text-slate-500">No production jobs.</p>
         ) : (
@@ -223,21 +223,21 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
               return (
                 <div key={job.job_id} className="rounded-lg border border-slate-200 bg-slate-50/60 p-2">
                   <div className="flex flex-wrap justify-between gap-1">
-                    <span className="font-mono text-[10px] font-bold text-slate-900">{job.job_id}</span>
-                    <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[8px] font-black uppercase text-slate-700">
+                    <span className="font-mono text-ui-xs font-bold text-slate-900">{job.job_id}</span>
+                    <span className="rounded bg-slate-200 px-1.5 py-0.5 text-ui-xs font-black uppercase text-slate-700">
                       {job.status}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-[10px] font-semibold text-slate-800">{job.product_name || '—'}</p>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="mt-0.5 text-ui-xs font-semibold text-slate-800">{job.product_name || '—'}</p>
+                  <p className="text-ui-xs text-slate-500">
                     Planned {fmtM(job.planned_meters)} · Actual {fmtM(job.actual_meters)} · {fmtKg(job.actual_weight_kg)}
                   </p>
-                  <p className="text-[9px] text-violet-800">
+                  <p className="text-ui-xs text-violet-800">
                     Conversion: {job.conversion_alert_state || '—'}
                     {job.manager_review_required ? ' · needs review' : ''}
                   </p>
                   {coilRows.length === 0 ? (
-                    <p className="mt-1 text-[9px] text-slate-500">No coil usage recorded for this job.</p>
+                    <p className="mt-1 text-ui-xs text-slate-500">No coil usage recorded for this job.</p>
                   ) : (
                     <ul className="mt-2 space-y-2 border-t border-slate-200/80 pt-2">
                       {coilRows.map(({ coilNo, coil, check }) => {
@@ -250,7 +250,7 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
                         return (
                           <li
                             key={coilNo}
-                            className="rounded-md border border-slate-200/90 bg-white px-2 py-1.5 text-[9px] text-slate-700"
+                            className="rounded-md border border-slate-200/90 bg-white px-2 py-1.5 text-ui-xs text-slate-700"
                           >
                             <p className="font-mono font-bold text-slate-900">{coilNo}</p>
                             <p className="mt-0.5 text-slate-600">

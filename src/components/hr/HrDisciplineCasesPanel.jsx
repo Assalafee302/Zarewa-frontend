@@ -340,7 +340,7 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
               <li key={ev.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
                 <div className="text-xs font-semibold text-teal-800">{ev.eventKind?.replace(/_/g, ' ')}</div>
                 <div className="text-slate-700">{ev.note}</div>
-                <div className="text-[11px] text-slate-500 mt-1">{ev.createdAtIso?.slice(0, 16)}</div>
+                <div className="text-xs text-slate-500 mt-1">{ev.createdAtIso?.slice(0, 16)}</div>
               </li>
             ))}
           </ul>

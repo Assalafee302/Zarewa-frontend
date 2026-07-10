@@ -138,7 +138,7 @@ export default function HrDiscipline({ embedded = false } = {}) {
         </p>
         <Link
           to="/hr/discipline-exit?tab=accountability"
-          className="mt-2 inline-block text-xs font-bold uppercase text-[#134e4a] hover:underline"
+          className="mt-2 inline-block text-xs font-bold uppercase text-zarewa-teal hover:underline"
         >
           Open accountability cases →
         </Link>
@@ -292,20 +292,20 @@ export default function HrDiscipline({ embedded = false } = {}) {
                     <AppTableTd>
                       <Link
                         to={`${HR_EMPLOYEES}/${encodeURIComponent(ev.staffUserId)}`}
-                        className="font-semibold text-[#134e4a] hover:underline"
+                        className="font-semibold text-zarewa-teal hover:underline"
                       >
                         {ev.staffDisplayName || ev.staffUserId}
                       </Link>
                       {queryCount >= 3 ? (
-                        <span className="ml-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">{queryCount} queries</span>
+                        <span className="ml-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-ui-xs font-bold text-red-800">{queryCount} queries</span>
                       ) : queryCount === 2 ? (
-                        <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">{queryCount} queries · promo blocked</span>
+                        <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-ui-xs font-bold text-amber-800">{queryCount} queries · promo blocked</span>
                       ) : null}
                     </AppTableTd>
                     <AppTableTd>{kindLabel(ev.kind)}</AppTableTd>
                     <AppTableTd>
                       {ev.kind === 'query' ? (
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${queryCount >= 3 ? 'bg-red-100 text-red-800' : queryCount === 2 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}`}>
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-ui-xs font-bold ${queryCount >= 3 ? 'bg-red-100 text-red-800' : queryCount === 2 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}`}>
                           {queryCount}
                         </span>
                       ) : '—'}
@@ -313,11 +313,11 @@ export default function HrDiscipline({ embedded = false } = {}) {
                     <AppTableTd title={ev.summary}>{String(ev.summary || '').slice(0, 80)}{String(ev.summary || '').length > 80 ? '…' : ''}</AppTableTd>
                     <AppTableTd>
                       <div className="flex flex-wrap gap-1">
-                        <button type="button" className="text-[10px] font-bold uppercase text-slate-600" onClick={() => setDetailEvent(ev)}>View</button>
+                        <button type="button" className="text-ui-xs font-bold uppercase text-slate-600" onClick={() => setDetailEvent(ev)}>View</button>
                         {canLetter ? (
                           <button
                             type="button"
-                            className="text-[10px] font-bold uppercase text-[#134e4a]"
+                            className="text-ui-xs font-bold uppercase text-zarewa-teal"
                             onClick={() => navigateToHrLetter(navigate, { letterKind: letterKindForDiscipline(ev.kind), userId: ev.staffUserId, sourceRecordId: ev.id, sourceRecordKind: 'discipline' })}
                           >
                             Letter
@@ -339,12 +339,12 @@ export default function HrDiscipline({ embedded = false } = {}) {
         {detailEvent ? (
           <div className="space-y-3 text-sm">
             <dl className="grid gap-2 sm:grid-cols-2">
-              <div><dt className="text-[10px] font-bold uppercase text-slate-400">Employee</dt><dd className="font-semibold">{detailEvent.staffDisplayName}</dd></div>
-              <div><dt className="text-[10px] font-bold uppercase text-slate-400">Type</dt><dd>{kindLabel(detailEvent.kind)}</dd></div>
-              <div><dt className="text-[10px] font-bold uppercase text-slate-400">Date</dt><dd>{detailEvent.dateIso}</dd></div>
+              <div><dt className="text-ui-xs font-bold uppercase text-slate-400">Employee</dt><dd className="font-semibold">{detailEvent.staffDisplayName}</dd></div>
+              <div><dt className="text-ui-xs font-bold uppercase text-slate-400">Type</dt><dd>{kindLabel(detailEvent.kind)}</dd></div>
+              <div><dt className="text-ui-xs font-bold uppercase text-slate-400">Date</dt><dd>{detailEvent.dateIso}</dd></div>
             </dl>
             <div>
-              <p className="text-[10px] font-bold uppercase text-slate-400">Details</p>
+              <p className="text-ui-xs font-bold uppercase text-slate-400">Details</p>
               <p className="mt-1 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50 p-3 text-slate-800">{detailEvent.summary}</p>
             </div>
             {(buildQueryCounts(events)[detailEvent.staffUserId] || 0) >= 2 ? (

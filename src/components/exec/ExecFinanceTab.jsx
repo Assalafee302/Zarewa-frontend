@@ -7,7 +7,7 @@ import { EXEC_SECONDARY_BTN } from '../../lib/execPageUi';
 
 function EstChip() {
   return (
-    <span className="inline-flex rounded px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-900 ring-1 ring-amber-200/80">
+    <span className="inline-flex rounded px-1.5 py-0.5 text-ui-xs font-semibold uppercase tracking-wide bg-amber-100 text-amber-900 ring-1 ring-amber-200/80">
       Est.
     </span>
   );
@@ -15,7 +15,7 @@ function EstChip() {
 
 function InfoChip({ children }) {
   return (
-    <span className="inline-flex rounded px-1.5 py-0.5 text-[8px] font-semibold uppercase bg-slate-100 text-slate-700 ring-1 ring-slate-200">
+    <span className="inline-flex rounded px-1.5 py-0.5 text-ui-xs font-semibold uppercase bg-slate-100 text-slate-700 ring-1 ring-slate-200">
       {children}
     </span>
   );
@@ -25,11 +25,11 @@ function Section({ title, subtitle, children, icon }) {
   return (
     <section className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
       <div className="border-b border-slate-100 bg-slate-50/90 px-4 py-3 sm:px-5">
-        <h2 className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-[#134e4a]">
+        <h2 className="flex items-center gap-2 text-ui-xs font-semibold uppercase tracking-widest text-zarewa-teal">
           {icon}
           {title}
         </h2>
-        {subtitle ? <p className="mt-1 text-[11px] text-slate-500 max-w-3xl">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-1 text-xs text-slate-500 max-w-3xl">{subtitle}</p> : null}
       </div>
       <div className="p-4 sm:p-5">{children}</div>
     </section>
@@ -47,7 +47,7 @@ function WcLinesTable({ title, lines, formatNgn }) {
   if (!lines?.length) return null;
   return (
     <div className="mb-4">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">{title}</p>
+      <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">{title}</p>
       <table className="w-full text-xs">
         <tbody>
           {lines.map((line) => (
@@ -60,7 +60,7 @@ function WcLinesTable({ title, lines, formatNgn }) {
                   </span>
                 ) : null}
               </td>
-              <td className="py-2 text-right tabular-nums font-bold text-[#134e4a]">
+              <td className="py-2 text-right tabular-nums font-bold text-zarewa-teal">
                 {formatWcAmount(line, formatNgn)}
               </td>
             </tr>
@@ -148,7 +148,7 @@ export function ExecFinanceTab({
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <p className="text-xs text-slate-600">
             Company Others share:{' '}
-            <span className="font-bold tabular-nums text-[#134e4a]">
+            <span className="font-bold tabular-nums text-zarewa-teal">
               {othersTrend?.summary?.othersPct != null ? `${othersTrend.summary.othersPct}%` : '—'}
             </span>
             {othersTrend?.summary?.othersNgn != null ? (
@@ -182,11 +182,11 @@ export function ExecFinanceTab({
               { label: 'Pending outflows', val: data?.cash?.pendingOutflowsNgn },
             ].map(({ label, val, estimated }) => (
               <div key={label} className="rounded-lg border border-slate-100 bg-slate-50/60 px-4 py-3">
-                <dt className="text-[10px] font-semibold uppercase text-slate-500 flex items-center gap-1.5">
+                <dt className="text-ui-xs font-semibold uppercase text-slate-500 flex items-center gap-1.5">
                   {label}
                   {estimated ? <EstChip /> : null}
                 </dt>
-                <dd className="mt-1 font-black tabular-nums text-[#134e4a]">{formatNgn(val ?? 0)}</dd>
+                <dd className="mt-1 font-black tabular-nums text-zarewa-teal">{formatNgn(val ?? 0)}</dd>
               </div>
             ))}
           </dl>
@@ -195,7 +195,7 @@ export function ExecFinanceTab({
               {data.cash.horizons.map((h) => (
                 <span
                   key={h.days}
-                  className={`rounded-lg px-3 py-2 text-[10px] font-bold ring-1 ${
+                  className={`rounded-lg px-3 py-2 text-ui-xs font-bold ring-1 ${
                     h.stress === 'deficit'
                       ? 'bg-rose-50 text-rose-800 ring-rose-200'
                       : h.stress === 'tight'
@@ -226,11 +226,11 @@ export function ExecFinanceTab({
               },
             ].map(({ label, val, est }) => (
               <div key={label} className="rounded-lg border border-slate-100 bg-slate-50/60 px-4 py-3">
-                <dt className="text-[10px] font-semibold uppercase text-slate-500 flex items-center gap-1.5">
+                <dt className="text-ui-xs font-semibold uppercase text-slate-500 flex items-center gap-1.5">
                   {label}
                   {est ? <EstChip /> : null}
                 </dt>
-                <dd className="mt-1 font-black tabular-nums text-[#134e4a]">{formatNgn(val ?? 0)}</dd>
+                <dd className="mt-1 font-black tabular-nums text-zarewa-teal">{formatNgn(val ?? 0)}</dd>
               </div>
             ))}
           </dl>
@@ -250,7 +250,7 @@ export function ExecFinanceTab({
             formatNgn={formatNgn}
           />
         </div>
-        <p className="mt-4 text-sm font-black tabular-nums text-[#134e4a]">
+        <p className="mt-4 text-sm font-black tabular-nums text-zarewa-teal">
           Est. working capital:{' '}
           {data?.workingCapital?.estimatedWorkingCapitalNgn != null
             ? formatNgn(data.workingCapital.estimatedWorkingCapitalNgn)
@@ -265,7 +265,7 @@ export function ExecFinanceTab({
       >
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <InfoChip>{data?.reservePolicy?.configured ? 'Configured' : 'Not configured'}</InfoChip>
-          <span className="text-sm tabular-nums font-bold text-[#134e4a]">
+          <span className="text-sm tabular-nums font-bold text-zarewa-teal">
             {data?.reservePolicy?.completionPct ?? 0}% complete
           </span>
           {canManageReservePolicy ? (

@@ -110,9 +110,9 @@ export function StockRegisterBmAdjustEditor({ register, initialAdjustments, onCh
 
       {coilLines.length ? (
         <div>
-          <p className="text-[10px] font-black uppercase tracking-wide text-slate-600 mb-2">Coil closing (kg)</p>
+          <p className="text-ui-xs font-black uppercase tracking-wide text-slate-600 mb-2">Coil closing (kg)</p>
           <div className="max-h-48 overflow-y-auto custom-scrollbar border border-slate-200 rounded-lg bg-white">
-            <table className="w-full text-[10px]">
+            <table className="w-full text-ui-xs">
               <thead className="bg-slate-50 sticky top-0">
                 <tr>
                   <th className="text-left p-1.5">Coil</th>
@@ -166,9 +166,9 @@ export function StockRegisterBmAdjustEditor({ register, initialAdjustments, onCh
 
       {stoneLines.length ? (
         <div>
-          <p className="text-[10px] font-black uppercase tracking-wide text-slate-600 mb-2">Stone-coated (m)</p>
+          <p className="text-ui-xs font-black uppercase tracking-wide text-slate-600 mb-2">Stone-coated (m)</p>
           <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-lg bg-white">
-            <table className="w-full text-[10px]">
+            <table className="w-full text-ui-xs">
               <thead className="bg-slate-50">
                 <tr>
                   <th className="text-left p-1.5">Colour</th>
@@ -206,9 +206,9 @@ export function StockRegisterBmAdjustEditor({ register, initialAdjustments, onCh
 
       {accessoryLines.length ? (
         <div>
-          <p className="text-[10px] font-black uppercase tracking-wide text-slate-600 mb-2">Accessories</p>
+          <p className="text-ui-xs font-black uppercase tracking-wide text-slate-600 mb-2">Accessories</p>
           <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-lg bg-white">
-            <table className="w-full text-[10px]">
+            <table className="w-full text-ui-xs">
               <thead className="bg-slate-50">
                 <tr>
                   <th className="text-left p-1.5">Type</th>

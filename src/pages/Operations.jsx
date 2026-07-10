@@ -550,7 +550,7 @@ function CoilReceiptSortTh({ label, sortKey: columnKey, sort, onToggle, classNam
     <button
       type="button"
       onClick={() => onToggle(columnKey)}
-      className={`inline-flex min-w-0 max-w-full items-center gap-0.5 text-left text-[10px] font-bold uppercase tracking-wide hover:text-[#134e4a] ${active ? 'text-[#134e4a]' : 'text-slate-600'} ${className}`}
+      className={`inline-flex min-w-0 max-w-full items-center gap-0.5 text-left text-ui-xs font-bold uppercase tracking-wide hover:text-zarewa-teal ${active ? 'text-zarewa-teal' : 'text-slate-600'} ${className}`}
     >
       <span className="truncate">{label}</span>
       {Icon ? <Icon size={14} className="shrink-0 opacity-90" aria-hidden /> : null}
@@ -1674,7 +1674,7 @@ const Operations = () => {
                 activeTab,
                 searchQuery,
               }}
-              className="inline-flex items-center gap-2 rounded-xl border border-teal-100 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm transition hover:bg-teal-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-teal-100 bg-white px-3 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm transition hover:bg-teal-50"
             >
               Ask AI
             </AiAskButton>
@@ -1683,7 +1683,7 @@ const Operations = () => {
       />
 
       {activeTab === 'inventory' && (!canReceiveInventory || !canAdjustInventory) ? (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-[10px] font-medium text-amber-950 leading-snug">
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-ui-xs font-medium text-amber-950 leading-snug">
           {!canReceiveInventory ? (
             <p>
               <strong>Receiving into stock</strong> (GRN / goods in transit) requires the{' '}
@@ -1735,9 +1735,9 @@ const Operations = () => {
                     role="tab"
                     aria-selected={active}
                     onClick={() => setStockReceiveKind(t.id)}
-                    className={`px-2.5 py-1 rounded-md text-[9px] font-semibold uppercase tracking-wide transition-colors ${
+                    className={`px-2.5 py-1 rounded-md text-ui-xs font-semibold uppercase tracking-wide transition-colors ${
                       active
-                        ? 'bg-[#134e4a] text-white shadow-sm'
+                        ? 'bg-zarewa-teal text-white shadow-sm'
                         : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -1751,14 +1751,14 @@ const Operations = () => {
             <section className="z-soft-panel overflow-hidden w-full min-w-0 flex flex-col lg:col-span-1">
             <div className="h-1 bg-teal-500 shrink-0 opacity-80" />
             <div className="p-3 sm:p-4 flex flex-col">
-              <h3 className="text-[10px] font-bold text-slate-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <h3 className="text-ui-xs font-bold text-slate-700 uppercase tracking-widest mb-2 flex items-center gap-2">
                 <Truck size={14} className="text-sky-700" />
                 Goods in transit — receive
               </h3>
               {!anyReceivablePo && inTransitLoads.length === 0 ? (
-                <p className="text-[10px] font-medium text-slate-400">Nothing on road or loading.</p>
+                <p className="text-ui-xs font-medium text-slate-400">Nothing on road or loading.</p>
               ) : transitOrdersSortedFiltered.length === 0 ? (
-                <p className="text-[10px] font-medium text-slate-400">
+                <p className="text-ui-xs font-medium text-slate-400">
                   {transitSearch.trim()
                     ? 'No purchase orders match your search.'
                     : 'No purchase orders in receivable status — check Procurement.'}
@@ -1777,17 +1777,17 @@ const Operations = () => {
                         value={transitSearch}
                         onChange={(e) => setTransitSearch(e.target.value)}
                         placeholder="PO, supplier, product…"
-                        className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2 text-[10px] font-semibold text-slate-800 placeholder:text-slate-400"
+                        className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2 text-ui-xs font-semibold text-slate-800 placeholder:text-slate-400"
                       />
                     </label>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[8px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
+                      <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
                         Sort
                       </span>
                       <select
                         value={transitSort}
                         onChange={(e) => setTransitSort(e.target.value)}
-                        className="rounded-lg border border-slate-200 bg-white py-1.5 px-2 text-[10px] font-semibold text-slate-700 min-w-0 max-w-full"
+                        className="rounded-lg border border-slate-200 bg-white py-1.5 px-2 text-ui-xs font-semibold text-slate-700 min-w-0 max-w-full"
                       >
                         <option value="orderDesc">Newest order</option>
                         <option value="orderAsc">Oldest order</option>
@@ -1828,7 +1828,7 @@ const Operations = () => {
                     >
                       <div className="min-w-0 leading-tight">
                         <div className="flex items-center justify-between gap-2 min-w-0">
-                          <p className="text-[11px] font-black text-[#134e4a] truncate min-w-0">
+                          <p className="text-xs font-black text-zarewa-teal truncate min-w-0">
                             {p.poID}
                             <span className="font-bold text-slate-700"> · {p.supplierName}</span>
                           </p>
@@ -1845,7 +1845,7 @@ const Operations = () => {
                                 setExpandedReceivePoId(p.poID);
                                 setReceiveDraft((d) => ({ ...d, poID: p.poID }));
                               }}
-                              className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md shrink-0 disabled:opacity-40 disabled:pointer-events-none"
+                              className="text-ui-xs font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md shrink-0 disabled:opacity-40 disabled:pointer-events-none"
                             >
                               Receive
                             </button>
@@ -1857,14 +1857,14 @@ const Operations = () => {
                                 setReceiveDraft({ poID: '', location: '' });
                                 setGrnLines([]);
                               }}
-                              className="text-[8px] font-semibold text-slate-500 hover:text-slate-800 uppercase shrink-0 px-1"
+                              className="text-ui-xs font-semibold text-slate-500 hover:text-slate-800 uppercase shrink-0 px-1"
                             >
                               Cancel
                             </button>
                           )}
                         </div>
                         <p
-                          className="text-[9px] font-semibold text-slate-600 mt-0.5 leading-snug line-clamp-2"
+                          className="text-ui-xs font-semibold text-slate-600 mt-0.5 leading-snug line-clamp-2"
                           title={meta2}
                         >
                           {meta2}
@@ -1887,10 +1887,10 @@ const Operations = () => {
                             }
                             placeholder="Location (optional)"
                             aria-label="Storage location"
-                            className="w-full rounded-lg border border-slate-200 py-1.5 px-2 text-[11px] font-semibold text-slate-800"
+                            className="w-full rounded-lg border border-slate-200 py-1.5 px-2 text-xs font-semibold text-slate-800"
                           />
                           {grnLines.length === 0 ? (
-                            <p className="text-[10px] text-amber-700">No open lines on this order.</p>
+                            <p className="text-ui-xs text-amber-700">No open lines on this order.</p>
                           ) : (
                             grnLines.map((row, idx) => {
                               const maxU =
@@ -1911,11 +1911,11 @@ const Operations = () => {
                                 className="rounded-md border border-slate-200/90 bg-white p-2 space-y-1.5"
                               >
                                 <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 min-w-0">
-                                  <p className="text-[11px] font-black text-[#134e4a] leading-snug min-w-0 flex-1">
+                                  <p className="text-xs font-black text-zarewa-teal leading-snug min-w-0 flex-1">
                                     {row.productName}
                                   </p>
                                   <span
-                                    className="text-[10px] font-black tabular-nums text-slate-700 shrink-0"
+                                    className="text-ui-xs font-black tabular-nums text-slate-700 shrink-0"
                                     title="Open on PO; you can post more if the delivery was heavier than ordered."
                                   >
                                     Open{' '}
@@ -1929,7 +1929,7 @@ const Operations = () => {
                                           : ' kg'}
                                   </span>
                                 </div>
-                                <p className="text-[10px] font-bold text-slate-800 leading-tight">
+                                <p className="text-ui-xs font-bold text-slate-800 leading-tight">
                                   <span className="font-black text-slate-950">{gaugeS}</span>
                                   <span className="text-slate-400 font-semibold"> · </span>
                                   <span className="font-black text-slate-950">{colourS}</span>
@@ -1963,10 +1963,10 @@ const Operations = () => {
                                             ? 'Sheets'
                                             : 'Units'
                                       }
-                                      className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-[#134e4a]"
+                                      className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
                                     />
                                     {row.grnKind === 'stone_flatsheet' ? (
-                                      <p className="mt-1 text-[9px] font-semibold text-slate-600">
+                                      <p className="mt-1 text-ui-xs font-semibold text-slate-600">
                                         Posted to stock as m² (sheets × length × 1.2 m width).
                                       </p>
                                     ) : null}
@@ -1988,7 +1988,7 @@ const Operations = () => {
                                           );
                                         }}
                                         placeholder={row.meterBasis ? 'Metres' : 'Kg'}
-                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-[#134e4a]"
+                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
                                       />
                                     </div>
                                     <div>
@@ -2007,7 +2007,7 @@ const Operations = () => {
                                           );
                                         }}
                                         placeholder={row.meterBasis ? 'Weight kg *' : 'Weight kg (optional)'}
-                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-[#134e4a]"
+                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
                                       />
                                     </div>
                                     <div className="sm:col-span-2">
@@ -2026,7 +2026,7 @@ const Operations = () => {
                                       />
                                     </div>
                                     {row.meterBasis ? (
-                                      <p className="sm:col-span-2 text-[9px] font-semibold text-amber-700">
+                                      <p className="sm:col-span-2 text-ui-xs font-semibold text-amber-700">
                                         Metre-basis PO line: enter metres received and actual kg weight.
                                       </p>
                                     ) : null}
@@ -2039,7 +2039,7 @@ const Operations = () => {
                           {grnLines.length > 0 &&
                           grnLines.some((r) => r.grnKind === 'coil') &&
                           ws?.hasPermission?.('purchase_orders.manage') ? (
-                            <label className="flex cursor-pointer items-start gap-2 rounded-md border border-amber-200 bg-amber-50/90 p-2 text-[9px] font-bold text-amber-950">
+                            <label className="flex cursor-pointer items-start gap-2 rounded-md border border-amber-200 bg-amber-50/90 p-2 text-ui-xs font-bold text-amber-950">
                               <input
                                 type="checkbox"
                                 checked={grnConversionOverride}
@@ -2054,7 +2054,7 @@ const Operations = () => {
                             <button
                               type="submit"
                               disabled={!canReceiveInventory}
-                              className="w-full rounded-lg bg-[#134e4a] text-white text-[10px] font-black uppercase tracking-wide py-2 hover:bg-[#0f3d39] disabled:opacity-40 disabled:pointer-events-none"
+                              className="w-full rounded-lg bg-zarewa-teal text-white text-ui-xs font-black uppercase tracking-wide py-2 hover:bg-[#0f3d39] disabled:opacity-40 disabled:pointer-events-none"
                             >
                               Confirm receipt
                             </button>
@@ -2071,10 +2071,10 @@ const Operations = () => {
           </section>
 
             <section className="z-soft-panel overflow-hidden w-full min-w-0 flex flex-col lg:col-span-2">
-              <div className="h-1 bg-[#134e4a] shrink-0 opacity-80" />
+              <div className="h-1 bg-zarewa-teal shrink-0 opacity-80" />
               <div className="p-3 sm:p-4 flex flex-col">
-                <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-widest mb-2 flex items-center gap-2">
-                  <Scale size={16} className="text-[#134e4a]" />
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <Scale size={16} className="text-zarewa-teal" />
                   {stockReceiveKind === 'coil'
                     ? 'Received coils — live weight'
                     : stockReceiveKind === 'stone_meter'
@@ -2100,7 +2100,7 @@ const Operations = () => {
                           className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
                         />
                       </label>
-                      <p className="text-[10px] text-slate-500 leading-snug pl-0.5">
+                      <p className="text-ui-xs text-slate-500 leading-snug pl-0.5">
                         Example:{' '}
                         <span className="font-mono text-slate-600">2043</span> or{' '}
                         <span className="font-mono text-slate-600">bush green 0.20</span> — tap column titles to sort.
@@ -2108,7 +2108,7 @@ const Operations = () => {
                       </p>
                     </div>
                     {coilLotsReceiptSorted.length === 0 && !hasCoilReceiptSearch ? (
-                      <p className="text-[11px] font-medium text-slate-400">
+                      <p className="text-xs font-medium text-slate-400">
                         No coils yet — confirm a receipt in the panel on the left
                         {canRegisterCoil ? (
                           <>
@@ -2116,7 +2116,7 @@ const Operations = () => {
                             or{' '}
                             <button
                               type="button"
-                              className="font-semibold text-[#134e4a] underline-offset-2 hover:underline"
+                              className="font-semibold text-zarewa-teal underline-offset-2 hover:underline"
                               onClick={() => setShowRegisterCoil(true)}
                             >
                               register a coil
@@ -2128,7 +2128,7 @@ const Operations = () => {
                         )}
                       </p>
                     ) : coilLotsByReceipt.length === 0 ? (
-                      <p className="text-[11px] font-medium text-slate-400">
+                      <p className="text-xs font-medium text-slate-400">
                         {coilSearchRemoteLoading
                           ? 'Searching coils…'
                           : hasCoilReceiptSearch
@@ -2138,7 +2138,7 @@ const Operations = () => {
                     ) : (
                       <>
                         {coilReceiptIncludesArchived ? (
-                          <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200/80 rounded-md px-2 py-1 mb-2">
+                          <p className="text-ui-xs text-amber-800 bg-amber-50 border border-amber-200/80 rounded-md px-2 py-1 mb-2">
                             Some matches are consumed or finished — shown for lookup only.
                           </p>
                         ) : null}
@@ -2208,28 +2208,28 @@ const Operations = () => {
                                     onClick={() => navigate(`/operations/coils/${encodeURIComponent(c.coilNo)}`)}
                                     className="grid grid-cols-[4.75rem_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,3.5rem)_minmax(0,1fr)_3.5rem_2rem] gap-x-1.5 w-full text-left px-2 py-2 hover:bg-white/85 transition-colors group items-center"
                                   >
-                                    <span className="text-[10px] text-slate-600 tabular-nums">{rcvd}</span>
-                                    <span className="text-[11px] font-bold text-[#134e4a] truncate font-mono">
+                                    <span className="text-ui-xs text-slate-600 tabular-nums">{rcvd}</span>
+                                    <span className="text-xs font-bold text-zarewa-teal truncate font-mono">
                                       {c.coilNo}
                                       {c.currentStatus === 'Consumed' || c.currentStatus === 'Finished' ? (
-                                        <span className="ml-1 text-[9px] font-bold uppercase text-amber-700">
+                                        <span className="ml-1 text-ui-xs font-bold uppercase text-amber-700">
                                           {c.currentStatus}
                                         </span>
                                       ) : null}
                                     </span>
-                                    <span className="text-[10px] text-slate-800 truncate" title={coilColourLabel(c.colour)}>
+                                    <span className="text-ui-xs text-slate-800 truncate" title={coilColourLabel(c.colour)}>
                                       {coilColourLabel(c.colour)}
                                     </span>
-                                    <span className="text-[10px] text-slate-800 truncate tabular-nums">
+                                    <span className="text-ui-xs text-slate-800 truncate tabular-nums">
                                       {c.gaugeLabel || '—'}
                                     </span>
-                                    <span className="text-[10px] text-slate-700 truncate" title={material}>
+                                    <span className="text-ui-xs text-slate-700 truncate" title={material}>
                                       {material}
                                     </span>
-                                    <span className="text-[11px] font-bold text-[#134e4a] tabular-nums text-right">
+                                    <span className="text-xs font-bold text-zarewa-teal tabular-nums text-right">
                                       {live.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                     </span>
-                                    <span className="flex justify-center text-slate-400 group-hover:text-[#134e4a]">
+                                    <span className="flex justify-center text-slate-400 group-hover:text-zarewa-teal">
                                       <ChevronRight size={16} aria-hidden />
                                     </span>
                                   </button>
@@ -2243,7 +2243,7 @@ const Operations = () => {
                     )}
                   </>
                 ) : skuProductsLiveSorted.length === 0 ? (
-                  <p className="text-[11px] font-medium text-slate-400">
+                  <p className="text-xs font-medium text-slate-400">
                     No{' '}
                     {stockReceiveKind === 'stone_meter'
                       ? 'stone-coated metre'
@@ -2253,7 +2253,7 @@ const Operations = () => {
                     SKUs in catalog yet — create a PO or receipt in Procurement.
                   </p>
                 ) : skuProductsReceiptFiltered.length === 0 ? (
-                  <p className="text-[11px] font-medium text-slate-400">No rows match your search.</p>
+                  <p className="text-xs font-medium text-slate-400">No rows match your search.</p>
                 ) : (
                   <>
                     <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 mb-2 shrink-0">
@@ -2273,7 +2273,7 @@ const Operations = () => {
                       </label>
                     </div>
                     {skuReceiptTruncated ? (
-                      <p className="text-[10px] text-slate-500 mb-1.5">
+                      <p className="text-ui-xs text-slate-500 mb-1.5">
                         Showing {STOCK_SIDE_LIST_LIMIT} of {skuProductsReceiptFiltered.length}. Search for more SKUs.
                       </p>
                     ) : null}
@@ -2305,17 +2305,17 @@ const Operations = () => {
                               <div className="min-w-0 leading-tight">
                                 <div className="flex items-center justify-between gap-2 min-w-0">
                                   <p
-                                    className="text-[11px] font-bold text-[#134e4a] truncate min-w-0"
+                                    className="text-xs font-bold text-zarewa-teal truncate min-w-0"
                                     title={label}
                                   >
                                     {label}
                                   </p>
-                                  <span className="text-[11px] font-black text-[#134e4a] tabular-nums shrink-0">
+                                  <span className="text-xs font-black text-zarewa-teal tabular-nums shrink-0">
                                     {live.toLocaleString()} {u}
                                   </span>
                                 </div>
                                 <p
-                                  className="text-[10px] text-slate-500 mt-0.5 leading-snug line-clamp-1 font-mono"
+                                  className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-1 font-mono"
                                   title={meta2}
                                 >
                                   {meta2}
@@ -2380,13 +2380,13 @@ const Operations = () => {
         <div className="col-span-full mb-2 order-1">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
                 <Package size={12} /> Total stock
               </p>
-              <p className="mt-1 text-xl font-black text-[#134e4a] tabular-nums">
-                {inventoryStats.totalKg.toLocaleString()} <span className="text-[10px] font-semibold">kg</span>
+              <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">
+                {inventoryStats.totalKg.toLocaleString()} <span className="text-ui-xs font-semibold">kg</span>
               </p>
-              <div className="mt-2 border-t border-slate-100 pt-2 space-y-1 text-[10px]">
+              <div className="mt-2 border-t border-slate-100 pt-2 space-y-1 text-ui-xs">
                 <p className="flex items-center justify-between text-slate-600">
                   <span>Aluminium</span>
                   <span className="font-bold tabular-nums">{inventoryStats.aluminiumKg.toLocaleString()} kg</span>
@@ -2398,28 +2398,28 @@ const Operations = () => {
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Conversion efficiency</p>
-              <p className="mt-1 text-xl font-black text-[#134e4a] tabular-nums">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Conversion efficiency</p>
+              <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">
                 {conversionStats.efficiencyPct != null ? `${conversionStats.efficiencyPct}%` : '—'}
               </p>
             </div>
             <div className="rounded-xl border border-red-200 bg-red-50/40 p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-red-700 flex items-center gap-1">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-red-700 flex items-center gap-1">
                 <AlertTriangle size={12} /> Low coils (&lt;100kg)
               </p>
               <p className="mt-1 text-xl font-black text-red-700 tabular-nums">{inventoryStats.lowStock}</p>
             </div>
             <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-teal-700 flex items-center gap-1">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-700 flex items-center gap-1">
                 <Award size={12} /> Top materials
               </p>
               <div className="mt-1 space-y-1">
                 {inventoryStats.topMaterials.length === 0 ? (
-                  <p className="text-[10px] text-teal-700">No active coils</p>
+                  <p className="text-ui-xs text-teal-700">No active coils</p>
                 ) : (
                   inventoryStats.topMaterials.map((row, idx) => (
-                    <p key={`${row.gauge}-${row.colour}-${row.material}-${idx}`} className="text-[10px] text-teal-700 tabular-nums truncate">
-                      <span className="font-bold text-[#134e4a]">{idx + 1}.</span> {row.gauge} mm · {row.colour} ·{' '}
+                    <p key={`${row.gauge}-${row.colour}-${row.material}-${idx}`} className="text-ui-xs text-teal-700 tabular-nums truncate">
+                      <span className="font-bold text-zarewa-teal">{idx + 1}.</span> {row.gauge} mm · {row.colour} ·{' '}
                       <span className="font-semibold">{row.kg.toLocaleString()} kg</span>
                     </p>
                   ))
@@ -2453,7 +2453,7 @@ const Operations = () => {
                   <section className="space-y-4 lg:col-span-1 order-1 min-w-0 flex flex-col rounded-xl border border-slate-200/80 bg-slate-50/40 p-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">
+                        <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">
                           In progress · need action
                         </h3>
                       </div>
@@ -2462,18 +2462,18 @@ const Operations = () => {
                           type="button"
                           onClick={handlePrintProductionFollowUp}
                           disabled={productionFollowUpPrintRows.length === 0}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-[#134e4a]/25 bg-white px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-teal-50/80 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-zarewa-teal/25 bg-white px-2.5 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-teal-50/80 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
                           title="Print all waiting or in-production jobs (quotation, cutting list, customer, project, colour, gauge)"
                         >
                           <Printer size={12} aria-hidden />
                           Print follow-up
                         </button>
-                        <label className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                        <label className="flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                           Sort
                           <select
                             value={productionActiveSortKey}
                             onChange={(e) => setProductionActiveSortKey(e.target.value)}
-                            className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
+                            className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
                           >
                             <option value="registeredDesc">Newest registered</option>
                             <option value="id">Cutting list # (oldest first)</option>
@@ -2488,31 +2488,31 @@ const Operations = () => {
 
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                        <p className="text-[8px] font-bold uppercase tracking-wide text-slate-500">Jobs waiting</p>
-                        <p className="mt-0.5 text-lg font-black text-[#134e4a] tabular-nums">
+                        <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Jobs waiting</p>
+                        <p className="mt-0.5 text-lg font-black text-zarewa-teal tabular-nums">
                           {productionQueueStats.waiting}
                         </p>
                       </div>
                       <div className="rounded-lg border border-teal-200 bg-teal-50/60 p-2.5">
-                        <p className="text-[8px] font-bold uppercase tracking-wide text-teal-800">Coils reserved</p>
+                        <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-800">Coils reserved</p>
                         <p className="mt-0.5 text-lg font-black text-teal-900 tabular-nums">
                           {productionQueueStats.coilsAllocated}
                         </p>
                       </div>
                       <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
-                        <p className="text-[8px] font-bold uppercase tracking-wide text-amber-800">No coil</p>
+                        <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-800">No coil</p>
                         <p className="mt-0.5 text-lg font-black text-amber-800 tabular-nums">
                           {productionQueueStats.noCoil}
                         </p>
                       </div>
                       <div className="rounded-lg border border-red-200 bg-red-50/50 p-2.5">
-                        <p className="text-[8px] font-bold uppercase tracking-wide text-red-800">Mgr review</p>
+                        <p className="text-ui-xs font-bold uppercase tracking-wide text-red-800">Mgr review</p>
                         <p className="mt-0.5 text-lg font-black text-red-800 tabular-nums">
                           {productionQueueStats.needsReview}
                         </p>
                       </div>
                       <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-2.5 sm:col-span-2">
-                        <p className="text-[8px] font-bold uppercase tracking-wide text-rose-800">Overdue</p>
+                        <p className="text-ui-xs font-bold uppercase tracking-wide text-rose-800">Overdue</p>
                         <p className="mt-0.5 text-lg font-black text-rose-800 tabular-nums">
                           {productionQueueStats.overdue}
                         </p>
@@ -2536,9 +2536,9 @@ const Operations = () => {
                             key={f.id}
                             type="button"
                             onClick={() => setProductionActiveFilter(f.id)}
-                            className={`px-2.5 py-1.5 rounded-md text-[8px] font-semibold uppercase tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 ${
+                            className={`px-2.5 py-1.5 rounded-md text-ui-xs font-semibold uppercase tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 ${
                               productionActiveFilter === f.id
-                                ? 'bg-[#134e4a] text-white shadow-sm'
+                                ? 'bg-zarewa-teal text-white shadow-sm'
                                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                             }`}
                           >
@@ -2550,14 +2550,14 @@ const Operations = () => {
 
                     {ws?.hasWorkspaceData && jobsNeedingManagerReview.length > 0 ? (
                       <div className="rounded-lg border border-red-200 bg-red-50/90 px-3 py-3 text-sm text-red-950 shadow-sm">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-red-800 flex items-center gap-2">
+                        <p className="text-ui-xs font-black uppercase tracking-widest text-red-800 flex items-center gap-2">
                           <AlertTriangle size={16} className="shrink-0" />
                           Manager review queue
                         </p>
-                        <p className="mt-2 text-[10px] text-red-900/90 leading-snug">
+                        <p className="mt-2 text-ui-xs text-red-900/90 leading-snug">
                           Conversion outside agreed bands — resolve from traceability.
                         </p>
-                        <ul className="mt-2 space-y-1 text-[10px] font-semibold">
+                        <ul className="mt-2 space-y-1 text-ui-xs font-semibold">
                           {jobsReviewPage.slice.map((j) => (
                             <li key={j.jobID} className="font-mono text-red-950">
                               {j.cuttingListId || j.jobID}
@@ -2579,7 +2579,7 @@ const Operations = () => {
 
                     {ws?.hasWorkspaceData && productionActiveRows.length > 0 ? (
                       <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 shadow-sm flex flex-col">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-sky-900">
+                        <p className="text-ui-xs font-bold uppercase tracking-widest text-sky-900">
                           Live jobs
                           {productionActiveFilter !== 'all' ? (
                             <span className="ml-1.5 font-semibold normal-case text-sky-800/90">
@@ -2596,7 +2596,7 @@ const Operations = () => {
                               }`}
                             >
                               <div className="min-w-0">
-                                <p className="font-mono text-[11px] font-bold text-[#134e4a]">{item.id}</p>
+                                <p className="font-mono text-xs font-bold text-zarewa-teal">{item.id}</p>
                                 <div className="mt-0.5 flex flex-wrap items-center gap-1.5 min-w-0">
                                   <span
                                     className={`shrink-0 text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border ${
@@ -2616,11 +2616,11 @@ const Operations = () => {
                                       {item.liveJobMaterialChipLabel}
                                     </span>
                                   ) : null}
-                                  <span className="text-[9px] text-slate-600 truncate">{item.customer}</span>
+                                  <span className="text-ui-xs text-slate-600 truncate">{item.customer}</span>
                                 </div>
                                 {item.hasCoilsAllocated ? (
                                   <p
-                                    className="mt-1 text-[8px] font-mono text-teal-900/90 leading-snug"
+                                    className="mt-1 text-ui-xs font-mono text-teal-900/90 leading-snug"
                                     title={
                                       item.reservedKg > 0
                                         ? `${item.reservedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg opening reserved on this job`
@@ -2638,7 +2638,7 @@ const Operations = () => {
                                     ) : null}
                                   </p>
                                 ) : item.coilLabel ? (
-                                  <p className="mt-1 text-[8px] text-amber-900/90">{item.coilLabel}</p>
+                                  <p className="mt-1 text-ui-xs text-amber-900/90">{item.coilLabel}</p>
                                 ) : null}
                               </div>
                               <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
@@ -2650,7 +2650,7 @@ const Operations = () => {
                                       'Production register: enter closing kg & metres, Save while running, then Complete.'
                                     )
                                   }
-                                  className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-300 bg-white text-sky-900 hover:bg-sky-50"
+                                  className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-300 bg-white text-sky-900 hover:bg-sky-50"
                                   title="Open production register (coils, run log, complete)"
                                 >
                                   Edit register
@@ -2660,7 +2660,7 @@ const Operations = () => {
                           ))}
                         </ul>
                         {productionActiveFiltered.length === 0 ? (
-                          <p className="mt-2 text-[10px] text-slate-500 leading-relaxed">
+                          <p className="mt-2 text-ui-xs text-slate-500 leading-relaxed">
                             No in-progress jobs match this filter. Try &ldquo;All in progress&rdquo; or search by coil
                             number (e.g. 1975).
                           </p>
@@ -2677,13 +2677,13 @@ const Operations = () => {
                         />
                       </div>
                     ) : ws?.hasWorkspaceData ? (
-                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                      <p className="text-ui-xs text-slate-500 leading-relaxed">
                         {productionActiveRows.length > 0 && productionActiveFiltered.length === 0
                           ? 'No in-progress jobs match this filter — switch to All in progress or search by coil number.'
                           : 'No in-progress jobs in this workspace. Closed and finished records are on the right.'}
                       </p>
                     ) : (
-                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                      <p className="text-ui-xs text-slate-500 leading-relaxed">
                         Connect to the live workspace to see in-progress production jobs.
                       </p>
                     )}
@@ -2692,23 +2692,23 @@ const Operations = () => {
                   {/* Right 2/3 — closed / finished / complete + reference-check detail (surface matches Sales quotations table) */}
                   <section className="space-y-0 lg:col-span-2 order-2 min-w-0 flex min-h-0 flex-col">
                     <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !backdrop-blur-none border !border-solid !p-0 overflow-hidden min-h-[min(480px,72vh)] sm:min-h-[560px]">
-                      <div className="h-1 bg-[#134e4a]" aria-hidden />
+                      <div className="h-1 bg-zarewa-teal" aria-hidden />
                       <div className="flex min-h-0 flex-col space-y-4 p-5 sm:p-6 md:p-8">
                         <div className="mb-1 flex flex-col gap-4 sm:mb-0 sm:flex-row sm:items-end sm:justify-between">
                           <div className="min-w-0 shrink-0">
-                            <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">
+                            <h2 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
                               Closed · finished · complete
                             </h2>
-                            <p className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-400">
+                            <p className="mt-1 text-ui-xs font-semibold leading-relaxed text-slate-400">
                               Cancelled and completed jobs. Use filters or search to narrow the list.
                             </p>
                           </div>
-                          <label className="flex shrink-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                          <label className="flex shrink-0 items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                             Sort
                             <select
                               value={productionClosedSortKey}
                               onChange={(e) => setProductionClosedSortKey(e.target.value)}
-                              className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
+                              className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
                             >
                               <option value="registeredDesc">Newest registered</option>
                               <option value="id">Cutting list # (oldest first)</option>
@@ -2744,9 +2744,9 @@ const Operations = () => {
                           key={f.id}
                           type="button"
                           onClick={() => setProductionFilter(f.id)}
-                          className={`px-2.5 py-1.5 rounded-md text-[8px] font-semibold uppercase tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 ${
+                          className={`px-2.5 py-1.5 rounded-md text-ui-xs font-semibold uppercase tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 ${
                             productionFilter === f.id
-                              ? 'bg-[#134e4a] text-white shadow-sm'
+                              ? 'bg-zarewa-teal text-white shadow-sm'
                               : 'text-slate-600 hover:bg-white hover:text-slate-900'
                           }`}
                         >
@@ -2757,7 +2757,7 @@ const Operations = () => {
 
                     {productionQueueRows.length === 0 ? (
                       <div className={WORKSPACE_EMPTY_LIST_CLASS}>
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest max-w-lg mx-auto">
+                        <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest max-w-lg mx-auto">
                           {productionQueueModel.mode === 'offline'
                             ? 'No lists in queue yet'
                             : 'No rows match this search or filter'}
@@ -2831,10 +2831,10 @@ const Operations = () => {
                                     openProductionQueueRow(item);
                                   }
                                 }}
-                                className="min-w-0 leading-tight cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 -m-0.5 p-0.5"
+                                className="min-w-0 leading-tight cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 -m-0.5 p-0.5"
                               >
                                 <div className="flex items-center justify-between gap-2 min-w-0">
-                                  <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
+                                  <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
                                     <span className="font-mono">{item.id}</span>
                                     <span className="font-medium text-slate-600"> · {item.customer}</span>
                                   </p>
@@ -2858,14 +2858,14 @@ const Operations = () => {
                                       </span>
                                     ) : null}
                                     <span
-                                      className={`text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${priorityChip}`}
+                                      className={`text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${priorityChip}`}
                                     >
                                       {item.priority}
                                     </span>
                                   </div>
                                 </div>
                                 <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-100/90 pt-1.5">
-                                  <span className="shrink-0 text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 px-2 py-1 rounded-md">
+                                  <span className="shrink-0 text-ui-xs font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 px-2 py-1 rounded-md">
                                     Register
                                   </span>
                                   <button
@@ -2877,13 +2877,13 @@ const Operations = () => {
                                         'Production register: coil allocation, run log, and completion.'
                                       );
                                     }}
-                                    className="shrink-0 text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+                                    className="shrink-0 text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
                                     title="Open production register (not cutting list lines)"
                                   >
                                     Edit register
                                   </button>
                                   <p
-                                    className="min-w-0 flex-1 basis-[min(100%,14rem)] text-[8px] text-slate-500 leading-snug sm:line-clamp-1 line-clamp-2"
+                                    className="min-w-0 flex-1 basis-[min(100%,14rem)] text-ui-xs text-slate-500 leading-snug sm:line-clamp-1 line-clamp-2"
                                     title={meta2}
                                   >
                                     {meta2}
@@ -2898,10 +2898,10 @@ const Operations = () => {
                                       >
                                         {convSum.worst}
                                       </span>
-                                      <span className="text-[8px] text-slate-600 tabular-nums">
+                                      <span className="text-ui-xs text-slate-600 tabular-nums">
                                         {convSum.deltaLabel}
                                       </span>
-                                      <span className="text-[8px] text-slate-500">
+                                      <span className="text-ui-xs text-slate-500">
                                         · {convSum.count} coil line{convSum.count === 1 ? '' : 's'}
                                       </span>
                                     </div>
@@ -2916,7 +2916,7 @@ const Operations = () => {
                                       e.stopPropagation();
                                       openTraceWithHint(item, 'Opens production register — coil assignment.');
                                     }}
-                                    className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+                                    className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
                                   >
                                     Assign coil
                                   </button>
@@ -2926,7 +2926,7 @@ const Operations = () => {
                                       e.stopPropagation();
                                       openTraceWithHint(item, 'Opens production register — run log and start.');
                                     }}
-                                    className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+                                    className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
                                   >
                                     Start run
                                   </button>
@@ -2936,7 +2936,7 @@ const Operations = () => {
                                       e.stopPropagation();
                                       requestMarkComplete(item);
                                     }}
-                                    className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/35"
+                                    className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/35"
                                   >
                                     Mark complete
                                   </button>
@@ -2973,7 +2973,7 @@ const Operations = () => {
       <ModalFrame isOpen={showStockAdjust} onClose={closeStockAdjustModal}>
         <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a]">
+            <h3 className="text-xl font-bold text-zarewa-teal">
               {stockAdjustMaterialFamily === 'aluminium'
                 ? 'Adjust stock — aluminium'
                 : stockAdjustMaterialFamily === 'aluzinc'
@@ -2990,13 +2990,13 @@ const Operations = () => {
             </div>
             <form className="space-y-4" onSubmit={applyStockAdjust}>
               {stockAdjustMaterialFamily ? (
-                <p className="text-[10px] text-slate-600 leading-snug">
+                <p className="text-ui-xs text-slate-600 leading-snug">
                   SKU list prefers {stockAdjustMaterialFamily} products (matched from product name / type). You can
                   still pick another SKU from the dropdown.
                 </p>
               ) : null}
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Item
                 </label>
                 <select
@@ -3020,7 +3020,7 @@ const Operations = () => {
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Adjustment type
                   </label>
                   <select
@@ -3038,7 +3038,7 @@ const Operations = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Quantity
                   </label>
                   <input
@@ -3054,7 +3054,7 @@ const Operations = () => {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Reason code
                 </label>
                 <select
@@ -3072,7 +3072,7 @@ const Operations = () => {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Notes {stockAdjust.reasonCode === 'Other' ? '(required)' : '(optional)'}
                 </label>
                 <textarea
@@ -3085,7 +3085,7 @@ const Operations = () => {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Date
                 </label>
                 <input
@@ -3137,7 +3137,7 @@ const Operations = () => {
       <ModalFrame isOpen={showCoilRequest} onClose={() => setShowCoilRequest(false)}>
         <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a]">Request coils</h3>
+            <h3 className="text-xl font-bold text-zarewa-teal">Request coils</h3>
             <button
               type="button"
               onClick={() => setShowCoilRequest(false)}
@@ -3146,14 +3146,14 @@ const Operations = () => {
               <X size={22} />
             </button>
           </div>
-          <p className="text-[11px] text-gray-500 mb-4">
+          <p className="text-xs text-gray-500 mb-4">
             Submit one or more coil lines. Requests appear on the operations dashboard for MD/procurement follow-up.
           </p>
           <form className="space-y-4" onSubmit={submitCoilRequest}>
             <div className="space-y-3">
               {coilRequestForm.rows.map((row, idx) => (
                 <div key={`rq-${idx}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Request line {idx + 1}</p>
+                  <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wide">Request line {idx + 1}</p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <input
                       value={row.gauge}
@@ -3209,7 +3209,7 @@ const Operations = () => {
                         onClick={() =>
                           setCoilRequestForm((f) => ({ ...f, rows: f.rows.filter((_, i) => i !== idx) }))
                         }
-                        className="text-[10px] font-semibold text-rose-700 hover:text-rose-900"
+                        className="text-ui-xs font-semibold text-rose-700 hover:text-rose-900"
                       >
                         Remove line
                       </button>
@@ -3231,7 +3231,7 @@ const Operations = () => {
               <Plus size={14} /> Add another line
             </button>
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+              <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                 Note (optional)
               </label>
               <textarea
@@ -3258,8 +3258,8 @@ const Operations = () => {
           <ModalScrollHeader>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-xl font-bold text-[#134e4a]">Complete job checklist</h3>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <h3 className="text-xl font-bold text-zarewa-teal">Complete job checklist</h3>
+                <p className="text-xs text-slate-500 mt-1">
                   Confirm all production postings before completion.
                 </p>
               </div>
@@ -3285,7 +3285,7 @@ const Operations = () => {
               >
                 <input
                   type="checkbox"
-                  className="mt-0.5 h-5 w-5 rounded border-slate-300 text-[#134e4a] focus:ring-[#134e4a]/20"
+                  className="mt-0.5 h-5 w-5 rounded border-slate-300 text-zarewa-teal focus:ring-zarewa-teal/20"
                   checked={completeChecklist[item.key]}
                   onChange={(e) =>
                     setCompleteChecklist((s) => ({ ...s, [item.key]: e.target.checked }))
@@ -3341,9 +3341,9 @@ const Operations = () => {
           <>
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6 shrink-0">
               <div className="min-w-0">
-                <h3 className="text-lg font-bold text-[#134e4a]">Queued cutting list</h3>
+                <h3 className="text-lg font-bold text-zarewa-teal">Queued cutting list</h3>
                 {productionTraceModal?.type === 'pending' ? (
-                  <p className="mt-1 text-[11px] text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500">
                     <span className="font-mono font-semibold text-slate-700">{productionTraceModal.id}</span> — connect
                     the API to send this list to the production line from Sales.
                   </p>
@@ -3391,8 +3391,8 @@ const Operations = () => {
         <div className="z-modal-panel max-w-lg w-full max-h-[85vh] flex flex-col p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="min-w-0">
-              <h3 className="text-sm font-bold text-[#134e4a]">Stock movements</h3>
-              <p className="text-[10px] text-slate-500 mt-1 font-mono break-all">
+              <h3 className="text-sm font-bold text-zarewa-teal">Stock movements</h3>
+              <p className="text-ui-xs text-slate-500 mt-1 font-mono break-all">
                 {productMovementModal?.productID}
               </p>
               <p className="text-xs text-slate-700 mt-0.5 line-clamp-2">{productMovementModal?.name}</p>
@@ -3434,7 +3434,7 @@ const Operations = () => {
                               <span className="font-semibold">{m.type}</span>
                               {m.ref ? <span className="text-slate-500"> · {m.ref}</span> : null}
                             </td>
-                            <td className="py-2 px-3 text-right font-bold tabular-nums text-[#134e4a]">
+                            <td className="py-2 px-3 text-right font-bold tabular-nums text-zarewa-teal">
                               {m.qty != null ? Number(m.qty).toLocaleString() : '—'}
                             </td>
                           </tr>

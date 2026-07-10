@@ -92,7 +92,7 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
           How you appear in the app (sidebar, chat, approvals). This is <strong>not</strong> your official HR ID photo — upload
           passport photos under{' '}
-          <Link to="/my-profile/documents" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
+          <Link to="/my-profile/documents" className="font-semibold text-zarewa-teal underline-offset-2 hover:underline">
             My HR → Documents
           </Link>
           .
@@ -100,7 +100,7 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
             <>
               {' '}
               Password changes are under{' '}
-              <Link to="/me/account" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
+              <Link to="/me/account" className="font-semibold text-zarewa-teal underline-offset-2 hover:underline">
                 Account → Account & security
               </Link>
               .
@@ -135,9 +135,9 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
 
           <div>
             <label className="z-field-label">App profile image</label>
-            <p className="text-[11px] text-slate-500 mb-2">
+            <p className="text-xs text-slate-500 mb-2">
               Shown in the sidebar and user menu. For your <strong>official ID photo</strong>, upload under{' '}
-              <Link to="/my-profile/documents" className="font-medium text-[#134e4a] hover:underline">
+              <Link to="/my-profile/documents" className="font-medium text-zarewa-teal hover:underline">
                 My HR → Documents
               </Link>
               .
@@ -150,7 +150,7 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
                   className="h-14 w-14 shrink-0 rounded-2xl border border-slate-200 object-cover bg-slate-100"
                 />
               ) : (
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-[10px] text-slate-400">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-ui-xs text-slate-400">
                   No image
                 </div>
               )}
@@ -164,14 +164,14 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
                   disabled={!canMutate}
                 />
                 <div className="flex flex-wrap gap-2">
-                  <label className="z-btn-secondary !px-3 !py-1.5 !text-[11px] cursor-pointer">
+                  <label className="z-btn-secondary !px-3 !py-1.5 !text-xs cursor-pointer">
                     Upload file
                     <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" className="hidden" onChange={onAvatarFile} disabled={!canMutate} />
                   </label>
                   {avatarUrl ? (
                     <button
                       type="button"
-                      className="z-btn-secondary !px-3 !py-1.5 !text-[11px]"
+                      className="z-btn-secondary !px-3 !py-1.5 !text-xs"
                       disabled={!canMutate}
                       onClick={() => setAvatarUrl('')}
                     >
@@ -200,10 +200,10 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
           shortcuts and the team guide.
         </p>
         <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Role</p>
-          <p className="text-sm font-black text-[#134e4a]">{currentUser?.roleLabel || 'No active role'}</p>
+          <p className="text-ui-xs font-black uppercase tracking-[0.16em] text-slate-400">Role</p>
+          <p className="text-sm font-black text-zarewa-teal">{currentUser?.roleLabel || 'No active role'}</p>
           {currentUser?.department ? (
-            <p className="text-[11px] font-bold uppercase tracking-wide text-teal-800/90 pt-1">
+            <p className="text-xs font-bold uppercase tracking-wide text-teal-800/90 pt-1">
               Workspace role:{' '}
               {WORKSPACE_DEPARTMENT_LABELS[currentUser.department] || currentUser.department}
             </p>
@@ -213,19 +213,19 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
           {permissions.map((perm) => (
             <span
               key={perm}
-              className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-[#134e4a]"
+              className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal"
             >
               {perm}
             </span>
           ))}
         </div>
-        <p className="mt-5 text-[11px] text-slate-500 leading-relaxed">
+        <p className="mt-5 text-xs text-slate-500 leading-relaxed">
           {showTeamTab ? (
             <>
               Manage app logins under{' '}
               <Link
                 to="/settings/team"
-                className="font-semibold text-[#134e4a] underline-offset-2 hover:underline"
+                className="font-semibold text-zarewa-teal underline-offset-2 hover:underline"
               >
                 Team & access
               </Link>
@@ -239,7 +239,7 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
           <div className="mt-4">
             <Link
               to="/settings/security"
-              className="inline-flex items-center gap-2 text-xs font-semibold text-[#134e4a] hover:underline"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-zarewa-teal hover:underline"
             >
               <Lock size={14} /> Change password
             </Link>

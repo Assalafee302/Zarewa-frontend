@@ -156,19 +156,19 @@ export default function MyProfileDiscipline() {
                   <div className="space-y-3 border-t border-slate-100 px-4 pb-4 pt-3 text-sm">
                     {c.description ? (
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Details</p>
+                        <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Details</p>
                         <p className="whitespace-pre-wrap text-slate-700">{c.description}</p>
                       </div>
                     ) : null}
                     {c.managementDecision ? (
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Decision</p>
+                        <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Decision</p>
                         <p className="whitespace-pre-wrap text-slate-700">{c.managementDecision}</p>
                       </div>
                     ) : null}
                     {c.employeeResponse ? (
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Your response</p>
+                        <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Your response</p>
                         <p className="whitespace-pre-wrap text-slate-700">{c.employeeResponse}</p>
                       </div>
                     ) : null}
@@ -219,7 +219,7 @@ export default function MyProfileDiscipline() {
 
                     <p className="z-meta-text">
                       Approved letters addressed to you appear in{' '}
-                      <Link to="/my-profile/documents" className="font-semibold text-[#134e4a] hover:underline">
+                      <Link to="/my-profile/documents" className="font-semibold text-zarewa-teal hover:underline">
                         My documents
                       </Link>
                       .

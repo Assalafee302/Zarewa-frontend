@@ -21,7 +21,7 @@ function SummaryMetric({ label, value, detail, tone = 'default', compactValue = 
   };
   return (
     <div className={`rounded-xl border px-4 py-3 ${tones[tone] || tones.default}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-ui-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
       <p
         className={`mt-1 font-bold tabular-nums text-slate-900 ${
           compactValue ? 'break-all font-mono text-xs leading-snug' : 'text-xl'
@@ -106,7 +106,7 @@ export function HrOrgStructureSummary({ refreshKey = 0 }) {
     <HrCard title="Structure at a glance" subtitle="Live counts from master data and salary matrix">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <span
-          className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+          className={`inline-flex rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${
             status.tone === 'ok'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
               : 'border-amber-200 bg-amber-50 text-amber-900'
@@ -145,7 +145,7 @@ export function HrOrgStructureSummary({ refreshKey = 0 }) {
           tone={stats.matrixRows > 0 ? 'ok' : 'default'}
         />
       </div>
-      <Link to="/hr/dashboard" className="mt-4 inline-flex text-xs font-semibold text-[#134e4a] hover:underline">
+      <Link to="/hr/dashboard" className="mt-4 inline-flex text-xs font-semibold text-zarewa-teal hover:underline">
         Review data quality on HR dashboard →
       </Link>
     </HrCard>
@@ -253,12 +253,12 @@ export function HrSettingsModuleLinks() {
                     className="group flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-slate-50/80"
                   >
                     <span className="min-w-0">
-                      <span className="block text-sm font-semibold text-[#134e4a] group-hover:underline">
+                      <span className="block text-sm font-semibold text-zarewa-teal group-hover:underline">
                         {item.label}
                       </span>
                       <span className="block text-xs text-slate-500">{item.hint}</span>
                     </span>
-                    <ChevronRight size={16} className="shrink-0 text-slate-300 group-hover:text-[#134e4a]" aria-hidden />
+                    <ChevronRight size={16} className="shrink-0 text-slate-300 group-hover:text-zarewa-teal" aria-hidden />
                   </Link>
                 </li>
               ))}

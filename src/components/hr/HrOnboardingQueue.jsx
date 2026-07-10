@@ -66,7 +66,7 @@ export function HrOnboardingQueue() {
                 <AppTableTd>
                   <Link
                     to={`${HR_EMPLOYEES}/${encodeURIComponent(s.userId)}?tab=lifecycle`}
-                    className="font-semibold text-[#134e4a] hover:underline"
+                    className="font-semibold text-zarewa-teal hover:underline"
                   >
                     {s.displayName || s.username}
                   </Link>
@@ -78,7 +78,7 @@ export function HrOnboardingQueue() {
                 <AppTableTd>
                   <Link
                     to={`${HR_EMPLOYEES}/${encodeURIComponent(s.userId)}?tab=lifecycle`}
-                    className="text-xs font-bold uppercase text-[#134e4a] hover:underline"
+                    className="text-xs font-bold uppercase text-zarewa-teal hover:underline"
                   >
                     Open →
                   </Link>

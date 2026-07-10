@@ -54,7 +54,7 @@ export function ManagementRemarkDialog({
   const confirmClass =
     variant === 'danger'
       ? 'bg-rose-600 hover:bg-rose-500 text-white'
-      : 'bg-[#134e4a] hover:brightness-105 text-white';
+      : 'bg-zarewa-teal hover:brightness-105 text-white';
 
   return (
     <ModalFrame isOpen={open} onClose={() => !busy && onCancel?.()}>
@@ -64,7 +64,7 @@ export function ManagementRemarkDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div>
-          <h3 className="text-lg font-black text-[#134e4a]">{title}</h3>
+          <h3 className="text-lg font-black text-zarewa-teal">{title}</h3>
           {description ? <p className="mt-2 text-sm text-slate-600 leading-relaxed">{description}</p> : null}
         </div>
         {multiline ? (
@@ -77,7 +77,7 @@ export function ManagementRemarkDialog({
             rows={3}
             autoFocus
             placeholder={placeholder}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
           />
         ) : (
           <input
@@ -89,12 +89,12 @@ export function ManagementRemarkDialog({
             }}
             autoFocus
             placeholder={placeholder}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
           />
         )}
         {error ? <p className="text-xs font-semibold text-rose-700">{error}</p> : null}
         {optional ? (
-          <p className="text-[11px] text-slate-500">Optional — leave blank if not needed.</p>
+          <p className="text-xs text-slate-500">Optional — leave blank if not needed.</p>
         ) : null}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end pt-2">
           <Button type="button" variant="outline" disabled={busy} onClick={() => onCancel?.()}>
@@ -103,7 +103,7 @@ export function ManagementRemarkDialog({
           <button
             type="submit"
             disabled={busy}
-            className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-[11px] font-black uppercase tracking-wide disabled:opacity-50 ${confirmClass}`}
+            className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-wide disabled:opacity-50 ${confirmClass}`}
           >
             {confirmLabel}
           </button>
@@ -115,48 +115,6 @@ export function ManagementRemarkDialog({
 
 /**
  * Replaces window.confirm for bulk / destructive management actions.
+ * @deprecated Import from `../ui/ConfirmDialog` instead.
  */
-export function ManagementConfirmDialog({
-  open,
-  title = 'Confirm',
-  description = '',
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
-  busy = false,
-  variant = 'primary',
-  onConfirm,
-  onCancel,
-}) {
-  if (!open) return null;
-
-  const confirmClass =
-    variant === 'danger'
-      ? 'bg-rose-600 hover:bg-rose-500 text-white'
-      : 'bg-[#134e4a] hover:brightness-105 text-white';
-
-  return (
-    <ModalFrame isOpen={open} onClose={() => !busy && onCancel?.()}>
-      <div className="z-modal-panel w-full max-w-md p-6 sm:p-8 space-y-5">
-        <div>
-          <h3 className="text-lg font-black text-[#134e4a]">{title}</h3>
-          {description ? (
-            <p className="mt-2 text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{description}</p>
-          ) : null}
-        </div>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" disabled={busy} onClick={() => onCancel?.()}>
-            {cancelLabel}
-          </Button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onConfirm?.()}
-            className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-[11px] font-black uppercase tracking-wide disabled:opacity-50 ${confirmClass}`}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </ModalFrame>
-  );
-}
+export { ConfirmDialog as ManagementConfirmDialog } from '../ui/ConfirmDialog';

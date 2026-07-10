@@ -19,7 +19,6 @@ import {
   X,
 } from 'lucide-react';
 import { apiFetch } from '../lib/apiBase';
-import { fmtConv2 } from '../lib/conversionKgPerM.js';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../lib/appDataTable';
 import { AppTablePager } from './ui/AppDataTable';
 import {
@@ -89,182 +88,33 @@ import { ProductionRegisterCorrectionModal } from './operations/ProductionRegist
 import { ProductionRegisterConfirmModal } from './operations/ProductionRegisterConfirmModal';
 import { ProductionRegisterIssuesPanel } from './operations/ProductionRegisterIssuesPanel';
 import { ProductionRegisterPostStartBanner } from './operations/ProductionRegisterPostStartBanner';
+import { LiveProductionMonitorJobSidebar } from './production/LiveProductionMonitorJobSidebar';
+import {
+  LiveProductionMonitorCancelModal,
+  LiveProductionMonitorReturnModal,
+} from './production/LiveProductionMonitorReturnCancelModals';
 import {
   buildProductionRegisterIssues,
   productionCoilSyncSummary,
 } from '../lib/productionRegisterIssues';
-
-/** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
-const COIL_TAIL_FINISH_MAX_KG = 85;
-
-function formatKg(value) {
-  const next = Number(value);
-  return Number.isFinite(next) ? `${Math.round(next)} kg` : '—';
-}
-
-function formatMeters(value) {
-  const next = Number(value);
-  return Number.isFinite(next) ? `${next.toFixed(2)} m` : '—';
-}
-
-function stockRecalcSuffix(stockRecalc) {
-  if (!stockRecalc?.ok) return '';
-  const n = Number(stockRecalc.recalculatedCount ?? stockRecalc.coils?.length ?? 0);
-  if (!Number.isFinite(n) || n <= 0) return '';
-  return ` Stock recalculated for ${n} coil(s).`;
-}
-
-function savedCoilCountFromAllocPayload(body, data) {
-  const fromResponse = Array.isArray(data?.allocations) ? data.allocations.length : 0;
-  if (fromResponse > 0) return fromResponse;
-  const fromRequest = Array.isArray(body?.allocations) ? body.allocations.length : 0;
-  return fromRequest;
-}
-
-function coilAllocSavedToastMessage({ body, data, isRunning, listLabel, stockRecalc, started = false }) {
-  const count = savedCoilCountFromAllocPayload(body, data);
-  const countPhrase = count > 0 ? `${count} coil(s) ` : '';
-  const suffix = stockRecalcSuffix(stockRecalc);
-  if (started) {
-    return `${countPhrase}saved to server and production started for ${listLabel} — visible to all users.${suffix}`;
-  }
-  if (isRunning) {
-    return `${countPhrase}saved to server on ${listLabel} — admin and manager can see them now.${suffix}`;
-  }
-  return `${countPhrase}saved to server for ${listLabel} — visible to admin and manager.${suffix}`;
-}
-
-/** In compact views, omit “Design” when it matches or nests inside the FG product line label. */
-function designRedundantVersusProductLine(design, productName, productID) {
-  const d = String(design || '').trim().toLowerCase();
-  if (!d) return true;
-  const p = String(productName || productID || '').trim().toLowerCase();
-  if (!p) return false;
-  if (d === p) return true;
-  if (d.length >= 4 && p.includes(d)) return true;
-  if (p.length >= 4 && d.includes(p)) return true;
-  return false;
-}
-
-function formatKgPerM(value) {
-  return fmtConv2(value, { suffix: 'kg/m' });
-}
-
-/** Table cells for posted conversion. */
-function formatKgPerMCompact(value) {
-  return fmtConv2(value);
-}
-
-/** Default opening kg when picking a coil — whole kg, same as free kg shown in the picker. */
-function suggestedOpeningKgFromFree(freeKg) {
-  const n = Number(freeKg);
-  if (!Number.isFinite(n) || n <= 0) return '';
-  return String(Math.round(n));
-}
-
-/** Metres implied by free kg using supplier conversion, else scaled from supplier nominal length vs received kg. */
-function estimatedMetresFromFreeKg(coil, freeKg) {
-  const kg = Number(freeKg);
-  if (!Number.isFinite(kg) || kg <= 0) return null;
-  const conv = Number(coil?.supplierConversionKgPerM);
-  if (Number.isFinite(conv) && conv > 0) {
-    const m = kg / conv;
-    return Number.isFinite(m) && m > 0 ? m : null;
-  }
-  const sem = Number(coil?.supplierExpectedMeters);
-  const recv = Number(coil?.qtyReceived);
-  if (Number.isFinite(sem) && sem > 0 && Number.isFinite(recv) && recv > 0) {
-    const m = sem * (kg / recv);
-    return Number.isFinite(m) && m > 0 ? m : null;
-  }
-  return null;
-}
-
-function supplierNominalMetres(coil) {
-  const sem = Number(coil?.supplierExpectedMeters);
-  return Number.isFinite(sem) && sem > 0 ? sem : null;
-}
-
-/** Lower sorts earlier: best match to planned metres when estimate exists. */
-function coilMetresPickSortKey(estimatedM, plannedM) {
-  if (estimatedM == null || !Number.isFinite(estimatedM)) return 3000;
-  if (!Number.isFinite(plannedM) || plannedM <= 0) return 1000;
-  const diff = estimatedM - plannedM;
-  if (diff >= 0) return 1000 + diff;
-  return 2000 - diff;
-}
-
-/** One-line label for coil `<option>`s: material, spec, estimated metres vs free kg, optional job plan hint. */
-function coilPickerOptionText(coil, freeKg, plannedJobM) {
-  const mat = String(coil?.materialTypeName || '').trim();
-  const matPrefix = mat ? `${mat} · ` : '';
-  const colour = coil?.colour || '—';
-  const gauge = coil?.gaugeLabel || '—';
-  const est = estimatedMetresFromFreeKg(coil, freeKg);
-  const nominal = supplierNominalMetres(coil);
-  let metresPart = '';
-  if (est != null) {
-    metresPart = `≈${est.toFixed(1)} m est`;
-    if (Number.isFinite(plannedJobM) && plannedJobM > 0) {
-      metresPart += ` · plan ${plannedJobM.toFixed(1)} m`;
-    }
-  } else if (nominal != null) {
-    metresPart = `supplier ~${nominal.toFixed(0)} m roll`;
-    if (Number.isFinite(plannedJobM) && plannedJobM > 0) {
-      metresPart += ` · plan ${plannedJobM.toFixed(1)} m`;
-    }
-  } else {
-    metresPart = 'm est n/a';
-  }
-  return `${coil.coilNo} — ${matPrefix}${colour} ${gauge} · ${metresPart} · free ${freeKg.toFixed(1)} kg`;
-}
-
-function formatPct(value) {
-  const next = Number(value);
-  if (!Number.isFinite(next)) return '—';
-  const sign = next > 0 ? '+' : '';
-  return `${sign}${next.toFixed(1)}%`;
-}
-
-function alertTone(alertState) {
-  switch (alertState) {
-    case 'High':
-      return 'border-red-200 bg-red-50 text-red-900';
-    case 'Low':
-      return 'border-amber-200 bg-amber-50 text-amber-900';
-    case 'Watch':
-      return 'border-sky-200 bg-sky-50 text-sky-900';
-    default:
-      return 'border-emerald-200 bg-emerald-50 text-emerald-900';
-  }
-}
-
-/** Table row background only (posted conversion). */
-function postedCheckRowClass(alertState) {
-  switch (alertState) {
-    case 'High':
-      return 'bg-red-50/85 text-red-950';
-    case 'Low':
-      return 'bg-amber-50/85 text-amber-950';
-    case 'Watch':
-      return 'bg-sky-50/85 text-sky-950';
-    default:
-      return 'bg-emerald-50/50 text-emerald-950';
-  }
-}
-
-function statusTone(status) {
-  switch (status) {
-    case 'Completed':
-      return 'bg-emerald-100 text-emerald-800';
-    case 'Cancelled':
-      return 'bg-slate-200 text-slate-700';
-    case 'Running':
-      return 'bg-sky-100 text-sky-800';
-    default:
-      return 'bg-amber-100 text-amber-900';
-  }
-}
+import {
+  COIL_TAIL_FINISH_MAX_KG,
+  alertTone,
+  coilAllocSavedToastMessage,
+  coilMetresPickSortKey,
+  coilPickerOptionText,
+  designRedundantVersusProductLine,
+  estimatedMetresFromFreeKg,
+  formatKg,
+  formatKgPerM,
+  formatKgPerMCompact,
+  formatMeters,
+  formatPct,
+  postedCheckRowClass,
+  statusTone,
+  suggestedOpeningKgFromFree,
+  supplierNominalMetres,
+} from '../lib/liveProductionMonitorUi';
 
 /**
  * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean; operationsRegisterEdit?: boolean; onRegisterHeaderMeta?: (meta: { status?: string; quotationRef?: string; machineName?: string; materialLabel?: string } | null) => void }} [props]
@@ -727,7 +577,7 @@ export function LiveProductionMonitor({
   const jobSt = optimisticJobStatus ?? normalizeJobStatus(selectedJob?.status);
   const displayJobStatus = jobSt;
   const shopFloorUi = Boolean(inModal && operationsRegisterEdit);
-  const statusChipText = shopFloorUi ? 'text-[11px]' : 'text-[10px]';
+  const statusChipText = shopFloorUi ? 'text-xs' : 'text-ui-xs';
   /** Same gate as post-completion FG metre adjustments — not plain production.manage. */
   const canEditCompletedCoilCorrections =
     jobSt === 'Completed' &&
@@ -2889,7 +2739,7 @@ export function LiveProductionMonitor({
           }`}
         >
           <div className="flex min-w-0 flex-1 items-start gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#134e4a] to-teal-700 text-white shadow-sm">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-zarewa-teal to-teal-700 text-white shadow-sm">
               <Gauge size={18} strokeWidth={2} />
             </div>
             <div className="min-w-0 flex-1">
@@ -2903,14 +2753,14 @@ export function LiveProductionMonitor({
                 </h3>
                 <details className="relative shrink-0">
                   <summary
-                    className="list-none cursor-pointer rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 [&::-webkit-details-marker]:hidden"
+                    className="list-none cursor-pointer rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 [&::-webkit-details-marker]:hidden"
                     aria-label="Production workflow tips and stock behaviour"
                   >
                     <Info className="size-3.5" strokeWidth={2.25} aria-hidden />
                   </summary>
                   <div
                     role="note"
-                    className="absolute left-0 top-full z-30 mt-1.5 w-[min(calc(100vw-2rem),22rem)] rounded-lg border border-slate-200 bg-white p-2.5 text-[10px] leading-snug text-slate-700 shadow-lg ring-1 ring-black/5 sm:left-auto sm:right-0"
+                    className="absolute left-0 top-full z-30 mt-1.5 w-[min(calc(100vw-2rem),22rem)] rounded-lg border border-slate-200 bg-white p-2.5 text-ui-xs leading-snug text-slate-700 shadow-lg ring-1 ring-black/5 sm:left-auto sm:right-0"
                   >
                     <p>
                       Mistakes before start: use Save &amp; start again with the corrected coils. Wrong coil after start:
@@ -2948,15 +2798,15 @@ export function LiveProductionMonitor({
                 </details>
               </div>
               {inModal && focusClTrim ? (
-                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                   <span className="font-mono font-semibold text-slate-700">{focusClTrim}</span>
                   <span
-                    className={`rounded-md border border-black/5 px-1.5 py-0.5 text-[8px] font-bold uppercase shadow-sm ${statusTone(selectedJob.status)}`}
+                    className={`rounded-md border border-black/5 px-1.5 py-0.5 text-ui-xs font-bold uppercase shadow-sm ${statusTone(selectedJob.status)}`}
                   >
                     {selectedJob.status}
                   </span>
                   {selectedJobOffcutSupply.length > 0 ? (
-                    <span className="inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[8px] font-bold uppercase text-teal-900 shadow-sm">
+                    <span className="inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-teal-900 shadow-sm">
                       Supplied from offcut:{' '}
                       {selectedJobOffcutSupply
                         .map((s) => `${s.materialIncidentId || s.incidentId} (${Number(s.meters || 0)} m)`)
@@ -2964,12 +2814,12 @@ export function LiveProductionMonitor({
                     </span>
                   ) : null}
                   {selectedJob.quotationRef ? (
-                    <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-[8px] font-semibold text-slate-700 shadow-sm">
+                    <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
                       Quote{' '}
-                      <span className="ml-0.5 font-mono text-[#134e4a]">{selectedJob.quotationRef}</span>
+                      <span className="ml-0.5 font-mono text-zarewa-teal">{selectedJob.quotationRef}</span>
                     </span>
                   ) : null}
-                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-[8px] font-semibold text-slate-700 shadow-sm">
+                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
                     {selectedJob.machineName || 'Line'}
                   </span>
                   {readOnly ? <span className="text-slate-400">· read-only</span> : null}
@@ -2979,36 +2829,36 @@ export function LiveProductionMonitor({
                 <div className="mt-2 flex flex-wrap items-end gap-3">
                   {(jobSt === 'Planned' || jobSt === 'Running') &&
                   !selectedJob.startDateISO ? (
-                    <label className="text-[10px] font-semibold text-slate-600">
+                    <label className="text-ui-xs font-semibold text-slate-600">
                       Production date
                       <input
                         type="date"
-                        className="z-input block mt-0.5 py-1 text-[11px]"
+                        className="z-input block mt-0.5 py-1 text-xs"
                         value={productionDateIso}
                         onChange={(e) => setProductionDateIso(e.target.value)}
                       />
                     </label>
                   ) : selectedJob.startDateISO ? (
-                    <p className="text-[10px] text-slate-600">
+                    <p className="text-ui-xs text-slate-600">
                       Started: <strong>{String(selectedJob.startDateISO).slice(0, 10)}</strong>
                     </p>
                   ) : null}
                   {jobSt === 'Running' ? (
                     <>
-                      <label className="text-[10px] font-semibold text-slate-600">
+                      <label className="text-ui-xs font-semibold text-slate-600">
                         Production business date
                         <input
                           type="date"
-                          className="z-input block mt-0.5 py-1 text-[11px]"
+                          className="z-input block mt-0.5 py-1 text-xs"
                           value={productionDateIso}
                           onChange={(e) => setProductionDateIso(e.target.value)}
                         />
                       </label>
-                      <label className="text-[10px] font-semibold text-slate-600">
+                      <label className="text-ui-xs font-semibold text-slate-600">
                         Completion date
                         <input
                           type="date"
-                          className="z-input block mt-0.5 py-1 text-[11px]"
+                          className="z-input block mt-0.5 py-1 text-xs"
                           value={completionDateIso}
                           onChange={(e) => setCompletionDateIso(e.target.value)}
                         />
@@ -3023,7 +2873,7 @@ export function LiveProductionMonitor({
             <button
               type="button"
               onClick={onModalClose}
-              className="inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
+              className="inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
               aria-label="Close"
             >
               <X size={20} strokeWidth={2} aria-hidden />
@@ -3032,7 +2882,7 @@ export function LiveProductionMonitor({
           {!inModal ? (
             <div className="flex flex-wrap items-stretch gap-1.5 lg:justify-end">
               {readOnly ? (
-                <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600">
+                <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">
                   View only
                 </span>
               ) : (
@@ -3043,7 +2893,7 @@ export function LiveProductionMonitor({
                       onClick={() => void persist('allocationsAndStart')}
                       disabled={savingAction !== '' || !canEditPlannedAllocations || !plannedAllocSaveReady}
                       title="Writes coil allocation to the server and starts the run in one step."
-                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors disabled:opacity-45 ${
                         savingAction === 'allocationsAndStart'
                           ? 'bg-sky-100 text-sky-800'
                           : unsavedCoilDraftCount > 0
@@ -3062,7 +2912,7 @@ export function LiveProductionMonitor({
                       onClick={() => void persist('runningCheckpoint')}
                       disabled={savingAction !== '' || !canCaptureRun || !runningCheckpointSaveReady}
                       title="Save new coil lines and/or closing kg, metres, and notes (safe on phone — refresh without losing draft)."
-                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors disabled:opacity-45 ${
                         savingAction === 'runningCheckpoint'
                           ? 'bg-slate-100 text-slate-500'
                           : unsavedCoilDraftCount > 0
@@ -3080,7 +2930,7 @@ export function LiveProductionMonitor({
                       onClick={() => void persist('completedCoilCorrection')}
                       disabled={savingAction !== '' || !completedCoilCorrectionSaveReady}
                       title="Correct coil, opening/closing kg, or metres after completion. Requires a 12+ character reason. Adjusts stock; does not reverse posted GL automatically."
-                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors disabled:opacity-45 ${
                         savingAction === 'completedCoilCorrection'
                           ? 'bg-amber-100 text-amber-900'
                           : 'border border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100'
@@ -3096,7 +2946,7 @@ export function LiveProductionMonitor({
                       onClick={() => void persist('completedAccessoryCorrection')}
                       disabled={savingAction !== ''}
                       title="Correct accessory issues after completion (ordered vs supplied). Requires a 12+ character reason. Adjusts stock; does not reverse posted GL automatically."
-                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors disabled:opacity-45 ${
                         savingAction === 'completedAccessoryCorrection'
                           ? 'bg-amber-100 text-amber-900'
                           : 'border border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100'
@@ -3112,7 +2962,7 @@ export function LiveProductionMonitor({
                       onClick={() => void persist('completedStoneFlatsheetCorrection')}
                       disabled={savingAction !== '' || !stoneFlatsheetCompletionDraft.length}
                       title="Correct stone flatsheet m² after completion. Requires a 12+ character reason. Adjusts stock; does not reverse posted GL automatically."
-                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors disabled:opacity-45 ${
                         savingAction === 'completedStoneFlatsheetCorrection'
                           ? 'bg-sky-100 text-sky-900'
                           : 'border border-sky-400 bg-sky-50 text-sky-950 hover:bg-sky-100'
@@ -3128,7 +2978,7 @@ export function LiveProductionMonitor({
                       onClick={openProductionMaterialIncident}
                       disabled={savingAction !== ''}
                       title="Record coil damage or production scrap — submits for manager approval."
-                      className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
+                      className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
                     >
                       <AlertTriangle size={13} />
                       Material incident
@@ -3150,7 +3000,7 @@ export function LiveProductionMonitor({
                           ? undefined
                           : completionValidation.errors[0] || 'Complete all run-log fields before completion.'
                     }
-                    className="inline-flex items-center gap-1 rounded-md bg-[#134e4a] px-2 py-1 text-[11px] font-semibold text-white hover:bg-[#0f3d39] disabled:opacity-45"
+                    className="inline-flex items-center gap-1 rounded-md bg-zarewa-teal px-2 py-1 text-xs font-semibold text-white hover:bg-[#0f3d39] disabled:opacity-45"
                   >
                     <CheckCircle2 size={13} />
                     {savingAction === 'complete' ? 'Completing…' : 'Complete'}
@@ -3161,7 +3011,7 @@ export function LiveProductionMonitor({
                       onClick={() => setReturnModalOpen(true)}
                       disabled={savingAction !== '' || returnSaving}
                       title="Undo Start: go back to Planned so you can change coil allocation (audit reason required)."
-                      className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
+                      className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
                     >
                       <Undo2 size={13} />
                       Return to plan
@@ -3173,7 +3023,7 @@ export function LiveProductionMonitor({
                       onClick={() => setCancelModalOpen(true)}
                       disabled={savingAction !== '' || cancelSaving || returnSaving}
                       title="Cancel this job: releases coil reservations and marks production cancelled (order cancellation / refund path)."
-                      className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-950 hover:bg-rose-100 disabled:opacity-45"
+                      className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-950 hover:bg-rose-100 disabled:opacity-45"
                     >
                       <Ban size={13} />
                       Cancel job
@@ -3201,36 +3051,36 @@ export function LiveProductionMonitor({
       selectedJob?.status !== 'Cancelled' ? (
         <div className="mb-2 flex flex-wrap items-end gap-3 border-b border-slate-100 px-2 pb-2 pt-1 sm:px-2.5">
           {(jobSt === 'Planned' || jobSt === 'Running') && !selectedJob.startDateISO ? (
-            <label className={`${shopFloorUi ? 'text-xs' : 'text-[10px]'} font-semibold text-slate-600`}>
+            <label className={`${shopFloorUi ? 'text-xs' : 'text-ui-xs'} font-semibold text-slate-600`}>
               Production date
               <input
                 type="date"
-                className="z-input block mt-0.5 py-1 text-[11px]"
+                className="z-input block mt-0.5 py-1 text-xs"
                 value={productionDateIso}
                 onChange={(e) => setProductionDateIso(e.target.value)}
               />
             </label>
           ) : selectedJob.startDateISO ? (
-            <p className="text-[10px] text-slate-600">
+            <p className="text-ui-xs text-slate-600">
               Started: <strong>{String(selectedJob.startDateISO).slice(0, 10)}</strong>
             </p>
           ) : null}
           {jobSt === 'Running' ? (
             <>
-              <label className={`${shopFloorUi ? 'text-xs' : 'text-[10px]'} font-semibold text-slate-600`}>
+              <label className={`${shopFloorUi ? 'text-xs' : 'text-ui-xs'} font-semibold text-slate-600`}>
                 Production business date
                 <input
                   type="date"
-                  className="z-input block mt-0.5 py-1 text-[11px]"
+                  className="z-input block mt-0.5 py-1 text-xs"
                   value={productionDateIso}
                   onChange={(e) => setProductionDateIso(e.target.value)}
                 />
               </label>
-              <label className="text-[10px] font-semibold text-slate-600">
+              <label className="text-ui-xs font-semibold text-slate-600">
                 Completion date
                 <input
                   type="date"
-                  className="z-input block mt-0.5 py-1 text-[11px]"
+                  className="z-input block mt-0.5 py-1 text-xs"
                   value={completionDateIso}
                   onChange={(e) => setCompletionDateIso(e.target.value)}
                 />
@@ -3267,13 +3117,13 @@ export function LiveProductionMonitor({
         <div className={`border-b border-slate-100 bg-slate-50/70 ${inModal ? 'px-2 py-0.5 sm:px-2.5' : 'px-2 py-1 sm:px-3'}`}>
           <div className={`flex flex-wrap ${inModal ? 'gap-1' : 'gap-1.5'}`}>
             {readOnly && jobSt === 'Cancelled' ? (
-              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600">
+              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs text-slate-600">
                 <Ban size={14} className="mt-0.5 shrink-0 text-slate-600" />
                 Job cancelled — no further production actions; record kept for refunds / audit.
               </span>
             ) : null}
             {readOnly && jobSt !== 'Cancelled' ? (
-              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600">
+              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs text-slate-600">
                 <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-600" />
                 Finished run — review conversion below; actions are off.
                 {Math.abs(fgAdjTotalM) > 1e-6 ? (
@@ -3286,7 +3136,7 @@ export function LiveProductionMonitor({
               </span>
             ) : null}
             {!readOnly && !inModal && productionRegisterIssues.length === 0 ? (
-              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600">
+              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs text-slate-600">
                 <ClipboardList size={14} className="mt-0.5 shrink-0 text-slate-500" />
                 <span>
                   <strong className="text-slate-700">Designed for real teams:</strong> easy steps, spec hints, and
@@ -3295,13 +3145,13 @@ export function LiveProductionMonitor({
               </span>
             ) : null}
             {canAddSupplementalCoil && !productionRegisterIssues.some((i) => i.id === 'running-next-step') ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] text-sky-950">
+              <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-ui-xs text-sky-950">
                 <Plus size={14} className="shrink-0" />
                 Mid-run: <strong className="font-semibold">Add coil</strong> if one roll is not enough.
               </span>
             ) : null}
             {canEditCompletedCoilCorrections ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-[10px] text-teal-950">
+              <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-ui-xs text-teal-950">
                 <Plus size={14} className="shrink-0" />
                 Completed correction: <strong className="font-semibold">Add coil</strong> if a roll was omitted.
               </span>
@@ -3311,7 +3161,7 @@ export function LiveProductionMonitor({
             completionValidation.canComplete &&
             !requiresManagerOverrunApproval &&
             hasPlannedMeters ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-900">
+              <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-ui-xs font-medium text-emerald-900">
                 <Sparkles size={14} className="shrink-0" />
                 {planProgressPct != null
                   ? `${planProgressPct}% of planned metres logged — preview updates as you type.`
@@ -3328,74 +3178,13 @@ export function LiveProductionMonitor({
         }`}
       >
         {!hideJobSidebar ? (
-          <aside className="space-y-1 lg:sticky lg:top-2 lg:self-start">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Queue</p>
-              <span className="rounded-md bg-slate-200/80 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">
-                {sortedJobs.length}
-              </span>
-            </div>
-            <div className="flex max-h-[min(58vh,22rem)] flex-col gap-1 overflow-y-auto pr-0.5 custom-scrollbar">
-              {sortedJobs.map((job) => {
-                const active = selectedJob.jobID === job.jobID;
-                const allocN = coilAllocationCountByJob.get(job.jobID) || 0;
-                return (
-                  <button
-                    key={job.jobID}
-                    type="button"
-                    data-testid={`production-queue-job-${job.jobID}`}
-                    onClick={() => setSelectedJobId(job.jobID)}
-                    className={`w-full rounded-lg border p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/30 ${
-                      active
-                        ? 'border-[#134e4a]/40 bg-white shadow-sm ring-1 ring-[#134e4a]/15'
-                        : 'border-slate-200/90 bg-white/80 hover:border-teal-300/60 hover:bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate font-mono text-[11px] font-bold text-[#134e4a]">
-                        {job.cuttingListId || job.jobID}
-                      </p>
-                      <span
-                        className={`shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-bold uppercase ${statusTone(job.status)}`}
-                      >
-                        {job.status === 'Running'
-                          ? 'Run'
-                          : job.status === 'Planned'
-                            ? 'Plan'
-                            : job.status === 'Cancelled'
-                              ? 'Off'
-                              : 'Done'}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-700">{job.customerName || '—'}</p>
-                    <p className="truncate text-[9px] text-slate-500">{job.productName || job.productID || '—'}</p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] text-slate-500">
-                      <span className="tabular-nums">{formatMeters(job.plannedMeters)} plan</span>
-                      {job.quotationRef ? <span className="text-slate-400">· {job.quotationRef}</span> : null}
-                    </div>
-                    {job.status === 'Planned' || job.status === 'Running' ? (
-                      (() => {
-                        const sync = productionCoilSyncSummary({
-                          savedCoilCount: allocN,
-                          unsavedCoilDraftCount: active ? unsavedCoilDraftCount : 0,
-                          isActiveJob: active,
-                        });
-                        return (
-                          <p
-                            className={`mt-1 text-[9px] font-semibold ${
-                              sync.tone === 'amber' ? 'text-amber-700' : 'text-slate-500'
-                            }`}
-                          >
-                            {sync.label}
-                          </p>
-                        );
-                      })()
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
+          <LiveProductionMonitorJobSidebar
+            sortedJobs={sortedJobs}
+            selectedJobId={selectedJob.jobID}
+            coilAllocationCountByJob={coilAllocationCountByJob}
+            unsavedCoilDraftCount={unsavedCoilDraftCount}
+            onSelectJob={setSelectedJobId}
+          />
         ) : null}
 
         <div className={`min-w-0 ${inModal ? 'space-y-2' : 'space-y-2.5'}`}>
@@ -3413,7 +3202,7 @@ export function LiveProductionMonitor({
               }`}
             >
               <div className="flex items-center gap-2 border-b border-slate-200/50 pb-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">Job &amp; target</p>
+                <p className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">Job &amp; target</p>
               </div>
               <div
                 className={`flex min-w-0 ${
@@ -3424,11 +3213,11 @@ export function LiveProductionMonitor({
                   {!inModal ? (
                     <>
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-mono text-base font-black tracking-tight text-[#134e4a] sm:text-[1.05rem]">
+                        <p className="font-mono text-base font-black tracking-tight text-zarewa-teal sm:text-[1.05rem]">
                           {selectedJob.cuttingListId || '—'}
                         </p>
                         <span
-                          className={`rounded-md border border-black/5 px-2 py-0.5 text-[9px] font-bold uppercase shadow-sm ${statusTone(selectedJob.status)}`}
+                          className={`rounded-md border border-black/5 px-2 py-0.5 text-ui-xs font-bold uppercase shadow-sm ${statusTone(selectedJob.status)}`}
                         >
                           {selectedJob.status}
                         </span>
@@ -3436,14 +3225,14 @@ export function LiveProductionMonitor({
                     </>
                   ) : null}
                   <p className="text-sm font-semibold leading-snug text-slate-900">{selectedJob.customerName || '—'}</p>
-                  <p className="text-[11px] font-medium leading-snug text-slate-600">
+                  <p className="text-xs font-medium leading-snug text-slate-600">
                     {selectedJob.productName || selectedJob.productID || '—'}
                   </p>
                   {!isStoneMeterQuote &&
                   !completionUsesOffcutMode &&
                   (jobSt === 'Planned' || jobSt === 'Running') ? (
                     <p
-                      className={`text-[10px] font-semibold ${
+                      className={`text-ui-xs font-semibold ${
                         unsavedCoilDraftCount > 0 ? 'text-amber-700' : 'text-slate-500'
                       }`}
                     >
@@ -3459,12 +3248,12 @@ export function LiveProductionMonitor({
                   {!inModal ? (
                     <div className="flex flex-wrap gap-1.5 pt-0.5">
                       {selectedJob.quotationRef ? (
-                        <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-2 py-0.5 text-[9px] font-semibold text-slate-700 shadow-sm">
+                        <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-2 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
                           Quote{' '}
-                          <span className="ml-0.5 font-mono text-[#134e4a]">{selectedJob.quotationRef}</span>
+                          <span className="ml-0.5 font-mono text-zarewa-teal">{selectedJob.quotationRef}</span>
                         </span>
                       ) : null}
-                      <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-2 py-0.5 text-[9px] font-semibold text-slate-700 shadow-sm">
+                      <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-2 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
                         {selectedJob.machineName || 'Line'}
                       </span>
                     </div>
@@ -3480,7 +3269,7 @@ export function LiveProductionMonitor({
                       title="Reserved kg"
                     >
                       <p className="text-[7px] font-bold uppercase tracking-wider text-teal-800/90">Rsvd</p>
-                      <p className="mt-0.5 text-sm font-black tabular-nums leading-none text-[#134e4a]">
+                      <p className="mt-0.5 text-sm font-black tabular-nums leading-none text-zarewa-teal">
                         {formatKg(reservedKg)}
                       </p>
                     </div>
@@ -3489,7 +3278,7 @@ export function LiveProductionMonitor({
                       title="Output metres"
                     >
                       <p className="text-[7px] font-bold uppercase tracking-wider text-teal-800/90">Out</p>
-                      <p className="mt-0.5 text-sm font-black tabular-nums leading-none text-[#134e4a]">
+                      <p className="mt-0.5 text-sm font-black tabular-nums leading-none text-zarewa-teal">
                         {formatMeters(recordedMeters)}
                       </p>
                     </div>
@@ -3520,19 +3309,19 @@ export function LiveProductionMonitor({
                       <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1 text-center">
                         <div className="min-w-0 flex-1" title="Reserved kg">
                           <p className="text-[6px] font-bold uppercase tracking-wide text-teal-800/85">Rsvd</p>
-                          <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
+                          <p className="text-xs font-black tabular-nums leading-tight text-zarewa-teal">
                             {formatKg(reservedKg)} <span className="text-[6px] font-medium text-slate-500">kg</span>
                           </p>
                         </div>
                         <div className="min-w-0 flex-1" title="Consumed kg">
                           <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Used</p>
-                          <p className="text-[11px] font-black tabular-nums leading-tight text-slate-900">
+                          <p className="text-xs font-black tabular-nums leading-tight text-slate-900">
                             {formatKg(recordedConsumedKg)} <span className="text-[6px] font-medium text-slate-500">kg</span>
                           </p>
                         </div>
                         <div className="min-w-0 flex-1" title="Planned job metres">
                           <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Plan</p>
-                          <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
+                          <p className="text-xs font-black tabular-nums leading-tight text-zarewa-teal">
                             {formatMeters(selectedJob.plannedMeters)} <span className="text-[6px] font-medium text-slate-500">m</span>
                           </p>
                           {(Number(selectedJob.plannedRoofM) > 0 ||
@@ -3553,14 +3342,14 @@ export function LiveProductionMonitor({
                           }
                         >
                           <p className="text-[6px] font-bold uppercase tracking-wide text-teal-800/85">Output</p>
-                          <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
+                          <p className="text-xs font-black tabular-nums leading-tight text-zarewa-teal">
                             {metresMatch ? formatMeters(liveM) : `${formatMeters(liveM)} / ${formatMeters(postedM)}`}{' '}
                             <span className="text-[6px] font-medium text-slate-500">{metresMatch ? 'm' : 'm'}</span>
                           </p>
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Alert</p>
-                          <p className="truncate text-[11px] font-black leading-tight text-slate-900">
+                          <p className="truncate text-xs font-black leading-tight text-slate-900">
                             {selectedJob.conversionAlertState || 'Pending'}
                           </p>
                         </div>
@@ -3578,18 +3367,18 @@ export function LiveProductionMonitor({
               ) : null}
 
               {selectedJob?.jobID ? (
-                <details className="rounded-lg border border-slate-200/90 bg-white/90 px-2.5 py-2 text-[10px] text-slate-800 shadow-sm">
-                  <summary className="cursor-pointer list-none font-black uppercase tracking-wide text-[#134e4a] marker:content-none">
+                <details className="rounded-lg border border-slate-200/90 bg-white/90 px-2.5 py-2 text-ui-xs text-slate-800 shadow-sm">
+                  <summary className="cursor-pointer list-none font-black uppercase tracking-wide text-zarewa-teal marker:content-none">
                     Job intelligence
                     {jobIntel?.paymentGateRequired && !jobIntel?.managerProductionApprovedAtISO ? (
-                      <span className="ml-2 rounded-md bg-rose-100 px-1.5 py-0.5 text-[8px] font-black text-rose-900">
+                      <span className="ml-2 rounded-md bg-rose-100 px-1.5 py-0.5 text-ui-xs font-black text-rose-900">
                         Payment gate
                       </span>
                     ) : null}
                   </summary>
                   <div className="mt-2 space-y-2">
                     {jobIntelLoading ? (
-                      <p className="text-[10px] text-slate-500">Loading job intelligence…</p>
+                      <p className="text-ui-xs text-slate-500">Loading job intelligence…</p>
                     ) : jobIntel ? (
                       <>
                         <ProductionJobIntelBanner intel={jobIntel} formatMeters={formatMeters} />
@@ -3605,7 +3394,7 @@ export function LiveProductionMonitor({
                         />
                       </>
                     ) : (
-                      <p className="text-[10px] text-slate-500">No intelligence available for this job.</p>
+                      <p className="text-ui-xs text-slate-500">No intelligence available for this job.</p>
                     )}
                   </div>
                 </details>
@@ -3615,9 +3404,9 @@ export function LiveProductionMonitor({
               allocationUniqueRollCapacityInsight.rollCount > 0 &&
               !isStoneMeterQuote &&
               !readOnly ? (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[#134e4a]/20 bg-[#134e4a]/[0.07] px-2 py-1.5 text-[10px] text-slate-800">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zarewa-teal/20 bg-zarewa-teal/[0.07] px-2 py-1.5 text-ui-xs text-slate-800">
                   <span className="min-w-0 font-semibold leading-tight">
-                    <span className="text-[#134e4a]">{allocationUniqueRollCapacityInsight.rollCount} roll(s)</span>
+                    <span className="text-zarewa-teal">{allocationUniqueRollCapacityInsight.rollCount} roll(s)</span>
                     {allocationUniqueRollCapacityInsight.sumEst != null ? (
                       <>
                         {' '}
@@ -3642,7 +3431,7 @@ export function LiveProductionMonitor({
                   </span>
                   {hasPlannedMeters && allocationUniqueRollCapacityInsight.sumEst != null ? (
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide ${
                         allocationUniqueRollCapacityInsight.sumEst + 0.25 >= plannedMetersValue
                           ? 'bg-emerald-100 text-emerald-900'
                           : 'bg-amber-100 text-amber-950'
@@ -3658,19 +3447,19 @@ export function LiveProductionMonitor({
 
               {hasPlannedMeters && (jobSt === 'Running' || jobSt === 'Planned') ? (
                 <div className="rounded-md border border-slate-200/60 bg-white/60 px-2 py-1.5">
-                  <div className="flex items-center justify-between gap-2 text-[9px] font-semibold text-slate-600">
+                  <div className="flex items-center justify-between gap-2 text-ui-xs font-semibold text-slate-600">
                     <span className="uppercase tracking-wide text-slate-500">vs plan</span>
                     <span className="tabular-nums text-slate-800">
                       {formatMeters(recordedMeters)} / {formatMeters(plannedMetersValue)}
                       {planProgressPct != null ? (
-                        <span className="ml-1 font-bold text-[#134e4a]">({planProgressPct}%)</span>
+                        <span className="ml-1 font-bold text-zarewa-teal">({planProgressPct}%)</span>
                       ) : null}
                     </span>
                   </div>
                   <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-200/90">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
-                        planProgressPct != null && planProgressPct > 100 ? 'bg-amber-500' : 'bg-gradient-to-r from-teal-500 to-[#134e4a]'
+                        planProgressPct != null && planProgressPct > 100 ? 'bg-amber-500' : 'bg-gradient-to-r from-teal-500 to-zarewa-teal'
                       }`}
                       style={{
                         width: `${Math.min(100, planProgressPct != null ? planProgressPct : 0)}%`,
@@ -3687,11 +3476,11 @@ export function LiveProductionMonitor({
                     : 'rounded-lg border border-slate-200/70 bg-white/85 p-2.5 shadow-sm ring-1 ring-slate-900/[0.04] sm:p-3'
                 }
               >
-                <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#134e4a]">Target spec</p>
+                <p className="text-ui-xs font-bold uppercase tracking-[0.12em] text-zarewa-teal">Target spec</p>
                 <div
-                  className={`mt-2 grid gap-x-4 gap-y-1.5 text-[11px] leading-snug ${
+                  className={`mt-2 grid gap-x-4 gap-y-1.5 text-xs leading-snug ${
                     inModal ? 'grid-cols-2 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-                  } ${inModal ? 'text-[10px]' : ''}`}
+                  } ${inModal ? 'text-ui-xs' : ''}`}
                 >
                   {[
                     ['Gauge', quotationMaterialSpec.gauge],
@@ -3707,13 +3496,13 @@ export function LiveProductionMonitor({
                       : [['Design', quotationMaterialSpec.design]]),
                   ].map(([k, v]) => (
                     <p key={k} className="min-w-0 border-l-2 border-teal-200/80 pl-2">
-                      <span className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{k}</span>
+                      <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">{k}</span>
                       <span className="mt-0.5 block truncate font-semibold text-slate-900">{v || '—'}</span>
                     </p>
                   ))}
                 </div>
                 {recommendedCoils.length > 0 ? (
-                  <p className="mt-2 flex items-start gap-2 rounded-md border border-teal-200/60 bg-teal-50/50 px-2 py-1.5 text-[10px] font-medium leading-snug text-teal-900">
+                  <p className="mt-2 flex items-start gap-2 rounded-md border border-teal-200/60 bg-teal-50/50 px-2 py-1.5 text-ui-xs font-medium leading-snug text-teal-900">
                     <Sparkles size={14} className="mt-0.5 shrink-0 text-teal-600" aria-hidden />
                     <span>
                       <span className="font-bold text-teal-950">Stock tip</span>{' '}
@@ -3728,15 +3517,15 @@ export function LiveProductionMonitor({
                 {!inModal ? (
                   <div className="mt-2.5 flex flex-col gap-2 border-t border-slate-200/70 pt-2.5 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-2">
                     {[
-                      ['Planned', formatMeters(selectedJob.plannedMeters), 'text-[#134e4a]'],
-                      ['Actual', formatMeters(selectedJob.actualMeters), 'text-[#134e4a]'],
+                      ['Planned', formatMeters(selectedJob.plannedMeters), 'text-zarewa-teal'],
+                      ['Actual', formatMeters(selectedJob.actualMeters), 'text-zarewa-teal'],
                       ['Alert', selectedJob.conversionAlertState || 'Pending', 'text-slate-900'],
                     ].map(([label, value, valueClass]) => (
                       <div
                         key={label}
                         className="flex min-w-0 flex-1 flex-col justify-center rounded-md border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/90 px-2 py-1.5 text-center shadow-sm sm:min-w-[5.5rem] sm:text-left sm:px-2.5"
                       >
-                        <p className="text-[8px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+                        <p className="text-ui-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
                         <p className={`mt-0.5 truncate text-sm font-black tabular-nums leading-none ${valueClass}`}>
                           {value}
                         </p>
@@ -3744,7 +3533,7 @@ export function LiveProductionMonitor({
                         (Number(selectedJob.plannedRoofM) > 0 ||
                           Number(selectedJob.plannedCladdingM) > 0 ||
                           Number(selectedJob.plannedFlatsheetM) > 0) ? (
-                          <p className="mt-0.5 text-[8px] font-semibold tabular-nums text-slate-500 leading-tight">
+                          <p className="mt-0.5 text-ui-xs font-semibold tabular-nums text-slate-500 leading-tight">
                             R {formatMeters(selectedJob.plannedRoofM)} · C {formatMeters(selectedJob.plannedCladdingM)} · F{' '}
                             {formatMeters(selectedJob.plannedFlatsheetM)}
                           </p>
@@ -3758,7 +3547,7 @@ export function LiveProductionMonitor({
           </div>
 
           {isAccessoriesOnlyQuote && !quotedAccessoryLines.length && !readOnly ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-[10px] text-amber-950">
+            <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-ui-xs text-amber-950">
               <p className="font-bold uppercase tracking-wide">Accessories-only quotation</p>
               <p className="mt-1 leading-snug">
                 Accessory lines were not found on the workspace snapshot for{' '}
@@ -3771,7 +3560,7 @@ export function LiveProductionMonitor({
 
           {showAccessoryIssuedSection && accessoryCompletionDraft.length > 0 ? (
             <div className="rounded-lg border border-teal-200/80 bg-teal-50/40 p-2 sm:p-2.5 space-y-1.5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-[#134e4a]">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">
                 Accessories on quotation{jobSt === 'Completed' ? ' (correction)' : ''}
               </p>
               <div className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white">
@@ -3816,7 +3605,7 @@ export function LiveProductionMonitor({
                                     prev.map((r) => (r.key === row.key ? { ...r, suppliedThisJob: v } : r))
                                   );
                                 }}
-                                className="w-20 rounded-md border border-slate-200 bg-white px-2 py-1 text-right font-mono text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/20"
+                                className="w-20 rounded-md border border-slate-200 bg-white px-2 py-1 text-right font-mono text-sm font-bold text-zarewa-teal outline-none focus:ring-2 focus:ring-teal-500/20"
                                 aria-label={`Supplied this job for ${row.name}`}
                               />
                             </td>
@@ -3845,10 +3634,10 @@ export function LiveProductionMonitor({
 
           {showStoneFlatsheetIssuedSection ? (
             <div className="rounded-lg border border-sky-200/80 bg-sky-50/40 p-2 sm:p-2.5 space-y-1.5">
-              <p className="text-[9px] font-black uppercase tracking-widest text-sky-900">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-sky-900">
                 Stone flatsheet (m²){jobSt === 'Completed' ? ' — correction' : ''}
               </p>
-              <p className="text-[9px] text-slate-600 leading-snug">
+              <p className="text-ui-xs text-slate-600 leading-snug">
                 Ordered m² on the quote vs already consumed on other completed jobs. Supplied + deduction counts against
                 remaining m² and reduces the stone flatsheet stock SKU for this colour and length.
                 {jobSt === 'Planned'
@@ -3967,8 +3756,8 @@ export function LiveProductionMonitor({
 
           {storedConversionReasonLabel && jobSt === 'Completed' ? (
             <div className="rounded-lg border border-slate-200 bg-slate-50/90 px-2.5 py-2 text-xs text-slate-800">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Storekeeper conversion reason</p>
-              <p className="mt-1 text-[11px] font-medium leading-snug">{storedConversionReasonLabel}</p>
+              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Storekeeper conversion reason</p>
+              <p className="mt-1 text-xs font-medium leading-snug">{storedConversionReasonLabel}</p>
             </div>
           ) : null}
 
@@ -3977,10 +3766,10 @@ export function LiveProductionMonitor({
               <div className="flex items-start gap-1.5">
                 <BarChart3 size={15} className="mt-0.5 shrink-0 text-amber-800" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-950">
+                  <p className="text-ui-xs font-black uppercase tracking-widest text-amber-950">
                     Metre overrun — manager note before Complete
                   </p>
-                  <p className="mt-1 text-[10px] leading-snug text-amber-950/90">
+                  <p className="mt-1 text-ui-xs leading-snug text-amber-950/90">
                     Logged metres are <strong>+{overProducedMeters.toFixed(2)} m</strong> over plan. There is no separate
                     approval page: a user with the right role types the approval below, then presses{' '}
                     <strong className="font-semibold">Complete</strong> (and confirms the overrun prompt).
@@ -3989,7 +3778,7 @@ export function LiveProductionMonitor({
               </div>
               {canManageConversionSignoff ? (
                 <label className="block space-y-1 rounded-md border border-amber-200/80 bg-white/90 p-2">
-                  <span className="text-[9px] font-bold uppercase tracking-wide text-amber-900">
+                  <span className="text-ui-xs font-bold uppercase tracking-wide text-amber-900">
                     Approval remark (at least 3 characters)
                   </span>
                   <textarea
@@ -3997,11 +3786,11 @@ export function LiveProductionMonitor({
                     onChange={(e) => setSignoffRemark(e.target.value)}
                     rows={2}
                     placeholder="e.g. Customer approved extra length — overrun accepted."
-                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:ring-2 focus:ring-amber-300 resize-y min-h-[2.5rem]"
+                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-amber-300 resize-y min-h-[2.5rem]"
                   />
                 </label>
               ) : (
-                <p className="text-[10px] font-medium text-amber-950">
+                <p className="text-ui-xs font-medium text-amber-950">
                   A user with <strong className="font-semibold">Production manage</strong>,{' '}
                   <strong className="font-semibold">Production release</strong>, or{' '}
                   <strong className="font-semibold">Operations manage</strong> must open this job, enter the remark here,
@@ -4015,8 +3804,8 @@ export function LiveProductionMonitor({
           selectedJob?.status === 'Completed' &&
           (ws?.snapshot?.productionJobAccessoryUsage || []).some((u) => u.jobID === selectedJob.jobID) ? (
             <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 sm:p-2.5 space-y-1">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Accessories posted</p>
-              <ul className="space-y-1 text-[10px] text-slate-700">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Accessories posted</p>
+              <ul className="space-y-1 text-ui-xs text-slate-700">
                 {(ws?.snapshot?.productionJobAccessoryUsage || [])
                   .filter((u) => u.jobID === selectedJob.jobID)
                   .map((u) => (
@@ -4035,8 +3824,8 @@ export function LiveProductionMonitor({
           selectedJob?.status === 'Completed' &&
           (ws?.snapshot?.productionJobStoneFlatsheetUsage || []).some((u) => u.jobID === selectedJob.jobID) ? (
             <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 sm:p-2.5 space-y-1">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Stone flatsheet posted</p>
-              <ul className="space-y-1 text-[10px] text-slate-700">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Stone flatsheet posted</p>
+              <ul className="space-y-1 text-ui-xs text-slate-700">
                 {(ws?.snapshot?.productionJobStoneFlatsheetUsage || [])
                   .filter((u) => u.jobID === selectedJob.jobID)
                   .map((u) => (
@@ -4073,7 +3862,7 @@ export function LiveProductionMonitor({
                       {selectedJob.managerReviewRemark}
                     </p>
                   ) : null}
-                  <p className="text-[9px] text-emerald-800/70 pt-0.5">
+                  <p className="text-ui-xs text-emerald-800/70 pt-0.5">
                     Conversion alert on this job remains visible below for audit; dashboards no longer flag it for
                     action.
                   </p>
@@ -4084,10 +3873,10 @@ export function LiveProductionMonitor({
 
           {jobSt === 'Completed' && selectedJob.productID ? (
             <div className="rounded-lg border border-indigo-200/90 bg-indigo-50/60 p-2.5 sm:p-3 space-y-2">
-              <p className="text-[9px] font-black uppercase tracking-widest text-indigo-900/90">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-indigo-900/90">
                 Output product stock (after completion)
               </p>
-              <p className="text-[11px] leading-snug text-indigo-950/90">
+              <p className="text-xs leading-snug text-indigo-950/90">
                 When you hit <strong className="font-semibold">Complete</strong>, the system credits the{' '}
                 <strong className="font-semibold">finished product SKU</strong> (e.g. roofing sheet metres in the
                 warehouse), not the coil lines. That first credit is{' '}
@@ -4114,10 +3903,10 @@ export function LiveProductionMonitor({
                 finished-goods adjustment below so stock matches reality without erasing the original completion.
               </p>
               {selectedJobAdjustments.length > 0 ? (
-                <ul className="space-y-1 rounded-md border border-indigo-100 bg-white/90 px-2 py-1.5 text-[10px] text-slate-800">
+                <ul className="space-y-1 rounded-md border border-indigo-100 bg-white/90 px-2 py-1.5 text-ui-xs text-slate-800">
                   {selectedJobAdjustments.map((a) => (
                     <li key={a.id} className="flex flex-col gap-0.5 border-b border-slate-100 pb-1 last:border-0 last:pb-0">
-                      <span className="font-mono font-bold text-[#134e4a]">
+                      <span className="font-mono font-bold text-zarewa-teal">
                         {a.deltaFinishedGoodsM >= 0 ? '+' : ''}
                         {formatMeters(a.deltaFinishedGoodsM)} m
                       </span>
@@ -4131,11 +3920,11 @@ export function LiveProductionMonitor({
               ) : null}
               {canPostFgCompletionAdjustment ? (
                 <div className="rounded-md border border-indigo-200 bg-white/95 p-2 space-y-1.5">
-                  <p className="text-[10px] font-semibold text-indigo-950">
+                  <p className="text-ui-xs font-semibold text-indigo-950">
                     Correct <span className="font-mono">{selectedJob.productID}</span> metres in stock (manager)
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <label className="flex min-w-[8rem] flex-1 flex-col gap-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                    <label className="flex min-w-[8rem] flex-1 flex-col gap-0.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                       Add or remove metres
                       <input
                         type="text"
@@ -4143,17 +3932,17 @@ export function LiveProductionMonitor({
                         value={fgAdjDelta}
                         onChange={(e) => setFgAdjDelta(e.target.value)}
                         placeholder="e.g. -2.5 or +10"
-                        className="rounded-md border border-slate-200 px-2 py-1 font-mono text-[11px] text-slate-900"
+                        className="rounded-md border border-slate-200 px-2 py-1 font-mono text-xs text-slate-900"
                       />
                     </label>
-                    <label className="flex min-w-[12rem] flex-[2] flex-col gap-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                    <label className="flex min-w-[12rem] flex-[2] flex-col gap-0.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                       Reason (≥12 characters)
                       <input
                         type="text"
                         value={fgAdjNote}
                         onChange={(e) => setFgAdjNote(e.target.value)}
                         placeholder="e.g. Offcut — yard count 10 m less than system"
-                        className="rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-900"
+                        className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-900"
                       />
                     </label>
                   </div>
@@ -4161,13 +3950,13 @@ export function LiveProductionMonitor({
                     type="button"
                     disabled={fgAdjSaving || !ws?.canMutate}
                     onClick={() => void submitFgAdjustment()}
-                    className="inline-flex items-center justify-center gap-1 rounded-md bg-indigo-700 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-indigo-800 disabled:opacity-45"
+                    className="inline-flex items-center justify-center gap-1 rounded-md bg-indigo-700 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-800 disabled:opacity-45"
                   >
                     {fgAdjSaving ? 'Posting…' : 'Post stock correction'}
                   </button>
                 </div>
               ) : (
-                <p className="text-[10px] text-indigo-900/80">
+                <p className="text-ui-xs text-indigo-900/80">
                   Changing credited output metres requires <strong className="font-semibold">Production release</strong>{' '}
                   or <strong className="font-semibold">Operations manager</strong> (line operators cannot edit warehouse
                   stock alone after the job is closed).
@@ -4187,8 +3976,8 @@ export function LiveProductionMonitor({
                     checks below, then sign off with a short remark when satisfied.
                   </p>
                   {storedConversionReasonLabel ? (
-                    <p className="mt-2 rounded-md border border-red-200/80 bg-white/70 px-2 py-1.5 text-[11px] text-red-950/90">
-                      <span className="font-bold uppercase tracking-wide text-[9px] text-red-800/80">Storekeeper reason</span>
+                    <p className="mt-2 rounded-md border border-red-200/80 bg-white/70 px-2 py-1.5 text-xs text-red-950/90">
+                      <span className="font-bold uppercase tracking-wide text-ui-xs text-red-800/80">Storekeeper reason</span>
                       <br />
                       {storedConversionReasonLabel}
                     </p>
@@ -4197,7 +3986,7 @@ export function LiveProductionMonitor({
               </div>
               {canManageConversionSignoff ? (
                 <div className="rounded-md border border-red-200/80 bg-white/80 p-2 space-y-1.5">
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-red-900/80">
+                  <label className="block text-ui-xs font-black uppercase tracking-widest text-red-900/80">
                     Sign-off remark
                   </label>
                   <textarea
@@ -4205,7 +3994,7 @@ export function LiveProductionMonitor({
                     onChange={(e) => setSignoffRemark(e.target.value)}
                     rows={2}
                     placeholder="e.g. Variance explained — coil edge trim / scale loss. Approved to close."
-                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-medium text-slate-800 outline-none focus:ring-2 focus:ring-red-200 resize-y min-h-[2.75rem]"
+                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-red-200 resize-y min-h-[2.75rem]"
                   />
                   {selectedJob?.jobID ? (
                     <EditSecondApprovalInline
@@ -4225,7 +4014,7 @@ export function LiveProductionMonitor({
                   </button>
                 </div>
               ) : (
-                <p className="text-[11px] text-red-900/85 font-medium">
+                <p className="text-xs text-red-900/85 font-medium">
                   Sign-off requires <strong className="font-semibold">Production manage</strong>,{' '}
                   <strong className="font-semibold">Production release</strong>, or{' '}
                   <strong className="font-semibold">Operations manage</strong> (admin has full access).
@@ -4254,7 +4043,7 @@ export function LiveProductionMonitor({
             >
               <div className="flex min-w-0 items-start gap-2">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">
+                  <p className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
                     {isStoneAccessoriesOnlyQuote
                       ? 'Stone accessories only'
                       : isStoneMeterQuote
@@ -4263,7 +4052,7 @@ export function LiveProductionMonitor({
                           ? 'Offcut / accessories run'
                           : 'Coils &amp; run log'}
                   </p>
-                  <p className="mt-px flex flex-wrap items-center gap-1 text-[10px] leading-tight text-slate-600">
+                  <p className="mt-px flex flex-wrap items-center gap-1 text-ui-xs leading-tight text-slate-600">
                     <span className="line-clamp-2">
                       {isStoneAccessoriesOnlyQuote
                         ? 'No roofing metres — issue accessories and complete (optional FG metres).'
@@ -4288,7 +4077,7 @@ export function LiveProductionMonitor({
                       >
                         <CircleHelp className="size-3.5" strokeWidth={2} aria-hidden />
                       </summary>
-                      <div className="absolute right-0 top-full z-20 mt-1 w-[min(calc(100vw-1.5rem),18rem)] rounded-lg border border-slate-200 bg-white p-2 text-[9px] leading-snug text-slate-700 shadow-lg">
+                      <div className="absolute right-0 top-full z-20 mt-1 w-[min(calc(100vw-1.5rem),18rem)] rounded-lg border border-slate-200 bg-white p-2 text-ui-xs leading-snug text-slate-700 shadow-lg">
                         {completionUsesOffcutMode
                           ? 'Use when output came from offcuts or this job only supplies accessories. Coil allocation is skipped and completion posts accessories plus optional finished-goods metres.'
                           : !isStoneMeterQuote && canEditPlannedAllocations
@@ -4309,7 +4098,7 @@ export function LiveProductionMonitor({
                 <button
                   type="button"
                   onClick={addDraftRow}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-dashed border-[#134e4a]/35 bg-white px-2 py-1 text-[11px] font-semibold text-[#134e4a] hover:bg-teal-50"
+                  className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-dashed border-zarewa-teal/35 bg-white px-2 py-1 text-xs font-semibold text-zarewa-teal hover:bg-teal-50"
                 >
                   <Plus size={14} strokeWidth={2.5} />
                   Add coil
@@ -4323,9 +4112,9 @@ export function LiveProductionMonitor({
                   <button
                     type="button"
                     onClick={() => setCompletionSourceMode('coil')}
-                    className={`inline-flex items-center rounded-md px-2 py-1 text-[10px] font-semibold ${
+                    className={`inline-flex items-center rounded-md px-2 py-1 text-ui-xs font-semibold ${
                       !completionUsesOffcutMode
-                        ? 'bg-[#134e4a] text-white'
+                        ? 'bg-zarewa-teal text-white'
                         : 'text-slate-700 hover:bg-white'
                     }`}
                   >
@@ -4334,9 +4123,9 @@ export function LiveProductionMonitor({
                   <button
                     type="button"
                     onClick={() => setCompletionSourceMode('offcut')}
-                    className={`inline-flex items-center rounded-md px-2 py-1 text-[10px] font-semibold ${
+                    className={`inline-flex items-center rounded-md px-2 py-1 text-ui-xs font-semibold ${
                       completionUsesOffcutMode
-                        ? 'bg-[#134e4a] text-white'
+                        ? 'bg-zarewa-teal text-white'
                         : 'text-slate-700 hover:bg-white'
                     }`}
                   >
@@ -4349,7 +4138,7 @@ export function LiveProductionMonitor({
               (canCaptureRun || canEditPlannedAllocations || canEditCompletedCoilCorrections) ? (
                 <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 space-y-1">
                   <label className="flex flex-col gap-0.5">
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                    <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                       Find coil by number
                     </span>
                     <input
@@ -4357,10 +4146,10 @@ export function LiveProductionMonitor({
                       value={coilLookupQuery}
                       onChange={(e) => setCoilLookupQuery(e.target.value)}
                       placeholder="e.g. 2043 or CL-26-2043"
-                      className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-mono text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                      className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-mono text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                     />
                   </label>
-                  <p className="text-[9px] text-slate-500 leading-snug">
+                  <p className="text-ui-xs text-slate-500 leading-snug">
                     Searches the server when a coil is missing from the dropdown (e.g. recently received or not in
                     sync).
                   </p>
@@ -4369,13 +4158,13 @@ export function LiveProductionMonitor({
               {!isStoneMeterQuote &&
               !completionUsesOffcutMode &&
               (canCaptureRun || canEditPlannedAllocations || canEditCompletedCoilCorrections) ? (
-                <div className="rounded-lg border border-slate-200 bg-white p-3 text-[11px] text-slate-700 space-y-2">
+                <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700 space-y-2">
                   <p>
-                    <span className="font-semibold text-[#134e4a]">Metres from offcut stock (optional)</span> — added
+                    <span className="font-semibold text-zarewa-teal">Metres from offcut stock (optional)</span> — added
                     to coil metres for this job. Use this for material already held as offcut/scab stock in the yard; it
                     is <em>not</em> the tail trimmed from the active coil.
                   </p>
-                  <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     Offcut stock metres
                     <input
                       type="text"
@@ -4383,15 +4172,15 @@ export function LiveProductionMonitor({
                       value={offcutInventoryMetersInput}
                       onChange={(e) => onOffcutInventoryMetersChange(e.target.value)}
                       placeholder="0"
-                      className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-[#134e4a]"
+                      className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
                     />
                   </label>
-                  <p className="text-[9px] leading-snug text-slate-500">
+                  <p className="text-ui-xs leading-snug text-slate-500">
                     If this is above zero, keep at least one coil line with metres. For runs with no coil at all, use
                     &ldquo;Produced from offcut / accessories only&rdquo; instead.
                   </p>
                   <div className="border-t border-slate-100 pt-2 mt-2">
-                    <p className="text-[10px] font-bold uppercase text-[#134e4a] mb-1">Issue from offcut incidents</p>
+                    <p className="text-ui-xs font-bold uppercase text-zarewa-teal mb-1">Issue from offcut incidents</p>
                     <OffcutIncidentPicker
                       gaugeLabel={quotationMaterialSpec?.gaugeLabel}
                       colour={quotationMaterialSpec?.colour}
@@ -4399,7 +4188,7 @@ export function LiveProductionMonitor({
                       onChange={setOffcutSupplySelections}
                     />
                     {offcutSupplySelections.length > 0 ? (
-                      <p className="mt-1 text-[9px] font-semibold text-emerald-800">
+                      <p className="mt-1 text-ui-xs font-semibold text-emerald-800">
                         Supplied from offcut:{' '}
                         {offcutSupplySelections.map((s) => `${s.materialIncidentId} (${s.meters} m)`).join(', ')}
                       </p>
@@ -4408,13 +4197,13 @@ export function LiveProductionMonitor({
                 </div>
               ) : null}
               {isStoneMeterQuote && !isStoneAccessoriesOnlyQuote && stoneMetreConsumptionRequired ? (
-                <div className="rounded-lg border border-teal-100 bg-teal-50/50 p-3 text-[11px] text-slate-700 space-y-2">
+                <div className="rounded-lg border border-teal-100 bg-teal-50/50 p-3 text-xs text-slate-700 space-y-2">
                   <p>
-                    <strong className="text-[#134e4a]">Stone-coated</strong> stock is tracked in metres (no coil
+                    <strong className="text-zarewa-teal">Stone-coated</strong> stock is tracked in metres (no coil
                     numbers). Use <strong>Save &amp; start</strong> once to begin the run.
                   </p>
                   {jobSt === 'Running' ? (
-                    <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                       Metres consumed (stone stock)
                       <input
                         type="text"
@@ -4422,18 +4211,18 @@ export function LiveProductionMonitor({
                         value={stoneMetersConsumed}
                         onChange={(e) => onStoneMetersConsumedChange(e.target.value)}
                         placeholder="e.g. 120.5"
-                        className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-[#134e4a]"
+                        className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
                       />
                     </label>
                   ) : null}
-                  <p className="text-[9px] leading-snug text-slate-500">
+                  <p className="text-ui-xs leading-snug text-slate-500">
                     Positive metres draw stone stock (balance may go negative). Negative metres return stock. Ensure
                     the quotation header matches the stone SKU (design, colour, gauge).
                   </p>
                 </div>
               ) : null}
               {isStoneMeterQuote && !isStoneAccessoriesOnlyQuote && !stoneMetreConsumptionRequired ? (
-                <div className="rounded-lg border border-sky-100 bg-sky-50/50 p-3 text-[11px] text-slate-700 space-y-1">
+                <div className="rounded-lg border border-sky-100 bg-sky-50/50 p-3 text-xs text-slate-700 space-y-1">
                   <p>
                     <strong className="text-sky-900">Stone flatsheet only</strong> — no stone-coated metre draw on this
                     job. Record supplied m² in the stone flatsheet section below, then complete.
@@ -4441,12 +4230,12 @@ export function LiveProductionMonitor({
                 </div>
               ) : null}
               {completionUsesOffcutMode && !isAccessoriesOnlyQuote ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-slate-700 space-y-2">
+                <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-xs text-slate-700 space-y-2">
                   <p>
                     Offcut completion — no coil required. Enter offcut stock metres, issue offcut incidents, or enter
                     output metres — all count as finished goods produced for this job.
                   </p>
-                  <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     Offcut stock metres
                     <input
                       type="text"
@@ -4454,11 +4243,11 @@ export function LiveProductionMonitor({
                       value={offcutInventoryMetersInput}
                       onChange={(e) => onOffcutInventoryMetersChange(e.target.value)}
                       placeholder="e.g. 25"
-                      className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-[#134e4a]"
+                      className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
                     />
                   </label>
                   <div className="border-t border-amber-200/60 pt-2">
-                    <p className="text-[10px] font-bold uppercase text-[#134e4a] mb-1">Issue from offcut incidents</p>
+                    <p className="text-ui-xs font-bold uppercase text-zarewa-teal mb-1">Issue from offcut incidents</p>
                     <OffcutIncidentPicker
                       gaugeLabel={quotationMaterialSpec?.gaugeLabel}
                       colour={quotationMaterialSpec?.colour}
@@ -4466,7 +4255,7 @@ export function LiveProductionMonitor({
                       onChange={setOffcutSupplySelections}
                     />
                     {offcutSupplySelections.length > 0 ? (
-                      <p className="mt-1 text-[9px] font-semibold text-emerald-900">
+                      <p className="mt-1 text-ui-xs font-semibold text-emerald-900">
                         {offcutSupplyMetersTotal.toFixed(2)} m from offcut incidents
                         {offcutSupplySelections
                           .map((s) => `${s.materialIncidentId} (${s.meters} m)`)
@@ -4474,7 +4263,7 @@ export function LiveProductionMonitor({
                       </p>
                     ) : null}
                   </div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     Finished-goods output metres
                     <input
                       type="text"
@@ -4488,7 +4277,7 @@ export function LiveProductionMonitor({
                             ? `Defaults to ${offcutSupplyMetersTotal.toFixed(2)} m from incidents`
                             : 'Same as offcut stock metres if left blank'
                       }
-                      className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-[#134e4a]"
+                      className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
                     />
                   </label>
                 </div>
@@ -4585,7 +4374,7 @@ export function LiveProductionMonitor({
                   <BarChart3 size={15} className="text-indigo-600 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900">Conversion preview</p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-ui-xs text-slate-500">
                       {jobSt === 'Completed' && canEditCompletedCoilCorrections
                         ? 'Live estimate for this correction — same kg/m rules as completion.'
                         : 'Live estimate — nothing posts until Complete.'}
@@ -4601,12 +4390,12 @@ export function LiveProductionMonitor({
                   </button>
                 </div>
                 {conversionPreviewLoading ? (
-                  <span className="text-[11px] font-medium text-indigo-600">Updating…</span>
+                  <span className="text-xs font-medium text-indigo-600">Updating…</span>
                 ) : null}
               </div>
               <div className={inModal ? 'p-2' : 'p-2.5'}>
                 {!canRunConversionPreview ? (
-                  <p className="rounded-md border border-dashed border-slate-200 bg-slate-50/80 px-2 py-2 text-[11px] text-slate-600">
+                  <p className="rounded-md border border-dashed border-slate-200 bg-slate-50/80 px-2 py-2 text-xs text-slate-600">
                     {completionUsesOffcutMode ? (
                       <>Enter offcut stock metres or issue incidents — output counts toward production and unproduced refunds.</>
                     ) : (
@@ -4623,8 +4412,8 @@ export function LiveProductionMonitor({
                   <p className="text-xs text-red-700">{conversionPreviewError}</p>
                 ) : conversionPreview?.rows?.length ? (
                   <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-600">
-                      <span className="font-semibold text-[#134e4a]">
+                    <div className="flex flex-wrap items-center gap-1.5 text-ui-xs text-slate-600">
+                      <span className="font-semibold text-zarewa-teal">
                         Job rollup:{' '}
                         {formatMeters(
                           conversionPreview.totalOutputMeters != null
@@ -4644,13 +4433,13 @@ export function LiveProductionMonitor({
                       {conversionPreview.previewCoilsTotal != null &&
                       conversionPreview.previewCoilCount != null &&
                       conversionPreview.previewCoilCount < conversionPreview.previewCoilsTotal ? (
-                        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[9px] font-semibold text-sky-950">
+                        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-ui-xs font-semibold text-sky-950">
                           Showing {conversionPreview.previewCoilCount} of {conversionPreview.previewCoilsTotal} coil(s)
                           — add closing & metres on other rows when each roll finishes
                         </span>
                       ) : null}
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${
+                        className={`rounded-full px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide ${
                           conversionPreview.aggregatedAlertState === 'OK'
                             ? 'bg-emerald-100 text-emerald-900'
                             : 'bg-amber-100 text-amber-900'
@@ -4659,7 +4448,7 @@ export function LiveProductionMonitor({
                         {conversionPreview.aggregatedAlertState}
                       </span>
                       {conversionPreview.managerReviewRequired ? (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-black uppercase text-red-900">
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-ui-xs font-black uppercase text-red-900">
                           Manager review likely
                         </span>
                       ) : null}
@@ -4678,20 +4467,20 @@ export function LiveProductionMonitor({
                           >
                             <div className="flex flex-wrap items-start justify-between gap-1.5">
                               <div className="min-w-0">
-                                <p className="font-mono text-[11px] font-bold">{row.coilNo}</p>
-                                <p className="mt-px text-[9px] font-medium text-slate-700 line-clamp-2">
+                                <p className="font-mono text-xs font-bold">{row.coilNo}</p>
+                                <p className="mt-px text-ui-xs font-medium text-slate-700 line-clamp-2">
                                   {lot?.gaugeLabel || '—'} · {lot?.colour || '—'} ·{' '}
                                   {lot?.materialTypeName || '—'}
                                 </p>
                               </div>
-                              <span className="rounded-md bg-white/80 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide">
+                              <span className="rounded-md bg-white/80 px-2 py-0.5 text-ui-xs font-bold uppercase tracking-wide">
                                 {row.alertState}
                               </span>
                             </div>
                             <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-3">
                               <div className="rounded-md bg-white/70 px-1.5 py-1">
                                 <p className="text-[7px] font-black uppercase opacity-70">Act</p>
-                                <p className="text-[11px] font-black tabular-nums">{formatKgPerM(row.actualConversionKgPerM)}</p>
+                                <p className="text-xs font-black tabular-nums">{formatKgPerM(row.actualConversionKgPerM)}</p>
                               </div>
                               <div
                                 className="rounded-md bg-white/70 px-1.5 py-1"
@@ -4709,23 +4498,23 @@ export function LiveProductionMonitor({
                                     <span className="normal-case font-semibold text-slate-600"> · conv.</span>
                                   ) : null}
                                 </p>
-                                <p className="text-[11px] font-black tabular-nums">{formatKgPerM(row.standardConversionKgPerM)}</p>
+                                <p className="text-xs font-black tabular-nums">{formatKgPerM(row.standardConversionKgPerM)}</p>
                               </div>
                               <div className="rounded-md bg-white/70 px-1.5 py-1">
                                 <p className="text-[7px] font-black uppercase opacity-70">Sup</p>
-                                <p className="text-[11px] font-black tabular-nums">{formatKgPerM(row.supplierConversionKgPerM)}</p>
+                                <p className="text-xs font-black tabular-nums">{formatKgPerM(row.supplierConversionKgPerM)}</p>
                               </div>
                               <div className="rounded-md bg-white/70 px-1.5 py-1">
                                 <p className="text-[7px] font-black uppercase opacity-70">G hist</p>
-                                <p className="text-[11px] font-black tabular-nums">{formatKgPerM(row.gaugeHistoryAvgKgPerM)}</p>
+                                <p className="text-xs font-black tabular-nums">{formatKgPerM(row.gaugeHistoryAvgKgPerM)}</p>
                               </div>
                               <div className="rounded-md bg-white/70 px-1.5 py-1">
                                 <p className="text-[7px] font-black uppercase opacity-70">C hist</p>
-                                <p className="text-[11px] font-black tabular-nums">{formatKgPerM(row.coilHistoryAvgKgPerM)}</p>
+                                <p className="text-xs font-black tabular-nums">{formatKgPerM(row.coilHistoryAvgKgPerM)}</p>
                               </div>
                               <div className="col-span-2 rounded-md bg-white/70 px-1.5 py-1 sm:col-span-3">
                                 <p className="text-[7px] font-black uppercase opacity-70">Var %</p>
-                                <p className="text-[9px] font-semibold tabular-nums leading-tight">
+                                <p className="text-ui-xs font-semibold tabular-nums leading-tight">
                                   Std {formatPct(row.variances?.standardPct)} · Supp{' '}
                                   {formatPct(row.variances?.supplierPct)} · G hist {formatPct(row.variances?.gaugeHistoryPct)}{' '}
                                   · C hist {formatPct(row.variances?.coilHistoryPct)}
@@ -4857,7 +4646,7 @@ export function LiveProductionMonitor({
       {inModal ? (
         <div className="shrink-0 border-t border-slate-200/90 bg-white/95 px-2 py-1 backdrop-blur-sm sm:px-2.5 sm:py-1.5">
           {readOnly ? (
-            <span className="inline-flex rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+            <span className="inline-flex rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-ui-xs font-medium text-slate-600">
               View only
             </span>
           ) : (
@@ -4868,7 +4657,7 @@ export function LiveProductionMonitor({
                   onClick={() => void persist('allocationsAndStart')}
                   disabled={savingAction !== '' || !canEditPlannedAllocations || !plannedAllocSaveReady}
                   title="Writes coil allocation to the server and starts the run in one step."
-                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 ${
+                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-ui-xs font-semibold transition-colors disabled:opacity-45 ${
                     savingAction === 'allocationsAndStart'
                       ? 'bg-sky-100 text-sky-800'
                       : unsavedCoilDraftCount > 0
@@ -4887,7 +4676,7 @@ export function LiveProductionMonitor({
                   onClick={() => void persist('runningCheckpoint')}
                   disabled={savingAction !== '' || !canCaptureRun || !runningCheckpointSaveReady}
                   title="Save new coil lines and/or closing kg, metres, and notes."
-                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 ${
+                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-ui-xs font-semibold transition-colors disabled:opacity-45 ${
                     savingAction === 'runningCheckpoint'
                       ? 'bg-slate-100 text-slate-500'
                       : unsavedCoilDraftCount > 0
@@ -4905,7 +4694,7 @@ export function LiveProductionMonitor({
                   onClick={() => void persist('completedCoilCorrection')}
                   disabled={savingAction !== '' || !completedCoilCorrectionSaveReady}
                   title="Correct coil or weights after completion (reason required). Stock only — GL not auto-reversed."
-                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 ${
+                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-ui-xs font-semibold transition-colors disabled:opacity-45 ${
                     savingAction === 'completedCoilCorrection'
                       ? 'bg-amber-100 text-amber-900'
                       : 'border border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100'
@@ -4921,7 +4710,7 @@ export function LiveProductionMonitor({
                   onClick={() => void persist('completedAccessoryCorrection')}
                   disabled={savingAction !== ''}
                   title="Correct accessory issues after completion."
-                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 ${
+                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-ui-xs font-semibold transition-colors disabled:opacity-45 ${
                     savingAction === 'completedAccessoryCorrection'
                       ? 'bg-amber-100 text-amber-900'
                       : 'border border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100'
@@ -4937,7 +4726,7 @@ export function LiveProductionMonitor({
                   onClick={() => void persist('completedStoneFlatsheetCorrection')}
                   disabled={savingAction !== '' || !stoneFlatsheetCompletionDraft.length}
                   title="Correct stone flatsheet m² after completion."
-                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 ${
+                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-ui-xs font-semibold transition-colors disabled:opacity-45 ${
                     savingAction === 'completedStoneFlatsheetCorrection'
                       ? 'bg-sky-100 text-sky-900'
                       : 'border border-sky-400 bg-sky-50 text-sky-950 hover:bg-sky-100'
@@ -4953,7 +4742,7 @@ export function LiveProductionMonitor({
                   onClick={openProductionMaterialIncident}
                   disabled={savingAction !== ''}
                   title="Record coil damage or production scrap — submits for manager approval."
-                  className="inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
+                  className="inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-ui-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
                 >
                   <AlertTriangle size={12} />
                   Material incident
@@ -4975,7 +4764,7 @@ export function LiveProductionMonitor({
                       ? undefined
                       : completionValidation.errors[0] || 'Complete all run-log fields before completion.'
                 }
-                className="inline-flex items-center gap-0.5 rounded-md bg-[#134e4a] px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-[#0f3d39] disabled:opacity-45"
+                className="inline-flex items-center gap-0.5 rounded-md bg-zarewa-teal px-2 py-0.5 text-ui-xs font-semibold text-white hover:bg-[#0f3d39] disabled:opacity-45"
               >
                 <CheckCircle2 size={12} />
                 {savingAction === 'complete' ? 'Completing…' : 'Complete'}
@@ -4986,7 +4775,7 @@ export function LiveProductionMonitor({
                   onClick={() => setReturnModalOpen(true)}
                   disabled={savingAction !== '' || returnSaving}
                   title="Undo Start: go back to Planned (audit reason required)."
-                  className="inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
+                  className="inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-ui-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
                 >
                   <Undo2 size={12} />
                   Return to plan
@@ -4998,7 +4787,7 @@ export function LiveProductionMonitor({
                   onClick={() => void recalculateJobStock()}
                   disabled={stockRecalcBusy || savingAction !== ''}
                   title="Reconcile coil on-hand, reserved kg, and raw product stock from this job’s coils."
-                  className="inline-flex items-center gap-0.5 rounded-md border border-teal-300 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-950 hover:bg-teal-100 disabled:opacity-45"
+                  className="inline-flex items-center gap-0.5 rounded-md border border-teal-300 bg-teal-50 px-2 py-0.5 text-ui-xs font-semibold text-teal-950 hover:bg-teal-100 disabled:opacity-45"
                 >
                   <RefreshCw size={12} />
                   {stockRecalcBusy ? 'Recalculating…' : 'Recalc stock'}
@@ -5010,7 +4799,7 @@ export function LiveProductionMonitor({
                   onClick={() => setCancelModalOpen(true)}
                   disabled={savingAction !== '' || cancelSaving || returnSaving}
                   title="Cancel this job: releases reservations and marks production cancelled."
-                  className="inline-flex items-center gap-0.5 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-950 hover:bg-rose-100 disabled:opacity-45"
+                  className="inline-flex items-center gap-0.5 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-ui-xs font-semibold text-rose-950 hover:bg-rose-100 disabled:opacity-45"
                 >
                   <Ban size={12} />
                   Cancel job
@@ -5048,7 +4837,7 @@ export function LiveProductionMonitor({
               This undoes <strong className="font-semibold">Start</strong> only. Coil reservations stay as saved; you can
               then change allocation and save again. Use a clear reason — it is stored in the audit log.
             </p>
-            <label className="mt-3 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            <label className="mt-3 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
               Reason (≥8 characters)
             </label>
             <textarea
@@ -5097,7 +4886,7 @@ export function LiveProductionMonitor({
             <p className="mt-2 text-xs leading-snug text-slate-600">
               This ends the run without posting output: <strong className="font-semibold">coil reservations are released</strong>, allocations are cleared, the job is marked <strong className="font-semibold">Cancelled</strong>, and the cutting list returns to <strong className="font-semibold">Waiting</strong>. Use for order cancellations (refunds may reference this record).
             </p>
-            <label className="mt-3 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            <label className="mt-3 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
               Reason (≥8 characters)
             </label>
             <textarea

@@ -15,7 +15,7 @@ export function FinanceNoteRedirectModal({ open, onClose, title, description, re
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="text-lg font-black text-[#134e4a]">{title}</h2>
+          <h2 className="text-lg font-black text-zarewa-teal">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close">
             <X size={20} />
           </button>

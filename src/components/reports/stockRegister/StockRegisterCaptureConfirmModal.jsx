@@ -41,8 +41,8 @@ export function StockRegisterCaptureConfirmModal({
       <div className="z-modal-panel-lg flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Month-end lock</p>
-            <h2 className="text-lg font-bold text-[#134e4a]">Capture closing stock</h2>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Month-end lock</p>
+            <h2 className="text-lg font-bold text-zarewa-teal">Capture closing stock</h2>
             <p className="text-sm text-slate-600 mt-0.5">
               {branchLabel} · {periodEnd}
             </p>

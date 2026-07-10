@@ -27,21 +27,21 @@ export function AccountingAssetRow({ asset, categoryLabel, branchLabel, onSelect
           onSelect(asset);
         }
       }}
-      className={`${ACCOUNTING_CARD_ROW} group flex flex-wrap items-start justify-between gap-2 min-w-0 cursor-pointer hover:border-[#134e4a]/25 hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/20`}
+      className={`${ACCOUNTING_CARD_ROW} group flex flex-wrap items-start justify-between gap-2 min-w-0 cursor-pointer hover:border-zarewa-teal/25 hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20`}
     >
       <div className="min-w-0 flex-1 leading-tight">
-        <p className="text-[11px] font-bold text-[#134e4a] truncate">{asset.name}</p>
-        <p className="text-[8px] text-slate-500 mt-0.5">{meta}</p>
-        <p className="text-[9px] text-slate-600 mt-1 tabular-nums">
+        <p className="text-xs font-bold text-zarewa-teal truncate">{asset.name}</p>
+        <p className="text-ui-xs text-slate-500 mt-0.5">{meta}</p>
+        <p className="text-ui-xs text-slate-600 mt-1 tabular-nums">
           Cost {formatNgn(asset.costNgn)} · Dep {formatNgn(asset.accumulatedDepreciationNgn)}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className="text-[11px] font-black text-[#134e4a] tabular-nums text-right">
-          <span className="block text-[8px] font-semibold text-slate-500 uppercase tracking-wide">NBV</span>
+        <span className="text-xs font-black text-zarewa-teal tabular-nums text-right">
+          <span className="block text-ui-xs font-semibold text-slate-500 uppercase tracking-wide">NBV</span>
           {formatNgn(asset.netBookValueNgn)}
         </span>
-        <ChevronRight size={14} className="text-slate-400 group-hover:text-[#134e4a]" aria-hidden />
+        <ChevronRight size={14} className="text-slate-400 group-hover:text-zarewa-teal" aria-hidden />
       </div>
     </li>
   );

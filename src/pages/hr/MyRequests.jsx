@@ -27,7 +27,7 @@ export default function MyRequests() {
             <Link
               key={item.to}
               to={item.to}
-              className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 bg-white px-3 py-1.5 text-xs font-semibold text-[#134e4a] shadow-sm hover:bg-teal-50/80"
+              className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 bg-white px-3 py-1.5 text-xs font-semibold text-zarewa-teal shadow-sm hover:bg-teal-50/80"
             >
               <Icon size={14} aria-hidden />
               {item.label}

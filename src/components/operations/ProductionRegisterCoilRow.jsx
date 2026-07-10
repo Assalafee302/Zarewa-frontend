@@ -37,7 +37,7 @@ const ProductionRegisterCoilSelect = memo(function ProductionRegisterCoilSelect(
       title={title}
       value={value}
       onChange={handleChange}
-      className="min-h-11 w-full min-w-0 max-w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+      className="min-h-11 w-full min-w-0 max-w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-xs font-bold text-zarewa-teal outline-none transition-all focus:border-zarewa-teal/40 focus:ring-1 focus:ring-zarewa-teal/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
     >
       <option value="">Select coil...</option>
       {recommendedOptions.length > 0 ? (
@@ -113,7 +113,7 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
       } ${draftRowConversionPreviewReady(row) ? 'ring-1 ring-teal-400/35' : ''}`}
     >
       {hasUnsavedCoilData ? (
-        <p className="mb-1.5 flex items-start gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-semibold leading-snug text-amber-950">
+        <p className="mb-1.5 flex items-start gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-ui-xs font-semibold leading-snug text-amber-950">
           <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
           <span>
             Not saved to server — only visible on this device until you tap{' '}
@@ -130,14 +130,14 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
       >
         {inModal ? (
           <span
-            className="shrink-0 self-end pb-1 text-right text-[11px] font-bold tabular-nums text-slate-600 lg:pb-1.5"
+            className="shrink-0 self-end pb-1 text-right text-xs font-bold tabular-nums text-slate-600 lg:pb-1.5"
             title={`Row ${index + 1}`}
           >
             {index + 1}
           </span>
         ) : (
           <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#134e4a] text-[9px] font-black text-white lg:h-7 lg:w-7"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zarewa-teal text-ui-xs font-black text-white lg:h-7 lg:w-7"
             title={`Coil line ${index + 1}`}
           >
             {index + 1}
@@ -145,7 +145,7 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
         )}
         {lot ? (
           <span
-            className="max-w-full truncate text-[9px] leading-tight text-slate-500 lg:max-w-[4.5rem] lg:shrink-0"
+            className="max-w-full truncate text-ui-xs leading-tight text-slate-500 lg:max-w-[4.5rem] lg:shrink-0"
             title={
               lotMat
                 ? `${lot.productID} · ${lotMat} · free ${formatKg(freeKg)}`
@@ -158,7 +158,7 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
           <span className="hidden min-w-0 lg:block" aria-hidden />
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-px">
-          <label className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-slate-500">
+          <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
             Coil
           </label>
           <ProductionRegisterCoilSelect
@@ -175,7 +175,7 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
 
         <div className="grid min-w-0 grid-cols-3 gap-2 lg:contents">
           <div className="flex min-w-0 flex-col gap-px lg:w-[4.25rem] lg:shrink-0">
-            <label className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-slate-500">
+            <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
               Open kg
             </label>
             <input
@@ -187,12 +187,12 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
               value={row.openingWeightKg}
               onChange={(e) => onFieldChange(row.id, { openingWeightKg: e.target.value })}
               title="Whole kg only"
-              className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+              className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-zarewa-teal outline-none transition-all focus:border-zarewa-teal/40 focus:ring-1 focus:ring-zarewa-teal/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
             />
           </div>
 
           <div className="flex min-w-0 flex-col gap-px lg:w-[4.25rem] lg:shrink-0">
-            <label className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-slate-500">
+            <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
               Close kg
             </label>
             <input
@@ -204,12 +204,12 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
               value={row.closingWeightKg}
               onChange={(e) => onFieldChange(row.id, { closingWeightKg: e.target.value })}
               title="Whole kg only"
-              className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+              className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-zarewa-teal outline-none transition-all focus:border-zarewa-teal/40 focus:ring-1 focus:ring-zarewa-teal/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
             />
           </div>
 
           <div className="flex min-w-0 flex-col gap-px lg:w-[4.25rem] lg:shrink-0">
-            <label className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-slate-500">
+            <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
               Metres
             </label>
             <input
@@ -219,13 +219,13 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
               disabled={!(canCaptureRun || canEditCompletedCoilCorrections)}
               value={row.metersProduced}
               onChange={(e) => onFieldChange(row.id, { metersProduced: e.target.value })}
-              className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+              className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-zarewa-teal outline-none transition-all focus:border-zarewa-teal/40 focus:ring-1 focus:ring-zarewa-teal/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
             />
           </div>
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-px">
-          <label className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-slate-500">
+          <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
             Note
           </label>
           <input
@@ -234,15 +234,15 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
             onChange={(e) => onFieldChange(row.id, { note: e.target.value })}
             disabled={(readOnly && !canEditCompletedCoilCorrections) || (jobSt === 'Running' && !draftRow && !canCaptureRun)}
             placeholder="Trim, splice…"
-            className="min-h-10 min-w-0 w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-[11px] font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-1 focus:ring-slate-200/80 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+            className="min-h-10 min-w-0 w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-xs font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-1 focus:ring-slate-200/80 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
           />
         </div>
 
         <div className="flex w-full flex-col gap-px text-center lg:w-[3.25rem] lg:shrink-0">
-          <span className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-teal-800/90">
+          <span className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-teal-800/90">
             Used
           </span>
-          <span className="text-xs font-black tabular-nums leading-none text-[#134e4a]">
+          <span className="text-xs font-black tabular-nums leading-none text-zarewa-teal">
             {Number(row.openingWeightKg) >= Number(row.closingWeightKg || 0) && row.closingWeightKg !== ''
               ? formatKg(Number(row.openingWeightKg) - Number(row.closingWeightKg || 0))
               : '—'}
@@ -268,12 +268,12 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
       Number(row.closingWeightKg) >= 0 &&
       Number(row.closingWeightKg) < coilTailFinishMaxKg &&
       Number(row.closingWeightKg) <= Number(row.openingWeightKg) ? (
-        <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md border border-amber-200/90 bg-amber-50/80 px-2 py-2 text-[11px] font-medium text-amber-950">
+        <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md border border-amber-200/90 bg-amber-50/80 px-2 py-2 text-xs font-medium text-amber-950">
           <input
             type="checkbox"
             checked={Boolean(row.finishCoil)}
             onChange={(e) => onFieldChange(row.id, { finishCoil: e.target.checked })}
-            className="h-[1.125rem] w-[1.125rem] shrink-0 rounded border-amber-400 text-[#134e4a] focus:ring-2 focus:ring-[#134e4a]/30"
+            className="h-[1.125rem] w-[1.125rem] shrink-0 rounded border-amber-400 text-zarewa-teal focus:ring-2 focus:ring-zarewa-teal/30"
           />
           <span className="min-w-0 flex-1 leading-snug">
             <strong className="font-semibold">Roll finished</strong>
@@ -293,13 +293,13 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
       {row.specMismatch || specWarn ? (
         <div className="mt-1 space-y-1 border-t border-slate-100/80 pt-1">
           {row.specMismatch ? (
-            <p className="flex items-start gap-1 rounded border border-amber-300 bg-amber-100/90 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-950">
+            <p className="flex items-start gap-1 rounded border border-amber-300 bg-amber-100/90 px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide text-amber-950">
               <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
               Saved as spec exception — manager review
             </p>
           ) : null}
           {specWarn ? (
-            <p className="flex items-start gap-1 rounded border border-amber-200 bg-amber-50/90 px-2 py-0.5 text-[9px] font-semibold text-amber-950">
+            <p className="flex items-start gap-1 rounded border border-amber-200 bg-amber-50/90 px-2 py-0.5 text-ui-xs font-semibold text-amber-950">
               <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
               {specWarn}
             </p>

@@ -36,9 +36,9 @@ export default function MyProfileBenefits() {
           <ProfileListRow>
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-slate-900">{b.displayName}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{b.beneficiaryType}</span>
+              <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">{b.beneficiaryType}</span>
             </span>
-            <span className="shrink-0 text-sm font-black tabular-nums text-[#134e4a]">
+            <span className="shrink-0 text-sm font-black tabular-nums text-zarewa-teal">
               {formatNgn(b.monthlyAmountNgn)}/mo
             </span>
           </ProfileListRow>

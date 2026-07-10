@@ -158,8 +158,8 @@ export function EditApprovalDetailModal({
       <div className="z-modal-panel w-full max-w-lg p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
         <div className="flex items-start justify-between gap-3 mb-5">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-violet-700">KPI edit approval</p>
-            <h3 className="text-lg font-black text-[#134e4a] font-mono mt-1">{editApprovalId || record?.id || '—'}</h3>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-violet-700">KPI edit approval</p>
+            <h3 className="text-lg font-black text-zarewa-teal font-mono mt-1">{editApprovalId || record?.id || '—'}</h3>
             {recordContext?.headline ? (
               <p className="mt-1 text-sm font-semibold text-slate-700">{recordContext.headline}</p>
             ) : null}
@@ -176,13 +176,13 @@ export function EditApprovalDetailModal({
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
-            <RefreshCw size={20} className="animate-spin text-[#134e4a]" />
+            <RefreshCw size={20} className="animate-spin text-zarewa-teal" />
             <span className="text-sm font-semibold">Loading request…</span>
           </div>
         ) : (
           <div className="space-y-4">
             <section className="rounded-xl border border-violet-200/80 bg-violet-50/40 px-4 py-3">
-              <p className="text-[9px] font-black uppercase tracking-widest text-violet-800">What will be edited</p>
+              <p className="text-ui-xs font-black uppercase tracking-widest text-violet-800">What will be edited</p>
               {changeSummary ? (
                 <p className="mt-2 text-sm font-semibold text-slate-900 leading-relaxed">{changeSummary}</p>
               ) : (
@@ -192,9 +192,9 @@ export function EditApprovalDetailModal({
               )}
               {changeDetails.length > 0 ? (
                 <div className="mt-3 overflow-hidden rounded-lg border border-violet-200/70 bg-white">
-                  <table className="w-full text-left text-[11px]">
+                  <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/90 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                      <tr className="border-b border-slate-100 bg-slate-50/90 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                         <th className="px-3 py-2">Field</th>
                         <th className="px-3 py-2">Current</th>
                         <th className="px-3 py-2">Requested</th>
@@ -205,7 +205,7 @@ export function EditApprovalDetailModal({
                         <tr key={row.label} className="border-b border-slate-50 last:border-0">
                           <td className="px-3 py-2 font-semibold text-slate-800">{row.label}</td>
                           <td className="px-3 py-2 text-slate-600">{formatEditApprovalFieldValue(row.from)}</td>
-                          <td className="px-3 py-2 font-semibold text-[#134e4a]">
+                          <td className="px-3 py-2 font-semibold text-zarewa-teal">
                             {formatEditApprovalFieldValue(row.to)}
                           </td>
                         </tr>
@@ -218,13 +218,13 @@ export function EditApprovalDetailModal({
 
             {Array.isArray(recordContext?.fields) && recordContext.fields.length > 0 ? (
               <section>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500 mb-2">
                   {entityLabel} snapshot
                 </p>
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                   {recordContext.fields.map((f) => (
                     <div key={f.label} className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
-                      <dt className="text-[9px] font-bold uppercase text-slate-400">{f.label}</dt>
+                      <dt className="text-ui-xs font-bold uppercase text-slate-400">{f.label}</dt>
                       <dd className="font-semibold text-slate-900 mt-0.5 break-words">{f.value}</dd>
                     </div>
                   ))}
@@ -233,7 +233,7 @@ export function EditApprovalDetailModal({
             ) : (
               <dl className="grid grid-cols-1 gap-3 text-sm">
                 <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
-                  <dt className="text-[9px] font-bold uppercase text-slate-400">Record</dt>
+                  <dt className="text-ui-xs font-bold uppercase text-slate-400">Record</dt>
                   <dd className="font-semibold text-slate-900 mt-0.5">
                     {entityLabel} · <span className="font-mono">{record?.entityId || '—'}</span>
                   </dd>
@@ -242,11 +242,11 @@ export function EditApprovalDetailModal({
             )}
 
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm">
-              <p className="text-[9px] font-bold uppercase text-slate-400">Requested by</p>
+              <p className="text-ui-xs font-bold uppercase text-slate-400">Requested by</p>
               <p className="font-semibold text-slate-900 mt-0.5">
                 {formatPersonName(record?.requestedByDisplay || record?.requestedByUserId || '—')}
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">{record?.requestedAtISO || ''}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{record?.requestedAtISO || ''}</p>
             </div>
 
             <p className="text-sm text-slate-600 leading-relaxed">{entityGuidance(record?.entityKind)}</p>
@@ -255,7 +255,7 @@ export function EditApprovalDetailModal({
               <Link
                 to={route.to}
                 state={route.state}
-                className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+                className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
                 onClick={() => onClose?.()}
               >
                 View source record
@@ -268,7 +268,7 @@ export function EditApprovalDetailModal({
               </p>
             ) : (
               <div className="space-y-3 pt-3 border-t border-slate-200">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
                   Rejection reason (required to reject)
                   <textarea
                     value={rejectReason}
@@ -287,7 +287,7 @@ export function EditApprovalDetailModal({
                     type="button"
                     disabled={busy}
                     onClick={() => void handleApprove()}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-black uppercase tracking-wide text-white hover:brightness-105 disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-zarewa-teal px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white hover:brightness-105 disabled:opacity-50"
                   >
                     <CheckCircle2 size={16} />
                     Approve code

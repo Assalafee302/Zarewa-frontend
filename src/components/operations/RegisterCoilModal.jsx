@@ -164,18 +164,18 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
     <ModalFrame isOpen={isOpen} onClose={onClose}>
       <div className="z-modal-panel max-w-lg p-6 sm:p-8 overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-[#134e4a]">Register coil</h3>
+          <h3 className="text-lg font-bold text-zarewa-teal">Register coil</h3>
           <button type="button" onClick={onClose} className="p-2 text-gray-400 hover:text-red-500 rounded-xl">
             <X size={20} />
           </button>
         </div>
-        <p className="text-[11px] text-slate-500 mb-4 leading-snug">
+        <p className="text-xs text-slate-500 mb-4 leading-snug">
           Add a coil you forgot during bulk import or yard registration. No purchase order is created — the coil goes
           straight onto the live stock register with the kg you enter.
         </p>
         <form className="space-y-3" onSubmit={submit}>
           <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Coil number</span>
+            <span className="text-ui-xs font-bold text-slate-500 uppercase">Coil number</span>
             <div className="mt-0.5 flex gap-2">
               <input
                 className="z-input w-full font-mono"
@@ -186,7 +186,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
               />
               <button
                 type="button"
-                className="z-btn-secondary shrink-0 text-[10px] whitespace-nowrap"
+                className="z-btn-secondary shrink-0 text-ui-xs whitespace-nowrap"
                 onClick={() => setForm((f) => ({ ...f, coilNo: suggestNextClCoilNo(coilLots) }))}
               >
                 Suggest CL no.
@@ -194,7 +194,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
             </div>
           </label>
           <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Material</span>
+            <span className="text-ui-xs font-bold text-slate-500 uppercase">Material</span>
             <select
               className="z-input w-full mt-0.5"
               value={form.materialId}
@@ -209,7 +209,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Colour</span>
+              <span className="text-ui-xs font-bold text-slate-500 uppercase">Colour</span>
               <input
                 className="z-input w-full mt-0.5"
                 list="register-coil-colours"
@@ -226,7 +226,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
               </datalist>
             </label>
             <label className="block">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Gauge</span>
+              <span className="text-ui-xs font-bold text-slate-500 uppercase">Gauge</span>
               <input
                 className="z-input w-full mt-0.5"
                 list="register-coil-gauges"
@@ -242,7 +242,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
             </label>
           </div>
           <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">On-hand kg</span>
+            <span className="text-ui-xs font-bold text-slate-500 uppercase">On-hand kg</span>
             <input
               className="z-input w-full mt-0.5"
               type="number"
@@ -256,7 +256,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Location (optional)</span>
+              <span className="text-ui-xs font-bold text-slate-500 uppercase">Location (optional)</span>
               <input
                 className="z-input w-full mt-0.5"
                 value={form.location}
@@ -265,7 +265,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
               />
             </label>
             <label className="block">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Received date</span>
+              <span className="text-ui-xs font-bold text-slate-500 uppercase">Received date</span>
               <input
                 className="z-input w-full mt-0.5"
                 type="date"
@@ -275,7 +275,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
             </label>
           </div>
           <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Supplier (optional)</span>
+            <span className="text-ui-xs font-bold text-slate-500 uppercase">Supplier (optional)</span>
             <input
               className="z-input w-full mt-0.5"
               value={form.supplierName}
@@ -284,7 +284,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
             />
           </label>
           <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Note (optional)</span>
+            <span className="text-ui-xs font-bold text-slate-500 uppercase">Note (optional)</span>
             <input
               className="z-input w-full mt-0.5"
               value={form.note}

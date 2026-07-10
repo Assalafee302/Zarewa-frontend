@@ -11,7 +11,7 @@ export default function HrTransferStageBar({ transferType, status, compact = fal
   return (
     <div className={compact ? 'mt-2' : 'rounded-xl border border-slate-200 bg-slate-50/80 p-3'}>
       {!compact ? (
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Transfer stages</p>
+        <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Transfer stages</p>
       ) : null}
       <div className="flex gap-1 overflow-x-auto pb-0.5">
         {chain.map((step, i) => {
@@ -21,7 +21,7 @@ export default function HrTransferStageBar({ transferType, status, compact = fal
           return (
             <span
               key={step}
-              className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold leading-tight ${
+              className={`shrink-0 rounded-lg px-2 py-1 text-ui-xs font-semibold leading-tight ${
                 declined
                   ? 'bg-red-100 text-red-900 border border-red-200'
                   : active

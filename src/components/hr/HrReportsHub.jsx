@@ -22,8 +22,8 @@ function ExportButton({ label, disabled, disabledReason, onClick, busy }) {
       title={disabled ? disabledReason : undefined}
       disabled={disabled || busy}
       onClick={onClick}
-      className={`rounded-xl border px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${
-        disabled ? 'border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed' : 'border-slate-200 text-[#134e4a] hover:bg-slate-50'
+      className={`rounded-xl border px-3 py-2 text-ui-xs font-bold uppercase tracking-wide ${
+        disabled ? 'border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed' : 'border-slate-200 text-zarewa-teal hover:bg-slate-50'
       }`}
     >
       {busy ? '…' : label}
@@ -132,10 +132,10 @@ export function HrReportsHub() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
       <aside className="space-y-4">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Report picker</p>
+        <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Report picker</p>
         {Object.entries(byCategory).map(([cat, reports]) => (
           <div key={cat}>
-            <p className="mb-1 text-xs font-bold text-[#134e4a]">{REPORT_CATEGORY_LABELS[cat] || cat}</p>
+            <p className="mb-1 text-xs font-bold text-zarewa-teal">{REPORT_CATEGORY_LABELS[cat] || cat}</p>
             <ul className="space-y-0.5">
               {reports.map((r) => (
                 <li key={r.id}>
@@ -143,7 +143,7 @@ export function HrReportsHub() {
                     type="button"
                     onClick={() => setSelectedId(r.id)}
                     className={`w-full rounded-lg px-2 py-1.5 text-left text-xs ${
-                      selectedId === r.id ? 'bg-[#134e4a] text-white font-semibold' : 'text-slate-700 hover:bg-slate-50'
+                      selectedId === r.id ? 'bg-zarewa-teal text-white font-semibold' : 'text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     {r.label}
@@ -209,7 +209,7 @@ export function HrReportsHub() {
             title="Preview"
             subtitle={`${preview.totalCount} record(s) · ${preview.filtersSummary}`}
           >
-            <p className="mb-3 text-[10px] text-slate-500 uppercase tracking-wide">
+            <p className="mb-3 text-ui-xs text-slate-500 uppercase tracking-wide">
               Generated {preview.generatedAtIso?.slice(0, 19).replace('T', ' ')}
               {preview.generatedBy ? ` by ${preview.generatedBy}` : ''}
             </p>
@@ -238,7 +238,7 @@ export function HrReportsHub() {
             {preview.rows.some((r) => r.userId) ? (
               <p className="mt-2 text-xs text-slate-500">
                 Rows with staff names link to{' '}
-                <Link to={HR_EMPLOYEES} className="font-bold text-[#134e4a] hover:underline">employee profiles</Link>
+                <Link to={HR_EMPLOYEES} className="font-bold text-zarewa-teal hover:underline">employee profiles</Link>
                 {' '}via the staff directory.
               </p>
             ) : null}

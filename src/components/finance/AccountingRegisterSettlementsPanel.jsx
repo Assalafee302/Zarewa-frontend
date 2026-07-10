@@ -44,13 +44,13 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
   return (
     <>
       <div className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
-        <div className="h-1 bg-[#134e4a]" />
+        <div className="h-1 bg-zarewa-teal" />
         <div className="p-4 space-y-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Register withdrawals</p>
+          <p className="text-ui-xs font-bold uppercase tracking-wider text-slate-500">Register withdrawals</p>
 
           {pending.length ? (
             <div>
-              <p className="text-[9px] font-semibold uppercase text-amber-800 mb-1.5">Awaiting approval ({pending.length})</p>
+              <p className="text-ui-xs font-semibold uppercase text-amber-800 mb-1.5">Awaiting approval ({pending.length})</p>
               <ul className="space-y-1.5">
                 {pending.map((s) => (
                   <li
@@ -58,8 +58,8 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
                     className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/80 bg-slate-50/50 px-3 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="text-[11px] font-bold text-[#134e4a] truncate">{s.partyName}</p>
-                      <p className="text-[10px] text-slate-600">
+                      <p className="text-xs font-bold text-zarewa-teal truncate">{s.partyName}</p>
+                      <p className="text-ui-xs text-slate-600">
                         {s.settlementId} · {formatNgn(s.amountNgn)}
                       </p>
                     </div>
@@ -69,7 +69,7 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
                           type="button"
                           disabled={busy}
                           onClick={() => openDecision(s, 'Approved')}
-                          className="inline-flex items-center gap-0.5 rounded border border-teal-200 bg-teal-50 px-2 py-1 text-[8px] font-bold uppercase text-teal-900"
+                          className="inline-flex items-center gap-0.5 rounded border border-teal-200 bg-teal-50 px-2 py-1 text-ui-xs font-bold uppercase text-teal-900"
                         >
                           <Check size={10} /> Approve
                         </button>
@@ -77,13 +77,13 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
                           type="button"
                           disabled={busy}
                           onClick={() => openDecision(s, 'Rejected')}
-                          className="inline-flex items-center gap-0.5 rounded border border-rose-200 bg-rose-50 px-2 py-1 text-[8px] font-bold uppercase text-rose-800"
+                          className="inline-flex items-center gap-0.5 rounded border border-rose-200 bg-rose-50 px-2 py-1 text-ui-xs font-bold uppercase text-rose-800"
                         >
                           <X size={10} /> Reject
                         </button>
                       </div>
                     ) : (
-                      <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded border ${STATUS_TONE.Pending}`}>
+                      <span className={`text-ui-xs font-bold uppercase px-2 py-0.5 rounded border ${STATUS_TONE.Pending}`}>
                         Pending
                       </span>
                     )}
@@ -95,7 +95,7 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
 
           {approved.length ? (
             <div>
-              <p className="text-[9px] font-semibold uppercase text-teal-800 mb-1.5">Approved — pay from treasury ({approved.length})</p>
+              <p className="text-ui-xs font-semibold uppercase text-teal-800 mb-1.5">Approved — pay from treasury ({approved.length})</p>
               <ul className="space-y-1.5">
                 {approved.map((s) => {
                   const out = Math.max(0, (s.approvedAmountNgn || s.amountNgn) - (s.paidAmountNgn || 0));
@@ -105,8 +105,8 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
                       className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/80 bg-white px-3 py-2"
                     >
                       <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-[#134e4a] truncate">{s.partyName}</p>
-                        <p className="text-[10px] text-slate-600">
+                        <p className="text-xs font-bold text-zarewa-teal truncate">{s.partyName}</p>
+                        <p className="text-ui-xs text-slate-600">
                           {s.settlementId} · Pay {formatNgn(out)}
                         </p>
                       </div>
@@ -114,12 +114,12 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
                         <button
                           type="button"
                           onClick={() => setPayTarget(s)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-2.5 py-1 text-[8px] font-bold uppercase"
+                          className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal text-white px-2.5 py-1 text-ui-xs font-bold uppercase"
                         >
                           <Banknote size={10} /> Pay
                         </button>
                       ) : (
-                        <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded border ${STATUS_TONE.Approved}`}>
+                        <span className={`text-ui-xs font-bold uppercase px-2 py-0.5 rounded border ${STATUS_TONE.Approved}`}>
                           Approved
                         </span>
                       )}

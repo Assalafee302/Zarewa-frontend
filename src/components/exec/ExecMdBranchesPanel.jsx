@@ -8,31 +8,31 @@ export function ExecMdBranchesPanel({ branches, formatNgn, busy, onSelectBranch 
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="h-1 bg-[#134e4a]" aria-hidden />
+      <div className="h-1 bg-zarewa-teal" aria-hidden />
       <div className="px-4 py-3 border-b border-slate-100">
-        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+        <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
           <Building2 size={12} /> Branches
         </p>
-        <h3 className="text-sm font-bold text-[#134e4a]">Three-site scorecard</h3>
+        <h3 className="text-sm font-bold text-zarewa-teal">Three-site scorecard</h3>
         {highlights.bestOverallBranch ? (
-          <p className="text-[10px] text-slate-500 mt-1">
+          <p className="text-ui-xs text-slate-500 mt-1">
             Leading: <span className="font-semibold text-slate-700">{highlights.bestOverallBranch}</span>
           </p>
         ) : null}
       </div>
       <div className="px-4 py-3 overflow-x-auto">
         {!showComparison ? (
-          <p className="text-[11px] text-slate-500">
+          <p className="text-xs text-slate-500">
             {branches?.comparisonEmptyReason === 'single_branch'
               ? 'Switch to All branches for Kaduna · Yola · Maiduguri comparison.'
               : 'Branch comparison not available for this scope.'}
           </p>
         ) : busy && !rows.length ? (
-          <p className="text-[11px] text-slate-500">Loading branch scorecard…</p>
+          <p className="text-xs text-slate-500">Loading branch scorecard…</p>
         ) : (
-          <table className="w-full text-[11px] min-w-[320px]">
+          <table className="w-full text-xs min-w-[320px]">
             <thead>
-              <tr className="border-b text-[9px] font-black uppercase text-slate-500">
+              <tr className="border-b text-ui-xs font-black uppercase text-slate-500">
                 <th className="py-1.5 text-left">Branch</th>
                 <th className="py-1.5 text-right">Sales</th>
                 <th className="py-1.5 text-right">Collected</th>

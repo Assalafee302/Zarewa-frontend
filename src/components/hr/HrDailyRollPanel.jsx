@@ -199,7 +199,7 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
           type="button"
           onClick={save}
           disabled={saving || loading || !staff.length || !effectiveBranchId}
-          className="rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
+          className="rounded-xl bg-zarewa-teal px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save attendance'}
         </button>

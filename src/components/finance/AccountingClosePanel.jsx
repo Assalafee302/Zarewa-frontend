@@ -159,13 +159,13 @@ export function AccountingClosePanel({
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       {!periodKeyProp ? (
-        <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
+        <label className="inline-flex items-center gap-2 text-ui-xs font-bold text-slate-600">
           Period
           <input
             type="month"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-800"
+            className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-800"
           />
         </label>
       ) : null}
@@ -173,7 +173,7 @@ export function AccountingClosePanel({
         type="button"
         onClick={() => load(true)}
         disabled={loading}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-50"
       >
         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         Refresh
@@ -194,12 +194,12 @@ export function AccountingClosePanel({
       )}
 
       {branchScopeLabel ? (
-        <p className="text-[11px] font-medium text-slate-600">
+        <p className="text-xs font-medium text-slate-600">
           Scope: <span className="font-bold text-slate-800">{branchScopeLabel}</span>
         </p>
       ) : null}
 
-      {error ? <p className="text-[11px] font-medium text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs font-medium text-rose-700">{error}</p> : null}
 
       {data ? (
         <>
@@ -231,11 +231,11 @@ export function AccountingClosePanel({
             ) : null}
           </div>
 
-          <p className="text-[11px] font-medium text-slate-700">{data.summary}</p>
+          <p className="text-xs font-medium text-slate-700">{data.summary}</p>
 
           {stepsTotal > 0 ? (
             <div>
-              <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-slate-600">
+              <div className="mb-1 flex items-center justify-between text-ui-xs font-bold text-slate-600">
                 <span>Checklist progress</span>
                 <span>
                   {stepsComplete}/{stepsTotal}
@@ -243,7 +243,7 @@ export function AccountingClosePanel({
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className="h-full bg-[#134e4a] transition-all"
+                  className="h-full bg-zarewa-teal transition-all"
                   style={{ width: `${Math.round((stepsComplete / stepsTotal) * 100)}%` }}
                 />
               </div>
@@ -259,7 +259,7 @@ export function AccountingClosePanel({
                   type="button"
                   onClick={() => void lockPeriod()}
                   disabled={locking}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide hover:brightness-105 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide hover:brightness-105 disabled:opacity-50"
                 >
                   <Lock size={14} />
                   Lock period
@@ -281,7 +281,7 @@ export function AccountingClosePanel({
                   type="button"
                   disabled
                   title="Resolve checklist items above"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400 cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-400 cursor-not-allowed"
                 >
                   <Lock size={14} />
                   Lock period
@@ -290,7 +290,7 @@ export function AccountingClosePanel({
                   <button
                     type="button"
                     onClick={() => setShowForceLock(true)}
-                    className="text-[10px] font-bold text-violet-800 hover:underline"
+                    className="text-ui-xs font-bold text-violet-800 hover:underline"
                   >
                     MD / HoA override…
                   </button>
@@ -298,12 +298,12 @@ export function AccountingClosePanel({
               </div>
               {showForceLock ? (
                 <div className="mt-3 space-y-2 border-t border-amber-200/80 pt-3">
-                  <p className="text-[10px] font-semibold text-violet-950">
+                  <p className="text-ui-xs font-semibold text-violet-950">
                     Override requires written reason (min 12 characters). Server will reject lock if checklist is not
                     clear unless override is used.
                   </p>
                   <textarea
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] min-h-[72px]"
+                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs min-h-[72px]"
                     placeholder="e.g. MD memo 2026-06-15 — immaterial tie-out variance documented in board pack"
                     value={forceReason}
                     onChange={(e) => setForceReason(e.target.value)}
@@ -313,7 +313,7 @@ export function AccountingClosePanel({
                       type="button"
                       onClick={() => void lockPeriod(true)}
                       disabled={locking || forceReason.trim().length < 12}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-violet-900 text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide hover:brightness-105 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-violet-900 text-white px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide hover:brightness-105 disabled:opacity-50"
                     >
                       <Lock size={14} />
                       Force lock
@@ -324,7 +324,7 @@ export function AccountingClosePanel({
                         setShowForceLock(false);
                         setForceReason('');
                       }}
-                      className="text-[10px] font-bold text-slate-600 hover:underline"
+                      className="text-ui-xs font-bold text-slate-600 hover:underline"
                     >
                       Cancel
                     </button>
@@ -344,7 +344,7 @@ export function AccountingClosePanel({
                 type="button"
                 onClick={() => void unlockPeriod()}
                 disabled={locking}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase text-zarewa-teal hover:bg-slate-50 disabled:opacity-50"
               >
                 Unlock
               </button>
@@ -356,14 +356,14 @@ export function AccountingClosePanel({
               <div key={step.id} className={`${ACCOUNTING_CARD_ROW} flex items-start gap-3`}>
                 {STATUS_ICON[step.status] || STATUS_ICON.warn}
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold text-slate-900">{step.label}</p>
-                  <p className="mt-0.5 text-[10px] font-medium text-slate-600">{step.detail}</p>
+                  <p className="text-xs font-bold text-slate-900">{step.label}</p>
+                  <p className="mt-0.5 text-ui-xs font-medium text-slate-600">{step.detail}</p>
                 </div>
                 {step.focusTab && onFocusTab ? (
                   <button
                     type="button"
                     onClick={() => onFocusTab(step.focusTab)}
-                    className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+                    className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
                   >
                     Open
                   </button>
@@ -375,15 +375,15 @@ export function AccountingClosePanel({
           {data.controlTieOut?.checks?.length ? (
             <section className="rounded-xl border border-slate-200/90 overflow-hidden">
               <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5">
-                <h3 className="text-[10px] font-black uppercase tracking-wide text-slate-700">
+                <h3 className="text-ui-xs font-black uppercase tracking-wide text-slate-700">
                   Register ↔ GL tie-out detail
                 </h3>
-                <p className="mt-0.5 text-[10px] text-slate-500">{data.controlTieOut.disclaimer}</p>
+                <p className="mt-0.5 text-ui-xs text-slate-500">{data.controlTieOut.disclaimer}</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px]">
+                <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[9px] font-bold uppercase text-slate-500">
+                    <tr className="border-b border-slate-100 text-ui-xs font-bold uppercase text-slate-500">
                       <th className="px-4 py-2">Control</th>
                       <th className="px-4 py-2 text-right">Register</th>
                       <th className="px-4 py-2 text-right">GL</th>
@@ -397,7 +397,7 @@ export function AccountingClosePanel({
                       <tr key={c.id} className="border-b border-slate-50">
                         <td className="px-4 py-2">
                           <span className="font-semibold text-slate-800">{c.label}</span>
-                          <span className="ml-1 font-mono text-[10px] text-slate-400">{c.glAccountCode}</span>
+                          <span className="ml-1 font-mono text-ui-xs text-slate-400">{c.glAccountCode}</span>
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums">{formatNgn(c.registerNgn)}</td>
                         <td className="px-4 py-2 text-right tabular-nums">{formatNgn(c.glNgn)}</td>
@@ -408,15 +408,15 @@ export function AccountingClosePanel({
                         <td className="px-4 py-2">
                           <div className="flex items-center justify-end gap-2">
                             {c.status === 'ok' ? (
-                              <span className="text-[10px] font-bold uppercase text-emerald-700">OK</span>
+                              <span className="text-ui-xs font-bold uppercase text-emerald-700">OK</span>
                             ) : (
-                              <span className="text-[10px] font-bold uppercase text-amber-700">Review</span>
+                              <span className="text-ui-xs font-bold uppercase text-amber-700">Review</span>
                             )}
                             {c.drillDownTab && onFocusTab ? (
                               <button
                                 type="button"
                                 onClick={() => onFocusTab(c.drillDownTab)}
-                                className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+                                className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
                               >
                                 Open
                               </button>
@@ -434,7 +434,7 @@ export function AccountingClosePanel({
       ) : null}
 
       {!loading && !data && !error ? (
-        <p className="text-[11px] text-slate-500">Select a period to load the close checklist.</p>
+        <p className="text-xs text-slate-500">Select a period to load the close checklist.</p>
       ) : null}
     </div>
   );

@@ -19,12 +19,12 @@ export function FinancePilotHeader({
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between xl:gap-8">
         <div className="min-w-0 flex gap-3 sm:gap-4 flex-1">
           <span
-            className="hidden sm:block w-1 shrink-0 rounded-full bg-gradient-to-b from-teal-400 via-teal-600 to-[#134e4a] self-stretch min-h-[3rem] shadow-sm"
+            className="hidden sm:block w-1 shrink-0 rounded-full bg-gradient-to-b from-teal-400 via-teal-600 to-zarewa-teal self-stretch min-h-[3rem] shadow-sm"
             aria-hidden
           />
           <div className="min-w-0">
             {eyebrow ? (
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-1">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400 mb-1">
                 {eyebrow}
               </p>
             ) : null}

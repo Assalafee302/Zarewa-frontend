@@ -66,12 +66,12 @@ export function ProfileOnboardingWizard({ className = '', column = false, onDism
             <p className="mt-0.5 text-xs text-teal-800/90">{doneHint}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={handleDismiss} className="z-btn-secondary !px-3 !py-1.5 !text-[10px]">
+            <button type="button" onClick={handleDismiss} className="z-btn-secondary !px-3 !py-1.5 !text-ui-xs">
               Remind me later
             </button>
             <Link
               to={`${HR_SELF_SERVICE_PATH.employment}?form=1`}
-              className="z-btn-primary !px-3 !py-1.5 !text-[10px] text-center"
+              className="z-btn-primary !px-3 !py-1.5 !text-ui-xs text-center"
             >
               Continue
             </Link>
@@ -92,7 +92,7 @@ export function ProfileOnboardingWizard({ className = '', column = false, onDism
             ))}
           </ol>
           {steps.length > 8 ? (
-            <p className="mt-2 text-[10px] font-semibold text-teal-800/80">
+            <p className="mt-2 text-ui-xs font-semibold text-teal-800/80">
               +{steps.length - 8} more in Employment & Documents
             </p>
           ) : null}
@@ -110,13 +110,13 @@ export function ProfileOnboardingWizard({ className = '', column = false, onDism
           <button
             type="button"
             onClick={handleDismiss}
-            className="z-btn-secondary !px-4 !py-2 !text-[10px] uppercase tracking-wide"
+            className="z-btn-secondary !px-4 !py-2 !text-ui-xs uppercase tracking-wide"
           >
             Remind me later
           </button>
           <Link
             to={`${HR_SELF_SERVICE_PATH.employment}?form=1`}
-            className="z-btn-primary !px-4 !py-2 !text-[10px] uppercase tracking-wide text-center"
+            className="z-btn-primary !px-4 !py-2 !text-ui-xs uppercase tracking-wide text-center"
           >
             Continue setup
           </Link>
@@ -139,7 +139,7 @@ export function ProfileOnboardingWizard({ className = '', column = false, onDism
         ))}
       </ol>
       {steps.length > 8 ? (
-        <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide opacity-80">
+        <p className="mt-2 text-ui-xs font-semibold uppercase tracking-wide opacity-80">
           +{steps.length - 8} more in Employment & Documents
         </p>
       ) : null}
@@ -155,7 +155,7 @@ export function ProfileOnboardingCompleteChip({ onDark = false }) {
 
   if (onDark) {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white ring-1 ring-white/30">
+      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-ui-xs font-bold uppercase tracking-wide text-white ring-1 ring-white/30">
         <CheckCircle2 size={12} aria-hidden />
         Onboarding complete
       </div>
@@ -163,7 +163,7 @@ export function ProfileOnboardingCompleteChip({ onDark = false }) {
   }
 
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800">
+    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-ui-xs font-bold uppercase tracking-wide text-emerald-800">
       <CheckCircle2 size={12} aria-hidden />
       Onboarding complete
     </div>

@@ -50,7 +50,7 @@ export default function ExecutiveHrSpecialChanges() {
               <AppTableTr key={c.id}>
                 <AppTableTd>{c.effectiveFromIso}</AppTableTd>
                 <AppTableTd>
-                  <Link to={`/hr/staff/${c.userId}`} className="font-semibold text-[#134e4a] hover:underline">
+                  <Link to={`/hr/staff/${c.userId}`} className="font-semibold text-zarewa-teal hover:underline">
                     {c.displayName}
                   </Link>
                 </AppTableTd>

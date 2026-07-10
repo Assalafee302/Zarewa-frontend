@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../lib/apiBase';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
@@ -43,6 +44,7 @@ function TempIdCardModal({ request, staff, onClose }) {
 
 export default function HrIdCards() {
   const ws = useWorkspace();
+  const { show: showToast } = useToast();
   const isManager = canManageHrStaff(ws?.permissions);
   const currentUserId = ws?.userId;
 
@@ -90,7 +92,7 @@ export default function HrIdCards() {
       await patchHrIdCardRequest(id, { status });
       await load();
     } catch {
-      alert('Status update failed.');
+      showToast('Status update failed.', { variant: 'error' });
     }
   };
 
@@ -153,7 +155,7 @@ export default function HrIdCards() {
       await patchHrIdCardRequest(id, { printed: true, status: 'ready' });
       await load();
     } catch {
-      alert('Could not mark as printed.');
+      showToast('Could not mark as printed.', { variant: 'error' });
     }
   };
 
@@ -237,11 +239,11 @@ export default function HrIdCards() {
                     <AppTableTd>{r.createdAt?.slice(0, 10) || r.requestedAt?.slice(0, 10) || '—'}</AppTableTd>
                     <AppTableTd>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${STATUS_PILL[r.status] || STATUS_PILL.pending}`}>
+                        <span className={`rounded-full border px-2 py-0.5 text-xs font-bold ${STATUS_PILL[r.status] || STATUS_PILL.pending}`}>
                           {r.status}
                         </span>
                         {!isManager ? (
-                          <button type="button" className="text-[10px] font-bold text-[#134e4a] hover:underline" onClick={() => openPreview(r)}>
+                          <button type="button" className="text-ui-xs font-bold text-zarewa-teal hover:underline" onClick={() => openPreview(r)}>
                             Preview
                           </button>
                         ) : null}
@@ -252,7 +254,7 @@ export default function HrIdCards() {
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            className="text-xs font-bold text-[#134e4a] hover:underline"
+                            className="text-xs font-bold text-zarewa-teal hover:underline"
                             onClick={() => openPreview(r)}
                           >
                             Preview
@@ -260,7 +262,7 @@ export default function HrIdCards() {
                           {nextStatus && (
                             <button
                               type="button"
-                              className="text-xs font-bold text-[#134e4a] hover:underline"
+                              className="text-xs font-bold text-zarewa-teal hover:underline"
                               onClick={() => updateStatus(r.id, nextStatus)}
                             >
                               Mark {nextStatus}
@@ -278,7 +280,7 @@ export default function HrIdCards() {
                           {r.status !== 'collected' && (
                             <button
                               type="button"
-                              className="rounded-lg bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-200"
+                              className="rounded-lg bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800 hover:bg-amber-200"
                               onClick={() => openTempCard(r)}
                             >
                               Temp card

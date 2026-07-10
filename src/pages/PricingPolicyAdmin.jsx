@@ -98,7 +98,7 @@ export default function PricingPolicyAdmin() {
         subtitle="Trading bands (₦/m below recommended without MD), ridge add-ons, and profile aliases. MD and administrators may edit."
       />
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="text-[10px] font-bold uppercase text-slate-500 block">
+        <label className="text-ui-xs font-bold uppercase text-slate-500 block">
           Price book as at (optional)
           <input
             type="date"
@@ -110,7 +110,7 @@ export default function PricingPolicyAdmin() {
         <button
           type="button"
           onClick={openCustomerPriceBook}
-          className="inline-flex items-center gap-2 rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-4 py-2 text-[11px] font-black uppercase text-[#134e4a]"
+          className="inline-flex items-center gap-2 rounded-xl border border-zarewa-teal/30 bg-zarewa-teal/5 px-4 py-2 text-xs font-black uppercase text-zarewa-teal"
         >
           <Printer size={16} />
           Customer price book (print)
@@ -122,11 +122,11 @@ export default function PricingPolicyAdmin() {
       ) : (
         <form onSubmit={save} className="max-w-4xl space-y-8">
           <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm space-y-3">
-            <h2 className="text-xs font-black uppercase text-[#134e4a]">Default trading band</h2>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
+            <h2 className="text-xs font-black uppercase text-zarewa-teal">Default trading band</h2>
+            <p className="text-xs text-slate-600 leading-relaxed">
               When no gauge tier matches, this ₦/m allowance below <strong>recommended</strong> (but not below <strong>floor</strong>) applies without MD approval.
             </p>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase">
+            <label className="block text-ui-xs font-bold text-slate-500 uppercase">
               ₦ / metre
               <input
                 type="number"
@@ -140,12 +140,12 @@ export default function PricingPolicyAdmin() {
           </section>
 
           <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm space-y-3">
-            <h2 className="text-xs font-black uppercase text-[#134e4a]">Gauge tiers</h2>
-            <p className="text-[11px] text-slate-600">First matching row wins (by sort order). Gauge mm parsed from label (e.g. 0.55 full → 0.55).</p>
+            <h2 className="text-xs font-black uppercase text-zarewa-teal">Gauge tiers</h2>
+            <p className="text-xs text-slate-600">First matching row wins (by sort order). Gauge mm parsed from label (e.g. 0.55 full → 0.55).</p>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm border-collapse">
                 <thead>
-                  <tr className="text-left text-[10px] font-bold uppercase text-slate-500">
+                  <tr className="text-left text-ui-xs font-bold uppercase text-slate-500">
                     <th className="py-2 pr-3">Min mm</th>
                     <th className="py-2 pr-3">Max mm</th>
                     <th className="py-2 pr-3">Band ₦/m</th>
@@ -204,8 +204,8 @@ export default function PricingPolicyAdmin() {
           </section>
 
           <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm space-y-3">
-            <h2 className="text-xs font-black uppercase text-[#134e4a]">Ridge add-ons</h2>
-            <p className="text-[11px] text-slate-600">
+            <h2 className="text-xs font-black uppercase text-zarewa-teal">Ridge add-ons</h2>
+            <p className="text-xs text-slate-600">
               <strong>Add-on ₦/m</strong> is used in ridge floor math. <strong>Customer list ₦/m</strong> is optional: when set, that value is
               what appears on the customer price list / print for the add-on row; leave blank to use the same as add-on.
             </p>
@@ -216,7 +216,7 @@ export default function PricingPolicyAdmin() {
                   onClick={() =>
                     setRidgeAddOns((prev) => [...prev, { id: '', girthMm: '', materialFamily: '', addOnNgn: '', listAddOnNgn: '' }])
                   }
-                  className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a]"
+                  className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal"
                 >
                   Add ridge row
                 </button>
@@ -225,7 +225,7 @@ export default function PricingPolicyAdmin() {
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm border-collapse">
                 <thead>
-                  <tr className="text-left text-[10px] font-bold uppercase text-slate-500">
+                  <tr className="text-left text-ui-xs font-bold uppercase text-slate-500">
                     <th className="py-2 pr-3">Girth mm</th>
                     <th className="py-2 pr-3">Material family</th>
                     <th className="py-2 pr-3">Add-on ₦/m</th>
@@ -297,12 +297,12 @@ export default function PricingPolicyAdmin() {
           </section>
 
           <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm space-y-3">
-            <h2 className="text-xs font-black uppercase text-[#134e4a]">Profile / design aliases</h2>
-            <p className="text-[11px] text-slate-600">Map what sales types (e.g. steptiles) to a canonical design key that matches your price list rows.</p>
+            <h2 className="text-xs font-black uppercase text-zarewa-teal">Profile / design aliases</h2>
+            <p className="text-xs text-slate-600">Map what sales types (e.g. steptiles) to a canonical design key that matches your price list rows.</p>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm border-collapse">
                 <thead>
-                  <tr className="text-left text-[10px] font-bold uppercase text-slate-500">
+                  <tr className="text-left text-ui-xs font-bold uppercase text-slate-500">
                     <th className="py-2 pr-3">Alias</th>
                     <th className="py-2 pr-3">Canonical design</th>
                     <th className="py-2 pr-3">Canonical profile</th>
@@ -358,12 +358,12 @@ export default function PricingPolicyAdmin() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-xl bg-[#134e4a] px-5 py-2.5 text-[11px] font-black uppercase text-white disabled:opacity-50"
+              className="rounded-xl bg-zarewa-teal px-5 py-2.5 text-xs font-black uppercase text-white disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save policy'}
             </button>
           ) : (
-            <p className="text-[11px] text-slate-500">You can view this page; only MD / admin may save changes.</p>
+            <p className="text-xs text-slate-500">You can view this page; only MD / admin may save changes.</p>
           )}
         </form>
       )}

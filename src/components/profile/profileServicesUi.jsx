@@ -63,7 +63,7 @@ const TILE_SHELL = {
 };
 
 const ICON_SHELL = {
-  teal: 'bg-teal-50 text-[#134e4a]',
+  teal: 'bg-teal-50 text-zarewa-teal',
   violet: 'bg-violet-50 text-violet-800',
   amber: 'bg-amber-50 text-amber-900',
   slate: 'bg-slate-100 text-slate-700',
@@ -100,12 +100,12 @@ export function ProfileServiceTile({ action }) {
           <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-600">{action.description}</p>
         ) : null}
         {isWorkspace ? (
-          <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Workspace</p>
+          <p className="mt-1 text-ui-xs font-semibold uppercase tracking-wide text-slate-400">Workspace</p>
         ) : null}
       </div>
       <ChevronRight
         size={18}
-        className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#134e4a]"
+        className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-zarewa-teal"
         aria-hidden
       />
     </Link>
@@ -114,18 +114,18 @@ export function ProfileServiceTile({ action }) {
 
 export function ProfileServicesHero({ title, description, count }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#134e4a] via-[#0f5c55] to-[#134e4a] p-5 text-white shadow-lg shadow-teal-950/10 sm:p-6">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zarewa-teal via-[#0f5c55] to-zarewa-teal p-5 text-white shadow-lg shadow-teal-950/10 sm:p-6">
       <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-100/90">Account</p>
+          <p className="text-ui-xs font-bold uppercase tracking-[0.14em] text-teal-100/90">Account</p>
           <h2 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">{title}</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-teal-50/90">{description}</p>
         </div>
         {count != null ? (
           <div className="shrink-0 rounded-xl bg-white/15 px-4 py-3 text-center ring-1 ring-white/20">
             <p className="text-2xl font-black tabular-nums">{count}</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-teal-100/90">services</p>
+            <p className="text-ui-xs font-semibold uppercase tracking-wide text-teal-100/90">services</p>
           </div>
         ) : null}
       </div>
@@ -201,7 +201,7 @@ export function ProfileServicesCatalog({ actions, showSearch = true, className =
                   <p className="mt-0.5 text-xs text-slate-500">{group.meta.description}</p>
                 ) : null}
               </div>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-600">
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-ui-xs font-bold text-slate-600">
                 {group.items.length}
               </span>
             </div>

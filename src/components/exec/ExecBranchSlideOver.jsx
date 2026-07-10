@@ -29,17 +29,17 @@ export function ExecBranchSlideOver({ branch, isOpen, onClose, formatNgn }) {
     <SlideOverPanel isOpen={isOpen} onClose={onClose} title="Branch brief" maxWidthClass="max-w-md">
       <div className="flex h-full flex-col">
         <header className="border-b border-slate-100 px-5 py-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Branch</p>
-          <h2 className="text-lg font-bold text-[#134e4a]">{b.branchName || b.branchId}</h2>
+          <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Branch</p>
+          <h2 className="text-lg font-bold text-zarewa-teal">{b.branchName || b.branchId}</h2>
           {b.internalScoreNote ? (
-            <p className="text-[11px] text-slate-500 mt-2 leading-snug">{b.internalScoreNote}</p>
+            <p className="text-xs text-slate-500 mt-2 leading-snug">{b.internalScoreNote}</p>
           ) : null}
         </header>
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <dl className="space-y-3">
             {rows.map(([label, value]) => (
               <div key={label} className="flex items-baseline justify-between gap-3 border-b border-slate-50 pb-2">
-                <dt className="text-[10px] font-bold uppercase text-slate-500">{label}</dt>
+                <dt className="text-ui-xs font-bold uppercase text-slate-500">{label}</dt>
                 <dd className="text-sm font-semibold text-slate-800 tabular-nums text-right">{value}</dd>
               </div>
             ))}
@@ -48,14 +48,14 @@ export function ExecBranchSlideOver({ branch, isOpen, onClose, formatNgn }) {
         <footer className="border-t border-slate-100 px-5 py-4 flex flex-wrap gap-2">
           <Link
             to="/manager"
-            className="rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-black uppercase text-white hover:brightness-105"
+            className="rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-black uppercase text-white hover:brightness-105"
           >
             Management desk
           </Link>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 px-4 py-2 text-ui-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
           >
             Close
           </button>

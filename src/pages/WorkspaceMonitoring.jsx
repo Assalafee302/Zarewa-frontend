@@ -16,7 +16,7 @@ function SummaryCard({ label, value, tone = 'slate' }) {
   };
   return (
     <div className={`rounded-xl border p-4 shadow-sm ${tones[tone] || tones.slate}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-ui-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</p>
     </div>
   );
@@ -66,7 +66,7 @@ export default function WorkspaceMonitoring() {
       <div className="mx-auto max-w-6xl space-y-6 px-1 pb-10">
         <header className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-sm sm:px-5">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">HQ / Manager</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">HQ / Manager</p>
             <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Workspace Monitoring</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
               Branch workload, pending approvals, overdue items, and operational bottlenecks.
@@ -111,7 +111,7 @@ export default function WorkspaceMonitoring() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
                     <thead>
-                      <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      <tr className="border-b border-slate-200 text-ui-xs font-semibold uppercase tracking-wide text-slate-500">
                         <th className="py-2 pr-4">Branch</th>
                         <th className="py-2 pr-4">Action</th>
                         <th className="py-2 pr-4">Overdue</th>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { appConfirm } from '../../lib/appConfirm';
 import { formatNgn } from '../../lib/hrFormat';
 import {
   chairmanWaiveObligation,
@@ -77,7 +78,10 @@ export function HrObligationMaintenancePanel({ account, onUpdated }) {
   };
 
   const closeLoan = async () => {
-    if (!window.confirm('Write off remaining balance and close this obligation?')) return;
+    if (!(await appConfirm({
+      message: 'Write off remaining balance and close this obligation?',
+      variant: 'danger',
+    }))) return;
     await run(() =>
       maintainObligationAccount(account.id, {
         closeLoan: true,
@@ -88,13 +92,16 @@ export function HrObligationMaintenancePanel({ account, onUpdated }) {
 
   const submitWaiver = async (e) => {
     e.preventDefault();
-    if (!window.confirm('Chairman waiver will write off the full outstanding balance. Continue?')) return;
+    if (!(await appConfirm({
+      message: 'Chairman waiver will write off the full outstanding balance. Continue?',
+      variant: 'danger',
+    }))) return;
     await run(() => chairmanWaiveObligation(account.id, { note: waiverNote.trim() }));
   };
 
   return (
     <div className="space-y-4 border-t border-slate-100 pt-3">
-      <p className="text-[10px] font-bold uppercase text-slate-500">Account maintenance</p>
+      <p className="text-ui-xs font-bold uppercase text-slate-500">Account maintenance</p>
       {message ? <p className="text-xs font-semibold text-emerald-700">{message}</p> : null}
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
@@ -150,7 +157,7 @@ export function HrObligationMaintenancePanel({ account, onUpdated }) {
 
           <form onSubmit={submitAdjust} className="space-y-2 rounded-lg border border-slate-100 p-3">
             <p className="text-xs font-bold text-slate-700">Adjust schedule</p>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Lump-sum repayments do not change the monthly installment unless you adjust it here.
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -206,7 +213,7 @@ export function HrObligationMaintenancePanel({ account, onUpdated }) {
       {canWaive && account.principalOutstandingNgn > 0 ? (
         <form onSubmit={submitWaiver} className="space-y-2 rounded-lg border border-violet-200 bg-violet-50/50 p-3">
           <p className="text-xs font-bold text-violet-900">Chairman waiver</p>
-          <p className="text-[11px] text-violet-800">
+          <p className="text-xs text-violet-800">
             Waives {formatNgn(account.principalOutstandingNgn)} — for exceptional loans approved under Chairman policy.
           </p>
           <label className="block text-xs font-semibold text-slate-600">

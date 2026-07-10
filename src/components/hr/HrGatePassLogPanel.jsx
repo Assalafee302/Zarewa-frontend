@@ -67,13 +67,25 @@ export default function HrGatePassLogPanel({ canManage }) {
       {err ? <p className="text-red-600 text-sm mb-2">{err}</p> : null}
       {canManage ? (
         <form onSubmit={submit} className="grid gap-2 mb-4 sm:grid-cols-2">
-          <input type="date" className={HR_INPUT} value={form.passDateIso} onChange={(ev) => setForm((f) => ({ ...f, passDateIso: ev.target.value }))} required />
-          <select className={HR_INPUT} value={form.direction} onChange={(ev) => setForm((f) => ({ ...f, direction: ev.target.value }))}>
-            <option value="out">Exit (out)</option>
-            <option value="in">Entry (in)</option>
-          </select>
-          <input className={`${HR_INPUT} sm:col-span-2`} placeholder="Personnel / asset summary" value={form.personnelSummary} onChange={(ev) => setForm((f) => ({ ...f, personnelSummary: ev.target.value }))} />
-          <input className={`${HR_INPUT} sm:col-span-2`} placeholder="Notes" value={form.notes} onChange={(ev) => setForm((f) => ({ ...f, notes: ev.target.value }))} />
+          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+            Pass date
+            <input type="date" className={HR_INPUT} value={form.passDateIso} onChange={(ev) => setForm((f) => ({ ...f, passDateIso: ev.target.value }))} required />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+            Direction
+            <select className={HR_INPUT} value={form.direction} onChange={(ev) => setForm((f) => ({ ...f, direction: ev.target.value }))} aria-label="Gate pass direction">
+              <option value="out">Exit (out)</option>
+              <option value="in">Entry (in)</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700 sm:col-span-2">
+            Personnel / asset summary
+            <input className={HR_INPUT} placeholder="Who or what passed through" value={form.personnelSummary} onChange={(ev) => setForm((f) => ({ ...f, personnelSummary: ev.target.value }))} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700 sm:col-span-2">
+            Notes
+            <input className={HR_INPUT} placeholder="Optional notes" value={form.notes} onChange={(ev) => setForm((f) => ({ ...f, notes: ev.target.value }))} />
+          </label>
           <button type="submit" className={HR_BTN_PRIMARY} disabled={busy}>Record pass</button>
         </form>
       ) : null}

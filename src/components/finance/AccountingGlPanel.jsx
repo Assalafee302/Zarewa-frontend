@@ -45,11 +45,11 @@ export function AccountingGlPanel({
   return (
     <div className="space-y-5">
       {deskLayout && !periodKeyProp ? (
-        <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
+        <label className="inline-flex items-center gap-2 text-ui-xs font-bold text-slate-600">
           Period
           <input
             type="month"
-            className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-800"
+            className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-800"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
           />
@@ -60,11 +60,11 @@ export function AccountingGlPanel({
           title="General ledger"
           description="Trial balance and journal activity for the period. Cash accounts use per-bank codes (1001, 1002, …)."
           action={
-            <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
+            <label className="inline-flex items-center gap-2 text-ui-xs font-bold text-slate-600">
               Period
               <input
                 type="month"
-                className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
               />

@@ -77,7 +77,7 @@ export function HrSalaryVarianceReportSection({ embedded = false }) {
         {rows.length > 0 ? (
           <button
             type="button"
-            className="text-xs font-bold text-[#134e4a] hover:underline"
+            className="text-xs font-bold text-zarewa-teal hover:underline"
             onClick={() => exportVarianceCsv(rows)}
           >
             Export CSV
@@ -106,11 +106,11 @@ export function HrSalaryVarianceReportSection({ embedded = false }) {
                 <AppTableTr key={r.userId}>
                   <AppTableTd>
                     <div className="font-semibold text-slate-800">{r.displayName}</div>
-                    <div className="text-[10px] text-slate-500">{r.jobTitle}</div>
+                    <div className="text-ui-xs text-slate-500">{r.jobTitle}</div>
                     {r.userId ? (
                       <Link
                         to={`${HR_EMPLOYEES}/${encodeURIComponent(r.userId)}?tab=compensation`}
-                        className="text-[10px] font-bold text-[#134e4a] hover:underline"
+                        className="text-ui-xs font-bold text-zarewa-teal hover:underline"
                       >
                         Open profile →
                       </Link>
@@ -119,7 +119,7 @@ export function HrSalaryVarianceReportSection({ embedded = false }) {
                   <AppTableTd>
                     L{r.salaryLevel}/S{r.salaryStep}
                   </AppTableTd>
-                  <AppTableTd align="right" className="text-[10px] text-slate-600">
+                  <AppTableTd align="right" className="text-ui-xs text-slate-600">
                     {formatNgn(r.matrixBaseNgn)} / {formatNgn(r.matrixHousingNgn)} / {formatNgn(r.matrixTransportNgn)}
                   </AppTableTd>
                   <AppTableTd align="right">{formatNgn(r.matrixTotalNgn)}</AppTableTd>

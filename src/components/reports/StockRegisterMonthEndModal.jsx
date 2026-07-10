@@ -49,8 +49,8 @@ export function StockRegisterMonthEndModal({
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Physical stock register</p>
-            <h2 className="text-lg font-bold text-[#134e4a]">{titles[roleMode]}</h2>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Physical stock register</p>
+            <h2 className="text-lg font-bold text-zarewa-teal">{titles[roleMode]}</h2>
             <p className="text-sm text-slate-600 mt-0.5">{branchLabel || branchId}</p>
           </div>
           <button type="button" onClick={onClose} className="z-btn-secondary p-2" aria-label="Close">

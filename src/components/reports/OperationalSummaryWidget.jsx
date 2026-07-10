@@ -51,15 +51,15 @@ export function OperationalSummaryWidget({ className = '', linkTo = '/reports?ta
         <div className="flex items-center gap-2 min-w-0">
           <ShieldCheck size={16} className="text-teal-600 shrink-0" aria-hidden />
           <div className="min-w-0">
-            <h3 className="text-xs font-black uppercase tracking-wide text-[#134e4a]">Operational control</h3>
-            <p className="text-[10px] text-slate-500 truncate">Pending approvals, production gates, QC</p>
+            <h3 className="text-xs font-black uppercase tracking-wide text-zarewa-teal">Operational control</h3>
+            <p className="text-ui-xs text-slate-500 truncate">Pending approvals, production gates, QC</p>
           </div>
         </div>
         <button
           type="button"
           onClick={load}
           disabled={loading}
-          className="shrink-0 rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 hover:text-[#134e4a] disabled:opacity-50"
+          className="shrink-0 rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 hover:text-zarewa-teal disabled:opacity-50"
           title="Refresh"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -90,13 +90,13 @@ export function OperationalSummaryWidget({ className = '', linkTo = '/reports?ta
                 ['Gate breaches', gateExceptions],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-2">
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
-                  <p className="text-lg font-black tabular-nums text-[#134e4a]">{value}</p>
+                  <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
+                  <p className="text-lg font-black tabular-nums text-zarewa-teal">{value}</p>
                 </div>
               ))}
             </div>
             {hasAlerts ? (
-              <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-950">
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-ui-xs text-amber-950">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" aria-hidden />
                 <p>
                   {dualWarnings > 0 ? `${dualWarnings} dual-control warning(s). ` : ''}
@@ -112,7 +112,7 @@ export function OperationalSummaryWidget({ className = '', linkTo = '/reports?ta
       <div className="border-t border-slate-100 px-4 py-2.5 bg-slate-50/40">
         <Link
           to={linkTo}
-          className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-teal-700 hover:text-teal-900"
+          className="inline-flex items-center gap-1.5 text-ui-xs font-black uppercase tracking-wide text-teal-700 hover:text-teal-900"
         >
           Open operational reports
           <ArrowRight size={12} aria-hidden />

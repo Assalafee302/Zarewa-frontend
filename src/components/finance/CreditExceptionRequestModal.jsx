@@ -57,7 +57,7 @@ export function CreditExceptionRequestModal({ open, onClose, quotationRef, onSub
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h2 className="text-lg font-black text-[#134e4a]">Request delivery credit</h2>
+          <h2 className="text-lg font-black text-zarewa-teal">Request delivery credit</h2>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700" aria-label="Close">
             <X size={20} />
           </button>
@@ -128,7 +128,7 @@ export function CreditExceptionRequestModal({ open, onClose, quotationRef, onSub
             <button
               type="submit"
               disabled={submitting || loading}
-              className="rounded-lg bg-[#134e4a] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              className="rounded-lg bg-zarewa-teal px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
             >
               Submit request
             </button>

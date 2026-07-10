@@ -32,14 +32,14 @@ export default function ProfileActions() {
 
       <p className="text-sm leading-relaxed text-slate-600">
         Need account or password changes?{' '}
-        <Link to={ACCOUNT_PATH.account} className="font-semibold text-[#134e4a] hover:underline">
+        <Link to={ACCOUNT_PATH.account} className="font-semibold text-zarewa-teal hover:underline">
           Account & security
         </Link>
         {hasHrSelfService ? (
           <>
             {' '}
             · HR overview{' '}
-            <Link to={HR_SELF_SERVICE_PATH.overview} className="font-semibold text-[#134e4a] hover:underline">
+            <Link to={HR_SELF_SERVICE_PATH.overview} className="font-semibold text-zarewa-teal hover:underline">
               here
             </Link>
           </>

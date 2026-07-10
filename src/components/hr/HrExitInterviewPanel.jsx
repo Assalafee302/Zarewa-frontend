@@ -82,7 +82,7 @@ export function HrExitInterviewPanel({ clearanceId, userId, canEdit = false }) {
         <dl className="space-y-2 text-sm">
           {QUESTIONS.map((q) => (
             <div key={q.key}>
-              <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{q.label}</dt>
+              <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">{q.label}</dt>
               <dd className="mt-0.5 text-slate-800">{responses[q.key] || '—'}</dd>
             </div>
           ))}

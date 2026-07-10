@@ -332,7 +332,7 @@ export default function HrTransfers({ embedded = false } = {}) {
                       { label: 'Effective', value: t.effectiveDateIso || '—' },
                     ]}
                     footer={
-                      <button type="button" className="text-xs font-bold uppercase text-[#134e4a]" onClick={() => setDetailTransfer(t)}>
+                      <button type="button" className="text-xs font-bold uppercase text-zarewa-teal" onClick={() => setDetailTransfer(t)}>
                         Details
                       </button>
                     }
@@ -358,7 +358,7 @@ export default function HrTransfers({ embedded = false } = {}) {
                     {transferPaging.slice.map((t) => (
                       <AppTableTr key={t.id}>
                         <AppTableTd>
-                          <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(t.userId)}`} className="font-semibold text-[#134e4a] hover:underline">
+                          <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(t.userId)}`} className="font-semibold text-zarewa-teal hover:underline">
                             {t.staffDisplayName}
                           </Link>
                         </AppTableTd>
@@ -367,7 +367,7 @@ export default function HrTransfers({ embedded = false } = {}) {
                         <AppTableTd>{t.effectiveDateIso || '—'}</AppTableTd>
                         <AppTableTd><HrStatusBadge status={t.status} variant="transfer" /></AppTableTd>
                         <AppTableTd align="right" truncate={false}>
-                          <button type="button" className="text-xs font-bold uppercase text-[#134e4a]" onClick={() => setDetailTransfer(t)}>Details</button>
+                          <button type="button" className="text-xs font-bold uppercase text-zarewa-teal" onClick={() => setDetailTransfer(t)}>Details</button>
                         </AppTableTd>
                       </AppTableTr>
                     ))}
@@ -540,11 +540,11 @@ export default function HrTransfers({ embedded = false } = {}) {
             </div>
             {(detailTransfer.timeline || []).length ? (
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Approval timeline</p>
-                <ol className="space-y-2 border-l-2 border-[#134e4a]/20 pl-3">
+                <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400 mb-2">Approval timeline</p>
+                <ol className="space-y-2 border-l-2 border-zarewa-teal/20 pl-3">
                   {detailTransfer.timeline.map((ev, idx) => (
                     <li key={idx} className="text-xs">
-                      <span className="font-bold text-[#134e4a]">{ev.status?.replace(/_/g, ' ')}</span>
+                      <span className="font-bold text-zarewa-teal">{ev.status?.replace(/_/g, ' ')}</span>
                       {' · '}
                       {ev.at?.slice(0, 16).replace('T', ' ')}
                       {ev.note ? ` — ${ev.note}` : ''}

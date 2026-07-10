@@ -34,13 +34,13 @@ export default function WorkspaceOfficeThreadsBlock({ canOffice, officeSummary =
 
   return (
     <section className="rounded-xl border border-slate-200/90 bg-white shadow-sm">
-      <div className="flex h-1 bg-[#134e4a]" aria-hidden />
+      <div className="flex h-1 bg-zarewa-teal" aria-hidden />
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Workspace</p>
-          <h2 className="text-sm font-bold text-[#134e4a]">Internal correspondence</h2>
+          <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500">Workspace</p>
+          <h2 className="text-sm font-bold text-zarewa-teal">Internal correspondence</h2>
           {officeSummary ? (
-            <p className="mt-0.5 text-[10px] text-slate-500">
+            <p className="mt-0.5 text-ui-xs text-slate-500">
               <span className="font-mono font-semibold text-slate-600">
                 {officeSummary.pendingActionApprox ?? 0} action
               </span>
@@ -50,7 +50,7 @@ export default function WorkspaceOfficeThreadsBlock({ canOffice, officeSummary =
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+          <label className="inline-flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-600">
             <input
               type="checkbox"
               checked={mineOnly}
@@ -63,7 +63,7 @@ export default function WorkspaceOfficeThreadsBlock({ canOffice, officeSummary =
             type="button"
             disabled={loading}
             onClick={() => void loadThreads()}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase text-slate-700 disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-black uppercase text-slate-700 disabled:opacity-40"
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             Refresh
@@ -71,7 +71,7 @@ export default function WorkspaceOfficeThreadsBlock({ canOffice, officeSummary =
           <button
             type="button"
             onClick={() => onRequestCompose?.()}
-            className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] px-2.5 py-1.5 text-[10px] font-black uppercase text-white"
+            className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal px-2.5 py-1.5 text-ui-xs font-black uppercase text-white"
           >
             <MessageSquarePlus size={12} />
             New memo
@@ -92,8 +92,8 @@ export default function WorkspaceOfficeThreadsBlock({ canOffice, officeSummary =
                 className="w-full px-4 py-2.5 text-left transition hover:bg-slate-50"
               >
                 <p className="text-[13px] font-semibold text-slate-900 line-clamp-1">{t.subject}</p>
-                <p className="mt-0.5 text-[10px] font-mono text-slate-500">{t.id}</p>
-                <p className="mt-0.5 text-[10px] capitalize text-slate-400">
+                <p className="mt-0.5 text-ui-xs font-mono text-slate-500">{t.id}</p>
+                <p className="mt-0.5 text-ui-xs capitalize text-slate-400">
                   {t.status} · {t.kind}
                   {t.relatedPaymentRequestId ? ` · ${t.relatedPaymentRequestId}` : ''}
                 </p>

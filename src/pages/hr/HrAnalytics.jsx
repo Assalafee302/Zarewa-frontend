@@ -584,7 +584,7 @@ export default function HrAnalytics() {
       actions={
         <Link
           to="/hr/documents?tab=reports"
-          className="inline-flex rounded-xl border border-[#134e4a]/30 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50 no-underline"
+          className="inline-flex rounded-xl border border-zarewa-teal/30 px-4 py-2 text-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-teal-50 no-underline"
         >
           Full reports &amp; export →
         </Link>

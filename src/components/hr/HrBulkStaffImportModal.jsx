@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, RotateCcw, Upload } from 'lucide-react';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { HrFormModal } from './HrFormModal';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 import { HrResponsiveTable } from './HrResponsiveTable';
@@ -96,9 +97,9 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
     if (!file || !preview?.validCount || !previewConfirmed) return;
     if (importMode === 'replace') {
       const count = preview.staffToSuspend ?? preview.summary?.staffToSuspend ?? 0;
-      const ok = window.confirm(
-        `Replace mode will suspend ${count} active employee account(s) not in the file, then import your Excel.\n\nStaff in the file with matching employee numbers will be updated and reactivated. New rows will be created.\n\nAdmin and MD accounts are never suspended.\n\nContinue?`
-      );
+      const ok = await appConfirm({
+        message: `Replace mode will suspend ${count} active employee account(s) not in the file, then import your Excel.\n\nStaff in the file with matching employee numbers will be updated and reactivated. New rows will be created.\n\nAdmin and MD accounts are never suspended.\n\nContinue?`,
+      });
       if (!ok) return;
     }
     setBusy('commit');
@@ -157,7 +158,7 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
         </p>
 
         <fieldset className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 space-y-2">
-          <legend className="px-1 text-xs font-bold text-[#134e4a]">Import mode</legend>
+          <legend className="px-1 text-xs font-bold text-zarewa-teal">Import mode</legend>
           <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
             <input
               type="radio"
@@ -239,19 +240,19 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
 
         {preview ? (
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm space-y-3">
-            <p className="font-bold text-[#134e4a]">
+            <p className="font-bold text-zarewa-teal">
               Step 1 — Preview ({preview.importMode === 'replace' ? 'clean & replace' : 'update & add'})
             </p>
 
             {preview.matchedColumns?.length ? (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 Matched {preview.matchedColumns.length} column(s) from your file
                 {preview.sheetName ? ` (sheet: ${preview.sheetName})` : ''}.
               </p>
             ) : null}
 
             {preview.unmatchedHeaders?.length ? (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 Unrecognized headers (ignored): {preview.unmatchedHeaders.slice(0, 12).join(', ')}
                 {preview.unmatchedHeaders.length > 12 ? '…' : ''}
               </p>

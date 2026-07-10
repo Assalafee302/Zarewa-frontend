@@ -110,9 +110,9 @@ export default function MyAttendance({ embedded = false }) {
               </p>
             </ProfileKpiCard>
             <ProfileKpiCard label="Est. payroll deduction">
-              <p className="text-2xl font-black tabular-nums text-[#134e4a]">{formatNgn(summary.deductionNgn || 0)}</p>
+              <p className="text-2xl font-black tabular-nums text-zarewa-teal">{formatNgn(summary.deductionNgn || 0)}</p>
               {summary.deductionNgn > 0 ? (
-                <Link to={HR_SELF_SERVICE_PATH.payslips} className="mt-2 inline-block text-xs font-semibold text-[#134e4a] hover:underline">
+                <Link to={HR_SELF_SERVICE_PATH.payslips} className="mt-2 inline-block text-xs font-semibold text-zarewa-teal hover:underline">
                   Check payslip →
                 </Link>
               ) : null}

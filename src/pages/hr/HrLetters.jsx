@@ -662,7 +662,7 @@ export default function HrLetters({ embedded = false } = {}) {
 
   const renderLetterActions = (l, status, official) => (
     <div className="flex flex-wrap gap-2">
-      <button type="button" className="text-xs font-bold text-[#134e4a] hover:underline" onClick={() => openDraftPreview(l.id)}>
+      <button type="button" className="text-xs font-bold text-zarewa-teal hover:underline" onClick={() => openDraftPreview(l.id)}>
         Preview
       </button>
       {canGenerate && ['draft', 'rejected'].includes(status) ? (
@@ -847,7 +847,7 @@ export default function HrLetters({ embedded = false } = {}) {
                 {busy ? 'Generating…' : 'Generate & Save'}
               </button>
               {preview && (
-                <button type="button" onClick={openPrint} className="rounded-xl border border-slate-200 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 cursor-not-allowed" title={LOCK_MSG}>
+                <button type="button" onClick={openPrint} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-400 cursor-not-allowed" title={LOCK_MSG}>
                   Print locked (draft)
                 </button>
               )}
@@ -982,7 +982,7 @@ export default function HrLetters({ embedded = false } = {}) {
                       <AppTableTd className="font-mono text-xs">{l.referenceNumber || '—'}</AppTableTd>
                       <AppTableTd>
                         {person ? (
-                          <Link to={`/hr/employees/${l.userId}`} className="font-semibold text-[#134e4a] hover:underline">
+                          <Link to={`/hr/employees/${l.userId}`} className="font-semibold text-zarewa-teal hover:underline">
                             {person.displayName || l.userId}
                           </Link>
                         ) : l.userId}

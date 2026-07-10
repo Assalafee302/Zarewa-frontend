@@ -18,11 +18,11 @@ export function cuttingListMinPaidFractionFromSession(session) {
   return 0.7;
 }
 
-function bookPaidTowardQuotation(q) {
+export function bookPaidTowardQuotation(q) {
   return Math.max(0, Number(q?.paidNgn ?? q?.paid_ngn) || 0);
 }
 
-function sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId) {
+export function sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId) {
   const idKey = normQuoteKey(quotationId);
   if (!idKey || !Array.isArray(ledgerEntries)) return 0;
   let s = 0;
@@ -38,6 +38,19 @@ function cashPaidOnQuotation(quotationId, receiptRows, ledgerEntries) {
   const idKey = normQuoteKey(quotationId);
   if (!idKey) return 0;
   let s = sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId);
+  for (const r of receiptRows || []) {
+    if (normQuoteKey(r.quotationRef) !== idKey) continue;
+    if (String(r.status || '').toLowerCase() === 'reversed') continue;
+    s += receiptCashReceivedNgn(r);
+  }
+  return s;
+}
+
+/** Receipt till cash only (excludes ledger advance/overpay applications). */
+export function receiptTillCashOnlyOnQuotation(quotationId, receiptRows) {
+  const idKey = normQuoteKey(quotationId);
+  if (!idKey) return 0;
+  let s = 0;
   for (const r of receiptRows || []) {
     if (normQuoteKey(r.quotationRef) !== idKey) continue;
     if (String(r.status || '').toLowerCase() === 'reversed') continue;

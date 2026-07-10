@@ -48,39 +48,39 @@ function InventoryFamilyCard({ fam }) {
     <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-black uppercase tracking-wider text-[#134e4a]">{fam.label}</h3>
-          <p className="text-[10px] text-slate-500 font-mono mt-0.5">{fam.productID}</p>
+          <h3 className="text-sm font-black uppercase tracking-wider text-zarewa-teal">{fam.label}</h3>
+          <p className="text-ui-xs text-slate-500 font-mono mt-0.5">{fam.productID}</p>
         </div>
-        <span className={`rounded-lg px-2 py-1 text-[9px] font-black uppercase ring-1 ${riskTone(fam.risk)}`}>
+        <span className={`rounded-lg px-2 py-1 text-ui-xs font-black uppercase ring-1 ${riskTone(fam.risk)}`}>
           {fam.risk === 'critical' ? 'Low cover' : fam.risk === 'watch' ? 'Watch' : 'OK'}
         </span>
       </div>
       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
-          <dt className="text-[10px] font-bold uppercase text-slate-500">Kg on hand</dt>
+          <dt className="text-ui-xs font-bold uppercase text-slate-500">Kg on hand</dt>
           <dd className="font-black tabular-nums text-slate-900">{fam.kgOnHand.toLocaleString()}</dd>
         </div>
         <div>
-          <dt className="text-[10px] font-bold uppercase text-slate-500">Weeks cover</dt>
+          <dt className="text-ui-xs font-bold uppercase text-slate-500">Weeks cover</dt>
           <dd className="font-black tabular-nums text-slate-900">{fam.weeksCover ?? '—'}</dd>
         </div>
         <div>
-          <dt className="text-[10px] font-bold uppercase text-slate-500">Consumed (period)</dt>
+          <dt className="text-ui-xs font-bold uppercase text-slate-500">Consumed (period)</dt>
           <dd className="font-black tabular-nums text-slate-900">{fam.kgConsumedPeriod.toLocaleString()} kg</dd>
         </div>
         <div>
-          <dt className="text-[10px] font-bold uppercase text-slate-500">Incoming PO</dt>
+          <dt className="text-ui-xs font-bold uppercase text-slate-500">Incoming PO</dt>
           <dd className="font-black tabular-nums text-slate-900">{fam.incomingKg.toLocaleString()} kg</dd>
         </div>
         <div className="col-span-2">
-          <dt className="text-[10px] font-bold uppercase text-slate-500">Valuation (coil cost)</dt>
-          <dd className="font-black tabular-nums text-[#134e4a]">{formatNgn(fam.valuationNgn || 0)}</dd>
+          <dt className="text-ui-xs font-bold uppercase text-slate-500">Valuation (coil cost)</dt>
+          <dd className="font-black tabular-nums text-zarewa-teal">{formatNgn(fam.valuationNgn || 0)}</dd>
         </div>
       </dl>
       {fam.topGaugeColour?.length ? (
         <div className="mt-4 border-t border-slate-100 pt-3">
-          <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Top gauge · colour</p>
-          <ul className="space-y-1 text-[11px] text-slate-700">
+          <p className="text-ui-xs font-bold uppercase text-slate-500 mb-2">Top gauge · colour</p>
+          <ul className="space-y-1 text-xs text-slate-700">
             {fam.topGaugeColour.slice(0, 4).map((b) => (
               <li key={`${b.gauge}-${b.colour}`} className="flex justify-between gap-2">
                 <span className="truncate">
@@ -103,21 +103,21 @@ function MaterialPerformancePanel({ perf }) {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">
+        <p className="text-ui-xs font-bold uppercase text-slate-500 mb-2">
           Best gauge · colour · profile (by metres produced)
         </p>
-        <ul className="space-y-2 text-[11px]">
+        <ul className="space-y-2 text-xs">
           {perf.topCombinations.slice(0, 5).map((row) => (
             <li key={`${row.gauge}-${row.colour}-${row.profile}`} className="flex justify-between gap-2">
               <span className="truncate text-slate-800">
                 {row.gauge} · {row.colour} · {row.profile}
               </span>
               <span className="shrink-0 text-right">
-                <span className="block font-bold tabular-nums text-[#134e4a]">
+                <span className="block font-bold tabular-nums text-zarewa-teal">
                   {row.metres.toLocaleString()} m
                   {row.sharePctMetres != null ? ` (${row.sharePctMetres}%)` : ''}
                 </span>
-                <span className="text-[10px] text-slate-500 tabular-nums">
+                <span className="text-ui-xs text-slate-500 tabular-nums">
                   {formatNgn(row.revenueNgn)} produced sales
                   {row.marginPct != null ? ` · margin ${row.marginPct}%` : ''}
                 </span>
@@ -128,8 +128,8 @@ function MaterialPerformancePanel({ perf }) {
       </div>
       <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
         <div>
-          <p className="text-[10px] font-bold uppercase text-slate-500 mb-1">Top gauges</p>
-          <ul className="text-[11px] text-slate-700 space-y-1">
+          <p className="text-ui-xs font-bold uppercase text-slate-500 mb-1">Top gauges</p>
+          <ul className="text-xs text-slate-700 space-y-1">
             {(perf.topGauges || []).slice(0, 3).map((g) => (
               <li key={g.label} className="flex justify-between">
                 <span>{g.label}</span>
@@ -139,8 +139,8 @@ function MaterialPerformancePanel({ perf }) {
           </ul>
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase text-slate-500 mb-1">Top colours</p>
-          <ul className="text-[11px] text-slate-700 space-y-1">
+          <p className="text-ui-xs font-bold uppercase text-slate-500 mb-1">Top colours</p>
+          <ul className="text-xs text-slate-700 space-y-1">
             {(perf.topColours || []).slice(0, 3).map((c) => (
               <li key={c.label} className="flex justify-between">
                 <span>{c.label}</span>
@@ -164,8 +164,8 @@ function SkuActionList({ title, rows, tone }) {
         : 'border-slate-200 bg-slate-50/50';
   return (
     <div className={`rounded-xl border p-3 ${toneClass}`}>
-      <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">{title}</p>
-      <ul className="space-y-2 text-[11px]">
+      <p className="text-ui-xs font-black uppercase tracking-wider text-slate-600 mb-2">{title}</p>
+      <ul className="space-y-2 text-xs">
         {rows.map((row) => (
           <li key={`${row.gauge}-${row.colour}`}>
             <div className="flex justify-between gap-2 font-bold text-slate-800">
@@ -176,10 +176,10 @@ function SkuActionList({ title, rows, tone }) {
             </div>
             <p className="text-slate-600 mt-0.5">{row.reason}</p>
             {row.valuationNgn > 0 ? (
-              <p className="text-[10px] text-slate-500 tabular-nums">{formatNgn(row.valuationNgn)} on hand</p>
+              <p className="text-ui-xs text-slate-500 tabular-nums">{formatNgn(row.valuationNgn)} on hand</p>
             ) : null}
             {row.suggestedOrderKg > 0 ? (
-              <p className="text-[10px] font-bold text-emerald-800 tabular-nums">
+              <p className="text-ui-xs font-bold text-emerald-800 tabular-nums">
                 Suggested order: {row.suggestedOrderKg.toLocaleString()} kg
                 {row.projectedStockoutISO ? ` · stockout ~${row.projectedStockoutISO}` : ''}
               </p>
@@ -288,7 +288,7 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
         <p className="text-xs text-slate-600 max-w-xl">
           Forecasts, material winners, and coil actions. Use Overview for alerts and approvals.
           {branchId ? (
-            <span className="block mt-1 font-semibold text-[#134e4a]">
+            <span className="block mt-1 font-semibold text-zarewa-teal">
               Branch scope: {branchId === 'ALL' ? 'All branches' : branchId}
             </span>
           ) : null}
@@ -300,9 +300,9 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
                 key={p.key}
                 type="button"
                 onClick={() => setPeriodKey(p.key)}
-                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wide border transition-colors ${
+                className={`px-2.5 py-1 rounded-lg text-ui-xs font-black uppercase tracking-wide border transition-colors ${
                   periodKey === p.key
-                    ? 'bg-[#134e4a] text-white border-[#134e4a]'
+                    ? 'bg-zarewa-teal text-white border-zarewa-teal'
                     : 'bg-white text-slate-600 border-slate-200 hover:border-teal-200'
                 }`}
               >
@@ -314,7 +314,7 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
             type="button"
             onClick={() => void load()}
             disabled={busy}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black uppercase text-[#134e4a] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
           >
             <RefreshCw size={14} className={busy ? 'animate-spin' : ''} />
             Refresh
@@ -323,7 +323,7 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
             type="button"
             onClick={() => void downloadExcel()}
             disabled={exportBusy || busy || !data}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black uppercase text-[#134e4a] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
           >
             <Download size={14} className={exportBusy ? 'animate-pulse' : ''} />
             Excel
@@ -337,7 +337,7 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
                   autoSend: true,
                 })
               }
-              className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-[11px] font-black uppercase text-[#134e4a]"
+              className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-black uppercase text-zarewa-teal"
             >
               <Sparkles size={14} />
               Ask Zare
@@ -354,21 +354,21 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
         <>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <section className="rounded-2xl border border-teal-200/80 bg-teal-50/30 p-5 shadow-sm lg:col-span-1">
-              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">Production forecast</h2>
-              <p className="text-[11px] text-slate-600 mt-1 mb-4">Produced sales & metres (run-rate + trend)</p>
-              <ul className="space-y-2 text-[11px]">
+              <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal">Production forecast</h2>
+              <p className="text-xs text-slate-600 mt-1 mb-4">Produced sales & metres (run-rate + trend)</p>
+              <ul className="space-y-2 text-xs">
                 {(prodForecast?.horizons || []).map((h) => (
                   <li key={h.days} className="rounded-lg bg-white/80 border border-white px-3 py-2">
                     <div className="flex justify-between font-bold text-slate-800">
                       <span>{h.days}-day</span>
-                      <span className="tabular-nums text-[#134e4a]">{formatNgn(h.projectedProducedRevenueNgn)}</span>
+                      <span className="tabular-nums text-zarewa-teal">{formatNgn(h.projectedProducedRevenueNgn)}</span>
                     </div>
                     <p className="text-slate-600 tabular-nums">{h.projectedMetres.toLocaleString()} m projected</p>
                   </li>
                 ))}
               </ul>
               {prodForecast?.pipeline?.openQuotedNgn > 0 ? (
-                <p className="mt-3 text-[10px] text-slate-600 border-t border-teal-100 pt-3">
+                <p className="mt-3 text-ui-xs text-slate-600 border-t border-teal-100 pt-3">
                   Pipeline: {formatNgn(prodForecast.pipeline.openQuotedNgn)} quoted not yet produced → ~
                   {formatNgn(prodForecast.pipeline.forecastProducedRevenueNgn)} at{' '}
                   {prodForecast.pipeline.assumedConversionPct}% conversion
@@ -377,11 +377,11 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
             </section>
 
             <section className="rounded-2xl border border-violet-200/80 bg-violet-50/25 p-5 shadow-sm lg:col-span-1">
-              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">Inventory forecast</h2>
-              <p className="text-[11px] text-slate-600 mt-1 mb-4">Consumption burn & stockout timing by metal</p>
+              <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal">Inventory forecast</h2>
+              <p className="text-xs text-slate-600 mt-1 mb-4">Consumption burn & stockout timing by metal</p>
               <div className="space-y-3">
                 {(invForecast?.familyForecasts || []).map((fam) => (
-                  <div key={fam.family} className="rounded-lg bg-white/80 border border-white px-3 py-2 text-[11px]">
+                  <div key={fam.family} className="rounded-lg bg-white/80 border border-white px-3 py-2 text-xs">
                     <p className="font-bold text-slate-800">{fam.label}</p>
                     <p className="text-slate-600 tabular-nums">
                       {fam.kgOnHand.toLocaleString()} kg on hand · {fam.dailyConsumptionKg} kg/day ·{' '}
@@ -401,20 +401,20 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
             </section>
 
             <section className="rounded-2xl border border-amber-200/80 bg-amber-50/30 p-5 shadow-sm lg:col-span-1">
-              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">Expense analysis</h2>
-              <p className="text-[11px] text-slate-600 mt-1 mb-4">{data.periodLabel} operating spend</p>
-              <dl className="grid grid-cols-2 gap-2 text-[11px] mb-4">
+              <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal">Expense analysis</h2>
+              <p className="text-xs text-slate-600 mt-1 mb-4">{data.periodLabel} operating spend</p>
+              <dl className="grid grid-cols-2 gap-2 text-xs mb-4">
                 <div>
-                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Total</dt>
+                  <dt className="text-slate-500 font-bold uppercase text-ui-xs">Total</dt>
                   <dd className="font-black tabular-nums">{formatNgn(expenses?.periodTotalNgn || 0)}</dd>
                 </div>
                 <div>
-                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Next 30d est.</dt>
+                  <dt className="text-slate-500 font-bold uppercase text-ui-xs">Next 30d est.</dt>
                   <dd className="font-black tabular-nums">{formatNgn(expenses?.projectedNext30DaysNgn || 0)}</dd>
                 </div>
               </dl>
               {(expenses?.topCategories || []).length > 0 ? (
-                <ul className="space-y-1 text-[11px] max-h-36 overflow-y-auto">
+                <ul className="space-y-1 text-xs max-h-36 overflow-y-auto">
                   {expenses.topCategories.slice(0, 8).map((c) => (
                     <li key={c.category} className="flex justify-between gap-2">
                       <span className="truncate text-slate-700">{c.category}</span>
@@ -432,7 +432,7 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] flex items-center gap-2">
+              <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal flex items-center gap-2">
                 <BarChart3 size={14} />
                 Sales mix — aluminium vs aluzinc
               </h2>
@@ -449,16 +449,16 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
                   pct={azMix?.sharePctMetres || 0}
                   metres={azMix?.metres || 0}
                   amount={azMix?.revenueNgn || 0}
-                  colorClass="bg-[#134e4a]"
+                  colorClass="bg-zarewa-teal"
                 />
               </div>
               <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 text-xs">
                 <div>
-                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Quoted (period)</dt>
+                  <dt className="text-slate-500 font-bold uppercase text-ui-xs">Quoted (period)</dt>
                   <dd className="font-black tabular-nums">{formatNgn(sales?.quotedNgn || 0)}</dd>
                 </div>
                 <div>
-                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Sales momentum</dt>
+                  <dt className="text-slate-500 font-bold uppercase text-ui-xs">Sales momentum</dt>
                   <dd
                     className={`font-black tabular-nums flex items-center gap-1 ${pred?.salesMomentumPct != null && pred.salesMomentumPct < 0 ? 'text-rose-700' : 'text-emerald-700'}`}
                   >
@@ -477,7 +477,7 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
             </section>
 
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] flex items-center gap-2">
+              <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal flex items-center gap-2">
                 <Layers size={14} />
                 Quote-to-production funnel
               </h2>
@@ -500,13 +500,13 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
 
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">
+              <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal">
                 Material performance — aluminium
               </h2>
               <MaterialPerformancePanel perf={matPerf?.aluminium} />
             </div>
             <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">
+              <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal">
                 Material performance — aluzinc
               </h2>
               <MaterialPerformancePanel perf={matPerf?.aluzinc} />
@@ -514,7 +514,7 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
           </section>
 
           <section>
-            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-3 flex items-center gap-2">
+            <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal mb-3 flex items-center gap-2">
               <Layers size={14} />
               Coil inventory intelligence
             </h2>
@@ -527,12 +527,12 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
 
           {sku || skuForecast ? (
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-4">
+              <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal mb-4">
                 Coil SKU actions — buy, watch & liquidate
               </h2>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div className="space-y-3">
-                  <p className="text-[10px] font-black uppercase text-sky-800">Aluminium</p>
+                  <p className="text-ui-xs font-black uppercase text-sky-800">Aluminium</p>
                   <SkuActionList
                     title="Buy next"
                     rows={skuForecast?.aluminium?.buyNext || sku?.aluminium?.buyNext}
@@ -545,7 +545,7 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
                   />
                 </div>
                 <div className="space-y-3">
-                  <p className="text-[10px] font-black uppercase text-[#134e4a]">Aluzinc</p>
+                  <p className="text-ui-xs font-black uppercase text-zarewa-teal">Aluzinc</p>
                   <SkuActionList
                     title="Buy next"
                     rows={skuForecast?.aluzinc?.buyNext || sku?.aluzinc?.buyNext}
@@ -563,14 +563,14 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
 
           {procurement?.supplierFocus?.length ? (
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-4">
+              <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal mb-4">
                 Supplier focus (4-month PO activity)
               </h2>
               <ul className="space-y-3">
                 {procurement.supplierFocus.slice(0, 6).map((s) => (
                   <li key={s.supplierID} className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
                     <span className="font-bold text-slate-800">{s.supplierName}</span>
-                    <span className="text-[11px] text-slate-600 tabular-nums">
+                    <span className="text-xs text-slate-600 tabular-nums">
                       Spend {formatNgn(s.spendNgn)} · Open {formatNgn(s.openNgn)} ·{' '}
                       {s.coilKgOrdered.toLocaleString()} kg coil on order
                     </span>
@@ -581,19 +581,19 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
           ) : null}
 
           <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">Revenue trend (6 months)</h2>
+            <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal">Revenue trend (6 months)</h2>
             <ul className="mt-4 space-y-2">
               {(sales?.revenueTrend || []).map((row) => {
                 const max = Math.max(...(sales.revenueTrend || []).map((r) => r.producedSalesNgn), 1);
                 return (
                   <li key={row.key}>
-                    <div className="flex justify-between text-[11px] font-bold text-slate-700 mb-1">
+                    <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
                       <span>{row.key}</span>
-                      <span className="tabular-nums text-[#134e4a]">{formatNgn(row.producedSalesNgn)}</span>
+                      <span className="tabular-nums text-zarewa-teal">{formatNgn(row.producedSalesNgn)}</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                       <div
-                        className="h-full bg-[#134e4a] rounded-full"
+                        className="h-full bg-zarewa-teal rounded-full"
                         style={{ width: `${(row.producedSalesNgn / max) * 100}%` }}
                       />
                     </div>
@@ -603,7 +603,7 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
             </ul>
           </section>
 
-          <p className="text-[10px] text-slate-400">
+          <p className="text-ui-xs text-slate-400">
             Generated {data.generatedAtISO ? new Date(data.generatedAtISO).toLocaleString() : '—'} ·{' '}
             {data.periodLabel}
           </p>

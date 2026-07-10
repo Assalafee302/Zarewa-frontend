@@ -55,8 +55,8 @@ export function HrPayslipPrintModal({ isOpen, onClose, payslip }) {
       <div className="z-modal-panel-lg flex max-h-[92dvh] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl">
         <div className="no-print flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Print preview</p>
-            <p className="truncate text-sm font-bold text-[#134e4a]">{title}</p>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Print preview</p>
+            <p className="truncate text-sm font-bold text-zarewa-teal">{title}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {!redacted && payslip.userId ? (

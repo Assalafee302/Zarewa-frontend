@@ -38,8 +38,8 @@ export function AccountingRegisterClearModal({ item, open, busy, onClose, onConf
             <AlertTriangle className="shrink-0 text-amber-700" size={22} />
             <div>
               <h2 className="text-base font-bold text-slate-900">Mark line as cleared?</h2>
-              <p className="mt-2 text-[11px] text-slate-600 leading-relaxed">
-                <span className="font-bold text-[#134e4a]">{label}</span> — {formatNgn(item.amountNgn)} will be removed
+              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                <span className="font-bold text-zarewa-teal">{label}</span> — {formatNgn(item.amountNgn)} will be removed
                 from the open register. Use only after settlement in live transactions, payroll, or GL.
               </p>
             </div>
@@ -53,7 +53,7 @@ export function AccountingRegisterClearModal({ item, open, busy, onClose, onConf
               onChange={(e) => setAck(e.target.checked)}
               disabled={busy}
             />
-            <span className="text-[11px] font-medium text-slate-700 leading-snug">
+            <span className="text-xs font-medium text-slate-700 leading-snug">
               I confirm this balance has been settled or written off in the live system.
             </span>
           </label>
@@ -67,7 +67,7 @@ export function AccountingRegisterClearModal({ item, open, busy, onClose, onConf
               setAck(false);
               onClose();
             }}
-            className="min-h-11 rounded-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-700 disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+            className="min-h-11 rounded-lg border border-slate-200 bg-white px-4 py-2 text-ui-xs font-semibold uppercase tracking-wider text-slate-700 disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-ui-xs"
           >
             Cancel
           </button>
@@ -75,7 +75,7 @@ export function AccountingRegisterClearModal({ item, open, busy, onClose, onConf
             type="button"
             disabled={busy || !ack}
             onClick={() => void onConfirm()}
-            className="min-h-11 rounded-lg bg-[#134e4a] text-white px-4 py-2 text-[10px] font-semibold uppercase tracking-wider disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+            className="min-h-11 rounded-lg bg-zarewa-teal text-white px-4 py-2 text-ui-xs font-semibold uppercase tracking-wider disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-ui-xs"
           >
             {busy ? 'Clearing…' : 'Clear line'}
           </button>

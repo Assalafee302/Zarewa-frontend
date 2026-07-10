@@ -182,17 +182,17 @@ export function ManagementDecisionModal({
             }`}
           >
             <h3
-              className={`text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2 ${
+              className={`text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2 ${
                 isLight ? 'text-slate-500' : 'text-white/50'
               }`}
             >
-              <History size={14} className={isLight ? 'text-[#134e4a]' : 'text-teal-400'} />
+              <History size={14} className={isLight ? 'text-zarewa-teal' : 'text-teal-400'} />
               {intelModalTitle}
             </h3>
             <button
               type="button"
               onClick={closeIntelModal}
-              className={`text-[10px] font-bold uppercase transition-colors ${
+              className={`text-ui-xs font-bold uppercase transition-colors ${
                 isLight ? 'text-slate-400 hover:text-slate-800' : 'text-white/40 hover:text-white'
               }`}
             >
@@ -315,7 +315,7 @@ export function ManagementDecisionModal({
             ) : selectedIntel?.kind === 'payment' ? (
               <div className="space-y-5 animate-in fade-in duration-200 text-slate-700">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-rose-700/80 mb-1">Payment request</p>
+                  <p className="text-ui-xs font-bold uppercase tracking-widest text-rose-700/80 mb-1">Payment request</p>
                   <h2 className="text-lg font-black text-slate-900 leading-tight">{selectedIntel.requestId}</h2>
                   <p className="text-xs text-slate-500 mt-2 font-mono">{selectedIntel.row?.expense_id}</p>
                   {selectedIntel.row?.expense_category ? (
@@ -324,26 +324,26 @@ export function ManagementDecisionModal({
                         category={selectedIntel.row.expense_category}
                         laneKey={selectedIntel.row.expense_category_lane}
                       />
-                      <p className="text-[11px] text-teal-700">
+                      <p className="text-xs text-teal-700">
                         Category:{' '}
                         <span className="font-semibold text-slate-800">{selectedIntel.row.expense_category}</span>
                       </p>
                     </div>
                   ) : null}
                   {selectedIntel.row?.request_reference ? (
-                    <p className="text-[11px] text-slate-600 mt-2">
+                    <p className="text-xs text-slate-600 mt-2">
                       Reference: <span className="font-semibold text-slate-800">{selectedIntel.row.request_reference}</span>
                     </p>
                   ) : null}
                   <p className="text-sm font-semibold text-slate-800 mt-3 tabular-nums">{asMoney(selectedIntel.row?.amount_requested_ngn)}</p>
                   <p className="text-sm text-slate-600 mt-3 leading-snug whitespace-pre-wrap">{selectedIntel.row?.description}</p>
-                  <p className="text-[10px] text-slate-500 mt-3 uppercase tracking-wide">{selectedIntel.row?.request_date}</p>
+                  <p className="text-ui-xs text-slate-500 mt-3 uppercase tracking-wide">{selectedIntel.row?.request_date}</p>
 
                   {paymentIntelLineItems?.total > 0 ? (
                     <div className="z-scroll-x mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
                       <table className="w-full min-w-[320px] border-collapse text-left text-xs">
                         <thead>
-                          <tr className="text-slate-500 uppercase tracking-wide border-b border-slate-200 text-[11px] font-bold">
+                          <tr className="text-slate-500 uppercase tracking-wide border-b border-slate-200 text-xs font-bold">
                             <th className="p-2.5">Item</th>
                             <th className="p-2.5 text-right">Unit</th>
                             <th className="p-2.5 text-right">Price</th>
@@ -368,7 +368,7 @@ export function ManagementDecisionModal({
                         </tbody>
                       </table>
                       {paymentIntelLineItems.total > 20 ? (
-                        <p className="px-2.5 py-2 text-[11px] font-semibold text-slate-500">
+                        <p className="px-2.5 py-2 text-xs font-semibold text-slate-500">
                           Showing 20 of {paymentIntelLineItems.total} lines.
                         </p>
                       ) : null}
@@ -381,18 +381,18 @@ export function ManagementDecisionModal({
                         href={paymentAttachmentHref}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700"
+                        className="inline-flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700"
                       >
                         <Paperclip size={14} />
                         {selectedIntel.row?.attachment_name || 'View attachment'}
                       </a>
                     ) : (
-                      <span className="text-[10px] text-slate-400">No attachment</span>
+                      <span className="text-ui-xs text-slate-400">No attachment</span>
                     )}
                     <button
                       type="button"
                       onClick={() => void printSelectedPaymentRequest?.()}
-                      className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700"
+                      className="inline-flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700"
                     >
                       <Printer size={14} />
                       Print record
@@ -409,7 +409,7 @@ export function ManagementDecisionModal({
                 />
 
                 <div className="pt-4 border-t border-slate-200 space-y-3">
-                  <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Decision</p>
+                  <p className="text-ui-xs font-black text-teal-700 uppercase tracking-widest">Decision</p>
                   {!canApprovePaymentRequests ? (
                     <ZareApprovalHint
                       context={{
@@ -431,7 +431,7 @@ export function ManagementDecisionModal({
                       className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
                     >
                       <CheckCircle2 size={18} />
-                      <span className="text-[9px] font-black uppercase tracking-widest">Approve</span>
+                      <span className="text-ui-xs font-black uppercase tracking-widest">Approve</span>
                     </button>
                     <button
                       type="button"
@@ -440,7 +440,7 @@ export function ManagementDecisionModal({
                       className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors"
                     >
                       <Flag size={18} />
-                      <span className="text-[9px] font-black uppercase tracking-widest">Reject</span>
+                      <span className="text-ui-xs font-black uppercase tracking-widest">Reject</span>
                     </button>
                   </div>
                 </div>
@@ -458,28 +458,28 @@ export function ManagementDecisionModal({
             ) : selectedIntel?.kind === 'conversion' ? (
               <div className="space-y-5 animate-in fade-in duration-200 text-slate-700">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700/90 mb-1">Conversion review</p>
+                  <p className="text-ui-xs font-bold uppercase tracking-widest text-violet-700/90 mb-1">Conversion review</p>
                   <h2 className="text-lg font-black text-slate-900 font-mono leading-tight">{selectedIntel.jobId}</h2>
                   <p className="text-xs font-bold text-teal-700 mt-2">{selectedIntel.row?.quotation_ref || '—'}</p>
                   <p className="text-sm font-semibold text-slate-700 mt-1 truncate">{asPersonName(selectedIntel.row?.customer_name)}</p>
-                  <p className="text-[10px] text-slate-500 mt-2">{selectedIntel.row?.product_name}</p>
+                  <p className="text-ui-xs text-slate-500 mt-2">{selectedIntel.row?.product_name}</p>
                   <div className="flex flex-wrap gap-2 mt-3">
-                    <span className="text-[9px] font-black uppercase px-2 py-1 rounded-md bg-slate-200 text-slate-700">
+                    <span className="text-ui-xs font-black uppercase px-2 py-1 rounded-md bg-slate-200 text-slate-700">
                       Alert: {selectedIntel.row?.conversion_alert_state || '—'}
                     </span>
                     {selectedIntel.row?.manager_review_required ? (
-                      <span className="text-[9px] font-black uppercase px-2 py-1 rounded-md bg-amber-100 text-amber-900">
+                      <span className="text-ui-xs font-black uppercase px-2 py-1 rounded-md bg-amber-100 text-amber-900">
                         Manager review
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-[10px] text-slate-600 mt-4 tabular-nums">
+                  <p className="text-ui-xs text-slate-600 mt-4 tabular-nums">
                     Actual: {Number(selectedIntel.row?.actual_meters || 0).toLocaleString()} m
                     {selectedIntel.row?.actual_weight_kg != null
                       ? ` · ${Number(selectedIntel.row.actual_weight_kg).toLocaleString()} kg`
                       : ''}
                   </p>
-                  <p className="text-[9px] text-slate-500 mt-2">
+                  <p className="text-ui-xs text-slate-500 mt-2">
                     {selectedIntel.row?.completed_at_iso ? new Date(selectedIntel.row.completed_at_iso).toLocaleString() : ''}
                   </p>
                 </div>
@@ -494,7 +494,7 @@ export function ManagementDecisionModal({
 
                 {selectedIntel.row?.quotation_ref ? (
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black text-violet-700 uppercase tracking-widest">
+                    <p className="text-ui-xs font-black text-violet-700 uppercase tracking-widest">
                       Quotation context (payments, balance, meters, conversion trail)
                     </p>
                     <ManagementAuditSections
@@ -507,18 +507,18 @@ export function ManagementDecisionModal({
                 ) : null}
 
                 <div className="pt-4 border-t border-slate-200 space-y-3">
-                  <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Sign off</p>
-                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                  <p className="text-ui-xs font-black text-teal-700 uppercase tracking-widest">Sign off</p>
+                  <p className="text-ui-xs text-slate-500 leading-relaxed">
                     Confirms you have reviewed High/Low conversion or the open manager review for this completed job.
                   </p>
-                  <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500">
+                  <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
                     Remark
                     <textarea
                       value={conversionSignoffRemark}
                       onChange={(e) => setConversionSignoffRemark?.(e.target.value)}
                       rows={2}
                       placeholder="e.g. Variance reviewed — approved to close."
-                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-violet-300/60"
+                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-violet-300/60"
                     />
                   </label>
                   {selectedIntel.jobId ? (
@@ -536,7 +536,7 @@ export function ManagementDecisionModal({
                     type="button"
                     disabled={decisionBusy}
                     onClick={() => void handleConversionSignoff?.()}
-                    className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black uppercase text-[9px] tracking-widest disabled:opacity-50 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black uppercase text-ui-xs tracking-widest disabled:opacity-50 transition-colors"
                   >
                     <Factory size={18} />
                     Sign off review
@@ -547,7 +547,7 @@ export function ManagementDecisionModal({
           </div>
 
           <div className={`p-3 border-t ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-black/30'}`}>
-            <p className={`text-[9px] font-semibold text-center uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-white/25'}`}>
+            <p className={`text-ui-xs font-semibold text-center uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-white/25'}`}>
               Management · Zarewa
             </p>
           </div>

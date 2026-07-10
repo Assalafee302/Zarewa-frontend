@@ -129,7 +129,7 @@ export default function HrCaseRecoveryPanel({
     <div className="space-y-3 border-t border-slate-200 pt-4 mt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-sm font-semibold text-slate-800">Recovery amount (HR initiates)</h4>
-        <Link to="/hr/payroll" className="text-xs font-bold text-[#134e4a] hover:underline">
+        <Link to="/hr/payroll" className="text-xs font-bold text-zarewa-teal hover:underline">
           Open payroll →
         </Link>
       </div>
@@ -173,13 +173,13 @@ export default function HrCaseRecoveryPanel({
                 />
               </label>
               <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Amount per staff (HR sets)</p>
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Amount per staff (HR sets)</p>
                 {preview.map((p) => (
                   <div key={p.userId} className="flex flex-wrap justify-between gap-2 text-sm">
                     <span className="font-medium text-slate-800">
                       {p.name} <span className="text-slate-500">({p.weight}%)</span>
                     </span>
-                    <span className="tabular-nums font-bold text-[#134e4a]">
+                    <span className="tabular-nums font-bold text-zarewa-teal">
                       {formatNgn(p.total)}
                       <span className="text-xs font-normal text-slate-500 ml-1">
                         · {formatNgn(p.installment)}/mo
@@ -220,8 +220,8 @@ export default function HrCaseRecoveryPanel({
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Still due</p>
-                    <p className="text-xl font-black tabular-nums text-[#134e4a]">
+                    <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Still due</p>
+                    <p className="text-xl font-black tabular-nums text-zarewa-teal">
                       {formatNgn(s.principalOutstandingNgn)}
                     </p>
                     <p className="text-xs text-slate-500">
@@ -231,7 +231,7 @@ export default function HrCaseRecoveryPanel({
                 </div>
 
                 {onCashierDesk ? (
-                  <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+                  <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-ui-xs font-bold uppercase tracking-wide text-amber-900">
                     <FileText size={12} aria-hidden />
                     On branch cashier desk — awaiting payment
                   </p>
@@ -239,7 +239,7 @@ export default function HrCaseRecoveryPanel({
 
                 {(s.settlements || []).length ? (
                   <ul className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-600 space-y-1.5">
-                    <li className="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Payments recorded</li>
+                    <li className="font-semibold text-slate-500 uppercase tracking-wide text-ui-xs">Payments recorded</li>
                     {(s.settlements || []).map((p) => (
                       <li key={p.id} className="flex flex-wrap gap-x-2">
                         <span>{settlementLabel(p)}</span>

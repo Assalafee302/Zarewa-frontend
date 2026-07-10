@@ -59,8 +59,8 @@ const ManagerDashboard = () => {
   return (
     <PageShell className="pb-14">
       <header className="mb-6">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-teal-600/90">Branch manager</p>
-        <h1 className="text-2xl sm:text-3xl font-black text-[#134e4a] tracking-tight mt-1">Workstation</h1>
+        <p className="text-ui-xs font-bold uppercase tracking-[0.22em] text-teal-600/90">Branch manager</p>
+        <h1 className="text-2xl sm:text-3xl font-black text-zarewa-teal tracking-tight mt-1">Workstation</h1>
         <p className="text-sm text-slate-600 mt-2 max-w-2xl leading-relaxed">
           Your command desk for branch approvals, risk, staff, and performance — one place to act and to watch the
           branch.
@@ -93,7 +93,7 @@ const ManagerDashboard = () => {
       {!bm.loading && bm.pendingOrderSignOffCount > 0 ? (
         <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-[#134e4a]">Order sign-off required</p>
+            <p className="text-sm font-bold text-zarewa-teal">Order sign-off required</p>
             <p className="text-xs text-slate-600 mt-1">
               {bm.pendingOrderSignOffCount} paid quotation{bm.pendingOrderSignOffCount === 1 ? '' : 's'} need branch
               manager review. Open each for sign-off (99.5% paid counts as fully paid).
@@ -115,7 +115,7 @@ const ManagerDashboard = () => {
       {bm.mgrBranchId ? (
         <div className="rounded-2xl border border-teal-200/80 bg-teal-50/50 px-4 py-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-[#134e4a]">Month-end stock register</p>
+            <p className="text-sm font-bold text-zarewa-teal">Month-end stock register</p>
             <p className="text-xs text-slate-600 mt-1">
               {bm.stockRegisterInbox.length
                 ? `${bm.stockRegisterInbox.length} period(s) awaiting manager count alignment.`
@@ -131,7 +131,7 @@ const ManagerDashboard = () => {
       {bm.ws?.snapshot?.expenseCategoryBranchCoachAlert?.shouldCoach ? (
         <div className="rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50/95 to-orange-50/40 px-4 py-4 mb-6 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-amber-900">
+            <p className="flex items-center gap-1.5 text-ui-xs font-black uppercase tracking-wide text-amber-900">
               <AlertTriangle size={13} aria-hidden />
               Others category — branch coaching
             </p>
@@ -272,11 +272,11 @@ const ManagerDashboard = () => {
       <ModalFrame isOpen={bm.showExpenseCorrectionModal} onClose={() => bm.setShowExpenseCorrectionModal(false)}>
         <div className="z-modal-panel max-w-2xl p-6 sm:p-8 overflow-y-auto max-h-[90vh]">
           <div className="flex items-center justify-between gap-3 mb-5">
-            <h3 className="text-lg font-black text-[#134e4a]">Edit expense request</h3>
+            <h3 className="text-lg font-black text-zarewa-teal">Edit expense request</h3>
             <button
               type="button"
               onClick={() => bm.setShowExpenseCorrectionModal(false)}
-              className="text-[11px] font-bold uppercase tracking-wide text-slate-500 hover:text-slate-800"
+              className="text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-slate-800"
             >
               Close
             </button>

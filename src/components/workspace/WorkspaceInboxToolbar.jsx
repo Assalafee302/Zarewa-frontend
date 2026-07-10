@@ -19,7 +19,7 @@ function countActiveFilters(f, category) {
 
 function FilterChip({ label, onRemove }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-semibold text-teal-900 ring-1 ring-teal-100">
+    <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-ui-xs font-semibold text-teal-900 ring-1 ring-teal-100">
       {label}
       <button type="button" onClick={onRemove} className="rounded p-0.5 hover:bg-teal-100" aria-label={`Remove ${label}`}>
         <X size={10} />
@@ -94,10 +94,10 @@ export function WorkspaceInboxToolbar({
   };
 
   const selectCls =
-    'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] text-slate-700 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/25';
+    'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-700 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/25';
 
   const toggleCls = (active) =>
-    `rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ring-1 transition-colors ${
+    `rounded-lg px-2.5 py-1.5 text-xs font-semibold ring-1 transition-colors ${
       active ? 'bg-teal-50 text-teal-900 ring-teal-200' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
     }`;
 
@@ -141,7 +141,7 @@ export function WorkspaceInboxToolbar({
           <button
             type="button"
             onClick={() => setFiltersOpen((o) => !o)}
-            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-semibold ${
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold ${
               filtersOpen || activeCount > 0
                 ? 'border-teal-200 bg-teal-50 text-teal-900'
                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
@@ -151,7 +151,7 @@ export function WorkspaceInboxToolbar({
             <SlidersHorizontal size={14} />
             <span className="hidden sm:inline">Filters</span>
             {activeCount > 0 ? (
-              <span className="rounded-full bg-teal-800 px-1.5 py-px text-[9px] font-bold text-white">{activeCount}</span>
+              <span className="rounded-full bg-teal-800 px-1.5 py-px text-ui-xs font-bold text-white">{activeCount}</span>
             ) : null}
           </button>
         ) : null}
@@ -176,7 +176,7 @@ export function WorkspaceInboxToolbar({
           <button
             type="button"
             onClick={clearAllFilters}
-            className="text-[10px] font-semibold text-slate-500 hover:text-slate-800"
+            className="text-ui-xs font-semibold text-slate-500 hover:text-slate-800"
           >
             Clear all
           </button>
@@ -184,7 +184,7 @@ export function WorkspaceInboxToolbar({
       ) : null}
 
       {(lastUpdatedLabel || degraded) && (
-        <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+        <div className="flex flex-wrap items-center gap-2 text-ui-xs text-slate-500">
           {lastUpdatedLabel ? <span>Last refreshed {lastUpdatedLabel}</span> : null}
           {degraded ? (
             <span className="rounded-md bg-amber-50 px-2 py-0.5 font-medium text-amber-900 ring-1 ring-amber-100">
@@ -198,7 +198,7 @@ export function WorkspaceInboxToolbar({
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400">Status</label>
+              <label className="mb-1 block text-ui-xs font-semibold uppercase tracking-wide text-slate-400">Status</label>
               <select
                 className={selectCls}
                 value={f.status}
@@ -212,7 +212,7 @@ export function WorkspaceInboxToolbar({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400">Priority</label>
+              <label className="mb-1 block text-ui-xs font-semibold uppercase tracking-wide text-slate-400">Priority</label>
               <select
                 className={selectCls}
                 value={f.priority}
@@ -226,7 +226,7 @@ export function WorkspaceInboxToolbar({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400">From</label>
+              <label className="mb-1 block text-ui-xs font-semibold uppercase tracking-wide text-slate-400">From</label>
               <input
                 type="date"
                 className={selectCls}
@@ -236,7 +236,7 @@ export function WorkspaceInboxToolbar({
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400">To</label>
+              <label className="mb-1 block text-ui-xs font-semibold uppercase tracking-wide text-slate-400">To</label>
               <input
                 type="date"
                 className={selectCls}

@@ -28,12 +28,12 @@ export function FinanceReceiptsWorkflowStrip({
       data-testid="finance-receipts-workflow-strip"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] font-black uppercase tracking-wide text-[#134e4a]">Receipts workflow</p>
+        <p className="text-ui-xs font-black uppercase tracking-wide text-zarewa-teal">Receipts workflow</p>
         {onGoToDesk ? (
           <button
             type="button"
             onClick={onGoToDesk}
-            className="text-[9px] font-bold uppercase tracking-wide text-[#134e4a] underline-offset-2 hover:underline"
+            className="text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal underline-offset-2 hover:underline"
           >
             Open My desk queue
           </button>
@@ -45,13 +45,13 @@ export function FinanceReceiptsWorkflowStrip({
             key={c.label}
             className={`rounded-lg border px-2.5 py-2 ${toneCls[c.tone] || toneCls.amber}`}
           >
-            <p className="text-[8px] font-bold uppercase tracking-wide opacity-80">{c.label}</p>
+            <p className="text-ui-xs font-bold uppercase tracking-wide opacity-80">{c.label}</p>
             <p className="text-lg font-black tabular-nums leading-tight">{c.value}</p>
-            <p className="text-[9px] opacity-80 mt-0.5">{c.sub}</p>
+            <p className="text-ui-xs opacity-80 mt-0.5">{c.sub}</p>
           </div>
         ))}
       </div>
-      <p className="text-[9px] text-slate-500 leading-relaxed">
+      <p className="text-ui-xs text-slate-500 leading-relaxed">
         Step 1 — confirm sales receipts against bank/cash. Step 2 — register unknown bank inflows. Step 3 — match daily
         bank lines below.
       </p>

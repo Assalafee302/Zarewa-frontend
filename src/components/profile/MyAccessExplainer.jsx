@@ -23,12 +23,12 @@ function AccessLink({ to, children, highlight = false }) {
       to={to}
       className={`group flex min-h-12 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold no-underline transition active:scale-[0.99] ${
         highlight
-          ? 'border-teal-200 bg-teal-50/60 text-[#134e4a] hover:bg-teal-50'
+          ? 'border-teal-200 bg-teal-50/60 text-zarewa-teal hover:bg-teal-50'
           : 'border-slate-100 bg-slate-50/80 text-slate-800 hover:border-slate-200 hover:bg-white'
       }`}
     >
       <span className="min-w-0 truncate">{children}</span>
-      <ChevronRight size={16} className="shrink-0 text-slate-300 group-hover:text-[#134e4a]" aria-hidden />
+      <ChevronRight size={16} className="shrink-0 text-slate-300 group-hover:text-zarewa-teal" aria-hidden />
     </Link>
   );
 }
@@ -52,7 +52,7 @@ export function MyAccessExplainer() {
     <section className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
       <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-[#134e4a]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-zarewa-teal">
             <LayoutGrid size={18} aria-hidden />
           </span>
           <div className="min-w-0">
@@ -96,7 +96,7 @@ export function MyAccessExplainer() {
             {permissions.slice(0, 24).map((p) => (
               <span
                 key={p}
-                className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-mono text-slate-600"
+                className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-ui-xs font-mono text-slate-600"
               >
                 {p}
               </span>

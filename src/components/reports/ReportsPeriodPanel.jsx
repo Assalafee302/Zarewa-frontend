@@ -54,25 +54,25 @@ export function ReportsPeriodPanel({
             cutting lists complete in the period. Cash receipts are period cash, not the same as sales.
           </p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={onDownloadMonthEndBundle} className="z-btn-primary !text-[11px]">
+            <button type="button" onClick={onDownloadMonthEndBundle} className="z-btn-primary !text-xs">
               Download month-end bundle (Excel)
             </button>
-            <span className="text-[10px] text-slate-500 self-center">
+            <span className="text-ui-xs text-slate-500 self-center">
               One workbook: costs &amp; inventory, cash/bank/AR, sales &amp; customer, operations &amp; procurement.
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
+              <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wide mb-1">
                 Quotation pipeline (quote date)
               </p>
-              <p className="text-xl font-black text-[#134e4a] tabular-nums">
+              <p className="text-xl font-black text-zarewa-teal tabular-nums">
                 {formatNgn(salesKpis.quotationPipelineNgn)}
               </p>
               <p className="text-xs text-slate-500 mt-2 font-medium">{salesKpis.rowCount} quotations · not sales</p>
             </div>
             <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
+              <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wide mb-1">
                 Revenue at production completion
               </p>
               <p className="text-xl font-black text-teal-800 tabular-nums">{formatNgn(salesKpis.producedSalesNgn)}</p>
@@ -81,13 +81,13 @@ export function ReportsPeriodPanel({
               </p>
             </div>
             <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
+              <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wide mb-1">
                 Receipts (cash in period)
               </p>
               <p className="text-xl font-black text-emerald-700 tabular-nums">{formatNgn(salesKpis.totalPaid)}</p>
             </div>
             <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
+              <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wide mb-1">
                 Receivables outstanding (Policy v1)
               </p>
               <p className="text-xl font-black text-amber-700 tabular-nums">{formatNgn(salesKpis.outstanding)}</p>

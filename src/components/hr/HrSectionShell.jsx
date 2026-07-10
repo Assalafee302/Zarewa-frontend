@@ -25,7 +25,7 @@ export function HrSectionShell({
       {beforeNav ? <div className="mb-4">{beforeNav}</div> : null}
       {moduleTitle || moduleSubtitle ? (
         <div className="mb-3">
-          {moduleTitle ? <h1 className="z-page-title text-[#134e4a]">{moduleTitle}</h1> : null}
+          {moduleTitle ? <h1 className="z-page-title text-zarewa-teal">{moduleTitle}</h1> : null}
           {moduleSubtitle ? <p className="z-page-subtitle mt-0.5">{moduleSubtitle}</p> : null}
         </div>
       ) : null}

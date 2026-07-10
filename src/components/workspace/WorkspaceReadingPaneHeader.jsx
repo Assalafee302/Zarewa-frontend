@@ -40,7 +40,7 @@ export function WorkspaceReadingPaneHeader({
           <h2 className="line-clamp-2 text-base font-semibold text-slate-900 sm:text-lg">{title || 'Work item'}</h2>
           {item ? (
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <span className="font-mono text-[11px] text-slate-500">{item.referenceNo}</span>
+              <span className="font-mono text-xs text-slate-500">{item.referenceNo}</span>
               <span className={wsStatusBadge(item.status)}>{item.statusLabel}</span>
               {(item.priority === 'high' || item.priority === 'urgent') && !restricted ? (
                 <span className={wsPriorityBadge(item.priority)}>
@@ -50,13 +50,13 @@ export function WorkspaceReadingPaneHeader({
               {restricted ? <span className={wsBadge('restricted')}>Restricted</span> : null}
             </div>
           ) : threadId ? (
-            <p className="mt-1 font-mono text-[11px] text-slate-500">Thread {threadId}</p>
+            <p className="mt-1 font-mono text-xs text-slate-500">Thread {threadId}</p>
           ) : null}
         </div>
       </div>
 
       {item && !restricted ? (
-        <div className="rounded-lg border border-slate-200/90 bg-slate-50/60 px-3 py-2.5 text-[11px] text-slate-700 sm:text-xs">
+        <div className="rounded-lg border border-slate-200/90 bg-slate-50/60 px-3 py-2.5 text-xs text-slate-700 sm:text-xs">
           <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
             {item.branchLabel ? (
               <>
@@ -98,7 +98,7 @@ export function WorkspaceReadingPaneHeader({
             ) : null}
           </dl>
           {item.actionLabel ? (
-            <p className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-100">
+            <p className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-ui-xs font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-100">
               {item.actionLabel}
             </p>
           ) : null}

@@ -41,7 +41,7 @@ export function CreditExceptionDecisionModal({ open, onClose, item, mode, onDone
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h2 className="text-lg font-black text-[#134e4a]">
+          <h2 className="text-lg font-black text-zarewa-teal">
             {mode === 'revoke' ? 'Revoke credit' : 'Review credit request'}
           </h2>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700" aria-label="Close">

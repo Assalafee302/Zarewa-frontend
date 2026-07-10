@@ -10,7 +10,7 @@ export function HrStaffFileChecklist({ completeness }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-bold text-[#134e4a]">Staff file completeness</h3>
+        <h3 className="text-sm font-bold text-zarewa-teal">Staff file completeness</h3>
         <span className={`text-xs font-bold ${complete ? 'text-emerald-700' : 'text-amber-800'}`}>
           {percent}% complete
         </span>

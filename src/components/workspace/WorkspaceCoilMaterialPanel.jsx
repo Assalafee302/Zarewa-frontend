@@ -86,7 +86,7 @@ export default function WorkspaceCoilMaterialPanel({ item, onDone }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-white px-4 py-5">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-teal-900/80">Operations</p>
+      <p className="text-ui-xs font-semibold uppercase tracking-wide text-teal-900/80">Operations</p>
       <h2 className="mt-1 text-lg font-semibold text-slate-900">{item?.title || 'Material request'}</h2>
       <p className="mt-2 text-sm text-slate-600">{item?.summary || '—'}</p>
       <p className="mt-1 font-mono text-xs text-slate-500">{sourceId}</p>
@@ -129,7 +129,7 @@ export default function WorkspaceCoilMaterialPanel({ item, onDone }) {
             type="button"
             disabled={busy}
             onClick={() => void acknowledgeCoil()}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3d3a] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-zarewa-teal px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3d3a] disabled:opacity-50"
           >
             {busy ? 'Working…' : 'Acknowledge & route to procurement'}
           </button>

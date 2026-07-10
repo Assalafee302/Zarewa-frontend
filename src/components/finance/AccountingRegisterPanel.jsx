@@ -180,7 +180,7 @@ export function AccountingRegisterPanel({
         <button
           type="button"
           onClick={() => openLegacyModal(legacyQuickAdd)}
-          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-amber-950 hover:bg-amber-100"
+          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-amber-950 hover:bg-amber-100"
         >
           <Plus size={12} /> Record overpayment
         </button>
@@ -189,7 +189,7 @@ export function AccountingRegisterPanel({
         <button
           type="button"
           onClick={() => openLegacyModal(null)}
-          className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
+          className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
         >
           <Plus size={12} /> Add legacy line
         </button>
@@ -198,7 +198,7 @@ export function AccountingRegisterPanel({
         type="button"
         onClick={handlePrint}
         disabled={!data?.sections?.length}
-        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50 disabled:opacity-40"
       >
         <Printer size={12} /> Print
       </button>
@@ -206,7 +206,7 @@ export function AccountingRegisterPanel({
         type="button"
         onClick={onReload}
         disabled={loading}
-        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50 disabled:opacity-40"
       >
         <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
       </button>
@@ -216,9 +216,9 @@ export function AccountingRegisterPanel({
   if (error) {
     return (
       <div className="rounded-lg border border-dashed border-rose-200 bg-rose-50/50 py-10 px-6 text-center">
-        <p className="text-[10px] font-semibold text-rose-800 uppercase tracking-widest">Could not load register</p>
-        <p className="mt-2 text-[11px] text-rose-700">{error}</p>
-        <button type="button" onClick={onReload} className="mt-3 text-[10px] font-bold text-[#134e4a] hover:underline">
+        <p className="text-ui-xs font-semibold text-rose-800 uppercase tracking-widest">Could not load register</p>
+        <p className="mt-2 text-xs text-rose-700">{error}</p>
+        <button type="button" onClick={onReload} className="mt-3 text-ui-xs font-bold text-zarewa-teal hover:underline">
           Retry
         </button>
       </div>
@@ -226,7 +226,7 @@ export function AccountingRegisterPanel({
   }
 
   if (loading && !data) {
-    return <p className="text-[11px] text-slate-500">Loading register…</p>;
+    return <p className="text-xs text-slate-500">Loading register…</p>;
   }
 
   return (
@@ -252,7 +252,7 @@ export function AccountingRegisterPanel({
           {data.summary.pendingFinanceClearanceCount} receipt(s) ({formatNgn(data.summary.pendingFinanceClearanceNgn)}{' '}
           total) are linked to quotations but awaiting finance clearance. These are control exceptions — not payables and
           not included in the register total.{' '}
-          <Link to="/accounts?tab=receipts" className="font-semibold text-[#134e4a] hover:underline">
+          <Link to="/accounts?tab=receipts" className="font-semibold text-zarewa-teal hover:underline">
             Open Finance → Receipts
           </Link>
         </AccountingDeskNotice>
@@ -279,18 +279,18 @@ export function AccountingRegisterPanel({
         toolbar={
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] text-slate-600 max-w-xl leading-snug max-sm:text-[10px]">
+              <p className="text-xs text-slate-600 max-w-xl leading-snug max-sm:text-ui-xs">
                 {currentSection?.description || 'Select a line to view detail, links, and clearance actions.'}
               </p>
               <div className="flex items-center gap-2 shrink-0 max-sm:w-full max-sm:justify-between">
-                <span className="text-sm font-black text-[#134e4a] tabular-nums">
+                <span className="text-sm font-black text-zarewa-teal tabular-nums">
                   {formatNgn(currentSection?.subtotalNgn ?? 0)}
                 </span>
                 <button
                   type="button"
                   onClick={exportSection}
                   disabled={!currentSection?.items?.length}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40 min-h-11"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50 disabled:opacity-40 min-h-11"
                 >
                   <FileSpreadsheet size={12} /> Export
                 </button>
@@ -316,10 +316,10 @@ export function AccountingRegisterPanel({
         {filteredItems.length === 0 ? (
           <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-12 px-6 text-center">
             <Lightbulb size={18} className="mx-auto text-slate-400 mb-2" />
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+            <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest">
               {searchQuery ? 'No matches' : 'Empty section'}
             </p>
-            <p className="mt-1 text-[11px] text-slate-600">{emptyHint}</p>
+            <p className="mt-1 text-xs text-slate-600">{emptyHint}</p>
           </div>
         ) : (
           <>
@@ -336,7 +336,7 @@ export function AccountingRegisterPanel({
                 />
               ))}
             </ul>
-            <div className="mt-3 text-[10px] text-slate-600">
+            <div className="mt-3 text-ui-xs text-slate-600">
               <AppTablePager
                 showingFrom={paging.showingFrom}
                 showingTo={paging.showingTo}
@@ -354,7 +354,7 @@ export function AccountingRegisterPanel({
       </div>
 
       {data?.notes?.[0] ? (
-        <p className="text-[10px] text-slate-500 leading-relaxed border-t border-slate-100 pt-3">{data.notes[0]}</p>
+        <p className="text-ui-xs text-slate-500 leading-relaxed border-t border-slate-100 pt-3">{data.notes[0]}</p>
       ) : null}
 
       {modalOpen ? (

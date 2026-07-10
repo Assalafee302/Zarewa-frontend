@@ -92,24 +92,24 @@ export function InterBranchRepayModal({ loan, branchNameById, treasuryAccounts, 
   return (
     <ModalFrame isOpen onClose={onClose} title="Record repayment" surface="plain">
       <ModalScrollShell size="md">
-        <div className="h-1 shrink-0 bg-[#134e4a]" />
+        <div className="h-1 shrink-0 bg-zarewa-teal" />
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <ModalScrollBody className="space-y-4">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Loan</p>
-              <p className="font-mono text-sm font-bold text-[#134e4a]">{loan.loanId}</p>
-              <p className="text-[11px] text-slate-600 mt-1">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Loan</p>
+              <p className="font-mono text-sm font-bold text-zarewa-teal">{loan.loanId}</p>
+              <p className="text-xs text-slate-600 mt-1">
                 {branchNameById[borrowerBranchId] || borrowerBranchId} repays{' '}
                 {branchNameById[lenderBranchId] || lenderBranchId}
               </p>
-              <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
+              <p className="text-xs text-slate-500 mt-1 tabular-nums">
                 Outstanding: {formatNgn(loan.outstandingNgn)}
               </p>
             </div>
 
             <ProcurementFormSection letter="1" title="Treasury movement" compact>
               <div className="grid grid-cols-1 gap-3">
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   From account (borrower branch) *
                   <select
                     className={INPUT}
@@ -125,7 +125,7 @@ export function InterBranchRepayModal({ loan, branchNameById, treasuryAccounts, 
                     ))}
                   </select>
                 </label>
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   To account (lender branch) *
                   <select
                     className={INPUT}
@@ -142,7 +142,7 @@ export function InterBranchRepayModal({ loan, branchNameById, treasuryAccounts, 
                   </select>
                 </label>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     Amount (₦) *
                     <input
                       type="number"
@@ -154,7 +154,7 @@ export function InterBranchRepayModal({ loan, branchNameById, treasuryAccounts, 
                       required
                     />
                   </label>
-                  <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     Payment date *
                     <input
                       type="date"
@@ -165,7 +165,7 @@ export function InterBranchRepayModal({ loan, branchNameById, treasuryAccounts, 
                     />
                   </label>
                 </div>
-                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                   Note
                   <input
                     className={INPUT}
@@ -177,7 +177,7 @@ export function InterBranchRepayModal({ loan, branchNameById, treasuryAccounts, 
               </div>
             </ProcurementFormSection>
 
-            {error ? <p className="text-[10px] font-medium text-rose-700">{error}</p> : null}
+            {error ? <p className="text-ui-xs font-medium text-rose-700">{error}</p> : null}
           </ModalScrollBody>
 
           <ModalScrollFooter className="flex justify-end gap-2">
@@ -185,14 +185,14 @@ export function InterBranchRepayModal({ loan, branchNameById, treasuryAccounts, 
               type="button"
               onClick={onClose}
               disabled={busy}
-              className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-[10px] font-semibold uppercase text-slate-700 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+              className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-ui-xs font-semibold uppercase text-slate-700 sm:min-h-0 sm:py-1.5 sm:text-ui-xs"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={busy}
-              className="min-h-11 rounded-lg bg-[#134e4a] text-white px-4 py-2 text-[10px] font-semibold uppercase disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+              className="min-h-11 rounded-lg bg-zarewa-teal text-white px-4 py-2 text-ui-xs font-semibold uppercase disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-ui-xs"
             >
               {busy ? 'Posting…' : 'Post repayment'}
             </button>
@@ -207,7 +207,7 @@ export function InterBranchStatusBadge({ status }) {
   const meta = interBranchStatusMeta(status);
   return (
     <span
-      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${interBranchStatusClass(meta.tone)}`}
+      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${interBranchStatusClass(meta.tone)}`}
     >
       {meta.label}
     </span>

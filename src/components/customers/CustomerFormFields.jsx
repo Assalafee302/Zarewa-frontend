@@ -18,7 +18,7 @@ function Field({ label, required, children, hint }) {
         {required ? <span className="text-rose-500 ml-0.5">*</span> : null}
       </label>
       {children}
-      {hint ? <p className="text-[10px] text-slate-500 leading-relaxed">{hint}</p> : null}
+      {hint ? <p className="text-ui-xs text-slate-500 leading-relaxed">{hint}</p> : null}
     </div>
   );
 }
@@ -35,7 +35,7 @@ function Section({ title, icon: Icon, children, defaultOpen = true, collapsible 
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-[#134e4a]"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-zarewa-teal"
           aria-expanded={open}
         >
           <ChevronDown size={16} className={`transition-transform ${open ? '' : '-rotate-90'}`} />

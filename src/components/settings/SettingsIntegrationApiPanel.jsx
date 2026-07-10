@@ -86,7 +86,7 @@ export function SettingsIntegrationApiPanel({ showToast, onRefresh }) {
       </div>
       <div className="overflow-x-auto rounded-xl border border-slate-100">
         <table className="min-w-full text-left text-xs">
-          <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wide text-slate-500">
+          <thead className="bg-slate-50 text-ui-xs font-black uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-3 py-2">Name</th>
               <th className="px-3 py-2">Suffix</th>
@@ -107,7 +107,7 @@ export function SettingsIntegrationApiPanel({ showToast, onRefresh }) {
               keys.map((k) => (
                 <tr key={k.id} className="border-t border-slate-50">
                   <td className="px-3 py-2 font-semibold text-slate-800">{k.name}</td>
-                  <td className="px-3 py-2 font-mono text-[10px]">…{k.secretSuffix}</td>
+                  <td className="px-3 py-2 font-mono text-ui-xs">…{k.secretSuffix}</td>
                   <td className="px-3 py-2 text-slate-600">{k.createdAtISO || '—'}</td>
                   <td className="px-3 py-2 text-slate-600">{k.lastUsedAtISO || '—'}</td>
                   <td className="px-3 py-2">{k.revokedAtISO ? <span className="text-red-600 font-bold">Revoked</span> : 'Active'}</td>
@@ -115,7 +115,7 @@ export function SettingsIntegrationApiPanel({ showToast, onRefresh }) {
                     {!k.revokedAtISO ? (
                       <button
                         type="button"
-                        className="text-[10px] font-black uppercase text-red-700 hover:underline"
+                        className="text-ui-xs font-black uppercase text-red-700 hover:underline"
                         disabled={busy}
                         onClick={() => void revoke(k.id)}
                       >

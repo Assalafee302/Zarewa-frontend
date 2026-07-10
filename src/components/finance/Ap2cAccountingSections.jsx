@@ -48,7 +48,7 @@ export function Ap2cAccountingSections({
             type="button"
             onClick={() => loadAll(filters)}
             disabled={loading || !enabled}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50 disabled:opacity-50"
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             Load AP2c
@@ -57,7 +57,7 @@ export function Ap2cAccountingSections({
       />
 
       {error ? (
-        <p className="text-[11px] font-medium text-rose-800 flex items-center gap-2">
+        <p className="text-xs font-medium text-rose-800 flex items-center gap-2">
           <AlertTriangle size={16} />
           {error}
         </p>
@@ -133,14 +133,14 @@ export function Ap2cAccountingSections({
               downloadFinanceCsv('inventory-valuation', ['key', 'accountingValueNgn', 'coilCount'], inventory?.byBranch || [])
             }
           >
-            <p className="text-[11px] font-medium text-slate-700 mb-2">
+            <p className="text-xs font-medium text-slate-700 mb-2">
               Month avg unit price:{' '}
               {inventory?.monthlyAveragePurchasePriceNgn != null ? formatNgn(inventory.monthlyAveragePurchasePriceNgn) : '—'}
               {' · '}
               Highest month:{' '}
               {inventory?.highestPurchasePriceMonthNgn != null ? formatNgn(inventory.highestPurchasePriceMonthNgn) : '—'}
             </p>
-            <Link to="/accounting" className="text-[10px] font-bold text-[#134e4a] hover:underline">
+            <Link to="/accounting" className="text-ui-xs font-bold text-zarewa-teal hover:underline">
               Review missing cost →
             </Link>
           </AccountingDeskTableSection>
@@ -165,9 +165,9 @@ export function Ap2cAccountingSections({
                 ))}
               </ul>
             ) : (
-              <p className="text-[11px] text-slate-600">Load AP2c reports to see alignment checks.</p>
+              <p className="text-xs text-slate-600">Load AP2c reports to see alignment checks.</p>
             )}
-            <Link to="/accounts?tab=audit" className="inline-block mt-2 text-[10px] font-bold text-[#134e4a] hover:underline">
+            <Link to="/accounts?tab=audit" className="inline-block mt-2 text-ui-xs font-bold text-zarewa-teal hover:underline">
               Finance → Audit trail
             </Link>
           </AccountingDeskTableSection>
@@ -176,13 +176,13 @@ export function Ap2cAccountingSections({
             <button
               type="button"
               onClick={() => setShowTechnical((v) => !v)}
-              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-[#134e4a]"
+              className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wider text-slate-500 hover:text-zarewa-teal"
             >
               <ChevronDown size={14} className={showTechnical ? 'rotate-180' : ''} />
               {showTechnical ? 'Hide' : 'Show'} design notes
             </button>
             {showTechnical && advance?.supplierAdvanceGl?.designNotes ? (
-              <ul className="mt-2 list-disc pl-5 text-[10px] text-slate-600 space-y-1">
+              <ul className="mt-2 list-disc pl-5 text-ui-xs text-slate-600 space-y-1">
                 {advance.supplierAdvanceGl.designNotes.map((n, i) => (
                   <li key={i}>{n}</li>
                 ))}

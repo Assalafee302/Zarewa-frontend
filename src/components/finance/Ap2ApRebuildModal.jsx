@@ -92,7 +92,7 @@ export function Ap2ApRebuildModal({
           <div className="flex items-start gap-3 pr-8">
             <ShieldCheck className="text-teal-700 shrink-0 mt-1" size={22} />
             <div>
-              <h2 id="ap2-rebuild-title" className="text-lg font-black text-[#134e4a]">
+              <h2 id="ap2-rebuild-title" className="text-lg font-black text-zarewa-teal">
                 AP received-basis rebuild preview
               </h2>
               <p className="text-sm font-medium text-slate-600 mt-1">
@@ -125,27 +125,27 @@ export function Ap2ApRebuildModal({
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="rounded-xl border border-slate-200 p-3">
-                  <p className="text-[10px] font-bold uppercase text-slate-500">Current AP total</p>
+                  <p className="text-ui-xs font-bold uppercase text-slate-500">Current AP total</p>
                   <p className="text-lg font-black tabular-nums">{formatNgn(s.currentApNgn)}</p>
                 </div>
                 <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-3">
-                  <p className="text-[10px] font-bold uppercase text-teal-800">Proposed (received)</p>
+                  <p className="text-ui-xs font-bold uppercase text-teal-800">Proposed (received)</p>
                   <p className="text-lg font-black tabular-nums">{formatNgn(s.proposedApTotalNgn)}</p>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
-                  <p className="text-[10px] font-bold uppercase text-amber-800">Affected POs</p>
+                  <p className="text-ui-xs font-bold uppercase text-amber-800">Affected POs</p>
                   <p className="text-lg font-black tabular-nums">{s.affectedPoCount ?? 0}</p>
                 </div>
                 <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-3">
-                  <p className="text-[10px] font-bold uppercase text-rose-800">Supplier advance</p>
+                  <p className="text-ui-xs font-bold uppercase text-rose-800">Supplier advance</p>
                   <p className="text-lg font-black tabular-nums">{formatNgn(s.supplierAdvanceNgn)}</p>
                 </div>
                 <div className="rounded-xl border border-amber-200 p-3">
-                  <p className="text-[10px] font-bold uppercase text-amber-800">Missing cost POs</p>
+                  <p className="text-ui-xs font-bold uppercase text-amber-800">Missing cost POs</p>
                   <p className="text-lg font-black tabular-nums">{s.missingCostCount ?? 0}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 p-3">
-                  <p className="text-[10px] font-bold uppercase text-slate-500">Manual AP skipped</p>
+                  <p className="text-ui-xs font-bold uppercase text-slate-500">Manual AP skipped</p>
                   <p className="text-lg font-black tabular-nums">{s.manualApSkippedCount ?? 0}</p>
                 </div>
               </div>

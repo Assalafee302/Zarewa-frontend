@@ -40,12 +40,12 @@ export function HrProbationEndingQueue() {
     <section className="rounded-2xl border border-amber-100 bg-amber-50/50 p-5">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-amber-900">Probation decisions</h2>
+          <h2 className="text-xs font-black uppercase tracking-widest text-amber-900">Probation decisions</h2>
           <p className="mt-1 text-xs text-amber-950/80">{rows.length} staff ending probation within 30 days</p>
         </div>
         <Link
           to={`${HR_EMPLOYEES}?tab=directory&quickFilter=probation-ending`}
-          className="text-[11px] font-bold uppercase text-[#134e4a] hover:underline"
+          className="text-xs font-bold uppercase text-zarewa-teal hover:underline"
         >
           Directory filter →
         </Link>
@@ -60,7 +60,7 @@ export function HrProbationEndingQueue() {
             <span className="font-mono text-amber-800">{s.probationEndIso?.slice(0, 10) || '—'}</span>
             <Link
               to={`${HR_EMPLOYEES}/${encodeURIComponent(s.userId)}?tab=employment`}
-              className="font-bold text-[#134e4a] hover:underline"
+              className="font-bold text-zarewa-teal hover:underline"
             >
               Confirm / extend →
             </Link>

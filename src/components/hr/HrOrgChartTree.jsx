@@ -29,9 +29,9 @@ function OrgPersonCard({
   const branchName = node.branchId ? branchLabel(node.branchId, branches) : null;
 
   const cardClass = `group relative flex min-w-[168px] max-w-[220px] flex-col rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
-    selected ? 'border-[#134e4a] ring-2 ring-[#134e4a]/40' : focused ? 'border-[#134e4a] ring-2 ring-[#134e4a]/30' : highlight ? 'border-[#134e4a]/40 ring-2 ring-[#134e4a]/10' : 'border-slate-200'
+    selected ? 'border-zarewa-teal ring-2 ring-zarewa-teal/40' : focused ? 'border-zarewa-teal ring-2 ring-zarewa-teal/30' : highlight ? 'border-zarewa-teal/40 ring-2 ring-zarewa-teal/10' : 'border-slate-200'
   } ${linkTarget ? 'ring-2 ring-amber-300/80' : ''} ${inCycle ? 'border-red-300 bg-red-50/40' : ''} ${node.orphanReason ? 'border-amber-200 bg-amber-50/40' : ''} ${
-    editMode ? 'cursor-pointer hover:border-[#134e4a]/50' : ''
+    editMode ? 'cursor-pointer hover:border-zarewa-teal/50' : ''
   }`;
 
   const inner = (
@@ -40,25 +40,25 @@ function OrgPersonCard({
         <HrStaffAvatar staff={node} size={compact ? 'sm' : 'md'} />
         <div className="min-w-0 flex-1">
           {editMode ? (
-            <span className="block truncate text-sm font-bold text-[#134e4a]" title={node.displayName || node.userId}>
+            <span className="block truncate text-sm font-bold text-zarewa-teal" title={node.displayName || node.userId}>
               {node.displayName || node.userId}
             </span>
           ) : (
             <Link
               to={`${linkPrefix}/${node.userId}`}
-              className="block truncate text-sm font-bold text-[#134e4a] hover:underline"
+              className="block truncate text-sm font-bold text-zarewa-teal hover:underline"
               title={node.displayName || node.userId}
             >
               {node.displayName || node.userId}
             </Link>
           )}
           {node.jobTitle ? (
-            <p className="mt-0.5 truncate text-[11px] font-medium text-slate-600" title={node.jobTitle}>
+            <p className="mt-0.5 truncate text-xs font-medium text-slate-600" title={node.jobTitle}>
               {node.jobTitle}
             </p>
           ) : null}
           {node.department && !compact ? (
-            <p className="mt-0.5 truncate text-[10px] text-slate-400" title={node.department}>
+            <p className="mt-0.5 truncate text-ui-xs text-slate-400" title={node.department}>
               {node.department}
             </p>
           ) : null}
@@ -66,18 +66,18 @@ function OrgPersonCard({
       </div>
       <div className="flex flex-wrap items-center gap-1 border-t border-slate-100 px-3 py-2">
         {seniority ? (
-          <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${seniorityBadgeClass(node.seniority)}`}>
+          <span className={`rounded-full px-2 py-0.5 text-ui-xs font-bold uppercase tracking-wide ${seniorityBadgeClass(node.seniority)}`}>
             {seniority}
           </span>
         ) : null}
         {reports > 0 ? (
-          <span className="inline-flex items-center gap-0.5 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-semibold text-slate-600">
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-slate-100 px-2 py-0.5 text-ui-xs font-semibold text-slate-600">
             <Users size={10} aria-hidden />
             {reports}
           </span>
         ) : null}
         {node.branchId && !compact ? (
-          <span className="truncate text-[9px] font-medium text-slate-500" title={node.branchId}>
+          <span className="truncate text-ui-xs font-medium text-slate-500" title={node.branchId}>
             {branchName}
           </span>
         ) : null}
@@ -196,10 +196,10 @@ function GroupedSection({ section, view, linkPrefix, collapseAll, branches, edit
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
         <div>
-          <h3 className="text-sm font-black text-[#134e4a]">{title}</h3>
-          {familyHint ? <p className="text-[10px] text-slate-500">{familyHint}</p> : null}
+          <h3 className="text-sm font-black text-zarewa-teal">{title}</h3>
+          {familyHint ? <p className="text-ui-xs text-slate-500">{familyHint}</p> : null}
         </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold tabular-nums text-slate-600">
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-ui-xs font-bold tabular-nums text-slate-600">
           {section.count} staff
         </span>
       </header>

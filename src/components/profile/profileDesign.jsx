@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react';
 
 /** Optional thin accent — use sparingly (not on every panel). */
 export function ProfileAccentBar({ className = '' }) {
-  return <div className={`h-0.5 shrink-0 bg-gradient-to-r from-teal-400 to-[#134e4a] ${className}`} aria-hidden />;
+  return <div className={`h-0.5 shrink-0 bg-gradient-to-r from-teal-400 to-zarewa-teal ${className}`} aria-hidden />;
 }
 
 /**
@@ -43,16 +43,16 @@ export function ProfileKpiCard({
 
   return (
     <div className={`flex h-full flex-col rounded-xl border p-4 shadow-sm ${shell} ${className}`}>
-      <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-        {Icon ? <Icon size={13} className="text-[#134e4a]" aria-hidden /> : null}
+      <p className="flex items-center gap-1.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-500">
+        {Icon ? <Icon size={13} className="text-zarewa-teal" aria-hidden /> : null}
         {label}
       </p>
       <div className="mt-2 min-h-[2rem] flex-1 text-slate-900">{content}</div>
-      {hint ? <p className="mt-2 border-t border-slate-100 pt-2 text-[11px] leading-relaxed text-slate-500">{hint}</p> : null}
+      {hint ? <p className="mt-2 border-t border-slate-100 pt-2 text-xs leading-relaxed text-slate-500">{hint}</p> : null}
       {to && actionLabel ? (
         <Link
           to={to}
-          className="mt-3 inline-flex min-h-8 items-center gap-0.5 text-xs font-semibold text-[#134e4a] no-underline hover:underline"
+          className="mt-3 inline-flex min-h-8 items-center gap-0.5 text-xs font-semibold text-zarewa-teal no-underline hover:underline"
         >
           {actionLabel}
           <ChevronRight size={14} aria-hidden />
@@ -85,7 +85,7 @@ export function ProfileModuleSection({
             actionTo ? (
               <Link
                 to={actionTo}
-                className="inline-flex min-h-9 items-center gap-0.5 text-xs font-semibold text-[#134e4a] no-underline hover:underline"
+                className="inline-flex min-h-9 items-center gap-0.5 text-xs font-semibold text-zarewa-teal no-underline hover:underline"
               >
                 {actionLabel}
                 <ChevronRight size={14} aria-hidden />
@@ -118,7 +118,7 @@ export function ProfileStatusChip({ children, variant = 'pending' }) {
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${styles[variant] || styles.neutral}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-ui-xs font-semibold ${styles[variant] || styles.neutral}`}
     >
       {children}
     </span>

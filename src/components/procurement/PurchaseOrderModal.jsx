@@ -3,6 +3,7 @@ import { Plus, Trash2, UserPlus, X, ChevronDown, Save } from 'lucide-react';
 import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from './ProcurementFormSection';
 import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
 import { formatNgn } from '../../Data/mockData';
 import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
 import { colourSelectOptionsFromRows } from '../../lib/colourCanonicalization.js';
@@ -25,9 +26,9 @@ import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 
 const STONE_MATERIAL_TYPE_ID = 'MAT-005';
 const labelClass =
-  'text-[8px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-0.5 block';
+  'text-ui-xs font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-0.5 block';
 const headerInputClass =
-  'w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2.5 min-h-[2rem] text-[11px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15';
+  'w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2.5 min-h-[2rem] text-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15';
 const MATERIAL_OPTS = [
   { value: 'aluminium', label: 'Aluminium' },
   { value: 'aluzinc', label: 'Aluzinc' },
@@ -280,9 +281,9 @@ export default function PurchaseOrderModal({
     if (isNewPo && userNeedsPurchaseBranchDoubleConfirm(ws?.session?.user?.roleKey)) {
       const { label } = workspaceActiveBranchLabel(ws);
       if (
-        !window.confirm(
-          `Save this purchase order for ${label}?\n\nStock receipts, payments, and reports will stay in that branch. Cancel if you meant a different factory.`
-        )
+        !(await appConfirm({
+          message: `Save this purchase order for ${label}?\n\nStock receipts, payments, and reports will stay in that branch. Cancel if you meant a different factory.`,
+        }))
       ) {
         return;
       }
@@ -345,8 +346,8 @@ export default function PurchaseOrderModal({
       <div className="z-modal-panel max-w-[min(100%,min(96vw,56rem))] w-full max-h-[min(92vh,860px)] flex flex-col mx-auto">
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
           <div>
-            <h2 className="text-base font-bold text-[#134e4a]">{editPoId ? 'Edit purchase order' : 'New purchase order'}</h2>
-            <p className="text-[9px] text-slate-400 uppercase">Mixed line types</p>
+            <h2 className="text-base font-bold text-zarewa-teal">{editPoId ? 'Edit purchase order' : 'New purchase order'}</h2>
+            <p className="text-ui-xs text-slate-400 uppercase">Mixed line types</p>
           </div>
           <button type="button" onClick={handleClose} className="p-2.5 rounded-xl bg-slate-50" aria-label="Close"><X size={20} /></button>
         </div>
@@ -355,7 +356,7 @@ export default function PurchaseOrderModal({
             {isNewPo ? (
               <PurchaseOrderBranchConfirm confirmed={branchConfirmed} onConfirmedChange={setBranchConfirmed} />
             ) : null}
-            <ProcurementFormSection letter="A" title="Supplier & dates" action={<button type="button" onClick={onQuickAddSupplier} className="text-[9px] font-semibold text-[#134e4a] uppercase"><UserPlus size={12} className="inline" /> New supplier</button>}>
+            <ProcurementFormSection letter="A" title="Supplier & dates" action={<button type="button" onClick={onQuickAddSupplier} className="text-ui-xs font-semibold text-zarewa-teal uppercase"><UserPlus size={12} className="inline" /> New supplier</button>}>
               <div className="grid md:grid-cols-3 gap-4">
                 <div><label className={labelClass}>Supplier *</label><select required value={supplierID} onChange={(e) => setSupplierID(e.target.value)} className={headerInputClass}><option value="">Select…</option>{suppliersSorted.map((s) => <option key={s.supplierID} value={s.supplierID}>{s.name}</option>)}</select></div>
                 <div><label className={labelClass}>Order date</label><input required type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className={headerInputClass} /></div>
@@ -368,14 +369,14 @@ export default function PurchaseOrderModal({
             {formError ? <p className="text-xs text-rose-600 font-semibold">{formError}</p> : null}
             {editApprovalSlot}
           </div>
-          <div className="px-5 py-4 bg-[#134e4a] text-white flex justify-between shrink-0">
-            <div><p className="text-[9px] uppercase text-white/60">Total</p><p className="text-xl font-bold">{formatNgn(grandTotal)}</p></div>
+          <div className="px-5 py-4 bg-zarewa-teal text-white flex justify-between shrink-0">
+            <div><p className="text-ui-xs uppercase text-white/60">Total</p><p className="text-xl font-bold">{formatNgn(grandTotal)}</p></div>
             <div className="flex gap-2">
-              <button type="button" onClick={handleClose} disabled={busy} className="px-4 py-2 rounded-lg bg-white/10 text-[9px] uppercase">Cancel</button>
+              <button type="button" onClick={handleClose} disabled={busy} className="px-4 py-2 rounded-lg bg-white/10 text-ui-xs uppercase">Cancel</button>
               <button
                 type="submit"
                 disabled={busy || (isNewPo && (poBranchBlocked || !branchConfirmed))}
-                className="px-4 py-2 rounded-lg bg-white text-[#134e4a] text-[9px] uppercase inline-flex gap-1 items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg bg-white text-zarewa-teal text-ui-xs uppercase inline-flex gap-1 items-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save size={14} /> Save
               </button>

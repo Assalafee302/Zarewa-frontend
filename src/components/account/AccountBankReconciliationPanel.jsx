@@ -172,16 +172,16 @@ export function AccountBankReconciliationPanel({
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
       <div className="lg:col-span-2 space-y-3 rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-black uppercase tracking-widest text-[#134e4a]">Statement lines</h4>
+          <h4 className="text-xs font-black uppercase tracking-widest text-zarewa-teal">Statement lines</h4>
           <div className="flex flex-wrap gap-1">
             {['all', 'Review', 'Matched', 'Excluded'].map((k) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => setFilter(k === 'all' ? 'all' : k)}
-                className={`rounded-md px-2 py-0.5 text-[9px] font-bold uppercase ${
+                className={`rounded-md px-2 py-0.5 text-ui-xs font-bold uppercase ${
                   (k === 'all' && filter === 'all') || filter === k
-                    ? 'bg-[#134e4a] text-white'
+                    ? 'bg-zarewa-teal text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -194,26 +194,26 @@ export function AccountBankReconciliationPanel({
           <button
             type="button"
             onClick={() => void onWorkspaceRefresh?.()}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold uppercase text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-ui-xs font-bold uppercase text-slate-700 hover:bg-slate-50"
           >
             <RefreshCw size={12} /> Refresh
           </button>
           <button
             type="button"
             onClick={openUnreconciledPrint}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold uppercase text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-ui-xs font-bold uppercase text-slate-700 hover:bg-slate-50"
           >
             <Printer size={12} /> Print unreconciled
           </button>
           <button
             type="button"
             onClick={exportCsv}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold uppercase text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-ui-xs font-bold uppercase text-slate-700 hover:bg-slate-50"
           >
             <Download size={12} /> Export CSV
           </button>
         </div>
-        <p className="text-[9px] text-slate-500 leading-relaxed">
+        <p className="text-ui-xs text-slate-500 leading-relaxed">
           Daily discipline: add lines manually (e.g. EOD check, exceptions). Match to receipt IDs like{' '}
           <span className="font-mono">RC-2026-014</span> when ready.{branchLabel ? ` Branch: ${branchLabel}.` : ''}
         </p>
@@ -229,12 +229,12 @@ export function AccountBankReconciliationPanel({
                     : 'border-slate-200/70 bg-slate-50/50 hover:bg-white'
                 }`}
               >
-                <div className="flex justify-between gap-2 text-[10px] font-bold text-[#134e4a]">
+                <div className="flex justify-between gap-2 text-ui-xs font-bold text-zarewa-teal">
                   <span className="truncate font-mono">{line.id}</span>
                   <span className="shrink-0 tabular-nums">{formatNgn(line.amountNgn)}</span>
                 </div>
-                <div className="mt-0.5 text-[9px] text-slate-500 line-clamp-2">{line.description}</div>
-                <div className="mt-0.5 flex justify-between text-[8px] font-bold uppercase text-slate-500">
+                <div className="mt-0.5 text-ui-xs text-slate-500 line-clamp-2">{line.description}</div>
+                <div className="mt-0.5 flex justify-between text-ui-xs font-bold uppercase text-slate-500">
                   <span>{line.bankDateISO}</span>
                   <span>{line.status}</span>
                 </div>
@@ -243,7 +243,7 @@ export function AccountBankReconciliationPanel({
           ))}
         </ul>
         {!filtered.length ? (
-          <p className="text-[10px] text-slate-400 py-4 text-center border border-dashed border-slate-200 rounded-lg">
+          <p className="text-ui-xs text-slate-400 py-4 text-center border border-dashed border-slate-200 rounded-lg">
             No lines for this filter.
           </p>
         ) : null}
@@ -251,7 +251,7 @@ export function AccountBankReconciliationPanel({
 
       <div className="lg:col-span-3 space-y-4">
         <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3 shadow-sm">
-          <h4 className="text-[11px] font-black uppercase tracking-widest text-[#134e4a] mb-2">
+          <h4 className="text-xs font-black uppercase tracking-widest text-zarewa-teal mb-2">
             Treasury snapshot (posted movements)
           </h4>
           <ul className="grid gap-1 sm:grid-cols-2">
@@ -262,11 +262,11 @@ export function AccountBankReconciliationPanel({
               return (
                 <li
                   key={tid || acc.name}
-                  className="rounded-lg border border-white/80 bg-white px-2 py-1.5 text-[10px] shadow-sm"
+                  className="rounded-lg border border-white/80 bg-white px-2 py-1.5 text-ui-xs shadow-sm"
                 >
                   <p className="font-bold text-slate-800 truncate">{acc.name || tid}</p>
-                  <p className="tabular-nums font-black text-[#134e4a]">Book {formatNgn(book)}</p>
-                  <p className="text-[8px] text-slate-500">Net movements (in view): {formatNgn(netMv)}</p>
+                  <p className="tabular-nums font-black text-zarewa-teal">Book {formatNgn(book)}</p>
+                  <p className="text-ui-xs text-slate-500">Net movements (in view): {formatNgn(netMv)}</p>
                 </li>
               );
             })}
@@ -275,32 +275,32 @@ export function AccountBankReconciliationPanel({
 
         {canPost ? (
           <div className="rounded-xl border border-teal-200/70 bg-white p-3 shadow-sm space-y-2">
-            <h4 className="text-[11px] font-black uppercase tracking-widest text-[#134e4a] flex items-center gap-1">
+            <h4 className="text-xs font-black uppercase tracking-widest text-zarewa-teal flex items-center gap-1">
               <Plus size={14} /> Add manual line
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <label className="text-[9px] font-bold text-slate-600">
+              <label className="text-ui-xs font-bold text-slate-600">
                 Bank date
                 <input
                   type="date"
-                  className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px]"
+                  className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs"
                   value={manual.bankDateISO}
                   onChange={(e) => setManual((m) => ({ ...m, bankDateISO: e.target.value }))}
                 />
               </label>
-              <label className="text-[9px] font-bold text-slate-600 sm:col-span-2">
+              <label className="text-ui-xs font-bold text-slate-600 sm:col-span-2">
                 Description
                 <input
-                  className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px]"
+                  className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs"
                   value={manual.description}
                   onChange={(e) => setManual((m) => ({ ...m, description: e.target.value }))}
                   placeholder="e.g. EOD balance check / unidentified inflow"
                 />
               </label>
-              <label className="text-[9px] font-bold text-slate-600">
+              <label className="text-ui-xs font-bold text-slate-600">
                 Amount (₦)
                 <input
-                  className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px] tabular-nums"
+                  className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs tabular-nums"
                   value={manual.amountNgn}
                   onChange={(e) => setManual((m) => ({ ...m, amountNgn: e.target.value }))}
                   placeholder="-5000 or 250000"
@@ -311,7 +311,7 @@ export function AccountBankReconciliationPanel({
               type="button"
               disabled={savingManual}
               onClick={() => void submitManual()}
-              className="rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-black uppercase text-white disabled:opacity-50"
+              className="rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-black uppercase text-white disabled:opacity-50"
             >
               {savingManual ? 'Saving…' : 'Save line'}
             </button>
@@ -319,12 +319,12 @@ export function AccountBankReconciliationPanel({
         ) : null}
 
         <div className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm space-y-2 min-h-[12rem]">
-          <h4 className="text-[11px] font-black uppercase tracking-widest text-[#134e4a]">Line detail</h4>
+          <h4 className="text-xs font-black uppercase tracking-widest text-zarewa-teal">Line detail</h4>
           {!selected ? (
-            <p className="text-[10px] text-slate-500">Select a line to edit match and status.</p>
+            <p className="text-ui-xs text-slate-500">Select a line to edit match and status.</p>
           ) : (
             <>
-              <div className="text-[10px] text-slate-600 space-y-1">
+              <div className="text-ui-xs text-slate-600 space-y-1">
                 <p>
                   <span className="font-bold">ID:</span> <span className="font-mono">{selected.id}</span>
                 </p>
@@ -335,10 +335,10 @@ export function AccountBankReconciliationPanel({
               </div>
               {canPost ? (
                 <div className="space-y-2 border-t border-slate-100 pt-2">
-                  <label className="block text-[9px] font-bold text-slate-600">
+                  <label className="block text-ui-xs font-bold text-slate-600">
                     Status
                     <select
-                      className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px]"
+                      className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs"
                       value={patchForm.status}
                       onChange={(e) => setPatchForm((p) => ({ ...p, status: e.target.value }))}
                     >
@@ -349,18 +349,18 @@ export function AccountBankReconciliationPanel({
                       ))}
                     </select>
                   </label>
-                  <label className="block text-[9px] font-bold text-slate-600">
+                  <label className="block text-ui-xs font-bold text-slate-600">
                     System match (receipt id, e.g. RC-2026-014)
                     <input
-                      className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px] font-mono"
+                      className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs font-mono"
                       value={patchForm.systemMatch}
                       onChange={(e) => setPatchForm((p) => ({ ...p, systemMatch: e.target.value }))}
                     />
                   </label>
-                  <label className="block text-[9px] font-bold text-slate-600">
+                  <label className="block text-ui-xs font-bold text-slate-600">
                     Settled amount (optional, for variance)
                     <input
-                      className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-[10px] tabular-nums"
+                      className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-ui-xs tabular-nums"
                       value={patchForm.settledAmountNgn}
                       onChange={(e) => setPatchForm((p) => ({ ...p, settledAmountNgn: e.target.value }))}
                     />
@@ -369,16 +369,16 @@ export function AccountBankReconciliationPanel({
                     type="button"
                     disabled={busyId === selected.id}
                     onClick={() => void applyPatch()}
-                    className="rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-black uppercase text-white disabled:opacity-50"
+                    className="rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-black uppercase text-white disabled:opacity-50"
                   >
                     {busyId === selected.id ? 'Saving…' : 'Apply update'}
                   </button>
                 </div>
               ) : (
-                <p className="text-[9px] text-slate-500">View only — finance.post required to edit.</p>
+                <p className="text-ui-xs text-slate-500">View only — finance.post required to edit.</p>
               )}
               {canApprove && selected.status !== 'Excluded' ? (
-                <p className="text-[9px] text-amber-800">
+                <p className="text-ui-xs text-amber-800">
                   Variance approvals use the existing approve-variance action from finance tooling when amounts differ.
                 </p>
               ) : null}

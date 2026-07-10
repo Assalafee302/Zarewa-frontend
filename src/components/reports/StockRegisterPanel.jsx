@@ -33,7 +33,7 @@ function WorkflowStepper({ status }) {
         return (
           <li
             key={step.key}
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+            className={`text-ui-xs font-bold px-2 py-0.5 rounded-full border ${
               active
                 ? 'bg-teal-700 text-white border-teal-700'
                 : done
@@ -154,7 +154,7 @@ export function StockRegisterPanel({
         {!embedded ? (
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-4">
             <div className="min-w-0 flex-1">
-              <h4 className="text-lg font-black text-[#134e4a] tracking-tight">Month-end stock register</h4>
+              <h4 className="text-lg font-black text-zarewa-teal tracking-tight">Month-end stock register</h4>
               <p className="text-sm font-medium text-slate-600 mt-1">
                 {branchLabel || branchId} · period ending <strong>{endDate}</strong>
               </p>
@@ -261,18 +261,18 @@ export function StockRegisterPanel({
         ) : null}
 
         {showCosting && register && summary?.totalClosingValueNgn != null && roleMode !== 'procurement' ? (
-          <p className="mt-3 text-sm font-bold text-[#134e4a]">
+          <p className="mt-3 text-sm font-bold text-zarewa-teal">
             Total closing value: {formatNgn(summary.totalClosingValueNgn || 0)}
           </p>
         ) : null}
 
         {register?.materialDamageSummary?.categories?.length ? (
           <section className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/40 p-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-900 mb-2">
+            <p className="text-ui-xs font-black uppercase tracking-widest text-amber-900 mb-2">
               Material damage this period (MEX)
             </p>
             <div className="overflow-x-auto">
-              <table className="w-full text-[10px]">
+              <table className="w-full text-ui-xs">
                 <thead>
                   <tr className="text-left text-slate-500 uppercase">
                     <th className="py-1 pr-2">Category</th>
@@ -299,7 +299,7 @@ export function StockRegisterPanel({
               </table>
             </div>
             {register.materialDamageSummary.poolBalance?.length ? (
-              <p className="mt-2 text-[10px] text-amber-950">
+              <p className="mt-2 text-ui-xs text-amber-950">
                 Offcut pool balance:{' '}
                 {register.materialDamageSummary.poolBalance
                   .reduce((s, r) => s + (Number(r.metersAvailable) || 0), 0)

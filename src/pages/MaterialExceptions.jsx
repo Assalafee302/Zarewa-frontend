@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, Printer } from 'lucide-react';
 import { PageHeader, PageShell } from '../components/layout';
@@ -18,6 +18,7 @@ import {
 import { coilDamagePreview, isCoilDamageIncident } from '../lib/coilDamageRecordCore';
 import CoilDamageRecordModal from '../components/operations/CoilDamageRecordModal';
 import { fmtConv2 } from '../lib/conversionKgPerM';
+import { useMaterialIncidentsQuery } from '../hooks/useMaterialIncidentsQuery';
 import { AppTable, AppTableBody, AppTableTh, AppTableThead, AppTableTr, AppTableWrap } from '../components/ui/AppDataTable';
 
 const defaultForm = () => ({
@@ -33,8 +34,6 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
   const ws = useWorkspace();
   const { coilLots, materialIncidents, materialPoolSummary, refreshInventory } = useInventory();
   const [view, setView] = useState(initialView);
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(defaultForm);
   const [printPayload, setPrintPayload] = useState(null);
   const [managerRemarks, setManagerRemarks] = useState({});
@@ -49,19 +48,13 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
       String(ws?.user?.roleKey || '').trim().toLowerCase()
     );
 
-  const loadList = useCallback(async () => {
-    setLoading(true);
-    try {
-      const q = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : '';
-      const { ok, data } = await apiFetch(`/api/material-incidents${q}`);
-      if (ok && Array.isArray(data?.rows)) setRows(data.rows);
-      else if (Array.isArray(materialIncidents)) setRows(materialIncidents);
-    } catch {
-      if (Array.isArray(materialIncidents)) setRows(materialIncidents);
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter, materialIncidents]);
+  const fallbackRows = useMemo(
+    () => (Array.isArray(materialIncidents) ? materialIncidents : []),
+    [materialIncidents]
+  );
+  const { rows, loading, reload: loadList } = useMaterialIncidentsQuery(statusFilter, {
+    fallbackRows,
+  });
 
   const openIncident = (id) => {
     const trimmed = String(id || '').trim();
@@ -69,10 +62,6 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
     setDetailIncidentId(trimmed);
     setDetailModalOpen(true);
   };
-
-  useEffect(() => {
-    loadList();
-  }, [loadList, ws?.refreshEpoch]);
 
   useEffect(() => {
     const id = String(focusIncidentId || '').trim();
@@ -92,7 +81,10 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
   };
 
   const approveIncident = async (id) => {
-    const remark = String(managerRemarks[id] || '').trim() || 'Approved — material incident posted.';
+    const remark = String(managerRemarks[id] || '').trim();
+    if (remark.length < 3) {
+      return showToast('Enter an approval remark (at least 3 characters).', { variant: 'warning' });
+    }
     const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/approve`, {
       method: 'POST',
       body: JSON.stringify({ managerRemark: remark }),
@@ -155,8 +147,8 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
               setView(t.id);
               if (t.id === 'new') openRecordModal(form.incidentType);
             }}
-            className={`rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-wide ${
-              view === t.id ? 'bg-[#134e4a] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            className={`rounded-full px-4 py-2 text-ui-xs font-black uppercase tracking-wide ${
+              view === t.id ? 'bg-zarewa-teal text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             {t.label}
@@ -167,7 +159,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
       {view === 'register' && (
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <label htmlFor="incident-status-filter" className="text-[10px] font-bold uppercase text-slate-500">
+            <label htmlFor="incident-status-filter" className="text-ui-xs font-bold uppercase text-slate-500">
               Status
             </label>
             <select
@@ -204,8 +196,17 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
               <AppTableBody>
                 {rows.length === 0 ? (
                   <AppTableTr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-xs text-slate-500">
-                      {loading ? 'Loading…' : 'No incidents yet.'}
+                    <td colSpan={8} className="px-3 py-8 text-center">
+                      {loading ? (
+                        <span className="text-xs text-slate-500">Loading…</span>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-xs text-slate-500">No incidents yet.</p>
+                          <button type="button" className="z-btn-primary text-xs" onClick={() => openRecordModal()}>
+                            Record material incident
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </AppTableTr>
                 ) : (
@@ -214,7 +215,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
                       <td className="px-3 py-2 text-xs">{r.dateISO}</td>
                       <td className="px-3 py-2 text-xs font-mono font-semibold">{r.id}</td>
                       <td className="px-3 py-2 text-xs">{incidentTypeLabel(r.incidentType)}</td>
-                      <td className="px-3 py-2 text-[10px]">
+                      <td className="px-3 py-2 text-ui-xs">
                         {r.quotationRef || '—'}
                         {r.productionJobId ? ` · ${r.productionJobId}` : ''}
                       </td>
@@ -224,7 +225,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
                       </td>
                       <td className="px-3 py-2 text-xs">{INCIDENT_STATUS_LABEL[r.status] || r.status}</td>
                       <td className="px-3 py-2 text-right">
-                        <button type="button" className="text-[10px] font-bold text-sky-800 underline" onClick={() => openIncident(r.id)}>
+                        <button type="button" className="text-ui-xs font-bold text-sky-800 underline" onClick={() => openIncident(r.id)}>
                           Open
                         </button>
                       </td>
@@ -239,13 +240,13 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
 
       {view === 'new' && (
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 max-w-3xl">
-          <p className="text-[11px] text-slate-500 leading-relaxed">
+          <p className="text-xs text-slate-500 leading-relaxed">
             Record stain, production error, customer return, or yard offcut. Submit for branch manager approval before
             stock is updated. Print the document for your physical offcut book.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block sm:col-span-2">
-              <span className="text-[10px] font-bold uppercase text-gray-400">Type</span>
+              <span className="text-ui-xs font-bold uppercase text-gray-400">Type</span>
               <select
                 className="z-input w-full mt-1"
                 value={form.incidentType}
@@ -261,8 +262,8 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
           </div>
 
           <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-5 space-y-3">
-            <p className="text-sm font-semibold text-[#134e4a]">{incidentTypeLabel(form.incidentType)}</p>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
+            <p className="text-sm font-semibold text-zarewa-teal">{incidentTypeLabel(form.incidentType)}</p>
+            <p className="text-xs text-slate-600 leading-relaxed">
               {INCIDENT_RECORD_HINTS[form.incidentType] || INCIDENT_RECORD_HINTS.coil_stain}
             </p>
             <button type="button" className="z-btn-primary" onClick={() => openRecordModal()}>
@@ -328,27 +329,27 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
                   </div>
                 </div>
                 {coilDamage && preview?.kgDeducted != null ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className="rounded-lg bg-white px-2 py-1.5">
-                      <span className="text-[9px] font-bold uppercase text-slate-400">Before kg</span>
+                      <span className="text-ui-xs font-bold uppercase text-slate-400">Before kg</span>
                       <p className="font-mono font-bold">{r.beforeKg != null ? Number(r.beforeKg).toFixed(0) : '—'}</p>
                     </div>
                     <div className="rounded-lg bg-white px-2 py-1.5">
-                      <span className="text-[9px] font-bold uppercase text-slate-400">After kg</span>
+                      <span className="text-ui-xs font-bold uppercase text-slate-400">After kg</span>
                       <p className="font-mono font-bold">{r.afterKg != null ? Number(r.afterKg).toFixed(0) : '—'}</p>
                     </div>
                     <div className="rounded-lg bg-white px-2 py-1.5">
-                      <span className="text-[9px] font-bold uppercase text-slate-400">Kg removed</span>
+                      <span className="text-ui-xs font-bold uppercase text-slate-400">Kg removed</span>
                       <p className="font-mono font-bold">{preview.kgDeducted.toFixed(2)}</p>
                     </div>
                     <div className="rounded-lg bg-white px-2 py-1.5">
-                      <span className="text-[9px] font-bold uppercase text-slate-400">Conversion</span>
+                      <span className="text-ui-xs font-bold uppercase text-slate-400">Conversion</span>
                       <p className="font-mono font-bold">{fmtConv2(preview.actualConversionKgPerM, { suffix: 'kg/m' })}</p>
                     </div>
                   </div>
                 ) : null}
                 {r.storekeeperRemark ? (
-                  <p className="text-[11px] text-slate-600">{r.storekeeperRemark}</p>
+                  <p className="text-xs text-slate-600">{r.storekeeperRemark}</p>
                 ) : null}
                 {canApprove ? (
                   <div className="flex flex-wrap gap-2 items-end">
@@ -375,7 +376,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
 
       {view === 'pool' && (
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-[#134e4a] mb-2">
+          <p className="text-sm font-semibold text-zarewa-teal mb-2">
             Pool available: {Number(materialPoolSummary?.totalMetersAvailable ?? 0).toFixed(2)} m
             <span className="text-slate-500 font-normal text-xs ml-2">
               (incidents {Number(materialPoolSummary?.incidentMetersAvailable ?? 0).toFixed(2)} + legacy{' '}
@@ -429,7 +430,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
       <PageHeader
         title="Material exceptions"
         subtitle="Offcut control, returns, stains, and production losses — branch manager approval required."
-        icon={<ClipboardList className="text-[#134e4a]" />}
+        icon={<ClipboardList className="text-zarewa-teal" />}
         actions={
           <Link to="/operations" className="z-btn-secondary text-xs no-underline">
             Back to operations
