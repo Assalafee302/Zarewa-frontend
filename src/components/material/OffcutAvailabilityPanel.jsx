@@ -11,13 +11,22 @@ export default function OffcutAvailabilityPanel({ gaugeLabel, colour, minMeters 
     const g = String(gaugeLabel || '').trim();
     const c = String(colour || '').trim();
     if (!g || !c) {
-      setRows([]);
+      // Fresh [] !== previous [] under Object.is — bail out to avoid #185 if parent re-renders often.
+      setRows((prev) => (prev.length ? [] : prev));
       return;
     }
-    const q = new URLSearchParams({ gauge: g, colour: c, minMeters: String(minMeters || 0), status: 'posted' });
+    const q = new URLSearchParams({
+      gauge: g,
+      colour: c,
+      minMeters: String(minMeters || 0),
+      status: 'posted',
+    });
+    let cancelled = false;
     void apiFetch(`/api/material-incidents?${q}`).then(({ ok, data }) => {
-      if (ok && Array.isArray(data?.rows)) setRows(data.rows.filter((r) => (r.metersAvailable ?? 0) > 0));
-      else {
+      if (cancelled) return;
+      if (ok && Array.isArray(data?.rows)) {
+        setRows(data.rows.filter((r) => (r.metersAvailable ?? 0) > 0));
+      } else {
         const pool = materialPoolSummary?.incidents ?? [];
         setRows(
           pool.filter(
@@ -29,6 +38,9 @@ export default function OffcutAvailabilityPanel({ gaugeLabel, colour, minMeters 
         );
       }
     });
+    return () => {
+      cancelled = true;
+    };
   }, [gaugeLabel, colour, minMeters, materialPoolSummary]);
 
   if (!gaugeLabel || !colour) return null;
@@ -42,7 +54,9 @@ export default function OffcutAvailabilityPanel({ gaugeLabel, colour, minMeters 
 
   return (
     <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-      <p className="text-ui-xs font-black uppercase tracking-wide text-zarewa-teal mb-2">Offcut availability (guidance)</p>
+      <p className="text-ui-xs font-black uppercase tracking-wide text-zarewa-teal mb-2">
+        Offcut availability (guidance)
+      </p>
       <ul className="space-y-1 text-ui-xs text-slate-700">
         {rows.slice(0, 8).map((r) => (
           <li key={r.id} className="flex justify-between gap-2">

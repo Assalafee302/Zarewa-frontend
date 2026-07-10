@@ -270,6 +270,15 @@ function quotationHydrateSignature(editData) {
   ].join('\u0000');
 }
 
+function treasuryAccountListSame(a, b) {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (String(a[i]?.id ?? '') !== String(b[i]?.id ?? '')) return false;
+  }
+  return true;
+}
+
 /** @param {unknown} raw */
 function normalizeLoadedLines(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -888,6 +897,13 @@ const QuotationModal = ({
     () => (Array.isArray(ws?.snapshot?.pricingRidgeAddOns) ? ws.snapshot.pricingRidgeAddOns : []),
     [ws?.snapshot?.pricingRidgeAddOns]
   );
+  const quotationBranchId = useMemo(
+    () =>
+      String(
+        editData?.branchId ?? ws?.session?.currentBranchId ?? ws?.session?.branchId ?? ''
+      ).trim(),
+    [editData?.branchId, ws?.session?.currentBranchId, ws?.session?.branchId]
+  );
   const [ridgeAddOnsFallback, setRidgeAddOnsFallback] = useState([]);
   const ridgeAddOnsEffective = useMemo(
     () => (pricingRidgeAddOns.length ? pricingRidgeAddOns : ridgeAddOnsFallback),
@@ -1149,10 +1165,12 @@ const QuotationModal = ({
     const narrowed = filtered.length ? filtered : base;
     return [...narrowed].sort((a, b) => compareSelectLabels(a.label, b.label));
   }, [
-    liveMasterData,
+    liveMasterData?.colours,
+    liveMasterData?.materialTypes,
+    liveMasterData?.priceList,
     materialTypeId,
     priceListItems,
-    editData?.branchId,
+    quotationBranchId,
   ]);
 
   const quoteItemRowsActive = useMemo(
@@ -1340,7 +1358,8 @@ const QuotationModal = ({
       const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
         materialKey: priceListMaterialKeyFromMeta(selectedMaterialTypeMeta),
         gaugeMm: materialGauge,
-        branchId: String(editData?.branchId ?? '').trim(),
+        // Must match resolveUnitPrice — empty branchId makes workbook lookup always miss.
+        branchId: quotationBranchId,
         designLabel: materialDesign,
       });
       if (!hit?.floorPerMeter) return null;
@@ -1354,7 +1373,7 @@ const QuotationModal = ({
       selectedMaterialTypeMeta,
       materialGauge,
       materialDesign,
-      editData?.branchId,
+      quotationBranchId,
     ]
   );
 
@@ -1364,9 +1383,7 @@ const QuotationModal = ({
       if (!name) return 0;
 
       const materialKey = priceListMaterialKeyFromMeta(selectedMaterialTypeMeta);
-      const branchId = String(
-        editData?.branchId ?? ws?.session?.currentBranchId ?? ws?.session?.branchId ?? ''
-      ).trim();
+      const branchId = quotationBranchId;
       const wbCtx = {
         materialPricingRows,
         ridgeAddOns: ridgeAddOnsEffective,
@@ -1462,7 +1479,7 @@ const QuotationModal = ({
       priceListRows,
       materialGauge,
       materialDesign,
-      editData?.branchId,
+      quotationBranchId,
       selectedGaugeMeta,
       selectedColourMeta,
       selectedProfileMeta,
@@ -1514,7 +1531,7 @@ const QuotationModal = ({
     materialDesign,
     materialPricingRows,
     ridgeAddOnsEffective,
-    editData?.branchId,
+    quotationBranchId,
     refreshWorkbookProductPrices,
   ]);
 
@@ -1576,8 +1593,7 @@ const QuotationModal = ({
     if (lastQuotationHydrateSigRef.current === quotationHydrateSig) return;
     lastQuotationHydrateSigRef.current = quotationHydrateSig;
     skipWorkbookPriceRefreshRef.current = true;
-
-    prevMaterialTypeIdForStoneRef.current = String(editData?.materialTypeId ?? '').trim();
+    prevMaterialTypeIdForStoneRef.current = null;
 
     setApplyAdvanceAmount('');
     setApplyAdvanceHint(null);
@@ -1589,7 +1605,7 @@ const QuotationModal = ({
     setCustomerListOpen(false);
     setQuotationEditType('');
     const list = treasuryPayAccountsLive;
-    setTreasuryPayAccounts(list);
+    setTreasuryPayAccounts((prev) => (treasuryAccountListSame(prev, list) ? prev : list));
     setPaymentAccountId((prev) => {
       const ok = list.some((a) => String(a.id) === String(prev));
       if (ok) return prev;
@@ -1613,7 +1629,7 @@ const QuotationModal = ({
       setAccessoryRows([emptyOrderLine()]);
       setServiceRows([emptyOrderLine()]);
     }
-  }, [isOpen, quotationHydrateSig, customers, treasuryPayAccountsLive, editData]);
+  }, [isOpen, quotationHydrateSig, editData]);
 
   /** Stone-coated: strip incompatible lines / reset header when material type changes. */
   const productRowsRef = useRef(productRows);
@@ -1623,8 +1639,13 @@ const QuotationModal = ({
 
   useEffect(() => {
     if (!isOpen || readOnly) return;
-    const prev = prevMaterialTypeIdForStoneRef.current;
     const next = String(materialTypeId ?? '').trim();
+    const prev = prevMaterialTypeIdForStoneRef.current;
+    // First paint after hydrate/open: sync ref only — do not treat as a user material switch.
+    if (prev == null) {
+      prevMaterialTypeIdForStoneRef.current = next;
+      return;
+    }
     if (prev === next) return;
 
     const prevInv = String(
@@ -1735,7 +1756,7 @@ const QuotationModal = ({
   useEffect(() => {
     if (!isOpen) return;
     const list = treasuryPayAccountsLive;
-    setTreasuryPayAccounts(list);
+    setTreasuryPayAccounts((prev) => (treasuryAccountListSame(prev, list) ? prev : list));
     setPaymentAccountId((prev) => {
       const ok = list.some((a) => String(a.id) === String(prev));
       if (ok) return prev;
@@ -1746,21 +1767,21 @@ const QuotationModal = ({
   useEffect(() => {
     if (!materialDesign) return;
     const ok = profileOptions.some((p) => p.value === materialDesign);
-    if (!ok) setMaterialDesign('');
+    if (!ok) setMaterialDesign((prev) => (prev === '' ? prev : ''));
   }, [materialTypeId, profileOptions, materialDesign]);
 
   useEffect(() => {
     if (!materialGauge) return;
     if (!gaugeOptions.length) return;
     const ok = gaugeOptions.some((g) => String(g.value) === String(materialGauge));
-    if (!ok) setMaterialGauge('');
+    if (!ok) setMaterialGauge((prev) => (prev === '' ? prev : ''));
   }, [materialTypeId, gaugeOptions, materialGauge]);
 
   useEffect(() => {
     if (!materialColor) return;
     if (!colourOptions.length) return;
     const ok = colourOptions.some((c) => String(c.value) === String(materialColor));
-    if (!ok) setMaterialColor('');
+    if (!ok) setMaterialColor((prev) => (prev === '' ? prev : ''));
   }, [materialTypeId, colourOptions, materialColor]);
 
   useEffect(() => {

@@ -2520,6 +2520,24 @@ class SalesRouteErrorBoundary extends React.Component {
     console.error('Sales route crashed during render.', error, info?.componentStack);
   }
 
+  async hardResetAppShell() {
+    try {
+      if (typeof caches !== 'undefined') {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      if (typeof navigator !== 'undefined' && navigator.serviceWorker?.getRegistrations) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+    } catch {
+      /* ignore */
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set('_cb', String(Date.now()));
+    window.location.replace(url.toString());
+  }
+
   render() {
     if (this.state.hasError) {
       const buildId = typeof __ZAREWA_BUILD_ID__ !== 'undefined' ? __ZAREWA_BUILD_ID__ : '';
@@ -2528,19 +2546,26 @@ class SalesRouteErrorBoundary extends React.Component {
           <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !p-6">
             <h2 className="text-lg font-bold text-zarewa-teal">Sales temporarily unavailable</h2>
             <p className="mt-2 text-sm text-slate-600">
-              A screen error occurred while loading Sales. Hard refresh (Ctrl+Shift+R). If this persists, share the
-              time and build id with support.
+              A screen error occurred while loading Sales. Use <strong>Clear cache &amp; reload</strong> below (or
+              Ctrl+Shift+R). If this persists, share the time and build stamp with support.
             </p>
             {buildId ? (
               <p className="mt-2 text-ui-xs font-mono text-slate-500">
-                Build: <code>{buildId}</code> · desk-fix-2026-07-10d
+                Build: <code>{buildId}</code> · desk-fix-2026-07-10e
               </p>
             ) : (
-              <p className="mt-2 text-ui-xs font-mono text-slate-500">desk-fix-2026-07-10d (build id missing)</p>
+              <p className="mt-2 text-ui-xs font-mono text-slate-500">desk-fix-2026-07-10e (build id missing)</p>
             )}
             {this.state.message ? (
               <p className="mt-2 text-ui-xs font-mono text-slate-500 break-all">{this.state.message}</p>
             ) : null}
+            <button
+              type="button"
+              className="mt-4 inline-flex items-center rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-semibold uppercase tracking-wider text-white shadow-sm hover:brightness-105"
+              onClick={() => void this.hardResetAppShell()}
+            >
+              Clear cache &amp; reload
+            </button>
           </MainPanel>
         </PageShell>
       );
