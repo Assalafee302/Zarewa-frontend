@@ -437,9 +437,11 @@ const Sales = () => {
     }
 
     yardRegister.forEach((y) => {
-      if (seenIds.has(y.id)) return;
+      if (!y || typeof y !== 'object' || seenIds.has(y.id)) return;
+      const kgNum = Number(y.weightKg);
+      if (!Number.isFinite(kgNum) || kgNum <= 0) return;
       const gNum = firstGaugeNumeric(y.gaugeLabel);
-      const estM = roughMetersFromKg(y.weightKg, gNum);
+      const estM = roughMetersFromKg(kgNum, gNum);
       const yColour = String(y.colour || '').trim();
       pushRow({
         id: y.id,
@@ -447,8 +449,8 @@ const Sales = () => {
         colourRaw: yColour,
         gaugeLabel: y.gaugeLabel,
         materialType: y.materialType,
-        kg: y.weightKg,
-        kgDisplay: `${y.weightKg.toLocaleString()} kg`,
+        kg: kgNum,
+        kgDisplay: `${kgNum.toLocaleString()} kg`,
         estMeters: estM,
         loc: y.loc ?? 'Yard register',
         low: false,
