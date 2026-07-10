@@ -1038,6 +1038,30 @@ const CORE_HELP_ARTICLES = [
     ],
   },
   {
+    id: 'finish-roll-coil-correction',
+    title: 'Roll finished blocks or affects coil correction',
+    keywords: [
+      'roll finished',
+      'finish roll tail',
+      'automated coil correction cannot safely reverse',
+      'tail on completion',
+      'save correction roll finished',
+      'finish coil correction',
+    ],
+    answer:
+      'If **Roll finished** was ticked at Complete, the residual spool/core tail was cleared from coil stock. **Save correction** now reverses that tail and re-applies your corrected opening/closing/metres. Leave **Roll finished** unchecked on the correction if steel should stay on the roll; tick it again only if the tail should still be cleared.',
+    steps: [
+      'Open the completed job → Edit register → Fix wrong entry / edit coil lines.',
+      'Correct opening, closing, and metres.',
+      'Uncheck **Roll finished** unless the roll is truly finished and the tail should leave stock again.',
+      'Save correction with a 12+ character reason (Edit OKs if your role requires it).',
+      'Confirm Coil Profile on-hand matches the corrected closing (or zero if finish-roll was re-applied).',
+    ],
+    links: [
+      { label: 'Operations · Production', to: '/operations', state: { focusOpsTab: 'production' } },
+    ],
+  },
+  {
     id: 'sales-expense-request',
     title: 'Sales expense requests (not Finance-only)',
     keywords: [

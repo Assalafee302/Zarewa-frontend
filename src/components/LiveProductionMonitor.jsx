@@ -2187,6 +2187,7 @@ export function LiveProductionMonitor({
               closingWeightKg: parseWholeKgInput(row.closingWeightKg) || 0,
               metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
               note: String(row.note ?? '').trim(),
+              ...(row.finishCoil ? { finishCoil: true } : {}),
               ...(withAck ? { specMismatchAcknowledged: true } : {}),
             })),
           offcutInventoryMeters: offcutInventoryMetersNum,
@@ -3012,7 +3013,7 @@ export function LiveProductionMonitor({
                       type="button"
                       onClick={() => void persist('completedCoilCorrection')}
                       disabled={savingAction !== '' || !completedCoilCorrectionSaveReady}
-                      title="Correct coil, opening/closing kg, or metres after completion. Requires a 12+ character reason. Adjusts stock; does not reverse posted GL automatically."
+                      title="Correct coil, opening/closing kg, or metres after completion. Requires a 12+ character reason. Also reverses finish-roll tails when Roll finished was ticked. Adjusts stock; does not reverse posted GL automatically."
                       className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors disabled:opacity-45 ${
                         savingAction === 'completedCoilCorrection'
                           ? 'bg-amber-100 text-amber-900'
