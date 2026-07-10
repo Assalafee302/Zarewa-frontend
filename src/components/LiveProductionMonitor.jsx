@@ -3000,7 +3000,7 @@ export function LiveProductionMonitor({
                           ? undefined
                           : completionValidation.errors[0] || 'Complete all run-log fields before completion.'
                     }
-                    className="inline-flex items-center gap-1 rounded-md bg-zarewa-teal px-2 py-1 text-xs font-semibold text-white hover:bg-[#0f3d39] disabled:opacity-45"
+                    className="inline-flex items-center gap-1 rounded-md bg-zarewa-teal px-2 py-1 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-45"
                   >
                     <CheckCircle2 size={13} />
                     {savingAction === 'complete' ? 'Completing…' : 'Complete'}
@@ -4764,7 +4764,7 @@ export function LiveProductionMonitor({
                       ? undefined
                       : completionValidation.errors[0] || 'Complete all run-log fields before completion.'
                 }
-                className="inline-flex items-center gap-0.5 rounded-md bg-zarewa-teal px-2 py-0.5 text-ui-xs font-semibold text-white hover:bg-[#0f3d39] disabled:opacity-45"
+                className="inline-flex items-center gap-0.5 rounded-md bg-zarewa-teal px-2 py-0.5 text-ui-xs font-semibold text-white hover:brightness-110 disabled:opacity-45"
               >
                 <CheckCircle2 size={12} />
                 {savingAction === 'complete' ? 'Completing…' : 'Complete'}
@@ -4822,104 +4822,29 @@ export function LiveProductionMonitor({
         }}
       />
 
-      {returnModalOpen ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="return-to-plan-title"
-        >
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-amber-200 bg-white p-4 shadow-xl">
-            <h4 id="return-to-plan-title" className="text-sm font-bold text-amber-950">
-              Return job to plan?
-            </h4>
-            <p className="mt-2 text-xs leading-snug text-slate-600">
-              This undoes <strong className="font-semibold">Start</strong> only. Coil reservations stay as saved; you can
-              then change allocation and save again. Use a clear reason — it is stored in the audit log.
-            </p>
-            <label className="mt-3 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-              Reason (≥8 characters)
-            </label>
-            <textarea
-              value={returnReason}
-              onChange={(e) => setReturnReason(e.target.value)}
-              rows={3}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-amber-200"
-              placeholder="e.g. Wrong coil selected — need to swap CL-12 for CL-15 before run."
-            />
-            <div className="mt-3 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                onClick={() => {
-                  setReturnModalOpen(false);
-                  setReturnReason('');
-                }}
-                disabled={returnSaving}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={returnSaving || returnReason.trim().length < 8}
-                onClick={() => void submitReturnToPlanned()}
-                className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-45"
-              >
-                {returnSaving ? 'Applying…' : 'Confirm return to plan'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <LiveProductionMonitorReturnModal
+        open={returnModalOpen}
+        reason={returnReason}
+        saving={returnSaving}
+        onReasonChange={setReturnReason}
+        onClose={() => {
+          setReturnModalOpen(false);
+          setReturnReason('');
+        }}
+        onConfirm={submitReturnToPlanned}
+      />
 
-      {cancelModalOpen ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="cancel-job-title"
-        >
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-rose-200 bg-white p-4 shadow-xl">
-            <h4 id="cancel-job-title" className="text-sm font-bold text-rose-950">
-              Cancel production job?
-            </h4>
-            <p className="mt-2 text-xs leading-snug text-slate-600">
-              This ends the run without posting output: <strong className="font-semibold">coil reservations are released</strong>, allocations are cleared, the job is marked <strong className="font-semibold">Cancelled</strong>, and the cutting list returns to <strong className="font-semibold">Waiting</strong>. Use for order cancellations (refunds may reference this record).
-            </p>
-            <label className="mt-3 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-              Reason (≥8 characters)
-            </label>
-            <textarea
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              rows={3}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-rose-200"
-              placeholder="e.g. Customer cancelled order — no production to run."
-            />
-            <div className="mt-3 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                onClick={() => {
-                  setCancelModalOpen(false);
-                  setCancelReason('');
-                }}
-                disabled={cancelSaving}
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                disabled={cancelSaving || cancelReason.trim().length < 8}
-                onClick={() => void submitCancelJob()}
-                className="rounded-md bg-rose-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-800 disabled:opacity-45"
-              >
-                {cancelSaving ? 'Cancelling…' : 'Confirm cancel'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <LiveProductionMonitorCancelModal
+        open={cancelModalOpen}
+        reason={cancelReason}
+        saving={cancelSaving}
+        onReasonChange={setCancelReason}
+        onClose={() => {
+          setCancelModalOpen(false);
+          setCancelReason('');
+        }}
+        onConfirm={submitCancelJob}
+      />
 
       {correctionModalKind ? (
         <ProductionRegisterCorrectionModal

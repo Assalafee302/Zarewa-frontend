@@ -218,7 +218,7 @@ export function AccountTabPanels() {
                       <button
                         type="button"
                         onClick={() => handleAccountTabChange('desk')}
-                        className="text-[10px] font-bold uppercase tracking-wide text-white bg-zarewa-teal hover:bg-[#0f3d3a] px-3 py-1.5 rounded-lg"
+                        className="text-ui-xs font-bold uppercase tracking-wide text-white bg-zarewa-teal hover:brightness-110 px-3 py-1.5 rounded-lg"
                       >
                         Finance desk
                       </button>
@@ -238,13 +238,13 @@ export function AccountTabPanels() {
                       <h3 className="text-xs font-bold uppercase tracking-widest text-zarewa-teal">
                         Receipts confirmation & reconciliation
                       </h3>
-                      <p className="text-[10px] text-slate-600 mt-1 max-w-3xl leading-relaxed">
+                      <p className="text-ui-xs text-slate-600 mt-1 max-w-3xl leading-relaxed">
                         Confirm sales receipts, register unknown bank inflows, then match daily bank lines.
                       </p>
                     </div>
                   </div>
                   {filteredSalesReceipts.length === 0 ? (
-                    <p className="text-[10px] text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
+                    <p className="text-ui-xs text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
                       No receipts in this branch scope.
                     </p>
                   ) : (
@@ -258,7 +258,7 @@ export function AccountTabPanels() {
                             />
                             <input
                               type="search"
-                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-2 text-[10px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
+                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-2 text-ui-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                               placeholder="Search receipts…"
                               value={receiptsTableSearch}
                               onChange={(e) => setReceiptsTableSearch(e.target.value)}
@@ -270,7 +270,7 @@ export function AccountTabPanels() {
                           <select
                             value={receiptsSortKey}
                             onChange={(e) => setReceiptsSortKey(e.target.value)}
-                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15"
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-ui-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                           >
                             <option value="date">Receipt date</option>
                             <option value="id">Receipt id</option>
@@ -306,7 +306,7 @@ export function AccountTabPanels() {
                             </button>
                           ) : null}
                         </div>
-                        <div className="text-[10px] text-slate-600 tabular-nums">
+                        <div className="text-ui-xs text-slate-600 tabular-nums">
                           {sortedFilteredSalesReceipts.length} receipt
                           {sortedFilteredSalesReceipts.length !== 1 ? 's' : ''} in view
                         </div>
@@ -315,14 +315,14 @@ export function AccountTabPanels() {
                       <section className="space-y-2 min-w-0">
                         <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200/70 bg-amber-50/65 px-3 py-2">
                           <div>
-                            <p className="text-[10px] font-black uppercase tracking-wide text-amber-900">
+                            <p className="text-ui-xs font-black uppercase tracking-wide text-amber-900">
                               Pending clearance
                             </p>
                             <p className="text-ui-xs text-amber-800/90">
                               Sales recorded these payments — Finance must confirm bank/cash before refunds and cleared balances.
                             </p>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] text-amber-900">
+                          <div className="flex flex-wrap items-center gap-2 text-ui-xs text-amber-900">
                             <span className="tabular-nums">
                               {waitingReceiptsListWindow.total === 0
                                 ? '0 receipts'
@@ -352,7 +352,7 @@ export function AccountTabPanels() {
                           </div>
                         </div>
                         {waitingReceiptsListWindow.total === 0 ? (
-                          <p className="text-[10px] text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
+                          <p className="text-ui-xs text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
                             No waiting receipts.
                           </p>
                         ) : null}
@@ -394,7 +394,7 @@ export function AccountTabPanels() {
                                   ) : null}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 shrink-0">
-                                  <span className="text-[10px] font-bold text-slate-600 tabular-nums">
+                                  <span className="text-ui-xs font-bold text-slate-600 tabular-nums">
                                     Total {formatNgn(cash)}
                                     {Math.round(allocated) !== Math.round(cash) ? (
                                       <span className="text-slate-500 font-semibold"> (quote {formatNgn(allocated)})</span>
@@ -430,14 +430,14 @@ export function AccountTabPanels() {
                       <section className="space-y-2 min-w-0">
                         <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200/70 bg-emerald-50/65 px-3 py-2">
                           <div>
-                            <p className="text-[10px] font-black uppercase tracking-wide text-emerald-900">
+                            <p className="text-ui-xs font-black uppercase tracking-wide text-emerald-900">
                               Confirmed
                             </p>
                             <p className="text-ui-xs text-emerald-800/90">
                               Receipts already confirmed and reconciled by finance.
                             </p>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] text-emerald-900">
+                          <div className="flex flex-wrap items-center gap-2 text-ui-xs text-emerald-900">
                             <span className="tabular-nums">
                               {receiptsListWindow.total === 0
                                 ? '0 receipts'
@@ -467,7 +467,7 @@ export function AccountTabPanels() {
                           </div>
                         </div>
                         {receiptsListWindow.total === 0 ? (
-                          <p className="text-[10px] text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
+                          <p className="text-ui-xs text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
                             No confirmed receipts yet.
                           </p>
                         ) : null}
@@ -509,7 +509,7 @@ export function AccountTabPanels() {
                               ) : null}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 shrink-0">
-                              <span className="text-[10px] font-bold text-slate-600 tabular-nums">
+                              <span className="text-ui-xs font-bold text-slate-600 tabular-nums">
                                 Total {formatNgn(cash)}
                                 {Math.round(allocated) !== Math.round(cash) ? (
                                   <span className="text-slate-500 font-semibold">
@@ -574,7 +574,7 @@ export function AccountTabPanels() {
                       {ws?.hasPermission?.('finance.view') ? (
                         <section className="space-y-3 border-t border-slate-200/80 pt-6">
                           <div>
-                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-zarewa-teal">
+                            <h3 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
                               Daily bank line queue
                             </h3>
                             <p className="text-ui-xs text-slate-600 mt-0.5 max-w-3xl leading-relaxed">
@@ -614,7 +614,7 @@ export function AccountTabPanels() {
                       <button
                         type="button"
                         onClick={() => handleAccountTabChange('desk')}
-                        className="text-[10px] font-bold uppercase tracking-wide text-zarewa-teal underline-offset-2 hover:underline"
+                        className="text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal underline-offset-2 hover:underline"
                       >
                         Back to desk
                       </button>
@@ -623,7 +623,7 @@ export function AccountTabPanels() {
                 />
 
                 {ws?.hasPermission?.('finance.view') && !isCashierRole ? (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-[10px] text-slate-600 leading-relaxed">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-ui-xs text-slate-600 leading-relaxed">
                     Cross-branch treasury funding on{' '}
                     <Link
                       to="/accounting?tab=interBranch"
@@ -751,7 +751,7 @@ export function AccountTabPanels() {
 
                 {needsPaymentsMutateSecondApproval ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 space-y-2">
-                    <p className="text-[10px] text-amber-950 font-semibold leading-snug">
+                    <p className="text-ui-xs text-amber-950 font-semibold leading-snug">
                       Officer / finance roles: rollout delete and payment-request or refund payout reversal need the KPI
                       gate below. Request an edit approval from a manager for the same expense, payment request, or
                       refund ID, then paste the code.
@@ -790,7 +790,7 @@ export function AccountTabPanels() {
                       <h3 className="text-xs font-bold uppercase tracking-widest text-zarewa-teal">
                         Posted treasury outflows
                       </h3>
-                      <p className="text-[10px] text-slate-600 mt-0.5 max-w-3xl leading-snug">
+                      <p className="text-ui-xs text-slate-600 mt-0.5 max-w-3xl leading-snug">
                         Unified register of money leaving bank/cash — purchases, refunds, expense payment requests,
                         transport, AP, and related lines. Sort columns (date, type, description, account, amount,
                         source); <span className="font-semibold text-slate-700">{PAYMENTS_PAGE_SIZE} rows per page</span>
@@ -798,7 +798,7 @@ export function AccountTabPanels() {
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
-                      <span className="text-[10px] font-bold text-slate-500 tabular-nums">
+                      <span className="text-ui-xs font-bold text-slate-500 tabular-nums">
                         {paymentsListWindow.total} line{paymentsListWindow.total === 1 ? '' : 's'}
                         {paymentsListWindow.total > 0
                           ? ` · Showing ${paymentsListWindow.from}–${paymentsListWindow.to}`
@@ -839,8 +839,8 @@ export function AccountTabPanels() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-[10px] font-bold text-slate-400 tabular-nums">#{rowOrdinal}</p>
-                              <p className="text-[10px] font-semibold text-slate-800 line-clamp-2">{row.description}</p>
+                              <p className="text-ui-xs font-bold text-slate-400 tabular-nums">#{rowOrdinal}</p>
+                              <p className="text-ui-xs font-semibold text-slate-800 line-clamp-2">{row.description}</p>
                               <p className="mt-0.5 text-ui-xs text-slate-500">
                                 {String(row.postedAtISO || '').slice(0, 10) || '—'} · {typeLabel}
                               </p>
@@ -858,7 +858,7 @@ export function AccountTabPanels() {
                     })}
                   </ul>
                   <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-sm z-scroll-x">
-                    <table className="min-w-[920px] w-full text-left text-[10px]">
+                    <table className="min-w-[920px] w-full text-left text-ui-xs">
                       <thead className="bg-slate-50 text-ui-xs font-bold uppercase text-slate-500 tracking-wide border-b border-slate-200">
                         <tr>
                           <th className="px-2 py-2 w-10">#</th>
@@ -1090,7 +1090,7 @@ export function AccountTabPanels() {
                       </tbody>
                     </table>
                     {paymentsListWindow.total === 0 ? (
-                      <p className="text-[10px] text-slate-400 px-3 py-6 text-center border-t border-slate-100">
+                      <p className="text-ui-xs text-slate-400 px-3 py-6 text-center border-t border-slate-100">
                         No treasury outflows match this filter (or workspace has no posted payment lines yet).
                       </p>
                     ) : null}
@@ -1098,7 +1098,7 @@ export function AccountTabPanels() {
                 </section>
 
                 <details className="rounded-lg border border-slate-200/80 bg-white/50 px-3 py-2 group">
-                  <summary className="text-[10px] font-bold uppercase tracking-wide text-zarewa-teal cursor-pointer list-none flex items-center gap-2">
+                  <summary className="text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal cursor-pointer list-none flex items-center gap-2">
                     <span className="group-open:rotate-90 transition-transform text-slate-400">▸</span>
                     Payment request pipeline &amp; expense cards (detail)
                   </summary>
@@ -1245,7 +1245,7 @@ export function AccountTabPanels() {
                     ) : null}
                   </div>
                   {disbursementsVisiblePayRequests.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
+                    <p className="text-ui-xs text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
                       {disbursementsPayRequestQueue === 'exceptions'
                         ? 'No finance exception payment requests match this filter.'
                         : 'No payment requests match this filter.'}
@@ -1413,15 +1413,15 @@ export function AccountTabPanels() {
                     <h3 className="text-xs font-bold uppercase tracking-widest text-zarewa-teal">
                       Archived rejected expense requests
                     </h3>
-                    <span className="text-[10px] font-bold text-slate-500 tabular-nums">
+                    <span className="text-ui-xs font-bold text-slate-500 tabular-nums">
                       {disbursementsArchivedRejectedPayRequests.length} archived
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-ui-xs text-slate-500">
                     Rejected requests are hidden from active payout flow and kept here as archived history.
                   </p>
                   {disbursementsArchivedRejectedPayRequests.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
+                    <p className="text-ui-xs text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
                       No rejected expense requests in archive.
                     </p>
                   ) : (
@@ -1545,7 +1545,7 @@ export function AccountTabPanels() {
                     <button
                       type="button"
                       onClick={() => handleAccountTabChange('receipts')}
-                      className="text-[10px] font-bold uppercase tracking-wide text-zarewa-teal underline-offset-2 hover:underline"
+                      className="text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal underline-offset-2 hover:underline"
                     >
                       Receipts & recon
                     </button>
@@ -1594,7 +1594,7 @@ export function AccountTabPanels() {
                         <CheckCircle2 className="shrink-0 text-emerald-500" size={18} />
                         <div>
                           <p className="text-xs font-bold text-gray-800">{row.title}</p>
-                          <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">{row.detail}</p>
+                          <p className="text-ui-xs text-gray-500 mt-1 leading-relaxed">{row.detail}</p>
                         </div>
                       </div>
                     ))}
@@ -1609,7 +1609,7 @@ export function AccountTabPanels() {
                   />
                 ) : null}
 
-                <p className="text-[10px] text-slate-600 rounded-lg border border-slate-200/60 bg-slate-50/80 px-3 py-2">
+                <p className="text-ui-xs text-slate-600 rounded-lg border border-slate-200/60 bg-slate-50/80 px-3 py-2">
                   Customer receipt settlement is on the{' '}
                   <button
                     type="button"
@@ -1670,7 +1670,7 @@ export function AccountTabPanels() {
                 </div>
 
                 <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md p-4 text-xs text-gray-600 leading-relaxed shadow-sm">
-                  <p className="font-black text-zarewa-teal uppercase tracking-wider text-[10px] mb-2">
+                  <p className="font-black text-zarewa-teal uppercase tracking-wider text-ui-xs mb-2">
                     Accounting basis
                   </p>
                   Double-entry posting, accrual recognition, revenue on delivery or billing, and expense
