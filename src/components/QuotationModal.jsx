@@ -1188,6 +1188,11 @@ const QuotationModal = ({
     [quoteItemRowsActive]
   );
 
+  const hasFlatSheetLine = useMemo(
+    () => (isStoneMeter ? quotationHasFlatSheetLine(productRows) : false),
+    [isStoneMeter, productRows]
+  );
+
   const productOptions = useMemo(() => {
     const fromMasterOnly = mergeQuoteLineOptions('product', []);
     if (!isStoneMeter) {
@@ -1196,9 +1201,8 @@ const QuotationModal = ({
         : mergeQuoteLineOptions('product', DEFAULT_PRODUCT_ITEMS);
     }
     const base = mergeQuoteLineOptions('product', DEFAULT_PRODUCT_ITEMS);
-    const hasFlat = quotationHasFlatSheetLine(productRows);
-    return base.filter((row) => productLineAllowedForStone(row.name, hasFlat));
-  }, [mergeQuoteLineOptions, isStoneMeter, productRows]);
+    return base.filter((row) => productLineAllowedForStone(row.name, hasFlatSheetLine));
+  }, [mergeQuoteLineOptions, isStoneMeter, hasFlatSheetLine]);
   const stoneFlatsheetQuotationIssues = useMemo(() => {
     if (!isStoneMeter) return [];
     const issues = [];
@@ -1485,14 +1489,38 @@ const QuotationModal = ({
           row.girthMm || (isQuotationTrimProductLine(name) ? String(defaultGirthMmForTrimProduct(name)) : '');
         const price = resolveUnitPrice(name, option, { girthMm });
         if (!(price > 0)) return row;
-        anyChange = true;
         const wbMeta = resolveWorkbookLineMeta(name);
+        const nextGirthMm =
+          isQuotationTrimProductLine(name) && !row.girthMm && girthMm ? girthMm : row.girthMm;
+        const nextUnit = String(price);
+        const nextFloorStr = wbMeta?.floorPerMeter != null ? String(wbMeta.floorPerMeter) : '';
+        const nextRecStr =
+          wbMeta?.suggestedListPerMeter != null ? String(wbMeta.suggestedListPerMeter) : '';
+        const prevFloorStr =
+          row.floorPricePerMeter != null && row.floorPricePerMeter !== ''
+            ? String(row.floorPricePerMeter)
+            : '';
+        const prevRecStr =
+          row.recommendedPricePerMeter != null && row.recommendedPricePerMeter !== ''
+            ? String(row.recommendedPricePerMeter)
+            : '';
+        if (
+          String(row.unitPrice ?? '') === nextUnit &&
+          String(row.girthMm ?? '') === String(nextGirthMm ?? '') &&
+          prevFloorStr === (nextFloorStr || prevFloorStr) &&
+          prevRecStr === (nextRecStr || prevRecStr)
+        ) {
+          return row;
+        }
+        anyChange = true;
         return {
           ...row,
-          unitPrice: String(price),
-          ...(isQuotationTrimProductLine(name) && !row.girthMm && girthMm ? { girthMm } : {}),
+          unitPrice: nextUnit,
+          ...(nextGirthMm && nextGirthMm !== row.girthMm ? { girthMm: nextGirthMm } : {}),
           ...(wbMeta?.floorPerMeter ? { floorPricePerMeter: wbMeta.floorPerMeter } : {}),
-          ...(wbMeta?.suggestedListPerMeter ? { recommendedPricePerMeter: wbMeta.suggestedListPerMeter } : {}),
+          ...(wbMeta?.suggestedListPerMeter
+            ? { recommendedPricePerMeter: wbMeta.suggestedListPerMeter }
+            : {}),
         };
       });
       return anyChange ? next : prev;
