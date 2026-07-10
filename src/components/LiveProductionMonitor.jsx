@@ -112,6 +112,7 @@ import {
   formatPct,
   postedCheckRowClass,
   statusTone,
+  stockRecalcSuffix,
   suggestedOpeningKgFromFree,
   supplierNominalMetres,
 } from '../lib/liveProductionMonitorUi';
