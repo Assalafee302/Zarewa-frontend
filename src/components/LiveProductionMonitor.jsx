@@ -118,7 +118,7 @@ import {
 } from '../lib/liveProductionMonitorUi';
 
 /**
- * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean; operationsRegisterEdit?: boolean; onRegisterHeaderMeta?: (meta: { status?: string; quotationRef?: string; machineName?: string; materialLabel?: string } | null) => void }} [props]
+ * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean; operationsRegisterEdit?: boolean; initialRecallIntent?: boolean; onRegisterHeaderMeta?: (meta: { status?: string; quotationRef?: string; machineName?: string; materialLabel?: string } | null) => void }} [props]
  */
 export function LiveProductionMonitor({
   focusCuttingListId = null,
@@ -128,6 +128,7 @@ export function LiveProductionMonitor({
   onModalClose = null,
   showModalCloseButton = true,
   operationsRegisterEdit = false,
+  initialRecallIntent = false,
   onRegisterHeaderMeta = null,
 } = {}) {
   const ws = useWorkspace();
@@ -149,6 +150,12 @@ export function LiveProductionMonitor({
   const [materialIncidentModalOpen, setMaterialIncidentModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelSaving, setCancelSaving] = useState(false);
+  /** When cancel/return opened via Recall entry — clearer modal copy. */
+  const [recallModalIntent, setRecallModalIntent] = useState(false);
+  /** Highlight completed-job correction guidance after Fix wrong entry. */
+  const [showCompletedFixGuidance, setShowCompletedFixGuidance] = useState(false);
+  const completedFixGuidanceRef = useRef(null);
+  const initialRecallHandledRef = useRef(false);
   const [fgAdjDelta, setFgAdjDelta] = useState('');
   const [fgAdjNote, setFgAdjNote] = useState('');
   const [fgAdjSaving, setFgAdjSaving] = useState(false);
@@ -311,6 +318,8 @@ export function LiveProductionMonitor({
     setReturnReason('');
     setCancelModalOpen(false);
     setCancelReason('');
+    setRecallModalIntent(false);
+    setShowCompletedFixGuidance(false);
     setFgAdjDelta('');
     setFgAdjNote('');
     setStoneAllocAck(false);
@@ -1627,6 +1636,65 @@ export function LiveProductionMonitor({
     Boolean(ws?.hasPermission?.('production.release')) ||
     Boolean(ws?.hasPermission?.('operations.manage')) ||
     Boolean(ws?.hasPermission?.('production.manage'));
+
+  const openRecallEntry = useCallback(() => {
+    if (readOnly || viewOnly) {
+      showToast('This register is view-only.', { variant: 'info' });
+      return;
+    }
+    if (!ws?.canMutate) {
+      showToast('Reconnect to apply changes — workspace is read-only.', { variant: 'error' });
+      return;
+    }
+    if (jobSt === 'Cancelled') {
+      showToast('This job is already cancelled — open Sales to register a new production job if needed.', {
+        variant: 'info',
+      });
+      return;
+    }
+    if (jobSt === 'Planned') {
+      setRecallModalIntent(true);
+      setCancelReason('');
+      setCancelModalOpen(true);
+      return;
+    }
+    if (jobSt === 'Running') {
+      if (!canReturnJobToPlanned) {
+        showToast('You need production.manage (or release / operations.manage) to recall a running job.', {
+          variant: 'error',
+        });
+        return;
+      }
+      setRecallModalIntent(true);
+      setReturnReason('');
+      setReturnModalOpen(true);
+      return;
+    }
+    if (jobSt === 'Completed') {
+      setShowCompletedFixGuidance(true);
+      window.requestAnimationFrame(() => {
+        completedFixGuidanceRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+      });
+      showToast(
+        'Completed jobs cannot be fully reopened. Edit coil lines below and Save correction, or use Post stock correction for warehouse metres.',
+        { variant: 'info' }
+      );
+      return;
+    }
+    showToast('Recall is not available for this job status.', { variant: 'info' });
+  }, [readOnly, viewOnly, ws?.canMutate, jobSt, canReturnJobToPlanned, showToast]);
+
+  useEffect(() => {
+    if (!initialRecallIntent) {
+      initialRecallHandledRef.current = false;
+      return;
+    }
+    if (initialRecallHandledRef.current) return;
+    if (!selectedJob?.jobID) return;
+    initialRecallHandledRef.current = true;
+    openRecallEntry();
+  }, [initialRecallIntent, selectedJob?.jobID, openRecallEntry]);
+
   /** Finished-goods metre corrections after completion — manager / release only (not plain production.manage). */
   const canPostFgCompletionAdjustment =
     Boolean(ws?.hasPermission?.('production.release')) || Boolean(ws?.hasPermission?.('operations.manage'));
@@ -1807,8 +1875,14 @@ export function LiveProductionMonitor({
       }
       setCancelModalOpen(false);
       setCancelReason('');
+      const wasRecall = recallModalIntent;
+      setRecallModalIntent(false);
       await refreshProductionWorkspace();
-      showToast('Job cancelled — coil reservations released; cutting list set to Waiting.');
+      showToast(
+        wasRecall
+          ? 'Entry recalled — cutting list is Waiting. Fix lengths in Sales if needed, then register again. If only coils were wrong, re-register and edit coils on the new Planned job.'
+          : 'Job cancelled — coil reservations released; cutting list set to Waiting.'
+      );
     } catch (e) {
       showToast(e?.message || 'Network error.', { variant: 'error' });
     } finally {
@@ -1840,8 +1914,14 @@ export function LiveProductionMonitor({
       }
       setReturnModalOpen(false);
       setReturnReason('');
+      const wasRecall = recallModalIntent;
+      setRecallModalIntent(false);
       await refreshProductionWorkspace();
-      showToast('Job returned to plan — you can fix coils and save allocation again.');
+      showToast(
+        wasRecall
+          ? 'Run recalled to Planned — fix coils / opening kg, then Save & start and Complete again.'
+          : 'Job returned to plan — you can fix coils and save allocation again.'
+      );
     } catch (e) {
       showToast(e?.message || 'Network error.', { variant: 'error' });
     } finally {
@@ -2765,11 +2845,12 @@ export function LiveProductionMonitor({
                     className="absolute left-0 top-full z-30 mt-1.5 w-[min(calc(100vw-2rem),22rem)] rounded-lg border border-slate-200 bg-white p-2.5 text-ui-xs leading-snug text-slate-700 shadow-lg ring-1 ring-black/5 sm:left-auto sm:right-0"
                   >
                     <p>
-                      Mistakes before start: use Save &amp; start again with the corrected coils. Wrong coil after start:
-                      Return to plan (reason required). Order cancelled: Cancel job (releases reservations, audit reason).
-                      After completion:
-                      record stays; wrong output metres in stock use manager stock correction. Conversion alerts:
-                      manager sign-off.
+                      Wrong entry before start: edit coils on the Planned job, or use{' '}
+                      <strong className="font-semibold">Recall entry</strong> to cancel and release the cutting list
+                      back to Waiting. Wrong coil after start: <strong className="font-semibold">Recall entry</strong>{' '}
+                      (or Return to plan). Order cancelled: Cancel job. After completion: use{' '}
+                      <strong className="font-semibold">Fix wrong entry</strong> / Save correction — the completed
+                      record cannot be fully reopened.
                     </p>
                     <p className="mt-2 border-t border-slate-100 pt-2">
                       <strong className="font-semibold text-slate-800">Changing coils:</strong> while{' '}
@@ -3010,7 +3091,10 @@ export function LiveProductionMonitor({
                   {jobSt === 'Running' && canReturnJobToPlanned ? (
                     <button
                       type="button"
-                      onClick={() => setReturnModalOpen(true)}
+                      onClick={() => {
+                        setRecallModalIntent(false);
+                        setReturnModalOpen(true);
+                      }}
                       disabled={savingAction !== '' || returnSaving}
                       title="Undo Start: go back to Planned so you can change coil allocation (audit reason required)."
                       className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
@@ -3019,10 +3103,31 @@ export function LiveProductionMonitor({
                       Return to plan
                     </button>
                   ) : null}
+                  {jobSt === 'Planned' || jobSt === 'Running' || jobSt === 'Completed' ? (
+                    <button
+                      type="button"
+                      onClick={() => openRecallEntry()}
+                      disabled={savingAction !== '' || cancelSaving || returnSaving}
+                      title={
+                        jobSt === 'Completed'
+                          ? 'Guide to correct a wrong completed entry (Save correction / stock adjustment).'
+                          : jobSt === 'Running'
+                            ? 'Recall run: return to Planned so you can re-enter coils and start again.'
+                            : 'Recall from queue: cancel job so the cutting list returns to Waiting for re-entry.'
+                      }
+                      className="inline-flex items-center gap-1 rounded-md border border-violet-300 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-950 hover:bg-violet-100 disabled:opacity-45"
+                    >
+                      <Undo2 size={13} />
+                      {jobSt === 'Completed' ? 'Fix wrong entry' : 'Recall entry'}
+                    </button>
+                  ) : null}
                   {jobSt === 'Planned' || jobSt === 'Running' ? (
                     <button
                       type="button"
-                      onClick={() => setCancelModalOpen(true)}
+                      onClick={() => {
+                        setRecallModalIntent(false);
+                        setCancelModalOpen(true);
+                      }}
                       disabled={savingAction !== '' || cancelSaving || returnSaving}
                       title="Cancel this job: releases coil reservations and marks production cancelled (order cancellation / refund path)."
                       className="inline-flex items-center gap-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-950 hover:bg-rose-100 disabled:opacity-45"
@@ -3098,6 +3203,36 @@ export function LiveProductionMonitor({
             isStoneMeterQuote={isStoneMeterQuote}
             isOffcutMode={completionUsesOffcutMode}
           />
+        </div>
+      ) : null}
+      {jobSt === 'Completed' && showCompletedFixGuidance && !viewOnly ? (
+        <div
+          ref={completedFixGuidanceRef}
+          className="mx-2 mb-2 rounded-lg border border-violet-300 bg-violet-50/90 p-2.5 sm:mx-2.5 sm:p-3"
+          role="status"
+        >
+          <p className="text-ui-xs font-black uppercase tracking-widest text-violet-900/90">Fix wrong entry</p>
+          <p className="mt-1 text-xs leading-snug text-violet-950/95">
+            Completed jobs cannot be fully recalled. To correct what was saved:
+          </p>
+          <ol className="mt-1.5 list-decimal space-y-1 pl-4 text-xs leading-snug text-violet-950/95">
+            <li>
+              Edit coil lines (coil #, opening/closing kg, metres) above, then{' '}
+              <strong className="font-semibold">Save correction</strong> (reason required; Edit OKs when gated).
+            </li>
+            <li>
+              If warehouse finished-goods metres are still wrong, a manager uses{' '}
+              <strong className="font-semibold">Post stock correction</strong> below.
+            </li>
+            <li>Cutting list lengths stay locked after Finished — only production corrections apply.</li>
+          </ol>
+          <button
+            type="button"
+            className="mt-2 text-ui-xs font-semibold text-violet-800 underline-offset-2 hover:underline"
+            onClick={() => setShowCompletedFixGuidance(false)}
+          >
+            Dismiss
+          </button>
         </div>
       ) : null}
       {productionRegisterIssues.length > 0 ? (
@@ -4648,9 +4783,22 @@ export function LiveProductionMonitor({
       {inModal ? (
         <div className="shrink-0 border-t border-slate-200/90 bg-white/95 px-2 py-1 backdrop-blur-sm sm:px-2.5 sm:py-1.5">
           {readOnly ? (
-            <span className="inline-flex rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-ui-xs font-medium text-slate-600">
-              View only
-            </span>
+            <div className="flex flex-wrap items-center justify-end gap-1">
+              <span className="inline-flex rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-ui-xs font-medium text-slate-600">
+                View only
+              </span>
+              {jobSt === 'Completed' && !viewOnly ? (
+                <button
+                  type="button"
+                  onClick={() => openRecallEntry()}
+                  title="How to correct a wrong completed entry."
+                  className="inline-flex items-center gap-0.5 rounded-md border border-violet-300 bg-violet-50 px-2 py-0.5 text-ui-xs font-semibold text-violet-950 hover:bg-violet-100"
+                >
+                  <Undo2 size={12} />
+                  Fix wrong entry
+                </button>
+              ) : null}
+            </div>
           ) : (
             <div className="flex flex-wrap items-center justify-end gap-1">
               {jobSt === 'Planned' ? (
@@ -4774,13 +4922,34 @@ export function LiveProductionMonitor({
               {jobSt === 'Running' && canReturnJobToPlanned ? (
                 <button
                   type="button"
-                  onClick={() => setReturnModalOpen(true)}
+                  onClick={() => {
+                    setRecallModalIntent(false);
+                    setReturnModalOpen(true);
+                  }}
                   disabled={savingAction !== '' || returnSaving}
                   title="Undo Start: go back to Planned (audit reason required)."
                   className="inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-ui-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
                 >
                   <Undo2 size={12} />
                   Return to plan
+                </button>
+              ) : null}
+              {jobSt === 'Planned' || jobSt === 'Running' || jobSt === 'Completed' ? (
+                <button
+                  type="button"
+                  onClick={() => openRecallEntry()}
+                  disabled={savingAction !== '' || cancelSaving || returnSaving}
+                  title={
+                    jobSt === 'Completed'
+                      ? 'Guide to correct a wrong completed entry.'
+                      : jobSt === 'Running'
+                        ? 'Recall run: return to Planned to re-enter.'
+                        : 'Recall from queue: cancel so cutting list returns to Waiting.'
+                  }
+                  className="inline-flex items-center gap-0.5 rounded-md border border-violet-300 bg-violet-50 px-2 py-0.5 text-ui-xs font-semibold text-violet-950 hover:bg-violet-100 disabled:opacity-45"
+                >
+                  <Undo2 size={12} />
+                  {jobSt === 'Completed' ? 'Fix wrong entry' : 'Recall entry'}
                 </button>
               ) : null}
               {canRecalculateJobStock ? (
@@ -4798,7 +4967,10 @@ export function LiveProductionMonitor({
               {jobSt === 'Planned' || jobSt === 'Running' ? (
                 <button
                   type="button"
-                  onClick={() => setCancelModalOpen(true)}
+                  onClick={() => {
+                    setRecallModalIntent(false);
+                    setCancelModalOpen(true);
+                  }}
                   disabled={savingAction !== '' || cancelSaving || returnSaving}
                   title="Cancel this job: releases reservations and marks production cancelled."
                   className="inline-flex items-center gap-0.5 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-ui-xs font-semibold text-rose-950 hover:bg-rose-100 disabled:opacity-45"
@@ -4828,10 +5000,12 @@ export function LiveProductionMonitor({
         open={returnModalOpen}
         reason={returnReason}
         saving={returnSaving}
+        intent={recallModalIntent ? 'recall' : 'default'}
         onReasonChange={setReturnReason}
         onClose={() => {
           setReturnModalOpen(false);
           setReturnReason('');
+          setRecallModalIntent(false);
         }}
         onConfirm={submitReturnToPlanned}
       />
@@ -4840,10 +5014,12 @@ export function LiveProductionMonitor({
         open={cancelModalOpen}
         reason={cancelReason}
         saving={cancelSaving}
+        intent={recallModalIntent ? 'recall' : 'default'}
         onReasonChange={setCancelReason}
         onClose={() => {
           setCancelModalOpen(false);
           setCancelReason('');
+          setRecallModalIntent(false);
         }}
         onConfirm={submitCancelJob}
       />

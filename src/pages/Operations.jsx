@@ -1686,12 +1686,13 @@ const Operations = () => {
     return () => window.clearInterval(t);
   }, [activeTab, ws?.hasWorkspaceData, wsRefresh, isAnyModalOpen, receiveDraft.poID, grnLines.length]);
 
-  const openProductionQueueRow = (item) => {
+  const openProductionQueueRow = (item, { recallIntent = false } = {}) => {
     if (ws?.canMutate) {
       setProductionTraceModal({
         type: 'trace',
         cuttingListId: item.id,
         subtitle: [item.customer, item.spec].filter(Boolean).join(' · ') || undefined,
+        recallIntent: Boolean(recallIntent),
       });
       return;
     }
@@ -1705,12 +1706,12 @@ const Operations = () => {
     });
   };
 
-  const openTraceWithHint = (item, hint) => {
+  const openTraceWithHint = (item, hint, { recallIntent = false } = {}) => {
     if (!ws?.canMutate) {
       showToast('Connect API to manage production actions.', { variant: 'info' });
       return;
     }
-    openProductionQueueRow(item);
+    openProductionQueueRow(item, { recallIntent });
     if (hint) showToast(hint, { variant: 'info' });
   };
 
@@ -2779,6 +2780,22 @@ const Operations = () => {
                                 >
                                   Edit register
                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    openTraceWithHint(
+                                      item,
+                                      item.status === 'Running'
+                                        ? 'Recall entry: confirm return to plan, then re-enter coils and start again.'
+                                        : 'Recall entry: confirm cancel to release the cutting list to Waiting, then fix and re-register if needed.',
+                                      { recallIntent: true }
+                                    )
+                                  }
+                                  className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-violet-300 bg-violet-50 text-violet-950 hover:bg-violet-100"
+                                  title="Recall wrong entry — cancel (Planned) or return to plan (Running)"
+                                >
+                                  Recall
+                                </button>
                               </div>
                             </li>
                           ))}
@@ -3469,6 +3486,7 @@ const Operations = () => {
         onClose={() => setProductionTraceModal(null)}
         cuttingListId={productionTraceModal?.cuttingListId}
         subtitle={productionTraceModal?.subtitle}
+        initialRecallIntent={Boolean(productionTraceModal?.recallIntent)}
       />
 
       <ModalFrame

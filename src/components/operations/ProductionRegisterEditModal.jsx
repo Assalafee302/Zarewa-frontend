@@ -26,9 +26,16 @@ function registerStatusTone(status) {
  *   onClose: () => void;
  *   cuttingListId?: string | null;
  *   subtitle?: string | null;
+ *   initialRecallIntent?: boolean;
  * }} props
  */
-export function ProductionRegisterEditModal({ isOpen, onClose, cuttingListId, subtitle }) {
+export function ProductionRegisterEditModal({
+  isOpen,
+  onClose,
+  cuttingListId,
+  subtitle,
+  initialRecallIntent = false,
+}) {
   const id = cuttingListId != null ? String(cuttingListId).trim() : '';
   const open = Boolean(isOpen && id);
   const [registerHeaderMeta, setRegisterHeaderMeta] = useState(null);
@@ -103,6 +110,7 @@ export function ProductionRegisterEditModal({ isOpen, onClose, cuttingListId, su
             inModal
             operationsRegisterEdit
             viewOnly={false}
+            initialRecallIntent={Boolean(initialRecallIntent)}
             onModalClose={onClose}
             showModalCloseButton={false}
             onRegisterHeaderMeta={setRegisterHeaderMeta}

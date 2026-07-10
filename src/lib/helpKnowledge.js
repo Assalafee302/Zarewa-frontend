@@ -983,6 +983,34 @@ const CORE_HELP_ARTICLES = [
     ],
   },
   {
+    id: 'recall-production-entry',
+    title: 'Wrong production entry — Recall entry',
+    keywords: [
+      'recall production',
+      'recall entry',
+      'wrong production',
+      'wrong coils entered',
+      'undo production save',
+      're-enter production',
+      'fix wrong entry',
+      'cancel production job',
+      'return to plan',
+      'wrong cutting list production',
+    ],
+    answer:
+      'Use **Recall entry** on the production register (or **Recall** on the in-progress queue) when production was saved wrongly. The action depends on job status — completed jobs cannot be fully reopened.',
+    steps: [
+      '**Planned:** Recall entry cancels the job (reason required). Cutting list returns to **Waiting** — fix lengths in Sales if needed, then register again. If only coils were wrong, edit coils on the Planned job instead of recalling.',
+      '**Running:** Recall entry returns the job to **Planned** (reason required). Fix coils / opening kg, then Save & start and Complete again.',
+      '**Completed:** Use **Fix wrong entry** — edit coil lines and **Save correction**, or a manager posts **Post stock correction** for warehouse metres. The completed record is not fully recalled (avoids double GL).',
+      '**Cancelled:** Job already released — register a new production job from Sales if work must continue.',
+    ],
+    links: [
+      { label: 'Operations · Production', to: '/operations', state: { focusOpsTab: 'production' } },
+      { label: 'Sales', to: '/sales' },
+    ],
+  },
+  {
     id: 'sales-expense-request',
     title: 'Sales expense requests (not Finance-only)',
     keywords: [
@@ -1537,6 +1565,7 @@ const PATH_ARTICLE_BOOSTS = {
     'material-incident-workflow',
     'coil-reservation-orphan',
     'cutting-list-blocked-running',
+    'recall-production-entry',
     'stone-flatsheet-quotations',
     'accessories-only-production',
   ],
@@ -1811,6 +1840,7 @@ export function quickQuestionsForPath(pathname) {
     return [
       { label: 'Tour this page', query: 'Walk me through production from cutting list to completion step by step' },
       { label: 'Production job', query: 'Production job from cutting list to completion' },
+      { label: 'Recall wrong entry', query: 'Wrong production entry — Recall entry' },
       { label: 'Coil reservation', query: 'Orphan coil qty_reserved reconcile' },
       { label: 'Accessories only', query: 'Accessories-only quotation production complete' },
       { label: 'Material incident', query: 'How do material incidents and approvals work?' },
