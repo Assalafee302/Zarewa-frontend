@@ -2533,10 +2533,10 @@ class SalesRouteErrorBoundary extends React.Component {
             </p>
             {buildId ? (
               <p className="mt-2 text-ui-xs font-mono text-slate-500">
-                Build: <code>{buildId}</code> · desk-fix-2026-07-10c
+                Build: <code>{buildId}</code> · desk-fix-2026-07-10d
               </p>
             ) : (
-              <p className="mt-2 text-ui-xs font-mono text-slate-500">desk-fix-2026-07-10c (build id missing)</p>
+              <p className="mt-2 text-ui-xs font-mono text-slate-500">desk-fix-2026-07-10d (build id missing)</p>
             )}
             {this.state.message ? (
               <p className="mt-2 text-ui-xs font-mono text-slate-500 break-all">{this.state.message}</p>

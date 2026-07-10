@@ -78,6 +78,10 @@ import {
 } from '../lib/cuttingListBlankConsumption';
 import { resolveTrimListPricePerMeterFromWorkbook } from '../lib/materialWorkbookTrimPrice';
 import {
+  applyWorkbookPricesToProductRows,
+  productUsesWorkbookAutoPrice,
+} from '../lib/quotationWorkbookPriceApply.js';
+import {
   quotationBelowFloorExceptionApproved,
   quotationBelowFloorPendingMdApproval,
 } from '../lib/quotationPriceException';
@@ -236,11 +240,6 @@ function trimFieldsForProductName(name) {
     lineKind: quotationLineKindForProductName(name),
     girthMm: String(defaultGirthMmForTrimProduct(name)),
   };
-}
-
-function productUsesWorkbookAutoPrice(name) {
-  const n = normQuoteProductLineName(name);
-  return isMeterSheetProductLine(name) || n === 'cladding' || isQuotationTrimProductLine(name);
 }
 
 function parseLineNum(s) {
@@ -890,7 +889,10 @@ const QuotationModal = ({
     [ws?.snapshot?.pricingRidgeAddOns]
   );
   const [ridgeAddOnsFallback, setRidgeAddOnsFallback] = useState([]);
-  const ridgeAddOnsEffective = pricingRidgeAddOns.length ? pricingRidgeAddOns : ridgeAddOnsFallback;
+  const ridgeAddOnsEffective = useMemo(
+    () => (pricingRidgeAddOns.length ? pricingRidgeAddOns : ridgeAddOnsFallback),
+    [pricingRidgeAddOns, ridgeAddOnsFallback]
+  );
   const lastQuotationHydrateSigRef = useRef('');
   const prevMaterialTypeIdForStoneRef = useRef(null);
   const skipWorkbookPriceRefreshRef = useRef(true);
@@ -1487,55 +1489,13 @@ const QuotationModal = ({
 
   /** Stable — must not recreate when productOptions changes after a line select (that was #185). */
   const refreshWorkbookProductPrices = useCallback(() => {
-    const options = productOptionsRef.current;
-    const priceOf = resolveUnitPriceRef.current;
-    const metaOf = resolveWorkbookLineMetaRef.current;
-    setProductRows((prev) => {
-      let anyChange = false;
-      const next = prev.map((row) => {
-        const name = String(row.name ?? '').trim();
-        if (!name || !productUsesWorkbookAutoPrice(name)) return row;
-        const option = options.find((o) => o.name === name) || null;
-        const girthMm =
-          row.girthMm || (isQuotationTrimProductLine(name) ? String(defaultGirthMmForTrimProduct(name)) : '');
-        const price = priceOf(name, option, { girthMm });
-        if (!(price > 0)) return row;
-        const wbMeta = metaOf(name);
-        const nextGirthMm =
-          isQuotationTrimProductLine(name) && !row.girthMm && girthMm ? girthMm : row.girthMm;
-        const nextUnit = String(price);
-        const nextFloorStr = wbMeta?.floorPerMeter != null ? String(wbMeta.floorPerMeter) : '';
-        const nextRecStr =
-          wbMeta?.suggestedListPerMeter != null ? String(wbMeta.suggestedListPerMeter) : '';
-        const prevFloorStr =
-          row.floorPricePerMeter != null && row.floorPricePerMeter !== ''
-            ? String(row.floorPricePerMeter)
-            : '';
-        const prevRecStr =
-          row.recommendedPricePerMeter != null && row.recommendedPricePerMeter !== ''
-            ? String(row.recommendedPricePerMeter)
-            : '';
-        if (
-          String(row.unitPrice ?? '') === nextUnit &&
-          String(row.girthMm ?? '') === String(nextGirthMm ?? '') &&
-          prevFloorStr === (nextFloorStr || prevFloorStr) &&
-          prevRecStr === (nextRecStr || prevRecStr)
-        ) {
-          return row;
-        }
-        anyChange = true;
-        return {
-          ...row,
-          unitPrice: nextUnit,
-          ...(nextGirthMm && nextGirthMm !== row.girthMm ? { girthMm: nextGirthMm } : {}),
-          ...(wbMeta?.floorPerMeter ? { floorPricePerMeter: wbMeta.floorPerMeter } : {}),
-          ...(wbMeta?.suggestedListPerMeter
-            ? { recommendedPricePerMeter: wbMeta.suggestedListPerMeter }
-            : {}),
-        };
-      });
-      return anyChange ? next : prev;
-    });
+    setProductRows((prev) =>
+      applyWorkbookPricesToProductRows(prev, {
+        options: productOptionsRef.current,
+        resolveUnitPrice: resolveUnitPriceRef.current,
+        resolveWorkbookLineMeta: resolveWorkbookLineMetaRef.current,
+      })
+    );
   }, []);
 
   useEffect(() => {

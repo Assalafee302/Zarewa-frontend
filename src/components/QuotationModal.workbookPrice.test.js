@@ -1,35 +1,26 @@
 import { describe, it, expect } from 'vitest';
+import { applyWorkbookPricesToProductRows } from '../lib/quotationWorkbookPriceApply.js';
 
 /**
- * Mirrors QuotationModal refreshWorkbookProductPrices change detection:
- * rewriting productRows with identical prices must not count as a change
- * (that loop was React #185 when selecting a product).
+ * QuotationModal refreshWorkbookProductPrices must not rewrite productRows
+ * when prices are unchanged (that loop was React #185 on product select).
  */
-function applyWorkbookPrices(prev, resolvePrice) {
-  let anyChange = false;
-  const next = prev.map((row) => {
-    const name = String(row.name ?? '').trim();
-    if (!name) return row;
-    const price = resolvePrice(name);
-    if (!(price > 0)) return row;
-    const nextUnit = String(price);
-    if (String(row.unitPrice ?? '') === nextUnit) return row;
-    anyChange = true;
-    return { ...row, unitPrice: nextUnit };
-  });
-  return anyChange ? next : prev;
-}
-
 describe('quotation workbook price refresh', () => {
+  const ctx = (price) => ({
+    options: [{ name: 'Roofing Sheet' }],
+    resolveUnitPrice: () => price,
+    resolveWorkbookLineMeta: () => null,
+  });
+
   it('returns the same array reference when prices are already applied', () => {
-    const rows = [{ id: '1', name: 'Aluzinc Sheet', unitPrice: '4500' }];
-    const out = applyWorkbookPrices(rows, () => 4500);
+    const rows = [{ id: '1', name: 'Roofing Sheet', unitPrice: '4500' }];
+    const out = applyWorkbookPricesToProductRows(rows, ctx(4500));
     expect(out).toBe(rows);
   });
 
   it('updates when the workbook price differs', () => {
-    const rows = [{ id: '1', name: 'Aluzinc Sheet', unitPrice: '' }];
-    const out = applyWorkbookPrices(rows, () => 4500);
+    const rows = [{ id: '1', name: 'Roofing Sheet', unitPrice: '' }];
+    const out = applyWorkbookPricesToProductRows(rows, ctx(4500));
     expect(out).not.toBe(rows);
     expect(out[0].unitPrice).toBe('4500');
   });
