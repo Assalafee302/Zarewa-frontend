@@ -393,6 +393,12 @@ describe('authenticated startup TDZ', () => {
         },
         { timeout: 15000 }
       );
+      await waitFor(
+        () => {
+          expect(screen.getByRole('button', { name: /Notifications/i })).toBeInTheDocument();
+        },
+        { timeout: 15000 }
+      );
     },
     90_000
   );

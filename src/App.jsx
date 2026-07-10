@@ -54,6 +54,7 @@ import { UnsavedWorkNavigationGuard } from './components/UnsavedWorkNavigationGu
 import { useWorkspace } from './context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
 import { BootstrapTruncatedBanner } from './components/workspace/BootstrapTruncatedBanner';
+import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
 import {
   useHrNotifSummaryQuery,
   useManagementAttentionQuery,
@@ -267,6 +268,7 @@ function HomeRoute() {
 function AppShell() {
   const { confirm } = useConfirmDialog();
   const navigate = useNavigate();
+  const location = useLocation();
   const { hasUnsavedWork } = useUnsavedWorkRegistry();
   const ws = useWorkspace();
   const ai = useAiAssistant();
@@ -1198,7 +1200,7 @@ function LoadingScreen() {
           width={120}
           height={48}
         />
-        <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Zarewa</p>
+        <p className="mt-3 text-ui-xs font-black uppercase tracking-[0.18em] text-slate-400">Zarewa</p>
         <p className="mt-3 text-xl font-black text-zarewa-teal">Preparing live workspace…</p>
       </div>
     </div>
