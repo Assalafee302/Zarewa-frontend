@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../lib/lazyWithRetry.js', () => ({
@@ -24,11 +24,22 @@ vi.mock('../hooks/useWorkspaceDomain.js', () => ({
   useWorkspaceDomain: () => {},
 }));
 
+/**
+ * Intentionally recreate hasPermission every render (unstable identity).
+ * Deny refund/finance approve so Sales takes the sync setEligibleRefundQuotations([]) path —
+ * that combination previously caused React #185 (maximum update depth).
+ */
 vi.mock('../context/WorkspaceContext.jsx', () => ({
   useWorkspace: () => ({
     hasWorkspaceData: true,
     canMutate: true,
-    hasPermission: () => true,
+    hasPermission: (p) => {
+      const key = String(p || '');
+      if (key === 'refunds.request' || key === 'refunds.approve' || key === 'finance.approve') {
+        return false;
+      }
+      return true;
+    },
     refresh: vi.fn(),
     refreshEpoch: 0,
     session: {
@@ -64,5 +75,28 @@ describe('Sales page', () => {
     );
     expect(screen.queryByText(/Sales temporarily unavailable/i)).toBeNull();
     expect(screen.getByText('Sales')).toBeTruthy();
+  });
+
+  it('survives re-renders when hasPermission identity changes every time (React #185)', () => {
+    const { rerender, unmount } = render(
+      <MemoryRouter>
+        <SalesPage />
+      </MemoryRouter>
+    );
+
+    for (let i = 0; i < 30; i += 1) {
+      act(() => {
+        rerender(
+          <MemoryRouter>
+            <SalesPage />
+          </MemoryRouter>
+        );
+      });
+    }
+
+    expect(screen.queryByText(/Sales temporarily unavailable/i)).toBeNull();
+    expect(screen.queryByText(/Maximum update depth/i)).toBeNull();
+    expect(screen.getAllByText('Sales').length).toBeGreaterThan(0);
+    unmount();
   });
 });

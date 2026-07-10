@@ -48,6 +48,7 @@ import { ModalFrame } from '../components/layout';
 import { PrintModalPortal } from '../components/layout/PrintModalPortal';
 import { AdvancePaymentPrintView } from '../components/receipt/ReceiptPrintViews';
 import { lazyWithRetry } from '../lib/lazyWithRetry';
+import { humanizeReactError } from '../lib/reactErrorMessage.js';
 
 const QuotationModal = lazyWithRetry(() => import('../components/QuotationModal'), { id: 'QuotationModal' });
 const ReceiptModal = lazyWithRetry(() => import('../components/ReceiptModal'), { id: 'ReceiptModal' });
@@ -550,25 +551,35 @@ const Sales = () => {
     [quotationsSearchFiltered]
   );
 
-  const fetchEligibleRefundQuotations = useCallback(
-    async (opts = {}) => {
-      const mayLoad =
-        wsHasPermission?.('refunds.request') ||
-        wsHasPermission?.('refunds.approve') ||
-        wsHasPermission?.('finance.approve');
-      if (!mayLoad) {
-        setEligibleRefundQuotations([]);
-        return;
-      }
-      const rows = await fetchEligibleRefundQuotationsCached(apiFetch, opts);
-      setEligibleRefundQuotations(rows);
-    },
-    [wsHasPermission]
+  const wsHasPermissionRef = useRef(wsHasPermission);
+  useEffect(() => {
+    wsHasPermissionRef.current = wsHasPermission;
+  }, [wsHasPermission]);
+
+  /** Primitive so the effect re-runs when access flips, not when hasPermission identity changes. */
+  const mayLoadEligibleRefunds = Boolean(
+    wsHasPermission?.('refunds.request') ||
+      wsHasPermission?.('refunds.approve') ||
+      wsHasPermission?.('finance.approve')
   );
+
+  const fetchEligibleRefundQuotations = useCallback(async (opts = {}) => {
+    const hasPerm = wsHasPermissionRef.current;
+    const mayLoad =
+      hasPerm?.('refunds.request') || hasPerm?.('refunds.approve') || hasPerm?.('finance.approve');
+    if (!mayLoad) {
+      // Avoid setState([]) every time — a fresh [] always re-renders and can loop if this
+      // callback's callers re-fire when parent permission fn identity changes each render.
+      setEligibleRefundQuotations((prev) => (prev.length ? [] : prev));
+      return;
+    }
+    const rows = await fetchEligibleRefundQuotationsCached(apiFetch, opts);
+    setEligibleRefundQuotations((prev) => (prev === rows ? prev : rows));
+  }, []);
 
   useEffect(() => {
     void fetchEligibleRefundQuotations();
-  }, [fetchEligibleRefundQuotations]);
+  }, [fetchEligibleRefundQuotations, mayLoadEligibleRefunds]);
 
   /** Same source as the refund form quotation picker (`GET /api/refunds/eligible-quotations`). */
   const quotationsRefundPotentialRows = useMemo(() => {
@@ -2481,7 +2492,7 @@ class SalesRouteErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, message: String(error?.message || error || '') };
+    return { hasError: true, message: humanizeReactError(error) };
   }
 
   componentDidCatch(error) {
