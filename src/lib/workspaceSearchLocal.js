@@ -84,7 +84,11 @@ export function searchWorkspaceSnapshot(snapshot, rawQuery, hasPermission, limit
         label: row.id,
         sublabel: row.customer,
         path: '/sales',
-        state: { globalSearchQuery: row.id, focusSalesTab: 'receipts' },
+        state: {
+          globalSearchQuery: row.id,
+          focusSalesTab: 'receipts',
+          ...(row.quotationRef ? { quotationRef: row.quotationRef } : {}),
+        },
         _score: score,
       });
     }

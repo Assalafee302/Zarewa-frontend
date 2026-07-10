@@ -76,7 +76,11 @@ import { notificationPrompt } from './lib/aiAssistUi';
 import { useWorkspaceSearch } from './lib/useWorkspaceSearch';
 import { pushRecentWorkspaceSearch } from './lib/workspaceSearchRecent';
 import { flattenSearchHits, WorkspaceSearchResults } from './components/workspace/WorkspaceSearchResults';
-import { resolveGlobalSearchEnterFallback } from './shared/lib/workspaceSearchCore.js';
+import {
+  resolveGlobalSearchEnterFallback,
+  resolveTransactionSearchHit,
+} from './shared/lib/workspaceSearchCore.js';
+import { userMayPerformManagerQuotationClearance } from './lib/workspaceGovernanceClient';
 import { formatPersonName } from './lib/formatPersonName';
 const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'), { id: 'Dashboard' });
 const ManagerDashboard = lazyWithRetry(() => import('./pages/ManagerDashboard'), { id: 'ManagerDashboard' });
@@ -465,16 +469,25 @@ function AppShell() {
     [signedInUserId]
   );
 
+  const openManagerIntelFromSearch = userMayPerformManagerQuotationClearance(ws?.session?.user);
+
   const goSearchHit = useCallback(
     (hit) => {
-      if (hit?.path) {
-        pushRecentWorkspaceSearch({ label: hit.label, path: hit.path, state: hit.state });
+      const resolved = resolveTransactionSearchHit(hit, {
+        openManagerIntel: openManagerIntelFromSearch,
+      });
+      if (resolved?.path) {
+        pushRecentWorkspaceSearch({
+          label: resolved.label || hit?.label,
+          path: resolved.path,
+          state: resolved.state,
+        });
+        guardedNavigate(resolved.path, { state: resolved.state || {} });
       }
-      guardedNavigate(hit.path, { state: hit.state || {} });
       setHeaderSearch('');
       setSearchActiveIdx(0);
     },
-    [guardedNavigate]
+    [guardedNavigate, openManagerIntelFromSearch]
   );
 
   const runGlobalSearch = (e) => {
@@ -486,7 +499,9 @@ function AppShell() {
       goSearchHit(activeHit);
       return;
     }
-    const fallback = resolveGlobalSearchEnterFallback(q);
+    const fallback = resolveGlobalSearchEnterFallback(q, {
+      openManagerIntel: openManagerIntelFromSearch,
+    });
     if (fallback) {
       guardedNavigate(fallback.path, { state: fallback.state || {} });
     }

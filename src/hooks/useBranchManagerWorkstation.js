@@ -1670,7 +1670,41 @@ export function useBranchManagerWorkstation() {
     setSelectedIntel(null);
     setAuditData(null);
     setRefundIntelExtras(null);
-  }, []);
+    // Allow the same deep-link (e.g. from search) to reopen after close.
+    quoteDeepLinked.current = '';
+    refundDeepLinked.current = '';
+    poDeepLinked.current = '';
+    jobDeepLinked.current = '';
+    requestDeepLinked.current = '';
+    materialIncidentDeepLinked.current = '';
+    editApprovalDeepLinked.current = '';
+    const params = new URLSearchParams(searchParams);
+    let changed = false;
+    for (const key of [
+      'quoteRef',
+      'refundId',
+      'refundID',
+      'poId',
+      'poID',
+      'jobId',
+      'jobID',
+      'requestId',
+      'requestID',
+      'materialIncidentId',
+      'materialIncidentID',
+      'editApprovalId',
+      'editApprovalID',
+    ]) {
+      if (params.has(key)) {
+        params.delete(key);
+        changed = true;
+      }
+    }
+    if (changed) {
+      const qs = params.toString();
+      navigate(qs ? `/manager?${qs}` : '/manager', { replace: true });
+    }
+  }, [navigate, searchParams]);
 
   const openMaterialIncidentOperations = useCallback(
     (row) => {

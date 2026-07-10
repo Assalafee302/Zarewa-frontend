@@ -4,12 +4,15 @@ import { Search, X } from 'lucide-react';
 import { useWorkspaceSearch } from '../../lib/useWorkspaceSearch';
 import { loadRecentWorkspaceSearches, pushRecentWorkspaceSearch } from '../../lib/workspaceSearchRecent';
 import { flattenSearchHits, WorkspaceSearchResults } from './WorkspaceSearchResults';
+import { resolveTransactionSearchHit } from '../../shared/lib/workspaceSearchCore.js';
+import { userMayPerformManagerQuotationClearance } from '../../lib/workspaceGovernanceClient';
 
 export function WorkspaceCommandPalette({ isOpen, onClose, ws, hasPermission, initialQuery = '' }) {
   const navigate = useNavigate();
   const inputRef = useRef(null);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
+  const openManagerIntel = userMayPerformManagerQuotationClearance(ws?.session?.user);
 
   const canAccessModule = useCallback((m) => ws?.canAccessModule?.(m), [ws?.canAccessModule]);
   const { hits, busy, fromCache } = useWorkspaceSearch({
@@ -41,13 +44,20 @@ export function WorkspaceCommandPalette({ isOpen, onClose, ws, hasPermission, in
   const openHit = useCallback(
     (hit) => {
       if (!hit) return;
-      if (hit.path) {
-        pushRecentWorkspaceSearch({ label: hit.label, path: hit.path, state: hit.state });
+      const resolved = resolveTransactionSearchHit(hit, { openManagerIntel });
+      if (resolved?.path) {
+        pushRecentWorkspaceSearch({
+          label: resolved.label || hit.label,
+          path: resolved.path,
+          state: resolved.state,
+        });
       }
       onClose?.();
-      if (hit.path) navigate(hit.path, hit.state ? { state: hit.state } : undefined);
+      if (resolved?.path) {
+        navigate(resolved.path, resolved.state ? { state: resolved.state } : undefined);
+      }
     },
-    [navigate, onClose]
+    [navigate, onClose, openManagerIntel]
   );
 
   useEffect(() => {
