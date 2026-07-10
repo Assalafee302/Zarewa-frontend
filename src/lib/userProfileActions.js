@@ -264,7 +264,7 @@ export function buildUserProfileActions(ctx = {}) {
       id: 'mark-attendance',
       label: 'Mark team attendance',
       description: 'Daily present / late / absent',
-      to: '/manager?inbox=attendance',
+      to: '/team-hr/time-absence?tab=attendance',
       category: 'team',
       tone: 'teal',
       icon: 'checkCircle',

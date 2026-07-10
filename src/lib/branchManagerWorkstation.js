@@ -119,7 +119,7 @@ export function buildBranchHealthSignals({
       label: 'Attendance',
       tone: attendancePendingCount > 0 ? 'amber' : 'green',
       count: attendancePendingCount,
-      hint: 'Staff not marked today',
+      hint: 'Staff not marked today — open My Team → Attendance',
     },
   ];
 }

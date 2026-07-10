@@ -92,10 +92,16 @@ export function ManagementRemarkDialog({
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
           />
         )}
-        {error ? <p className="text-xs font-semibold text-rose-700">{error}</p> : null}
-        {optional ? (
+        {minLength > 0 ? (
+          <p className="text-ui-xs text-slate-500 tabular-nums">
+            {String(value || '').trim().length}
+            {minLength ? ` / ${minLength} min` : ''}
+            {optional ? ' (optional)' : ''}
+          </p>
+        ) : optional ? (
           <p className="text-xs text-slate-500">Optional — leave blank if not needed.</p>
         ) : null}
+        {error ? <p className="text-xs font-semibold text-rose-700">{error}</p> : null}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end pt-2">
           <Button type="button" variant="outline" disabled={busy} onClick={() => onCancel?.()}>
             {cancelLabel}

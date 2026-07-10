@@ -17,3 +17,6 @@ export function teamHrTimeAbsencePath(tab, extra = {}) {
   const params = new URLSearchParams({ tab, ...extra });
   return `${TEAM_HR_TIME_ABSENCE}?${params.toString()}`;
 }
+
+/** Daily attendance roll for branch managers (moved off /manager). */
+export const TEAM_HR_DAILY_ATTENDANCE = teamHrTimeAbsencePath('attendance');

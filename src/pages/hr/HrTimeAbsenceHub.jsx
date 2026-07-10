@@ -161,7 +161,7 @@ export default function HrTimeAbsenceHub() {
             <Link to={hrStaffCreditPath()} className="font-semibold text-zarewa-teal hover:underline">
               Payroll → Staff loans & credit
             </Link>
-            . Branch managers mark daily attendance from Management.
+            . Branch managers mark daily attendance from My Team → Time & absence → Attendance.
           </div>
         </div>
       ) : null}

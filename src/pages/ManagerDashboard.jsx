@@ -1,14 +1,23 @@
-import React, { useCallback } from 'react';
-import { AlertTriangle, ArrowRight } from 'lucide-react';
-import { PageShell } from '../components/layout';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  FinancePilotHeader,
+  ModalFrame,
+  PageShell,
+  PageTabs,
+} from '../components/layout';
 import DeliveryGateDiagnosticsBanner from '../components/finance/DeliveryGateDiagnosticsBanner';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFormFields.jsx';
-import { ModalFrame } from '../components/layout';
-import { BranchManagerHealthStrip } from '../components/branchManager/BranchManagerHealthStrip';
-import { BranchManagerPulseSection } from '../components/branchManager/BranchManagerPulseSection';
 import { BranchManagerCommandInbox } from '../components/branchManager/BranchManagerCommandInbox';
-import { DashboardKpiStrip } from '../components/dashboard/DashboardKpiStrip';
+import { ManagerPriorityBanner, pickManagerPriorityItem } from '../components/branchManager/ManagerPriorityBanner';
+import { ManagerStatusRail } from '../components/branchManager/ManagerStatusRail';
+import { ManagerTodayPulse } from '../components/branchManager/ManagerTodayPulse';
+import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyChecklist';
+import { ManagerIntelligenceTab } from '../components/branchManager/ManagerIntelligenceTab';
+import { ManagerOperationsTab } from '../components/branchManager/ManagerOperationsTab';
+import { ManagerPerformanceTab } from '../components/branchManager/ManagerPerformanceTab';
 import { ManagementDecisionModal } from '../components/branchManager/ManagementDecisionModal';
 import {
   ManagementConfirmDialog,
@@ -17,164 +26,308 @@ import {
 import { useBranchManagerWorkstation } from '../hooks/useBranchManagerWorkstation';
 import { EditApprovalDetailModal } from '../components/branchManager/EditApprovalDetailModal';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
-import { managementPeriodStartISO } from '../lib/managementLiveFromWorkspace';
+import { computeBranchHealthScore } from '../lib/managerBranchHealthScore';
+import {
+  checklistCompletionPct,
+  loadManagerChecklist,
+  ymdLocal,
+} from '../lib/managerDailyChecklist';
+import {
+  MANAGER_PAGE_TABS,
+  TEAM_HR_ATTENDANCE_PATH,
+  normalizeManagerPageTab,
+} from '../lib/managerPageTabs';
+import { formatPersonName } from '../lib/formatPersonName';
 
-const HEALTH_TAB_MAP = {
-  orders: 'orders',
-  cash: 'cash_out',
-  production: 'qc',
-  material: 'material',
-  procurement: 'procurement',
-  governance: 'governance',
-  staff: 'attendance',
+const STATUS_RAIL_MAP = {
+  orders: { tab: 'orders', filter: 'orders' },
+  cash: { tab: 'cash_out', filter: 'cash' },
+  production: { tab: 'qc', filter: 'qc' },
+  material: { tab: 'material', filter: 'material' },
+  procurement: { tab: 'procurement', filter: 'all' },
+  governance: { tab: 'governance', filter: 'all' },
+  stock: { tab: 'stock', filter: 'all' },
+  inventory: { tab: null, filter: null, route: '/operations' },
+  staff: { tab: null, filter: null, route: TEAM_HR_ATTENDANCE_PATH },
 };
 
 /**
- * Branch manager workstation — command inbox, branch health, and performance pulse.
+ * Branch manager command center — Sequence shell, four moments, Priority Action Center.
  */
 const ManagerDashboard = () => {
   const bm = useBranchManagerWorkstation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [commandSearch, setCommandSearch] = useState('');
 
-  const handleHealthSelect = useCallback(
-    (key) => {
-      if (key === 'stock') {
-        bm.setStockRegisterMgrOpen(true);
-        return;
-      }
-      if (key === 'inventory') {
-        bm.navigate('/operations', { state: { focusOpsTab: 'inventory' } });
-        return;
-      }
-      const tab = HEALTH_TAB_MAP[key];
-      if (tab) {
-        bm.setActiveTab(tab);
-        if (tab !== 'attention') bm.setAttentionFilter('all');
-      }
+  const pageTab = normalizeManagerPageTab(searchParams.get('tab'));
+
+  const setPageTab = useCallback(
+    (next) => {
+      const id = normalizeManagerPageTab(next);
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (id === 'today') p.delete('tab');
+          else p.set('tab', id);
+          return p;
+        },
+        { replace: true }
+      );
     },
-    [bm]
+    [setSearchParams]
   );
 
   const showDeliveryBanner = ['md', 'admin', 'sales_manager'].includes(bm.managerRoleKey);
 
+  const checklistPct = useMemo(() => {
+    const state = loadManagerChecklist(bm.mgrBranchId, ymdLocal());
+    return checklistCompletionPct(state);
+  }, [bm.mgrBranchId]);
+
+  const healthScore = useMemo(
+    () =>
+      computeBranchHealthScore({
+        totalOpenActions: bm.totalOpenActions,
+        overdueCount: bm.tabCounts?.governance || 0,
+        stockRegisterCount: bm.stockRegisterInbox.length,
+        lowStockCount: bm.displaySnapshots?.lowStockCount || 0,
+        attendancePendingCount: bm.attendancePendingCount,
+        salesProgressPct: bm.producedSalesProgress,
+        metresProgressPct: bm.productionMetresProgress,
+        checklistCompletionPct: checklistPct,
+      }),
+    [
+      bm.attendancePendingCount,
+      bm.displaySnapshots?.lowStockCount,
+      bm.producedSalesProgress,
+      bm.productionMetresProgress,
+      bm.stockRegisterInbox.length,
+      bm.tabCounts?.governance,
+      bm.totalOpenActions,
+      checklistPct,
+    ]
+  );
+
+  const priorityItem = useMemo(() => {
+    if (bannerDismissed) return null;
+    return pickManagerPriorityItem({
+      pendingOrderSignOffCount: bm.pendingOrderSignOffCount,
+      stockRegisterCount: bm.stockRegisterInbox.length,
+      governanceCount: bm.tabCounts?.governance || 0,
+      expenseCoach: bm.ws?.snapshot?.expenseCategoryBranchCoachAlert,
+    });
+  }, [
+    bannerDismissed,
+    bm.pendingOrderSignOffCount,
+    bm.stockRegisterInbox.length,
+    bm.tabCounts?.governance,
+    bm.ws?.snapshot?.expenseCategoryBranchCoachAlert,
+  ]);
+
+  const branchLabel =
+    bm.mgrBranchLabel ||
+    bm.ws?.session?.branchName ||
+    bm.ws?.snapshot?.workspaceBranchName ||
+    'Branch';
+
+  const subtitle = useMemo(() => {
+    if (bm.totalOpenActions > 0) {
+      return `${bm.totalOpenActions} open action${bm.totalOpenActions === 1 ? '' : 's'} need your decision today.`;
+    }
+    return `${branchLabel} · queue clear · health ${healthScore.score} (${healthScore.status})`;
+  }, [bm.totalOpenActions, branchLabel, healthScore.score, healthScore.status]);
+
+  const jumpToQueue = useCallback(
+    (action) => {
+      setPageTab('today');
+      if (action === 'stock') {
+        bm.setActiveTab('stock');
+        return;
+      }
+      if (action === 'governance') {
+        bm.setActiveTab('governance');
+        bm.setAttentionFilter('all');
+        return;
+      }
+      if (action === 'orders') {
+        bm.setActiveTab('orders');
+        bm.setAttentionFilter('orders');
+        return;
+      }
+      if (action === 'cash') {
+        bm.setActiveTab('cash_out');
+        bm.setAttentionFilter('cash');
+        return;
+      }
+      if (action === 'qc' || action === 'material') {
+        bm.setActiveTab(action === 'qc' ? 'qc' : 'material');
+        bm.setAttentionFilter(action);
+      }
+    },
+    [bm, setPageTab]
+  );
+
+  const handleStatusSelect = useCallback(
+    (key) => {
+      const mapped = STATUS_RAIL_MAP[key];
+      if (!mapped) return;
+      if (mapped.route) {
+        navigate(mapped.route, mapped.route.startsWith('/operations') ? { state: { focusOpsTab: 'inventory' } } : undefined);
+        return;
+      }
+      setPageTab('today');
+      if (mapped.tab) {
+        bm.setActiveTab(mapped.tab);
+        if (mapped.filter) bm.setAttentionFilter(mapped.filter);
+      }
+    },
+    [bm, navigate, setPageTab]
+  );
+
+  const handleCommandSearch = useCallback(
+    (e) => {
+      e.preventDefault();
+      const q = commandSearch.trim();
+      if (!q) return;
+      setPageTab('today');
+      bm.setActiveTab('attention');
+      bm.setAttentionFilter('all');
+      bm.setInboxSearch(q);
+    },
+    [bm, commandSearch, setPageTab]
+  );
+
+  // Deep-link ?inbox=attendance → My Team
+  useEffect(() => {
+    const inbox = (searchParams.get('inbox') || '').trim().toLowerCase();
+    if (inbox === 'attendance' || inbox === 'staff') {
+      navigate(TEAM_HR_ATTENDANCE_PATH, { replace: true });
+    }
+  }, [navigate, searchParams]);
+
+  const statusRailSignals = useMemo(
+    () => (bm.healthSignals || []).filter((s) => s.key !== 'staff'),
+    [bm.healthSignals]
+  );
+
+  const actorName = formatPersonName(
+    bm.ws?.session?.user?.displayName || bm.ws?.session?.user?.name || bm.ws?.session?.user?.email || 'Manager'
+  );
+
   return (
-    <PageShell className="pb-14">
-      <header className="mb-6">
-        <p className="text-ui-xs font-bold uppercase tracking-[0.22em] text-teal-600/90">Branch manager</p>
-        <h1 className="text-2xl sm:text-3xl font-black text-zarewa-teal tracking-tight mt-1">Workstation</h1>
-        <p className="text-sm text-slate-600 mt-2 max-w-2xl leading-relaxed">
-          Your command desk for branch approvals, risk, staff, and performance — one place to act and to watch the
-          branch.
-        </p>
-      </header>
+    <PageShell className="pb-14 bg-[var(--color-sequence-bg,#F9FAFB)]">
+      <FinancePilotHeader
+        eyebrow="Branch manager"
+        title={branchLabel}
+        subtitle={subtitle}
+        search={
+          <form onSubmit={handleCommandSearch} className="relative w-full">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
+            <input
+              type="search"
+              value={commandSearch}
+              onChange={(e) => setCommandSearch(e.target.value)}
+              placeholder="Search quote, PO, refund, job…"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
+            />
+          </form>
+        }
+        tabs={<PageTabs tabs={MANAGER_PAGE_TABS} value={pageTab} onChange={setPageTab} ariaLabel="Manager sections" />}
+      />
 
       {bm.loadError ? (
         <div
-          className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950 mb-6"
+          className="rounded-zarewa border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950 mb-5"
           role="alert"
         >
-          {bm.loadError}
+          {bm.loadError}{' '}
+          <button type="button" className="underline font-bold" onClick={() => void bm.fetchData?.()}>
+            Retry
+          </button>
         </div>
       ) : null}
 
       {showDeliveryBanner ? (
-        <div className="mb-6">
+        <div className="mb-5">
           <DeliveryGateDiagnosticsBanner deliveryPaymentGate={bm.deliveryGateMode} />
         </div>
       ) : null}
 
-      <DashboardKpiStrip
-        sectionClassName="mb-6"
-        metricsWindow={{
-          startISO: managementPeriodStartISO(bm.metricPeriod),
-          label: bm.displaySnapshots.periodLabel ?? 'This month',
-        }}
+      <ManagerPriorityBanner
+        item={priorityItem}
+        onDismiss={() => setBannerDismissed(true)}
+        onAction={(item) => jumpToQueue(item.action)}
       />
 
-      {!bm.loading && bm.pendingOrderSignOffCount > 0 ? (
-        <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <p className="text-sm font-bold text-zarewa-teal">Order sign-off required</p>
-            <p className="text-xs text-slate-600 mt-1">
-              {bm.pendingOrderSignOffCount} paid quotation{bm.pendingOrderSignOffCount === 1 ? '' : 's'} need branch
-              manager review. Open each for sign-off (99.5% paid counts as fully paid).
-            </p>
-          </div>
-          <button
-            type="button"
-            className="z-btn-primary shrink-0"
-            onClick={() => {
-              bm.setActiveTab('orders');
-              bm.setAttentionFilter('all');
-            }}
-          >
-            Review orders
-          </button>
+      {pageTab === 'today' ? (
+        <div className="space-y-5">
+          <ManagerTodayPulse
+            salesProduced={bm.displaySnapshots?.producedSalesNgn}
+            cashCleared={bm.displaySnapshots?.paidOnQuotesNgn}
+            metres={bm.displaySnapshots?.completedProductionMetres}
+            openActions={bm.totalOpenActions}
+            healthScore={healthScore}
+            salesTarget={bm.displaySnapshots?.targets?.nairaTarget}
+            metresTarget={bm.displaySnapshots?.targets?.meterTarget}
+            loading={bm.loading}
+          />
+
+          <ManagerStatusRail
+            signals={statusRailSignals}
+            activeKey={
+              Object.entries(STATUS_RAIL_MAP).find(([, v]) => v.tab === bm.activeTab)?.[0] || null
+            }
+            onSelect={handleStatusSelect}
+          />
+
+          <BranchManagerCommandInbox bm={bm} showDeliveryCreditTab={bm.showDeliveryCreditTab} />
+
+          <ManagerDailyChecklist branchId={bm.mgrBranchId} actorName={actorName} />
         </div>
       ) : null}
 
-      {bm.mgrBranchId ? (
-        <div className="rounded-2xl border border-teal-200/80 bg-teal-50/50 px-4 py-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <p className="text-sm font-bold text-zarewa-teal">Month-end stock register</p>
-            <p className="text-xs text-slate-600 mt-1">
-              {bm.stockRegisterInbox.length
-                ? `${bm.stockRegisterInbox.length} period(s) awaiting manager count alignment.`
-                : 'No registers waiting for manager review.'}
-            </p>
-          </div>
-          <button type="button" className="z-btn-primary shrink-0" onClick={() => bm.setStockRegisterMgrOpen(true)}>
-            Review stock register
-          </button>
-        </div>
+      {pageTab === 'intelligence' ? (
+        <ManagerIntelligenceTab
+          displaySnapshots={bm.displaySnapshots}
+          branchLabel={branchLabel}
+          mayViewReports={userMayViewManagementReportsClient(
+            bm.ws?.session?.user?.roleKey,
+            bm.ws?.permissions
+          )}
+          onJumpFilter={(f) => jumpToQueue(f)}
+        />
       ) : null}
 
-      {bm.ws?.snapshot?.expenseCategoryBranchCoachAlert?.shouldCoach ? (
-        <div className="rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50/95 to-orange-50/40 px-4 py-4 mb-6 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-ui-xs font-black uppercase tracking-wide text-amber-900">
-              <AlertTriangle size={13} aria-hidden />
-              Others category — branch coaching
-            </p>
-            <p className="text-sm font-bold text-amber-950 mt-1.5 tabular-nums">
-              {bm.ws.snapshot.expenseCategoryBranchCoachAlert.othersPct ?? '—'}% Others
-              <span className="font-medium text-amber-900/80 text-xs ml-1">
-                · last {bm.ws.snapshot.expenseCategoryBranchCoachAlert.months || 3} months
-              </span>
-            </p>
-            <p className="text-xs text-amber-900/85 mt-1 leading-relaxed">
-              {bm.ws.snapshot.expenseCategoryBranchCoachAlert.message ||
-                'A high share of approved payment requests were coded Others. Review descriptions and pick standard categories where possible.'}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="z-btn-primary shrink-0 inline-flex items-center gap-1.5"
-            onClick={() => bm.setActiveTab('cash_out')}
-          >
-            Review cash out
-            <ArrowRight size={14} aria-hidden />
-          </button>
-        </div>
+      {pageTab === 'operations' ? (
+        <ManagerOperationsTab
+          ws={bm.ws}
+          showDeliveryCredit={bm.showDeliveryCreditTab}
+          materialCount={bm.tabCounts?.material || 0}
+          attendancePendingCount={bm.attendancePendingCount}
+          onOpenMaterialQueue={() => jumpToQueue('material')}
+          onOpenStockRegister={() => bm.setStockRegisterMgrOpen(true)}
+        />
       ) : null}
 
-      <section className="mb-8" aria-label="Command">
-        <BranchManagerCommandInbox bm={bm} />
-      </section>
-
-      <BranchManagerHealthStrip signals={bm.healthSignals} onSelect={handleHealthSelect} compact />
-
-      <BranchManagerPulseSection
-        displaySnapshots={bm.displaySnapshots}
-        metricPeriod={bm.metricPeriod}
-        onMetricPeriodChange={bm.setMetricPeriod}
-        managerTargetSourceMeta={bm.managerTargetSourceMeta}
-        totalOpenActions={bm.totalOpenActions}
-        loading={bm.loading}
-        hasWorkspaceData={Boolean(bm.ws?.hasWorkspaceData)}
-        producedSalesProgress={bm.producedSalesProgress}
-        productionMetresProgress={bm.productionMetresProgress}
-        mayViewReports={userMayViewManagementReportsClient(bm.ws)}
-      />
+      {pageTab === 'performance' ? (
+        <ManagerPerformanceTab
+          displaySnapshots={bm.displaySnapshots}
+          metricPeriod={bm.metricPeriod}
+          onMetricPeriodChange={bm.setMetricPeriod}
+          managerTargetSourceMeta={bm.managerTargetSourceMeta}
+          totalOpenActions={bm.totalOpenActions}
+          producedSalesProgress={bm.producedSalesProgress}
+          productionMetresProgress={bm.productionMetresProgress}
+          healthScore={healthScore}
+          mayViewReports={userMayViewManagementReportsClient(
+            bm.ws?.session?.user?.roleKey,
+            bm.ws?.permissions
+          )}
+          loading={bm.loading}
+        />
+      ) : null}
 
       <ManagementDecisionModal
         selectedIntel={bm.selectedIntel}

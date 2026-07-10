@@ -170,7 +170,7 @@ export default function TeamHrHome() {
               <ProfileQuickAction to={teamHrTimeAbsencePath('endorsements')} icon="📋">
                 Endorsements
               </ProfileQuickAction>
-              <ProfileQuickAction to="/manager?inbox=attendance" icon="✓">
+              <ProfileQuickAction to={teamHrTimeAbsencePath('attendance')} icon="✓">
                 Attendance
               </ProfileQuickAction>
               <ProfileQuickAction to="/team-hr/staff" icon="👥">

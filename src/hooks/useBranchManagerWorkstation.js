@@ -112,11 +112,8 @@ export function useBranchManagerWorkstation() {
   const managerRoleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const showDeliveryCreditTab = ['md', 'admin', 'sales_manager', 'finance_manager'].includes(managerRoleKey);
   const managerInboxTabs = useMemo(
-    () =>
-      MANAGER_INBOX_TABS.filter((t) => t.key !== 'attendance' || showAttendanceTab).filter(
-        (t) => t.key !== 'credit' || showDeliveryCreditTab
-      ),
-    [showAttendanceTab, showDeliveryCreditTab]
+    () => MANAGER_INBOX_TABS.filter((t) => t.key !== 'credit' || showDeliveryCreditTab),
+    [showDeliveryCreditTab]
   );
 
   const [loading, setLoading] = useState(true);
@@ -793,15 +790,14 @@ export function useBranchManagerWorkstation() {
   useEffect(() => {
     const inbox = (searchParams.get('inbox') || '').trim();
     if (!inbox) return;
-    const { tab, attentionFilter: af } = normalizeManagerInboxRoute(inbox);
-    if (tab === 'attendance' && !showAttendanceTab) {
-      setActiveTab('attention');
-      setAttentionFilter('all');
+    const { tab, attentionFilter: af, redirectToTeamHr } = normalizeManagerInboxRoute(inbox);
+    if (redirectToTeamHr) {
+      navigate('/team-hr/time-absence?tab=attendance', { replace: true });
       return;
     }
     setActiveTab(tab);
     setAttentionFilter(af);
-  }, [searchParams, showAttendanceTab]);
+  }, [navigate, searchParams]);
 
   useEffect(() => {
     const po = (searchParams.get('poId') || searchParams.get('poID') || '').trim();
@@ -983,6 +979,7 @@ export function useBranchManagerWorkstation() {
       edits: editInboxRows.length,
       attendance: attendancePendingCount,
       credit: pendingCreditCount,
+      stock: stockRegisterInbox.length,
     }),
     [
       attentionItems.length,
@@ -995,6 +992,7 @@ export function useBranchManagerWorkstation() {
       ordersInboxRows.length,
       pendingCreditCount,
       procurementInboxRows.length,
+      stockRegisterInbox.length,
     ]
   );
 

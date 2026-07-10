@@ -15,8 +15,8 @@ const STEPS = [
   {
     id: 'attendance',
     label: 'Mark daily attendance',
-    hint: 'Present, late, or absent — from Management → Staff attendance.',
-    href: '/manager?inbox=attendance',
+    hint: 'Present, late, or absent — from My Team → Attendance.',
+    href: teamHrTimeAbsencePath('attendance'),
   },
   {
     id: 'calendar',

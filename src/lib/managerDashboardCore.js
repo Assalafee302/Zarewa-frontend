@@ -45,11 +45,6 @@ export const MANAGER_INBOX_TABS = [
     label: 'Edit approvals',
     description: 'Second-party approval required before sensitive records are saved',
   },
-  {
-    key: 'attendance',
-    label: 'Staff attendance',
-    description: 'Mark daily present, late, or absent for your branch staff',
-  },
 ];
 
 /** Filter chips on the Everything tab for quick sorting. */
@@ -84,9 +79,68 @@ export function normalizeManagerInboxRoute(rawInbox) {
   if (k === 'governance') return { tab: 'governance', attentionFilter: 'all' };
   if (k === 'material') return { tab: 'material', attentionFilter: 'material' };
   if (k === 'procurement' || k === 'purchase_orders' || k === 'po') return { tab: 'procurement', attentionFilter: 'all' };
-  if (k === 'attendance') return { tab: 'attendance', attentionFilter: 'all' };
+  // Attendance moved to Team HR — callers should redirect; keep a safe fallback.
+  if (k === 'attendance' || k === 'staff') return { tab: 'attention', attentionFilter: 'all', redirectToTeamHr: true };
+  if (k === 'stock' || k === 'stock_register') return { tab: 'stock', attentionFilter: 'all' };
+  if (k === 'credit') return { tab: 'credit', attentionFilter: 'all' };
   if (MANAGER_INBOX_TABS.some((t) => t.key === k)) return { tab: k, attentionFilter: 'all' };
   return { tab: 'attention', attentionFilter: 'all' };
+}
+
+/** Four-color status system: emerald / amber / rose / slate. Kind uses icon + label, not hue. */
+export const MANAGER_STATUS_TONES = {
+  success: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+  pending: 'bg-amber-100 text-amber-900 border-amber-200',
+  urgent: 'bg-rose-100 text-rose-900 border-rose-200',
+  info: 'bg-slate-100 text-slate-700 border-slate-200',
+};
+
+/**
+ * @param {string} kind
+ * @param {{ breached?: boolean; flagged?: boolean }} [opts]
+ */
+export function managerKindTone(kind, opts = {}) {
+  if (opts.breached || opts.flagged || kind === 'governance' || kind === 'flagged') return 'urgent';
+  if (kind === 'clearance' || kind === 'refunds' || kind === 'payments' || kind === 'edit_approvals' || kind === 'edit_approval') {
+    return 'pending';
+  }
+  return 'pending';
+}
+
+/**
+ * Best-effort age hours from common timestamp fields.
+ * @param {object} row
+ * @returns {number | null}
+ */
+export function managerRowAgeHours(row) {
+  const raw =
+    row?.created_at ||
+    row?.createdAt ||
+    row?.requested_at ||
+    row?.requestedAt ||
+    row?.submitted_at ||
+    row?.submittedAt ||
+    row?.opened_at ||
+    row?.openedAt ||
+    row?.updated_at ||
+    row?.updatedAt ||
+    null;
+  if (!raw) return null;
+  const t = new Date(raw).getTime();
+  if (!Number.isFinite(t)) return null;
+  return Math.max(0, (Date.now() - t) / 36e5);
+}
+
+/** Refund SLA is 48h; other queues use 24h amber / 48h red. */
+export function managerSlaMeta(kind, ageHours) {
+  if (ageHours == null || !Number.isFinite(ageHours)) return null;
+  const isRefund = String(kind || '').includes('refund');
+  const breachAt = isRefund ? 48 : 48;
+  const warnAt = isRefund ? 24 : 24;
+  const hours = Math.round(ageHours);
+  if (ageHours >= breachAt) return { label: `${hours}h — SLA breached`, tone: 'urgent' };
+  if (ageHours >= warnAt) return { label: `${hours}h`, tone: 'pending' };
+  return { label: `${hours}h`, tone: 'info' };
 }
 
 export function attentionKindMatchesFilter(kind, filterKey) {
