@@ -1528,12 +1528,6 @@ export function useBranchManagerWorkstation() {
         if (!asked?.ok) return;
         note = String(asked.value || '').trim();
       }
-          variant: status === 'Approved' ? 'default' : 'warning',
-          onSubmit: 'refund_decision_note',
-        });
-        if (!asked?.ok) return;
-        note = String(asked.value || '').trim();
-      }
       const fallbackAmount = Number(selectedIntel.row?.amount_ngn) || 0;
       const amount =
         status === 'Approved'
