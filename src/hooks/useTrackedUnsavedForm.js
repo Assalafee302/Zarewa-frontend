@@ -11,6 +11,10 @@ import { appConfirm } from '../lib/appConfirm';
  */
 export function useTrackedUnsavedForm(id, { isOpen, blockTracking, hydrateKey }) {
   const ctx = useUnsavedWorkRegistry();
+  // Depend on stable setters only — `ctx` identity changes when hasUnsavedWork flips, and
+  // depending on whole ctx re-ran this effect's cleanup/setup (clearFlag → setFlag) forever (#185).
+  const setFlag = ctx.setFlag;
+  const clearFlag = ctx.clearFlag;
   const [edited, setEdited] = useState(false);
 
   useEffect(() => {
@@ -24,10 +28,9 @@ export function useTrackedUnsavedForm(id, { isOpen, blockTracking, hydrateKey })
   const active = Boolean(isOpen && !blockTracking && edited);
 
   useEffect(() => {
-    if (!ctx) return undefined;
-    ctx.setFlag(id, active);
-    return () => ctx.clearFlag(id);
-  }, [ctx, id, active]);
+    setFlag(id, active);
+    return () => clearFlag(id);
+  }, [setFlag, clearFlag, id, active]);
 
   const captureEdited = useCallback(() => {
     if (!blockTracking) setEdited(true);

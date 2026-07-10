@@ -40,14 +40,14 @@ export function UnsavedWorkProvider({ children }) {
   return <UnsavedWorkContext.Provider value={value}>{children}</UnsavedWorkContext.Provider>;
 }
 
+/** Stable fallback when a tree renders outside UnsavedWorkProvider (tests / isolated mounts). */
+const NOOP_UNSAVED_REGISTRY = Object.freeze({
+  setFlag: () => {},
+  clearFlag: () => {},
+  hasUnsavedWork: false,
+});
+
 export function useUnsavedWorkRegistry() {
   const ctx = useContext(UnsavedWorkContext);
-  if (!ctx) {
-    return {
-      setFlag: () => {},
-      clearFlag: () => {},
-      hasUnsavedWork: false,
-    };
-  }
-  return ctx;
+  return ctx || NOOP_UNSAVED_REGISTRY;
 }

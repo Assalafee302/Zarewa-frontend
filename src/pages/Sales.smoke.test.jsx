@@ -24,6 +24,18 @@ vi.mock('../hooks/useWorkspaceDomain.js', () => ({
   useWorkspaceDomain: () => {},
 }));
 
+vi.mock('../context/UnsavedWorkContext.jsx', async () => {
+  const React = await import('react');
+  const noop = () => {};
+  const value = { setFlag: noop, clearFlag: noop, hasUnsavedWork: false };
+  return {
+    UnsavedWorkProvider: ({ children }) => children,
+    useUnsavedWorkRegistry: () => value,
+    UNSAVED_LEAVE_MESSAGE: 'unsaved',
+    UNSAVED_BEFORE_UNLOAD_MESSAGE: 'unsaved',
+  };
+});
+
 /**
  * Intentionally recreate hasPermission every render (unstable identity).
  * Deny refund/finance approve so Sales takes the sync setEligibleRefundQuotations([]) path —

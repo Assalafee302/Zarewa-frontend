@@ -21,7 +21,8 @@ export function invalidateEligibleRefundQuotationsCache() {
  */
 export async function fetchEligibleRefundQuotationsCached(apiFetch, opts = {}) {
   const now = Date.now();
-  if (!opts.force && state.quotations.length > 0 && now - state.fetchedAt < TTL_MS) {
+  // Cache hits include empty lists — otherwise every mount allocates a fresh [] and re-renders.
+  if (!opts.force && state.fetchedAt > 0 && now - state.fetchedAt < TTL_MS) {
     return state.quotations;
   }
   if (!opts.force && state.inflight) {

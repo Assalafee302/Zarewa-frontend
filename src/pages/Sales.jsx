@@ -805,13 +805,34 @@ const Sales = () => {
    * Command center (Dashboard) sends `navigate('/sales', { state: { openSalesAction } })`.
    * Consume once, then clear router state so back/refresh does not reopen modals.
    */
+  const consumedSalesNavKeyRef = useRef('');
   useEffect(() => {
-    const st = location.state ?? {};
+    const st = location.state;
+    if (!st || typeof st !== 'object') return;
+
     const action = st.openSalesAction;
     const tab = st.focusSalesTab;
     const gsq = st.globalSearchQuery;
     const record = st.openSalesRecord;
     const openCustomerCreate = st.openCustomerCreate === true;
+    const resolvedTab = tab === 'dashboard' ? 'quotations' : tab;
+    const hasTab = resolvedTab && Object.prototype.hasOwnProperty.call(TAB_LABELS, resolvedTab);
+    const hasSearch = typeof gsq === 'string' && gsq.trim();
+    const recordId = String(record?.id || '').trim();
+    const hasRecord = Boolean(record && recordId);
+    const hasWork = Boolean(action || hasRecord || openCustomerCreate || hasTab || hasSearch);
+    if (!hasWork) return;
+
+    const navKey = JSON.stringify({
+      action: action || '',
+      tab: resolvedTab || '',
+      gsq: hasSearch ? String(gsq).trim() : '',
+      recordType: record?.type || '',
+      recordId: recordId || '',
+      openCustomerCreate,
+    });
+    if (consumedSalesNavKeyRef.current === navKey) return;
+    consumedSalesNavKeyRef.current = navKey;
 
     if (action) {
       setSelectedItem(null);
@@ -829,12 +850,11 @@ const Sales = () => {
         setCuttingAccessMode('edit');
         setShowCuttingModal(true);
       }
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate(location.pathname, { replace: true, state: null });
       return;
     }
 
-    const recordId = String(record?.id || '').trim();
-    if (record && recordId) {
+    if (hasRecord) {
       if (record.type === 'quotation') {
         const q = quotationsRef.current.find((x) => x.id === recordId);
         setActiveTab('quotations');
@@ -869,7 +889,7 @@ const Sales = () => {
         } else {
           showToast(`Refund ${recordId} not found.`, { variant: 'error' });
         }
-      } else if (record.type === 'cutting') {
+      } else if (record.type === 'cutting' || record.type === 'cutting_list') {
         const cl = cuttingListsRef.current.find((x) => x.id === recordId);
         setActiveTab('cuttinglist');
         setSearchQuery('');
@@ -881,14 +901,9 @@ const Sales = () => {
           showToast(`Cutting list ${recordId} not found.`, { variant: 'error' });
         }
       }
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate(location.pathname, { replace: true, state: null });
       return;
     }
-
-    const resolvedTab = tab === 'dashboard' ? 'quotations' : tab;
-    const hasTab = resolvedTab && Object.prototype.hasOwnProperty.call(TAB_LABELS, resolvedTab);
-    const hasSearch = typeof gsq === 'string' && gsq.trim();
-    if (!openCustomerCreate && !hasTab && !hasSearch) return;
 
     if (openCustomerCreate) {
       setActiveTab('customers');
@@ -899,7 +914,7 @@ const Sales = () => {
     if (hasSearch) setSearchQuery(gsq.trim());
     else if (hasTab || openCustomerCreate) setSearchQuery('');
 
-    navigate(location.pathname, { replace: true, state: {} });
+    navigate(location.pathname, { replace: true, state: null });
   }, [location.state, location.pathname, navigate, showToast]);
 
   useEffect(() => {

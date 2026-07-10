@@ -118,15 +118,15 @@ export function InventoryProvider({ children }) {
    */
   useEffect(() => {
     if (!wsHasWorkspaceData || !wsSnapshot) {
-      setProducts([]);
-      setPurchaseOrders([]);
-      setMovements([]);
-      setCoilLots([]);
-      setCoilControlEvents([]);
-      setMaterialIncidents([]);
-      setMaterialPoolSummary(null);
-      setWipByProduct({});
-      setInTransitLoads([]);
+      setProducts((prev) => (prev.length ? [] : prev));
+      setPurchaseOrders((prev) => (prev.length ? [] : prev));
+      setMovements((prev) => (prev.length ? [] : prev));
+      setCoilLots((prev) => (prev.length ? [] : prev));
+      setCoilControlEvents((prev) => (prev.length ? [] : prev));
+      setMaterialIncidents((prev) => (prev.length ? [] : prev));
+      setMaterialPoolSummary((prev) => (prev == null ? prev : null));
+      setWipByProduct((prev) => (Object.keys(prev).length ? {} : prev));
+      setInTransitLoads((prev) => (prev.length ? [] : prev));
       return;
     }
     const s = wsSnapshot;
@@ -143,12 +143,12 @@ export function InventoryProvider({ children }) {
     if (Array.isArray(s.coilControlEvents)) {
       setCoilControlEvents(s.coilControlEvents.map((e) => ({ ...e })));
     } else {
-      setCoilControlEvents([]);
+      setCoilControlEvents((prev) => (prev.length ? [] : prev));
     }
     if (Array.isArray(s.materialIncidents)) {
       setMaterialIncidents(s.materialIncidents.map((e) => ({ ...e })));
     } else {
-      setMaterialIncidents([]);
+      setMaterialIncidents((prev) => (prev.length ? [] : prev));
     }
     setMaterialPoolSummary(s.materialPoolSummary ?? null);
     if (Array.isArray(s.coilLots)) {

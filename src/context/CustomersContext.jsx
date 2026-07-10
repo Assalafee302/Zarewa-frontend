@@ -19,12 +19,15 @@ export function CustomersProvider({ children }) {
    
   useEffect(() => {
     if (!wsHasWorkspaceData || !wsSnapshot) {
-      setCustomers([]);
+      setCustomers((prev) => (prev.length ? [] : prev));
       return;
     }
-    const s = wsSnapshot;
-    const list = s.customers;
-    setCustomers(Array.isArray(list) ? list.map((c) => ({ ...c })) : []);
+    const list = wsSnapshot.customers;
+    if (!Array.isArray(list)) {
+      setCustomers((prev) => (prev.length ? [] : prev));
+      return;
+    }
+    setCustomers(list.map((c) => ({ ...c })));
   }, [wsHasWorkspaceData, wsSnapshot]);
    
 
