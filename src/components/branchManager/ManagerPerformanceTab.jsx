@@ -72,7 +72,7 @@ export function ManagerPerformanceTab({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5">
+        <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white">
           <p className="text-ui-xs font-bold uppercase tracking-[0.14em] text-slate-500">Branch health score</p>
           <p className={`mt-2 text-4xl font-black tabular-nums ${toneClass}`}>{healthScore?.score ?? '—'}</p>
           <p className="text-xs font-bold text-slate-600 mt-1">{healthScore?.status || 'Indicator'}</p>
@@ -99,7 +99,7 @@ export function ManagerPerformanceTab({
           ) : null}
         </FinanceSequencePanel>
 
-        <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 lg:col-span-2">
+        <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white lg:col-span-2">
           <div className="flex items-center justify-between gap-2 mb-3">
             <h4 className="text-sm font-black text-zarewa-teal">12-week trend</h4>
             <span
@@ -144,7 +144,31 @@ export function ManagerPerformanceTab({
         </FinanceSequencePanel>
       </div>
 
-      <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5">
+      <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white">
+        <p className="text-ui-xs font-bold uppercase tracking-[0.14em] text-slate-500 mb-3">
+          Metres · {(displaySnapshots?.periodLabel ?? 'this period').toLowerCase()}
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+              Metres produced (completed jobs)
+            </p>
+            <p className="mt-1 text-2xl font-black tabular-nums text-zarewa-teal">
+              {Number(displaySnapshots?.completedProductionMetres || 0).toLocaleString()} m
+            </p>
+          </div>
+          <div>
+            <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+              Cutting lists (dated in period)
+            </p>
+            <p className="mt-1 text-2xl font-black tabular-nums text-zarewa-teal">
+              {Number(displaySnapshots?.metersCuttingLists || 0).toLocaleString()} m
+            </p>
+          </div>
+        </div>
+      </FinanceSequencePanel>
+
+      <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white">
         <div className="flex items-center justify-between gap-3 mb-4">
           <h4 className="text-sm font-black text-zarewa-teal">
             Top customers ({(displaySnapshots?.periodLabel ?? 'this month').toLowerCase()})

@@ -12,7 +12,6 @@ import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterM
 import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFormFields.jsx';
 import { BranchManagerCommandInbox } from '../components/branchManager/BranchManagerCommandInbox';
 import { ManagerPriorityBanner, pickManagerPriorityItem } from '../components/branchManager/ManagerPriorityBanner';
-import { ManagerStatusRail } from '../components/branchManager/ManagerStatusRail';
 import { ManagerTodayPulse } from '../components/branchManager/ManagerTodayPulse';
 import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyChecklist';
 import { ManagerIntelligenceTab } from '../components/branchManager/ManagerIntelligenceTab';
@@ -38,18 +37,6 @@ import {
   normalizeManagerPageTab,
 } from '../lib/managerPageTabs';
 import { formatPersonName } from '../lib/formatPersonName';
-
-const STATUS_RAIL_MAP = {
-  orders: { tab: 'orders', filter: 'orders' },
-  cash: { tab: 'cash_out', filter: 'cash' },
-  production: { tab: 'qc', filter: 'qc' },
-  material: { tab: 'material', filter: 'material' },
-  procurement: { tab: 'procurement', filter: 'all' },
-  governance: { tab: 'governance', filter: 'all' },
-  stock: { tab: 'stock', filter: 'all' },
-  inventory: { tab: null, filter: null, route: '/operations' },
-  staff: { tab: null, filter: null, route: TEAM_HR_ATTENDANCE_PATH },
-};
 
 /**
  * Branch manager command center — Sequence shell, four moments, Priority Action Center.
@@ -169,23 +156,6 @@ const ManagerDashboard = () => {
     [bm, setPageTab]
   );
 
-  const handleStatusSelect = useCallback(
-    (key) => {
-      const mapped = STATUS_RAIL_MAP[key];
-      if (!mapped) return;
-      if (mapped.route) {
-        navigate(mapped.route, mapped.route.startsWith('/operations') ? { state: { focusOpsTab: 'inventory' } } : undefined);
-        return;
-      }
-      setPageTab('today');
-      if (mapped.tab) {
-        bm.setActiveTab(mapped.tab);
-        if (mapped.filter) bm.setAttentionFilter(mapped.filter);
-      }
-    },
-    [bm, navigate, setPageTab]
-  );
-
   const handleCommandSearch = useCallback(
     (e) => {
       e.preventDefault();
@@ -207,17 +177,12 @@ const ManagerDashboard = () => {
     }
   }, [navigate, searchParams]);
 
-  const statusRailSignals = useMemo(
-    () => (bm.healthSignals || []).filter((s) => s.key !== 'staff'),
-    [bm.healthSignals]
-  );
-
   const actorName = formatPersonName(
     bm.ws?.session?.user?.displayName || bm.ws?.session?.user?.name || bm.ws?.session?.user?.email || 'Manager'
   );
 
   return (
-    <PageShell className="pb-14 bg-[var(--color-sequence-bg,#F9FAFB)]">
+    <PageShell className="pb-14">
       <FinancePilotHeader
         eyebrow="Branch manager"
         title={branchLabel}
@@ -266,20 +231,14 @@ const ManagerDashboard = () => {
           <ManagerTodayPulse
             salesProduced={bm.displaySnapshots?.producedSalesNgn}
             cashCleared={bm.displaySnapshots?.paidOnQuotesNgn}
-            metres={bm.displaySnapshots?.completedProductionMetres}
+            metresProduced={bm.displaySnapshots?.completedProductionMetres}
+            metresCuttingLists={bm.displaySnapshots?.metersCuttingLists}
             openActions={bm.totalOpenActions}
             healthScore={healthScore}
             salesTarget={bm.displaySnapshots?.targets?.nairaTarget}
             metresTarget={bm.displaySnapshots?.targets?.meterTarget}
+            periodLabel={bm.displaySnapshots?.periodLabel ?? 'This period'}
             loading={bm.loading}
-          />
-
-          <ManagerStatusRail
-            signals={statusRailSignals}
-            activeKey={
-              Object.entries(STATUS_RAIL_MAP).find(([, v]) => v.tab === bm.activeTab)?.[0] || null
-            }
-            onSelect={handleStatusSelect}
           />
 
           <BranchManagerCommandInbox bm={bm} showDeliveryCreditTab={bm.showDeliveryCreditTab} />

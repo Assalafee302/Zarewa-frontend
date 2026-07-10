@@ -449,8 +449,8 @@ export function BranchManagerCommandInbox(props) {
   };
 
   return (
-    <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 overflow-hidden !p-0">
-      <div className="sticky top-0 z-20 p-4 border-b border-slate-100 bg-white/95 backdrop-blur-sm">
+    <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 overflow-hidden !p-0 bg-white">
+      <div className="sticky top-0 z-20 p-4 border-b border-slate-100 bg-white">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
             <h2 className="text-sm font-black text-zarewa-teal tracking-tight flex items-center gap-2">

@@ -6,7 +6,7 @@ import { FinanceSequencePanel } from '../layout';
 
 function PanelShell({ title, subtitle, children, disclaimer }) {
   return (
-    <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5">
+    <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white">
       <div className="mb-3">
         <h3 className="text-sm font-black text-zarewa-teal tracking-tight">{title}</h3>
         {subtitle ? <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p> : null}

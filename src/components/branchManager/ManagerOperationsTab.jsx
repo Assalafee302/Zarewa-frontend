@@ -81,7 +81,7 @@ export function ManagerOperationsTab({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-2">
-        <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5">
+        <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
               <Package size={16} className="text-zarewa-teal" aria-hidden />
@@ -107,7 +107,7 @@ export function ManagerOperationsTab({
           <StockTable products={products} />
         </FinanceSequencePanel>
 
-        <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5">
+        <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white">
           <div className="flex items-center gap-2 mb-3">
             <ShieldAlert size={16} className="text-zarewa-teal" aria-hidden />
             <h3 className="text-sm font-black text-zarewa-teal">People & exceptions</h3>
@@ -149,7 +149,7 @@ export function ManagerOperationsTab({
       </div>
 
       {showDeliveryCredit ? (
-        <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5">
+        <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white">
           <div className="flex items-center gap-2 mb-3">
             <Truck size={16} className="text-zarewa-teal" aria-hidden />
             <h3 className="text-sm font-black text-zarewa-teal">Delivery credit exceptions</h3>

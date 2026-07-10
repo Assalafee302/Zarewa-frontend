@@ -28,7 +28,9 @@
   --z-layer-force-auth: 12000;
 }
 
-/* Semantic theme tokens — use in new surfaces; light is default */
+/* Semantic theme tokens — use in new surfaces; light is default.
+   Sequence / ERP chrome stays light even when the OS prefers dark,
+   because the product UI is not dark-mode ready. */
 :root {
   --z-bg: #f9fafb;
   --z-surface: #ffffff;
@@ -39,16 +41,10 @@
   --z-accent: #134e4a;
 }
 
+/* Keep Sequence page canvas light; do not follow OS dark preference. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --z-bg: #0b1220;
-    --z-surface: #0f172a;
-    --z-surface-muted: #1e293b;
-    --z-text: #f1f5f9;
-    --z-text-muted: #94a3b8;
-    --z-border: #334155;
-    --z-accent: #5eead4;
-    --color-sequence-bg: var(--z-bg);
+    --color-sequence-bg: #f9fafb;
   }
 }
 
@@ -60,7 +56,8 @@
   --z-text-muted: #94a3b8;
   --z-border: #334155;
   --z-accent: #5eead4;
-  --color-sequence-bg: var(--z-bg);
+  /* Explicit .dark class still allowed for future opt-in; Sequence canvas stays light. */
+  --color-sequence-bg: #f9fafb;
 }
 
 @utility text-ui-xs {
