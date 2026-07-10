@@ -9,7 +9,7 @@ import { canApproveProductionGate } from '../../lib/productionGateAccess';
 import { useToast } from '../../context/ToastContext';
 import { ClearanceManagerApprovalPreview } from '../management/ClearanceManagerApprovalPreview';
 import { RefundManagerApprovalPreview } from '../management/RefundManagerApprovalPreview';
-import { ManagementAuditSections } from '../management/ManagementAuditSections';
+import { ConversionRecordPanel } from '../management/ConversionRecordPanel';
 import { ManagerPoAuditSections } from '../management/ManagerPoAuditSections';
 import { OfficialRecordBanner } from '../management/OfficialRecordBanner';
 import { ZareApprovalHint } from '../ZareApprovalHint';
@@ -18,6 +18,14 @@ import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal
 import { GovernanceDetailPanel } from './GovernanceDetailPanel';
 import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
 import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx';
+import {
+  DecisionActionTile,
+  DecisionBand,
+  DecisionChip,
+  DecisionModalBody,
+  DecisionModalHeader,
+  DecisionStickyActions,
+} from '../management/DecisionSurface';
 
 export function ManagementDecisionModal({
   selectedIntel,
@@ -172,7 +180,7 @@ export function ManagementDecisionModal({
 
   const stickyFooter =
     selectedIntel?.kind === 'payment' ? (
-      <div className="sticky bottom-0 z-20 space-y-2 border-t border-slate-200 bg-white p-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
+      <DecisionStickyActions>
         {!canApprovePaymentRequests ? (
           <ZareApprovalHint
             context={{
@@ -187,31 +195,24 @@ export function ManagementDecisionModal({
           />
         ) : null}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <button
-            type="button"
+          <DecisionActionTile
+            variant="approve"
+            icon={CheckCircle2}
+            label="Approve"
             disabled={modalBusy || !canApprovePaymentRequests}
             onClick={() => handlePaymentDecision?.('Approved')}
-            className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
-          >
-            <CheckCircle2 size={18} />
-            <span className="text-ui-xs font-black uppercase tracking-widest">Approve</span>
-          </button>
-          <button
-            type="button"
+          />
+          <DecisionActionTile
+            variant="reject"
+            icon={Flag}
+            label="Reject"
             disabled={modalBusy || !canApprovePaymentRequests}
             onClick={() => handlePaymentDecision?.('Rejected')}
-            className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors"
-          >
-            <Flag size={18} />
-            <span className="text-ui-xs font-black uppercase tracking-widest">Reject</span>
-          </button>
+          />
         </div>
-      </div>
+      </DecisionStickyActions>
     ) : selectedIntel?.kind === 'conversion' ? (
-      <div className="sticky bottom-0 z-20 space-y-2 border-t border-slate-200 bg-white p-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
-        <p className="text-ui-xs text-slate-500 leading-relaxed">
-          Confirms you have reviewed High/Low conversion or the open manager review for this completed job.
-        </p>
+      <DecisionStickyActions hint="Confirms you have reviewed High/Low conversion or the open manager review for this completed job.">
         <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
           Remark
           <textarea
@@ -233,21 +234,16 @@ export function ManagementDecisionModal({
             />
           </div>
         ) : null}
-        <button
-          type="button"
+        <DecisionActionTile
+          variant="brand"
+          icon={Factory}
+          label="Sign off review"
           disabled={modalBusy}
           onClick={() => void handleConversionSignoff?.()}
-          className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl bg-zarewa-teal hover:brightness-105 text-white font-black uppercase text-ui-xs tracking-widest disabled:opacity-50 transition-colors"
-        >
-          <Factory size={18} />
-          Sign off review
-        </button>
-      </div>
+        />
+      </DecisionStickyActions>
     ) : selectedIntel?.kind === 'purchase_order' ? (
-      <div className="sticky bottom-0 z-20 border-t border-slate-200 bg-white p-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
-        <p className="mb-2 text-ui-xs text-slate-500 leading-snug">
-          Purchase-order approval runs on the Procurement desk. Open the PO there to approve, reject, or amend.
-        </p>
+      <DecisionStickyActions hint="Purchase-order approval runs on the Procurement desk. Open the PO there to approve, reject, or amend.">
         <Button
           type="button"
           className="w-full"
@@ -260,10 +256,10 @@ export function ManagementDecisionModal({
           <ShoppingCart size={16} />
           Open in Procurement
         </Button>
-      </div>
+      </DecisionStickyActions>
     ) : (
-      <div className={`p-3 border-t ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-black/30'}`}>
-        <p className={`text-ui-xs font-semibold text-center uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-white/25'}`}>
+      <div className="border-t border-slate-200 bg-white p-3">
+        <p className="text-center text-ui-xs font-semibold uppercase tracking-widest text-slate-400">
           Management · Zarewa
         </p>
       </div>
@@ -271,42 +267,11 @@ export function ManagementDecisionModal({
 
   return (
     <ModalFrame isOpen={Boolean(selectedIntel)} onClose={closeIntelModal} closeDisabled={modalBusy}>
-      <div className={`z-modal-panel w-full p-0 overflow-hidden ${isLight ? 'max-w-6xl' : 'max-w-5xl'}`}>
-        <Card
-          className={`flex flex-col shadow-xl overflow-hidden max-h-[min(92vh,960px)] ${
-            isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
-          }`}
-        >
-          <div
-            className={`sticky top-0 z-20 p-4 border-b flex items-center justify-between gap-2 ${
-              isLight ? 'border-slate-200 bg-white' : 'border-white/10'
-            }`}
-          >
-            <h3
-              className={`text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2 ${
-                isLight ? 'text-slate-500' : 'text-white/50'
-              }`}
-            >
-              <History size={14} className={isLight ? 'text-zarewa-teal' : 'text-teal-400'} />
-              {intelModalTitle}
-            </h3>
-            <button
-              type="button"
-              onClick={closeIntelModal}
-              disabled={modalBusy}
-              className={`text-ui-xs font-bold uppercase transition-colors disabled:opacity-50 ${
-                isLight ? 'text-slate-400 hover:text-slate-800' : 'text-white/40 hover:text-white'
-              }`}
-            >
-              Close
-            </button>
-          </div>
+      <div className="z-modal-panel w-full max-w-6xl overflow-hidden p-0">
+        <Card className="flex max-h-[min(92vh,960px)] flex-col overflow-hidden border-slate-200 bg-white shadow-xl">
+          <DecisionModalHeader title={intelModalTitle} onClose={closeIntelModal} busy={modalBusy} icon={History} />
 
-          <div
-            className={`flex-1 overflow-y-auto p-4 custom-scrollbar min-h-0 ${
-              isLight ? 'bg-slate-50/80 space-y-3 text-slate-800' : 'space-y-5 text-white'
-            }`}
-          >
+          <DecisionModalBody>
             {selectedIntel?.kind === 'governance' ? (
               <GovernanceDetailPanel
                 item={selectedIntel.item || selectedIntel}
@@ -319,13 +284,6 @@ export function ManagementDecisionModal({
               />
             ) : selectedIntel?.kind === 'quotation' ? (
               <>
-                <OfficialRecordBanner
-                  item={selectedUnifiedWorkItem}
-                  light={isLight}
-                  quoteFallbackId={officialRecordFallbackId}
-                  showOpenRecord={selectedIntel?.kind === 'payment'}
-                  onOpenRecord={openUnifiedWorkItem}
-                />
                 <ClearanceManagerApprovalPreview
                   quoteId={selectedIntel.quoteId}
                   inboxRow={selectedIntel.row}
@@ -360,20 +318,42 @@ export function ManagementDecisionModal({
                   onWriteOffReceivable={() => void handleWriteOffReceivableSelectedQuotation?.()}
                   onProductionOverride={() => void handleProductionOverrideSelectedQuotation?.()}
                 />
-                <ManagementAuditSections
-                  auditData={auditData}
-                  loadingAudit={loadingAudit}
+              </>
+            ) : selectedIntel?.kind === 'purchase_order' ? (
+              <>
+                <DecisionBand
+                  tone="po"
+                  eyebrow="Purchase order"
+                  title={
+                    selectedIntel.row?.po_id ||
+                    selectedIntel.row?.poID ||
+                    selectedIntel.poId ||
+                    '—'
+                  }
+                  subtitle={
+                    selectedIntel.row?.supplier_name ||
+                    selectedIntel.row?.vendor_name ||
+                    selectedIntel.row?.description ||
+                    null
+                  }
+                  aside={
+                    selectedIntel.row?.amount_ngn != null || selectedIntel.row?.total_ngn != null ? (
+                      <>
+                        <p className="text-ui-xs font-bold uppercase text-slate-400">Total</p>
+                        <p className="text-lg font-black tabular-nums text-slate-900">
+                          {asMoney(selectedIntel.row?.amount_ngn ?? selectedIntel.row?.total_ngn)}
+                        </p>
+                      </>
+                    ) : null
+                  }
+                />
+                <ManagerPoAuditSections
+                  auditData={poAuditData}
+                  loadingAudit={loadingPoAudit}
                   formatNgn={asMoney}
                   appearance="light"
                 />
               </>
-            ) : selectedIntel?.kind === 'purchase_order' ? (
-              <ManagerPoAuditSections
-                auditData={poAuditData}
-                loadingAudit={loadingPoAudit}
-                formatNgn={asMoney}
-                appearance="light"
-              />
             ) : selectedIntel?.kind === 'refund' ? (
               <>
                 {!canApproveRefunds ? (
@@ -415,37 +395,52 @@ export function ManagementDecisionModal({
                 />
               </>
             ) : selectedIntel?.kind === 'payment' ? (
-              <div className="space-y-5 animate-in fade-in duration-200 text-slate-700">
-                <div>
-                  <p className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal/90 mb-1">Payment request</p>
-                  <h2 className="text-lg font-black text-slate-900 leading-tight">{selectedIntel.requestId}</h2>
-                  <p className="text-xs text-slate-500 mt-2 font-mono">{selectedIntel.row?.expense_id}</p>
-                  {selectedIntel.row?.expense_category ? (
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
+              <div className="animate-in fade-in space-y-3 duration-200 text-slate-700">
+                <DecisionBand
+                  tone="payment"
+                  eyebrow="Payment request"
+                  title={selectedIntel.requestId}
+                  subtitle={selectedIntel.row?.expense_id || selectedIntel.row?.description}
+                  aside={
+                    <>
+                      <p className="text-ui-xs font-bold uppercase text-slate-400">Amount</p>
+                      <p className="text-lg font-black tabular-nums text-slate-900">
+                        {asMoney(selectedIntel.row?.amount_requested_ngn)}
+                      </p>
+                      {selectedIntel.row?.request_date ? (
+                        <p className="mt-0.5 text-ui-xs uppercase tracking-wide text-slate-500">
+                          {selectedIntel.row.request_date}
+                        </p>
+                      ) : null}
+                    </>
+                  }
+                  meta={
+                    selectedIntel.row?.expense_category ? (
                       <ExpenseCategoryLaneBadge
                         category={selectedIntel.row.expense_category}
                         laneKey={selectedIntel.row.expense_category_lane}
                       />
-                      <p className="text-xs text-teal-700">
-                        Category:{' '}
-                        <span className="font-semibold text-slate-800">{selectedIntel.row.expense_category}</span>
-                      </p>
-                    </div>
-                  ) : null}
+                    ) : null
+                  }
+                >
                   {selectedIntel.row?.request_reference ? (
-                    <p className="text-xs text-slate-600 mt-2">
-                      Reference: <span className="font-semibold text-slate-800">{selectedIntel.row.request_reference}</span>
+                    <p className="mt-2 text-xs text-slate-600">
+                      Reference:{' '}
+                      <span className="font-semibold text-slate-800">{selectedIntel.row.request_reference}</span>
                     </p>
                   ) : null}
-                  <p className="text-sm font-semibold text-slate-800 mt-3 tabular-nums">{asMoney(selectedIntel.row?.amount_requested_ngn)}</p>
-                  <p className="text-sm text-slate-600 mt-3 leading-snug whitespace-pre-wrap">{selectedIntel.row?.description}</p>
-                  <p className="text-ui-xs text-slate-500 mt-3 uppercase tracking-wide">{selectedIntel.row?.request_date}</p>
+                  {selectedIntel.row?.description ? (
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-snug text-slate-600">
+                      {selectedIntel.row.description}
+                    </p>
+                  ) : null}
+                </DecisionBand>
 
                   {paymentIntelLineItems?.total > 0 ? (
-                    <div className="z-scroll-x mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                    <div className="z-scroll-x overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
                       <table className="w-full min-w-[320px] border-collapse text-left text-xs">
                         <thead>
-                          <tr className="text-slate-500 uppercase tracking-wide border-b border-slate-200 text-xs font-bold">
+                          <tr className="border-b border-slate-200 text-xs font-bold uppercase tracking-wide text-slate-500">
                             <th className="p-2.5">Item</th>
                             <th className="p-2.5 text-right">Unit</th>
                             <th className="p-2.5 text-right">Price</th>
@@ -455,14 +450,14 @@ export function ManagementDecisionModal({
                         <tbody>
                           {paymentIntelLineItems.lines.map((ln, i) => (
                             <tr key={i} className="border-b border-slate-100 text-slate-700">
-                              <td className="p-2.5 max-w-0 whitespace-nowrap truncate" title={ln.item || '—'}>
+                              <td className="max-w-0 truncate whitespace-nowrap p-2.5" title={ln.item || '—'}>
                                 {ln.item || '—'}
                               </td>
-                              <td className="p-2.5 text-right tabular-nums whitespace-nowrap">{Number(ln.unit) || 0}</td>
-                              <td className="p-2.5 text-right tabular-nums whitespace-nowrap">
+                              <td className="whitespace-nowrap p-2.5 text-right tabular-nums">{Number(ln.unit) || 0}</td>
+                              <td className="whitespace-nowrap p-2.5 text-right tabular-nums">
                                 {asMoney(Number(ln.unitPriceNgn ?? ln.unit_price_ngn) || 0)}
                               </td>
-                              <td className="p-2.5 text-right tabular-nums font-semibold text-slate-900 whitespace-nowrap">
+                              <td className="whitespace-nowrap p-2.5 text-right font-semibold tabular-nums text-slate-900">
                                 {asMoney(Number(ln.lineTotalNgn ?? ln.line_total_ngn) || 0)}
                               </td>
                             </tr>
@@ -477,13 +472,13 @@ export function ManagementDecisionModal({
                     </div>
                   ) : null}
 
-                  <div className="flex flex-wrap gap-2 mt-4">
+                  <div className="flex flex-wrap gap-2">
                     {selectedIntel.row?.attachment_present ? (
                       <a
                         href={paymentAttachmentHref}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-300"
                       >
                         <Paperclip size={14} />
                         {selectedIntel.row?.attachment_name || 'View attachment'}
@@ -494,13 +489,12 @@ export function ManagementDecisionModal({
                     <button
                       type="button"
                       onClick={() => void printSelectedPaymentRequest?.()}
-                      className="inline-flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-300"
                     >
                       <Printer size={14} />
                       Print record
                     </button>
                   </div>
-                </div>
 
                 <OfficialRecordBanner
                   item={selectedUnifiedWorkItem}
@@ -522,33 +516,33 @@ export function ManagementDecisionModal({
                 onReject={(note) => void handleStaffPurchaseCreditDecision?.('reject', note)}
               />
             ) : selectedIntel?.kind === 'conversion' ? (
-              <div className="space-y-5 animate-in fade-in duration-200 text-slate-700">
-                <div>
-                  <p className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal/90 mb-1">Conversion review</p>
-                  <h2 className="text-lg font-black text-slate-900 font-mono leading-tight">{selectedIntel.jobId}</h2>
-                  <p className="text-xs font-bold text-teal-700 mt-2">{selectedIntel.row?.quotation_ref || '—'}</p>
-                  <p className="text-sm font-semibold text-slate-700 mt-1 truncate">{asPersonName(selectedIntel.row?.customer_name)}</p>
-                  <p className="text-ui-xs text-slate-500 mt-2">{selectedIntel.row?.product_name}</p>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <span className="text-ui-xs font-black uppercase px-2 py-1 rounded-md bg-slate-200 text-slate-700">
-                      Alert: {selectedIntel.row?.conversion_alert_state || '—'}
-                    </span>
-                    {selectedIntel.row?.manager_review_required ? (
-                      <span className="text-ui-xs font-black uppercase px-2 py-1 rounded-md bg-amber-100 text-amber-900">
-                        Manager review
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="text-ui-xs text-slate-600 mt-4 tabular-nums">
-                    Actual: {Number(selectedIntel.row?.actual_meters || 0).toLocaleString()} m
-                    {selectedIntel.row?.actual_weight_kg != null
-                      ? ` · ${Number(selectedIntel.row.actual_weight_kg).toLocaleString()} kg`
-                      : ''}
-                  </p>
-                  <p className="text-ui-xs text-slate-500 mt-2">
-                    {selectedIntel.row?.completed_at_iso ? new Date(selectedIntel.row.completed_at_iso).toLocaleString() : ''}
-                  </p>
-                </div>
+              <div className="animate-in fade-in space-y-3 duration-200 text-slate-700">
+                <DecisionBand
+                  tone="convert"
+                  eyebrow="Conversion review"
+                  title={selectedIntel.jobId}
+                  subtitle={asPersonName(selectedIntel.row?.customer_name)}
+                  meta={
+                    <>
+                      <DecisionChip tone="slate">
+                        Alert: {selectedIntel.row?.conversion_alert_state || '—'}
+                      </DecisionChip>
+                      {selectedIntel.row?.manager_review_required ? (
+                        <DecisionChip tone="amber">Manager review</DecisionChip>
+                      ) : null}
+                      {selectedIntel.row?.completed_at_iso ? (
+                        <DecisionChip tone="slate">
+                          {new Date(selectedIntel.row.completed_at_iso).toLocaleString()}
+                        </DecisionChip>
+                      ) : null}
+                    </>
+                  }
+                >
+                  <p className="mt-1 text-xs font-bold text-teal-700">{selectedIntel.row?.quotation_ref || '—'}</p>
+                  {selectedIntel.row?.product_name ? (
+                    <p className="mt-1 text-ui-xs text-slate-500">{selectedIntel.row.product_name}</p>
+                  ) : null}
+                </DecisionBand>
 
                 <OfficialRecordBanner
                   item={selectedUnifiedWorkItem}
@@ -557,22 +551,16 @@ export function ManagementDecisionModal({
                   onOpenRecord={openUnifiedWorkItem}
                 />
 
-                {selectedIntel.row?.quotation_ref ? (
-                  <div className="space-y-3">
-                    <p className="text-ui-xs font-black text-zarewa-teal uppercase tracking-widest">
-                      Quotation context (payments, balance, meters, conversion trail)
-                    </p>
-                    <ManagementAuditSections
-                      auditData={auditData}
-                      loadingAudit={loadingAudit}
-                      formatNgn={asMoney}
-                      appearance="light"
-                    />
-                  </div>
-                ) : null}
+                <ConversionRecordPanel
+                  auditData={auditData}
+                  loading={loadingAudit}
+                  focusJobId={selectedIntel.jobId}
+                  title="Conversion record"
+                  emptyMessage="No coil or conversion check found for this job yet. Refresh or open Production QC."
+                />
               </div>
             ) : null}
-          </div>
+          </DecisionModalBody>
 
           {stickyFooter}
         </Card>

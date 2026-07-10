@@ -16,6 +16,8 @@ import {
 } from '../../lib/refundLineArithmetic';
 import { refundWorkspaceSnapshotFingerprint } from '../../lib/refundWorkspaceSnapshot';
 import { isStoneFlatsheetQuotationLine } from '../../lib/stoneCoatedQuotationPolicy';
+import { ConversionRecordPanel } from './ConversionRecordPanel';
+import { DecisionActionBar, DecisionBand } from './DecisionSurface';
 
 function refundCategoryTokens(value) {
   if (Array.isArray(value)) return value.map((x) => String(x ?? '').trim()).filter(Boolean);
@@ -95,38 +97,13 @@ function quoteLineFloorPpm(item) {
   return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
 }
 
-function formatKgPerM(v) {
-  const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? n.toFixed(2) : '—';
-}
-
 function accessorySupplyLabel(issued, quoted) {
   const i = Number(issued);
   const q = Number(quoted);
-  if (!Number.isFinite(q) || q <= 0) return { text: '—', tone: 'slate' };
+  if (!Number.isFinite(q) || q <= 0) return { text: '?', tone: 'slate' };
   if (Number.isFinite(i) && i >= q) return { text: 'Supplied', tone: 'emerald' };
   if (Number.isFinite(i) && i > 0) return { text: 'Partial', tone: 'amber' };
   return { text: 'Not issued', tone: 'rose' };
-}
-
-function ConversionRefGrid({ check }) {
-  const cells = [
-    ['Act', check.actual_conversion_kg_per_m ?? check.actualConversionKgPerM],
-    ['Std', check.standard_conversion_kg_per_m ?? check.standardConversionKgPerM],
-    ['Sup', check.supplier_conversion_kg_per_m ?? check.supplierConversionKgPerM],
-    ['G', check.gauge_history_avg_kg_per_m ?? check.gaugeHistoryAvgKgPerM],
-    ['C', check.coil_history_avg_kg_per_m ?? check.coilHistoryAvgKgPerM],
-  ];
-  return (
-    <div className="grid grid-cols-5 gap-0.5">
-      {cells.map(([label, val]) => (
-        <div key={label} className="rounded border border-slate-200/90 bg-white px-0.5 py-0.5 text-center">
-          <p className="text-ui-xs font-bold uppercase text-slate-400">{label}</p>
-          <p className="text-ui-xs font-bold tabular-nums text-slate-800">{formatKgPerM(val)}</p>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function quoteProductRows(quotation) {
@@ -146,14 +123,14 @@ function quoteLineUnitPriceNumber(raw) {
 
 function quoteLineQtyDisplay(raw) {
   const qty = quoteLineQtyNumber(raw);
-  if (qty <= 0) return '—';
+  if (qty <= 0) return '?';
   const name = String(raw?.name ?? raw?.label ?? '');
-  if (isStoneFlatsheetQuotationLine(name)) return `${qty.toLocaleString()} m²`;
+  if (isStoneFlatsheetQuotationLine(name)) return `${qty.toLocaleString()} mÂ²`;
   return `${qty.toLocaleString()} m`;
 }
 
 /**
- * Four-quadrant refund approval intel for Management ? Action inbox ? Refunds.
+ * Four-quadrant refund approval intel for Management Â· Action inbox Â· Refunds.
  */
 export function RefundManagerApprovalPreview({
   refundId,
@@ -287,10 +264,6 @@ export function RefundManagerApprovalPreview({
     () => (Array.isArray(auditData?.productionLogs) ? auditData.productionLogs : []),
     [auditData?.productionLogs]
   );
-  const checks = useMemo(
-    () => (Array.isArray(auditData?.conversionChecks) ? auditData.conversionChecks : []),
-    [auditData?.conversionChecks]
-  );
   const salesReceipts = Array.isArray(auditData?.salesReceipts) ? auditData.salesReceipts : [];
   const intelSum = effectiveRefundIntel?.summary;
   const dataQuality = useMemo(
@@ -380,7 +353,7 @@ export function RefundManagerApprovalPreview({
       const staleCount = Array.isArray(data.staleRefundWarnings) ? data.staleRefundWarnings.length : 0;
       showToast(
         paidChanged
-          ? `Integrity recalculated — paid balance updated to ${formatNgn(data.receiptReconcile?.paidNgn)}.${staleCount ? ` ${staleCount} open refund(s) exceed the economic floor.` : ''}`
+          ? `Integrity recalculated ? paid balance updated to ${formatNgn(data.receiptReconcile?.paidNgn)}.${staleCount ? ` ${staleCount} open refund(s) exceed the economic floor.` : ''}`
           : staleCount
             ? `Integrity recalculated. ${staleCount} open refund(s) exceed the economic floor cap.`
             : 'Quotation integrity recalculated.',
@@ -548,7 +521,7 @@ export function RefundManagerApprovalPreview({
         }
       } else {
         setApprovalAmountError(
-          `Breakdown total is ?${Math.round(lineSum).toLocaleString('en-NG')} — edit lines in Sales or approve the full requested amount.`
+          `Breakdown total is ?${Math.round(lineSum).toLocaleString('en-NG')} ? edit lines in Sales or approve the full requested amount.`
         );
         return;
       }
@@ -647,7 +620,7 @@ export function RefundManagerApprovalPreview({
     if (requiresMdApproval) {
       alerts.push({
         tone: 'violet',
-        title: `MD approval required — above ?${Number(refundExecutiveThresholdNgn).toLocaleString('en-NG')}`,
+        title: `MD approval required ? above ?${Number(refundExecutiveThresholdNgn).toLocaleString('en-NG')}`,
         body: `Requested ${formatNgn(requestedAmountNgn)} exceeds the executive refund threshold. Only MD/CEO (or administrator) may approve this amount.`,
       });
     }
@@ -669,9 +642,9 @@ export function RefundManagerApprovalPreview({
         tone: sameRequestOverpayAndCancel ? 'rose' : 'amber',
         title: 'Multi-category overlap on quotation',
         body: sameRequestOverpayAndCancel
-          ? 'This request combines Overpayment with Order cancellation — these double-count cash received. Reject or send back until one category is removed.'
+          ? 'This request combines Overpayment with Order cancellation ? these double-count cash received. Reject or send back until one category is removed.'
           : priorRefundCategories.length
-            ? `Prior refund(s): ${priorRefundCategories.join(', ')}. Current: ${currentCategories.join(', ') || '—'}. Verify Overpayment is not double-counted with cancellation/unproduced meterage on this quote.`
+            ? `Prior refund(s): ${priorRefundCategories.join(', ')}. Current: ${currentCategories.join(', ') || '?'}. Verify Overpayment is not double-counted with cancellation/unproduced meterage on this quote.`
             : 'This quote has Overpayment combined with Order cancellation and/or Unproduced meterage across refund requests. Verify categories are not double-counting the same economic loss.',
       });
     }
@@ -681,7 +654,7 @@ export function RefundManagerApprovalPreview({
         title: 'Partial production detected',
         body:
           partialProductionJobs.length > 0
-            ? `${partialProductionJobs.length} completed job(s) produced less than planned — consider Unproduced meterage instead of full cancellation.`
+            ? `${partialProductionJobs.length} completed job(s) produced less than planned ? consider Unproduced meterage instead of full cancellation.`
             : 'Order cancellation requested but production jobs show completed output on this quote.',
       });
     }
@@ -730,52 +703,45 @@ export function RefundManagerApprovalPreview({
 
   return (
     <div className="animate-in fade-in space-y-2 duration-200">
-      <div className="rounded-lg border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">Refund approval</span>
-              {officialRecord?.referenceNo || officialRecord?.id ? (
-                <span className="text-ui-xs font-mono text-slate-500">
-                  · Record {officialRecord.referenceNo || officialRecord.id}
-                </span>
-              ) : null}
-            </div>
-            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0">
-              <h2 className="font-mono text-base font-black text-slate-900">{refundId}</h2>
-              <span className="text-ui-xs text-slate-400">·</span>
-              <span className="text-sm font-semibold text-slate-800">
-                {formatPersonName(refund?.customer || inboxRow?.customer_name || '—')}
-              </span>
-            </div>
-            <p className="mt-0.5 text-ui-xs text-slate-600">
-              {refund?.quotationRef || inboxRow?.quotation_ref ? (
-                <span className="font-mono font-semibold">{refund?.quotationRef || inboxRow?.quotation_ref}</span>
-              ) : (
-                '—'
-              )}
-              <span className="text-slate-400"> · </span>
-              {formatRefundReasonCategory(refund?.reasonCategory ?? inboxRow?.reason_category)}
-              <span className="text-slate-400"> · </span>
-              {formatActorAttribution(refund?.requestedBy, refund?.requestedAtISO || inboxRow?.requested_at_iso) ||
-                (inboxRow?.requested_at_iso || '').slice(0, 16).replace('T', ' ')}
-            </p>
-            {officialRecord?.keyDecisionSummary ? (
-              <p className="mt-1 text-ui-xs leading-snug text-slate-500 line-clamp-2">
-                {officialRecord.keyDecisionSummary}
-              </p>
-            ) : null}
-          </div>
-          <div className="shrink-0 text-right">
+      <DecisionBand
+        tone="refund"
+        eyebrow="Refund approval"
+        title={refundId}
+        subtitle={formatPersonName(refund?.customer || inboxRow?.customer_name || '?')}
+        aside={
+          <>
             <p className="text-ui-xs font-bold uppercase text-slate-400">Requested</p>
             <p className="text-lg font-black tabular-nums text-rose-700">
               {formatNgn(refund?.amountNgn ?? inboxRow?.amount_ngn)}
             </p>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      >
+        <p className="mt-1 text-ui-xs text-slate-600">
+          {refund?.quotationRef || inboxRow?.quotation_ref ? (
+            <span className="font-mono font-semibold">{refund?.quotationRef || inboxRow?.quotation_ref}</span>
+          ) : (
+            '?'
+          )}
+          <span className="text-slate-400"> ï¿½ </span>
+          {formatRefundReasonCategory(refund?.reasonCategory ?? inboxRow?.reason_category)}
+          <span className="text-slate-400"> ï¿½ </span>
+          {formatActorAttribution(refund?.requestedBy, refund?.requestedAtISO || inboxRow?.requested_at_iso) ||
+            (inboxRow?.requested_at_iso || '').slice(0, 16).replace('T', ' ')}
+        </p>
+        {officialRecord?.referenceNo || officialRecord?.id ? (
+          <p className="mt-1 font-mono text-ui-xs text-slate-500">
+            Record {officialRecord.referenceNo || officialRecord.id}
+          </p>
+        ) : null}
+        {officialRecord?.keyDecisionSummary ? (
+          <p className="mt-1 line-clamp-2 text-ui-xs leading-snug text-slate-500">
+            {officialRecord.keyDecisionSummary}
+          </p>
+        ) : null}
+      </DecisionBand>
 
-      {contextAlerts.length > 0 ? (
+            {contextAlerts.length > 0 ? (
         <div className="flex flex-col gap-1">
           {contextAlerts.map((alert) => (
             <AlertBanner key={alert.title} tone={alert.tone} title={alert.title}>
@@ -788,12 +754,12 @@ export function RefundManagerApprovalPreview({
       {loading ? (
         <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-10">
           <RefreshCw className="animate-spin text-zarewa-teal" size={22} />
-          <span className="text-ui-xs font-semibold text-slate-500">Loading context…</span>
+          <span className="text-ui-xs font-semibold text-slate-500">Loading context?</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-          {/* Quotation — product spec & price comparison */}
-          <Panel title="Quotation" hint="Metres/m², unit price, line amount, and floor ?/m.">
+          {/* Quotation ? product spec & price comparison */}
+          <Panel title="Quotation" hint="Metres/mÂ², unit price, line amount, and floor â‚¦/m.">
             {!auditData || auditData.ok === false ? (
               <p className="text-ui-xs text-rose-600">{auditData?.error || 'Quotation audit unavailable.'}</p>
             ) : (
@@ -812,7 +778,7 @@ export function RefundManagerApprovalPreview({
                       sum.materialDesign,
                     ]
                       .filter(Boolean)
-                      .join(' · ')}
+                      .join(' ? ')}
                   </p>
                 )}
                 {productRows.length === 0 && lines.filter((l) => l.category === 'products').length === 0 ? (
@@ -834,7 +800,7 @@ export function RefundManagerApprovalPreview({
                           ? productRows
                           : lines.filter((l) => l.category === 'products')
                         ).map((raw, idx) => {
-                          const name = raw.name || raw.label || '—';
+                          const name = raw.name || raw.label || '?';
                           const qty = quoteLineQtyNumber(raw);
                           const unit = quoteLineUnitPriceNumber(raw);
                           const lineTotal = qty > 0 && unit > 0 ? Math.round(qty * unit) : 0;
@@ -854,13 +820,13 @@ export function RefundManagerApprovalPreview({
                               <td
                                 className={`px-1 py-1 text-right tabular-nums font-semibold ${belowFloor ? 'text-rose-700' : 'text-slate-800'}`}
                               >
-                                {unit > 0 ? formatNgn(unit) : '—'}
+                                {unit > 0 ? formatNgn(unit) : '?'}
                               </td>
                               <td className="px-1 py-1 text-right tabular-nums font-bold text-slate-900">
-                                {lineTotal > 0 ? formatNgn(lineTotal) : '—'}
+                                {lineTotal > 0 ? formatNgn(lineTotal) : '?'}
                               </td>
                               <td className="px-1.5 py-1 text-right tabular-nums text-slate-600">
-                                {floor != null ? formatNgn(floor) : '—'}
+                                {floor != null ? formatNgn(floor) : '?'}
                               </td>
                             </tr>
                           );
@@ -879,7 +845,7 @@ export function RefundManagerApprovalPreview({
                         <div key={idx} className="flex justify-between gap-2 text-ui-xs">
                           <span className="truncate text-slate-700">{ln.name}</span>
                           <span className="shrink-0 tabular-nums text-slate-600">
-                            {ln.lineTotal !== '' && ln.lineTotal != null ? formatNgn(ln.lineTotal) : '—'}
+                            {ln.lineTotal !== '' && ln.lineTotal != null ? formatNgn(ln.lineTotal) : '?'}
                           </span>
                         </div>
                       ))}
@@ -898,7 +864,7 @@ export function RefundManagerApprovalPreview({
                 <Stat label="Outstanding" value={formatNgn(sum.outstandingNgn)} />
                 <Stat
                   label="Paid %"
-                  value={paymentPct != null ? `${paymentPct}%` : '—'}
+                  value={paymentPct != null ? `${paymentPct}%` : '?'}
                   warn={deliveryGateBreached}
                   accent={paymentPct != null && paymentPct >= 70 && !deliveryGateBreached}
                 />
@@ -910,13 +876,13 @@ export function RefundManagerApprovalPreview({
                   deliveryGateBreached ? 'bg-rose-50 text-rose-900' : 'bg-amber-50 text-amber-950'
                 }`}
               >
-                Delivery gate ({deliveryPaymentGate}): {deliveryGateBreached ? 'below 70% threshold' : 'satisfied'} ·
+                Delivery gate ({deliveryPaymentGate}): {deliveryGateBreached ? 'below 70% threshold' : 'satisfied'} ?
                 cap {formatNgn(maxApprovableNgn)} after other refunds
               </p>
             ) : (
               <p className="mb-2 text-ui-xs text-slate-500">
                 Approvable cap {formatNgn(maxApprovableNgn)}
-                {reservedOtherRefundsNgn > 0 ? ` · ${formatNgn(reservedOtherRefundsNgn)} reserved` : ''}
+                {reservedOtherRefundsNgn > 0 ? ` Â· ${formatNgn(reservedOtherRefundsNgn)} reserved` : ''}
               </p>
             )}
             {economicFloor && (economicFloor.producedOutputMeters > 0 || economicFloor.floorDeliveredValueNgn > 0) ? (
@@ -930,7 +896,7 @@ export function RefundManagerApprovalPreview({
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-bold uppercase tracking-wide text-ui-xs text-slate-500">
-                    Economic floor (produced × workbook minimum)
+                    Economic floor (produced ? workbook minimum)
                   </p>
                   {canRecalculateIntegrity ? (
                     <button
@@ -945,13 +911,13 @@ export function RefundManagerApprovalPreview({
                   ) : null}
                 </div>
                 <p className="mt-0.5">
-                  {Number(economicFloor.producedOutputMeters || 0).toLocaleString()} m produced · floor value{' '}
-                  {formatNgn(economicFloor.floorDeliveredValueNgn)} · max defensible refund{' '}
+                  {Number(economicFloor.producedOutputMeters || 0).toLocaleString()} m produced ? floor value{' '}
+                  {formatNgn(economicFloor.floorDeliveredValueNgn)} ? max defensible refund{' '}
                   <span className="font-bold">{formatNgn(economicFloor.maxDefensibleRefundNgn)}</span>
                 </p>
                 {economicFloor.incompleteFloorPricing ? (
                   <p className="mt-0.5 font-semibold text-amber-800">
-                    Floor ?/m missing for some jobs — verify workbook pricing manually.
+                    Floor ?/m missing for some jobs ? verify workbook pricing manually.
                   </p>
                 ) : null}
               </div>
@@ -970,13 +936,13 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {staleRefundWarnings.length > 0 ? (
               <div className="mb-2">
-                <AlertBanner tone="rose" title="Approval blocked — refund exceeds current economic floor">
+                <AlertBanner tone="rose" title="Approval blocked ? refund exceeds current economic floor">
                 <ul className="list-disc pl-3">
                   {staleRefundWarnings.map((w) => (
                     <li key={w.refundId}>
-                      <span className="font-mono">{w.refundId}</span> · {w.status} · requested{' '}
-                      {formatNgn(w.amountNgn)} · cap {formatNgn(w.maxDefensibleRefundNgn)}
-                      {w.reasonCategory ? ` · ${w.reasonCategory}` : ''}
+                      <span className="font-mono">{w.refundId}</span> ? {w.status} ? requested{' '}
+                      {formatNgn(w.amountNgn)} ? cap {formatNgn(w.maxDefensibleRefundNgn)}
+                      {w.reasonCategory ? ` Â· ${w.reasonCategory}` : ''}
                     </li>
                   ))}
                 </ul>
@@ -988,7 +954,7 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {incompleteFloorBlocksApprove ? (
               <div className="mb-2">
-                <AlertBanner tone="rose" title="Approval blocked — workbook floor pricing incomplete">
+                <AlertBanner tone="rose" title="Approval blocked ? workbook floor pricing incomplete">
                   <p>
                     {Number(economicFloor?.producedOutputMeters || 0).toLocaleString()} m produced but floor ?/m
                     could not be resolved. Resolve workbook pricing or escalate to MD/CEO.
@@ -998,7 +964,7 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {exceedsEconomicFloorCap && staleRefundWarnings.length === 0 ? (
               <div className="mb-2">
-                <AlertBanner tone="rose" title="Approval blocked — amount above economic floor">
+                <AlertBanner tone="rose" title="Approval blocked ? amount above economic floor">
                   <p>
                     Requested {formatNgn(refundAmountNgn)} exceeds max defensible{' '}
                     {formatNgn(economicFloor?.maxDefensibleRefundNgn)}. Recalculate integrity or reduce the amount.
@@ -1009,7 +975,7 @@ export function RefundManagerApprovalPreview({
             {intelSum && (intelSum.overpayAdvanceNgn > 0 || intelSum.overpayAppliedNgn > 0) ? (
               <p className="mb-2 text-ui-xs text-slate-600">
                 Overpay ledger {formatNgn(intelSum.overpayAdvanceNgn)}
-                {intelSum.overpayAppliedNgn > 0 ? ` · applied ${formatNgn(intelSum.overpayAppliedNgn)}` : ''}
+                {intelSum.overpayAppliedNgn > 0 ? ` Â· applied ${formatNgn(intelSum.overpayAppliedNgn)}` : ''}
               </p>
             ) : null}
             {salesReceipts.length > 0 ? (
@@ -1044,7 +1010,7 @@ export function RefundManagerApprovalPreview({
           </Panel>
 
           {/* Conversion & supply */}
-          <Panel title="Conversion & supply" hint="Output, accessories, and four-reference conversion checks.">
+          <Panel title="Conversion & supply" hint="Output, accessories, coil used, before/after kg, and conversion comparison.">
             <div className="mb-2 grid grid-cols-2 gap-1 sm:grid-cols-4">
               <Stat label="Sheet pool" value={`${Number(totals.quotedSheetPoolM || 0).toLocaleString()} m`} />
               {Number(totals.quotedTrimBlankM || 0) > 0 ? (
@@ -1093,7 +1059,7 @@ export function RefundManagerApprovalPreview({
                           {st.text}
                         </span>
                         <span className="shrink-0 tabular-nums text-slate-600">
-                          {a.issuedQty ?? 0}/{a.quotedQty ?? '—'}
+                          {a.issuedQty ?? 0}/{a.quotedQty ?? '?'}
                         </span>
                       </li>
                     );
@@ -1103,91 +1069,40 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {stone && (stone.totalSuppliedM2 > 0 || (stone.lines || []).length > 0) ? (
               <p className="mb-2 text-ui-xs text-slate-600">
-                Stone {Number(stone.totalSuppliedM2 || 0).toLocaleString()} m² supplied
-                {stone.totalDeductionM2 ? ` · ${Number(stone.totalDeductionM2).toLocaleString()} m² ded.` : ''}
+                Stone {Number(stone.totalSuppliedM2 || 0).toLocaleString()} mÂ² supplied
+                {stone.totalDeductionM2 ? ` â€” ${Number(stone.totalDeductionM2).toLocaleString()} mÂ² ded.` : ''}
               </p>
             ) : null}
             {cuttingLists.length > 0 ? (
               <p className="mb-2 text-ui-xs text-slate-600">
-                {cuttingLists.length} cutting list(s) ·{' '}
+                {cuttingLists.length} cutting list(s) ?{' '}
                 {cuttingLists.map((cl) => `${cl.id} ${Number(cl.total_meters || 0).toLocaleString()}m`).join(', ')}
               </p>
             ) : null}
-            {checks.length > 0 ? (
-              <div className="space-y-1.5">
-                <p className="text-ui-xs font-bold uppercase text-slate-400">Conversion (four-reference)</p>
-                {checks.map((ch, i) => (
-                  <div
-                    key={`${ch.job_id}-${ch.coil_no}-${i}`}
-                    className={`rounded-md border p-1.5 ${
-                      String(ch.alert_state || '').toUpperCase() === 'OK'
-                        ? 'border-emerald-200/80 bg-emerald-50/40'
-                        : 'border-amber-200/80 bg-amber-50/50'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-1">
-                      <span className="font-mono text-ui-xs font-bold text-slate-900">
-                        {ch.job_id} · {ch.coil_no}
-                      </span>
-                      <span className="rounded bg-white/90 px-1.5 py-0.5 text-ui-xs font-black uppercase">
-                        {ch.alert_state || '—'}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-ui-xs text-slate-600">
-                      {[ch.gauge_label, ch.material_type_name].filter(Boolean).join(' · ') || '—'}
-                    </p>
-                    <ConversionRefGrid check={ch} />
-                  </div>
-                ))}
-              </div>
-            ) : productionLogs.length > 0 ? (
-              <div className="space-y-1">
-                {productionFulfillment ? (
-                  <div className="mb-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
-                    <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                      Roofing fulfilment
-                    </p>
-                    <p className="text-ui-xs text-slate-700 leading-snug">
-                      Quoted {Number(productionFulfillment.quotedMeters || 0).toLocaleString()} m · Eligible
-                      produced {Number(productionFulfillment.producedMetersForUnproduced || 0).toLocaleString()} m
-                      {Number(productionFulfillment.coilProducedMeters || 0) > 0
-                        ? ` (${Number(productionFulfillment.coilProducedMeters).toLocaleString()} m coil`
-                        : ''}
-                      {Number(productionFulfillment.offcutFgMeters || 0) > 0
-                        ? `${Number(productionFulfillment.coilProducedMeters || 0) > 0 ? ',' : ' ('}${Number(productionFulfillment.offcutFgMeters).toLocaleString()} m offcut/accessories`
-                        : ''}
-                      {Number(productionFulfillment.coilProducedMeters || 0) > 0 ||
-                      Number(productionFulfillment.offcutFgMeters || 0) > 0
-                        ? ')'
-                        : ''}
-                      · Unproduced {Number(productionFulfillment.unproducedMetres || 0).toLocaleString()} m
-                    </p>
-                    {productionFulfillment.fullyProducedRoofing ? (
-                      <p className="mt-0.5 text-ui-xs font-semibold text-emerald-700">
-                        Fully produced — unproduced meterage refund should not apply.
-                      </p>
-                    ) : null}
-                  </div>
+            {productionFulfillment ? (
+              <div className="mb-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Roofing fulfilment</p>
+                <p className="text-ui-xs leading-snug text-slate-700">
+                  Quoted {Number(productionFulfillment.quotedMeters || 0).toLocaleString()} m ? Eligible produced{' '}
+                  {Number(productionFulfillment.producedMetersForUnproduced || 0).toLocaleString()} m ? Unproduced{' '}
+                  {Number(productionFulfillment.unproducedMetres || 0).toLocaleString()} m
+                </p>
+                {productionFulfillment.fullyProducedRoofing ? (
+                  <p className="mt-0.5 text-ui-xs font-semibold text-emerald-700">
+                    Fully produced ? unproduced meterage refund should not apply.
+                  </p>
                 ) : null}
-                {productionLogs.slice(0, 4).map((job) => (
-                  <div key={job.job_id} className="rounded-md border border-slate-200 bg-slate-50/60 px-1.5 py-1">
-                    <div className="flex justify-between gap-1">
-                      <span className="font-mono text-ui-xs font-bold">{job.job_id}</span>
-                      <span className="text-ui-xs uppercase text-slate-500">{job.status}</span>
-                    </div>
-                    <p className="text-ui-xs text-slate-600">
-                      {Number(job.actual_meters || 0).toLocaleString()}/
-                      {Number(job.planned_meters || 0).toLocaleString()} m · {job.conversion_alert_state || '—'}
-                    </p>
-                  </div>
-                ))}
               </div>
-            ) : (
-              <p className="text-ui-xs text-slate-500">No production or conversion data.</p>
-            )}
+            ) : null}
+            <ConversionRecordPanel
+              auditData={auditData}
+              showMeterTotals={false}
+              embedded
+              emptyMessage="No production or conversion data."
+            />
           </Panel>
 
-          {/* Refund request — unique detail only */}
+          {/* Refund request ? unique detail only */}
           <Panel title="This refund" hint="Breakdown, payee, and other refunds on the quote.">
             {refund?.reason ? (
               <p className="mb-2 text-ui-xs leading-snug text-slate-700">{refund.reason}</p>
@@ -1217,7 +1132,7 @@ export function RefundManagerApprovalPreview({
                 </div>
                 {lineArithmeticBlocksApprove ? (
                   <p className="mb-2 text-ui-xs font-semibold text-rose-800" role="alert">
-                    Line arithmetic mismatch — correct before approving.
+                    Line arithmetic mismatch ? correct before approving.
                   </p>
                 ) : null}
               </Fragment>
@@ -1229,7 +1144,7 @@ export function RefundManagerApprovalPreview({
               <div className="mb-2 rounded-md border border-teal-200/80 bg-teal-50/40 px-2 py-1.5">
                 <p className="text-ui-xs font-bold uppercase text-teal-800">Pay to</p>
                 <p className="text-ui-xs font-semibold text-slate-900">
-                  {[formatPersonName(refund.payeeName), refund.payeeBankName].filter(Boolean).join(' · ')}
+                  {[formatPersonName(refund.payeeName), refund.payeeBankName].filter(Boolean).join(' ? ')}
                 </p>
                 {refund.payeeAccountNo ? (
                   <p className="font-mono text-ui-xs text-slate-600">{refund.payeeAccountNo}</p>
@@ -1255,18 +1170,18 @@ export function RefundManagerApprovalPreview({
         </div>
       )}
 
-      <div className="sticky bottom-0 z-10 -mx-1 mt-2 rounded-lg border border-slate-200/90 bg-white px-3 py-2.5 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
+      <DecisionActionBar className="mt-2">
         {productionAlignmentIssues.length > 0 ? (
           <div className="mb-2 rounded-md border border-amber-200/80 bg-amber-50/70 px-2 py-1.5 space-y-1">
             <p className="text-ui-xs font-black uppercase text-amber-950 flex items-center gap-1">
               <AlertTriangle size={11} /> Production alignment
-              {alignmentCheckLoading ? <span className="font-normal">· checking…</span> : null}
+              {alignmentCheckLoading ? <span className="font-normal">â€¦ checkingâ€¦</span> : null}
             </p>
             <ul className="space-y-1">
               {productionAlignmentIssues.map((issue) => (
                 <li key={issue.code} className="text-ui-xs text-amber-950 leading-snug">
                   <span className="font-semibold">{issue.title}</span>
-                  {issue.message ? ` — ${issue.message}` : ''}
+                  {issue.message ? ` â€” ${issue.message}` : ''}
                   {issue.submitAction === 'acknowledge' ? (
                     <label className="mt-0.5 flex items-center gap-1.5 cursor-pointer">
                       <input
@@ -1298,7 +1213,7 @@ export function RefundManagerApprovalPreview({
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(7rem,9rem)_1fr_auto_auto] lg:items-end">
           <div>
             <label className="text-ui-xs font-bold uppercase text-slate-500" htmlFor="inbox-approved-amount">
-              Approved ?
+              Approved â‚¦
             </label>
             <input
               id="inbox-approved-amount"
@@ -1382,7 +1297,7 @@ export function RefundManagerApprovalPreview({
             Open full refund flow in Sales
           </button>
         ) : null}
-      </div>
+      </DecisionActionBar>
     </div>
   );
 }

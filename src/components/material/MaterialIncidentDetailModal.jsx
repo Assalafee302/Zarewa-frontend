@@ -11,6 +11,7 @@ import {
   INCIDENT_TYPES,
   RETURN_DISPOSITIONS,
 } from '../../lib/materialIncidentConstants';
+import { DecisionBand, DecisionChip } from '../management/DecisionSurface';
 
 function typeLabel(id) {
   return INCIDENT_TYPES.find((t) => t.id === id)?.label || id || '—';
@@ -137,31 +138,33 @@ export default function MaterialIncidentDetailModal({
       showCloseButton={false}
       closeDisabled={decisionLocked}
     >
-      <div className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-xl max-h-[min(92dvh,900px)] flex flex-col overflow-hidden">
-        <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 shrink-0">
-          <div className="min-w-0">
-            <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-400">Tracking reference</p>
-            <p className="font-mono text-2xl font-black text-zarewa-teal tracking-tight truncate">
-              {incident?.id || incidentId || '—'}
-            </p>
-            {incident ? (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-ui-xs font-bold uppercase ${
-                    incident.status === 'posted'
-                      ? 'bg-teal-100 text-teal-900'
-                      : incident.status === 'submitted'
-                        ? 'bg-amber-100 text-amber-900'
-                        : 'bg-slate-100 text-slate-700'
-                  }`}
-                >
-                  {INCIDENT_STATUS_LABEL[incident.status] || incident.status}
-                </span>
-                <span className="text-xs text-slate-500">{typeLabel(incident.incidentType)}</span>
-                <span className="text-xs text-slate-500">· {incident.dateISO}</span>
-              </div>
-            ) : null}
-          </div>
+      <div className="mx-auto flex max-h-[min(92dvh,900px)] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
+          <DecisionBand
+            tone="material"
+            eyebrow="Material incident"
+            title={incident?.id || incidentId || '—'}
+            className="min-w-0 flex-1 border-0 shadow-none"
+            meta={
+              incident ? (
+                <>
+                  <DecisionChip
+                    tone={
+                      incident.status === 'posted'
+                        ? 'teal'
+                        : incident.status === 'submitted'
+                          ? 'amber'
+                          : 'slate'
+                    }
+                  >
+                    {INCIDENT_STATUS_LABEL[incident.status] || incident.status}
+                  </DecisionChip>
+                  <DecisionChip tone="slate">{typeLabel(incident.incidentType)}</DecisionChip>
+                  {incident.dateISO ? <DecisionChip tone="slate">{incident.dateISO}</DecisionChip> : null}
+                </>
+              ) : null
+            }
+          />
           <button
             type="button"
             disabled={decisionLocked}

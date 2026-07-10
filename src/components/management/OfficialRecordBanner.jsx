@@ -1,4 +1,5 @@
 import React from 'react';
+import { DECISION_TONES } from './DecisionSurface';
 
 /**
  * Work-item filing banner for Management intel modals (clearance, refund, conversion).
@@ -11,11 +12,12 @@ export function OfficialRecordBanner({
   showOpenRecord = false,
   openRecordLabel = '',
 }) {
+  const tone = DECISION_TONES.decide;
   const shell = light
-    ? 'rounded-2xl border border-slate-200 bg-white p-3 shadow-sm'
-    : 'rounded-2xl border border-white/15 bg-white/[0.07] p-3';
+    ? `rounded-xl border border-l-4 ${tone.band} ${tone.fill} p-3 shadow-sm`
+    : 'rounded-xl border border-l-4 border-white/15 border-l-teal-400 bg-white/[0.07] p-3';
   const titleCls = light
-    ? 'text-ui-xs font-black uppercase tracking-widest text-zarewa-teal'
+    ? `text-ui-xs font-black uppercase tracking-widest ${tone.eyebrow}`
     : 'text-ui-xs font-black uppercase tracking-widest text-teal-300/90';
   const refCls = light ? 'text-xs font-mono font-bold text-slate-900' : 'text-xs font-mono font-bold text-white';
   const metaCls = light ? 'text-ui-xs text-slate-500 mt-1 capitalize' : 'text-ui-xs text-white/50 mt-1 capitalize';

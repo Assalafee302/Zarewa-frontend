@@ -10,6 +10,7 @@ import { QuotationPriceExceptionPanel } from '../QuotationPriceExceptionPanel';
 import { ClearanceManagerApprovalPreview } from '../management/ClearanceManagerApprovalPreview';
 import { RefundManagerApprovalPreview } from '../management/RefundManagerApprovalPreview';
 import { ManagementAuditSections } from '../management/ManagementAuditSections';
+import { ConversionRecordPanel } from '../management/ConversionRecordPanel';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import { execWorkItemReviewContext, resolveExecReviewView, resolveExecSettlementId } from '../../lib/execWorkItemReview';
@@ -25,6 +26,12 @@ import { mdApprovePayrollRun } from '../../lib/hrExtended';
 import { postStockRegisterWorkflow } from '../reports/stockRegister/stockRegisterApi';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { formatPersonName } from '../../lib/formatPersonName';
+import {
+  DecisionActionBar,
+  DecisionActionTile,
+  DecisionBand,
+  DecisionChip,
+} from '../management/DecisionSurface';
 
 /**
  * In-page executive review — approve without leaving Command Centre.
@@ -694,40 +701,38 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 }}
                 onProductionOverride={() => void handleQuotationReview(review.quotationId, 'approve_production')}
               />
-              <ManagementAuditSections auditData={auditData} loadingAudit={loadingAudit} formatNgn={formatNgn} appearance="light" />
             </>
           ) : null}
 
           {review.view === 'conversion' ? (
-            <div className="space-y-4 rounded-xl border border-violet-200 bg-violet-50/40 p-4">
-              <div>
-                <p className="text-ui-xs font-black uppercase tracking-widest text-violet-900">Conversion review</p>
-                <p className="mt-1 font-mono text-sm font-bold text-slate-900">{review.jobId}</p>
-                <p className="text-xs text-slate-600 mt-1">{formatPersonName(review.row?.customer_name)}</p>
-                <p className="text-ui-xs text-slate-500">{review.row?.product_name}</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="rounded-md bg-white px-2 py-0.5 text-ui-xs font-bold uppercase ring-1 ring-violet-200">
-                    Alert: {review.row?.conversion_alert_state || '—'}
-                  </span>
-                  {review.row?.manager_review_required ? (
-                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-ui-xs font-bold uppercase text-amber-900">
-                      Manager review
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-ui-xs text-slate-600 mt-3 tabular-nums">
-                  Actual: {Number(review.row?.actual_meters || 0).toLocaleString()} m
-                  {review.row?.actual_weight_kg != null
-                    ? ` · ${Number(review.row.actual_weight_kg).toLocaleString()} kg`
-                    : ''}
-                </p>
-              </div>
-              {review.row?.quotation_ref ? (
-                <ManagementAuditSections auditData={auditData} loadingAudit={loadingAudit} formatNgn={formatNgn} appearance="light" />
-              ) : null}
+            <div className="space-y-4">
+              <DecisionBand
+                tone="convert"
+                eyebrow="Conversion review"
+                title={review.jobId}
+                subtitle={formatPersonName(review.row?.customer_name)}
+                meta={
+                  <>
+                    <DecisionChip>Alert: {review.row?.conversion_alert_state || '—'}</DecisionChip>
+                    {review.row?.manager_review_required ? (
+                      <DecisionChip tone="amber">Manager review</DecisionChip>
+                    ) : null}
+                  </>
+                }
+              >
+                {review.row?.product_name ? (
+                  <p className="mt-1 text-ui-xs text-slate-500">{review.row.product_name}</p>
+                ) : null}
+              </DecisionBand>
+              <ConversionRecordPanel
+                auditData={auditData}
+                loading={loadingAudit}
+                focusJobId={review.jobId}
+                emptyMessage="No coil or conversion check found for this job yet."
+              />
               {!readOnly && item.canAct !== false ? (
-                <div className="space-y-3 border-t border-violet-200/80 pt-4">
-                  <p className="text-ui-xs text-slate-600 leading-relaxed">
+                <DecisionActionBar>
+                  <p className="text-ui-xs leading-relaxed text-slate-600">
                     Confirm you have reviewed high/low conversion variance for this completed job.
                   </p>
                   <textarea
@@ -735,7 +740,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                     onChange={(e) => setConversionRemark(e.target.value)}
                     rows={2}
                     placeholder="Sign-off remark (min. 3 characters)"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-violet-300/50"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-teal-300/50"
                   />
                   {review.jobId ? (
                     <EditSecondApprovalInline
@@ -745,16 +750,14 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                       onChange={setConversionEditApprovalId}
                     />
                   ) : null}
-                  <button
-                    type="button"
+                  <DecisionActionTile
+                    variant="brand"
+                    icon={Factory}
+                    label="Sign off conversion review"
                     disabled={busy}
                     onClick={() => void handleConversionSignoff()}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-violet-800 disabled:opacity-40"
-                  >
-                    <Factory size={16} />
-                    Sign off conversion review
-                  </button>
-                </div>
+                  />
+                </DecisionActionBar>
               ) : null}
             </div>
           ) : null}
@@ -793,47 +796,61 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           ) : null}
 
           {review.view === 'register_settlement' ? (
-            <div className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/40 p-4">
-              <p className="text-ui-xs font-black uppercase text-teal-900">Register withdrawal</p>
-              {!canApproveSettlements ? (
-                <ZareApprovalHint
-                  context={{
-                    referenceNo: settlementId || review.settlementId,
-                    documentType: 'register_settlement',
-                    status: (settlementDetail || review.row)?.status || 'Pending',
-                    canApprove: false,
-                    missingPermission: 'Register withdrawal approval requires finance.approve or refunds.approve.',
-                  }}
-                />
-              ) : null}
-              {loadingSettlement && !settlementDetail && !review.row?.settlementId ? (
-                <p className="text-xs text-slate-500">Loading withdrawal details…</p>
-              ) : (
-                <>
-                  <p className="font-mono text-sm font-bold">{settlementId || review.settlementId || '—'}</p>
-                  <p className="text-xs text-slate-700">
-                    {(settlementDetail || review.row)?.partyName || item?.reviewContext?.subtitle || '—'}
-                    {(settlementDetail || review.row)?.registerLineId
-                      ? ` · ${(settlementDetail || review.row).registerLineId}`
-                      : ''}
-                  </p>
-                  <p className="text-2xl font-black text-zarewa-teal tabular-nums">
-                    {formatNgn((settlementDetail || review.row)?.amountNgn ?? item?.amountNgn)}
-                  </p>
-                  {(settlementDetail || review.row)?.reason ? (
-                    <p className="text-xs text-slate-600 rounded-lg bg-white border border-slate-100 px-3 py-2">
-                      {(settlementDetail || review.row).reason}
+            <div className="space-y-4">
+              <DecisionBand
+                tone="payment"
+                eyebrow="Register withdrawal"
+                title={settlementId || review.settlementId || '—'}
+                subtitle={
+                  (settlementDetail || review.row)?.partyName || item?.reviewContext?.subtitle || null
+                }
+                aside={
+                  <>
+                    <p className="text-ui-xs font-bold uppercase text-slate-400">Amount</p>
+                    <p className="text-lg font-black tabular-nums text-zarewa-teal">
+                      {formatNgn((settlementDetail || review.row)?.amountNgn ?? item?.amountNgn)}
                     </p>
-                  ) : null}
-                  {(settlementDetail || review.row)?.requestedByName ? (
-                    <p className="text-ui-xs text-slate-500">
-                      Requested by {formatPersonName((settlementDetail || review.row).requestedByName)}
-                    </p>
-                  ) : null}
-                </>
-              )}
+                  </>
+                }
+              >
+                {!canApproveSettlements ? (
+                  <div className="mt-2">
+                    <ZareApprovalHint
+                      context={{
+                        referenceNo: settlementId || review.settlementId,
+                        documentType: 'register_settlement',
+                        status: (settlementDetail || review.row)?.status || 'Pending',
+                        canApprove: false,
+                        missingPermission:
+                          'Register withdrawal approval requires finance.approve or refunds.approve.',
+                      }}
+                    />
+                  </div>
+                ) : null}
+                {loadingSettlement && !settlementDetail && !review.row?.settlementId ? (
+                  <p className="mt-2 text-xs text-slate-500">Loading withdrawal details…</p>
+                ) : (
+                  <>
+                    {(settlementDetail || review.row)?.registerLineId ? (
+                      <p className="mt-1 font-mono text-ui-xs text-slate-500">
+                        {(settlementDetail || review.row).registerLineId}
+                      </p>
+                    ) : null}
+                    {(settlementDetail || review.row)?.reason ? (
+                      <p className="mt-2 text-xs text-slate-600 rounded-lg bg-white border border-slate-100 px-3 py-2">
+                        {(settlementDetail || review.row).reason}
+                      </p>
+                    ) : null}
+                    {(settlementDetail || review.row)?.requestedByName ? (
+                      <p className="mt-1 text-ui-xs text-slate-500">
+                        Requested by {formatPersonName((settlementDetail || review.row).requestedByName)}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </DecisionBand>
               {!readOnly && canApproveSettlements ? (
-                <div className="space-y-3 border-t border-teal-200/80 pt-4">
+                <DecisionActionBar>
                   {settlementActionError ? (
                     <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
                       {settlementActionError}
@@ -847,102 +864,116 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-teal-300/50"
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
+                    <DecisionActionTile
+                      variant="compactApprove"
+                      icon={CheckCircle2}
+                      label={busy ? 'Saving…' : 'Approve'}
                       disabled={busy || (!settlementId && !review.settlementId)}
                       onClick={() => void handleSettlementDecision('Approved')}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
-                    >
-                      <CheckCircle2 size={14} />
-                      {busy ? 'Saving…' : 'Approve'}
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <DecisionActionTile
+                      variant="compactReject"
+                      icon={Flag}
+                      label={busy ? 'Saving…' : 'Reject'}
                       disabled={busy || (!settlementId && !review.settlementId)}
                       onClick={() => void handleSettlementDecision('Rejected')}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
-                    >
-                      <Flag size={14} />
-                      {busy ? 'Saving…' : 'Reject'}
-                    </button>
+                    />
                   </div>
-                </div>
+                </DecisionActionBar>
               ) : null}
             </div>
           ) : null}
 
           {review.view === 'payment' ? (
-            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-              <p className="text-ui-xs font-black uppercase text-slate-500">Payment request</p>
-              <p className="font-mono text-sm font-bold">{review.requestId}</p>
-              <p className="text-2xl font-black text-zarewa-teal tabular-nums">
-                {formatNgn(review.row?.amount_requested_ngn)}
-              </p>
-              <p className="text-xs text-slate-700">{review.row?.description}</p>
-              <p className="text-ui-xs text-slate-500">{review.row?.expense_category}</p>
+            <div className="space-y-4">
+              <DecisionBand
+                tone="payment"
+                eyebrow="Payment request"
+                title={review.requestId}
+                subtitle={review.row?.description}
+                aside={
+                  <>
+                    <p className="text-ui-xs font-bold uppercase text-slate-400">Amount</p>
+                    <p className="text-lg font-black tabular-nums text-zarewa-teal">
+                      {formatNgn(review.row?.amount_requested_ngn)}
+                    </p>
+                  </>
+                }
+              >
+                {review.row?.expense_category ? (
+                  <p className="mt-1 text-ui-xs text-slate-500">{review.row.expense_category}</p>
+                ) : null}
+              </DecisionBand>
               {!readOnly && item.canAct !== false ? (
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void handlePaymentDecision('Approved')}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
-                  >
-                    <CheckCircle2 size={14} />
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void handlePaymentDecision('Rejected')}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
-                  >
-                    <Flag size={14} />
-                    Reject
-                  </button>
-                </div>
+                <DecisionActionBar>
+                  <div className="grid grid-cols-2 gap-2">
+                    <DecisionActionTile
+                      variant="compactApprove"
+                      icon={CheckCircle2}
+                      label="Approve"
+                      disabled={busy}
+                      onClick={() => void handlePaymentDecision('Approved')}
+                    />
+                    <DecisionActionTile
+                      variant="compactReject"
+                      icon={Flag}
+                      label="Reject"
+                      disabled={busy}
+                      onClick={() => void handlePaymentDecision('Rejected')}
+                    />
+                  </div>
+                </DecisionActionBar>
               ) : null}
             </div>
           ) : null}
 
           {review.view === 'material' ? (
-            <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-              <p className="text-ui-xs font-black uppercase text-amber-950">Material exception</p>
-              <p className="font-mono text-sm font-bold">{review.incidentId}</p>
-              <p className="text-xs text-amber-950/90">
-                {review.row?.incident_type || 'Incident'} · {review.row?.gauge_label} {review.row?.colour}
-              </p>
+            <div className="space-y-3">
+              <DecisionBand
+                tone="material"
+                eyebrow="Material exception"
+                title={review.incidentId}
+                subtitle={
+                  [review.row?.incident_type || 'Incident', review.row?.gauge_label, review.row?.colour]
+                    .filter(Boolean)
+                    .join(' · ') || null
+                }
+              />
               {!readOnly && item.canAct !== false ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void handleMaterialApprove()}
-                  className="rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
-                >
-                  Approve incident
-                </button>
+                <DecisionActionBar>
+                  <DecisionActionTile
+                    variant="brand"
+                    label="Approve incident"
+                    disabled={busy}
+                    onClick={() => void handleMaterialApprove()}
+                  />
+                </DecisionActionBar>
               ) : null}
             </div>
           ) : null}
 
           {review.view === 'edit_approval' ? (
-            <div className="space-y-3 rounded-xl border border-violet-200 bg-violet-50/50 p-4">
-              <p className="text-ui-xs font-black uppercase text-violet-900">Edit approval</p>
-              <p className="text-xs">
-                {review.row?.entityKind} · <span className="font-mono">{review.row?.entityId}</span>
-              </p>
-              <p className="text-ui-xs text-slate-600">
-                Requested by {review.row?.requestedByDisplay || review.row?.requestedByUserId || '—'}
-              </p>
+            <div className="space-y-3">
+              <DecisionBand
+                tone="edit"
+                eyebrow="Edit approval"
+                title={review.row?.entityId || '—'}
+                subtitle={review.row?.entityKind || null}
+              >
+                <p className="mt-1 text-ui-xs text-slate-600">
+                  Requested by {review.row?.requestedByDisplay || review.row?.requestedByUserId || '—'}
+                </p>
+              </DecisionBand>
               {!readOnly && item.canAct !== false ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void handleEditApproval()}
-                  className="rounded-lg bg-violet-700 px-4 py-2 text-ui-xs font-black uppercase text-white hover:bg-violet-800 disabled:opacity-40"
-                >
-                  Approve edit
-                </button>
+                <DecisionActionBar>
+                  <DecisionActionTile
+                    variant="brand"
+                    className="!bg-violet-700 hover:!bg-violet-800"
+                    label="Approve edit"
+                    disabled={busy}
+                    onClick={() => void handleEditApproval()}
+                  />
+                </DecisionActionBar>
               ) : null}
             </div>
           ) : null}
@@ -964,48 +995,62 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           ) : null}
 
           {review.view === 'payroll' ? (
-            <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-              <p className="text-ui-xs font-black uppercase text-amber-950">Payroll MD sign-off</p>
-              <p className="font-mono text-sm font-bold">{review.payrollRunId}</p>
-              <p className="text-xs text-amber-950/90">
-                Period {formatPeriodYyyymm(review.row?.period_yyyymm || review.row?.periodYyyymm || review.payrollRunId)}
-              </p>
-              {loadingPayroll ? (
-                <p className="text-xs text-slate-500">Loading payroll totals…</p>
-              ) : payrollTotals ? (
-                <p className="text-2xl font-black text-zarewa-teal tabular-nums">
-                  {formatNgn(payrollTotals.netPayNgn ?? payrollTotals.totalNetNgn ?? payrollTotals.grandTotalNgn ?? 0)}
-                </p>
-              ) : null}
+            <div className="space-y-4">
+              <DecisionBand
+                tone="production"
+                eyebrow="Payroll MD sign-off"
+                title={review.payrollRunId}
+                subtitle={`Period ${formatPeriodYyyymm(review.row?.period_yyyymm || review.row?.periodYyyymm || review.payrollRunId)}`}
+                aside={
+                  !loadingPayroll && payrollTotals ? (
+                    <>
+                      <p className="text-ui-xs font-bold uppercase text-slate-400">Net</p>
+                      <p className="text-lg font-black tabular-nums text-zarewa-teal">
+                        {formatNgn(
+                          payrollTotals.netPayNgn ?? payrollTotals.totalNetNgn ?? payrollTotals.grandTotalNgn ?? 0
+                        )}
+                      </p>
+                    </>
+                  ) : null
+                }
+              >
+                {loadingPayroll ? <p className="mt-1 text-xs text-slate-500">Loading payroll totals…</p> : null}
+              </DecisionBand>
               {!readOnly && canMdPayroll ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void handlePayrollMdApprove()}
-                  className="rounded-lg bg-zarewa-teal px-4 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
-                >
-                  Sign off payroll
-                </button>
+                <DecisionActionBar>
+                  <DecisionActionTile
+                    variant="brand"
+                    label="Sign off payroll"
+                    disabled={busy}
+                    onClick={() => void handlePayrollMdApprove()}
+                  />
+                </DecisionActionBar>
               ) : null}
             </div>
           ) : null}
 
           {review.view === 'inter_branch_loan' ? (
-            <div className="space-y-4 rounded-xl border border-sky-200 bg-sky-50/60 p-4">
-              <p className="text-ui-xs font-black uppercase text-sky-950">Inter-branch loan</p>
-              <p className="font-mono text-sm font-bold">{review.loanId}</p>
-              {loadingLoan ? (
-                <p className="text-xs text-slate-500">Loading loan…</p>
-              ) : interBranchLoan ? (
-                <>
-                  <p className="text-2xl font-black text-zarewa-teal tabular-nums">
-                    {formatNgn(interBranchLoan.principalNgn ?? item.amountNgn)}
-                  </p>
-                  <p className="text-xs text-slate-700">{interBranchLoan.purpose || review.row?.purpose || '—'}</p>
-                </>
-              ) : null}
+            <div className="space-y-4">
+              <DecisionBand
+                tone="credit"
+                eyebrow="Inter-branch loan"
+                title={review.loanId}
+                subtitle={interBranchLoan?.purpose || review.row?.purpose || null}
+                aside={
+                  !loadingLoan && (interBranchLoan || item.amountNgn != null) ? (
+                    <>
+                      <p className="text-ui-xs font-bold uppercase text-slate-400">Principal</p>
+                      <p className="text-lg font-black tabular-nums text-zarewa-teal">
+                        {formatNgn(interBranchLoan?.principalNgn ?? item.amountNgn)}
+                      </p>
+                    </>
+                  ) : null
+                }
+              >
+                {loadingLoan ? <p className="mt-1 text-xs text-slate-500">Loading loan…</p> : null}
+              </DecisionBand>
               {!readOnly && canMdInterBranch ? (
-                <div className="space-y-3 border-t border-sky-200/80 pt-3">
+                <DecisionActionBar>
                   <textarea
                     value={loanRejectNote}
                     onChange={(e) => setLoanRejectNote(e.target.value)}
@@ -1014,56 +1059,55 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-sky-300/50"
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
+                    <DecisionActionTile
+                      variant="compactApprove"
+                      label="Approve"
                       disabled={busy}
                       onClick={() => void handleInterBranchMdApprove()}
-                      className="rounded-lg bg-emerald-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <DecisionActionTile
+                      variant="compactReject"
+                      label="Reject"
                       disabled={busy}
                       onClick={() => void handleInterBranchMdReject()}
-                      className="rounded-lg bg-rose-600 px-3 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
-                    >
-                      Reject
-                    </button>
+                    />
                   </div>
-                </div>
+                </DecisionActionBar>
               ) : null}
             </div>
           ) : null}
 
           {review.view === 'stock_register' ? (
-            <div className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/40 p-4">
-              <p className="text-ui-xs font-black uppercase text-teal-900">Month-end stock register</p>
-              <p className="text-sm font-bold text-zarewa-teal">
-                {review.branchIdForRegister || item.branchName} · {review.periodKey}
-              </p>
-              {ws?.viewAllBranches ? (
-                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Switch workspace from <strong>All branches</strong> to{' '}
-                  <strong>{review.branchIdForRegister || 'this branch'}</strong> in the branch bar, then approve.
-                </p>
-              ) : null}
-              {loadingStock ? (
-                <p className="text-xs text-slate-500">Loading register workflow…</p>
-              ) : (
-                <p className="text-xs text-slate-700">
-                  Status: {String(stockWorkflow?.status || '—').replace(/_/g, ' ')}
-                </p>
-              )}
+            <div className="space-y-4">
+              <DecisionBand
+                tone="payment"
+                eyebrow="Month-end stock register"
+                title={review.periodKey || '—'}
+                subtitle={review.branchIdForRegister || item.branchName || null}
+              >
+                {ws?.viewAllBranches ? (
+                  <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    Switch workspace from <strong>All branches</strong> to{' '}
+                    <strong>{review.branchIdForRegister || 'this branch'}</strong> in the branch bar, then approve.
+                  </p>
+                ) : null}
+                {loadingStock ? (
+                  <p className="mt-1 text-xs text-slate-500">Loading register workflow…</p>
+                ) : (
+                  <p className="mt-1 text-xs text-slate-700">
+                    Status: {String(stockWorkflow?.status || '—').replace(/_/g, ' ')}
+                  </p>
+                )}
+              </DecisionBand>
               {!readOnly && item.canAct !== false ? (
-                <button
-                  type="button"
-                  disabled={busy || ws?.viewAllBranches || stockWorkflow?.status !== 'procurement_costed'}
-                  onClick={() => void handleStockRegisterMdApprove()}
-                  className="rounded-lg bg-zarewa-teal px-4 py-2.5 text-ui-xs font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
-                >
-                  MD approve register
-                </button>
+                <DecisionActionBar>
+                  <DecisionActionTile
+                    variant="brand"
+                    label="MD approve register"
+                    disabled={busy || ws?.viewAllBranches || stockWorkflow?.status !== 'procurement_costed'}
+                    onClick={() => void handleStockRegisterMdApprove()}
+                  />
+                </DecisionActionBar>
               ) : null}
             </div>
           ) : null}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight, GitBranch } from 'lucide-react';
 import { ExpenseCategoryLaneBadge } from './ExpenseCategoryLaneBadge.jsx';
+import { DecisionBand } from '../management/DecisionSurface';
 
 /**
  * GL reclass preview for post-pay category changes.
@@ -13,10 +14,10 @@ export function ExpenseCategoryReclassPreviewPanel({ preview, newCategory = '' }
   const sameAccount = preview.gl.fromAccountCode === preview.gl.toAccountCode;
 
   return (
-    <div className="rounded-xl border border-violet-200/90 bg-gradient-to-r from-violet-50/95 to-indigo-50/60 px-4 py-3">
-      <p className="text-ui-xs font-black uppercase tracking-wide text-violet-900/80 flex items-center gap-1.5">
+    <DecisionBand tone="edit" eyebrow="GL reclass preview" className="!py-3">
+      <p className="mt-1 text-ui-xs font-black uppercase tracking-wide text-violet-900/80 flex items-center gap-1.5">
         <GitBranch size={12} aria-hidden />
-        GL reclass preview
+        Category change
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
@@ -45,6 +46,6 @@ export function ExpenseCategoryReclassPreviewPanel({ preview, newCategory = '' }
           Based on paid amount · review before saving
         </p>
       ) : null}
-    </div>
+    </DecisionBand>
   );
 }

@@ -1,13 +1,10 @@
 import React, { Fragment } from 'react';
 import { flattenQuotationLineItems, ledgerTypeStyle } from '../../lib/managerDashboardCore';
 import {
-  coilIntelRowsForJob,
-  fmtConv,
-  fmtKg,
-  fmtM,
   lineMaterialSubtitle,
   quotationMaterialSpecRows,
 } from '../../lib/managementQuotationIntel';
+import { ConversionRecordPanel } from './ConversionRecordPanel';
 import { IntelDetailRow, IntelPanel, IntelStat } from './managementIntelUi';
 
 /**
@@ -19,9 +16,6 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
   const ledger = Array.isArray(auditData?.ledgerEntries) ? auditData.ledgerEntries : [];
   const totals = auditData?.totals || {};
   const cuttingLists = Array.isArray(auditData?.cuttingLists) ? auditData.cuttingLists : [];
-  const productionLogs = Array.isArray(auditData?.productionLogs) ? auditData.productionLogs : [];
-  const checks = Array.isArray(auditData?.conversionChecks) ? auditData.conversionChecks : [];
-  const coils = Array.isArray(auditData?.jobCoils) ? auditData.jobCoils : [];
   const intelSum = paymentIntel?.summary;
   const dataQuality = Array.isArray(paymentIntel?.dataQualityIssues) ? paymentIntel.dataQualityIssues : [];
 
@@ -52,14 +46,14 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
           </p>
         ) : null}
         {quotationMaterialSpecRows(auditData).length > 0 ? (
-          <div className="mb-3 rounded-lg border border-teal-200/80 bg-teal-50/50 px-2.5 py-2 space-y-1">
+          <div className="mb-3 space-y-1 rounded-lg border border-teal-200/80 bg-teal-50/50 px-2.5 py-2">
             <p className="text-ui-xs font-black uppercase tracking-wide text-teal-900/80">Material specification</p>
             {quotationMaterialSpecRows(auditData).map((row) => (
               <IntelDetailRow key={row.label} label={row.label} value={row.value} />
             ))}
           </div>
         ) : (
-          <p className="mb-3 text-ui-xs text-amber-800 leading-snug rounded-lg border border-amber-200/80 bg-amber-50/60 px-2 py-1.5">
+          <p className="mb-3 rounded-lg border border-amber-200/80 bg-amber-50/60 px-2 py-1.5 text-ui-xs leading-snug text-amber-800">
             Gauge, colour, and design are not recorded on this quotation — check Sales for the full quote.
           </p>
         )}
@@ -91,7 +85,7 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
                     </span>
                   ) : null}
                   {lineMaterialSubtitle(ln) ? (
-                    <p className="mt-0.5 w-full basis-full text-ui-xs text-slate-500 leading-snug">
+                    <p className="mt-0.5 w-full basis-full text-ui-xs leading-snug text-slate-500">
                       {lineMaterialSubtitle(ln)}
                     </p>
                   ) : null}
@@ -150,7 +144,7 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
 
       <IntelPanel
         title="Conversion & supply"
-        hint="Metres, production jobs, cutting lists, accessories, and coil usage."
+        hint="Metres, cutting lists, accessories, coil used, before/after kg, and conversion comparison."
       >
         <div className="mb-3 grid grid-cols-3 gap-1.5">
           <IntelStat label="Cutting lists" value={`${Number(totals.cuttingListMetersSum || 0).toLocaleString()} m`} />
@@ -205,7 +199,7 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
             {cuttingLists.map((cl) => (
               <span
                 key={cl.id}
-                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-ui-xs font-mono text-slate-800"
+                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-ui-xs text-slate-800"
                 title={`${cl.status || ''} · ${Number(cl.total_meters || 0).toLocaleString()} m`}
               >
                 {cl.id} · {Number(cl.total_meters || 0).toLocaleString()} m
@@ -213,84 +207,13 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
             ))}
           </div>
         )}
-        <p className="mb-1 text-ui-xs font-black uppercase text-slate-400">Production ({productionLogs.length})</p>
-        {productionLogs.length === 0 ? (
-          <p className="text-xs text-slate-500">No production jobs.</p>
-        ) : (
-          <div className="space-y-2">
-            {productionLogs.map((job) => {
-              const coilRows = coilIntelRowsForJob(job.job_id, coils, checks);
-              return (
-                <div key={job.job_id} className="rounded-lg border border-slate-200 bg-slate-50/60 p-2">
-                  <div className="flex flex-wrap justify-between gap-1">
-                    <span className="font-mono text-ui-xs font-bold text-slate-900">{job.job_id}</span>
-                    <span className="rounded bg-slate-200 px-1.5 py-0.5 text-ui-xs font-black uppercase text-slate-700">
-                      {job.status}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-ui-xs font-semibold text-slate-800">{job.product_name || '—'}</p>
-                  <p className="text-ui-xs text-slate-500">
-                    Planned {fmtM(job.planned_meters)} · Actual {fmtM(job.actual_meters)} · {fmtKg(job.actual_weight_kg)}
-                  </p>
-                  <p className="text-ui-xs text-violet-800">
-                    Conversion: {job.conversion_alert_state || '—'}
-                    {job.manager_review_required ? ' · needs review' : ''}
-                  </p>
-                  {coilRows.length === 0 ? (
-                    <p className="mt-1 text-ui-xs text-slate-500">No coil usage recorded for this job.</p>
-                  ) : (
-                    <ul className="mt-2 space-y-2 border-t border-slate-200/80 pt-2">
-                      {coilRows.map(({ coilNo, coil, check }) => {
-                        const purchaseConv =
-                          coil?.coil_supplier_conversion_kg_per_m ??
-                          check?.supplier_conversion_kg_per_m ??
-                          null;
-                        const landed = coil?.coil_landed_cost_ngn;
-                        const unitKg = coil?.coil_unit_cost_ngn_per_kg;
-                        return (
-                          <li
-                            key={coilNo}
-                            className="rounded-md border border-slate-200/90 bg-white px-2 py-1.5 text-ui-xs text-slate-700"
-                          >
-                            <p className="font-mono font-bold text-slate-900">{coilNo}</p>
-                            <p className="mt-0.5 text-slate-600">
-                              {[
-                                coil?.coil_gauge_label || check?.gauge_label,
-                                coil?.coil_colour,
-                                coil?.coil_material_type || check?.material_type_name,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ') || '—'}
-                            </p>
-                            <p className="mt-1 tabular-nums">
-                              Weight: {fmtKg(coil?.opening_weight_kg)} → {fmtKg(coil?.closing_weight_kg)} (used{' '}
-                              {fmtKg(coil?.consumed_weight_kg)}) · Output {fmtM(coil?.meters_produced)}
-                            </p>
-                            <p className="mt-0.5 tabular-nums text-violet-900">
-                              Conversion: purchase {fmtConv(purchaseConv)} · standard{' '}
-                              {fmtConv(check?.standard_conversion_kg_per_m)} · actual{' '}
-                              {fmtConv(check?.actual_conversion_kg_per_m ?? coil?.actual_conversion_kg_per_m)}
-                              {check?.alert_state ? ` · ${check.alert_state}` : ''}
-                            </p>
-                            {landed != null || unitKg != null ? (
-                              <p className="mt-0.5 tabular-nums text-emerald-900">
-                                Coil cost:{' '}
-                                {landed != null
-                                  ? `landed ₦${Number(landed).toLocaleString()}`
-                                  : 'landed —'}
-                                {unitKg != null ? ` · ₦${Number(unitKg).toLocaleString()}/kg` : ''}
-                              </p>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <p className="mb-2 text-ui-xs font-black uppercase text-slate-400">Production conversion</p>
+        <ConversionRecordPanel
+          auditData={auditData}
+          showMeterTotals={false}
+          embedded
+          emptyMessage="No production jobs or coil usage on this quotation."
+        />
       </IntelPanel>
     </>
   );

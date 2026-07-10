@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { AlertTriangle, ExternalLink, ShieldAlert } from 'lucide-react';
 import { Button } from '../ui';
+import { DecisionBand } from '../management/DecisionSurface';
 
 function governanceSubtype(item) {
   const id = String(item?.id || '');
@@ -27,25 +28,27 @@ export function GovernanceDetailPanel({
   if (!item) return null;
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-4">
-        <div className="flex items-start gap-3">
-          <ShieldAlert size={22} className="text-rose-700 shrink-0 mt-0.5" aria-hidden />
-          <div className="min-w-0">
-            <p className="text-ui-xs font-black uppercase tracking-widest text-rose-800">Risk & governance</p>
-            <h3 className="text-base font-black text-rose-950 mt-1 font-mono">{item.title || item.id}</h3>
-            <p className="text-sm text-rose-900/90 mt-2 leading-relaxed">{item.subtitle || 'Management review required.'}</p>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <DecisionBand
+        tone="risk"
+        eyebrow="Risk & governance"
+        title={item.title || item.id}
+        subtitle={item.subtitle || 'Management review required.'}
+        meta={
+          <span className="inline-flex items-center gap-1.5 text-rose-800">
+            <ShieldAlert size={16} aria-hidden />
+            Requires management attention
+          </span>
+        }
+      />
 
       {reasons.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Why this is flagged</p>
           <ul className="space-y-1.5">
             {reasons.map((r, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" aria-hidden />
+                <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
                 <span>{r}</span>
               </li>
             ))}
@@ -120,7 +123,7 @@ export function GovernanceDetailPanel({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
+      <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-2">
         <Button type="button" variant="outline" size="sm" onClick={() => onOpenProcurement?.()}>
           Procurement desk
         </Button>
@@ -128,7 +131,6 @@ export function GovernanceDetailPanel({
           type="button"
           size="sm"
           onClick={() => {
-            // Acknowledge closes the review surface; underlying risk remains until the linked work item is resolved.
             onClose?.();
           }}
         >

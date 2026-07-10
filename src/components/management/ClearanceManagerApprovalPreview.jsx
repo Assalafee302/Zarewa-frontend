@@ -9,6 +9,12 @@ import {
 } from '../../lib/receivableWriteOffPolicy.js';
 import { IntelDetailRow, IntelPanel, IntelStat } from './managementIntelUi';
 import { ManagementQuotationIntelGrid } from './ManagementQuotationIntelGrid';
+import {
+  DecisionActionBar,
+  DecisionActionTile,
+  DecisionBand,
+  DecisionChip,
+} from './DecisionSurface';
 
 function percentPaid(paid, total) {
   const p = Math.round(Number(paid) || 0);
@@ -61,48 +67,51 @@ export function ClearanceManagerApprovalPreview({
     flagged: 'Flagged quotation',
     production: 'Production gate',
   };
-  const accentByContext = {
-    clearance: 'text-teal-700',
-    flagged: 'text-rose-700',
-    production: 'text-amber-700',
+  const toneByContext = {
+    clearance: 'clearance',
+    flagged: 'flagged',
+    production: 'production',
   };
 
   return (
     <div className="animate-in fade-in space-y-3 duration-200">
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <div className="min-w-0">
-          <p className={`text-ui-xs font-bold uppercase tracking-widest ${accentByContext[reviewContext] || accentByContext.clearance}`}>
-            {titleByContext[reviewContext] || titleByContext.clearance}
-          </p>
-          <h2 className="font-mono text-lg font-black leading-tight text-slate-900">{quoteId}</h2>
-          <p className="mt-0.5 truncate text-sm font-semibold text-slate-700">
-            {formatPersonName(inboxRow?.customer_name || '—')}
-          </p>
-          {fromProductionGate ? (
-            <p className="mt-1 text-ui-xs leading-snug text-amber-800">
-              Production gate (low payment){cuttingListId ? ` · cutting list ${cuttingListId}` : ''}.{' '}
-              {Math.round(Number(inboxRow?.paid_ngn) || 0) <= 0
-                ? 'Zero payment — MD approval required before cutting list / production.'
-                : 'Branch Manager may approve when some payment is on file but below threshold.'}
+      <DecisionBand
+        tone={toneByContext[reviewContext] || 'clearance'}
+        eyebrow={titleByContext[reviewContext] || titleByContext.clearance}
+        title={quoteId}
+        subtitle={formatPersonName(inboxRow?.customer_name || '—')}
+        aside={
+          <>
+            <p className="text-ui-xs font-bold uppercase text-slate-400">Paid on quote</p>
+            <p className="text-xl font-black tabular-nums text-emerald-800">{formatNgn(paidNgn)}</p>
+            <p className="text-ui-xs text-slate-500">
+              of {formatNgn(totalNgn)} · <strong>{pct}%</strong>
             </p>
-          ) : null}
-          {reviewContext === 'flagged' && inboxRow?.manager_flag_reason ? (
-            <p className="mt-1 text-ui-xs leading-snug text-rose-800 line-clamp-3">{inboxRow.manager_flag_reason}</p>
-          ) : null}
-        </div>
-        <div className="text-right">
-          <p className="text-ui-xs font-bold uppercase text-slate-400">Paid on quote</p>
-          <p className="text-xl font-black tabular-nums text-emerald-800">{formatNgn(paidNgn)}</p>
-          <p className="text-ui-xs text-slate-500">
-            of {formatNgn(totalNgn)} · <strong>{pct}%</strong>
+            {inboxRow?.date_iso ? (
+              <p className="mt-0.5 text-ui-xs text-slate-400">
+                Quote date {new Date(inboxRow.date_iso).toLocaleDateString()}
+              </p>
+            ) : null}
+          </>
+        }
+      >
+        {fromProductionGate ? (
+          <p className="mt-2 text-ui-xs leading-snug text-amber-800">
+            Production gate (low payment){cuttingListId ? ` · cutting list ${cuttingListId}` : ''}.{' '}
+            {Math.round(Number(inboxRow?.paid_ngn) || 0) <= 0
+              ? 'Zero payment — MD approval required before cutting list / production.'
+              : 'Branch Manager may approve when some payment is on file but below threshold.'}
           </p>
-          {inboxRow?.date_iso ? (
-            <p className="mt-0.5 text-ui-xs text-slate-400">
-              Quote date {new Date(inboxRow.date_iso).toLocaleDateString()}
-            </p>
-          ) : null}
-        </div>
-      </div>
+        ) : null}
+        {reviewContext === 'flagged' && inboxRow?.manager_flag_reason ? (
+          <p className="mt-2 line-clamp-3 text-ui-xs leading-snug text-rose-800">{inboxRow.manager_flag_reason}</p>
+        ) : null}
+        {fromProductionGate ? (
+          <div className="mt-2">
+            <DecisionChip tone="amber">Production gate</DecisionChip>
+          </div>
+        ) : null}
+      </DecisionBand>
 
       {loading ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-16">
@@ -115,16 +124,11 @@ export function ClearanceManagerApprovalPreview({
 
           <IntelPanel
             title="Clearance & decision"
-            hint="Payment position, refunds on file, and manager actions for this quotation."
+            hint="Receivable position, refunds on file, and manager actions for this quotation."
           >
             <div className="mb-3 grid grid-cols-2 gap-1.5">
-              <IntelStat label="Paid in" value={formatNgn(paidNgn)} accent />
-              <IntelStat label="Order total" value={formatNgn(totalNgn)} />
-              <IntelStat label="% paid" value={`${pct}%`} />
-              <IntelStat
-                label="Receivable"
-                value={formatNgn(receivableNgn)}
-              />
+              <IntelStat label="% paid" value={`${pct}%`} accent />
+              <IntelStat label="Receivable" value={formatNgn(receivableNgn)} />
             </div>
 
             {waivedNgn > 0 ? (
@@ -231,35 +235,34 @@ export function ClearanceManagerApprovalPreview({
             ) : null}
 
             {canManagerClearance ? (
-            <div className="sticky bottom-0 z-10 -mx-1 mt-2 grid grid-cols-1 gap-2 rounded-lg border border-slate-200/90 bg-white p-2 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)] sm:grid-cols-3">
-              <button
-                type="button"
-                disabled={decisionBusy}
-                onClick={onApprove}
-                className="flex flex-col items-center gap-1.5 rounded-xl bg-emerald-600 p-3 text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+              <DecisionActionBar
+                className="mt-2"
+                hint="Approve records clearance. Disapprove blocks with a reason; Flag keeps it in the audit queue."
               >
-                <CheckCircle2 size={16} />
-                <span className="text-ui-xs font-black uppercase tracking-widest">Approve</span>
-              </button>
-              <button
-                type="button"
-                disabled={decisionBusy}
-                onClick={onDisapprove}
-                className="flex flex-col items-center gap-1.5 rounded-xl bg-slate-600 p-3 text-white transition-colors hover:bg-slate-500 disabled:opacity-50"
-              >
-                <RotateCcw size={16} />
-                <span className="text-ui-xs font-black uppercase tracking-widest">Disapprove</span>
-              </button>
-              <button
-                type="button"
-                disabled={decisionBusy}
-                onClick={onFlag}
-                className="flex flex-col items-center gap-1.5 rounded-xl bg-rose-600 p-3 text-white transition-colors hover:bg-rose-500 disabled:opacity-50"
-              >
-                <Flag size={16} />
-                <span className="text-ui-xs font-black uppercase tracking-widest">Flag</span>
-              </button>
-            </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <DecisionActionTile
+                    variant="approve"
+                    icon={CheckCircle2}
+                    label="Approve"
+                    disabled={decisionBusy}
+                    onClick={onApprove}
+                  />
+                  <DecisionActionTile
+                    variant="neutral"
+                    icon={RotateCcw}
+                    label="Disapprove"
+                    disabled={decisionBusy}
+                    onClick={onDisapprove}
+                  />
+                  <DecisionActionTile
+                    variant="reject"
+                    icon={Flag}
+                    label="Flag"
+                    disabled={decisionBusy}
+                    onClick={onFlag}
+                  />
+                </div>
+              </DecisionActionBar>
             ) : (
               <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-ui-xs text-amber-950">
                 Quotation clearance requires Branch Manager, MD, or Administrator login.
@@ -267,15 +270,14 @@ export function ClearanceManagerApprovalPreview({
             )}
 
             {fromProductionGate && canProductionOverride ? (
-              <button
-                type="button"
+              <DecisionActionTile
+                variant="brand"
+                icon={Zap}
+                label="Production override (low payment)"
                 disabled={decisionBusy}
                 onClick={onProductionOverride}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 p-3 text-white transition-colors hover:bg-teal-600 disabled:opacity-50"
-              >
-                <Zap size={16} />
-                <span className="text-ui-xs font-black uppercase tracking-widest">Production override (low payment)</span>
-              </button>
+                className="mt-2"
+              />
             ) : null}
             {fromProductionGate && !canProductionOverride ? (
               <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-ui-xs text-amber-950">

@@ -16,6 +16,13 @@ import { apiFetch, apiUrl } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
 import { ManagementAuditSections } from '../management/ManagementAuditSections';
+import { ConversionRecordPanel } from '../management/ConversionRecordPanel';
+import {
+  DecisionActionBar,
+  DecisionActionTile,
+  DecisionBand,
+  DecisionChip,
+} from '../management/DecisionSurface';
 import { quotationRefFromWorkItemForIntel } from '../../lib/transactionIntelFromWorkItem';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -488,30 +495,34 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
             </div>
           ) : paymentDetail ? (
             <EmailCard>
-              <header className="border-b border-slate-100/90 bg-gradient-to-b from-slate-50 to-white px-5 pb-4 pt-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium tracking-wide text-slate-500">Payment request</p>
-                    <h2 className="mt-1.5 text-[1.05rem] font-semibold leading-snug tracking-tight text-slate-900 sm:text-lg">
-                      {paymentSubject}
-                    </h2>
-                    {paymentSubline ? (
-                      <p className="mt-2 text-[12px] leading-relaxed text-slate-500">{paymentSubline}</p>
-                    ) : null}
-                    <p className="mt-1 font-mono text-xs text-slate-400">{sourceId}</p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${statusPillClass(
-                      paymentDetail.approvalStatus
-                    )}`}
-                  >
-                    {paymentDetail.approvalStatus || 'Pending'}
-                  </span>
-                </div>
-                <p className="mt-5 text-2xl font-semibold tabular-nums tracking-tight text-zarewa-teal">
-                  {formatNgn(Number(paymentDetail.amountRequestedNgn) || 0)}
-                </p>
-              </header>
+              <div className="border-b border-slate-100/90 px-5 pb-4 pt-5">
+                <DecisionBand
+                  tone="payment"
+                  eyebrow="Payment request"
+                  title={sourceId}
+                  subtitle={paymentSubject}
+                  aside={
+                    <>
+                      <DecisionChip
+                        tone={
+                          String(paymentDetail.approvalStatus || '').toLowerCase().includes('approv')
+                            ? 'emerald'
+                            : 'amber'
+                        }
+                      >
+                        {paymentDetail.approvalStatus || 'Pending'}
+                      </DecisionChip>
+                      <p className="mt-2 text-lg font-black tabular-nums text-zarewa-teal">
+                        {formatNgn(Number(paymentDetail.amountRequestedNgn) || 0)}
+                      </p>
+                    </>
+                  }
+                >
+                  {paymentSubline ? (
+                    <p className="mt-2 text-[12px] leading-relaxed text-slate-500">{paymentSubline}</p>
+                  ) : null}
+                </DecisionBand>
+              </div>
 
               <div className="px-5 py-5">
                 <EmailSectionTitle>Memo</EmailSectionTitle>
@@ -708,52 +719,47 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
 
         {dt === 'conversion_review' ? (
           <EmailCard>
-            <header className="border-b border-slate-100/90 bg-gradient-to-b from-violet-50/60 to-white px-5 pb-4 pt-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-slate-500">Operations · conversion review</p>
-                  <h2 className="mt-1.5 text-lg font-semibold leading-snug tracking-tight text-slate-900">
-                    {conversionJob?.customerName || workItem.summary || 'Completed job review'}
-                  </h2>
-                  <p className="mt-1 font-mono text-xs text-slate-400">{sourceId}</p>
-                  {qref ? <p className="mt-2 font-mono text-[12px] font-medium text-teal-800">{qref}</p> : null}
-                </div>
-                <span
-                  className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${
-                    conversionSigned ? statusPillClass('Approved') : statusPillClass('Pending')
-                  }`}
-                >
-                  {conversionSigned ? 'Signed off' : 'Awaiting sign-off'}
-                </span>
-              </div>
-              {conversionJob?.productName ? (
-                <p className="mt-3 text-[14px] leading-relaxed text-slate-600">{conversionJob.productName}</p>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full border border-slate-200/90 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                  Alert: {conversionJob?.conversionAlertState || '—'}
-                </span>
-                {conversionJob?.managerReviewRequired ? (
-                  <span className="rounded-full border border-amber-200/90 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-950">
-                    Manager review
-                  </span>
+            <div className="border-b border-slate-100/90 px-5 pb-4 pt-5">
+              <DecisionBand
+                tone="convert"
+                eyebrow="Operations · conversion review"
+                title={sourceId}
+                subtitle={conversionJob?.customerName || workItem.summary || 'Completed job review'}
+                meta={
+                  <>
+                    <DecisionChip tone={conversionSigned ? 'emerald' : 'amber'}>
+                      {conversionSigned ? 'Signed off' : 'Awaiting sign-off'}
+                    </DecisionChip>
+                    <DecisionChip>Alert: {conversionJob?.conversionAlertState || '—'}</DecisionChip>
+                    {conversionJob?.managerReviewRequired ? (
+                      <DecisionChip tone="amber">Manager review</DecisionChip>
+                    ) : null}
+                    {conversionJob?.completedAtISO ? (
+                      <DecisionChip>
+                        Completed {new Date(conversionJob.completedAtISO).toLocaleString()}
+                      </DecisionChip>
+                    ) : null}
+                  </>
+                }
+              >
+                {qref ? <p className="mt-2 font-mono text-[12px] font-medium text-teal-800">{qref}</p> : null}
+                {conversionJob?.productName ? (
+                  <p className="mt-2 text-[14px] leading-relaxed text-slate-600">{conversionJob.productName}</p>
                 ) : null}
-              </div>
-              <p className="mt-4 text-[13px] tabular-nums text-slate-600">
-                Output: {Number(conversionJob?.actualMeters || 0).toLocaleString()} m
-                {conversionJob?.actualWeightKg != null
-                  ? ` · ${Number(conversionJob.actualWeightKg).toLocaleString()} kg`
-                  : ''}
-              </p>
-              {conversionJob?.completedAtISO ? (
-                <p className="mt-1 text-[12px] text-slate-400">
-                  Completed {new Date(conversionJob.completedAtISO).toLocaleString()}
-                </p>
-              ) : null}
-            </header>
+              </DecisionBand>
+            </div>
+
+            <div className="border-t border-slate-100 px-5 py-4">
+              <ConversionRecordPanel
+                auditData={auditData}
+                loading={loadingAudit}
+                focusJobId={sourceId}
+                emptyMessage="No coil or conversion check found for this job yet."
+              />
+            </div>
 
             {canConversionSignoff && !conversionSigned ? (
-              <div className="space-y-3 px-5 py-5">
+              <DecisionActionBar className="mx-5 mb-5">
                 <p className="text-[13px] leading-relaxed text-slate-600">
                   Add a brief sign-off note (required before closing this review).
                 </p>
@@ -777,16 +783,14 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                     />
                   </div>
                 ) : null}
-                <button
-                  type="button"
+                <DecisionActionTile
+                  variant="brand"
+                  icon={Factory}
+                  label="Sign off review"
                   disabled={decisionBusy}
                   onClick={() => void handleConversionSignoff()}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-violet-700 px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-violet-600 disabled:opacity-50 sm:w-auto"
-                >
-                  <Factory size={17} strokeWidth={2.25} />
-                  Sign off review
-                </button>
-              </div>
+                />
+              </DecisionActionBar>
             ) : conversionSigned ? (
               <div className="border-t border-slate-100/90 px-5 py-4">
                 <p className="text-[13px] leading-relaxed text-slate-600">
@@ -806,14 +810,19 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
 
         {showQuotationClearanceActions ? (
           <EmailCard>
-            <div className="border-b border-slate-100/90 bg-gradient-to-b from-teal-50/50 to-white px-5 py-4">
-              <EmailSectionTitle>Quotation clearance</EmailSectionTitle>
-              <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
-                Approve clears the quote; disapprove or flag sends it to flagged (reason required).
-                {dt === 'production_gate'
-                  ? ' Production gate: override only if you accept low-payment risk.'
-                  : ''}
-              </p>
+            <div className="border-b border-slate-100/90 px-5 py-4">
+              <DecisionBand
+                tone={dt === 'production_gate' ? 'production' : 'clearance'}
+                eyebrow={dt === 'production_gate' ? 'Production gate' : 'Quotation clearance'}
+                title={qref || workItem.summary || 'Clearance'}
+              >
+                <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+                  Approve clears the quote; disapprove or flag sends it to flagged (reason required).
+                  {dt === 'production_gate'
+                    ? ' Production gate: override only if you accept low-payment risk.'
+                    : ''}
+                </p>
+              </DecisionBand>
             </div>
             <footer className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:flex-wrap">
               <button
@@ -877,33 +886,39 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
               </div>
             ) : refundDetail ? (
               <EmailCard>
-                <header className="border-b border-slate-100/90 bg-gradient-to-b from-amber-50/50 to-white px-5 pb-4 pt-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-slate-500">Refund request</p>
-                      <h2 className="mt-1.5 text-lg font-semibold leading-snug tracking-tight text-slate-900">
-                        {[refundDetail.customer_name, formatRefundReasonCategory(refundDetail.reason_category)]
-                          .filter(Boolean)
-                          .join(' · ') || 'Customer refund'}
-                      </h2>
-                      <p className="mt-2 text-[12px] leading-relaxed text-slate-500">
-                        {[refundDetail.quotation_ref, refundDetail.requested_at_iso].filter(Boolean).join(' · ') ||
-                          '—'}
-                      </p>
-                      <p className="mt-1 font-mono text-xs text-slate-400">{sourceId}</p>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${statusPillClass(
-                        refundDetail.status
-                      )}`}
-                    >
-                      {refundDetail.status || 'Pending'}
-                    </span>
-                  </div>
-                  <p className="mt-5 text-2xl font-semibold tabular-nums tracking-tight text-slate-900">
-                    {formatNgn(Number(refundDetail.amount_ngn) || 0)}
-                  </p>
-                </header>
+                <div className="border-b border-slate-100/90 px-5 pb-4 pt-5">
+                  <DecisionBand
+                    tone="refund"
+                    eyebrow="Refund request"
+                    title={sourceId}
+                    subtitle={
+                      [refundDetail.customer_name, formatRefundReasonCategory(refundDetail.reason_category)]
+                        .filter(Boolean)
+                        .join(' · ') || 'Customer refund'
+                    }
+                    aside={
+                      <>
+                        <DecisionChip
+                          tone={
+                            String(refundDetail.status || '').toLowerCase().includes('approv')
+                              ? 'emerald'
+                              : 'amber'
+                          }
+                        >
+                          {refundDetail.status || 'Pending'}
+                        </DecisionChip>
+                        <p className="mt-2 text-lg font-black tabular-nums text-rose-700">
+                          {formatNgn(Number(refundDetail.amount_ngn) || 0)}
+                        </p>
+                      </>
+                    }
+                  >
+                    <p className="mt-2 text-[12px] leading-relaxed text-slate-500">
+                      {[refundDetail.quotation_ref, refundDetail.requested_at_iso].filter(Boolean).join(' · ') ||
+                        '—'}
+                    </p>
+                  </DecisionBand>
+                </div>
 
                 <div className="px-5 py-5">
                   <EmailSectionTitle>Reason</EmailSectionTitle>
@@ -1041,7 +1056,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
               />
             </div>
           </IntelCollapsible>
-        ) : qref ? (
+        ) : qref && dt !== 'conversion_review' ? (
           <ManagementAuditSections auditData={auditData} loadingAudit={loadingAudit} formatNgn={formatNgn} appearance="light" />
         ) : null}
 

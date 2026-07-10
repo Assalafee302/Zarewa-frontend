@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Flag, RefreshCw, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
-import { Button } from '../ui';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
 import { formatPersonName } from '../../lib/formatPersonName';
@@ -11,6 +10,7 @@ import {
   formatEditApprovalFieldValue,
   normalizeEditApprovalChangeDetails,
 } from '../../lib/editApprovalReview';
+import { DecisionActionBar, DecisionActionTile, DecisionBand } from '../management/DecisionSurface';
 
 const ENTITY_ROUTES = {
   quotation: (id) => ({ to: '/sales', state: { openSalesRecord: { type: 'quotation', id } } }),
@@ -155,14 +155,16 @@ export function EditApprovalDetailModal({
 
   return (
     <ModalFrame isOpen={isOpen} onClose={() => !busy && onClose?.()} closeDisabled={busy}>
-      <div className="z-modal-panel w-full max-w-lg p-0 overflow-hidden max-h-[min(90vh,720px)] flex flex-col">
-        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4 border-b border-slate-100 shrink-0">
-          <div>
-            <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">Edit approval</p>
-            <h3 className="text-lg font-black text-zarewa-teal font-mono mt-1">{editApprovalId || record?.id || '—'}</h3>
-            {recordContext?.headline ? (
-              <p className="mt-1 text-sm font-semibold text-slate-700">{recordContext.headline}</p>
-            ) : null}
+      <div className="z-modal-panel flex max-h-[min(90vh,720px)] w-full max-w-lg flex-col overflow-hidden p-0">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <DecisionBand
+              tone="edit"
+              eyebrow="Edit approval"
+              title={editApprovalId || record?.id || '—'}
+              subtitle={recordContext?.headline || null}
+              className="border-0 shadow-none"
+            />
           </div>
           <button
             type="button"
@@ -272,7 +274,7 @@ export function EditApprovalDetailModal({
             </div>
 
             {canApprove ? (
-              <div className="shrink-0 space-y-3 border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
+              <DecisionActionBar className="shrink-0 rounded-none border-x-0 border-b-0">
                 <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
                   Rejection reason (required to reject)
                   <textarea
@@ -283,22 +285,24 @@ export function EditApprovalDetailModal({
                     className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-rose-200"
                   />
                 </label>
-                <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                  <Button type="button" variant="outline" disabled={busy} onClick={() => void handleReject()}>
-                    <Flag size={14} />
-                    Reject
-                  </Button>
-                  <button
-                    type="button"
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <DecisionActionTile
+                    variant="compactReject"
+                    icon={Flag}
+                    label="Reject"
+                    disabled={busy}
+                    onClick={() => void handleReject()}
+                  />
+                  <DecisionActionTile
+                    variant="brand"
+                    icon={CheckCircle2}
+                    label="Approve code"
                     disabled={busy}
                     onClick={() => void handleApprove()}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-zarewa-teal px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white hover:brightness-105 disabled:opacity-50"
-                  >
-                    <CheckCircle2 size={16} />
-                    Approve code
-                  </button>
+                    className="!bg-violet-700 hover:!brightness-110 sm:!w-auto"
+                  />
                 </div>
-              </div>
+              </DecisionActionBar>
             ) : null}
           </>
         )}

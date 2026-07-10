@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import { formatActorAttribution, formatStageActor } from '../../lib/actorAttribution';
 import { flattenQuotationLineItems, ledgerTypeStyle } from '../../lib/managerDashboardCore';
 import { ManagementActivityTimeline } from './ManagementActivityTimeline';
+import { ConversionRecordPanel } from './ConversionRecordPanel';
 
 function auditUi(appearance) {
   const L = appearance === 'light';
@@ -98,26 +99,7 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
   const ledger = Array.isArray(auditData.ledgerEntries) ? auditData.ledgerEntries : [];
   const refunds = Array.isArray(auditData.refunds) ? auditData.refunds : [];
   const totals = auditData.totals || {};
-  const checks = Array.isArray(auditData.conversionChecks) ? auditData.conversionChecks : [];
-  const coils = Array.isArray(auditData.jobCoils) ? auditData.jobCoils : [];
-
-  const checksByJob = new Map();
-  for (const c of checks) {
-    const jid = String(c.job_id || '');
-    if (!jid) continue;
-    if (!checksByJob.has(jid)) checksByJob.set(jid, []);
-    checksByJob.get(jid).push(c);
-  }
-  const coilsByJob = new Map();
-  for (const c of coils) {
-    const jid = String(c.job_id || '');
-    if (!jid) continue;
-    if (!coilsByJob.has(jid)) coilsByJob.set(jid, []);
-    coilsByJob.get(jid).push(c);
-  }
-
   const cuttingLists = Array.isArray(auditData.cuttingLists) ? auditData.cuttingLists : [];
-  const productionLogs = Array.isArray(auditData.productionLogs) ? auditData.productionLogs : [];
   const stageActors = auditData.stageActors || {};
   return (
     <Fragment>
@@ -353,87 +335,12 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
       </section>
 
       <section>
-        <p className={u.sec}>Production &amp; conversion</p>
-        <div className="space-y-3">
-          {!productionLogs.length ? (
-            <p className={u.empty}>No production jobs for this quotation.</p>
-          ) : (
-            productionLogs.map((job, idx) => {
-              const jid = String(job.job_id || idx);
-              const jobChecks = checksByJob.get(job.job_id) || [];
-              const jobCoilRows = coilsByJob.get(job.job_id) || [];
-              return (
-                <div key={job.job_id || idx} className={u.jobWrap}>
-                  <div className={u.jobHead}>
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <p className={u.jobId}>{job.job_id}</p>
-                      <span className={u.jobStatus}>{job.status}</span>
-                    </div>
-                    <p className={u.jobProduct}>{job.product_name || '—'}</p>
-                    {formatActorAttribution(job.operator_name, job.completed_at_iso || job.created_at_iso) ? (
-                      <p className={`text-ui-xs ${u.L ? 'text-slate-500' : 'text-white/40'}`}>
-                        Operator: {formatActorAttribution(job.operator_name, job.completed_at_iso || job.created_at_iso)}
-                      </p>
-                    ) : null}
-                    <p className={u.jobSub}>
-                      List {job.cutting_list_id || '—'} · {job.machine_name || '—'}
-                    </p>
-                    <div className={u.jobNums}>
-                      <span>Planned {Number(job.planned_meters || 0).toLocaleString()} m</span>
-                      <span>Actual {Number(job.actual_meters || 0).toLocaleString()} m</span>
-                      <span>{Number(job.actual_weight_kg || 0).toLocaleString()} kg</span>
-                    </div>
-                    <p className={u.convAlert}>
-                      Conversion alert: {job.conversion_alert_state || '—'}
-                      {job.manager_review_required ? ' · manager review' : ''}
-                    </p>
-                    {job.completed_at_iso ? (
-                      <p className={u.done}>Done {job.completed_at_iso.slice(0, 16).replace('T', ' ')}</p>
-                    ) : null}
-                    {job.manager_review_signed_by_name || job.manager_review_signed_at_iso ? (
-                      <p className={u.sign}>
-                        Signed off{' '}
-                        {formatActorAttribution(
-                          job.manager_review_signed_by_name,
-                          job.manager_review_signed_at_iso
-                        ) || job.manager_review_signed_at_iso?.slice(0, 10)}
-                      </p>
-                    ) : null}
-                  </div>
-                  {jobCoilRows.length ? (
-                    <div className={u.coilBox}>
-                      <p className={u.coilTitle}>Coils / meters</p>
-                      <ul className="space-y-1">
-                        {jobCoilRows.map((co) => (
-                          <li key={`${jid}-${co.coil_no}`} className={u.coilLi}>
-                            <span className={u.coilMono}>{co.coil_no}</span>
-                            <span className="shrink-0 tabular-nums">{Number(co.meters_produced || 0).toLocaleString()} m</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {jobChecks.length ? (
-                    <div className={u.chkBox}>
-                      <p className={u.coilTitle}>Conversion checks</p>
-                      <ul className="space-y-1.5">
-                        {jobChecks.map((ch, i) => (
-                          <li key={`${ch.job_id}-${ch.coil_no}-${i}`} className={u.chkLi}>
-                            <span className={u.chkMono}>{ch.coil_no}</span> · {ch.alert_state} · actual{' '}
-                            {ch.actual_conversion_kg_per_m != null ? Number(ch.actual_conversion_kg_per_m).toFixed(2) : '—'} kg/m
-                            {ch.standard_conversion_kg_per_m != null
-                              ? ` · std ${Number(ch.standard_conversion_kg_per_m).toFixed(2)}`
-                              : ''}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })
-          )}
-        </div>
+        <ConversionRecordPanel
+          auditData={auditData}
+          showMeterTotals={false}
+          title="Production & conversion"
+          emptyMessage="No production jobs for this quotation."
+        />
       </section>
 
       <section className="mt-4">
