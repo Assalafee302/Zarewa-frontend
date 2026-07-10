@@ -2071,19 +2071,93 @@ export function LiveProductionMonitor({
     setDraftAllocations((prev) => [...prev, createDraftLine()]);
   };
 
-  const removeDraftRow = useCallback((id) => {
-    setDraftAllocations((prev) => {
-      const row = prev.find((r) => r.id === id);
-      if (!row) return prev;
-      if (canEditPlannedAllocations) {
-        return prev.length <= 1 ? [createDraftLine()] : prev.filter((r) => r.id !== id);
+  const removeDraftRow = useCallback(
+    async (id) => {
+      const row = draftAllocations.find((r) => r.id === id);
+      if (!row) return;
+
+      if (jobSt === 'Running' && !isDraftAllocationRow(row)) {
+        showToast(
+          'This coil is already on the running job. Use Return to plan first, then delete or change the start coil.',
+          { variant: 'info' }
+        );
+        if (canReturnJobToPlanned) setReturnModalOpen(true);
+        return;
       }
-      if ((canAddSupplementalCoil || canEditCompletedCoilCorrections) && isDraftAllocationRow(row)) {
-        return prev.length <= 1 ? [createDraftLine()] : prev.filter((r) => r.id !== id);
+
+      if (jobSt === 'Completed' && !isDraftAllocationRow(row)) {
+        showToast('Completed coil lines cannot be deleted — edit readings and Save correction instead.', {
+          variant: 'info',
+        });
+        return;
       }
-      return prev;
-    });
-  }, [canEditPlannedAllocations, canAddSupplementalCoil, canEditCompletedCoilCorrections]);
+
+      const releasedCoilNo = String(row.coilNo || '').trim();
+      const wasPersistedPlanned = canEditPlannedAllocations && !isDraftAllocationRow(row);
+
+      const nextRows = (() => {
+        if (canEditPlannedAllocations || canAddSupplementalCoil || canEditCompletedCoilCorrections) {
+          return draftAllocations.length <= 1
+            ? [createDraftLine()]
+            : draftAllocations.filter((r) => r.id !== id);
+        }
+        return draftAllocations;
+      })();
+
+      if (nextRows === draftAllocations) return;
+      setDraftAllocations(nextRows);
+
+      if (!wasPersistedPlanned || !selectedJob?.jobID || !ws?.canMutate) {
+        if (releasedCoilNo) {
+          showToast(`Coil line removed${releasedCoilNo ? ` (${releasedCoilNo})` : ''}.`, { variant: 'info' });
+        }
+        return;
+      }
+
+      const allocations = nextRows
+        .filter((r) => r.coilNo?.trim() && Number(r.openingWeightKg) > 0)
+        .map((r) => ({
+          coilNo: r.coilNo.trim(),
+          openingWeightKg: parseWholeKgInput(r.openingWeightKg) || 0,
+          note: String(r.note || '').trim(),
+        }));
+
+      try {
+        const path = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}/allocations`;
+        const { ok, data } = await apiFetch(path, {
+          method: 'POST',
+          body: JSON.stringify({ allocations }),
+        });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not release coil reservation after delete.', { variant: 'error' });
+          await refreshProductionWorkspace();
+          return;
+        }
+        clearProdCoilDraftStorage(selectedJob.jobID);
+        await refreshProductionWorkspace();
+        showToast(
+          releasedCoilNo
+            ? `Removed ${releasedCoilNo} — reserved kg released back to free stock.`
+            : 'Coil line removed — reservations updated.',
+          { variant: 'info' }
+        );
+      } catch (e) {
+        showToast(e?.message || 'Could not reset coil after delete.', { variant: 'error' });
+      }
+    },
+    [
+      draftAllocations,
+      jobSt,
+      canEditPlannedAllocations,
+      canAddSupplementalCoil,
+      canEditCompletedCoilCorrections,
+      canReturnJobToPlanned,
+      selectedJob?.jobID,
+      ws?.canMutate,
+      showToast,
+      refreshProductionWorkspace,
+    ]
+  );
 
   const buildCompleteBody = () => {
     const productionDate = productionDateIso || new Date().toISOString().slice(0, 10);
@@ -4451,9 +4525,11 @@ export function LiveProductionMonitor({
                           )
                         : null;
                     const showRemove =
-                      canEditPlannedAllocations ||
-                      (canAddSupplementalCoil && draftRow && draftAllocations.length > 1) ||
-                      (canEditCompletedCoilCorrections && draftRow && draftAllocations.length > 1);
+                      !readOnly &&
+                      (canEditPlannedAllocations ||
+                        canAddSupplementalCoil ||
+                        canEditCompletedCoilCorrections ||
+                        (jobSt === 'Running' && !draftRow && canReturnJobToPlanned));
                     const lotEst = lot ? estimatedMetresFromFreeKg(lot, freeKg) : null;
                     const lotNom = lot ? supplierNominalMetres(lot) : null;
                     const lotMat = lot ? String(lot.materialTypeName || '').trim() : '';

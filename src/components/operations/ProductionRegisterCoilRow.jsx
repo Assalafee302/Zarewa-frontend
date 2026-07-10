@@ -255,6 +255,15 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
             onClick={() => onRemove(row.id)}
             className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center self-end rounded-md border border-transparent p-2 text-slate-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 lg:mb-px lg:min-h-0 lg:min-w-0 lg:self-auto lg:p-1"
             aria-label="Remove coil row"
+            title={
+              draftRow
+                ? 'Remove this coil line'
+                : jobSt === 'Planned'
+                  ? 'Remove this coil and release its reserved kg back to free stock'
+                  : jobSt === 'Running'
+                    ? 'Return to plan first to remove a saved start coil'
+                    : 'Remove coil line'
+            }
           >
             <Trash2 size={14} />
           </button>
