@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -37,6 +37,11 @@ export function ModalFrame({
   layer = 'default',
 }) {
   const reduceMotion = useReducedMotion();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const handleOpenChange = useCallback((open) => {
+    if (!open) onCloseRef.current?.();
+  }, []);
   const overlayTransition = reduceMotion ? { duration: 0 } : { duration: 0.3 };
   const contentTransition = reduceMotion
     ? { duration: 0 }
@@ -58,9 +63,7 @@ export function ModalFrame({
     <DialogPrimitive.Root
       modal={modal}
       open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) onClose?.();
-      }}
+      onOpenChange={handleOpenChange}
     >
       <AnimatePresence>
         {isOpen && (

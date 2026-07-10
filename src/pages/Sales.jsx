@@ -2301,12 +2301,14 @@ const Sales = () => {
       />
       </Suspense>
       ) : null}
-      <SalesCustomerCreateModal
-        isOpen={customerAddOpen}
-        onClose={handleCustomerCreateModalClose}
-        createdByLabel={salesRoleLabel}
-        onCreated={handleCustomerCreated}
-      />
+      {customerAddOpen ? (
+        <SalesCustomerCreateModal
+          isOpen={customerAddOpen}
+          onClose={handleCustomerCreateModalClose}
+          createdByLabel={salesRoleLabel}
+          onCreated={handleCustomerCreated}
+        />
+      ) : null}
       {showReceiptModal ? (
       <Suspense fallback={null}>
       <ReceiptModal
@@ -2349,15 +2351,18 @@ const Sales = () => {
       />
       </Suspense>
       ) : null}
-      <LinkAdvanceModal
-        isOpen={Boolean(linkAdvanceEntry)}
-        advanceEntry={linkAdvanceEntry}
-        onClose={() => setLinkAdvanceEntry(null)}
-        quotations={quotations}
-        ledgerNonce={ledgerSyncKey}
-        onPosted={onLedgerSynced}
-        useLedgerApi={Boolean(ws?.canMutate)}
-      />
+      {linkAdvanceEntry ? (
+        <LinkAdvanceModal
+          isOpen={Boolean(linkAdvanceEntry)}
+          advanceEntry={linkAdvanceEntry}
+          onClose={() => setLinkAdvanceEntry(null)}
+          quotations={quotations}
+          ledgerNonce={ledgerSyncKey}
+          onPosted={onLedgerSynced}
+          useLedgerApi={Boolean(ws?.canMutate)}
+        />
+      ) : null}
+      {advanceViewEntry ? (
       <ModalFrame isOpen={Boolean(advanceViewEntry)} onClose={() => setAdvanceViewEntry(null)}>
         <div className="z-modal-panel max-w-md w-full bg-white rounded-2xl border border-slate-200 p-6 shadow-xl">
           <h3 className="text-base font-bold text-zarewa-teal">Advance payment</h3>
@@ -2408,6 +2413,7 @@ const Sales = () => {
           </div>
         </div>
       </ModalFrame>
+      ) : null}
       {advancePrintEntry ? (
       <PrintModalPortal open onClose={() => setAdvancePrintEntry(null)}>
               <div className="mx-auto max-w-4xl pb-16">
@@ -2510,20 +2516,26 @@ class SalesRouteErrorBoundary extends React.Component {
     return { hasError: true, message: humanizeReactError(error) };
   }
 
-  componentDidCatch(error) {
-    console.error('Sales route crashed during render.', error);
+  componentDidCatch(error, info) {
+    console.error('Sales route crashed during render.', error, info?.componentStack);
   }
 
   render() {
     if (this.state.hasError) {
+      const buildId = typeof __ZAREWA_BUILD_ID__ !== 'undefined' ? __ZAREWA_BUILD_ID__ : '';
       return (
         <PageShell>
           <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !p-6">
             <h2 className="text-lg font-bold text-zarewa-teal">Sales temporarily unavailable</h2>
             <p className="mt-2 text-sm text-slate-600">
-              A screen error occurred while loading Sales. Refresh the page. If this persists, share the time with
-              support so we can trace the bad row.
+              A screen error occurred while loading Sales. Hard refresh (Ctrl+Shift+R). If this persists, share the
+              time and build id with support.
             </p>
+            {buildId ? (
+              <p className="mt-2 text-ui-xs font-mono text-slate-500">
+                Build: <code>{buildId}</code>
+              </p>
+            ) : null}
             {this.state.message ? (
               <p className="mt-2 text-ui-xs font-mono text-slate-500 break-all">{this.state.message}</p>
             ) : null}

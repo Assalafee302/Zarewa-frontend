@@ -12,16 +12,14 @@ function useMenuPosition(open, anchorRef) {
   const update = React.useCallback(() => {
     const el = anchorRef.current;
     if (!el || !open) {
-      setPos(null);
+      setPos((prev) => (prev == null ? prev : null));
       return;
     }
     const r = el.getBoundingClientRect();
     let left = r.right - MENU_WIDTH_PX;
     left = Math.max(8, Math.min(left, window.innerWidth - MENU_WIDTH_PX - 8));
-    setPos({
-      top: r.bottom + 4,
-      left,
-    });
+    const top = r.bottom + 4;
+    setPos((prev) => (prev && prev.top === top && prev.left === left ? prev : { top, left }));
   }, [open, anchorRef]);
 
   useLayoutEffect(() => {

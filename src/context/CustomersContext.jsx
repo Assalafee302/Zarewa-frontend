@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- context + hook pair */
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
 import { branchScopedCreateBlockedMessage, isBranchScopedCreateBlocked } from '../lib/workspaceBranchCreate';
 import { useToast } from './ToastContext';
@@ -15,21 +15,25 @@ export function CustomersProvider({ children }) {
   const wsRefresh = ws?.refresh;
   const { show: showToast } = useToast();
   const [customers, setCustomers] = useState([]);
+  const sourceListRef = useRef(null);
 
-   
   useEffect(() => {
     if (!wsHasWorkspaceData || !wsSnapshot) {
+      sourceListRef.current = null;
       setCustomers((prev) => (prev.length ? [] : prev));
       return;
     }
     const list = wsSnapshot.customers;
     if (!Array.isArray(list)) {
+      sourceListRef.current = null;
       setCustomers((prev) => (prev.length ? [] : prev));
       return;
     }
+    // Same snapshot array reference → skip clone (avoids re-render storms when parent snapshot identity churns).
+    if (sourceListRef.current === list) return;
+    sourceListRef.current = list;
     setCustomers(list.map((c) => ({ ...c })));
   }, [wsHasWorkspaceData, wsSnapshot]);
-   
 
   const addCustomer = useCallback(
     async (record) => {

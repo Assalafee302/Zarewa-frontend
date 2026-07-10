@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { apiFetch } from '../lib/apiBase';
@@ -110,6 +111,7 @@ export function InventoryProvider({ children }) {
   const [materialPoolSummary, setMaterialPoolSummary] = useState(null);
   const [wipByProduct, setWipByProduct] = useState({});
   const [inTransitLoads, setInTransitLoads] = useState([]);
+  const mirroredSnapshotRef = useRef(null);
 
   /**
    * Mirror server lists into React state whenever the workspace snapshot advances (`refreshEpoch`:
@@ -118,6 +120,7 @@ export function InventoryProvider({ children }) {
    */
   useEffect(() => {
     if (!wsHasWorkspaceData || !wsSnapshot) {
+      mirroredSnapshotRef.current = null;
       setProducts((prev) => (prev.length ? [] : prev));
       setPurchaseOrders((prev) => (prev.length ? [] : prev));
       setMovements((prev) => (prev.length ? [] : prev));
@@ -129,6 +132,8 @@ export function InventoryProvider({ children }) {
       setInTransitLoads((prev) => (prev.length ? [] : prev));
       return;
     }
+    if (mirroredSnapshotRef.current === wsSnapshot) return;
+    mirroredSnapshotRef.current = wsSnapshot;
     const s = wsSnapshot;
     if (Array.isArray(s.products)) {
       setProducts(s.products.map((p) => ({ ...p })));
