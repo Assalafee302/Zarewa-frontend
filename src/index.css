@@ -22,6 +22,8 @@
   --z-layer-toast: 1100;
   --z-layer-modal: 1060;
   --z-layer-modal-close: 1070;
+  --z-layer-modal-nested: 1085;
+  --z-layer-modal-nested-close: 1095;
   --z-layer-print-backdrop: 11060;
   --z-layer-print-content: 11070;
   --z-layer-auth-lock: 5000;

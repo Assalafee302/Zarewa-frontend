@@ -124,6 +124,16 @@ export function GovernanceDetailPanel({
         <Button type="button" variant="outline" size="sm" onClick={() => onOpenProcurement?.()}>
           Procurement desk
         </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => {
+            // Acknowledge closes the review surface; underlying risk remains until the linked work item is resolved.
+            onClose?.();
+          }}
+        >
+          Mark reviewed
+        </Button>
         <Button type="button" variant="outline" size="sm" onClick={() => onClose?.()}>
           Close
         </Button>

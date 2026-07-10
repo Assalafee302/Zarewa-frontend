@@ -1,5 +1,4 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -7,8 +6,8 @@ import {
   ChevronRight,
   ClipboardList,
   DollarSign,
+  Filter,
   PencilLine,
-  RefreshCw,
   Search,
   ShieldCheck,
   ShoppingCart,
@@ -20,6 +19,7 @@ import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx
 import { FinanceSequencePanel } from '../layout';
 import {
   MANAGER_STATUS_TONES,
+  managerKindShortLabel,
   managerKindTone,
   managerRowAgeHours,
   managerSlaMeta,
@@ -53,13 +53,14 @@ function KindPill({ label, tone = 'pending' }) {
 
 function SlaChip({ kind, row }) {
   const age = managerRowAgeHours(row);
-  const meta = managerSlaMeta(kind, age);
+  const meta = managerSlaMeta(kind, age, { compact: true });
   if (!meta) return null;
   return (
     <span
-      className={`hidden md:inline shrink-0 rounded-md border px-1.5 py-0.5 text-ui-xs font-bold tabular-nums ${
+      className={`shrink-0 rounded-md border px-1.5 py-0.5 text-ui-xs font-bold tabular-nums ${
         MANAGER_STATUS_TONES[meta.tone] || MANAGER_STATUS_TONES.info
       }`}
+      title={managerSlaMeta(kind, age)?.label}
     >
       {meta.label}
     </span>
@@ -119,6 +120,9 @@ export function BranchManagerCommandInbox(props) {
       ? formatRefundReasonCategory
       : (raw) => String(raw || '—').trim() || '—';
 
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [showAllRows, setShowAllRows] = useState(false);
+
   const pacView = pacViewFromActiveTab(activeTab);
   const pacTabs = MANAGER_PAC_TABS.filter((t) => t.key !== 'credit' || showDeliveryCreditTab);
 
@@ -137,7 +141,13 @@ export function BranchManagerCommandInbox(props) {
     if (it?.kind === 'edit_approvals') {
       const e = it.row || it || {};
       return (
-        <div key={it.id} className={`${inboxRowBase} hover:bg-slate-50/80`}>
+        <button
+          key={it.id}
+          type="button"
+          data-pac-row="1"
+          onClick={() => openEditApprovalIntel?.(e)}
+          className={`${inboxRowBase} hover:bg-slate-50/80 focus-visible:ring-zarewa-teal/25`}
+        >
           <KindPill label="edit" tone="pending" />
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
             {e.changeSummary ? (
@@ -151,23 +161,17 @@ export function BranchManagerCommandInbox(props) {
             {asPersonName(e.requestedByDisplay || e.requestedByUserId || e.requestedBy || '—')}
           </span>
           <SlaChip kind="edit_approvals" row={e} />
-          <button
-            type="button"
-            className="shrink-0 rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-black uppercase text-white hover:brightness-105"
-            onClick={() => openEditApprovalIntel?.(e)}
-          >
-            Review
-          </button>
-        </div>
+          <ChevronRight size={14} className="shrink-0 text-slate-300" />
+        </button>
       );
     }
-    const kindLabel =
-      it.kind === 'staff_purchase_credit' ? 'staff credit' : String(it.kind || 'item').replace(/_/g, ' ');
+    const kindLabel = managerKindShortLabel(it.kind);
     const tone = managerKindTone(it.kind, { flagged: it.kind === 'flagged' });
     return (
       <button
         key={it.id}
         type="button"
+        data-pac-row="1"
         onClick={() => openAttentionItem?.(it)}
         className={`${inboxRowBase} hover:bg-slate-50 focus-visible:ring-zarewa-teal/25 border-l-4 ${
           tone === 'urgent' ? 'border-l-rose-500' : tone === 'pending' ? 'border-l-amber-400' : 'border-l-slate-300'
@@ -198,6 +202,7 @@ export function BranchManagerCommandInbox(props) {
           <button
             key={row._rowKey}
             type="button"
+            data-pac-row="1"
             onClick={() => openQuotationIntel?.(row.id, row, { reviewContext: 'flagged' })}
             className={`${inboxRowBase} hover:bg-rose-50/40 border-l-4 border-l-rose-500 ${
               selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-rose-50/50' : ''
@@ -222,6 +227,7 @@ export function BranchManagerCommandInbox(props) {
           <button
             key={row._rowKey}
             type="button"
+            data-pac-row="1"
             onClick={() =>
               openQuotationIntel?.(
                 qref,
@@ -253,6 +259,7 @@ export function BranchManagerCommandInbox(props) {
         <button
           key={row._rowKey}
           type="button"
+          data-pac-row="1"
           onClick={() => openQuotationIntel?.(row.id, row, { reviewContext: 'clearance' })}
           className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 ${
             selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-amber-50/50' : ''
@@ -276,6 +283,7 @@ export function BranchManagerCommandInbox(props) {
           <button
             key={row._rowKey}
             type="button"
+            data-pac-row="1"
             onClick={() => openAttentionItem?.({ kind: 'refunds', refundId: row.refund_id, row: { ...row } })}
             className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 ${
               selectedIntel?.kind === 'refund' && selectedIntel.refundId === row.refund_id ? 'bg-amber-50/50' : ''
@@ -299,6 +307,7 @@ export function BranchManagerCommandInbox(props) {
         <button
           key={row._rowKey}
           type="button"
+          data-pac-row="1"
           onClick={() => openAttentionItem?.({ kind: 'payments', requestId: row.request_id, row: { ...row } })}
           className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 disabled:opacity-50 ${
             selectedIntel?.kind === 'payment' && selectedIntel.requestId === row.request_id ? 'bg-amber-50/50' : ''
@@ -330,6 +339,7 @@ export function BranchManagerCommandInbox(props) {
         <button
           key={row.job_id || row._rowKey}
           type="button"
+          data-pac-row="1"
           onClick={() => openAttentionItem?.({ kind: 'conversions', jobId: row.job_id, row: { ...row } })}
           className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 ${
             selectedIntel?.kind === 'conversion' && selectedIntel.jobId === row.job_id ? 'bg-amber-50/50' : ''
@@ -352,6 +362,7 @@ export function BranchManagerCommandInbox(props) {
         <button
           key={row.id || row._rowKey}
           type="button"
+          data-pac-row="1"
           onClick={() => openMaterialIncidentIntel?.(row)}
           className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400`}
         >
@@ -372,6 +383,7 @@ export function BranchManagerCommandInbox(props) {
         <button
           key={row._rowKey || row.po_id || row.poID}
           type="button"
+          data-pac-row="1"
           onClick={() => openPurchaseOrderIntel?.(row)}
           className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400`}
         >
@@ -392,6 +404,7 @@ export function BranchManagerCommandInbox(props) {
         <button
           key={row._rowKey || row.id}
           type="button"
+          data-pac-row="1"
           onClick={() => openGovernanceIntel?.(row)}
           className={`${inboxRowBase} hover:bg-rose-50/40 border-l-4 border-l-rose-500`}
         >
@@ -413,7 +426,13 @@ export function BranchManagerCommandInbox(props) {
     if (activeTab === 'edits') {
       const e = row || {};
       return (
-        <div key={row._rowKey || row.id} className={`${inboxRowBase} hover:bg-slate-50/80`}>
+        <button
+          key={row._rowKey || row.id}
+          type="button"
+          data-pac-row="1"
+          onClick={() => openEditApprovalIntel?.(e)}
+          className={`${inboxRowBase} hover:bg-slate-50/80`}
+        >
           <KindPill label="edit" tone="pending" />
           <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
             <span className="font-semibold">{e.entityKind || 'record'}</span>
@@ -423,14 +442,8 @@ export function BranchManagerCommandInbox(props) {
             <span className="text-slate-500">{asPersonName(e.requestedByDisplay || e.requestedByUserId || e.requestedBy)}</span>
           </span>
           <SlaChip kind="edit_approvals" row={e} />
-          <button
-            type="button"
-            onClick={() => openEditApprovalIntel?.(e)}
-            className="shrink-0 rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-black uppercase text-white hover:brightness-105"
-          >
-            Review
-          </button>
-        </div>
+          <ChevronRight size={14} className="shrink-0 text-slate-300" />
+        </button>
       );
     }
 
@@ -448,6 +461,56 @@ export function BranchManagerCommandInbox(props) {
     return <Sparkles size={36} className="opacity-25 mb-3 text-teal-600" />;
   };
 
+  const showClearAllPaid =
+    canManagerClearance &&
+    ((activeTab === 'orders' && filteredInboxRows.some((r) => r._inboxKind === 'clearance')) ||
+      (pacView === 'attention' &&
+        (attentionFilter === 'orders' || attentionFilter === 'all') &&
+        attentionItems.some((it) => it.kind === 'clearance')));
+
+  const effectiveAttentionFilter =
+    pacView === 'attention'
+      ? activeTab === 'attention'
+        ? attentionFilter
+        : activeTab === 'orders'
+          ? 'orders'
+          : activeTab === 'cash_out'
+            ? 'cash'
+            : activeTab === 'qc'
+              ? 'qc'
+              : activeTab === 'material'
+                ? 'material'
+                : activeTab === 'procurement'
+                  ? 'procurement'
+                  : activeTab === 'governance'
+                    ? 'governance'
+                    : activeTab === 'edits'
+                      ? 'edits'
+                      : attentionFilter
+      : null;
+
+  const emptyCopy = () => {
+    if (inboxSearch.trim()) {
+      return { title: 'No matches', detail: 'Try clearing the search filter or switching chips.' };
+    }
+    if (effectiveAttentionFilter && effectiveAttentionFilter !== 'all') {
+      return {
+        title: `No ${effectiveAttentionFilter.replace(/_/g, ' ')} items`,
+        detail: 'This filter is clear — switch to All or another chip.',
+      };
+    }
+    if (!canApprovePaymentRequests && effectiveAttentionFilter === 'cash') {
+      return {
+        title: 'Cash approvals need Finance',
+        detail: 'Expense payment requests require finance.approve. Refunds may still appear for managers who can approve them.',
+      };
+    }
+    return {
+      title: 'Nothing in this queue',
+      detail: 'Queue clear — check your daily checklist or Branch Operations next.',
+    };
+  };
+
   return (
     <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 overflow-hidden !p-0 bg-white">
       <div className="sticky top-0 z-20 p-4 border-b border-slate-100 bg-white">
@@ -458,11 +521,11 @@ export function BranchManagerCommandInbox(props) {
               Priority Action Center
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Decide what needs approval now — attendance is on My Team.
+              Decide what needs approval now — j/k to move, Enter to open.
             </p>
           </div>
-          <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
-            {activeTab === 'orders' && canManagerClearance && filteredInboxRows.some((r) => r._inboxKind === 'clearance') ? (
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
+            {showClearAllPaid ? (
               <Button
                 type="button"
                 size="sm"
@@ -474,19 +537,17 @@ export function BranchManagerCommandInbox(props) {
                 Clear all paid
               </Button>
             ) : null}
-            {pacView === 'attention' ? (
-              <div className="relative w-full sm:w-64">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="search"
-                  value={inboxSearch}
-                  onChange={(e) => setInboxSearch?.(e.target.value)}
-                  placeholder="Filter this queue…"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
-                />
-              </div>
-            ) : null}
-          </motion.div>
+            <div className="relative w-full sm:w-64">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={inboxSearch}
+                onChange={(e) => setInboxSearch?.(e.target.value)}
+                placeholder="Filter this queue…"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
+              />
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-1 mt-4 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar">
@@ -519,30 +580,72 @@ export function BranchManagerCommandInbox(props) {
         </div>
 
         {pacView === 'attention' ? (
-          <div className="flex gap-1 mt-3 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar" role="group" aria-label="Queue filters">
-            {MANAGER_ATTENTION_FILTERS.map((f) => {
-              const active = activeTab === 'attention' && attentionFilter === f.key;
-              const count = f.key === 'all' ? attentionItems.length : filterAttentionItems(attentionItems, f.key).length;
-              return (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab?.('attention');
-                    setAttentionFilter?.(f.key);
-                  }}
-                  className={`shrink-0 px-2.5 py-1.5 rounded-lg text-ui-xs font-bold uppercase tracking-wide border transition-colors ${
-                    active
-                      ? 'bg-zarewa-teal text-white border-zarewa-teal'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-teal-200 hover:text-zarewa-teal'
-                  }`}
-                >
-                  {f.label}
-                  <span className={`ml-1 tabular-nums ${active ? 'text-teal-100' : 'text-slate-400'}`}>{count}</span>
-                </button>
-              );
-            })}
-          </div>
+          <>
+            <div className="mt-3 sm:hidden">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen((v) => !v)}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-600"
+              >
+                <Filter size={14} />
+                Filter
+                <span className="tabular-nums text-slate-400">
+                  {effectiveAttentionFilter === 'all' ? 'All' : String(effectiveAttentionFilter || '').replace(/_/g, ' ')}
+                </span>
+              </button>
+              {mobileFiltersOpen ? (
+                <div className="mt-2 flex gap-1 overflow-x-auto pb-1 custom-scrollbar" role="group" aria-label="Queue filters">
+                  {MANAGER_ATTENTION_FILTERS.map((f) => {
+                    const active = effectiveAttentionFilter === f.key;
+                    const count = f.key === 'all' ? attentionItems.length : filterAttentionItems(attentionItems, f.key).length;
+                    return (
+                      <button
+                        key={f.key}
+                        type="button"
+                        onClick={() => {
+                          setActiveTab?.('attention');
+                          setAttentionFilter?.(f.key);
+                          setMobileFiltersOpen(false);
+                        }}
+                        className={`shrink-0 px-2.5 py-1.5 rounded-lg text-ui-xs font-bold uppercase tracking-wide border transition-colors ${
+                          active
+                            ? 'bg-zarewa-teal text-white border-zarewa-teal'
+                            : 'bg-white text-slate-500 border-slate-200'
+                        }`}
+                      >
+                        {f.label}
+                        <span className={`ml-1 tabular-nums ${active ? 'text-teal-100' : 'text-slate-400'}`}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+            <div className="hidden sm:flex gap-1 mt-3 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar" role="group" aria-label="Queue filters">
+              {MANAGER_ATTENTION_FILTERS.map((f) => {
+                const active = effectiveAttentionFilter === f.key;
+                const count = f.key === 'all' ? attentionItems.length : filterAttentionItems(attentionItems, f.key).length;
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab?.('attention');
+                      setAttentionFilter?.(f.key);
+                    }}
+                    className={`shrink-0 px-2.5 py-1.5 rounded-lg text-ui-xs font-bold uppercase tracking-wide border transition-colors ${
+                      active
+                        ? 'bg-zarewa-teal text-white border-zarewa-teal'
+                        : 'bg-white text-slate-500 border-slate-200 hover:border-teal-200 hover:text-zarewa-teal'
+                    }`}
+                  >
+                    {f.label}
+                    <span className={`ml-1 tabular-nums ${active ? 'text-teal-100' : 'text-slate-400'}`}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
         ) : null}
       </div>
 
@@ -550,8 +653,31 @@ export function BranchManagerCommandInbox(props) {
         className={
           pacView === 'credit' || pacView === 'stock'
             ? 'p-4 sm:p-5'
-            : 'min-h-[420px] max-h-[min(56vh,560px)] overflow-y-auto custom-scrollbar'
+            : 'min-h-[320px] max-h-[min(56vh,560px)] overflow-y-auto custom-scrollbar'
         }
+        onKeyDown={(e) => {
+          if (pacView !== 'attention' && pacView !== 'credit' && pacView !== 'stock') return;
+          if (pacView !== 'attention') return;
+          const rows = Array.from(e.currentTarget.querySelectorAll('[data-pac-row="1"]'));
+          if (!rows.length) return;
+          const activeEl = document.activeElement;
+          const idx = rows.indexOf(activeEl);
+          if (e.key === 'j' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            const next = rows[Math.min(rows.length - 1, Math.max(0, idx) + 1)] || rows[0];
+            next?.focus?.();
+          } else if (e.key === 'k' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prev = rows[Math.max(0, (idx < 0 ? 0 : idx) - 1)] || rows[0];
+            prev?.focus?.();
+          } else if (e.key === 'Enter' && activeEl?.getAttribute?.('data-pac-row') === '1') {
+            e.preventDefault();
+            activeEl.click?.();
+          }
+        }}
+        tabIndex={-1}
+        role="listbox"
+        aria-label="Priority action queue"
       >
         {pacView === 'stock' ? (
           <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -572,10 +698,12 @@ export function BranchManagerCommandInbox(props) {
             </button>
           </div>
         ) : pacView === 'credit' ? (
-          <CreditExceptionPanel
-            branchId={ws?.workspaceBranchId || ws?.session?.branchId || null}
-            roleKey={ws?.session?.user?.roleKey}
-          />
+          <div className="rounded-xl border border-slate-100 bg-white">
+            <CreditExceptionPanel
+              branchId={ws?.workspaceBranchId || ws?.session?.branchId || null}
+              roleKey={ws?.session?.user?.roleKey}
+            />
+          </div>
         ) : loading ? (
           <div className="space-y-2 p-3" aria-busy="true" aria-label="Loading queues">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -585,15 +713,25 @@ export function BranchManagerCommandInbox(props) {
         ) : filteredInboxRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 px-6 text-center text-slate-400">
             {emptyIcon()}
-            <p className="text-sm font-bold text-slate-600">Nothing in this queue</p>
-            <p className="text-xs text-slate-500 mt-1 max-w-xs">
-              {inboxSearch.trim()
-                ? 'Try clearing the search filter.'
-                : 'Queue clear — check your daily checklist or Branch Operations next.'}
-            </p>
+            <p className="text-sm font-bold text-slate-600">{emptyCopy().title}</p>
+            <p className="text-xs text-slate-500 mt-1 max-w-xs">{emptyCopy().detail}</p>
           </div>
         ) : (
-          <div>{filteredInboxRows.map((row) => renderInboxRow(row))}</div>
+          <div>
+            {(showAllRows || filteredInboxRows.length <= 50
+              ? filteredInboxRows
+              : filteredInboxRows.slice(0, 50)
+            ).map((row) => renderInboxRow(row))}
+            {!showAllRows && filteredInboxRows.length > 50 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllRows(true)}
+                className="w-full py-3 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-50"
+              >
+                Show all {filteredInboxRows.length} items
+              </button>
+            ) : null}
+          </div>
         )}
       </div>
     </FinanceSequencePanel>

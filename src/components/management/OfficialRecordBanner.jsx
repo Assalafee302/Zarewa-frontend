@@ -9,6 +9,7 @@ export function OfficialRecordBanner({
   quoteFallbackId = '',
   onOpenRecord,
   showOpenRecord = false,
+  openRecordLabel = '',
 }) {
   const shell = light
     ? 'rounded-2xl border border-slate-200 bg-white p-3 shadow-sm'
@@ -41,6 +42,7 @@ export function OfficialRecordBanner({
   }
 
   const showOpen = Boolean(onOpenRecord && (showOpenRecord || item.routePath || item.id));
+  const openLabel = openRecordLabel || (showOpenRecord ? 'Edit request' : 'Open record');
 
   return (
     <div className={shell}>
@@ -55,7 +57,7 @@ export function OfficialRecordBanner({
         </div>
         {showOpen ? (
           <button type="button" onClick={() => onOpenRecord(item)} className={btnCls}>
-            Open record
+            {openLabel}
           </button>
         ) : null}
       </div>

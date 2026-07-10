@@ -1,8 +1,7 @@
-import { HrButton, HrAddButton, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '../ui';
 import { ZareApprovalHint } from '../ZareApprovalHint';
-import { HR_BTN_PRIMARY } from '../hr/hrFormStyles';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { hrStaffCreditPath, HR_STAFF_CREDIT_SECTION } from '../../lib/hrRoutes';
 import { HrPurchaseCreditDecisionContext } from '../hr/HrPurchaseCreditDecisionContext';
@@ -110,7 +109,7 @@ export function StaffPurchaseCreditManagerPreview({
       ) : null}
 
       {rejectOpen ? (
-        <div className="space-y-2 rounded-xl border border-rose-100 bg-rose-50/60 p-3">
+        <div className="sticky bottom-0 z-10 space-y-2 rounded-xl border border-rose-100 bg-rose-50/90 p-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
           <label className="block text-xs font-bold text-slate-700">
             Rejection reason (required)
             <textarea
@@ -123,32 +122,35 @@ export function StaffPurchaseCreditManagerPreview({
             />
           </label>
           <div className="flex flex-wrap gap-2">
-            <HrButton type="button" variant="secondary" disabled={busy} onClick={() => setRejectOpen(false)}>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => setRejectOpen(false)}>
               Cancel
-            </HrButton>
-            <HrButton
+            </Button>
+            <Button
               type="button"
-              variant="secondary"
+              variant="destructive"
               disabled={busy || rejectNote.trim().length < 3}
               onClick={confirmReject}
             >
               {busy ? 'Working…' : 'Confirm reject'}
-            </HrButton>
+            </Button>
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2 pt-2">
+        <div className="sticky bottom-0 z-10 flex flex-wrap gap-2 rounded-xl border border-slate-200/90 bg-white p-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
           {canReject ? (
-            <HrButton type="button" variant="secondary" disabled={busy} onClick={() => setRejectOpen(true)}>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => setRejectOpen(true)}>
               Reject
-            </HrButton>
+            </Button>
           ) : null}
           {canApprove ? (
-            <HrButton type="button" disabled={busy} onClick={() => onApprove?.()}>
+            <Button type="button" disabled={busy} onClick={() => onApprove?.()}>
               {busy ? 'Working…' : 'Approve'}
-            </HrButton>
+            </Button>
           ) : null}
-          <Link to={hrStaffCreditPath(HR_STAFF_CREDIT_SECTION.PURCHASE_CREDIT)} className={HR_BTN_SECONDARY}>
+          <Link
+            to={hrStaffCreditPath(HR_STAFF_CREDIT_SECTION.PURCHASE_CREDIT)}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+          >
             Open purchase credit queue
           </Link>
         </div>

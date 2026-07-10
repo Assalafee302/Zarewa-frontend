@@ -36,6 +36,7 @@ import {
   formatRefundReasonCategory,
   matchesInboxSearch,
   normalizeManagerInboxRoute,
+  pacAttentionRouteFromTab,
   ymdLocal,
 } from '../lib/managerDashboardCore';
 import { isEffectivelyFullyPaid } from '../lib/paymentOutstandingTolerance';
@@ -80,6 +81,7 @@ const INITIAL_CONFIRM_DIALOG = {
   description: '',
   onConfirm: '',
   resolverKey: '',
+  variant: 'primary',
 };
 
 function buildResolverKey(prefix) {
@@ -265,6 +267,7 @@ export function useBranchManagerWorkstation() {
         description: String(opts.description || ''),
         onConfirm: callbackKey,
         resolverKey,
+        variant: opts.variant === 'danger' || opts.variant === 'warning' ? 'danger' : 'primary',
       });
     });
   }, []);
@@ -776,7 +779,7 @@ export function useBranchManagerWorkstation() {
       setSelectedIntel({ kind: 'quotation', quoteId: ref, row: { id: ref, customer_name: '' } });
     }
     void fetchAudit(ref);
-    setActiveTab('orders');
+    setPacRoute('orders');
     if (fromFlagged) setAttentionFilter('flagged');
   }, [
     displayItems.flagged,
@@ -804,7 +807,7 @@ export function useBranchManagerWorkstation() {
     if (!po || loading) return;
     if (poDeepLinked.current === po) return;
     poDeepLinked.current = po;
-    setActiveTab('procurement');
+    setPacRoute('procurement');
     setSelectedIntel({ kind: 'purchase_order', poId: po, row: { poID: po } });
     void fetchPoAudit(po);
   }, [fetchPoAudit, loading, searchParams]);
@@ -818,7 +821,7 @@ export function useBranchManagerWorkstation() {
       displayItems.pendingRefunds.find((r) => String(r.refund_id) === rid) || { refund_id: rid };
     setRefundIntelExtras(null);
     setSelectedIntel({ kind: 'refund', refundId: rid, row: { ...row } });
-    setActiveTab('cash_out');
+    setPacRoute('cash');
   }, [displayItems.pendingRefunds, loading, searchParams]);
 
   useEffect(() => {
@@ -829,7 +832,7 @@ export function useBranchManagerWorkstation() {
     const row =
       displayItems.pendingConversionReviews.find((j) => String(j.job_id) === jid) || { job_id: jid };
     setSelectedIntel({ kind: 'conversion', jobId: jid, row: { ...row } });
-    setActiveTab('qc');
+    setPacRoute('qc');
   }, [displayItems.pendingConversionReviews, loading, searchParams]);
 
   useEffect(() => {
@@ -840,7 +843,7 @@ export function useBranchManagerWorkstation() {
     const row =
       displayItems.pendingExpenses.find((r) => String(r.request_id) === reqId) || { request_id: reqId };
     setSelectedIntel({ kind: 'payment', requestId: reqId, row: { ...row } });
-    setActiveTab('cash_out');
+    setPacRoute('cash');
   }, [displayItems.pendingExpenses, loading, searchParams]);
 
   /** Deep link: ?materialIncidentId= from workspace / notifications */
@@ -851,7 +854,7 @@ export function useBranchManagerWorkstation() {
     materialIncidentDeepLinked.current = mid;
     const row = materialIncidentQueue.find((r) => String(r.id) === mid) || { id: mid };
     setSelectedIntel({ kind: 'material', materialIncidentId: mid, row: { ...row } });
-    setActiveTab('material');
+    setPacRoute('material');
   }, [loading, materialIncidentQueue, searchParams]);
 
   /** Deep link: ?editApprovalId= from workspace */
@@ -862,7 +865,7 @@ export function useBranchManagerWorkstation() {
     editApprovalDeepLinked.current = eid;
     const row = editApprovalPending.find((r) => String(r.id) === eid) || { id: eid };
     setEditApprovalModal({ open: true, id: eid, row });
-    setActiveTab('edits');
+    setPacRoute('edits');
   }, [editApprovalPending, loading, searchParams]);
 
   useEffect(() => {
@@ -1081,6 +1084,12 @@ export function useBranchManagerWorkstation() {
         )
       : 0;
 
+  const setPacRoute = useCallback((tabOrFilter) => {
+    const route = pacAttentionRouteFromTab(tabOrFilter);
+    setActiveTab(route.tab);
+    setAttentionFilter(route.attentionFilter);
+  }, []);
+
   const openQuotationIntel = useCallback(
     (quotationId, row, extra = {}) => {
       if (!quotationId) return;
@@ -1114,7 +1123,7 @@ export function useBranchManagerWorkstation() {
       materialIncidentId: String(row.id),
       row: { ...row },
     });
-    setActiveTab('material');
+    setPacRoute('material');
   }, []);
 
   const openPurchaseOrderIntel = useCallback(
@@ -1124,7 +1133,7 @@ export function useBranchManagerWorkstation() {
       setAuditData(null);
       setRefundIntelExtras(null);
       setSelectedIntel({ kind: 'purchase_order', poId, row: { poID: poId, ...row } });
-      setActiveTab('procurement');
+      setPacRoute('procurement');
       void fetchPoAudit(poId);
     },
     [fetchPoAudit]
@@ -1138,14 +1147,14 @@ export function useBranchManagerWorkstation() {
       row: item.row || {},
       item: { ...item },
     });
-    setActiveTab('governance');
+    setPacRoute('governance');
   }, []);
 
   const openEditApprovalIntel = useCallback((row) => {
     const id = String(row?.id || '').trim();
     if (!id) return;
     setEditApprovalModal({ open: true, id, row: row || null });
-    setActiveTab('edits');
+    setPacRoute('edits');
   }, []);
 
   const closeEditApprovalModal = useCallback(() => {
@@ -1157,12 +1166,16 @@ export function useBranchManagerWorkstation() {
       if (!item) return;
       const row = item.row || {};
       const kind = item.kind;
+      const stayOnAttention = (filterKey) => {
+        setActiveTab('attention');
+        setAttentionFilter(filterKey || 'all');
+      };
       if (kind === 'clearance' || kind === 'flagged') {
         const qid = item.quotationRef || row.id;
         openQuotationIntel(qid, row, {
           reviewContext: kind === 'flagged' ? 'flagged' : 'clearance',
         });
-        setActiveTab('orders');
+        stayOnAttention(kind === 'flagged' ? 'flagged' : 'orders');
         return;
       }
       if (kind === 'production') {
@@ -1172,38 +1185,41 @@ export function useBranchManagerWorkstation() {
           { id: qref, customer_name: row.customer_name },
           { cuttingListId: item.cuttingListId || row.id, fromProductionGate: true }
         );
-        setActiveTab('orders');
+        stayOnAttention('orders');
         return;
       }
       if (kind === 'conversions') {
         setAuditData(null);
         setRefundIntelExtras(null);
         setSelectedIntel({ kind: 'conversion', jobId: item.jobId || row.job_id, row: { ...row } });
-        setActiveTab('qc');
+        stayOnAttention('qc');
         return;
       }
       if (kind === 'refunds') {
         setSelectedIntel({ kind: 'refund', refundId: item.refundId || row.refund_id, row: { ...row } });
-        setActiveTab('cash_out');
+        stayOnAttention('cash');
         return;
       }
       if (kind === 'payments') {
         setAuditData(null);
         setRefundIntelExtras(null);
         setSelectedIntel({ kind: 'payment', requestId: item.requestId || row.request_id, row: { ...row } });
-        setActiveTab('cash_out');
+        stayOnAttention('cash');
         return;
       }
       if (kind === 'material') {
         openMaterialIncidentIntel(item.row || row);
+        stayOnAttention('material');
         return;
       }
       if (kind === 'edit_approvals') {
         openEditApprovalIntel(item.row || row);
+        stayOnAttention('edits');
         return;
       }
       if (kind === 'governance') {
         openGovernanceIntel(item);
+        stayOnAttention('governance');
         return;
       }
       if (kind === 'staff_purchase_credit') {
@@ -1215,16 +1231,60 @@ export function useBranchManagerWorkstation() {
           quotationRef: item.quotationRef || row.quotationRef,
           row: { ...row },
         });
-        setActiveTab('attention');
+        stayOnAttention('staff_credit');
         return;
       }
-      if (item.poId) {
-        const po = item.poId;
+      if (item.poId || kind === 'purchase_orders' || kind === 'purchase_order') {
+        const po = item.poId || row.po_id || row.poID;
         openPurchaseOrderIntel({ po_id: po, ...row });
+        stayOnAttention('procurement');
       }
     },
     [openEditApprovalIntel, openGovernanceIntel, openMaterialIncidentIntel, openPurchaseOrderIntel, openQuotationIntel]
   );
+
+  /** Snapshot next queue item before refresh so batch decisions can advance. */
+  const findNextAttentionItemAfterDecision = useCallback(() => {
+    const list = Array.isArray(attentionItems) ? attentionItems : [];
+    if (!list.length || !selectedIntel) return null;
+    const matchIdx = list.findIndex((it) => {
+      if (!it) return false;
+      if (selectedIntel.kind === 'quotation') {
+        const qid = selectedIntel.quoteId;
+        return (
+          (it.kind === 'clearance' || it.kind === 'flagged' || it.kind === 'production') &&
+          String(it.quotationRef || it.row?.id || it.row?.quotation_ref || '') === String(qid)
+        );
+      }
+      if (selectedIntel.kind === 'refund') {
+        return it.kind === 'refunds' && String(it.refundId || it.row?.refund_id) === String(selectedIntel.refundId);
+      }
+      if (selectedIntel.kind === 'payment') {
+        return it.kind === 'payments' && String(it.requestId || it.row?.request_id) === String(selectedIntel.requestId);
+      }
+      if (selectedIntel.kind === 'conversion') {
+        return it.kind === 'conversions' && String(it.jobId || it.row?.job_id) === String(selectedIntel.jobId);
+      }
+      if (selectedIntel.kind === 'material') {
+        return it.kind === 'material' && String(it.row?.id || '') === String(selectedIntel.materialIncidentId);
+      }
+      if (selectedIntel.kind === 'purchase_order') {
+        return (
+          (it.kind === 'purchase_orders' || it.poId) &&
+          String(it.poId || it.row?.po_id || '') === String(selectedIntel.poId)
+        );
+      }
+      if (selectedIntel.kind === 'governance') {
+        return it.kind === 'governance' && String(it.id) === String(selectedIntel.governanceId);
+      }
+      if (selectedIntel.kind === 'staff_purchase_credit') {
+        return it.kind === 'staff_purchase_credit' && String(it.accountId || it.row?.id) === String(selectedIntel.accountId);
+      }
+      return false;
+    });
+    if (matchIdx < 0) return list[0] || null;
+    return list[matchIdx + 1] || list[matchIdx - 1] || null;
+  }, [attentionItems, selectedIntel]);
 
   const handleReview = useCallback(
     async (quotationId, decision, reason = '') => {
@@ -1348,11 +1408,14 @@ export function useBranchManagerWorkstation() {
           : 'Receivable written off.',
       };
       showToast(labels[decision] || 'Updated.', { variant: 'success' });
-      await fetchData();
-      await (ws.refresh?.() ?? Promise.resolve());
+      const nextItem = findNextAttentionItemAfterDecision();
+      await fetchData({ background: true });
       if (selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === quotationId) {
         setSelectedIntel(null);
         setAuditData(null);
+        if (nextItem) {
+          queueMicrotask(() => openAttentionItem(nextItem));
+        }
       }
     },
     [
@@ -1360,8 +1423,10 @@ export function useBranchManagerWorkstation() {
       canReleasePaymentHolds,
       canWriteOffBadDebt,
       fetchData,
+      findNextAttentionItemAfterDecision,
       items.pendingClearance,
       items.productionOverrides,
+      openAttentionItem,
       requestConfirm,
       requestRemark,
       selectedIntel,
@@ -1375,7 +1440,12 @@ export function useBranchManagerWorkstation() {
       showToast('Quotation clearance requires Branch Manager authority.', { variant: 'error' });
       return;
     }
-    const rows = filteredInboxRows.filter((row) => row._inboxKind === 'clearance');
+    const fromFiltered = filteredInboxRows.filter((row) => row._inboxKind === 'clearance');
+    const fromDisplay = (displayItems.pendingClearance || []).map((row) => ({
+      ...row,
+      _inboxKind: 'clearance',
+    }));
+    const rows = fromFiltered.length ? fromFiltered : fromDisplay;
     const eligible = rows.filter((row) => {
       const paid = Math.round(Number(row.paid_ngn) || 0);
       const total = Math.round(Number(row.total_ngn) || 0);
@@ -1399,6 +1469,7 @@ export function useBranchManagerWorkstation() {
       title: 'Approve all paid quotations?',
       description: `Approve order sign-off for ${eligible.length} quotation(s)? Each quote is reviewed individually; bulk clear applies only to quotes at 99.5% paid or above.${skipNote}`,
       onConfirm: 'clear_all_clearance',
+      variant: 'danger',
     });
     if (!ok) return;
 
@@ -1414,8 +1485,7 @@ export function useBranchManagerWorkstation() {
       else failed += 1;
     }
     setDecisionBusy(false);
-    await fetchData();
-    await (ws.refresh?.() ?? Promise.resolve());
+    await fetchData({ background: true });
     setSelectedIntel(null);
     setAuditData(null);
 
@@ -1430,7 +1500,7 @@ export function useBranchManagerWorkstation() {
     } else {
       showToast('Could not clear any quotations.', { variant: 'error' });
     }
-  }, [canManagerClearance, fetchData, filteredInboxRows, requestConfirm, showToast, ws]);
+  }, [canManagerClearance, displayItems.pendingClearance, fetchData, filteredInboxRows, requestConfirm, showToast]);
 
   const handleRefundDecision = useCallback(
     async (status, decisionExtras = {}) => {
@@ -1444,14 +1514,20 @@ export function useBranchManagerWorkstation() {
         }
       } else {
         const asked = await requestRemark({
-          title: status === 'Approved' ? 'Approval note (optional)' : 'Rejection reason (optional)',
+          title: status === 'Approved' ? 'Approval note (optional)' : 'Rejection reason',
           description:
             status === 'Approved'
               ? 'Add an optional manager note for this refund approval.'
-              : 'Add an optional reason for rejecting this refund.',
+              : 'Add a reason for rejecting this refund.',
           confirmLabel: status === 'Approved' ? 'Approve refund' : 'Reject refund',
-          minLength: 0,
-          optional: true,
+          minLength: status === 'Rejected' ? 3 : 0,
+          optional: status === 'Approved',
+          variant: status === 'Rejected' ? 'warning' : 'default',
+          onSubmit: 'refund_decision_note',
+        });
+        if (!asked?.ok) return;
+        note = String(asked.value || '').trim();
+      }
           variant: status === 'Approved' ? 'default' : 'warning',
           onSubmit: 'refund_decision_note',
         });
@@ -1491,12 +1567,13 @@ export function useBranchManagerWorkstation() {
         return;
       }
       showToast(status === 'Approved' ? 'Refund approved.' : 'Refund rejected.', { variant: 'success' });
-      await fetchData();
-      await (ws.refresh?.() ?? Promise.resolve());
+      const nextItem = findNextAttentionItemAfterDecision();
+      await fetchData({ background: true });
       setSelectedIntel(null);
       setRefundIntelExtras(null);
+      if (nextItem) queueMicrotask(() => openAttentionItem(nextItem));
     },
-    [fetchData, requestRemark, selectedIntel, showToast, ws]
+    [fetchData, findNextAttentionItemAfterDecision, openAttentionItem, requestRemark, selectedIntel, showToast]
   );
 
   const handleStaffPurchaseCreditDecision = useCallback(
@@ -1543,7 +1620,6 @@ export function useBranchManagerWorkstation() {
           variant: 'success',
         });
         await fetchData({ background: true });
-        await (ws.refresh?.() ?? Promise.resolve());
         await (ws.refreshStaffPurchaseCreditPending?.() ?? Promise.resolve());
         setSelectedIntel(null);
       } finally {
@@ -1594,11 +1670,12 @@ export function useBranchManagerWorkstation() {
       showToast(status === 'Approved' ? 'Payment request approved.' : 'Payment request rejected.', {
         variant: 'success',
       });
-      await fetchData();
-      await (ws.refresh?.() ?? Promise.resolve());
+      const nextItem = findNextAttentionItemAfterDecision();
+      await fetchData({ background: true });
       setSelectedIntel(null);
+      if (nextItem) queueMicrotask(() => openAttentionItem(nextItem));
     },
-    [fetchData, requestRemark, selectedIntel, showToast, ws]
+    [fetchData, findNextAttentionItemAfterDecision, openAttentionItem, requestRemark, selectedIntel, showToast]
   );
 
   const handleConversionSignoff = useCallback(async () => {
@@ -1629,20 +1706,50 @@ export function useBranchManagerWorkstation() {
     showToast('Conversion review signed off.', { variant: 'success' });
     setConversionSignoffRemark('');
     setConversionSignoffEditApprovalId('');
-    await fetchData();
-    await (ws.refresh?.() ?? Promise.resolve());
+    const nextItem = findNextAttentionItemAfterDecision();
+    await fetchData({ background: true });
     setSelectedIntel(null);
-  }, [conversionSignoffEditApprovalId, conversionSignoffRemark, fetchData, selectedIntel, showToast, ws]);
+    if (nextItem) queueMicrotask(() => openAttentionItem(nextItem));
+  }, [
+    conversionSignoffEditApprovalId,
+    conversionSignoffRemark,
+    fetchData,
+    findNextAttentionItemAfterDecision,
+    openAttentionItem,
+    selectedIntel,
+    showToast,
+  ]);
 
   const handleDisapproveSelectedQuotation = useCallback(async () => {
     if (selectedIntel?.kind !== 'quotation') return;
-    await handleReview(selectedIntel.quoteId, 'flag');
-  }, [handleReview, selectedIntel]);
+    const prompted = await requestRemark({
+      title: 'Disapprove quotation',
+      description:
+        'Disapproval sends this quotation to the flagged audit queue and blocks clearance until reviewed. Explain why it should not proceed.',
+      confirmLabel: 'Disapprove',
+      minLength: 5,
+      optional: false,
+      variant: 'warning',
+      onSubmit: 'disapprove_quotation_reason',
+    });
+    if (!prompted?.ok) return;
+    await handleReview(selectedIntel.quoteId, 'flag', prompted.value);
+  }, [handleReview, requestRemark, selectedIntel]);
 
   const handleFlagSelectedQuotation = useCallback(async () => {
     if (selectedIntel?.kind !== 'quotation') return;
-    await handleReview(selectedIntel.quoteId, 'flag');
-  }, [handleReview, selectedIntel]);
+    const prompted = await requestRemark({
+      title: 'Flag for audit',
+      description: 'Flag keeps the quotation visible for follow-up audit without treating it as a hard disapproval.',
+      confirmLabel: 'Flag quotation',
+      minLength: 3,
+      optional: false,
+      variant: 'warning',
+      onSubmit: 'flag_quotation_reason',
+    });
+    if (!prompted?.ok) return;
+    await handleReview(selectedIntel.quoteId, 'flag', prompted.value);
+  }, [handleReview, requestRemark, selectedIntel]);
 
   const handleReleasePaymentsSelectedQuotation = useCallback(async () => {
     if (selectedIntel?.kind !== 'quotation') return;
@@ -1729,7 +1836,7 @@ export function useBranchManagerWorkstation() {
       refundId: id,
       row: { refund_id: id },
     });
-    setActiveTab('cash_out');
+    setPacRoute('cash');
   }, []);
 
   const openGovernanceLinkedQuotation = useCallback(
@@ -1737,7 +1844,7 @@ export function useBranchManagerWorkstation() {
       const qref = String(quotationRef || '').trim();
       if (!qref) return;
       openQuotationIntel(qref, { id: qref }, { fromProductionGate: true });
-      setActiveTab('orders');
+      setPacRoute('orders');
     },
     [openQuotationIntel]
   );
@@ -1748,7 +1855,7 @@ export function useBranchManagerWorkstation() {
     setAuditData(null);
     setRefundIntelExtras(null);
     setSelectedIntel({ kind: 'conversion', jobId: jid, row: { job_id: jid } });
-    setActiveTab('qc');
+    setPacRoute('qc');
   }, []);
 
   const handleApproveEditApproval = useCallback(
@@ -1764,7 +1871,7 @@ export function useBranchManagerWorkstation() {
         return;
       }
       showToast('Edit approval granted — token is valid for one save.');
-      await fetchData();
+      await fetchData({ background: true });
       await (ws.refreshEditApprovalsPending?.() ?? Promise.resolve());
     },
     [fetchData, showToast, ws]

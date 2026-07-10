@@ -26,6 +26,7 @@ describe('manager command center helpers', () => {
   it('marks refund SLA breach after 48h', () => {
     expect(managerSlaMeta('refunds', 51)?.tone).toBe('urgent');
     expect(managerSlaMeta('refunds', 10)?.tone).toBe('info');
+    expect(managerSlaMeta('refunds', null)?.label).toMatch(/unknown/i);
   });
 
   it('computes health score in range', () => {

@@ -65,14 +65,14 @@ describe('managerDashboardCore', () => {
     expect(pos[0]._inboxKind).toBe('purchase_order');
   });
 
-  it('normalizes legacy inbox routes', () => {
-    expect(normalizeManagerInboxRoute('clearance')).toEqual({ tab: 'orders', attentionFilter: 'orders' });
-    expect(normalizeManagerInboxRoute('refunds')).toEqual({ tab: 'cash_out', attentionFilter: 'cash' });
+  it('normalizes legacy inbox routes onto Needs approval + filter', () => {
+    expect(normalizeManagerInboxRoute('clearance')).toEqual({ tab: 'attention', attentionFilter: 'orders' });
+    expect(normalizeManagerInboxRoute('refunds')).toEqual({ tab: 'attention', attentionFilter: 'cash' });
     expect(normalizeManagerInboxRoute('flagged')).toEqual({ tab: 'attention', attentionFilter: 'flagged' });
-    expect(normalizeManagerInboxRoute('material')).toEqual({ tab: 'material', attentionFilter: 'material' });
-    expect(normalizeManagerInboxRoute('governance')).toEqual({ tab: 'governance', attentionFilter: 'all' });
-    expect(normalizeManagerInboxRoute('procurement')).toEqual({ tab: 'procurement', attentionFilter: 'all' });
-    expect(normalizeManagerInboxRoute('edits')).toEqual({ tab: 'edits', attentionFilter: 'all' });
+    expect(normalizeManagerInboxRoute('material')).toEqual({ tab: 'attention', attentionFilter: 'material' });
+    expect(normalizeManagerInboxRoute('governance')).toEqual({ tab: 'attention', attentionFilter: 'governance' });
+    expect(normalizeManagerInboxRoute('procurement')).toEqual({ tab: 'attention', attentionFilter: 'procurement' });
+    expect(normalizeManagerInboxRoute('edits')).toEqual({ tab: 'attention', attentionFilter: 'edits' });
   });
 
   it('filters attention items by chip', () => {

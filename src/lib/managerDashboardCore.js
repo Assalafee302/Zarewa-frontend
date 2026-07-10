@@ -54,6 +54,7 @@ export const MANAGER_ATTENTION_FILTERS = [
   { key: 'cash', label: 'Cash', kinds: ['refunds', 'payments'] },
   { key: 'qc', label: 'QC', kinds: ['conversions'] },
   { key: 'material', label: 'Material', kinds: ['material'] },
+  { key: 'procurement', label: 'Procurement', kinds: ['purchase_orders', 'purchase_order'] },
   { key: 'flagged', label: 'Flagged', kinds: ['flagged'] },
   { key: 'governance', label: 'Governance', kinds: ['governance'] },
   { key: 'staff_credit', label: 'Staff credit', kinds: ['staff_purchase_credit'] },
@@ -64,27 +65,55 @@ const ATTENTION_FILTER_KINDS = Object.fromEntries(
   MANAGER_ATTENTION_FILTERS.filter((f) => f.kinds).map((f) => [f.key, f.kinds])
 );
 
+/** Map any legacy category tab to PAC attention + filter (credit/stock stay as PAC tabs). */
+export function pacAttentionRouteFromTab(tabKey) {
+  const k = String(tabKey || '').trim().toLowerCase();
+  if (k === 'credit' || k === 'stock') return { tab: k, attentionFilter: 'all' };
+  if (k === 'orders' || k === 'clearance' || k === 'production') return { tab: 'attention', attentionFilter: 'orders' };
+  if (k === 'cash_out' || k === 'refunds' || k === 'payments' || k === 'cash') return { tab: 'attention', attentionFilter: 'cash' };
+  if (k === 'qc' || k === 'conversions') return { tab: 'attention', attentionFilter: 'qc' };
+  if (k === 'material') return { tab: 'attention', attentionFilter: 'material' };
+  if (k === 'procurement' || k === 'purchase_orders' || k === 'po') return { tab: 'attention', attentionFilter: 'procurement' };
+  if (k === 'governance') return { tab: 'attention', attentionFilter: 'governance' };
+  if (k === 'edits' || k === 'edit_approvals') return { tab: 'attention', attentionFilter: 'edits' };
+  if (k === 'flagged') return { tab: 'attention', attentionFilter: 'flagged' };
+  if (k === 'staff_credit' || k === 'staff_purchase_credit') return { tab: 'attention', attentionFilter: 'staff_credit' };
+  return { tab: 'attention', attentionFilter: 'all' };
+}
+
 /**
- * Map legacy ?inbox= values and old tab keys to the simplified layout.
- * @returns {{ tab: string; attentionFilter: string }}
+ * Map legacy ?inbox= values and old tab keys to the simplified PAC layout.
+ * Category queues always land on Needs approval + filter (except credit/stock).
+ * @returns {{ tab: string; attentionFilter: string; redirectToTeamHr?: boolean }}
  */
 export function normalizeManagerInboxRoute(rawInbox) {
   const k = String(rawInbox || '').trim().toLowerCase();
   if (!k || k === 'attention') return { tab: 'attention', attentionFilter: 'all' };
-  if (k === 'flagged') return { tab: 'attention', attentionFilter: 'flagged' };
-  if (k === 'clearance' || k === 'production') return { tab: 'orders', attentionFilter: 'orders' };
-  if (k === 'refunds' || k === 'payments') return { tab: 'cash_out', attentionFilter: 'cash' };
-  if (k === 'conversions') return { tab: 'qc', attentionFilter: 'qc' };
-  if (k === 'edit_approvals' || k === 'edits') return { tab: 'edits', attentionFilter: 'all' };
-  if (k === 'governance') return { tab: 'governance', attentionFilter: 'all' };
-  if (k === 'material') return { tab: 'material', attentionFilter: 'material' };
-  if (k === 'procurement' || k === 'purchase_orders' || k === 'po') return { tab: 'procurement', attentionFilter: 'all' };
-  // Attendance moved to Team HR — callers should redirect; keep a safe fallback.
   if (k === 'attendance' || k === 'staff') return { tab: 'attention', attentionFilter: 'all', redirectToTeamHr: true };
   if (k === 'stock' || k === 'stock_register') return { tab: 'stock', attentionFilter: 'all' };
   if (k === 'credit') return { tab: 'credit', attentionFilter: 'all' };
-  if (MANAGER_INBOX_TABS.some((t) => t.key === k)) return { tab: k, attentionFilter: 'all' };
-  return { tab: 'attention', attentionFilter: 'all' };
+  return pacAttentionRouteFromTab(k);
+}
+
+/** Short kind labels for PAC pills. */
+export function managerKindShortLabel(kind) {
+  const k = String(kind || '').trim().toLowerCase();
+  const map = {
+    clearance: 'sign-off',
+    production: 'gate',
+    flagged: 'flagged',
+    refunds: 'refund',
+    payments: 'expense',
+    conversions: 'QC',
+    material: 'material',
+    governance: 'risk',
+    staff_purchase_credit: 'staff credit',
+    edit_approvals: 'edit',
+    edit_approval: 'edit',
+    purchase_orders: 'PO',
+    purchase_order: 'PO',
+  };
+  return map[k] || k.replace(/_/g, ' ') || 'item';
 }
 
 /** Four-color status system: emerald / amber / rose / slate. Kind uses icon + label, not hue. */
@@ -101,7 +130,15 @@ export const MANAGER_STATUS_TONES = {
  */
 export function managerKindTone(kind, opts = {}) {
   if (opts.breached || opts.flagged || kind === 'governance' || kind === 'flagged') return 'urgent';
-  if (kind === 'clearance' || kind === 'refunds' || kind === 'payments' || kind === 'edit_approvals' || kind === 'edit_approval') {
+  if (
+    kind === 'clearance' ||
+    kind === 'refunds' ||
+    kind === 'payments' ||
+    kind === 'edit_approvals' ||
+    kind === 'edit_approval' ||
+    kind === 'purchase_orders' ||
+    kind === 'purchase_order'
+  ) {
     return 'pending';
   }
   return 'pending';
@@ -124,6 +161,7 @@ export function managerRowAgeHours(row) {
     row?.openedAt ||
     row?.updated_at ||
     row?.updatedAt ||
+    row?.manager_flagged_at_iso ||
     null;
   if (!raw) return null;
   const t = new Date(raw).getTime();
@@ -131,16 +169,23 @@ export function managerRowAgeHours(row) {
   return Math.max(0, (Date.now() - t) / 36e5);
 }
 
-/** Refund SLA is 48h; other queues use 24h amber / 48h red. */
-export function managerSlaMeta(kind, ageHours) {
-  if (ageHours == null || !Number.isFinite(ageHours)) return null;
-  const isRefund = String(kind || '').includes('refund');
-  const breachAt = isRefund ? 48 : 48;
-  const warnAt = isRefund ? 24 : 24;
+/** Refund SLA: warn 24h / breach 48h. Other queues: warn 24h / breach 48h. */
+export function managerSlaMeta(kind, ageHours, { compact = false } = {}) {
+  if (ageHours == null || !Number.isFinite(ageHours)) {
+    return { label: compact ? '?' : 'Age unknown', tone: 'info' };
+  }
+  const isRefund = String(kind || '').toLowerCase().includes('refund');
+  const breachAt = 48;
+  const warnAt = 24;
   const hours = Math.round(ageHours);
-  if (ageHours >= breachAt) return { label: `${hours}h — SLA breached`, tone: 'urgent' };
-  if (ageHours >= warnAt) return { label: `${hours}h`, tone: 'pending' };
-  return { label: `${hours}h`, tone: 'info' };
+  if (ageHours >= breachAt) {
+    return {
+      label: compact ? `${hours}h!` : isRefund ? `${hours}h — refund SLA breached` : `${hours}h — SLA breached`,
+      tone: 'urgent',
+    };
+  }
+  if (ageHours >= warnAt) return { label: compact ? `${hours}h` : `${hours}h`, tone: 'pending' };
+  return { label: compact ? `${hours}h` : `${hours}h`, tone: 'info' };
 }
 
 export function attentionKindMatchesFilter(kind, filterKey) {
@@ -292,7 +337,18 @@ export function matchesInboxSearch(query, row, tabKey) {
   if (!s) return true;
   const parts = [];
   if (tabKey === 'attention') {
-    parts.push(row.title, row.subtitle, row.kind, row.quotationRef, row.poId, row.refundId, row.requestId);
+    parts.push(
+      row.title,
+      row.subtitle,
+      row.kind,
+      row.quotationRef,
+      row.poId,
+      row.refundId,
+      row.requestId,
+      row?.row?.entityId,
+      row?.row?.changeSummary,
+      row?.row?.entityKind
+    );
     if (Array.isArray(row.reasons)) parts.push(...row.reasons);
   } else if (tabKey === 'orders') {
     if (row._inboxKind === 'production') {

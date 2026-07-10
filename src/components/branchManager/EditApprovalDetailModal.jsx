@@ -154,11 +154,11 @@ export function EditApprovalDetailModal({
   if (!isOpen) return null;
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={() => !busy && onClose?.()}>
-      <div className="z-modal-panel w-full max-w-lg p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-start justify-between gap-3 mb-5">
+    <ModalFrame isOpen={isOpen} onClose={() => !busy && onClose?.()} closeDisabled={busy}>
+      <div className="z-modal-panel w-full max-w-lg p-0 overflow-hidden max-h-[min(90vh,720px)] flex flex-col">
+        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4 border-b border-slate-100 shrink-0">
           <div>
-            <p className="text-ui-xs font-black uppercase tracking-widest text-violet-700">KPI edit approval</p>
+            <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">Edit approval</p>
             <h3 className="text-lg font-black text-zarewa-teal font-mono mt-1">{editApprovalId || record?.id || '—'}</h3>
             {recordContext?.headline ? (
               <p className="mt-1 text-sm font-semibold text-slate-700">{recordContext.headline}</p>
@@ -166,8 +166,9 @@ export function EditApprovalDetailModal({
           </div>
           <button
             type="button"
+            disabled={busy}
             onClick={() => onClose?.()}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
             aria-label="Close"
           >
             <X size={18} />
@@ -180,9 +181,10 @@ export function EditApprovalDetailModal({
             <span className="text-sm font-semibold">Loading request…</span>
           </div>
         ) : (
-          <div className="space-y-4">
-            <section className="rounded-xl border border-violet-200/80 bg-violet-50/40 px-4 py-3">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-violet-800">What will be edited</p>
+          <>
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
+            <section className="rounded-xl border border-teal-200/80 bg-teal-50/40 px-4 py-3">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">What will be edited</p>
               {changeSummary ? (
                 <p className="mt-2 text-sm font-semibold text-slate-900 leading-relaxed">{changeSummary}</p>
               ) : (
@@ -191,7 +193,7 @@ export function EditApprovalDetailModal({
                 </p>
               )}
               {changeDetails.length > 0 ? (
-                <div className="mt-3 overflow-hidden rounded-lg border border-violet-200/70 bg-white">
+                <div className="mt-3 overflow-hidden rounded-lg border border-teal-200/70 bg-white">
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50/90 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
@@ -266,8 +268,11 @@ export function EditApprovalDetailModal({
               <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                 You can view this request but cannot approve or reject it.
               </p>
-            ) : (
-              <div className="space-y-3 pt-3 border-t border-slate-200">
+            ) : null}
+            </div>
+
+            {canApprove ? (
+              <div className="shrink-0 space-y-3 border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
                 <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
                   Rejection reason (required to reject)
                   <textarea
@@ -294,8 +299,8 @@ export function EditApprovalDetailModal({
                   </button>
                 </div>
               </div>
-            )}
-          </div>
+            ) : null}
+          </>
         )}
       </div>
     </ModalFrame>

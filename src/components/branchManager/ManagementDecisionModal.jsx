@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Factory, Flag, History, Paperclip, Printer } from 'lucide-react';
+import { CheckCircle2, Factory, Flag, History, Paperclip, Printer, ShoppingCart } from 'lucide-react';
 import { ModalFrame } from '../layout';
-import { Card } from '../ui';
+import { Card, Button } from '../ui';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
 import { formatNgn as formatNgnUtil } from '../../Data/mockData';
 import { formatPersonName as formatPersonNameUtil } from '../../lib/formatPersonName';
@@ -73,7 +73,8 @@ export function ManagementDecisionModal({
 }) {
   const { show: showToast } = useToast();
   const [materialDecisionRemark, setMaterialDecisionRemark] = useState('');
-  const [, setMaterialDecisionBusy] = useState(false);
+  const [materialDecisionBusy, setMaterialDecisionBusy] = useState(false);
+  const modalBusy = Boolean(decisionBusy || materialDecisionBusy);
 
   const asMoney = typeof formatNgn === 'function' ? formatNgn : formatNgnUtil;
   const asPersonName = formatPersonNameUtil;
@@ -164,20 +165,120 @@ export function ManagementDecisionModal({
         onClose={closeIntelModal}
         onApprove={handleMaterialApprove}
         onReject={handleMaterialReject}
+        externalBusy={materialDecisionBusy}
       />
     );
   }
 
+  const stickyFooter =
+    selectedIntel?.kind === 'payment' ? (
+      <div className="sticky bottom-0 z-20 space-y-2 border-t border-slate-200 bg-white p-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
+        {!canApprovePaymentRequests ? (
+          <ZareApprovalHint
+            context={{
+              referenceNo: selectedIntel.requestId,
+              documentType: 'payment_request',
+              status: selectedIntel.row?.approval_status || 'Pending',
+              canApprove: false,
+              canMutate: ws?.canMutate !== false,
+              missingPermission: 'Payment request approval requires finance.approve permission.',
+              zareQuery: `Why can't I approve payment request ${selectedIntel.requestId}?`,
+            }}
+          />
+        ) : null}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            disabled={modalBusy || !canApprovePaymentRequests}
+            onClick={() => handlePaymentDecision?.('Approved')}
+            className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
+          >
+            <CheckCircle2 size={18} />
+            <span className="text-ui-xs font-black uppercase tracking-widest">Approve</span>
+          </button>
+          <button
+            type="button"
+            disabled={modalBusy || !canApprovePaymentRequests}
+            onClick={() => handlePaymentDecision?.('Rejected')}
+            className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors"
+          >
+            <Flag size={18} />
+            <span className="text-ui-xs font-black uppercase tracking-widest">Reject</span>
+          </button>
+        </div>
+      </div>
+    ) : selectedIntel?.kind === 'conversion' ? (
+      <div className="sticky bottom-0 z-20 space-y-2 border-t border-slate-200 bg-white p-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
+        <p className="text-ui-xs text-slate-500 leading-relaxed">
+          Confirms you have reviewed High/Low conversion or the open manager review for this completed job.
+        </p>
+        <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
+          Remark
+          <textarea
+            value={conversionSignoffRemark}
+            onChange={(e) => setConversionSignoffRemark?.(e.target.value)}
+            rows={2}
+            placeholder="e.g. Variance reviewed — approved to close."
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-teal-300/60"
+          />
+        </label>
+        {selectedIntel.jobId ? (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-2">
+            <EditSecondApprovalInline
+              entityKind="production_job"
+              entityId={selectedIntel.jobId}
+              value={conversionSignoffEditApprovalId}
+              onChange={setConversionSignoffEditApprovalId}
+              className="!border-amber-300/80 !bg-white !text-amber-900"
+            />
+          </div>
+        ) : null}
+        <button
+          type="button"
+          disabled={modalBusy}
+          onClick={() => void handleConversionSignoff?.()}
+          className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl bg-zarewa-teal hover:brightness-105 text-white font-black uppercase text-ui-xs tracking-widest disabled:opacity-50 transition-colors"
+        >
+          <Factory size={18} />
+          Sign off review
+        </button>
+      </div>
+    ) : selectedIntel?.kind === 'purchase_order' ? (
+      <div className="sticky bottom-0 z-20 border-t border-slate-200 bg-white p-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
+        <p className="mb-2 text-ui-xs text-slate-500 leading-snug">
+          Purchase-order approval runs on the Procurement desk. Open the PO there to approve, reject, or amend.
+        </p>
+        <Button
+          type="button"
+          className="w-full"
+          onClick={() => {
+            const poId = selectedIntel.row?.po_id || selectedIntel.row?.poID || selectedIntel.poId;
+            navigate?.('/procurement', { state: { focusPoId: poId } });
+            closeIntelModal?.();
+          }}
+        >
+          <ShoppingCart size={16} />
+          Open in Procurement
+        </Button>
+      </div>
+    ) : (
+      <div className={`p-3 border-t ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-black/30'}`}>
+        <p className={`text-ui-xs font-semibold text-center uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-white/25'}`}>
+          Management · Zarewa
+        </p>
+      </div>
+    );
+
   return (
-    <ModalFrame isOpen={Boolean(selectedIntel)} onClose={closeIntelModal}>
+    <ModalFrame isOpen={Boolean(selectedIntel)} onClose={closeIntelModal} closeDisabled={modalBusy}>
       <div className={`z-modal-panel w-full p-0 overflow-hidden ${isLight ? 'max-w-6xl' : 'max-w-5xl'}`}>
         <Card
           className={`flex flex-col shadow-xl overflow-hidden max-h-[min(92vh,960px)] ${
-            isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900 border-slate-800'
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
           }`}
         >
           <div
-            className={`p-4 border-b flex items-center justify-between gap-2 ${
+            className={`sticky top-0 z-20 p-4 border-b flex items-center justify-between gap-2 ${
               isLight ? 'border-slate-200 bg-white' : 'border-white/10'
             }`}
           >
@@ -192,7 +293,8 @@ export function ManagementDecisionModal({
             <button
               type="button"
               onClick={closeIntelModal}
-              className={`text-ui-xs font-bold uppercase transition-colors ${
+              disabled={modalBusy}
+              className={`text-ui-xs font-bold uppercase transition-colors disabled:opacity-50 ${
                 isLight ? 'text-slate-400 hover:text-slate-800' : 'text-white/40 hover:text-white'
               }`}
             >
@@ -202,7 +304,7 @@ export function ManagementDecisionModal({
 
           <div
             className={`flex-1 overflow-y-auto p-4 custom-scrollbar min-h-0 ${
-              isLight ? 'bg-slate-100 space-y-3 text-slate-800' : 'space-y-5 text-white'
+              isLight ? 'bg-slate-50/80 space-y-3 text-slate-800' : 'space-y-5 text-white'
             }`}
           >
             {selectedIntel?.kind === 'governance' ? (
@@ -315,7 +417,7 @@ export function ManagementDecisionModal({
             ) : selectedIntel?.kind === 'payment' ? (
               <div className="space-y-5 animate-in fade-in duration-200 text-slate-700">
                 <div>
-                  <p className="text-ui-xs font-bold uppercase tracking-widest text-rose-700/80 mb-1">Payment request</p>
+                  <p className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal/90 mb-1">Payment request</p>
                   <h2 className="text-lg font-black text-slate-900 leading-tight">{selectedIntel.requestId}</h2>
                   <p className="text-xs text-slate-500 mt-2 font-mono">{selectedIntel.row?.expense_id}</p>
                   {selectedIntel.row?.expense_category ? (
@@ -404,46 +506,10 @@ export function ManagementDecisionModal({
                   item={selectedUnifiedWorkItem}
                   light={isLight}
                   quoteFallbackId={officialRecordFallbackId}
-                  showOpenRecord={selectedIntel?.kind === 'payment'}
+                  showOpenRecord
+                  openRecordLabel="Edit request"
                   onOpenRecord={openUnifiedWorkItem}
                 />
-
-                <div className="pt-4 border-t border-slate-200 space-y-3">
-                  <p className="text-ui-xs font-black text-teal-700 uppercase tracking-widest">Decision</p>
-                  {!canApprovePaymentRequests ? (
-                    <ZareApprovalHint
-                      context={{
-                        referenceNo: selectedIntel.requestId,
-                        documentType: 'payment_request',
-                        status: selectedIntel.row?.approval_status || 'Pending',
-                        canApprove: false,
-                        canMutate: ws?.canMutate !== false,
-                        missingPermission: 'Payment request approval requires finance.approve permission.',
-                        zareQuery: `Why can't I approve payment request ${selectedIntel.requestId}?`,
-                      }}
-                    />
-                  ) : null}
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      disabled={decisionBusy}
-                      onClick={() => handlePaymentDecision?.('Approved')}
-                      className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
-                    >
-                      <CheckCircle2 size={18} />
-                      <span className="text-ui-xs font-black uppercase tracking-widest">Approve</span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={decisionBusy}
-                      onClick={() => handlePaymentDecision?.('Rejected')}
-                      className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors"
-                    >
-                      <Flag size={18} />
-                      <span className="text-ui-xs font-black uppercase tracking-widest">Reject</span>
-                    </button>
-                  </div>
-                </div>
               </div>
             ) : selectedIntel?.kind === 'staff_purchase_credit' ? (
               <StaffPurchaseCreditManagerPreview
@@ -458,7 +524,7 @@ export function ManagementDecisionModal({
             ) : selectedIntel?.kind === 'conversion' ? (
               <div className="space-y-5 animate-in fade-in duration-200 text-slate-700">
                 <div>
-                  <p className="text-ui-xs font-bold uppercase tracking-widest text-violet-700/90 mb-1">Conversion review</p>
+                  <p className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal/90 mb-1">Conversion review</p>
                   <h2 className="text-lg font-black text-slate-900 font-mono leading-tight">{selectedIntel.jobId}</h2>
                   <p className="text-xs font-bold text-teal-700 mt-2">{selectedIntel.row?.quotation_ref || '—'}</p>
                   <p className="text-sm font-semibold text-slate-700 mt-1 truncate">{asPersonName(selectedIntel.row?.customer_name)}</p>
@@ -488,13 +554,12 @@ export function ManagementDecisionModal({
                   item={selectedUnifiedWorkItem}
                   light={isLight}
                   quoteFallbackId={officialRecordFallbackId}
-                  showOpenRecord={selectedIntel?.kind === 'payment'}
                   onOpenRecord={openUnifiedWorkItem}
                 />
 
                 {selectedIntel.row?.quotation_ref ? (
                   <div className="space-y-3">
-                    <p className="text-ui-xs font-black text-violet-700 uppercase tracking-widest">
+                    <p className="text-ui-xs font-black text-zarewa-teal uppercase tracking-widest">
                       Quotation context (payments, balance, meters, conversion trail)
                     </p>
                     <ManagementAuditSections
@@ -505,52 +570,11 @@ export function ManagementDecisionModal({
                     />
                   </div>
                 ) : null}
-
-                <div className="pt-4 border-t border-slate-200 space-y-3">
-                  <p className="text-ui-xs font-black text-teal-700 uppercase tracking-widest">Sign off</p>
-                  <p className="text-ui-xs text-slate-500 leading-relaxed">
-                    Confirms you have reviewed High/Low conversion or the open manager review for this completed job.
-                  </p>
-                  <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
-                    Remark
-                    <textarea
-                      value={conversionSignoffRemark}
-                      onChange={(e) => setConversionSignoffRemark?.(e.target.value)}
-                      rows={2}
-                      placeholder="e.g. Variance reviewed — approved to close."
-                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-violet-300/60"
-                    />
-                  </label>
-                  {selectedIntel.jobId ? (
-                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-2">
-                      <EditSecondApprovalInline
-                        entityKind="production_job"
-                        entityId={selectedIntel.jobId}
-                        value={conversionSignoffEditApprovalId}
-                        onChange={setConversionSignoffEditApprovalId}
-                        className="!border-amber-300/80 !bg-white !text-amber-900"
-                      />
-                    </div>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={decisionBusy}
-                    onClick={() => void handleConversionSignoff?.()}
-                    className="w-full flex items-center justify-center gap-2 p-3.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black uppercase text-ui-xs tracking-widest disabled:opacity-50 transition-colors"
-                  >
-                    <Factory size={18} />
-                    Sign off review
-                  </button>
-                </div>
               </div>
             ) : null}
           </div>
 
-          <div className={`p-3 border-t ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-black/30'}`}>
-            <p className={`text-ui-xs font-semibold text-center uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-white/25'}`}>
-              Management · Zarewa
-            </p>
-          </div>
+          {stickyFooter}
         </Card>
       </div>
     </ModalFrame>

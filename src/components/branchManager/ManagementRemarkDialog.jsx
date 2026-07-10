@@ -57,7 +57,14 @@ export function ManagementRemarkDialog({
       : 'bg-zarewa-teal hover:brightness-105 text-white';
 
   return (
-    <ModalFrame isOpen={open} onClose={() => !busy && onCancel?.()}>
+    <ModalFrame
+      isOpen={open}
+      onClose={() => !busy && onCancel?.()}
+      layer="nested"
+      title={title}
+      description={description || 'Remark dialog'}
+      closeDisabled={busy}
+    >
       <form
         onSubmit={handleSubmit}
         className="z-modal-panel w-full max-w-md p-6 sm:p-8 space-y-4"

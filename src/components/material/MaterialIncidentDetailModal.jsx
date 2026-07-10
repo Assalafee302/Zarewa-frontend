@@ -61,11 +61,13 @@ export default function MaterialIncidentDetailModal({
   onReject,
   onPrint,
   onUpdated,
+  externalBusy = false,
 }) {
   const { show: showToast } = useToast();
   const [incident, setIncident] = useState(null);
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState(false);
+  const decisionLocked = acting || externalBusy;
 
   const load = useCallback(async () => {
     const id = String(incidentId || '').trim();
@@ -129,10 +131,11 @@ export default function MaterialIncidentDetailModal({
   return (
     <ModalFrame
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => !decisionLocked && onClose?.()}
       title={`Material incident ${incidentId || ''}`}
       surface="plain"
       showCloseButton={false}
+      closeDisabled={decisionLocked}
     >
       <div className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-xl max-h-[min(92dvh,900px)] flex flex-col overflow-hidden">
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 shrink-0">
@@ -159,7 +162,13 @@ export default function MaterialIncidentDetailModal({
               </div>
             ) : null}
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" aria-label="Close">
+          <button
+            type="button"
+            disabled={decisionLocked}
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-40"
+            aria-label="Close"
+          >
             <X size={18} />
           </button>
         </header>
@@ -358,7 +367,7 @@ export default function MaterialIncidentDetailModal({
                   <button
                     type="button"
                     className="z-btn-primary text-xs flex-1 justify-center"
-                    disabled={acting}
+                    disabled={decisionLocked}
                     onClick={async () => {
                       if (!onApprove) return;
                       setActing(true);
@@ -371,12 +380,12 @@ export default function MaterialIncidentDetailModal({
                       }
                     }}
                   >
-                    {acting ? 'Posting…' : 'Approve & post'}
+                    {decisionLocked ? 'Posting…' : 'Approve & post'}
                   </button>
                   <button
                     type="button"
                     className="z-btn-secondary text-xs"
-                    disabled={acting}
+                    disabled={decisionLocked}
                     onClick={async () => {
                       if (!onReject) return;
                       setActing(true);

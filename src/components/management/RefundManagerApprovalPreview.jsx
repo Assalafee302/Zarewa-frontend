@@ -1,4 +1,4 @@
-ï»¿import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, CheckCircle2, RotateCcw, AlertTriangle } from 'lucide-react';
 import { flattenQuotationLineItems, formatRefundReasonCategory, ledgerTypeStyle } from '../../lib/managerDashboardCore';
 import { formatActorAttribution } from '../../lib/actorAttribution';
@@ -56,7 +56,7 @@ function Panel({ title, hint, children, className = '' }) {
         <h4 className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">{title}</h4>
         {hint ? <p className="mt-0.5 text-ui-xs leading-snug text-slate-500">{hint}</p> : null}
       </header>
-      <div className="custom-scrollbar max-h-[min(38vh,320px)] overflow-y-auto px-2.5 py-2 text-ui-xs text-slate-800">
+      <div className="custom-scrollbar max-h-[min(28vh,240px)] overflow-y-auto px-2.5 py-2 text-xs text-slate-800">
         {children}
       </div>
     </section>
@@ -66,7 +66,7 @@ function Panel({ title, hint, children, className = '' }) {
 function Stat({ label, value, accent, warn }) {
   return (
     <div
-      className={`rounded-md border px-2 py-1 ${
+      className={`rounded-md border px-2 py-1.5 ${
         warn
           ? 'border-rose-200 bg-rose-50/80'
           : accent
@@ -74,8 +74,8 @@ function Stat({ label, value, accent, warn }) {
             : 'border-slate-200 bg-slate-50/80'
       }`}
     >
-      <p className="text-[7px] font-bold uppercase text-slate-500">{label}</p>
-      <p className="mt-0.5 text-xs font-bold tabular-nums text-slate-900">{value}</p>
+      <p className="text-ui-xs font-bold uppercase text-slate-500">{label}</p>
+      <p className="mt-0.5 text-sm font-bold tabular-nums text-slate-900">{value}</p>
     </div>
   );
 }
@@ -97,13 +97,13 @@ function quoteLineFloorPpm(item) {
 
 function formatKgPerM(v) {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? n.toFixed(2) : 'â€”';
+  return Number.isFinite(n) && n > 0 ? n.toFixed(2) : '—';
 }
 
 function accessorySupplyLabel(issued, quoted) {
   const i = Number(issued);
   const q = Number(quoted);
-  if (!Number.isFinite(q) || q <= 0) return { text: 'â€”', tone: 'slate' };
+  if (!Number.isFinite(q) || q <= 0) return { text: '—', tone: 'slate' };
   if (Number.isFinite(i) && i >= q) return { text: 'Supplied', tone: 'emerald' };
   if (Number.isFinite(i) && i > 0) return { text: 'Partial', tone: 'amber' };
   return { text: 'Not issued', tone: 'rose' };
@@ -121,7 +121,7 @@ function ConversionRefGrid({ check }) {
     <div className="grid grid-cols-5 gap-0.5">
       {cells.map(([label, val]) => (
         <div key={label} className="rounded border border-slate-200/90 bg-white px-0.5 py-0.5 text-center">
-          <p className="text-[6px] font-bold uppercase text-slate-400">{label}</p>
+          <p className="text-ui-xs font-bold uppercase text-slate-400">{label}</p>
           <p className="text-ui-xs font-bold tabular-nums text-slate-800">{formatKgPerM(val)}</p>
         </div>
       ))}
@@ -146,14 +146,14 @@ function quoteLineUnitPriceNumber(raw) {
 
 function quoteLineQtyDisplay(raw) {
   const qty = quoteLineQtyNumber(raw);
-  if (qty <= 0) return 'â€”';
+  if (qty <= 0) return '—';
   const name = String(raw?.name ?? raw?.label ?? '');
-  if (isStoneFlatsheetQuotationLine(name)) return `${qty.toLocaleString()} mÂ²`;
+  if (isStoneFlatsheetQuotationLine(name)) return `${qty.toLocaleString()} m²`;
   return `${qty.toLocaleString()} m`;
 }
 
 /**
- * Four-quadrant refund approval intel for Management â†’ Action inbox â†’ Refunds.
+ * Four-quadrant refund approval intel for Management ? Action inbox ? Refunds.
  */
 export function RefundManagerApprovalPreview({
   refundId,
@@ -380,7 +380,7 @@ export function RefundManagerApprovalPreview({
       const staleCount = Array.isArray(data.staleRefundWarnings) ? data.staleRefundWarnings.length : 0;
       showToast(
         paidChanged
-          ? `Integrity recalculated â€” paid balance updated to ${formatNgn(data.receiptReconcile?.paidNgn)}.${staleCount ? ` ${staleCount} open refund(s) exceed the economic floor.` : ''}`
+          ? `Integrity recalculated — paid balance updated to ${formatNgn(data.receiptReconcile?.paidNgn)}.${staleCount ? ` ${staleCount} open refund(s) exceed the economic floor.` : ''}`
           : staleCount
             ? `Integrity recalculated. ${staleCount} open refund(s) exceed the economic floor cap.`
             : 'Quotation integrity recalculated.',
@@ -518,13 +518,13 @@ export function RefundManagerApprovalPreview({
     }
     if (approved > requestedAmountNgn) {
       setApprovalAmountError(
-        `Approved amount cannot exceed the requested â‚¦${requestedAmountNgn.toLocaleString('en-NG')}.`
+        `Approved amount cannot exceed the requested ?${requestedAmountNgn.toLocaleString('en-NG')}.`
       );
       return;
     }
     if (maxApprovableNgn > 0 && approved > maxApprovableNgn + 1) {
       setApprovalAmountError(
-        `Approved amount exceeds quotation headroom (max â‚¦${maxApprovableNgn.toLocaleString('en-NG')} after other open refunds).`
+        `Approved amount exceeds quotation headroom (max ?${maxApprovableNgn.toLocaleString('en-NG')} after other open refunds).`
       );
       return;
     }
@@ -548,7 +548,7 @@ export function RefundManagerApprovalPreview({
         }
       } else {
         setApprovalAmountError(
-          `Breakdown total is â‚¦${Math.round(lineSum).toLocaleString('en-NG')} â€” edit lines in Sales or approve the full requested amount.`
+          `Breakdown total is ?${Math.round(lineSum).toLocaleString('en-NG')} — edit lines in Sales or approve the full requested amount.`
         );
         return;
       }
@@ -647,7 +647,7 @@ export function RefundManagerApprovalPreview({
     if (requiresMdApproval) {
       alerts.push({
         tone: 'violet',
-        title: `MD approval required â€” above â‚¦${Number(refundExecutiveThresholdNgn).toLocaleString('en-NG')}`,
+        title: `MD approval required — above ?${Number(refundExecutiveThresholdNgn).toLocaleString('en-NG')}`,
         body: `Requested ${formatNgn(requestedAmountNgn)} exceeds the executive refund threshold. Only MD/CEO (or administrator) may approve this amount.`,
       });
     }
@@ -669,9 +669,9 @@ export function RefundManagerApprovalPreview({
         tone: sameRequestOverpayAndCancel ? 'rose' : 'amber',
         title: 'Multi-category overlap on quotation',
         body: sameRequestOverpayAndCancel
-          ? 'This request combines Overpayment with Order cancellation â€” these double-count cash received. Reject or send back until one category is removed.'
+          ? 'This request combines Overpayment with Order cancellation — these double-count cash received. Reject or send back until one category is removed.'
           : priorRefundCategories.length
-            ? `Prior refund(s): ${priorRefundCategories.join(', ')}. Current: ${currentCategories.join(', ') || 'â€”'}. Verify Overpayment is not double-counted with cancellation/unproduced meterage on this quote.`
+            ? `Prior refund(s): ${priorRefundCategories.join(', ')}. Current: ${currentCategories.join(', ') || '—'}. Verify Overpayment is not double-counted with cancellation/unproduced meterage on this quote.`
             : 'This quote has Overpayment combined with Order cancellation and/or Unproduced meterage across refund requests. Verify categories are not double-counting the same economic loss.',
       });
     }
@@ -681,7 +681,7 @@ export function RefundManagerApprovalPreview({
         title: 'Partial production detected',
         body:
           partialProductionJobs.length > 0
-            ? `${partialProductionJobs.length} completed job(s) produced less than planned â€” consider Unproduced meterage instead of full cancellation.`
+            ? `${partialProductionJobs.length} completed job(s) produced less than planned — consider Unproduced meterage instead of full cancellation.`
             : 'Order cancellation requested but production jobs show completed output on this quote.',
       });
     }
@@ -737,26 +737,26 @@ export function RefundManagerApprovalPreview({
               <span className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">Refund approval</span>
               {officialRecord?.referenceNo || officialRecord?.id ? (
                 <span className="text-ui-xs font-mono text-slate-500">
-                  Ã‚Â· Record {officialRecord.referenceNo || officialRecord.id}
+                  · Record {officialRecord.referenceNo || officialRecord.id}
                 </span>
               ) : null}
             </div>
             <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0">
               <h2 className="font-mono text-base font-black text-slate-900">{refundId}</h2>
-              <span className="text-ui-xs text-slate-400">Ã‚Â·</span>
+              <span className="text-ui-xs text-slate-400">·</span>
               <span className="text-sm font-semibold text-slate-800">
-                {formatPersonName(refund?.customer || inboxRow?.customer_name || 'â€”')}
+                {formatPersonName(refund?.customer || inboxRow?.customer_name || '—')}
               </span>
             </div>
             <p className="mt-0.5 text-ui-xs text-slate-600">
               {refund?.quotationRef || inboxRow?.quotation_ref ? (
                 <span className="font-mono font-semibold">{refund?.quotationRef || inboxRow?.quotation_ref}</span>
               ) : (
-                'â€”'
+                '—'
               )}
-              <span className="text-slate-400"> Ã‚Â· </span>
+              <span className="text-slate-400"> · </span>
               {formatRefundReasonCategory(refund?.reasonCategory ?? inboxRow?.reason_category)}
-              <span className="text-slate-400"> Ã‚Â· </span>
+              <span className="text-slate-400"> · </span>
               {formatActorAttribution(refund?.requestedBy, refund?.requestedAtISO || inboxRow?.requested_at_iso) ||
                 (inboxRow?.requested_at_iso || '').slice(0, 16).replace('T', ' ')}
             </p>
@@ -788,12 +788,12 @@ export function RefundManagerApprovalPreview({
       {loading ? (
         <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-10">
           <RefreshCw className="animate-spin text-zarewa-teal" size={22} />
-          <span className="text-ui-xs font-semibold text-slate-500">Loading contextâ€¦</span>
+          <span className="text-ui-xs font-semibold text-slate-500">Loading context…</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-          {/* Quotation â€” product spec & price comparison */}
-          <Panel title="Quotation" hint="Metres/mÂ², unit price, line amount, and floor â‚¦/m.">
+          {/* Quotation — product spec & price comparison */}
+          <Panel title="Quotation" hint="Metres/m², unit price, line amount, and floor ?/m.">
             {!auditData || auditData.ok === false ? (
               <p className="text-ui-xs text-rose-600">{auditData?.error || 'Quotation audit unavailable.'}</p>
             ) : (
@@ -812,7 +812,7 @@ export function RefundManagerApprovalPreview({
                       sum.materialDesign,
                     ]
                       .filter(Boolean)
-                      .join(' Â· ')}
+                      .join(' · ')}
                   </p>
                 )}
                 {productRows.length === 0 && lines.filter((l) => l.category === 'products').length === 0 ? (
@@ -821,12 +821,12 @@ export function RefundManagerApprovalPreview({
                   <div className="overflow-hidden rounded-md border border-slate-200">
                     <table className="w-full border-collapse text-left">
                       <thead>
-                        <tr className="border-b border-slate-100 bg-slate-50/90 text-[7px] font-bold uppercase text-slate-500">
+                        <tr className="border-b border-slate-100 bg-slate-50/90 text-ui-xs font-bold uppercase text-slate-500">
                           <th className="px-1.5 py-1">Product</th>
                           <th className="px-1 py-1 text-right">Qty</th>
-                          <th className="px-1 py-1 text-right">Unit â‚¦</th>
+                          <th className="px-1 py-1 text-right">Unit ?</th>
                           <th className="px-1 py-1 text-right">Amount</th>
-                          <th className="px-1.5 py-1 text-right">Floor â‚¦/m</th>
+                          <th className="px-1.5 py-1 text-right">Floor ?/m</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -834,7 +834,7 @@ export function RefundManagerApprovalPreview({
                           ? productRows
                           : lines.filter((l) => l.category === 'products')
                         ).map((raw, idx) => {
-                          const name = raw.name || raw.label || 'â€”';
+                          const name = raw.name || raw.label || '—';
                           const qty = quoteLineQtyNumber(raw);
                           const unit = quoteLineUnitPriceNumber(raw);
                           const lineTotal = qty > 0 && unit > 0 ? Math.round(qty * unit) : 0;
@@ -854,13 +854,13 @@ export function RefundManagerApprovalPreview({
                               <td
                                 className={`px-1 py-1 text-right tabular-nums font-semibold ${belowFloor ? 'text-rose-700' : 'text-slate-800'}`}
                               >
-                                {unit > 0 ? formatNgn(unit) : 'â€”'}
+                                {unit > 0 ? formatNgn(unit) : '—'}
                               </td>
                               <td className="px-1 py-1 text-right tabular-nums font-bold text-slate-900">
-                                {lineTotal > 0 ? formatNgn(lineTotal) : 'â€”'}
+                                {lineTotal > 0 ? formatNgn(lineTotal) : '—'}
                               </td>
                               <td className="px-1.5 py-1 text-right tabular-nums text-slate-600">
-                                {floor != null ? formatNgn(floor) : 'â€”'}
+                                {floor != null ? formatNgn(floor) : '—'}
                               </td>
                             </tr>
                           );
@@ -871,7 +871,7 @@ export function RefundManagerApprovalPreview({
                 )}
                 {lines.filter((l) => l.category !== 'products').length > 0 ? (
                   <div className="mt-1.5 space-y-0.5">
-                    <p className="text-[7px] font-bold uppercase text-slate-400">Other lines</p>
+                    <p className="text-ui-xs font-bold uppercase text-slate-400">Other lines</p>
                     {lines
                       .filter((l) => l.category !== 'products')
                       .slice(0, 6)
@@ -879,7 +879,7 @@ export function RefundManagerApprovalPreview({
                         <div key={idx} className="flex justify-between gap-2 text-ui-xs">
                           <span className="truncate text-slate-700">{ln.name}</span>
                           <span className="shrink-0 tabular-nums text-slate-600">
-                            {ln.lineTotal !== '' && ln.lineTotal != null ? formatNgn(ln.lineTotal) : 'â€”'}
+                            {ln.lineTotal !== '' && ln.lineTotal != null ? formatNgn(ln.lineTotal) : '—'}
                           </span>
                         </div>
                       ))}
@@ -898,7 +898,7 @@ export function RefundManagerApprovalPreview({
                 <Stat label="Outstanding" value={formatNgn(sum.outstandingNgn)} />
                 <Stat
                   label="Paid %"
-                  value={paymentPct != null ? `${paymentPct}%` : 'â€”'}
+                  value={paymentPct != null ? `${paymentPct}%` : '—'}
                   warn={deliveryGateBreached}
                   accent={paymentPct != null && paymentPct >= 70 && !deliveryGateBreached}
                 />
@@ -910,13 +910,13 @@ export function RefundManagerApprovalPreview({
                   deliveryGateBreached ? 'bg-rose-50 text-rose-900' : 'bg-amber-50 text-amber-950'
                 }`}
               >
-                Delivery gate ({deliveryPaymentGate}): {deliveryGateBreached ? 'below 70% threshold' : 'satisfied'} Â·
+                Delivery gate ({deliveryPaymentGate}): {deliveryGateBreached ? 'below 70% threshold' : 'satisfied'} ·
                 cap {formatNgn(maxApprovableNgn)} after other refunds
               </p>
             ) : (
               <p className="mb-2 text-ui-xs text-slate-500">
                 Approvable cap {formatNgn(maxApprovableNgn)}
-                {reservedOtherRefundsNgn > 0 ? ` Â· ${formatNgn(reservedOtherRefundsNgn)} reserved` : ''}
+                {reservedOtherRefundsNgn > 0 ? ` · ${formatNgn(reservedOtherRefundsNgn)} reserved` : ''}
               </p>
             )}
             {economicFloor && (economicFloor.producedOutputMeters > 0 || economicFloor.floorDeliveredValueNgn > 0) ? (
@@ -930,7 +930,7 @@ export function RefundManagerApprovalPreview({
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-bold uppercase tracking-wide text-ui-xs text-slate-500">
-                    Economic floor (produced Ã— workbook minimum)
+                    Economic floor (produced × workbook minimum)
                   </p>
                   {canRecalculateIntegrity ? (
                     <button
@@ -945,13 +945,13 @@ export function RefundManagerApprovalPreview({
                   ) : null}
                 </div>
                 <p className="mt-0.5">
-                  {Number(economicFloor.producedOutputMeters || 0).toLocaleString()} m produced Â· floor value{' '}
-                  {formatNgn(economicFloor.floorDeliveredValueNgn)} Â· max defensible refund{' '}
+                  {Number(economicFloor.producedOutputMeters || 0).toLocaleString()} m produced · floor value{' '}
+                  {formatNgn(economicFloor.floorDeliveredValueNgn)} · max defensible refund{' '}
                   <span className="font-bold">{formatNgn(economicFloor.maxDefensibleRefundNgn)}</span>
                 </p>
                 {economicFloor.incompleteFloorPricing ? (
                   <p className="mt-0.5 font-semibold text-amber-800">
-                    Floor â‚¦/m missing for some jobs â€” verify workbook pricing manually.
+                    Floor ?/m missing for some jobs — verify workbook pricing manually.
                   </p>
                 ) : null}
               </div>
@@ -970,13 +970,13 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {staleRefundWarnings.length > 0 ? (
               <div className="mb-2">
-                <AlertBanner tone="rose" title="Approval blocked â€” refund exceeds current economic floor">
+                <AlertBanner tone="rose" title="Approval blocked — refund exceeds current economic floor">
                 <ul className="list-disc pl-3">
                   {staleRefundWarnings.map((w) => (
                     <li key={w.refundId}>
-                      <span className="font-mono">{w.refundId}</span> Â· {w.status} Â· requested{' '}
-                      {formatNgn(w.amountNgn)} Â· cap {formatNgn(w.maxDefensibleRefundNgn)}
-                      {w.reasonCategory ? ` Â· ${w.reasonCategory}` : ''}
+                      <span className="font-mono">{w.refundId}</span> · {w.status} · requested{' '}
+                      {formatNgn(w.amountNgn)} · cap {formatNgn(w.maxDefensibleRefundNgn)}
+                      {w.reasonCategory ? ` · ${w.reasonCategory}` : ''}
                     </li>
                   ))}
                 </ul>
@@ -988,9 +988,9 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {incompleteFloorBlocksApprove ? (
               <div className="mb-2">
-                <AlertBanner tone="rose" title="Approval blocked â€” workbook floor pricing incomplete">
+                <AlertBanner tone="rose" title="Approval blocked — workbook floor pricing incomplete">
                   <p>
-                    {Number(economicFloor?.producedOutputMeters || 0).toLocaleString()} m produced but floor â‚¦/m
+                    {Number(economicFloor?.producedOutputMeters || 0).toLocaleString()} m produced but floor ?/m
                     could not be resolved. Resolve workbook pricing or escalate to MD/CEO.
                   </p>
                 </AlertBanner>
@@ -998,7 +998,7 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {exceedsEconomicFloorCap && staleRefundWarnings.length === 0 ? (
               <div className="mb-2">
-                <AlertBanner tone="rose" title="Approval blocked â€” amount above economic floor">
+                <AlertBanner tone="rose" title="Approval blocked — amount above economic floor">
                   <p>
                     Requested {formatNgn(refundAmountNgn)} exceeds max defensible{' '}
                     {formatNgn(economicFloor?.maxDefensibleRefundNgn)}. Recalculate integrity or reduce the amount.
@@ -1009,7 +1009,7 @@ export function RefundManagerApprovalPreview({
             {intelSum && (intelSum.overpayAdvanceNgn > 0 || intelSum.overpayAppliedNgn > 0) ? (
               <p className="mb-2 text-ui-xs text-slate-600">
                 Overpay ledger {formatNgn(intelSum.overpayAdvanceNgn)}
-                {intelSum.overpayAppliedNgn > 0 ? ` Â· applied ${formatNgn(intelSum.overpayAppliedNgn)}` : ''}
+                {intelSum.overpayAppliedNgn > 0 ? ` · applied ${formatNgn(intelSum.overpayAppliedNgn)}` : ''}
               </p>
             ) : null}
             {salesReceipts.length > 0 ? (
@@ -1027,7 +1027,7 @@ export function RefundManagerApprovalPreview({
                 {relevantLedger.map((e, idx) => (
                   <div key={e.id || idx} className="flex items-center justify-between gap-1 px-1.5 py-1">
                     <span
-                      className={`rounded px-1 py-0.5 text-[6px] font-black uppercase ${ledgerTypeStyle(e.type, 'light')}`}
+                      className={`rounded px-1 py-0.5 text-ui-xs font-black uppercase ${ledgerTypeStyle(e.type, 'light')}`}
                     >
                       {(e.type || '').slice(0, 10)}
                     </span>
@@ -1074,7 +1074,7 @@ export function RefundManagerApprovalPreview({
             </div>
             {accLines.length > 0 ? (
               <div className="mb-2">
-                <p className="mb-0.5 text-[7px] font-bold uppercase text-slate-400">Accessories supply</p>
+                <p className="mb-0.5 text-ui-xs font-bold uppercase text-slate-400">Accessories supply</p>
                 <ul className="space-y-0.5 rounded-md border border-slate-200 bg-slate-50/50 p-1.5">
                   {accLines.map((a, i) => {
                     const st = accessorySupplyLabel(a.issuedQty, a.quotedQty);
@@ -1089,11 +1089,11 @@ export function RefundManagerApprovalPreview({
                     return (
                       <li key={i} className="flex items-center justify-between gap-2 text-ui-xs">
                         <span className="min-w-0 truncate font-medium text-slate-800">{a.label || a.name}</span>
-                        <span className={`shrink-0 rounded px-1 py-0.5 text-[7px] font-bold uppercase ${toneCls}`}>
+                        <span className={`shrink-0 rounded px-1 py-0.5 text-ui-xs font-bold uppercase ${toneCls}`}>
                           {st.text}
                         </span>
                         <span className="shrink-0 tabular-nums text-slate-600">
-                          {a.issuedQty ?? 0}/{a.quotedQty ?? 'â€”'}
+                          {a.issuedQty ?? 0}/{a.quotedQty ?? '—'}
                         </span>
                       </li>
                     );
@@ -1103,19 +1103,19 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {stone && (stone.totalSuppliedM2 > 0 || (stone.lines || []).length > 0) ? (
               <p className="mb-2 text-ui-xs text-slate-600">
-                Stone {Number(stone.totalSuppliedM2 || 0).toLocaleString()} mÂ² supplied
-                {stone.totalDeductionM2 ? ` Â· ${Number(stone.totalDeductionM2).toLocaleString()} mÂ² ded.` : ''}
+                Stone {Number(stone.totalSuppliedM2 || 0).toLocaleString()} m² supplied
+                {stone.totalDeductionM2 ? ` · ${Number(stone.totalDeductionM2).toLocaleString()} m² ded.` : ''}
               </p>
             ) : null}
             {cuttingLists.length > 0 ? (
               <p className="mb-2 text-ui-xs text-slate-600">
-                {cuttingLists.length} cutting list(s) Â·{' '}
+                {cuttingLists.length} cutting list(s) ·{' '}
                 {cuttingLists.map((cl) => `${cl.id} ${Number(cl.total_meters || 0).toLocaleString()}m`).join(', ')}
               </p>
             ) : null}
             {checks.length > 0 ? (
               <div className="space-y-1.5">
-                <p className="text-[7px] font-bold uppercase text-slate-400">Conversion (four-reference)</p>
+                <p className="text-ui-xs font-bold uppercase text-slate-400">Conversion (four-reference)</p>
                 {checks.map((ch, i) => (
                   <div
                     key={`${ch.job_id}-${ch.coil_no}-${i}`}
@@ -1127,14 +1127,14 @@ export function RefundManagerApprovalPreview({
                   >
                     <div className="flex flex-wrap items-center justify-between gap-1">
                       <span className="font-mono text-ui-xs font-bold text-slate-900">
-                        {ch.job_id} Â· {ch.coil_no}
+                        {ch.job_id} · {ch.coil_no}
                       </span>
-                      <span className="rounded bg-white/90 px-1.5 py-0.5 text-[7px] font-black uppercase">
-                        {ch.alert_state || 'â€”'}
+                      <span className="rounded bg-white/90 px-1.5 py-0.5 text-ui-xs font-black uppercase">
+                        {ch.alert_state || '—'}
                       </span>
                     </div>
                     <p className="mt-0.5 text-ui-xs text-slate-600">
-                      {[ch.gauge_label, ch.material_type_name].filter(Boolean).join(' Â· ') || 'â€”'}
+                      {[ch.gauge_label, ch.material_type_name].filter(Boolean).join(' · ') || '—'}
                     </p>
                     <ConversionRefGrid check={ch} />
                   </div>
@@ -1148,7 +1148,7 @@ export function RefundManagerApprovalPreview({
                       Roofing fulfilment
                     </p>
                     <p className="text-ui-xs text-slate-700 leading-snug">
-                      Quoted {Number(productionFulfillment.quotedMeters || 0).toLocaleString()} m Â· Eligible
+                      Quoted {Number(productionFulfillment.quotedMeters || 0).toLocaleString()} m · Eligible
                       produced {Number(productionFulfillment.producedMetersForUnproduced || 0).toLocaleString()} m
                       {Number(productionFulfillment.coilProducedMeters || 0) > 0
                         ? ` (${Number(productionFulfillment.coilProducedMeters).toLocaleString()} m coil`
@@ -1160,11 +1160,11 @@ export function RefundManagerApprovalPreview({
                       Number(productionFulfillment.offcutFgMeters || 0) > 0
                         ? ')'
                         : ''}
-                      Â· Unproduced {Number(productionFulfillment.unproducedMetres || 0).toLocaleString()} m
+                      · Unproduced {Number(productionFulfillment.unproducedMetres || 0).toLocaleString()} m
                     </p>
                     {productionFulfillment.fullyProducedRoofing ? (
                       <p className="mt-0.5 text-ui-xs font-semibold text-emerald-700">
-                        Fully produced â€” unproduced meterage refund should not apply.
+                        Fully produced — unproduced meterage refund should not apply.
                       </p>
                     ) : null}
                   </div>
@@ -1177,7 +1177,7 @@ export function RefundManagerApprovalPreview({
                     </div>
                     <p className="text-ui-xs text-slate-600">
                       {Number(job.actual_meters || 0).toLocaleString()}/
-                      {Number(job.planned_meters || 0).toLocaleString()} m Â· {job.conversion_alert_state || 'â€”'}
+                      {Number(job.planned_meters || 0).toLocaleString()} m · {job.conversion_alert_state || '—'}
                     </p>
                   </div>
                 ))}
@@ -1187,7 +1187,7 @@ export function RefundManagerApprovalPreview({
             )}
           </Panel>
 
-          {/* Refund request â€” unique detail only */}
+          {/* Refund request — unique detail only */}
           <Panel title="This refund" hint="Breakdown, payee, and other refunds on the quote.">
             {refund?.reason ? (
               <p className="mb-2 text-ui-xs leading-snug text-slate-700">{refund.reason}</p>
@@ -1217,7 +1217,7 @@ export function RefundManagerApprovalPreview({
                 </div>
                 {lineArithmeticBlocksApprove ? (
                   <p className="mb-2 text-ui-xs font-semibold text-rose-800" role="alert">
-                    Line arithmetic mismatch â€” correct before approving.
+                    Line arithmetic mismatch — correct before approving.
                   </p>
                 ) : null}
               </Fragment>
@@ -1229,7 +1229,7 @@ export function RefundManagerApprovalPreview({
               <div className="mb-2 rounded-md border border-teal-200/80 bg-teal-50/40 px-2 py-1.5">
                 <p className="text-ui-xs font-bold uppercase text-teal-800">Pay to</p>
                 <p className="text-ui-xs font-semibold text-slate-900">
-                  {[formatPersonName(refund.payeeName), refund.payeeBankName].filter(Boolean).join(' Â· ')}
+                  {[formatPersonName(refund.payeeName), refund.payeeBankName].filter(Boolean).join(' · ')}
                 </p>
                 {refund.payeeAccountNo ? (
                   <p className="font-mono text-ui-xs text-slate-600">{refund.payeeAccountNo}</p>
@@ -1238,7 +1238,7 @@ export function RefundManagerApprovalPreview({
             )}
             {otherRefunds.length > 0 ? (
               <div className="space-y-1">
-                <p className="text-[7px] font-bold uppercase text-slate-400">Other on quote ({otherRefunds.length})</p>
+                <p className="text-ui-xs font-bold uppercase text-slate-400">Other on quote ({otherRefunds.length})</p>
                 {otherRefunds.map((r) => (
                   <div
                     key={r.refund_id}
@@ -1255,18 +1255,18 @@ export function RefundManagerApprovalPreview({
         </div>
       )}
 
-      <div className="rounded-lg border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
+      <div className="sticky bottom-0 z-10 -mx-1 mt-2 rounded-lg border border-slate-200/90 bg-white px-3 py-2.5 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)]">
         {productionAlignmentIssues.length > 0 ? (
           <div className="mb-2 rounded-md border border-amber-200/80 bg-amber-50/70 px-2 py-1.5 space-y-1">
             <p className="text-ui-xs font-black uppercase text-amber-950 flex items-center gap-1">
               <AlertTriangle size={11} /> Production alignment
-              {alignmentCheckLoading ? <span className="font-normal">Â· checkingâ€¦</span> : null}
+              {alignmentCheckLoading ? <span className="font-normal">· checking…</span> : null}
             </p>
             <ul className="space-y-1">
               {productionAlignmentIssues.map((issue) => (
                 <li key={issue.code} className="text-ui-xs text-amber-950 leading-snug">
                   <span className="font-semibold">{issue.title}</span>
-                  {issue.message ? ` â€” ${issue.message}` : ''}
+                  {issue.message ? ` — ${issue.message}` : ''}
                   {issue.submitAction === 'acknowledge' ? (
                     <label className="mt-0.5 flex items-center gap-1.5 cursor-pointer">
                       <input
@@ -1298,7 +1298,7 @@ export function RefundManagerApprovalPreview({
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(7rem,9rem)_1fr_auto_auto] lg:items-end">
           <div>
             <label className="text-ui-xs font-bold uppercase text-slate-500" htmlFor="inbox-approved-amount">
-              Approved â‚¦
+              Approved ?
             </label>
             <input
               id="inbox-approved-amount"

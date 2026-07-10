@@ -185,8 +185,9 @@ export function ClearanceManagerApprovalPreview({
             )}
 
             <p className="mb-2 text-ui-xs leading-snug text-slate-500">
-              Approve records manager clearance. Disapprove or Flag both move the quote to the flagged inbox with your
-              reason.
+              Approve records manager clearance. <span className="font-semibold text-slate-700">Disapprove</span> blocks
+              the quote with a required reason; <span className="font-semibold text-slate-700">Flag</span> keeps it in the
+              audit queue for follow-up. Both land in the flagged inbox.
             </p>
 
             {showReleasePayments && canReleasePaymentHolds ? (
@@ -230,7 +231,7 @@ export function ClearanceManagerApprovalPreview({
             ) : null}
 
             {canManagerClearance ? (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="sticky bottom-0 z-10 -mx-1 mt-2 grid grid-cols-1 gap-2 rounded-lg border border-slate-200/90 bg-white p-2 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.18)] sm:grid-cols-3">
               <button
                 type="button"
                 disabled={decisionBusy}

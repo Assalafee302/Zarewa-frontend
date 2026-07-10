@@ -37,6 +37,7 @@ import {
   normalizeManagerPageTab,
 } from '../lib/managerPageTabs';
 import { formatPersonName } from '../lib/formatPersonName';
+import { managerRowAgeHours } from '../lib/managerDashboardCore';
 
 /**
  * Branch manager command center — Sequence shell, four moments, Priority Action Center.
@@ -97,6 +98,16 @@ const ManagerDashboard = () => {
     ]
   );
 
+  const overdueRefundHint = useMemo(() => {
+    const refunds = bm.displayItems?.pendingRefunds || [];
+    const overdue = refunds.filter((r) => {
+      const age = managerRowAgeHours(r);
+      return age != null && age >= 48;
+    });
+    if (!overdue.length) return null;
+    return `${overdue.length} refund${overdue.length === 1 ? '' : 's'} past the 48-hour SLA.`;
+  }, [bm.displayItems?.pendingRefunds]);
+
   const priorityItem = useMemo(() => {
     if (bannerDismissed) return null;
     return pickManagerPriorityItem({
@@ -104,6 +115,7 @@ const ManagerDashboard = () => {
       stockRegisterCount: bm.stockRegisterInbox.length,
       governanceCount: bm.tabCounts?.governance || 0,
       expenseCoach: bm.ws?.snapshot?.expenseCategoryBranchCoachAlert,
+      overdueRefundHint,
     });
   }, [
     bannerDismissed,
@@ -111,7 +123,36 @@ const ManagerDashboard = () => {
     bm.stockRegisterInbox.length,
     bm.tabCounts?.governance,
     bm.ws?.snapshot?.expenseCategoryBranchCoachAlert,
+    overdueRefundHint,
   ]);
+
+  const jumpToQueue = useCallback(
+    (action) => {
+      setPageTab('today');
+      if (action === 'stock') {
+        bm.setActiveTab('stock');
+        bm.setAttentionFilter('all');
+        return;
+      }
+      if (action === 'credit') {
+        bm.setActiveTab('credit');
+        bm.setAttentionFilter('all');
+        return;
+      }
+      const filterMap = {
+        governance: 'governance',
+        orders: 'orders',
+        cash: 'cash',
+        qc: 'qc',
+        material: 'material',
+        procurement: 'procurement',
+      };
+      const filter = filterMap[action] || 'all';
+      bm.setActiveTab('attention');
+      bm.setAttentionFilter(filter);
+    },
+    [bm, setPageTab]
+  );
 
   const branchLabel =
     bm.mgrBranchLabel ||
@@ -126,36 +167,6 @@ const ManagerDashboard = () => {
     return `${branchLabel} · queue clear · health ${healthScore.score} (${healthScore.status})`;
   }, [bm.totalOpenActions, branchLabel, healthScore.score, healthScore.status]);
 
-  const jumpToQueue = useCallback(
-    (action) => {
-      setPageTab('today');
-      if (action === 'stock') {
-        bm.setActiveTab('stock');
-        return;
-      }
-      if (action === 'governance') {
-        bm.setActiveTab('governance');
-        bm.setAttentionFilter('all');
-        return;
-      }
-      if (action === 'orders') {
-        bm.setActiveTab('orders');
-        bm.setAttentionFilter('orders');
-        return;
-      }
-      if (action === 'cash') {
-        bm.setActiveTab('cash_out');
-        bm.setAttentionFilter('cash');
-        return;
-      }
-      if (action === 'qc' || action === 'material') {
-        bm.setActiveTab(action === 'qc' ? 'qc' : 'material');
-        bm.setAttentionFilter(action);
-      }
-    },
-    [bm, setPageTab]
-  );
-
   const handleCommandSearch = useCallback(
     (e) => {
       e.preventDefault();
@@ -165,6 +176,31 @@ const ManagerDashboard = () => {
       bm.setActiveTab('attention');
       bm.setAttentionFilter('all');
       bm.setInboxSearch(q);
+      const needle = q.toLowerCase();
+      const exact = (bm.attentionItems || []).filter((it) => {
+        const keys = [
+          it.title,
+          it.id,
+          it.quotationRef,
+          it.refundId,
+          it.requestId,
+          it.jobId,
+          it.poId,
+          it.accountId,
+          it.row?.id,
+          it.row?.refund_id,
+          it.row?.request_id,
+          it.row?.job_id,
+          it.row?.po_id,
+          it.row?.poID,
+        ]
+          .map((x) => String(x || '').trim().toLowerCase())
+          .filter(Boolean);
+        return keys.some((k) => k === needle);
+      });
+      if (exact.length === 1) {
+        bm.openAttentionItem?.(exact[0]);
+      }
     },
     [bm, commandSearch, setPageTab]
   );
@@ -290,7 +326,10 @@ const ManagerDashboard = () => {
 
       <ManagementDecisionModal
         selectedIntel={bm.selectedIntel}
-        closeIntelModal={bm.closeIntelModal}
+        closeIntelModal={() => {
+          if (bm.remarkDialog?.open || bm.confirmDialog?.open) return;
+          bm.closeIntelModal();
+        }}
         intelModalTitle={bm.intelModalTitle}
         intelModalLight={bm.intelModalLight}
         auditData={bm.auditData}
@@ -332,8 +371,7 @@ const ManagerDashboard = () => {
         loadingPoAudit={bm.loadingPoAudit}
         navigate={bm.navigate}
         onMaterialDecisionSuccess={async () => {
-          await bm.fetchData();
-          await (bm.ws.refresh?.() ?? Promise.resolve());
+          await bm.fetchData?.({ background: true });
           bm.closeIntelModal();
         }}
         onGovernanceOpenRefund={bm.openGovernanceLinkedRefund}
@@ -352,7 +390,7 @@ const ManagerDashboard = () => {
         canApprove={bm.canApproveEdits}
         onClose={bm.closeEditApprovalModal}
         onDecisionComplete={async () => {
-          await bm.fetchData();
+          await bm.fetchData?.({ background: true });
           await (bm.ws.refreshEditApprovalsPending?.() ?? Promise.resolve());
         }}
       />
@@ -377,6 +415,7 @@ const ManagerDashboard = () => {
         title={bm.confirmDialog.title}
         description={bm.confirmDialog.description}
         busy={bm.decisionBusy}
+        variant={bm.confirmDialog.variant === 'danger' ? 'danger' : 'primary'}
         onConfirm={bm.submitConfirmDialog}
         onCancel={bm.cancelConfirmDialog}
       />

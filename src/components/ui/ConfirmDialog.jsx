@@ -31,6 +31,7 @@ export function ConfirmDialog({
       title={title}
       description={description || 'Confirmation dialog'}
       closeDisabled={busy}
+      layer="nested"
     >
       <div className="z-modal-panel w-full max-w-md p-6 sm:p-8 space-y-5">
         <div aria-hidden="true">
