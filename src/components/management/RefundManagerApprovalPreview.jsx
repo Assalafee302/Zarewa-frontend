@@ -332,7 +332,12 @@ export function RefundManagerApprovalPreview({
     try {
       const { ok, data } = await apiFetch(
         `/api/quotations/${encodeURIComponent(qref)}/recalculate-integrity`,
-        { method: 'POST', body: JSON.stringify({}) }
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            excludeRefundId: refundId || undefined,
+          }),
+        }
       );
       if (!ok || !data?.ok) {
         showToast(data?.error || 'Could not recalculate quotation integrity.', { variant: 'error' });
@@ -343,7 +348,9 @@ export function RefundManagerApprovalPreview({
         await onRefreshApprovalContext(data);
       } else {
         const intelRes = await apiFetch(
-          `/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}`
+          `/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}${
+            refundId ? `&excludeRefundId=${encodeURIComponent(refundId)}` : ''
+          }`
         );
         if (intelRes.ok && intelRes.data?.ok !== false) {
           setLocalIntelPatch(intelRes.data);
@@ -365,6 +372,7 @@ export function RefundManagerApprovalPreview({
   }, [
     refund?.quotationRef,
     refund?.quotation_ref,
+    refundId,
     integrityBusy,
     canRecalculateIntegrity,
     onRefreshApprovalContext,
@@ -400,10 +408,11 @@ export function RefundManagerApprovalPreview({
 
   const requestedAmountNgn = Number(refund?.amountNgn ?? inboxRow?.amount_ngn) || 0;
   const paidOnQuoteNgn = Number(sum?.paidNgn ?? intelSum?.bookedOnQuotationNgn) || 0;
-  const reservedOtherRefundsNgn = otherRefunds.reduce(
-    (s, r) => s + (Number(r.amount_ngn ?? r.amountNgn) || 0),
-    0
-  );
+  const reservedOtherRefundsNgn = otherRefunds.reduce((s, r) => {
+    const st = String(r.status || '').trim().toLowerCase();
+    if (st === 'rejected' || st === 'cancelled') return s;
+    return s + (Number(r.amount_ngn ?? r.amountNgn) || 0);
+  }, 0);
   const maxApprovableNgn = Math.max(0, paidOnQuoteNgn - reservedOtherRefundsNgn);
   const requiresMdApproval = requestedAmountNgn > Number(refundExecutiveThresholdNgn) || 0;
   const orderTotalNgn = Number(sum?.orderTotalNgn) || 0;
@@ -442,6 +451,7 @@ export function RefundManagerApprovalPreview({
         reasonCategory: currentCategories,
         productionAlignmentAcknowledgedCodes: ackCodes,
         productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
+        excludeRefundId: refundId || undefined,
       }),
     });
     setAlignmentCheckLoading(false);
@@ -451,6 +461,7 @@ export function RefundManagerApprovalPreview({
   }, [
     refund?.quotationRef,
     inboxRow?.quotation_ref,
+    refundId,
     currentCategories,
     productionAlignmentAck,
     productionAlignmentOverrideNote,
@@ -566,6 +577,8 @@ export function RefundManagerApprovalPreview({
   const priorRefundCategories = useMemo(() => {
     const labels = [];
     for (const r of otherRefunds) {
+      const st = String(r.status || '').trim().toLowerCase();
+      if (st === 'rejected' || st === 'cancelled') continue;
       for (const c of refundCategoryTokens(r.reason_category)) {
         const label = String(c || '').trim();
         if (label && !labels.includes(label)) labels.push(label);

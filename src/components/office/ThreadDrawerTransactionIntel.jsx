@@ -298,7 +298,9 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
     let cancelled = false;
     setLoadingRefundIntel(true);
     (async () => {
-      const { ok, data } = await apiFetch(`/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}`);
+      const qs = new URLSearchParams({ quotationRef: qref });
+      if (sourceId) qs.set('excludeRefundId', String(sourceId));
+      const { ok, data } = await apiFetch(`/api/refunds/intelligence?${qs.toString()}`);
       if (cancelled) return;
       setLoadingRefundIntel(false);
       if (ok && data && data.ok !== false) setRefundIntelExtras(data);
@@ -307,7 +309,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
     return () => {
       cancelled = true;
     };
-  }, [workItem, dt, qref, fetchAudit]);
+  }, [workItem, dt, qref, fetchAudit, sourceId]);
 
   const quotePaidNgnForGate = useMemo(() => {
     const fromAudit = Math.round(Number(auditData?.summary?.paidNgn ?? auditData?.quotation?.paidNgn) || 0);

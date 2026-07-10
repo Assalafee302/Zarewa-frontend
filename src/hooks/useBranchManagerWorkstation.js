@@ -934,7 +934,11 @@ export function useBranchManagerWorkstation() {
     if (!sameQref) setLoadingRefundIntel(true);
     let cancelled = false;
     void (async () => {
-      const { ok, data } = await apiFetch(`/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}`);
+      const rid =
+        kind === 'refund' ? String(selectedIntel?.refundId || '').trim() : '';
+      const qs = new URLSearchParams({ quotationRef: qref });
+      if (rid) qs.set('excludeRefundId', rid);
+      const { ok, data } = await apiFetch(`/api/refunds/intelligence?${qs.toString()}`);
       if (cancelled) return;
       setLoadingRefundIntel(false);
       if (ok && data && data.ok !== false) setRefundIntelExtras(data);
@@ -943,7 +947,7 @@ export function useBranchManagerWorkstation() {
     return () => {
       cancelled = true;
     };
-  }, [fetchAudit, selectedIntelKind, selectedIntelQuoteId, selectedIntelRefundQref]);
+  }, [fetchAudit, selectedIntelKind, selectedIntelQuoteId, selectedIntelRefundQref, selectedIntel?.refundId]);
 
   useEffect(() => {
     if (selectedIntel?.kind !== 'conversion') return;

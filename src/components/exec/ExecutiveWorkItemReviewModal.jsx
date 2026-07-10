@@ -151,12 +151,15 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     }
     if (review.view === 'refund') {
       const qref = String(review.row?.quotation_ref || '').trim();
+      const rid = String(review.row?.refund_id || review.refundId || '').trim();
       const auditPromise = qref ? fetchAudit(qref) : Promise.resolve();
       if (qref) {
         setLoadingRefundIntel(true);
+        const qs = new URLSearchParams({ quotationRef: qref });
+        if (rid) qs.set('excludeRefundId', rid);
         void Promise.all([
           auditPromise,
-          apiFetch(`/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}`).then(({ ok, data }) => {
+          apiFetch(`/api/refunds/intelligence?${qs.toString()}`).then(({ ok, data }) => {
             if (ok && data && data.ok !== false) setRefundIntelExtras(data);
           }),
         ]).finally(() => setLoadingRefundIntel(false));
