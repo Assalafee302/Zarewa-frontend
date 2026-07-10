@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   EXPORT_SECTIONS,
+  MONTH_END_RECOMMENDED_IDS,
   PACK_GL_AUDIT,
   PACK_MATERIAL_TRANSACTION,
+  defaultReportsJob,
+  detectPeriodPreset,
+  filterExportCatalog,
+  flattenExportCatalog,
+  formatPeriodLabel,
+  periodRangeForPreset,
   startOfMonthYmd,
   ymdLocal,
 } from './reportsExportCatalog';
@@ -38,5 +45,43 @@ describe('reportsExportCatalog', () => {
   it('includes material transaction register under operations', () => {
     const ops = EXPORT_SECTIONS.find((s) => s.id === 'operations');
     expect(ops?.items.some((i) => i.pack === PACK_MATERIAL_TRANSACTION)).toBe(true);
+  });
+
+  it('flattens catalog with month-end flags', () => {
+    const flat = flattenExportCatalog();
+    expect(flat.length).toBe(13);
+    expect(flat.filter((i) => i.monthEndRecommended).map((i) => i.id).sort()).toEqual(
+      [...MONTH_END_RECOMMENDED_IDS].sort()
+    );
+  });
+
+  it('filters by query and hides finance-locked when no finance view', () => {
+    const flat = flattenExportCatalog();
+    expect(filterExportCatalog(flat, { query: 'refund' }).some((i) => i.id === 'refund-period-report')).toBe(
+      true
+    );
+    const noFinance = filterExportCatalog(flat, { hasFinanceView: false });
+    expect(noFinance.some((i) => i.requiresFinanceView)).toBe(false);
+  });
+
+  it('period presets and labels', () => {
+    const today = new Date('2026-07-10T12:00:00');
+    const mtd = periodRangeForPreset('mtd', today);
+    expect(mtd).toEqual({ startDate: '2026-07-01', endDate: '2026-07-10' });
+    expect(detectPeriodPreset(mtd.startDate, mtd.endDate, today)).toBe('mtd');
+    expect(formatPeriodLabel('2026-07-01', '2026-07-10')).toBe('1–10 Jul 2026');
+  });
+
+  it('defaultReportsJob prefers exceptions then role', () => {
+    expect(defaultReportsJob('finance_manager', { openExceptionCount: 2 })).toBe('exceptions');
+    expect(defaultReportsJob('finance_manager', { openExceptionCount: 0 })).toBe('close');
+    expect(defaultReportsJob('sales_manager', { openExceptionCount: 0 })).toBe('export');
+  });
+
+  it('formatDownloadedAgo and KPI map', async () => {
+    const { formatDownloadedAgo, KPI_EXPORT_MAP } = await import('./reportsExportCatalog');
+    expect(KPI_EXPORT_MAP.produced).toBe('std-sales');
+    expect(formatDownloadedAgo(new Date(Date.now() - 5000).toISOString(), Date.now())).toBe('just now');
+    expect(formatDownloadedAgo(new Date(Date.now() - 120000).toISOString(), Date.now())).toBe('2m ago');
   });
 });

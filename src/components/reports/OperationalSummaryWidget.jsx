@@ -6,7 +6,7 @@ import { apiFetch } from '../../lib/apiBase';
 /**
  * Phase 11C — compact operational summary for manager / exec dashboards.
  */
-export function OperationalSummaryWidget({ className = '', linkTo = '/reports?tab=operational' }) {
+export function OperationalSummaryWidget({ className = '', linkTo = '/reports?job=exceptions' }) {
   const [pending, setPending] = useState(null);
   const [production, setProduction] = useState(null);
   const [loading, setLoading] = useState(true);

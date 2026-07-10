@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { StockRegisterPanel } from './StockRegisterPanel';
@@ -10,8 +10,8 @@ function defaultMonthEndIso() {
 }
 
 /**
- * Month-end stock register entry — store, manager, or procurement workflow.
- * @param {'store'|'manager'|'procurement'} roleMode
+ * Month-end stock register entry — store, manager, procurement, or finance (reports) workflow.
+ * @param {'store'|'manager'|'procurement'|'reports'} roleMode
  */
 export function StockRegisterMonthEndModal({
   isOpen,
@@ -25,11 +25,16 @@ export function StockRegisterMonthEndModal({
 }) {
   const [periodEnd, setPeriodEnd] = useState(initialPeriodEnd || defaultMonthEndIso());
 
+  useEffect(() => {
+    if (initialPeriodEnd) setPeriodEnd(initialPeriodEnd);
+  }, [initialPeriodEnd, isOpen]);
+
   const titles = useMemo(
     () => ({
       store: 'Month-end stock count',
       manager: 'Stock register — manager review',
       procurement: 'Stock register — procurement costing',
+      reports: 'Stock register — finance review',
     }),
     []
   );
@@ -44,7 +49,7 @@ export function StockRegisterMonthEndModal({
     >
       <div
         className={`z-modal-panel-lg flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl ${
-          roleMode === 'manager' ? 'max-w-5xl' : 'max-w-3xl'
+          roleMode === 'manager' || roleMode === 'reports' ? 'max-w-5xl' : 'max-w-3xl'
         }`}
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
