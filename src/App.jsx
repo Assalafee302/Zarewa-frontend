@@ -105,6 +105,9 @@ const WorkspaceCommandPalette = lazyWithRetry(
 
 const Sales = lazyWithRetry(() => import('./pages/Sales'), { id: 'Sales' });
 const Procurement = lazyWithRetry(() => import('./pages/Procurement'), { id: 'Procurement' });
+const MaterialPricingWorkbookPage = lazyWithRetry(() => import('./pages/MaterialPricingWorkbookPage'), {
+  id: 'MaterialPricingWorkbookPage',
+});
 const SupplierProfile = lazyWithRetry(() => import('./pages/SupplierProfile'), { id: 'SupplierProfile' });
 const TransportAgentProfile = lazyWithRetry(() => import('./pages/TransportAgentProfile'), { id: 'TransportAgentProfile' });
 const CoilProfile = lazyWithRetry(() => import('./pages/CoilProfile'), { id: 'CoilProfile' });
@@ -979,6 +982,14 @@ function AppShell() {
               element={
                 <ModuleRouteGuard moduleKey="procurement">
                   <Procurement />
+                </ModuleRouteGuard>
+              }
+            />
+            <Route
+              path="/procurement/pricing"
+              element={
+                <ModuleRouteGuard moduleKey="procurement">
+                  <MaterialPricingWorkbookPage />
                 </ModuleRouteGuard>
               }
             />

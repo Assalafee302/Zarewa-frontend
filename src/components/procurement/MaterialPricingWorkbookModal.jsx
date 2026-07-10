@@ -1,13 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { PrintModalPortal } from '../layout/PrintModalPortal';
-import { Plus, Printer, Trash2, X } from 'lucide-react';
-import { ModalFrame } from '../layout';
+import { ArrowLeft, Plus, Printer, Trash2, X } from 'lucide-react';
+import { ModalFrame, PageHeader, PageShell } from '../layout';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
+import { useUnsavedWorkRegistry, UNSAVED_LEAVE_MESSAGE } from '../../context/UnsavedWorkContext';
+import { appConfirm } from '../../lib/appConfirm';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { listPriceFromFloorAndCommission } from '../../lib/publishedPrice.js';
+import { localCalendarDateIso } from '../../lib/pricingAsOf.js';
 import { fmtConv2, roundConv2 } from '../../lib/conversionKgPerM.js';
+import { suggestedPricePerMeterNgn } from '../../shared/lib/suggestedPricePerMeter.js';
 import {
   MaterialWorkbookCustomerPrintView,
   MaterialWorkbookOfficialPrintView,
@@ -47,12 +52,7 @@ function costPerM(used, costKg) {
 }
 
 function suggested(used, costKg, oh, pr) {
-  const u = Number(used);
-  const ck = Number(costKg);
-  const o = Number(oh) || 0;
-  const p = Number(pr) || 0;
-  if (!Number.isFinite(u) || u <= 0 || !Number.isFinite(ck) || ck < 0) return null;
-  return Math.round(u * ck + o + p);
+  return suggestedPricePerMeterNgn(used, costKg, oh, pr);
 }
 
 /** Effective kg/m for economics: draft override, else data average (usedSuggested), else merged API used. */
@@ -149,6 +149,56 @@ function draftFromServerRow(row, recCost, rv, isStone) {
   };
 }
 
+function confidenceBadgeClass(level) {
+  const s = String(level || 'none').toLowerCase();
+  if (s === 'high') return 'bg-emerald-100 text-emerald-800';
+  if (s === 'medium') return 'bg-amber-100 text-amber-900';
+  if (s === 'low') return 'bg-orange-100 text-orange-900';
+  return 'bg-slate-100 text-slate-500';
+}
+
+function confidenceLabel(level) {
+  const s = String(level || 'none').toLowerCase();
+  if (s === 'high') return 'High';
+  if (s === 'medium') return 'Medium';
+  if (s === 'low') return 'Low';
+  return 'None';
+}
+
+/** @param {{ n?: number } | null | undefined} meta @param {'coils' | 'jobs'} unit */
+function metaNChip(meta, unit) {
+  const n = Number(meta?.n);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return `n=${Math.round(n)} ${unit}`;
+}
+
+function resolveDefaultBranchId(ws, branches) {
+  const list = Array.isArray(branches) ? branches : [];
+  const candidates = [
+    ws?.session?.activeBranchId,
+    ws?.snapshot?.activeBranchId,
+    ws?.session?.currentBranchId,
+    ws?.branchScope,
+    ws?.workspaceBranchId,
+    ws?.session?.workspaceBranchId,
+    ws?.snapshot?.workspaceBranchId,
+  ];
+  for (const c of candidates) {
+    const id = String(c || '').trim();
+    if (!id || id === 'ALL') continue;
+    if (list.some((b) => b.id === id)) return id;
+  }
+  return list[0]?.id || '';
+}
+
+function shortApiError(data, fallback) {
+  const raw = String(data?.error || data?.message || fallback || 'Request failed.').trim();
+  if (data?.code === 'NON_JSON_RESPONSE' || /API route not found/i.test(raw) || raw.length > 180) {
+    return fallback || 'Request failed. Check that the API is running the latest build.';
+  }
+  return raw;
+}
+
 /** Merge workbook line state into sheet payload for print preview. */
 function mergeDraftIntoSheet(sheet, workbookLines) {
   if (!sheet?.ok) return sheet;
@@ -189,27 +239,44 @@ function mergeDraftIntoSheet(sheet, workbookLines) {
 
 /**
  * Coil material pricing workbook: conversions, suggested ₦/m, minimum floor, change log.
- * @param {{ open: boolean; onClose: () => void; initialMaterialKey?: string }} props
+ * Works as a full page (`mode="page"`) or modal (`mode="modal"`).
+ * @param {{ mode?: 'modal' | 'page'; open?: boolean; onClose?: () => void; initialMaterialKey?: string }} props
  */
-export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey = 'alu' }) {
+export function MaterialPricingWorkbook({
+  mode = 'modal',
+  open = true,
+  onClose,
+  initialMaterialKey = 'alu',
+}) {
+  const isPage = mode === 'page';
+  const isActive = isPage || Boolean(open);
+  const navigate = useNavigate();
   const ws = useWorkspace();
   const { show: showToast } = useToast();
+  const { setFlag: setUnsavedFlag, clearFlag: clearUnsavedFlag } = useUnsavedWorkRegistry();
   const canPolicyManage = Boolean(ws?.hasPermission?.('pricing.policy.manage') || ws?.hasPermission?.('*'));
+  const canPricingManage = Boolean(ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('*'));
+  const canAccessWorkbook = Boolean(
+    canPricingManage || ws?.hasPermission?.('md.price_exception.approve') || ws?.hasPermission?.('*')
+  );
   const canSetupManage = Boolean(ws?.hasPermission?.('settings.view') || ws?.hasPermission?.('*'));
   const branches = useMemo(
     () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
     [ws?.snapshot?.workspaceBranches, ws?.session?.branches]
   );
   const [materialKey, setMaterialKey] = useState(initialMaterialKey);
-  const [branchId, setBranchId] = useState(() => branches[0]?.id || '');
+  const [branchId, setBranchId] = useState(() => resolveDefaultBranchId(ws, branches));
   const [sheet, setSheet] = useState(null);
   const [events, setEvents] = useState([]);
   const [busy, setBusy] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
   /** @type {Array<{ key: string; serverId?: string; gaugeMm: string; designKey: string; draft: Record<string, unknown> }>} */
   const [workbookLines, setWorkbookLines] = useState([]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [dirtyCount, setDirtyCount] = useState(0);
   /** Preserve transient sync controls through post-save reloads. */
   const syncDraftRef = useRef(new Map());
+  const loadSheetAbortRef = useRef(/** @type {AbortController | null} */ (null));
   /** Ridge add-ons from pricing policy (reference tabs). */
   const [refRidgeAddOns, setRefRidgeAddOns] = useState([]);
   /** Accessories from master data (reference tab). */
@@ -225,15 +292,18 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const [printPreview, setPrintPreview] = useState(null);
   const [printPack, setPrintPack] = useState(null);
   const [printLoading, setPrintLoading] = useState(false);
-  useEffect(() => {
-    if (open) setMaterialKey(initialMaterialKey);
-  }, [open, initialMaterialKey]);
+  const [publishPreviewOpen, setPublishPreviewOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
-    if (branches.length && !branches.some((b) => b.id === branchId)) {
-      setBranchId(branches[0]?.id || '');
-    }
-  }, [branches, branchId]);
+    if (isActive) setMaterialKey(initialMaterialKey);
+  }, [isActive, initialMaterialKey]);
+
+  useEffect(() => {
+    if (!branches.length) return;
+    if (branchId && branches.some((b) => b.id === branchId)) return;
+    setBranchId(resolveDefaultBranchId(ws, branches));
+  }, [branches, branchId, ws]);
 
   useEffect(() => {
     const next = new Map();
@@ -249,26 +319,85 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     syncDraftRef.current = next;
   }, [workbookLines]);
 
-  const loadEvents = useCallback(async (mk) => {
-    const { ok, data } = await apiFetch(
-      `/api/pricing/material-sheet/events?materialKey=${encodeURIComponent(mk)}&limit=60`
-    );
-    if (ok && data?.ok) setEvents(data.events || []);
-    else setEvents([]);
+  const markDirty = useCallback(() => {
+    setIsDirty(true);
+    setDirtyCount((n) => n + 1);
   }, []);
+
+  const clearDirty = useCallback(() => {
+    setIsDirty(false);
+    setDirtyCount(0);
+  }, []);
+
+  useEffect(() => {
+    const id = 'material-pricing-workbook';
+    const track = Boolean(isDirty && isActive);
+    setUnsavedFlag(id, track);
+    return () => clearUnsavedFlag(id);
+  }, [isDirty, isActive, setUnsavedFlag, clearUnsavedFlag]);
+
+  const requestClose = useCallback(async () => {
+    if (isDirty) {
+      const ok = await appConfirm({ title: 'Unsaved changes', message: UNSAVED_LEAVE_MESSAGE });
+      if (!ok) return;
+    }
+    onClose?.();
+  }, [isDirty, onClose]);
+
+  const requestBackToProcurement = useCallback(async () => {
+    if (isDirty) {
+      const ok = await appConfirm({ title: 'Unsaved changes', message: UNSAVED_LEAVE_MESSAGE });
+      if (!ok) return;
+    }
+    navigate('/procurement', { state: { focusTab: 'conversion' } });
+  }, [isDirty, navigate]);
+
+  const requestMaterialKey = useCallback(
+    async (next) => {
+      if (next === materialKey) return;
+      if (isDirty) {
+        const ok = await appConfirm({ title: 'Unsaved changes', message: UNSAVED_LEAVE_MESSAGE });
+        if (!ok) return;
+      }
+      setMaterialKey(next);
+    },
+    [isDirty, materialKey]
+  );
+
+  const requestBranchId = useCallback(
+    async (next) => {
+      if (next === branchId) return;
+      if (isDirty) {
+        const ok = await appConfirm({ title: 'Unsaved changes', message: UNSAVED_LEAVE_MESSAGE });
+        if (!ok) return;
+      }
+      setBranchId(next);
+    },
+    [isDirty, branchId]
+  );
 
   const loadSheet = useCallback(async () => {
     if (!materialKey || !branchId) return;
+
+    loadSheetAbortRef.current?.abort();
+    const ac = new AbortController();
+    loadSheetAbortRef.current = ac;
+    const { signal } = ac;
 
     if (!isWorkbookMaterialKey(materialKey)) {
       setBusy(true);
       try {
         const [policyR, setupR, aluSheetR, aluzSheetR] = await Promise.all([
-          apiFetch('/api/pricing/policy'),
-          apiFetch('/api/setup'),
-          apiFetch(`/api/pricing/material-sheet?materialKey=alu&branchId=${encodeURIComponent(branchId)}`),
-          apiFetch(`/api/pricing/material-sheet?materialKey=aluzinc&branchId=${encodeURIComponent(branchId)}`),
+          apiFetch('/api/pricing/policy', { signal }),
+          apiFetch('/api/setup', { signal }),
+          apiFetch(`/api/pricing/material-sheet?materialKey=alu&branchId=${encodeURIComponent(branchId)}`, {
+            signal,
+          }),
+          apiFetch(`/api/pricing/material-sheet?materialKey=aluzinc&branchId=${encodeURIComponent(branchId)}`, {
+            signal,
+          }),
         ]);
+        if (signal.aborted) return;
         const ridges = policyR.ok && Array.isArray(policyR.data?.ridgeAddOns) ? policyR.data.ridgeAddOns : [];
         const accRaw =
           setupR.ok && setupR.data?.ok && Array.isArray(setupR.data?.masterData?.quoteItems)
@@ -281,6 +410,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           referenceTab: materialKey,
         });
         setWorkbookLines([]);
+        clearDirty();
         setEvents([]);
         setRefRidgeAddOns(ridges);
         setRefAccessories(acc);
@@ -308,6 +438,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           showToast('Some reference data could not be loaded.', { variant: 'error' });
         }
       } catch {
+        if (signal.aborted) return;
         setSheet(null);
         setRefRidgeAddOns([]);
         setRefAccessories([]);
@@ -315,7 +446,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         setRidgeCustomerLabelByGauge({});
         showToast('Could not load ridge/accessory reference.', { variant: 'error' });
       } finally {
-        setBusy(false);
+        if (!signal.aborted) setBusy(false);
       }
       return;
     }
@@ -323,21 +454,26 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     setBusy(true);
     const [r1, r2] = await Promise.all([
       apiFetch(
-        `/api/pricing/material-sheet?materialKey=${encodeURIComponent(materialKey)}&branchId=${encodeURIComponent(branchId)}`
+        `/api/pricing/material-sheet?materialKey=${encodeURIComponent(materialKey)}&branchId=${encodeURIComponent(branchId)}`,
+        { signal }
       ),
       apiFetch(
-        `/api/pricing/material-sheet/events?materialKey=${encodeURIComponent(materialKey)}&limit=60`
+        `/api/pricing/material-sheet/events?materialKey=${encodeURIComponent(materialKey)}&limit=60`,
+        { signal }
       ),
     ]);
+    if (signal.aborted) return;
     setBusy(false);
     if (!r1.ok || !r1.data?.ok) {
       setSheet(null);
       setWorkbookLines([]);
-      showToast(r1.data?.error || 'Could not load workbook.', { variant: 'error' });
+      clearDirty();
+      showToast(shortApiError(r1.data, 'Could not load workbook.'), { variant: 'error' });
       return;
     }
     setSheet(r1.data);
     if (r2.ok && r2.data?.ok) setEvents(r2.data.events || []);
+    else setEvents([]);
 
     const isStone = Boolean(r1.data.isStoneCoatedWorkbook);
     const recCost = r1.data.recommendedCostPerKgNgn;
@@ -349,33 +485,33 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         if (ga !== gb) return ga.localeCompare(gb, undefined, { numeric: true });
         return String(a.designKey || '').localeCompare(String(b.designKey || ''));
       });
-    setWorkbookLines(
-      wbRows.map((row) => {
-        const rv = r1.data.resolvedByGauge?.[row.gaugeMm] || {};
-        const preservedSync =
-          syncDraftRef.current.get(`id:${row.id}`) ||
-          syncDraftRef.current.get(lineGaugeDesignKey(row.gaugeMm, row.designKey));
-        const draft = draftFromServerRow(row, recCost, rv, isStone);
-        if (preservedSync) {
-          draft.syncMinimumToPriceList = Boolean(preservedSync.syncMinimumToPriceList);
-          if (String(preservedSync.syncDesignKey || '').trim()) {
-            draft.syncDesignKey = String(preservedSync.syncDesignKey || '').trim();
-          }
+    const nextLines = wbRows.map((row) => {
+      const rv = r1.data.resolvedByGauge?.[row.gaugeMm] || {};
+      const preservedSync =
+        syncDraftRef.current.get(`id:${row.id}`) ||
+        syncDraftRef.current.get(lineGaugeDesignKey(row.gaugeMm, row.designKey));
+      const draft = draftFromServerRow(row, recCost, rv, isStone);
+      if (preservedSync) {
+        draft.syncMinimumToPriceList = Boolean(preservedSync.syncMinimumToPriceList);
+        if (String(preservedSync.syncDesignKey || '').trim()) {
+          draft.syncDesignKey = String(preservedSync.syncDesignKey || '').trim();
         }
-        return {
-          key: row.id ? `srv_${row.id}` : newLineKey(),
-          serverId: row.id,
-          gaugeMm: row.gaugeMm || '',
-          designKey: row.designKey || '',
-          draft,
-        };
-      })
-    );
-  }, [materialKey, branchId, showToast]);
+      }
+      return {
+        key: row.id ? `srv_${row.id}` : newLineKey(),
+        serverId: row.id,
+        gaugeMm: row.gaugeMm || '',
+        designKey: row.designKey || '',
+        draft,
+      };
+    });
+    setWorkbookLines(nextLines);
+    clearDirty();
+  }, [materialKey, branchId, showToast, clearDirty]);
 
   useEffect(() => {
-    if (open && branchId) void loadSheet();
-  }, [open, branchId, materialKey, loadSheet]);
+    if (isActive && branchId) void loadSheet();
+  }, [isActive, branchId, materialKey, loadSheet]);
 
   const buildPersistBody = (line) => {
     const dr = line.draft;
@@ -419,58 +555,61 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       showToast('Add at least one row and choose a gauge before saving.', { variant: 'error' });
       return;
     }
-    setSavingAll(true);
-    let saved = 0;
-    let firstError = '';
-    let priceListSyncWarning = '';
-    let didSyncAny = false;
+    const rows = [];
     for (const line of finalized) {
       const body = buildPersistBody(line);
-      if (!body) continue;
+      if (body) rows.push(body);
+    }
+    if (!rows.length) {
+      showToast('Nothing to save.', { variant: 'error' });
+      return;
+    }
+    setSavingAll(true);
+
+    const finishOk = (saved) => {
+      showToast(`Saved ${saved} draft row(s). Use Publish to update the price list.`);
+      void loadSheet();
+    };
+
+    const bulk = await apiFetch('/api/pricing/material-sheet/rows/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ materialKey, branchId, rows }),
+    });
+    if (bulk.ok && bulk.data?.ok) {
+      setSavingAll(false);
+      finishOk(Number(bulk.data.saved) || rows.length);
+      return;
+    }
+    const bulkMissing =
+      bulk.status === 404 ||
+      bulk.data?.code === 'NON_JSON_RESPONSE' ||
+      /API route not found/i.test(String(bulk.data?.error || ''));
+    if (!bulkMissing) {
+      setSavingAll(false);
+      showToast(shortApiError(bulk.data, 'Save failed.'), { variant: 'error' });
+      return;
+    }
+
+    let saved = 0;
+    let firstError = '';
+    for (const body of rows) {
       const { ok, data } = await apiFetch('/api/pricing/material-sheet/rows', {
         method: 'POST',
         body: JSON.stringify(body),
       });
       if (!ok || !data?.ok) {
-        firstError = data?.error || 'Save failed.';
+        firstError = shortApiError(data, 'Save failed.');
         break;
       }
       saved += 1;
-      if (body.syncMinimumToPriceList) didSyncAny = true;
-      if (data.priceListSync && !data.priceListSync.ok && !priceListSyncWarning) {
-        priceListSyncWarning = data.priceListSync.error || 'Price list sync skipped for at least one row.';
-      }
     }
     setSavingAll(false);
     if (firstError) {
-      showToast(`${firstError} (stopped at ${saved}/${finalized.length} saved)`, { variant: 'error' });
-      if (saved > 0) {
-        void loadSheet();
-        void loadEvents(materialKey);
-      }
+      showToast(`${firstError} (stopped at ${saved}/${rows.length} saved)`, { variant: 'error' });
+      if (saved > 0) void loadSheet();
       return;
     }
-    if (saved === 0) {
-      showToast('Nothing to save.', { variant: 'error' });
-      return;
-    }
-    showToast(
-      priceListSyncWarning
-        ? `Saved ${saved} row(s). ${priceListSyncWarning}`
-        : didSyncAny
-          ? `Saved ${saved} row(s). Floor price list updated — Quotation pricing reflects new floors.`
-          : `Saved ${saved} row(s).`
-    );
-    // Quotation and refunds screens consume `snapshot.priceListItems`; refresh so synced floors appear immediately.
-    if (didSyncAny && typeof ws?.refresh === 'function') {
-      try {
-        await ws.refresh();
-      } catch {
-        // Non-fatal: workbook rows are saved; user may manually refresh workspace if needed.
-      }
-    }
-    void loadSheet();
-    void loadEvents(materialKey);
+    finishOk(saved);
   };
 
   const addWorkbookLine = () => {
@@ -481,6 +620,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       ...prev,
       { key: newLineKey(), gaugeMm: '', designKey: '', draft: { ...emptyDraft, costPerKgNgn: '' } },
     ]);
+    markDirty();
   };
 
   const removeWorkbookLine = async (lineKey) => {
@@ -490,12 +630,14 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         method: 'DELETE',
       });
       if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not delete row.', { variant: 'error' });
+        showToast(shortApiError(data, 'Could not delete row.'), { variant: 'error' });
         return;
       }
-      void loadEvents(materialKey);
+      void loadSheet();
+      return;
     }
     setWorkbookLines((prev) => prev.filter((l) => l.key !== lineKey));
+    markDirty();
   };
 
   const updateLineDraft = (lineKey, patch) => {
@@ -504,6 +646,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         l.key === lineKey ? { ...l, draft: { ...(l.draft || {}), ...patch } } : l
       )
     );
+    markDirty();
   };
 
   const setLineGauge = (lineKey, newGauge) => {
@@ -521,6 +664,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         return { ...line, gaugeMm: g, designKey: dk };
       })
     );
+    markDirty();
   };
 
   const setCostPerKgAllLines = useCallback(
@@ -531,8 +675,9 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           draft: { ...line.draft, costPerKgNgn: raw },
         }))
       );
+      markDirty();
     },
-    []
+    [markDirty]
   );
 
   const syncListAllChecked = useMemo(() => {
@@ -554,7 +699,110 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         return { ...line, draft: { ...draft, ...patch } };
       })
     );
-  }, [materialKey]);
+    markDirty();
+  }, [materialKey, markDirty]);
+
+  const publishPreviewRows = useMemo(() => {
+    return workbookLines
+      .filter((l) => String(l.gaugeMm || '').trim() && Boolean(l.draft?.syncMinimumToPriceList))
+      .map((line) => {
+        const dr = line.draft || {};
+        const g = String(line.gaugeMm).trim();
+        const floor = Math.round(Number(dr.minimumPricePerMeterNgn) || 0);
+        const commission = Math.max(0, numOrUndef(dr.commissionNgnPerM) ?? 0);
+        const listNgn = listPriceFromFloorAndCommission(floor, commission);
+        const rv = g ? sheet?.resolvedByGauge?.[g] || {} : {};
+        const usedConf = String(rv.usedConfidence || 'none').toLowerCase();
+        const usedNum = sheet?.isStoneCoatedWorkbook
+          ? null
+          : effectiveUsedKgPerM(dr.conversionUsedKgPerM, rv);
+        const sug =
+          sheet?.isStoneCoatedWorkbook || usedNum == null
+            ? null
+            : suggested(
+                usedNum,
+                numOrUndef(dr.costPerKgNgn) ?? 0,
+                numOrUndef(dr.overheadNgnPerM),
+                numOrUndef(dr.profitNgnPerM)
+              );
+        const floorBelowSuggested = sug != null && sug > 0 && floor > 0 && floor < sug;
+        const lowConfidence = usedConf === 'none' || usedConf === 'low';
+        return {
+          key: line.key,
+          serverId: line.serverId,
+          gaugeMm: g,
+          designKey:
+            String(dr.syncDesignKey || line.designKey || '').trim() ||
+            (materialKey === 'stone-coated' ? 'stone-coated' : 'longspan'),
+          floor,
+          listNgn,
+          usedConf,
+          floorBelowSuggested,
+          warn: lowConfidence || floorBelowSuggested,
+        };
+      });
+  }, [workbookLines, materialKey, sheet]);
+
+  const publishPreviewHasWarnings = useMemo(
+    () => publishPreviewRows.some((r) => r.warn),
+    [publishPreviewRows]
+  );
+
+  const openPublishPreview = useCallback(async () => {
+    if (!canPricingManage) {
+      showToast('Publishing requires Pricing Manager.', { variant: 'error' });
+      return;
+    }
+    if (!isWorkbookMaterialKey(materialKey)) {
+      showToast('Switch to Aluminium, Aluzinc, or Stone-coated to publish.', { variant: 'error' });
+      return;
+    }
+    if (isDirty) {
+      showToast('Save all drafts first before publishing to the price list.', { variant: 'error' });
+      return;
+    }
+    if (!publishPreviewRows.length) {
+      showToast('Tick “Include in publish” on at least one row first.', { variant: 'error' });
+      return;
+    }
+    const unsaved = publishPreviewRows.filter((r) => !r.serverId);
+    if (unsaved.length) {
+      showToast('Save all drafts first — some publish rows are not yet on the server.', { variant: 'error' });
+      return;
+    }
+    setPublishPreviewOpen(true);
+  }, [canPricingManage, materialKey, isDirty, publishPreviewRows, showToast]);
+
+  const confirmPublish = useCallback(async () => {
+    if (!branchId || publishing) return;
+    setPublishing(true);
+    const { ok, data } = await apiFetch('/api/pricing/material-sheet/publish', {
+      method: 'POST',
+      body: JSON.stringify({
+        materialKey,
+        branchId,
+        effectiveFromIso: localCalendarDateIso(),
+      }),
+    });
+    setPublishing(false);
+    if (!ok || !data?.ok) {
+      const detail =
+        Array.isArray(data?.errors) && data.errors.length
+          ? ` ${data.errors.map((e) => e.error || e.gaugeMm).filter(Boolean).slice(0, 2).join('; ')}`
+          : '';
+      showToast(shortApiError(data, 'Publish failed.') + detail, { variant: 'error' });
+      return;
+    }
+    const n = Array.isArray(data.published) ? data.published.length : 0;
+    showToast(
+      `Published ${n} row(s) to the price list. Review Material Exceptions for quotes below floor.`
+    );
+    setPublishPreviewOpen(false);
+    // Prefer skipping ws.refresh — quote screens pick up floors on next navigation/load.
+    // If live quote screens must update immediately without leaving the page, re-enable:
+    // if (typeof ws?.refresh === 'function') { try { await ws.refresh(); } catch { /* non-fatal */ } }
+    void loadSheet();
+  }, [branchId, publishing, materialKey, showToast, loadSheet]);
 
   const addRidgeRow = () => {
     setRidgeCalcRows((prev) => [...prev, { id: newCalcRowId(), gaugeMm: '', materialKey: 'alu' }]);
@@ -752,7 +1000,11 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           showToast('Could not load all workbook sections for print.', { variant: 'error' });
           return;
         }
-        const merged = sheets.map((s) => (s.materialKey === materialKey ? mergeDraftIntoSheet(s, workbookLines) : s));
+        // Customer print: server sheets only — do not merge unsaved drafts.
+        const merged =
+          kind === 'customer'
+            ? sheets
+            : sheets.map((s) => (s.materialKey === materialKey ? mergeDraftIntoSheet(s, workbookLines) : s));
         setPrintPack({
           sheets: merged,
           accessories: extrasR.ok && extrasR.data?.ok ? extrasR.data.accessories || [] : [],
@@ -790,35 +1042,229 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     return !vals.every((v) => v === first);
   }, [workbookLines]);
 
-  return (
-    <ModalFrame isOpen={open} onClose={onClose} modal={!printPreview}>
-      <div className="z-modal-panel max-w-[min(96vw,1100px)] max-h-[min(90vh,820px)] flex flex-col p-0 overflow-hidden">
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
-          <div>
-            <h2 className="text-base font-black text-zarewa-teal">Material pricing workbook</h2>
-            <p className="text-ui-xs text-slate-600 mt-1 max-w-xl leading-relaxed">
-              <strong className="text-slate-800">Std / Ref / Hist</strong> kg/m are <strong>read-only</strong> from data
-              (theory/catalog, last {lookbackDays}d purchases, last {lookbackDays}d production checks).{' '}
-              <strong className="text-slate-800">Used</strong> defaults to the average of those three; leave blank to keep the
-              average or type an override (two decimal places). Stone-coated: enter <strong>minimum ₦/m</strong> per gauge and
-              sync to the price list. <strong className="text-slate-800">₦/kg</strong> defaults from{' '}
-              <strong>weighted average</strong> coil cost for this branch (last {lookbackDays} days) when available.{' '}
-              <strong className="text-slate-800">Suggested ₦/m</strong> = used kg/m × ₦/kg + overhead + profit.{' '}
-              <strong className="text-slate-800">Floor</strong> is the minimum ₦/m; <strong className="text-slate-800">commission</strong>{' '}
-              is added to the floor, then <strong className="text-slate-800">list ₦/m</strong> = published rounding of floor + commission
-              (same rule as customer price book). Sync writes that <strong>list</strong> amount to the floor price list.{' '}
-              <strong className="text-slate-800">Print</strong> opens a preview modal: internal (full steps) or customer (Longspan / Metcoppo
-              columns only). Save all when done.
-            </p>
-          </div>
+  const printPortal = printPreview && printPack ? (
+      <PrintModalPortal
+        open
+        onClose={() => {
+          setPrintPreview(null);
+          setPrintPack(null);
+        }}
+        className={
+          printPreview === 'customer'
+            ? 'bg-slate-400/35 py-8 sm:py-14 px-4 sm:px-10'
+            : ''
+        }
+      >
+              <div
+                className={
+                  printPreview === 'customer'
+                    ? 'mx-auto flex w-full max-w-[calc(210mm+4rem)] flex-col items-center justify-center pb-20 print:pb-0'
+                    : 'mx-auto max-w-[min(1000px,100%)] pb-16 print:pb-0'
+                }
+              >
+                <div
+                  id="workbook-print-root"
+                  className={
+                    printPreview === 'customer'
+                      ? 'box-border w-[210mm] max-w-full min-h-[297mm] shrink-0 rounded-sm border border-slate-500/40 bg-white shadow-2xl print:min-h-0 print:w-full print:max-w-full print:rounded-none print:border-0 print:shadow-none'
+                      : 'rounded-lg border border-slate-200 bg-white p-4 shadow-2xl print:rounded-none print:border-0 print:shadow-none print:p-0'
+                  }
+                >
+                  {printPreview === 'official' ? (
+                    <MaterialWorkbookOfficialPrintView
+                      sheets={printPack.sheets}
+                      branchName={String(branchName || branchId)}
+                      effectiveDateLabel={effectiveDateLabel}
+                      lookbackDays={lookbackDays}
+                      accessories={printPack.accessories}
+                      ridgeAddOns={printPack.ridgeAddOns}
+                    />
+                  ) : (
+                    <MaterialWorkbookCustomerPrintView
+                      sheets={printPack.sheets}
+                      branchName={String(branchName || branchId)}
+                      effectiveDateLabel={effectiveDateLabel}
+                      accessories={printPack.accessories}
+                      ridgeAddOns={printPack.ridgeAddOns}
+                    />
+                  )}
+                </div>
+                <div id="workbook-print-actions" className="mt-4 flex flex-col items-center gap-2">
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="rounded-lg bg-zarewa-teal px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-white shadow-lg"
+                    >
+                      Print…
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPrintPreview(null);
+                        setPrintPack(null);
+                      }}
+                      className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-700"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <p className="text-center text-ui-xs text-slate-500 max-w-md">
+                    {printPreview === 'customer'
+                      ? 'Customer sheet shows only gauges with a published list price (floor + commission).'
+                      : 'Internal sheet includes full cost build-up for all gauges.'}
+                  </p>
+                </div>
+              </div>
+      </PrintModalPortal>
+  ) : null;
+
+  const publishPreviewModal = (
+    <ModalFrame
+      isOpen={publishPreviewOpen}
+      onClose={() => !publishing && setPublishPreviewOpen(false)}
+      title="Publish to price list"
+      description="Rows with Include in publish will write floor + commission as list ₦/m."
+      layer={isPage ? 'default' : 'nested'}
+      showCloseButton={!publishing}
+    >
+      <div className="z-modal-panel w-full max-w-lg p-4 sm:p-5 space-y-3">
+        <div>
+          <h3 className="text-base font-black text-zarewa-teal">Publish to price list</h3>
+          <p className="text-ui-xs text-slate-600 mt-1 leading-relaxed">
+            Confirm rows marked Include in publish. List ₦/m = floor + commission (published rounding).
+          </p>
+        </div>
+        {publishPreviewHasWarnings ? (
+          <p className="text-ui-xs text-amber-900 bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2 leading-relaxed">
+            Warning: one or more rows have <strong>None/Low</strong> conversion confidence or a floor below
+            suggested. Review before publishing.
+          </p>
+        ) : null}
+        <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200">
+          <table className="min-w-full text-left text-xs">
+            <thead className="bg-slate-50 text-ui-xs font-black uppercase tracking-wide text-slate-600">
+              <tr>
+                <th className="px-3 py-2 border-b">Gauge</th>
+                <th className="px-3 py-2 border-b">Design</th>
+                <th className="px-3 py-2 border-b">Conf.</th>
+                <th className="px-3 py-2 border-b text-right">Floor</th>
+                <th className="px-3 py-2 border-b text-right">List</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {publishPreviewRows.map((r) => (
+                <tr key={r.key} className={r.warn ? 'bg-amber-50/60' : undefined}>
+                  <td className="px-3 py-2 font-mono tabular-nums">{r.gaugeMm} mm</td>
+                  <td className="px-3 py-2 font-mono">{r.designKey}</td>
+                  <td className="px-3 py-2">
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${confidenceBadgeClass(r.usedConf)}`}>
+                      {confidenceLabel(r.usedConf)}
+                    </span>
+                    {r.floorBelowSuggested ? (
+                      <span className="ml-1 text-[10px] font-semibold text-amber-800">floor&lt;sug</span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums">
+                    {r.floor > 0 ? formatNgn(r.floor) : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold">
+                    {r.listNgn > 0 ? formatNgn(r.listNgn) : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-ui-xs text-slate-600 leading-relaxed">
+          After publish, review{' '}
+          <Link to="/operations/material-exceptions" className="font-semibold text-zarewa-teal hover:underline">
+            Material Exceptions
+          </Link>{' '}
+          for quotations below the new floor.
+        </p>
+        <div className="flex flex-wrap gap-2 justify-end pt-1">
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-slate-500 hover:bg-white hover:text-slate-800 shrink-0"
-            aria-label="Close"
+            disabled={publishing}
+            onClick={() => setPublishPreviewOpen(false)}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600"
           >
-            <X size={20} />
+            Cancel
           </button>
+          <button
+            type="button"
+            disabled={publishing || !publishPreviewRows.length}
+            onClick={() => void confirmPublish()}
+            className="rounded-lg bg-zarewa-teal px-4 py-2 text-xs font-black uppercase text-white disabled:opacity-50"
+          >
+            {publishing ? 'Publishing…' : `Publish ${publishPreviewRows.length} row(s)`}
+          </button>
+        </div>
+      </div>
+    </ModalFrame>
+  );
+
+  const workbookPanel = (
+      <div
+        className={
+          isPage
+            ? 'flex flex-col rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden min-h-[min(70vh,720px)]'
+            : 'z-modal-panel max-w-[min(96vw,1100px)] max-h-[min(90vh,820px)] flex flex-col p-0 overflow-hidden'
+        }
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
+          <div className="min-w-0">
+            <h2 className="text-base font-black text-zarewa-teal">Material pricing workbook</h2>
+            <p className="text-ui-xs text-slate-600 mt-1 max-w-xl leading-relaxed">
+              Build draft floors from conversion and cost, then <strong className="text-slate-800">Publish</strong> to
+              update the selling price list. Save only stores drafts — it does not change quotations until you publish.
+            </p>
+            {branchName ? (
+              <p className="mt-2 text-ui-xs font-semibold text-zarewa-teal bg-teal-50/80 border border-teal-100 rounded-lg px-2.5 py-1.5 inline-block">
+                Editing prices for {branchName}
+              </p>
+            ) : null}
+            <details className="mt-2 max-w-xl text-ui-xs text-slate-600">
+              <summary className="cursor-pointer font-semibold text-slate-700 hover:text-zarewa-teal">
+                How pricing works
+              </summary>
+              <ul className="mt-2 space-y-1.5 list-disc pl-4 leading-relaxed">
+                <li>
+                  <strong>Std</strong> — catalog/theory kg/m (read-only).
+                </li>
+                <li>
+                  <strong>Ref</strong> — supplier purchase samples (≈ last {lookbackDays}d coil GRNs).
+                </li>
+                <li>
+                  <strong>Hist</strong> — production actual conversion (≈ last {lookbackDays}d jobs).
+                </li>
+                <li>
+                  <strong>Used</strong> — average of Std/Ref/Hist, or your override (2 dp).
+                </li>
+                <li>
+                  <strong>Floor</strong> — minimum ₦/m; <strong>List</strong> = published round(floor + commission).
+                </li>
+                <li>
+                  Production crosswalk: Ref ≈ Sup (supplier); Hist ≈ gauge history; Std ≈ production standard.
+                </li>
+                <li>
+                  Confidence: <strong>None</strong> / <strong>Low</strong> / <strong>Medium</strong> / <strong>High</strong>{' '}
+                  from Ref/Hist sample depth (and Std). Prefer Medium+ before publishing.
+                </li>
+              </ul>
+            </details>
+          </div>
+          {!isPage ? (
+            <button
+              type="button"
+              onClick={() => void requestClose()}
+              className="rounded-lg p-2 text-slate-500 hover:bg-white hover:text-slate-800 shrink-0"
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-end gap-3 px-4 py-3 sm:px-5 border-b border-slate-100 bg-white">
@@ -833,7 +1279,9 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 <button
                   key={m.key}
                   type="button"
-                  onClick={() => setMaterialKey(m.key)}
+                  aria-pressed={materialKey === m.key}
+                  aria-busy={busy && materialKey === m.key}
+                  onClick={() => void requestMaterialKey(m.key)}
                   className={`rounded-md px-2.5 py-1.5 text-ui-xs font-black uppercase tracking-wide transition-colors ${
                     materialKey === m.key
                       ? 'bg-zarewa-teal text-white shadow-sm'
@@ -850,7 +1298,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             <select
               className="mt-1 w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-sm font-semibold text-slate-800"
               value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
+              onChange={(e) => void requestBranchId(e.target.value)}
             >
               {branches.length === 0 ? <option value="">No branches</option> : null}
               {branches.map((b) => (
@@ -875,7 +1323,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                   materialCostPerKgMixed
                     ? 'Mixed — set to align'
                     : recCostLabel != null && Number(recCostLabel) > 0 && !sheet?.isStoneCoatedWorkbook
-                      ? `Avg purchase ~${recCostLabel} (30d)`
+                      ? `Avg purchase ~${recCostLabel} (${lookbackDays}d)`
                       : sheet?.isStoneCoatedWorkbook
                         ? 'N/A stone'
                         : ''
@@ -889,25 +1337,48 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           ) : null}
           {!isReferenceTab ? (
             <>
-              <label className="text-ui-xs font-bold uppercase text-slate-500 block min-w-[130px]">
-                Sync list (all)
+              <label
+                className="text-ui-xs font-bold uppercase text-slate-500 block min-w-[130px]"
+                title="Marks rows to include when you Publish to price list"
+              >
+                Include in publish (all)
                 <span className="mt-1 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700">
                   <input
                     type="checkbox"
                     checked={syncListAllChecked}
                     onChange={(e) => setSyncListForAll(e.target.checked)}
-                    aria-label="Sync list for all workbook rows"
+                    aria-label="Include all workbook rows in next publish"
                   />
                   Apply to all rows
                 </span>
               </label>
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  disabled={busy || savingAll || !sheet}
+                  onClick={() => void persistAllRows()}
+                  className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
+                >
+                  {savingAll ? 'Saving…' : 'Save all'}
+                </button>
+                {isDirty ? (
+                  <span className="text-ui-xs font-semibold text-amber-700 tabular-nums">
+                    {dirtyCount} unsaved change{dirtyCount === 1 ? '' : 's'}
+                  </span>
+                ) : null}
+              </div>
               <button
                 type="button"
-                disabled={busy || savingAll || !sheet}
-                onClick={() => void persistAllRows()}
-                className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
+                disabled={busy || savingAll || publishing || !sheet || !canPricingManage}
+                onClick={() => void openPublishPreview()}
+                className="rounded-lg border border-zarewa-teal/40 bg-teal-50 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
+                title={
+                  canPricingManage
+                    ? 'Push rows marked Include in publish to the floor price list'
+                    : 'Publishing requires Pricing Manager'
+                }
               >
-                {savingAll ? 'Saving…' : 'Save all'}
+                Publish to price list
               </button>
             </>
           ) : materialKey === 'ridge-flashing' ? (
@@ -960,27 +1431,40 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               </button>
             </>
           )}
-          <button
-            type="button"
-            disabled={busy || !sheet || printLoading}
-            onClick={() => void loadPrintPack('official')}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1.5"
-          >
-            <Printer size={14} className="shrink-0" aria-hidden />
-            {printLoading ? '…' : 'Print · internal'}
-          </button>
+          {canPricingManage ? (
+            <button
+              type="button"
+              disabled={busy || !sheet || printLoading}
+              onClick={() => void loadPrintPack('official')}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1.5"
+              title="Internal economics print — Pricing Manager only"
+            >
+              <Printer size={14} className="shrink-0" aria-hidden />
+              {printLoading ? 'Preparing print…' : 'Internal (costs — confidential)'}
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={busy || !sheet || printLoading}
             onClick={() => void loadPrintPack('customer')}
             className="rounded-lg border border-slate-200 bg-zarewa-teal/10 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
           >
-            Print · customer list
+            {printLoading ? 'Preparing print…' : 'Customer price list'}
           </button>
           <button
             type="button"
             disabled={busy}
-            onClick={() => void loadSheet()}
+            onClick={async () => {
+              if (isDirty) {
+                const ok = await appConfirm({
+                  message: 'You have unsaved draft changes. Refresh and discard them?',
+                  variant: 'danger',
+                  confirmLabel: 'Discard and refresh',
+                });
+                if (!ok) return;
+              }
+              void loadSheet();
+            }}
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
           >
             Refresh
@@ -999,6 +1483,29 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         </div>
 
         <div className="flex-1 min-h-0 overflow-auto px-2 sm:px-4 py-3">
+          {materialKey === 'stone-coated' && !isReferenceTab ? (
+            <p className="mb-3 text-ui-xs text-slate-600 leading-relaxed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              Stone-coated pricing uses <strong className="text-slate-800">minimum ₦/m (Floor)</strong> and commission
+              only — no kg/m conversion economics. Conversion columns stay blank by design.
+            </p>
+          ) : null}
+          {Array.isArray(events) && events.length > 0 && !isReferenceTab ? (
+            <p className="mb-2 text-ui-xs text-slate-500">
+              Last change:{' '}
+              <span className="font-semibold text-slate-700">
+                {events[0]?.changedAtIso
+                  ? new Date(events[0].changedAtIso).toLocaleString()
+                  : '—'}
+              </span>
+              {events[0]?.action ? (
+                <>
+                  {' '}
+                  · <span className="uppercase tracking-wide">{events[0].action}</span>
+                </>
+              ) : null}
+              {events[0]?.changedByUserId ? <> · {events[0].changedByUserId}</> : null}
+            </p>
+          ) : null}
           {busy && !sheet ? (
             <p className="text-sm text-slate-500 px-2">Loading…</p>
           ) : !sheet ? (
@@ -1361,13 +1868,19 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                       Comm/m
                     </th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">List ₦/m</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Sync list</th>
+                    <th
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap"
+                      title="Include this row when you Publish to price list"
+                    >
+                      Publish
+                    </th>
+                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap min-w-[100px]">Notes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {workbookLines.length === 0 ? (
                     <tr>
-                      <td colSpan={15} className="px-4 py-8 text-center text-sm text-slate-500">
+                      <td colSpan={16} className="px-4 py-8 text-center text-sm text-slate-500">
                         No lines yet. Use <strong>Add line</strong>, choose a gauge, enter prices, then Save all.
                       </td>
                     </tr>
@@ -1399,6 +1912,19 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                           : sheet?.isStoneCoatedWorkbook && minimumNgn > 0
                             ? minimumNgn
                             : null;
+                      const floorBelowSuggested =
+                        displaySug != null &&
+                        displaySug > 0 &&
+                        minimumNgn > 0 &&
+                        minimumNgn < displaySug;
+                      const refChip = metaNChip(rv.refMeta, 'coils');
+                      const histChip = metaNChip(rv.histMeta, 'jobs');
+                      const usedConf = String(rv.usedConfidence || 'none').toLowerCase();
+                      const refEmpty = g && Number(rv.refMeta?.n) === 0;
+                      const histEmpty = g && Number(rv.histMeta?.n) === 0;
+                      const stdSourceLabel =
+                        rv.stdSource === 'catalog' ? 'catalog' : rv.stdSource === 'theory' ? 'theory' : null;
+                      const costMRounded = cm == null ? null : Math.round(cm);
                       const inp =
                         'w-full min-w-[64px] rounded border border-slate-200 px-1 py-1 font-mono text-xs tabular-nums';
                       const cell =
@@ -1447,15 +1973,48 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                           </td>
                           <td className="px-2 py-1.5 align-top">
                             <div className={cell}>{g ? fmtConv2(rv.std) : '—'}</div>
+                            {stdSourceLabel ? (
+                              <p className="text-ui-xs text-slate-400 mt-0.5">{stdSourceLabel}</p>
+                            ) : null}
                           </td>
                           <td className="px-2 py-1.5 align-top">
-                            <div className={cell}>{g ? fmtConv2(rv.ref) : '—'}</div>
+                            <div className="flex flex-wrap items-center gap-1">
+                              <div className={cell}>
+                                {refEmpty ? (
+                                  <span className="font-sans text-[10px] text-slate-500 normal-nums">No purchase samples</span>
+                                ) : g ? (
+                                  fmtConv2(rv.ref)
+                                ) : (
+                                  '—'
+                                )}
+                              </div>
+                              {refChip ? (
+                                <span className="rounded bg-slate-100 px-1 py-0.5 text-[10px] font-semibold text-slate-600 tabular-nums">
+                                  {refChip}
+                                </span>
+                              ) : null}
+                            </div>
                             {!sheet?.isStoneCoatedWorkbook && g ? (
                               <p className="text-ui-xs text-slate-400 mt-0.5">Purchases {lookbackDays}d</p>
                             ) : null}
                           </td>
                           <td className="px-2 py-1.5 align-top">
-                            <div className={cell}>{g ? fmtConv2(rv.hist) : '—'}</div>
+                            <div className="flex flex-wrap items-center gap-1">
+                              <div className={cell}>
+                                {histEmpty ? (
+                                  <span className="font-sans text-[10px] text-slate-500 normal-nums">No production samples</span>
+                                ) : g ? (
+                                  fmtConv2(rv.hist)
+                                ) : (
+                                  '—'
+                                )}
+                              </div>
+                              {histChip ? (
+                                <span className="rounded bg-slate-100 px-1 py-0.5 text-[10px] font-semibold text-slate-600 tabular-nums">
+                                  {histChip}
+                                </span>
+                              ) : null}
+                            </div>
                             {!sheet?.isStoneCoatedWorkbook && g ? (
                               <p className="text-ui-xs text-slate-400 mt-0.5">Production {lookbackDays}d</p>
                             ) : null}
@@ -1477,7 +2036,17 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                                   onChange={(e) => updateLineDraft(line.key, { conversionUsedKgPerM: e.target.value })}
                                   disabled={!g}
                                 />
-                                <p className="text-ui-xs text-slate-400 mt-0.5">Override avg (kg/m)</p>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                                  <p className="text-ui-xs text-slate-400">Override avg (kg/m)</p>
+                                  {g ? (
+                                    <span
+                                      className={`rounded px-1 py-0.5 text-[10px] font-bold uppercase tracking-wide ${confidenceBadgeClass(usedConf)}`}
+                                      title="Confidence from Ref/Hist sample depth and Std: None / Low / Medium / High"
+                                    >
+                                      {confidenceLabel(usedConf)}
+                                    </span>
+                                  ) : null}
+                                </div>
                               </>
                             )}
                           </td>
@@ -1498,8 +2067,28 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                               onChange={(e) => updateLineDraft(line.key, { profitNgnPerM: e.target.value })}
                             />
                           </td>
-                          <td className="px-2 py-1.5 font-mono text-xs font-semibold text-zarewa-teal tabular-nums">
-                            {displaySug == null ? '—' : formatNgn(displaySug)}
+                          <td className="px-2 py-1.5 align-top">
+                            <div className="font-mono text-xs font-semibold text-zarewa-teal tabular-nums">
+                              {displaySug == null ? '—' : formatNgn(displaySug)}
+                            </div>
+                            {!sheet?.isStoneCoatedWorkbook && (costMRounded != null || displaySug != null || minimumNgn > 0 || listNgn > 0) ? (
+                              <p
+                                className={`mt-0.5 text-[10px] leading-snug ${
+                                  floorBelowSuggested ? 'text-amber-700 font-semibold' : 'text-slate-400'
+                                }`}
+                                title={
+                                  floorBelowSuggested
+                                    ? 'Floor is below Suggested — check margin'
+                                    : 'Price waterfall'
+                                }
+                              >
+                                {costMRounded != null ? formatNgn(costMRounded) : '—'} →{' '}
+                                {displaySug != null ? formatNgn(displaySug) : '—'} →{' '}
+                                {minimumNgn > 0 ? formatNgn(minimumNgn) : '—'} →{' '}
+                                {listNgn > 0 ? formatNgn(listNgn) : '—'}
+                                {floorBelowSuggested ? ' ⚠' : ''}
+                              </p>
+                            ) : null}
                           </td>
                           <td className="px-2 py-1.5">
                             <input
@@ -1522,21 +2111,23 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                             {listNgn > 0 ? formatNgn(listNgn) : '—'}
                           </td>
                           <td className="px-2 py-1.5 align-top space-y-1">
-                            <label className="flex items-center gap-1 text-ui-xs text-slate-600 whitespace-nowrap">
+                            <label
+                              className="flex items-center gap-1 text-ui-xs text-slate-600 whitespace-nowrap"
+                              title="Include in next Publish to price list"
+                            >
                               <input
                                 type="checkbox"
                                 checked={Boolean(dr.syncMinimumToPriceList)}
                                 onChange={(e) => {
                                   const checked = e.target.checked;
                                   const patch = { syncMinimumToPriceList: checked };
-                                  // Auto-fill design key so sync never silently fails on a blank field.
                                   if (checked && !String(dr.syncDesignKey ?? '').trim() && materialKey !== 'stone-coated') {
                                     patch.syncDesignKey = 'longspan';
                                   }
                                   updateLineDraft(line.key, patch);
                                 }}
                               />
-                              Sync list
+                              Include
                             </label>
                             <input
                               className={`${inp} text-ui-xs`}
@@ -1547,9 +2138,18 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                             />
                             {listNgn > 0 && !dr.syncMinimumToPriceList ? (
                               <p className="text-ui-xs text-emerald-700 font-semibold">
-                                ✓ list ₦/m set — tick Sync list to push to floor
+                                ✓ list set — tick Include to publish
                               </p>
                             ) : null}
+                          </td>
+                          <td className="px-2 py-1.5 align-top">
+                            <input
+                              className={`${inp} font-sans min-w-[88px]`}
+                              placeholder="Notes"
+                              title="Draft notes for this gauge line"
+                              value={dr.notes ?? ''}
+                              onChange={(e) => updateLineDraft(line.key, { notes: e.target.value })}
+                            />
                           </td>
                         </tr>
                       );
@@ -1561,121 +2161,149 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
 
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
               <h3 className="text-ui-xs font-black uppercase text-zarewa-teal mb-2">Price change log</h3>
-              {events.length === 0 ? (
-                <p className="text-xs text-slate-500">No changes recorded for this material yet.</p>
-              ) : (
+              {(() => {
+                const branchEvents = (events || []).filter(
+                  (ev) => !branchId || !ev.branchId || String(ev.branchId) === String(branchId)
+                );
+                if (branchEvents.length === 0) {
+                  return <p className="text-xs text-slate-500">No changes recorded for this material/branch yet.</p>;
+                }
+                return (
                 <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {events.map((ev) => {
+                  {branchEvents.map((ev) => {
                     const snap = ev.payload?.after || {};
                     const when = ev.changedAtIso ? new Date(ev.changedAtIso).toLocaleString() : '';
+                    const actor =
+                      ev.changedByDisplayName ||
+                      ev.actorDisplayName ||
+                      ev.changedByUserId ||
+                      ev.actorUserId ||
+                      '';
+                    const evBranch = branches.find((b) => b.id === ev.branchId);
+                    const evBranchLabel = evBranch?.name || evBranch?.code || ev.branchId || '';
+                    const actionLabel = String(ev.action || 'upsert').replace(/^pricing\.material_sheet_/, '');
                     return (
                       <li
                         key={ev.id}
                         className="text-ui-xs text-slate-700 border-b border-slate-200/80 pb-2 last:border-0 leading-snug"
                       >
                         <span className="font-bold text-slate-900">{when}</span>
+                        {actor ? (
+                          <>
+                            {' · '}
+                            <span className="font-semibold text-slate-800">{actor}</span>
+                          </>
+                        ) : null}
                         {' · '}
-                        <span className="font-mono">{ev.branchId}</span> · gauge {ev.gaugeMm} mm
+                        <span className="uppercase tracking-wide text-slate-500">{actionLabel}</span>
+                        {evBranchLabel ? (
+                          <>
+                            {' · '}
+                            <span>{evBranchLabel}</span>
+                          </>
+                        ) : null}
+                        {' · gauge '}
+                        {ev.gaugeMm} mm
                         {snap.minimumPricePerMeterNgn != null ? (
                           <>
                             {' '}
-                            · min <span className="font-mono">₦{formatNgn(snap.minimumPricePerMeterNgn)}</span>/m
+                            · min <span className="font-mono">{formatNgn(snap.minimumPricePerMeterNgn)}</span>/m
                           </>
                         ) : null}
                         {snap.suggestedPricePerMeterNgn != null ? (
                           <>
                             {' '}
                             · suggested{' '}
-                            <span className="font-mono">₦{formatNgn(snap.suggestedPricePerMeterNgn)}</span>/m
+                            <span className="font-mono">{formatNgn(snap.suggestedPricePerMeterNgn)}</span>/m
                           </>
                         ) : null}
                       </li>
                     );
                   })}
                 </ul>
-              )}
+                );
+              })()}
             </div>
             </>
           )}
         </div>
       </div>
+  );
 
-      {printPreview && printPack ? (
-      <PrintModalPortal
-        open
-        onClose={() => {
-          setPrintPreview(null);
-          setPrintPack(null);
-        }}
-        className={
-          printPreview === 'customer'
-            ? 'bg-slate-400/35 py-8 sm:py-14 px-4 sm:px-10'
-            : ''
-        }
-      >
-              <div
-                className={
-                  printPreview === 'customer'
-                    ? 'mx-auto flex w-full max-w-[calc(210mm+4rem)] flex-col items-center justify-center pb-20 print:pb-0'
-                    : 'mx-auto max-w-[min(1000px,100%)] pb-16 print:pb-0'
-                }
+  if (isPage) {
+    if (!canAccessWorkbook) {
+      return (
+        <PageShell>
+          <PageHeader
+            eyebrow="Procurement"
+            title="Material pricing workbook"
+            subtitle="Pricing desk access is limited to Pricing Managers and MD price-exception approvers."
+            toolbar={
+              <Link
+                to="/procurement"
+                state={{ focusTab: 'conversion' }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
-                <div
-                  id="workbook-print-root"
-                  className={
-                    printPreview === 'customer'
-                      ? 'box-border w-[210mm] max-w-full min-h-[297mm] shrink-0 rounded-sm border border-slate-500/40 bg-white shadow-2xl print:min-h-0 print:w-full print:max-w-full print:rounded-none print:border-0 print:shadow-none'
-                      : 'rounded-lg border border-slate-200 bg-white p-4 shadow-2xl print:rounded-none print:border-0 print:shadow-none print:p-0'
-                  }
-                >
-                  {printPreview === 'official' ? (
-                    <MaterialWorkbookOfficialPrintView
-                      sheets={printPack.sheets}
-                      branchName={String(branchName || branchId)}
-                      effectiveDateLabel={effectiveDateLabel}
-                      lookbackDays={lookbackDays}
-                      accessories={printPack.accessories}
-                      ridgeAddOns={printPack.ridgeAddOns}
-                    />
-                  ) : (
-                    <MaterialWorkbookCustomerPrintView
-                      sheets={printPack.sheets}
-                      branchName={String(branchName || branchId)}
-                      effectiveDateLabel={effectiveDateLabel}
-                      accessories={printPack.accessories}
-                      ridgeAddOns={printPack.ridgeAddOns}
-                    />
-                  )}
-                </div>
-                <div id="workbook-print-actions" className="mt-4 flex flex-col items-center gap-2">
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => window.print()}
-                      className="rounded-lg bg-zarewa-teal px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-white shadow-lg"
-                    >
-                      Print…
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPrintPreview(null);
-                        setPrintPack(null);
-                      }}
-                      className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-700"
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <p className="text-center text-ui-xs text-slate-500 max-w-md">
-                    {printPreview === 'customer'
-                      ? 'Customer sheet shows only gauges with a published list price (floor + commission).'
-                      : 'Internal sheet includes full cost build-up for all gauges.'}
-                  </p>
-                </div>
-              </div>
-      </PrintModalPortal>
-      ) : null}
-    </ModalFrame>
+                <ArrowLeft size={14} aria-hidden />
+                Back to Procurement
+              </Link>
+            }
+          />
+          <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 p-5 sm:p-6 max-w-xl space-y-3">
+            <p className="text-sm text-amber-950 leading-relaxed">
+              This workbook is locked for your role. Ask a <strong>Pricing Manager</strong> (or an MD price-exception
+              approver) if you need to edit floors or publish selling prices.
+            </p>
+            <Link to="/procurement" state={{ focusTab: 'conversion' }} className="z-btn-primary inline-flex text-xs">
+              Return to Procurement
+            </Link>
+          </div>
+        </PageShell>
+      );
+    }
+    return (
+      <PageShell>
+        <PageHeader
+          eyebrow="Procurement"
+          title="Material pricing workbook"
+          subtitle="Build floors from Std / Ref / Hist, save drafts, then publish to the price list."
+          toolbar={
+            <button
+              type="button"
+              onClick={() => void requestBackToProcurement()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <ArrowLeft size={14} aria-hidden />
+              Back to Pricing
+            </button>
+          }
+        />
+        {workbookPanel}
+        {publishPreviewModal}
+        {printPortal}
+      </PageShell>
+    );
+  }
+
+  return (
+    <>
+      <ModalFrame isOpen={open} onClose={() => void requestClose()} modal={!printPreview && !publishPreviewOpen}>
+        {workbookPanel}
+      </ModalFrame>
+      {publishPreviewModal}
+      {printPortal}
+    </>
+  );
+}
+
+/** Thin modal wrapper — prefer `MaterialPricingWorkbook` with `mode="page"` for the full desk. */
+export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey = 'alu' }) {
+  return (
+    <MaterialPricingWorkbook
+      mode="modal"
+      open={open}
+      onClose={onClose}
+      initialMaterialKey={initialMaterialKey}
+    />
   );
 }

@@ -150,8 +150,13 @@ export function QuotationPriceExceptionPanel({
         {violations.map((v, i) => (
           <li key={i}>
             <span className="font-semibold capitalize">{v.lineCategory || 'line'}</span> #{Number(v.lineIndex) + 1}:{' '}
-            {v.code === 'below_floor' ? 'Below workbook floor' : 'Below trading band'} — quoted{' '}
-            {formatNgn(v.quotedPerMeter)}/m; minimum {formatNgn(v.minAllowedPerMeter ?? v.floorPerMeter)}/m
+            {v.code === 'below_floor'
+              ? v.trimWorkbook || v.priceBasis === 'published_list_plus_ridge'
+                ? 'Below trim list price'
+                : 'Below workbook floor'
+              : 'Below trading band'}{' '}
+            — quoted {formatNgn(v.quotedPerMeter)}/m; minimum{' '}
+            {formatNgn(v.minAllowedPerMeter ?? v.minimumPerMeter ?? v.floorPerMeter)}/m
           </li>
         ))}
       </ul>

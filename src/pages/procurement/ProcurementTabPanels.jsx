@@ -35,6 +35,7 @@ import { PriceListPanel } from '../../components/procurement/PriceListPanel';
 import { useProcurementPage } from './ProcurementPageContext.jsx';
 import { ProcurementPayableRow } from './ProcurementPayableRow.jsx';
 import { ProcurementTransportAgentsAside } from './ProcurementTransportAgentsAside.jsx';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   TAB_LABELS,
   PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
@@ -48,6 +49,8 @@ import {
 } from './procurementTabShared.js';
 
 export function ProcurementTabPanels() {
+  const ws = useWorkspace();
+  const canManageSettings = Boolean(ws?.hasPermission?.('settings.manage') || ws?.hasPermission?.('*'));
   const {
     activeTab,
     setActiveTab,
@@ -116,7 +119,6 @@ export function ProcurementTabPanels() {
     standardPhysicsKgPerM,
     standardEffectiveKgPerM,
     stdOverrideKgPerM,
-    setShowMaterialPricingWorkbook,
   } = useProcurementPage();
 
   const [showStandardConversionModal, setShowStandardConversionModal] = useState(false);
@@ -692,18 +694,21 @@ export function ProcurementTabPanels() {
                           </h2>
                           <p className="text-ui-xs text-slate-600 leading-relaxed max-w-2xl">
                             Build floor and list prices from Std / Ref / Hist conversion, cost per kg, overhead,
-                            profit, and commission — then sync published floors to the price list used on quotations.
+                            profit, and commission — then publish floors to the price list used on quotations.
+                          </p>
+                          <p className="text-ui-xs text-slate-500 leading-snug pt-1">
+                            Density/Catalog → Std · Purchases → Ref · Production → Hist · Workbook → Floor ·
+                            Publish → List → Quotes
                           </p>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => setShowMaterialPricingWorkbook(true)}
+                          <Link
+                            to="/procurement/pricing"
                             className="z-btn-primary inline-flex items-center justify-center gap-2 py-3 px-5 text-xs"
                           >
                             <BookOpen className="size-4" aria-hidden />
                             Open pricing workbook
-                          </button>
+                          </Link>
                           <button
                             type="button"
                             onClick={() => setShowStandardConversionModal(true)}
@@ -714,12 +719,20 @@ export function ProcurementTabPanels() {
                           </button>
                         </div>
                       </div>
+                      {!canManageSettings ? (
+                        <p className="mt-3 text-ui-xs text-amber-800 bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2 leading-relaxed">
+                          Saving density / standard conversion overrides needs a <strong>Settings Manager</strong> role.
+                          You can still open the workbook and view density tables.
+                        </p>
+                      ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-slate-200/90 bg-white/90 shadow-sm p-4 sm:p-5 min-w-0 flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-ui-xs text-slate-600 leading-relaxed max-w-xl">
-                        Density-based standard kg/m for production conversion checks. Pricing workbook requires{' '}
-                        <span className="font-mono">pricing.manage</span>.
+                    <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 shadow-sm p-4 sm:p-5 min-w-0 space-y-3">
+                      <p className="text-ui-xs text-amber-950 leading-relaxed max-w-2xl">
+                        Pricing workbook is locked. You need a <strong>Pricing Manager</strong> or{' '}
+                        <strong>MD price-exception approver</strong> role to open the workbook and publish selling
+                        prices. Density tables remain available for production conversion checks
+                        {canManageSettings ? '' : ' (saving density needs a Settings Manager)'}.
                       </p>
                       <button
                         type="button"
@@ -734,10 +747,12 @@ export function ProcurementTabPanels() {
 
                   {canAccessPriceList ? (
                     <div className="rounded-xl border border-slate-200/90 bg-white/90 shadow-sm p-4 sm:p-5 min-w-0 flex flex-col">
-                      <ProcurementFormSection letter="P" title="Published price list (minimum ₦/m)" compact>
+                      <ProcurementFormSection title="Published selling prices (list ₦/m)" compact>
                         <p className="text-ui-xs text-slate-600 mb-3 leading-relaxed">
-                          Floors synced from the workbook (or entered here). Quotations below list need an MD price
-                          exception before production can proceed.
+                          Selling list ₦/m published from the workbook (primary path) or entered here. Quotations below
+                          the workbook <strong className="text-slate-800">floor</strong> (minimum ₦/m) need an MD price
+                          exception before cutting list, production, or refunds — selling below list but at/above floor
+                          is allowed.
                         </p>
                         <PriceListPanel embedded />
                       </ProcurementFormSection>
@@ -895,8 +910,13 @@ export function ProcurementTabPanels() {
                         <div className="flex flex-wrap gap-2 pt-1">
                           <button
                             type="submit"
-                            disabled={standardConversionSaving || !wsCanMutate}
+                            disabled={standardConversionSaving || !wsCanMutate || !canManageSettings}
                             className="z-btn-primary justify-center py-2.5 px-4 text-xs disabled:opacity-50"
+                            title={
+                              !canManageSettings
+                                ? 'Requires settings.manage to save density overrides'
+                                : undefined
+                            }
                           >
                             {standardConversionSaving ? 'Saving…' : 'Save standard conversion'}
                           </button>

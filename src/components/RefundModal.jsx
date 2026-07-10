@@ -1526,6 +1526,37 @@ const RefundModal = ({
       );
       return;
     }
+
+    const economicFloor = lastPreviewSnapshot?.economicFloor;
+    const maxDefensible =
+      economicFloor?.maxDefensibleRefundNgn != null
+        ? Math.round(Number(economicFloor.maxDefensibleRefundNgn))
+        : null;
+    if (
+      maxDefensible != null &&
+      Number.isFinite(maxDefensible) &&
+      amountNgn > maxDefensible + AMOUNT_LINE_TOL
+    ) {
+      const msg = `Refund amount (₦${amountNgn.toLocaleString(
+        'en-NG'
+      )}) exceeds the economic floor cap (₦${maxDefensible.toLocaleString(
+        'en-NG'
+      )}) after produced metres at workbook minimum ₦/m.`;
+      showToast(msg, { variant: 'error' });
+      setPreviewError(msg);
+      return;
+    }
+    if (
+      economicFloor?.incompleteFloorPricing &&
+      Number(economicFloor.producedOutputMeters || 0) > 0.001
+    ) {
+      const msg =
+        'Workbook floor ₦/m could not be resolved for all produced jobs. Resolve material workbook pricing or escalate to MD/CEO before creating this refund.';
+      showToast(msg, { variant: 'error' });
+      setPreviewError(msg);
+      return;
+    }
+
     const overpayMax = moneyContext?.overpaymentExcessNgn ?? 0;
     const overpayLine = (form.calculationLines || []).find(
       (l) => l.include !== false && String(l.category || '').trim() === 'Overpayment'
@@ -3201,7 +3232,12 @@ const RefundModal = ({
                             </p>
                             {lastPreviewSnapshot.economicFloor.incompleteFloorPricing ? (
                               <p className="text-ui-xs text-amber-400/90 mt-1">
-                                Floor ₦/m could not be resolved for all jobs — verify workbook pricing manually.
+                                Floor ₦/m could not be resolved for all jobs — create is blocked until workbook pricing is fixed (MD/admin may override on server).
+                              </p>
+                            ) : null}
+                            {lastPreviewSnapshot.economicFloor.usedPriceListFallback ? (
+                              <p className="text-ui-xs text-slate-400 mt-1">
+                                Some rates from published list (workbook floor missing).
                               </p>
                             ) : null}
                           </div>

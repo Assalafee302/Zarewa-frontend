@@ -69,6 +69,7 @@ import {
   materialKeyFromMaterialTypeRow,
   resolveMaterialWorkbookPriceFromRows,
 } from '../lib/materialWorkbookQuotationPrice';
+import { selectPriceListRowsAsOf, localCalendarDateIso } from '../lib/pricingAsOf';
 import {
   defaultGirthMmForTrimProduct,
   isQuotationTrimProductLine,
@@ -873,7 +874,7 @@ const QuotationModal = ({
   const [materialGauge, setMaterialGauge] = useState('');
   const [materialColor, setMaterialColor] = useState('');
   const [materialDesign, setMaterialDesign] = useState('');
-  const [quoteDate, setQuoteDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [quoteDate, setQuoteDate] = useState(() => localCalendarDateIso());
   const [projectName, setProjectName] = useState('');
   const [showPrint, setShowPrint] = useState(false);
   const [printDocumentKind, setPrintDocumentKind] = useState('quotation');
@@ -885,9 +886,14 @@ const QuotationModal = ({
   const [mdApproving, setMdApproving] = useState(false);
   const [quotationEditApprovalId, setQuotationEditApprovalId] = useState('');
   const liveMasterData = ws?.snapshot?.masterData ?? null;
-  const priceListItems = useMemo(
+  const priceListItemsAll = useMemo(
     () => (Array.isArray(ws?.snapshot?.priceListItems) ? ws.snapshot.priceListItems : []),
     [ws?.snapshot?.priceListItems]
+  );
+  /** Published list as-of quote date (matches server gates / refunds). */
+  const priceListItems = useMemo(
+    () => selectPriceListRowsAsOf(priceListItemsAll, quoteDate),
+    [priceListItemsAll, quoteDate]
   );
   const materialPricingRows = useMemo(
     () => (Array.isArray(ws?.snapshot?.materialPricingRows) ? ws.snapshot.materialPricingRows : []),
@@ -1402,17 +1408,8 @@ const QuotationModal = ({
 
       const usesWorkbook = productUsesWorkbookAutoPrice(name);
 
-      if (usesWorkbook) {
-        const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
-          materialKey,
-          gaugeMm: materialGauge,
-          branchId,
-          designLabel: materialDesign,
-        });
-        if (hit?.suggestedListPerMeter > 0) return hit.suggestedListPerMeter;
-      }
-
-      let workbookN = 0;
+      // Prefer published price list (Publish path) over draft workbook suggested list.
+      let publishedListN = 0;
       if (usesWorkbook && priceListItems.length > 0) {
         const gaugeK = gaugeMmKeyFromQuotationGauge(materialGauge);
         const designK = pricingNormKey(materialDesign);
@@ -1447,7 +1444,20 @@ const QuotationModal = ({
             bestN = n;
           }
         }
-        workbookN = bestScore > 0 ? bestN : 0;
+        publishedListN = bestScore > 0 ? bestN : 0;
+      }
+
+      if (publishedListN > 0) return publishedListN;
+
+      // Fallback only when no published list row exists (legacy / unpublished branch).
+      if (usesWorkbook) {
+        const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
+          materialKey,
+          gaugeMm: materialGauge,
+          branchId,
+          designLabel: materialDesign,
+        });
+        if (hit?.suggestedListPerMeter > 0) return hit.suggestedListPerMeter;
       }
 
       const matches = priceListRows
@@ -1467,10 +1477,7 @@ const QuotationModal = ({
             [row.gaugeId, row.colourId, row.materialTypeId, row.profileId].filter(Boolean).length;
           return score(b) - score(a);
         });
-      const setupN = matches[0]?.unitPriceNgn || option?.defaultUnitPriceNgn || 0;
-
-      if (workbookN > 0) return workbookN;
-      return setupN;
+      return matches[0]?.unitPriceNgn || option?.defaultUnitPriceNgn || 0;
     },
     [
       materialPricingRows,
@@ -1532,6 +1539,8 @@ const QuotationModal = ({
     materialPricingRows,
     ridgeAddOnsEffective,
     quotationBranchId,
+    quoteDate,
+    priceListItems,
     refreshWorkbookProductPrices,
   ]);
 
@@ -1559,12 +1568,15 @@ const QuotationModal = ({
   const validateProductWorkbookFloors = useCallback(() => {
     if (quotationBelowFloorExceptionApproved(editData)) return null;
     const blocked = [];
+    const branchId = quotationBranchId;
+    if (!branchId) return null;
     for (const row of productRows) {
-      if (!isMeterSheetProductLine(row.name)) continue;
+      // Include cladding + meter sheet; trims use separate list-basis checks on the server.
+      if (!productUsesWorkbookAutoPrice(row.name) || isQuotationTrimProductLine(row.name)) continue;
       const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
         materialKey: priceListMaterialKeyFromMeta(selectedMaterialTypeMeta),
         gaugeMm: materialGauge,
-        branchId: String(editData?.branchId ?? '').trim(),
+        branchId,
         designLabel: materialDesign,
       });
       const floor = hit?.floorPerMeter;
@@ -1582,6 +1594,7 @@ const QuotationModal = ({
     selectedMaterialTypeMeta,
     materialGauge,
     materialDesign,
+    quotationBranchId,
   ]);
 
   useEffect(() => {
@@ -1611,7 +1624,7 @@ const QuotationModal = ({
       if (ok) return prev;
       return list[0] ? String(list[0].id) : '';
     });
-    setQuoteDate(editData?.dateISO ?? new Date().toISOString().slice(0, 10));
+    setQuoteDate(editData?.dateISO ?? localCalendarDateIso());
     setMaterialTypeId(editData?.materialTypeId ?? '');
     setMaterialGauge(editData?.materialGauge ?? '');
     setMaterialColor(editData?.materialColor ?? '');
@@ -1800,7 +1813,7 @@ const QuotationModal = ({
   );
 
   const applyAdvanceDateISO = useMemo(
-    () => String(editData?.dateISO || new Date().toISOString().slice(0, 10)),
+    () => String(editData?.dateISO || localCalendarDateIso()),
     [editData?.dateISO]
   );
   const periodLocks = useMemo(() => ws?.snapshot?.periodLocks ?? [], [ws?.snapshot?.periodLocks]);
@@ -2145,8 +2158,8 @@ const QuotationModal = ({
           });
           if (!ok || !data?.ok) {
             showToast(
-              data?.code === 'quotation_below_workbook_floor'
-                ? data.error
+              data?.code === 'PRICE_LIST_MD_APPROVAL_REQUIRED' || data?.code === 'BELOW_FLOOR_MD_APPROVAL_REQUIRED'
+                ? data.error || 'Below workbook floor — MD price exception required.'
                 : quotationRulesErrorMessage(data) || data?.error || 'Could not update quotation.',
               { variant: 'error' }
             );
@@ -2186,8 +2199,8 @@ const QuotationModal = ({
           }
           if (!ok || !data?.ok) {
             showToast(
-              data?.code === 'quotation_below_workbook_floor'
-                ? data.error
+              data?.code === 'PRICE_LIST_MD_APPROVAL_REQUIRED' || data?.code === 'BELOW_FLOOR_MD_APPROVAL_REQUIRED'
+                ? data.error || 'Below workbook floor — MD price exception required.'
                 : quotationRulesErrorMessage(data) || data?.error || 'Could not create quotation.',
               { variant: 'error' }
             );
@@ -2391,13 +2404,15 @@ const QuotationModal = ({
                   <li key={i}>
                     <span className="font-semibold capitalize">{v.lineCategory || 'line'}</span> #{Number(v.lineIndex) + 1}:{' '}
                     {v.code === 'below_floor'
-                      ? v.lineCategory === 'products'
-                        ? 'Below workbook floor'
-                        : 'Below list floor'
+                      ? v.trimWorkbook || v.priceBasis === 'published_list_plus_ridge'
+                        ? 'Below trim list price'
+                        : v.lineCategory === 'products'
+                          ? 'Below workbook floor'
+                          : 'Below list floor'
                       : 'Below allowed band (quoted deeper than recommended − trading band)'}{' '}
                     — quoted{' '}
                     {formatNgn(v.quotedPerMeter)}/m; minimum without exception{' '}
-                    {formatNgn(v.minAllowedPerMeter ?? v.floorPerMeter)}/m (floor {formatNgn(v.floorPerMeter)}/m, trading band ₦
+                    {formatNgn(v.minAllowedPerMeter ?? v.minimumPerMeter ?? v.floorPerMeter)}/m (floor {formatNgn(v.floorPerMeter)}/m, trading band ₦
                     {v.bandNgn ?? '—'}).
                   </li>
                 ))}

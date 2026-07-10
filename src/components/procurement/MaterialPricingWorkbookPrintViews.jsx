@@ -221,8 +221,11 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
                       const comm = Math.max(0, Number(row?.commissionNgnPerM) || 0);
                       const listP = listPriceFromRow(row);
                       return (
-                        <tr key={g}>
+                        <tr key={`${g}-${String(row.designKey || '')}`}>
                           <td className="border border-slate-200 px-2 py-1 font-bold whitespace-nowrap">{g} mm</td>
+                          <td className="border border-slate-200 px-2 py-1 whitespace-nowrap">
+                            {customerGaugeDisplayLabel(row) || '—'}
+                          </td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">{fmtConv2(rv.std)}</td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">{fmtConv2(rv.ref)}</td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">{fmtConv2(rv.hist)}</td>

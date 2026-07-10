@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Download, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
@@ -33,7 +34,7 @@ function isValidYyyyMmDd(s) {
 }
 
 /**
- * Price list CRUD (₦/m by gauge + design). Used on /price-list and embedded under Procurement → Conversion.
+ * Price list CRUD (₦/m by gauge + design). Used on /price-list and embedded under Procurement → Pricing.
  * @param {{ embedded?: boolean }} props
  */
 export function PriceListPanel({ embedded = false }) {
@@ -44,10 +45,20 @@ export function PriceListPanel({ embedded = false }) {
   const [form, setForm] = useState(emptyForm);
   const [listTab, setListTab] = useState(/** @type {'coil' | 'stone'} */ ('coil'));
   const [viewAsAtIso, setViewAsAtIso] = useState('');
+  const [debouncedAsAtIso, setDebouncedAsAtIso] = useState('');
   const [loadedAsAtIso, setLoadedAsAtIso] = useState('');
+  /** Embedded Pricing hub: hide manual add until explicitly opened. */
+  const [showAdvancedManual, setShowAdvancedManual] = useState(!embedded);
 
-  const canManage = ws?.hasPermission?.('pricing.manage');
-  const canView = ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('md.price_exception.approve');
+  const canManage = Boolean(ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('*'));
+  const canView = Boolean(
+    canManage || ws?.hasPermission?.('md.price_exception.approve') || ws?.hasPermission?.('*')
+  );
+
+  const branches = useMemo(
+    () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
+    [ws?.snapshot?.workspaceBranches, ws?.session?.branches]
+  );
 
   const masterData = ws?.snapshot?.masterData;
   const gaugeOptions = useMemo(
@@ -80,9 +91,14 @@ export function PriceListPanel({ embedded = false }) {
   const dlColour = useId();
   const dlProfile = useId();
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedAsAtIso(viewAsAtIso), 350);
+    return () => clearTimeout(t);
+  }, [viewAsAtIso]);
+
   const load = useCallback(async () => {
     setBusy(true);
-    const asAt = String(viewAsAtIso || '').trim();
+    const asAt = String(debouncedAsAtIso || '').trim();
     const qs = asAt && isValidYyyyMmDd(asAt) ? `?asAtIso=${encodeURIComponent(asAt)}` : '';
     const { ok, data } = await apiFetch(`/api/pricing/price-list${qs}`);
     setBusy(false);
@@ -90,7 +106,7 @@ export function PriceListPanel({ embedded = false }) {
       setItems(data.items || []);
       setLoadedAsAtIso(data.pricingAsAtIso || (asAt && isValidYyyyMmDd(asAt) ? asAt : ''));
     } else setItems([]);
-  }, [viewAsAtIso]);
+  }, [debouncedAsAtIso]);
 
   useEffect(() => {
     if (!canView) return;
@@ -108,7 +124,7 @@ export function PriceListPanel({ embedded = false }) {
   if (!canView) {
     return (
       <p className={embedded ? 'text-ui-xs text-slate-500' : 'text-sm text-slate-600'}>
-        Price list is available to pricing managers and MD price-exception approvers.
+        Price list is available to Pricing Managers and MD price-exception approvers.
       </p>
     );
   }
@@ -173,7 +189,14 @@ export function PriceListPanel({ embedded = false }) {
   };
 
   const del = async (id) => {
-    if (!canManage || !(await appConfirm({ message: 'Delete this price list row?', variant: 'danger' }))) return;
+    if (!canManage) return;
+    const okConfirm = await appConfirm({
+      message:
+        'Permanently delete this published selling price (list)? Prefer publishing a new workbook price instead when possible. This cannot be undone.',
+      variant: 'danger',
+      confirmLabel: 'Delete list price',
+    });
+    if (!okConfirm) return;
     setBusy(true);
     const { ok, data } = await apiFetch(`/api/pricing/price-list/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -183,7 +206,7 @@ export function PriceListPanel({ embedded = false }) {
       showToast(data?.error || 'Could not delete.', { variant: 'error' });
       return;
     }
-    showToast('Deleted.');
+    showToast('Published selling price deleted.');
     void load();
   };
 
@@ -200,7 +223,7 @@ export function PriceListPanel({ embedded = false }) {
 
   const exportCsv = async () => {
     try {
-      const asAt = String(viewAsAtIso || '').trim();
+      const asAt = String(debouncedAsAtIso || '').trim();
       const qs = asAt && isValidYyyyMmDd(asAt) ? `?asAtIso=${encodeURIComponent(asAt)}` : '';
       const r = await fetch(apiUrl(`/api/pricing/price-list/export.csv${qs}`), { credentials: 'include' });
       if (!r.ok) throw new Error('Could not download CSV.');
@@ -222,7 +245,7 @@ export function PriceListPanel({ embedded = false }) {
 
   return (
     <div className={embedded ? 'space-y-3' : 'space-y-0'}>
-      {canManage ? (
+      {(canManage || embedded) ? (
         <div className={`flex flex-wrap gap-2 ${embedded ? 'mb-2' : 'mb-3'}`}>
           <button
             type="button"
@@ -297,16 +320,39 @@ export function PriceListPanel({ embedded = false }) {
             : 'text-xs text-slate-600 leading-relaxed mb-4 max-w-3xl'
         }
       >
-        Each row must be unique on gauge, design, branch, effective date, and optional material / colour / profile keys.
-        Leave <strong className="text-slate-700">Effective from</strong> blank to use today&apos;s date. Use{' '}
-        <strong className="text-slate-700">View as at</strong> to print or export a historical price period; refunds and
-        substitution use the quotation date to pick the matching period.
+        {embedded ? (
+          <>
+            View published selling prices here. Prefer{' '}
+            <strong className="text-slate-700">Publish from the pricing workbook</strong> as the primary path.
+            Manual add is for exceptions only.
+          </>
+        ) : (
+          <>
+            Each row must be unique on gauge, design, branch, effective date, and optional material / colour / profile
+            keys. Leave <strong className="text-slate-700">Effective from</strong> blank to use today&apos;s date. Use{' '}
+            <strong className="text-slate-700">View as at</strong> to print or export a historical price period; refunds
+            and substitution use the quotation date to pick the matching period.
+          </>
+        )}
       </p>
 
-      {canManage ? (
+      {canManage && embedded ? (
+        <div className="mb-2">
+          <button
+            type="button"
+            onClick={() => setShowAdvancedManual((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+          >
+            <Plus size={12} />
+            {showAdvancedManual ? 'Hide advanced manual floor' : 'Advanced manual floor'}
+          </button>
+        </div>
+      ) : null}
+
+      {canManage && showAdvancedManual ? (
         <form onSubmit={submit} className={formWrap}>
           <h2 className={embedded ? 'text-ui-xs font-black uppercase text-zarewa-teal' : 'text-xs font-black uppercase text-zarewa-teal'}>
-            Add or update row
+            {embedded ? 'Advanced: add or update floor manually' : 'Add or update row'}
           </h2>
           <div className={`grid gap-3 ${embedded ? 'sm:grid-cols-2' : 'gap-4 sm:grid-cols-2 lg:grid-cols-3'}`}>
             <label className={labelCls}>
@@ -369,20 +415,35 @@ export function PriceListPanel({ embedded = false }) {
             </label>
             <label className={labelCls}>
               Branch (optional)
-              <input
-                className={inp}
-                value={form.branchId}
-                onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
-                placeholder="Blank = all branches"
-              />
+              {branches.length > 0 ? (
+                <select
+                  className={inp}
+                  value={form.branchId}
+                  onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
+                >
+                  <option value="">All branches</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name || b.code || b.id}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className={inp}
+                  value={form.branchId}
+                  onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
+                  placeholder="Blank = all branches"
+                />
+              )}
             </label>
             <label className={labelCls}>
-              Effective from (YYYY-MM-DD)
+              Effective from
               <input
+                type="date"
                 className={inp}
                 value={form.effectiveFromIso}
                 onChange={(e) => setForm((f) => ({ ...f, effectiveFromIso: e.target.value }))}
-                placeholder="Blank = today"
               />
             </label>
             <label className={labelCls}>
@@ -453,11 +514,11 @@ export function PriceListPanel({ embedded = false }) {
             Save row
           </button>
         </form>
-      ) : (
+      ) : !canManage ? (
         <p className={embedded ? 'text-ui-xs text-slate-600' : 'mb-6 text-sm text-slate-600'}>
-          You can view the list; only pricing managers can edit.
+          You can view the list; only Pricing Managers can edit.
         </p>
-      )}
+      ) : null}
 
       <div className={tableWrap}>
         <table className={`min-w-full border-collapse text-left ${embedded ? 'text-sm' : 'text-sm'}`}>
@@ -478,7 +539,16 @@ export function PriceListPanel({ embedded = false }) {
             {displayItems.length === 0 ? (
               <tr>
                 <td colSpan={9} className={`${embedded ? 'px-2 py-4' : 'px-4 py-8'} text-center text-slate-500`}>
-                  {busy ? 'Loading…' : 'No price list rows in this tab yet.'}
+                  {busy ? (
+                    'Loading…'
+                  ) : (
+                    <span className="inline-flex flex-col items-center gap-2">
+                      <span>No published selling prices in this tab yet.</span>
+                      <Link to="/procurement/pricing" className="font-semibold text-zarewa-teal hover:underline">
+                        Open pricing workbook
+                      </Link>
+                    </span>
+                  )}
                 </td>
               </tr>
             ) : (
@@ -517,7 +587,7 @@ export function PriceListPanel({ embedded = false }) {
                   <td
                     className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'} text-right font-mono tabular-nums whitespace-nowrap`}
                   >
-                    ₦{formatNgn(it.unitPricePerMeterNgn)}
+                    {formatNgn(it.unitPricePerMeterNgn)}
                   </td>
                   <td
                     className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'} text-slate-600 whitespace-nowrap truncate max-w-0`}

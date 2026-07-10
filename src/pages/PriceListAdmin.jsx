@@ -22,7 +22,7 @@ export default function PriceListAdmin() {
     <MainPanel className="min-w-0">
       <PageHeader
         title="Price list"
-        subtitle="Floor prices (₦/m) in price_list_items: validated effective dates, duplicate detection, optional material/colour/profile keys, and CSV export. Also available under Procurement → Conversion."
+        subtitle="Published selling prices (₦/m) by gauge and design — effective dates, duplicate detection, optional material/colour/profile keys, and CSV export. Prefer Procurement → Pricing workbook Publish as the primary path."
       />
       {canPolicy ? (
         <p className="mb-3 text-xs text-slate-600">

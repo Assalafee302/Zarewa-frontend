@@ -30,7 +30,6 @@ import { purchaseOrderToUnifiedDraft } from '../lib/purchaseOrderDraft';
 import CoilPurchaseOrderModal from '../components/procurement/CoilPurchaseOrderModal';
 import StonePurchaseOrderModal from '../components/procurement/StonePurchaseOrderModal';
 import AccessoryPurchaseOrderModal from '../components/procurement/AccessoryPurchaseOrderModal';
-import { MaterialPricingWorkbookModal } from '../components/procurement/MaterialPricingWorkbookModal';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
@@ -146,7 +145,6 @@ const Procurement = () => {
   }, [ws?.refreshEpoch, ws?.hasWorkspaceData, ws?.snapshot]);
    
 
-  const [showMaterialPricingWorkbook, setShowMaterialPricingWorkbook] = useState(false);
   const [monthEndStockProcOpen, setMonthEndStockProcOpen] = useState(false);
   const [stockRegisterProcInbox, setStockRegisterProcInbox] = useState([]);
   const procBranchId = ws.viewAllBranches ? '' : ws.branchScope || ws.session?.currentBranchId || '';
@@ -512,7 +510,7 @@ const Procurement = () => {
         label: transportCatchUpCount > 0 ? `Transport (${transportCatchUpCount})` : 'Transport catch-up',
       },
       { id: 'suppliers', icon: <Anchor size={16} />, label: 'Suppliers' },
-      { id: 'conversion', icon: <Ruler size={16} />, label: 'Conversion' },
+      { id: 'conversion', icon: <Ruler size={16} />, label: TAB_LABELS.conversion },
     ];
   }, [transportCatchUpCount]);
 
@@ -1124,7 +1122,6 @@ const Procurement = () => {
   };
 
   const isAnyModalOpen =
-    showMaterialPricingWorkbook ||
     showUnifiedPoModal ||
     showCoilPoModal ||
     showStonePoModal ||
@@ -1216,7 +1213,6 @@ const Procurement = () => {
       standardPhysicsKgPerM,
       standardEffectiveKgPerM,
       stdOverrideKgPerM,
-      setShowMaterialPricingWorkbook,
     }),
     [
       activeTab,
@@ -1431,12 +1427,6 @@ const Procurement = () => {
 
       </div>
 
-
-      <MaterialPricingWorkbookModal
-        open={showMaterialPricingWorkbook}
-        onClose={() => setShowMaterialPricingWorkbook(false)}
-        initialMaterialKey="alu"
-      />
 
       <StockRegisterMonthEndModal
         isOpen={monthEndStockProcOpen}

@@ -4,11 +4,13 @@
  */
 export const REFUND_PREVIEW_VERSION = 10;
 
-/** Refund quotation picker: remaining refundable and preview total must each be at least this (₦). */
+/** Refund quotation picker: remaining refundable and preview total must each be at least this (₦).
+ * Not the material workbook floor and not the refund economic floor (cash − produced×ppm − prior). */
 export const MIN_REFUND_QUOTATION_REMAINING_NGN = 1000;
 
 /**
  * Whether a quotation row belongs in refund form picklists (dropdown / potential refunds).
+ * Name retained for API stability; this is a UI eligibility threshold, not a pricing floor.
  * @param {{
  *   remaining_ngn?: number | null,
  *   remainingNgn?: number | null,

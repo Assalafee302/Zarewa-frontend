@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { MaterialPricingWorkbookModal } from './MaterialPricingWorkbookModal.jsx';
 import { apiFetch } from '../../lib/apiBase';
 
@@ -9,7 +10,8 @@ vi.mock('../../context/WorkspaceContext', () => ({
     snapshot: {
       workspaceBranches: [{ id: 'BR-T', name: 'Test Branch' }],
     },
-    session: {},
+    session: { currentBranchId: 'BR-T' },
+    hasPermission: (p) => p === 'pricing.manage' || p === '*',
   }),
 }));
 
@@ -79,7 +81,11 @@ describe('MaterialPricingWorkbookModal', () => {
       return { ok: false, data: { error: 'unexpected' } };
     });
 
-    render(<MaterialPricingWorkbookModal open onClose={vi.fn()} initialMaterialKey="alu" />);
+    render(
+      <MemoryRouter>
+        <MaterialPricingWorkbookModal open onClose={vi.fn()} initialMaterialKey="alu" />
+      </MemoryRouter>
+    );
 
     await waitFor(() => {
       const gaugeSelects = screen.getAllByLabelText(/gauge thickness mm/i);
