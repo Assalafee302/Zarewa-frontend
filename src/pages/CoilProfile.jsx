@@ -282,6 +282,19 @@ export default function CoilProfile() {
     holdersMeta != null && Number.isFinite(Number(holdersMeta.bookUsedKg))
       ? Number(holdersMeta.bookUsedKg)
       : coilKgUsed(coil);
+  /** Negative ancillary = scrap/incident/finish-roll removed from coil (stock_movements). */
+  const ancillaryNetKg =
+    holdersMeta != null && Number.isFinite(Number(holdersMeta.ancillaryNetKg))
+      ? Number(holdersMeta.ancillaryNetKg)
+      : null;
+  const incidentScrapKg =
+    ancillaryNetKg != null && ancillaryNetKg < -0.05 ? Math.abs(ancillaryNetKg) : 0;
+  const productionUsedKg =
+    holdersMeta != null && Number.isFinite(Number(holdersMeta.bookUsedFromJobsKg))
+      ? Number(holdersMeta.bookUsedFromJobsKg)
+      : holdersMeta != null && Number.isFinite(Number(holdersMeta.jobsConsumedKgSum))
+        ? Number(holdersMeta.jobsConsumedKgSum)
+        : Math.max(0, kgUsed - incidentScrapKg);
   const reservedKg = asNum(coil.qtyReserved);
   const expectedReservedKg =
     holdersMeta != null ? asNum(holdersMeta.expectedReservedKg) : null;
@@ -617,6 +630,17 @@ export default function CoilProfile() {
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
                 <p className="text-ui-xs uppercase font-bold text-slate-400">Kg used</p>
                 <p className="text-lg font-black text-zarewa-teal tabular-nums">{kgUsed.toLocaleString()}</p>
+                <p className="mt-1 text-[10px] leading-snug text-slate-500 tabular-nums">
+                  Prod {productionUsedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                  {incidentScrapKg > 0.05 ? (
+                    <>
+                      {' '}
+                      · Incident/scrap {incidentScrapKg.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                    </>
+                  ) : (
+                    <> · no incident scrap posted</>
+                  )}
+                </p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
                 <p className="text-ui-xs uppercase font-bold text-slate-400">On-hand kg</p>
@@ -638,6 +662,13 @@ export default function CoilProfile() {
               {' · '}
               on-hand <strong>{currentKg.toLocaleString()}</strong> − reserved <strong>{reservedKg.toLocaleString()}</strong>{' '}
               = free <strong>{freeKg.toLocaleString()}</strong> kg
+            </p>
+            <p className="mt-2 rounded-lg border border-violet-100 bg-violet-50/70 px-3 py-2 text-xs text-violet-950/90 leading-relaxed">
+              <strong className="text-violet-900">Stock vs production vs incidents:</strong> Coil book{' '}
+              <strong>Kg used</strong> = production consumption + approved material-incident scrap (and finish-roll
+              tails). Production register <strong>Used</strong> is only opening − closing on the job — recording an
+              incident does not change that figure. Coil on-hand drops only after the branch manager{' '}
+              <strong>approves</strong> the incident (pending incidents do not move stock yet).
             </p>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">
               <p>Colour: <strong>{coil.colour || '—'}</strong></p>
@@ -706,7 +737,9 @@ export default function CoilProfile() {
             <p className="text-ui-xs text-slate-500 mb-3 leading-relaxed">
               All jobs that ever allocated this coil (from server). Active planned/running openings should match
               reserved kg on the overview. Per-job <strong>kg used</strong> is the booked consumed weight on each
-              allocation (not opening − closing when they differ after corrections).
+              allocation (not opening − closing when they differ after corrections). Material-incident scrap is{' '}
+              <strong>not</strong> on these job rows — it appears under overview <strong>Incident/scrap</strong> after
+              BM approval.
             </p>
             {productionTotals && Math.abs(productionTotals.gapKg || 0) > 0.05 ? (
               <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-xs text-amber-950">

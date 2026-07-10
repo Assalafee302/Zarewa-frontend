@@ -3421,7 +3421,7 @@ export function LiveProductionMonitor({
                     </div>
                     <div
                       className="rounded-lg border border-slate-200/90 bg-white/95 px-2 py-1.5 text-center shadow-sm"
-                      title="Consumed kg"
+                      title="Production consumed kg (opening − closing). Material-incident scrap is separate — it reduces coil book after BM approval, not this Used figure."
                     >
                       <p className="text-[7px] font-bold uppercase tracking-wider text-slate-500">Used</p>
                       <p className="mt-0.5 text-sm font-black tabular-nums leading-none text-slate-900">
@@ -3450,7 +3450,10 @@ export function LiveProductionMonitor({
                             {formatKg(reservedKg)} <span className="text-[6px] font-medium text-slate-500">kg</span>
                           </p>
                         </div>
-                        <div className="min-w-0 flex-1" title="Consumed kg">
+                        <div
+                          className="min-w-0 flex-1"
+                          title="Production consumed kg (opening − closing). Incident scrap is not included — coil book drops after BM approves the material incident."
+                        >
                           <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Used</p>
                           <p className="text-xs font-black tabular-nums leading-tight text-slate-900">
                             {formatKg(recordedConsumedKg)} <span className="text-[6px] font-medium text-slate-500">kg</span>
@@ -4991,8 +4994,19 @@ export function LiveProductionMonitor({
         defaultCoilNo={primaryIncidentCoilNo}
         defaultBeforeKg={primaryIncidentBeforeKg}
         incidentType="production_error"
-        onSuccess={async () => {
+        onSuccess={async (data) => {
           await refreshProductionWorkspace();
+          const st = String(data?.status || '').trim();
+          if (st === 'submitted') {
+            showToast(
+              'Incident submitted — coil kg drops only after BM approval. Production Used stays job opening−closing only.',
+              { variant: 'info' }
+            );
+          } else if (st === 'draft') {
+            showToast('Incident saved as draft — submit for BM approval before coil stock changes.', {
+              variant: 'info',
+            });
+          }
         }}
       />
 

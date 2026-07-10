@@ -299,8 +299,13 @@ export default function CoilDamageRecordModal({
               ) : null}
             </div>
             <div className="rounded-xl border border-teal-100 bg-teal-50/50 p-4 text-xs text-slate-700 space-y-2">
-              <p className="font-bold text-zarewa-teal uppercase text-ui-xs tracking-wide">Use this ID for</p>
+              <p className="font-bold text-zarewa-teal uppercase text-ui-xs tracking-wide">Stock &amp; production</p>
               <ul className="list-disc pl-4 space-y-1">
+                <li>
+                  <strong>Coil kg / on-hand</strong> — updates only after branch manager{' '}
+                  <strong>approves</strong> this incident. Until then, production register{' '}
+                  <strong>Used</strong> and coil free kg stay unchanged.
+                </li>
                 <li>
                   <strong>Production complete</strong> — issue metres from offcut incident{' '}
                   <span className="font-mono">{savedResult.id}</span>

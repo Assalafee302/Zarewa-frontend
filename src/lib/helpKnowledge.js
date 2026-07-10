@@ -1011,6 +1011,33 @@ const CORE_HELP_ARTICLES = [
     ],
   },
   {
+    id: 'incident-vs-coil-kg-used',
+    title: 'Material incident vs coil kg used / stock balance',
+    keywords: [
+      'material incident coil kg',
+      'incident not on kg used',
+      'scrap not in production used',
+      'coil stock after incident',
+      'incident approval stock',
+      'production used vs scrap',
+      'coil book used incident',
+      'offcut incident kg',
+    ],
+    answer:
+      'Production register **Used** is only job opening − closing. Material-incident scrap reduces **coil book** on-hand and **Kg used** only after branch manager **approval**. Pending incidents do not move stock.',
+    steps: [
+      'Record the incident (Production register → Material incident, or Material exceptions).',
+      'Submit for BM approval — status **submitted** does not change coil kg yet.',
+      'After BM approves, stock posts as **COIL_SCRAP** — coil on-hand drops; Coil Profile **Kg used** includes Incident/scrap.',
+      'Do not expect Production register **Used** to rise for the incident — that figure stays production consumption only.',
+      'Open Coil Profile for the coil to see Prod vs Incident/scrap breakdown under Kg used.',
+    ],
+    links: [
+      { label: 'Operations · Production', to: '/operations', state: { focusOpsTab: 'production' } },
+      { label: 'Material exceptions', to: '/operations/material-exceptions' },
+    ],
+  },
+  {
     id: 'sales-expense-request',
     title: 'Sales expense requests (not Finance-only)',
     keywords: [
@@ -1566,6 +1593,7 @@ const PATH_ARTICLE_BOOSTS = {
     'coil-reservation-orphan',
     'cutting-list-blocked-running',
     'recall-production-entry',
+    'incident-vs-coil-kg-used',
     'stone-flatsheet-quotations',
     'accessories-only-production',
   ],
@@ -1841,6 +1869,7 @@ export function quickQuestionsForPath(pathname) {
       { label: 'Tour this page', query: 'Walk me through production from cutting list to completion step by step' },
       { label: 'Production job', query: 'Production job from cutting list to completion' },
       { label: 'Recall wrong entry', query: 'Wrong production entry — Recall entry' },
+      { label: 'Incident vs kg used', query: 'Material incident vs coil kg used / stock balance' },
       { label: 'Coil reservation', query: 'Orphan coil qty_reserved reconcile' },
       { label: 'Accessories only', query: 'Accessories-only quotation production complete' },
       { label: 'Material incident', query: 'How do material incidents and approvals work?' },
