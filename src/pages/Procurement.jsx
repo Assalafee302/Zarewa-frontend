@@ -565,7 +565,7 @@ const Procurement = () => {
     }
     if (!matOpt.productID || !gauge || conversion == null || !Number.isFinite(conversion) || conversion <= 0) {
       showToast('Select material and gauge, or enter a valid kg/m override.', { variant: 'error' });
-      return;
+      return false;
     }
     const payload = {
       color,
@@ -585,7 +585,7 @@ const Procurement = () => {
           : 'Connect to the API to save standard conversion.',
         { variant: 'info' }
       );
-      return;
+      return false;
     }
     setStandardConversionSaving(true);
     try {
@@ -595,7 +595,7 @@ const Procurement = () => {
       });
       if (!ok || !data?.ok) {
         showToast(data?.error || 'Could not save standard conversion.', { variant: 'error' });
-        return;
+        return false;
       }
       await ws.refresh();
       const opt = procurementCoilMaterialByKey(standardConversionForm.materialKey);
@@ -606,6 +606,7 @@ const Procurement = () => {
         color: opt.defaultCatalogLabel,
       }));
       showToast('Standard conversion saved.');
+      return true;
     } finally {
       setStandardConversionSaving(false);
     }
