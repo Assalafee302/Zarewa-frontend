@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
-import { HrCard } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrButton, HrAddButton } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 const GRIEVANCE_STATUSES = [
   { value: 'new', label: 'New' },
@@ -68,7 +68,7 @@ export function HrGrievanceForm() {
           <input type="checkbox" checked={form.anonymous} onChange={(e) => setForm({ ...form, anonymous: e.target.checked })} />
           Submit anonymously
         </label>
-        <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Submitting…' : 'Submit grievance'}</button>
+        <HrButton type="submit" disabled={busy} >{busy ? 'Submitting…' : 'Submit grievance'}</HrButton>
       </form>
     </HrCard>
   );
@@ -143,7 +143,7 @@ export function HrGrievanceQueue() {
           <p className="text-sm font-semibold text-slate-800">Resolve: {resolveModal.summary}</p>
           <textarea className={`${HR_FIELD_CLASS} min-h-[72px]`} value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} placeholder="Action taken / resolution note" />
           <div className="flex gap-2">
-            <button type="button" className={HR_BTN_PRIMARY} onClick={() => resolve(resolveModal.id, 'resolved')}>Mark resolved</button>
+            <HrButton type="button" onClick={() => resolve(resolveModal.id, 'resolved')}>Mark resolved</HrButton>
             <button type="button" className="text-xs font-bold uppercase text-slate-500" onClick={() => setResolveModal(null)}>Cancel</button>
           </div>
         </div>

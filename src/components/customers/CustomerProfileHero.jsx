@@ -3,10 +3,8 @@ import { Phone, Mail, MapPin, BadgeCheck, User } from 'lucide-react';
 import { customerPickerPrimaryLabel } from '../../lib/customerPickerSearch';
 import {
   customerInitials,
-  customerStatusTone,
-  customerTierTone,
-  paymentRelationshipTone,
 } from './customerUi';
+import { CustomerPaymentChip, CustomerStatusChip, CustomerTierChip } from './CustomerStatusChip';
 
 /**
  * @param {{ customer: object; paymentRelationship: { label: string; tone: string } }} props
@@ -39,15 +37,9 @@ export function CustomerProfileHero({ customer, paymentRelationship }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase ${customerStatusTone(customer.status)}`}>
-              {customer.status}
-            </span>
-            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase ${customerTierTone(customer.tier)}`}>
-              {customer.tier}
-            </span>
-            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-ui-xs font-bold uppercase ${paymentRelationshipTone(paymentRelationship.tone)}`}>
-              {paymentRelationship.label}
-            </span>
+            <CustomerStatusChip status={customer.status} />
+            <CustomerTierChip tier={customer.tier} />
+            <CustomerPaymentChip label={paymentRelationship.label} tone={paymentRelationship.tone} />
           </div>
 
           <div className="flex flex-wrap gap-2 text-xs text-teal-50/95">

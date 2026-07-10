@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
@@ -9,7 +10,7 @@ import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { hrStaffCreditPath, HR_STAFF_CREDIT_SECTION } from '../../lib/hrRoutes';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import { HrPurchaseCreditDecisionContext } from '../hr/HrPurchaseCreditDecisionContext';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../hr/hrFormStyles';
+import { HR_BTN_PRIMARY } from '../hr/hrFormStyles';
 
 /**
  * Approve or reject staff purchase credit from the workspace command center.
@@ -187,30 +188,30 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
             />
           </label>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={HR_BTN_SECONDARY} disabled={busy} onClick={() => setRejectOpen(false)}>
+            <HrButton type="button" variant="secondary" disabled={busy} onClick={() => setRejectOpen(false)}>
               Cancel
-            </button>
-            <button
+            </HrButton>
+            <HrButton
               type="button"
-              className={HR_BTN_SECONDARY}
+              variant="secondary"
               disabled={busy}
               onClick={() => void act('reject', rejectNote)}
             >
               {busy ? 'Working…' : 'Confirm reject'}
-            </button>
+            </HrButton>
           </div>
         </div>
       ) : (
         <div className="mt-6 flex flex-wrap gap-2">
           {mayReject ? (
-            <button type="button" className={HR_BTN_SECONDARY} disabled={busy} onClick={() => setRejectOpen(true)}>
+            <HrButton type="button" variant="secondary" disabled={busy} onClick={() => setRejectOpen(true)}>
               Reject
-            </button>
+            </HrButton>
           ) : null}
           {mayApprove ? (
-            <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => void act('approve')}>
+            <HrButton type="button" disabled={busy} onClick={() => void act('approve')}>
               {busy ? 'Working…' : 'Approve'}
-            </button>
+            </HrButton>
           ) : null}
           <Link
             to={hrStaffCreditPath(HR_STAFF_CREDIT_SECTION.PURCHASE_CREDIT)}

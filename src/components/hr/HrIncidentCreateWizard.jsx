@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useMemo, useState } from 'react';
 import {
   createIncident,
@@ -9,7 +10,7 @@ import {
 } from '../../lib/hrIncidents';
 import { DISCIPLINE_CASE_TYPES } from '../../lib/hrDisciplineCases';
 import { HrFormModal } from './HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 const EMPTY_PARTY = { userId: '', role: 'custodian', responsibilityWeight: 25, contributionType: 'negligence', note: '' };
 
@@ -355,10 +356,10 @@ export default function HrIncidentCreateWizard({ open, onClose, staff, onCreated
                 </div>
               ))}
               <div className="flex flex-wrap gap-2">
-                <button type="button" className={HR_BTN_SECONDARY} onClick={addParty}>Add party</button>
-                <button type="button" className={HR_BTN_SECONDARY} onClick={splitEvenly} disabled={!activeParties.length}>
+                <HrButton type="button" variant="secondary" onClick={addParty}>Add party</HrButton>
+                <HrButton type="button" variant="secondary" onClick={splitEvenly} disabled={!activeParties.length}>
                   Split evenly
-                </button>
+                </HrButton>
               </div>
             </div>
           ) : null}
@@ -381,17 +382,17 @@ export default function HrIncidentCreateWizard({ open, onClose, staff, onCreated
       <div className="flex justify-between gap-2 mt-6">
         <div>
           {stepIndex > 0 ? (
-            <button type="button" className={HR_BTN_SECONDARY} onClick={back}>Back</button>
+            <HrButton type="button" variant="secondary" onClick={back}>Back</HrButton>
           ) : null}
         </div>
         <div className="flex gap-2">
-          <button type="button" className={HR_BTN_SECONDARY} onClick={close}>Cancel</button>
+          <HrButton type="button" variant="secondary" onClick={close}>Cancel</HrButton>
           {!isLastStep ? (
-            <button type="button" className={HR_BTN_PRIMARY} onClick={next}>Next</button>
+            <HrButton type="button" onClick={next}>Next</HrButton>
           ) : (
-            <button type="button" disabled={busy} className={HR_BTN_PRIMARY} onClick={submit}>
+            <HrButton type="button" disabled={busy}  onClick={submit}>
               {busy ? 'Creating…' : 'Register incident'}
-            </button>
+            </HrButton>
           )}
         </div>
       </div>

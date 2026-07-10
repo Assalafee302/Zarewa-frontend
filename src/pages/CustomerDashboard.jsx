@@ -35,7 +35,9 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
-import { PageHeader, PageShell, MainPanel, ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody } from '../components/layout';
+import { PageHeader, PageShell, MainPanel, ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody, Breadcrumbs } from '../components/layout';
+import { StatusBadge, SalesStatusChip } from '../components/ui/StatusBadge';
+import { refundStatusChipClass } from '../lib/salesStatusUi';
 import { RefundAdvanceModal } from '../components/refund/RefundAdvanceModal';
 import { ReportPrintModal } from '../components/reports/ReportPrintModal';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
@@ -132,6 +134,12 @@ function customerDashboardHashToSectionId(hash) {
   return id;
 }
 
+function quotationUiStatusTone(tone) {
+  if (tone === 'paid') return 'success';
+  if (tone === 'overdue') return 'danger';
+  return 'warn';
+}
+
 function quotationUiStatus(q, todayIso) {
   if (q.paymentStatus === 'Paid') return { label: 'Paid', tone: 'paid' };
   const due = q.dueDateISO;
@@ -165,12 +173,6 @@ function ledgerTypeLabel(t) {
     default:
       return t;
   }
-}
-
-function toneClass(tone) {
-  if (tone === 'paid') return 'bg-emerald-100 text-emerald-800';
-  if (tone === 'overdue') return 'bg-red-100 text-red-800';
-  return 'bg-amber-100 text-amber-800';
 }
 
 function orderStatusClass(s) {
@@ -1038,6 +1040,14 @@ const CustomerDashboard = () => {
 
   return (
     <PageShell blurred={showEdit || !!detail || showReports || reportPreviewOpen}>
+      <Breadcrumbs
+        className="mb-4"
+        items={[
+          { label: 'Sales', to: '/sales' },
+          { label: 'Customers', to: '/customers' },
+          { label: customer.name },
+        ]}
+      />
       <PageHeader
         title={customer.name}
         subtitle={`${customer.customerID} · ${customer.tier} · ${customer.paymentTerms}`}
@@ -1357,11 +1367,7 @@ const CustomerDashboard = () => {
                         {q.total}
                       </div>
                       <div className="col-span-4">
-                        <span
-                          className={`text-ui-xs font-bold uppercase px-2 py-1 rounded-full ${toneClass(st.tone)}`}
-                        >
-                          {st.label}
-                        </span>
+                        <StatusBadge label={st.label} tone={quotationUiStatusTone(st.tone)} />
                       </div>
                       {q.handledBy ? (
                         <div className="col-span-12 text-ui-xs text-gray-500 mt-1">
@@ -1729,7 +1735,7 @@ const CustomerDashboard = () => {
                           <p className="text-sm font-black text-zarewa-teal tabular-nums">
                             {formatNgn(r.amountNgn)}
                           </p>
-                          <p className="text-ui-xs font-bold uppercase text-gray-400">{r.status}</p>
+                          <SalesStatusChip label={r.status} chipClass={refundStatusChipClass(r.status)} />
                           {(r.status === 'Approved' || r.status === 'Paid') && (
                             <p className="text-ui-xs text-gray-500 tabular-nums">
                               Bal {formatNgn(refundOutstandingAmount(r))}

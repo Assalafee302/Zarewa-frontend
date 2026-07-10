@@ -113,7 +113,6 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       return String(a.id || '').localeCompare(String(b.id || ''));
     })
     .map((r) => {
-      const allocated = Math.round(Number(r.amountNgn) || 0);
       const cash = receiptEffectiveCashNgn(r);
       const splits = receiptLedgerReceiptTreasurySplits(r, treasuryMovements);
       const accounts =

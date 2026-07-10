@@ -17,6 +17,7 @@ import {
   branchScopedCreateBlockedMessage,
   isBranchScopedCreateBlocked,
 } from '../../lib/workspaceBranchCreate';
+import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalActionFooter } from '../layout';
 
 const DEFAULT_DATE = ACCOUNTING_OPENING_DATE_ISO;
 
@@ -108,9 +109,13 @@ export function AccountingOpeningBalancePanel({
     loadPack();
   }, [loadPack]);
 
+  const refreshAll = useCallback(async () => {
+    await Promise.all([loadStatus(), loadPack()]);
+  }, [loadStatus, loadPack]);
+
   useEffect(() => {
     if (deskRefresh > 0) void refreshAll();
-  }, [deskRefresh]);
+  }, [deskRefresh, refreshAll]);
 
   useEffect(() => {
     if (status?.posted || pack?.alreadyPosted) onOpeningPosted?.(true);
@@ -134,10 +139,6 @@ export function AccountingOpeningBalancePanel({
     !isBranchScopedCreateBlocked(ws) &&
     proposed?.totalDebitsNgn > 0 &&
     proposed?.totalDebitsNgn === proposed?.totalCreditsNgn;
-
-  const refreshAll = async () => {
-    await Promise.all([loadStatus(), loadPack()]);
-  };
 
   const postPack = async () => {
     if (isBranchScopedCreateBlocked(ws)) {
@@ -477,37 +478,36 @@ export function AccountingOpeningBalancePanel({
             </>
           ) : null}
 
-          {confirmPost ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-              <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+          <ModalFrame
+            isOpen={confirmPost}
+            onClose={() => {
+              if (!busy) setConfirmPost(false);
+            }}
+            title="Post opening journal"
+            surface="plain"
+          >
+            <ModalScrollShell size="sm">
+              <ModalScrollBody className="space-y-3">
                 <h3 className="text-sm font-bold text-zarewa-teal">Post opening journal?</h3>
-                <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                  This posts one balanced journal on {ACCOUNTING_OPENING_DATE_LABEL} from register rollups plus owner&apos;s
-                  capital. Register account lines should not be re-entered manually afterward.
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  This posts one balanced journal on {ACCOUNTING_OPENING_DATE_LABEL} from register rollups plus
+                  owner&apos;s capital. Register account lines should not be re-entered manually afterward.
                 </p>
-                <p className="mt-2 text-xs font-semibold text-slate-800 tabular-nums">
+                <p className="text-xs font-semibold text-slate-800 tabular-nums">
                   Total: {formatNgn(proposed?.totalDebitsNgn || 0)}
                 </p>
-                <div className="mt-4 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmPost(false)}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-ui-xs font-bold uppercase text-slate-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void postPack()}
-                    disabled={busy}
-                    className="rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-bold uppercase text-white disabled:opacity-50"
-                  >
-                    {busy ? 'Posting…' : 'Confirm post'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
+              </ModalScrollBody>
+              <ModalActionFooter
+                onCancel={() => setConfirmPost(false)}
+                cancelDisabled={busy}
+                onConfirm={() => void postPack()}
+                confirmLabel={busy ? 'Posting…' : 'Confirm post'}
+                confirmDisabled={busy}
+                confirmLoading={busy}
+                confirmLoadingLabel="Posting…"
+              />
+            </ModalScrollShell>
+          </ModalFrame>
         </>
       ) : null}
 

@@ -5,7 +5,7 @@ import { receiveStaffRecoveryPayment } from '../../lib/hrStaffRecoveries';
 import { obligationRepaymentReceiptPdfUrl } from '../../lib/hrStaffObligations';
 import { treasuryAccountDisplayName } from '../../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../../lib/selectOptionSort';
-import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalScrollFooter } from '../layout';
+import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalActionFooter } from '../layout';
 
 const INPUT = 'z-finance-field';
 
@@ -261,16 +261,16 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
               </>
             )}
           </ModalScrollBody>
-          <ModalScrollFooter className="flex flex-wrap gap-2 justify-end">
-            <button type="button" className="z-btn-secondary" onClick={onClose} disabled={busy}>
-              {receipt?.ok ? 'Done' : 'Cancel'}
-            </button>
-            {!receipt?.ok ? (
-              <button type="submit" className="z-btn-primary" disabled={busy || !branchAccounts.length}>
-                {busy ? 'Posting…' : `Confirm ${formatNgn(amountToCollect || outstanding)} received`}
-              </button>
-            ) : null}
-          </ModalScrollFooter>
+          <ModalActionFooter
+            onCancel={onClose}
+            cancelLabel={receipt?.ok ? 'Done' : 'Cancel'}
+            cancelDisabled={busy}
+            confirmType={receipt?.ok ? undefined : 'submit'}
+            confirmLabel={`Confirm ${formatNgn(amountToCollect || outstanding)} received`}
+            confirmDisabled={busy || !branchAccounts.length}
+            confirmLoading={busy}
+            confirmLoadingLabel="Posting…"
+          />
         </form>
       </ModalScrollShell>
     </ModalFrame>

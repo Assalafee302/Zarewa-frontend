@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PenLine } from 'lucide-react';

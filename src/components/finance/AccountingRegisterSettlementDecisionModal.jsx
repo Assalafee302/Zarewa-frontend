@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalScrollFooter } from '../layout';
+import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalActionFooter } from '../layout';
 import { formatNgn } from '../../Data/mockData';
 import { useRegisterSettlementMutations } from '../../hooks/useAccountingRegisterSettlements';
 import { useToast } from '../../context/ToastContext';
@@ -97,25 +97,15 @@ export function AccountingRegisterSettlementDecisionModal({ settlement, open, mo
             {error ? <p className="text-ui-xs font-semibold text-rose-700">{error}</p> : null}
           </ModalScrollBody>
 
-          <ModalScrollFooter className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={busy}
-              className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-ui-xs font-semibold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-ui-xs"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={busy}
-              className={`min-h-11 rounded-lg px-4 py-2 text-ui-xs font-semibold uppercase text-white disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-ui-xs ${
-                isApprove ? 'bg-teal-800 hover:bg-teal-900' : 'bg-rose-700 hover:bg-rose-800'
-              }`}
-            >
-              {busy ? 'Saving…' : isApprove ? 'Confirm approval' : 'Confirm rejection'}
-            </button>
-          </ModalScrollFooter>
+          <ModalActionFooter
+            onCancel={onClose}
+            cancelDisabled={busy}
+            confirmType="submit"
+            confirmLabel={isApprove ? 'Confirm approval' : 'Confirm rejection'}
+            confirmVariant={isApprove ? 'default' : 'destructive'}
+            confirmDisabled={busy}
+            confirmLoading={busy}
+          />
         </form>
       </ModalScrollShell>
     </ModalFrame>

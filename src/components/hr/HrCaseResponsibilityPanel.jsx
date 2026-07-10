@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import {
@@ -6,7 +7,7 @@ import {
   RESPONSIBILITY_ROLES,
   saveCaseResponsibility,
 } from '../../lib/hrIncidents';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 export default function HrCaseResponsibilityPanel({ caseId, canManage, onSaved }) {
   const [parties, setParties] = useState([]);
@@ -136,12 +137,12 @@ export default function HrCaseResponsibilityPanel({ caseId, canManage, onSaved }
       {err ? <p className="text-sm text-red-700">{err}</p> : null}
       {canManage ? (
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={HR_BTN_SECONDARY} onClick={addParty}>
+          <HrButton type="button" variant="secondary" onClick={addParty}>
             Add party
-          </button>
-          <button type="button" disabled={busy} className={HR_BTN_PRIMARY} onClick={save}>
+          </HrButton>
+          <HrButton type="button" disabled={busy}  onClick={save}>
             Save responsibility map
-          </button>
+          </HrButton>
         </div>
       ) : null}
     </div>

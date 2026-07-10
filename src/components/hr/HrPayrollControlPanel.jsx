@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { recordPayrollBankExportTotal } from '../../lib/hrExtended';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
-import { HrCard } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
  * Payroll reconciliation, bonus approval, and hold summary for a run.
@@ -220,9 +220,9 @@ function HrPayrollConfirmBonusModal({ isOpen, onClose, busy, onConfirm }) {
         Submit a 50% base-salary bonus request for GM HR approval. Applies to December payroll lines after approval.
       </p>
       <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button type="button" onClick={onClose} disabled={busy} className={HR_BTN_SECONDARY}>
+        <HrButton type="button" onClick={onClose} disabled={busy} variant="secondary">
           Cancel
-        </button>
+        </HrButton>
         <button type="button" onClick={onConfirm} disabled={busy} className={`${HR_BTN_PRIMARY} min-h-[44px]`}>
           {busy ? 'Submitting…' : 'Submit request'}
         </button>

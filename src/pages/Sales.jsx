@@ -70,6 +70,15 @@ const CuttingListModal = lazyWithRetry(() => import('../components/CuttingListMo
 const RefundModal = lazyWithRetry(() => import('../components/RefundModal'), { id: 'RefundModal' });
 import { MainPanel, PageHeader, PageShell, PageTabs } from '../components/layout';
 import SalesMobileAlertStrip from '../components/sales/SalesMobileAlertStrip';
+import SalesKpiStrip from '../components/sales/SalesKpiStrip';
+import {
+  SALES_STATUS_CHIP,
+  quoteApprovalChipClass,
+  quotePayChipClass,
+  receiptCuttingListChipClass,
+  receiptSourceChipClass,
+  refundStatusChipClass,
+} from '../lib/salesStatusUi';
 import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
 import { AiAskButton } from '../components/AiAskButton';
 import { ZareHelpButton } from '../components/ZareHelpButton';
@@ -159,44 +168,11 @@ const REFUND_POTENTIAL_SIDEBAR_CAP = 18;
 const CARD_ROW =
   'rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm transition-colors hover:bg-white/70';
 
-const CHIP =
-  'inline-flex items-center text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border shrink-0';
+const CHIP = SALES_STATUS_CHIP;
 
 /** Lift row above following siblings so overflow action menus paint on top (stacking order). */
 function salesListItemClass(rowKey, openKey) {
   return openKey === rowKey ? `${CARD_ROW} relative z-50` : CARD_ROW;
-}
-
-function quotePayChipBorder(ps) {
-  if (ps === 'Paid') return 'border-emerald-200 bg-emerald-50 text-emerald-800';
-  if (ps === 'Partial') return 'border-amber-200 bg-amber-50 text-amber-800';
-  return 'border-slate-200 bg-slate-50 text-slate-600';
-}
-
-function quoteApprovalChipBorder(st) {
-  if (st === 'Approved') return 'border-emerald-200 bg-emerald-50 text-emerald-800';
-  if (st === 'Expired') return 'border-slate-300 bg-slate-100 text-slate-700';
-  if (st === 'Void') return 'border-rose-200 bg-rose-50 text-rose-800';
-  return 'border-amber-200 bg-amber-50 text-amber-800';
-}
-
-function receiptSourceChipBorder(src) {
-  if (src === 'ledger') return 'border-emerald-200 bg-emerald-50 text-emerald-900';
-  return 'border-slate-200 bg-slate-50 text-slate-600';
-}
-
-function receiptCuttingListChipBorder(kind) {
-  if (kind === 'linked') return 'border-teal-200 bg-teal-50 text-teal-900';
-  if (kind === 'none') return 'border-amber-200 bg-amber-50 text-amber-900';
-  return 'border-slate-200 bg-slate-50 text-slate-500';
-}
-
-function refundStatusChipBorder(st) {
-  if (st === 'Paid') return 'border-sky-200 bg-sky-50 text-sky-900';
-  if (st === 'Approved') return 'border-emerald-200 bg-emerald-50 text-emerald-800';
-  if (st === 'Rejected') return 'border-rose-200 bg-rose-50 text-rose-800';
-  if (st === 'Cancelled') return 'border-slate-300 bg-slate-100 text-slate-700';
-  return 'border-amber-200 bg-amber-50 text-amber-800';
 }
 
 const Sales = () => {
@@ -1438,6 +1414,8 @@ const Sales = () => {
         }
       />
 
+      <SalesKpiStrip salesTab={salesTab} listStats={listStats} followUpCount={quotationFollowUpRows.length} />
+
       <SalesMobileAlertStrip
         salesTab={salesTab}
         pendingApproval={listStats.quotations.pendingApproval}
@@ -1827,10 +1805,10 @@ const Sales = () => {
                                       <span className="text-xs font-black text-zarewa-teal tabular-nums">
                                         {q.total}
                                       </span>
-                                      <span className={`${CHIP} ${quoteApprovalChipBorder(q.status)}`}>
+                                      <span className={`${CHIP} ${quoteApprovalChipClass(q.status)}`}>
                                         {q.status}
                                       </span>
-                                      <span className={`${CHIP} ${quotePayChipBorder(payStatus)}`}>
+                                      <span className={`${CHIP} ${quotePayChipClass(payStatus)}`}>
                                         {payStatus}
                                       </span>
                                       {quotationNeedsFollowUpAlert(qForFollowUp) ? (
@@ -1954,7 +1932,7 @@ const Sales = () => {
                                   <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
                                     <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                                       <span
-                                        className={`${CHIP} whitespace-nowrap ${receiptSourceChipBorder(r.source)}`}
+                                        className={`${CHIP} whitespace-nowrap ${receiptSourceChipClass(r.source)}`}
                                         title={r._subLabel || ''}
                                       >
                                         {r.source === 'ledger' ? 'Ledger' : 'Imported'}
@@ -1998,7 +1976,7 @@ const Sales = () => {
                                       </p>
                                     ) : null}
                                     <span
-                                      className={`${CHIP} ${receiptCuttingListChipBorder(r._cuttingListLinkKind)} whitespace-nowrap`}
+                                      className={`${CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
                                       title={r._cuttingListTitle}
                                     >
                                       {cuttingChipLabel}
@@ -2215,7 +2193,7 @@ const Sales = () => {
                                       <span className="text-xs font-black text-zarewa-teal tabular-nums">
                                         {formatNgn(r.amountNgn)}
                                       </span>
-                                      <span className={`${CHIP} ${refundStatusChipBorder(r.status)}`}>
+                                      <span className={`${CHIP} ${refundStatusChipClass(r.status)}`}>
                                         {r.status}
                                       </span>
                                       <SalesRowMenu

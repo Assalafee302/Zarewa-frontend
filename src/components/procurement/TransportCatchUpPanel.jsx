@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, ExternalLink, Truck } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { SalesListSearchInput } from '../sales/SalesListTableFrame';
+import { PoStatusChip } from './PoStatusChip';
 
 function gapLabel(gapKind) {
   if (gapKind === 'fee') return 'Fee missing';
@@ -133,7 +134,7 @@ export function TransportCatchUpPanel({
                       </button>
                     </td>
                     <td className="px-4 py-2.5 text-slate-700">{row.supplierName || '—'}</td>
-                    <td className="px-4 py-2.5 text-slate-600">{row.status || '—'}</td>
+                    <td className="px-4 py-2.5"><PoStatusChip status={row.status} /></td>
                     <td className="px-4 py-2.5">
                       <span
                         className={`inline-flex rounded-md border px-2 py-0.5 text-ui-xs font-bold uppercase ${gapTone(row.gapKind)}`}

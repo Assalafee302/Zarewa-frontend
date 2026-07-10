@@ -1,9 +1,10 @@
+import { HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, RotateCcw, Upload } from 'lucide-react';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
 import { appConfirm } from '../../lib/appConfirm';
 import { HrFormModal } from './HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import { HrResponsiveTable } from './HrResponsiveTable';
 
 async function fileToBase64(file) {
@@ -200,14 +201,14 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
         </fieldset>
 
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={downloadTemplate} disabled={!!busy} className={HR_BTN_SECONDARY}>
+          <HrButton type="button" onClick={downloadTemplate} disabled={!!busy} variant="secondary">
             <Download size={14} className="inline mr-1" aria-hidden />
             Download template
-          </button>
-          <button type="button" onClick={reset} disabled={!!busy} className={HR_BTN_SECONDARY}>
+          </HrButton>
+          <HrButton type="button" onClick={reset} disabled={!!busy} variant="secondary">
             <RotateCcw size={14} className="inline mr-1" aria-hidden />
             Reset upload
-          </button>
+          </HrButton>
         </div>
 
         <label className="block text-xs font-semibold text-slate-600">
@@ -344,14 +345,14 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
                   errors will be skipped; blank fields stay empty on each profile.
                 </span>
               </label>
-              <button
+              <HrButton
                 type="button"
                 onClick={runCommit}
                 disabled={!preview?.validCount || !previewConfirmed || !!busy || !!result}
-                className={HR_BTN_PRIMARY}
+                
               >
                 {busy === 'commit' ? 'Importing…' : `Import ${preview?.validCount ?? 0} row(s)`}
-              </button>
+              </HrButton>
             </div>
           </div>
         ) : file && busy === 'preview' ? (

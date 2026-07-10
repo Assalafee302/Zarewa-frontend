@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { hrRequestKindLabel, hrRequestStatusClass } from '../../lib/hrFormat';
+import { hrRequestKindLabel } from '../../lib/hrFormat';
+import { HrStatusBadge } from './HrStatusBadge';
 import { HR_TIME_ABSENCE, hrTabPath } from '../../lib/hrRoutes';
 import { hrRequestQueuePath } from '../../lib/hrDashboardUi';
 
@@ -100,9 +101,7 @@ export function HrUnifiedInboxPanel({
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${hrRequestStatusClass(r.status)}`}>
-                    {r.status?.replace(/_/g, ' ')}
-                  </span>
+                  <HrStatusBadge status={r.status} variant="request" />
                   {sla ? (
                     <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${sla.cls}`}>
                       {sla.label}

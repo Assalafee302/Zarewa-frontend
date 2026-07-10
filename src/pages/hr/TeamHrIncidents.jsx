@@ -7,8 +7,8 @@ import { canManageHrDiscipline } from '../../lib/hrAccess';
 import { createHrIncidentMemo, fetchHrIncidentMemos } from '../../lib/hrExtended';
 import HrIncidentMemoEscalateModal from '../../components/hr/HrIncidentMemoEscalateModal';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HrPageBody, HrPageIntro, HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import { ProfileFormField } from '../../components/profile/profileFormUi';
 import {
   ProfileEmptyState,
@@ -171,9 +171,9 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled, embedded 
           </select>
         </ProfileFormField>
         <div className="flex items-end">
-          <button type="button" className={HR_BTN_SECONDARY} onClick={exportCsv}>
+          <HrButton type="button" variant="secondary" onClick={exportCsv}>
             Export CSV
-          </button>
+          </HrButton>
         </div>
       </div>
 
@@ -198,9 +198,9 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled, embedded 
           <ProfileFormField label="Summary" htmlFor="incident-summary">
             <textarea id="incident-summary" className={HR_FIELD_CLASS} rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} required minLength={3} />
           </ProfileFormField>
-          <button type="submit" className={HR_BTN_PRIMARY}>
+          <HrButton type="submit">
             Save memo
-          </button>
+          </HrButton>
         </form>
       </HrFormModal>
 

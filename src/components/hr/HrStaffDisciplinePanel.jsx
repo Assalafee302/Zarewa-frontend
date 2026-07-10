@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchDisciplineCasesForUser } from '../../lib/hrStaffExtras';
@@ -52,7 +53,7 @@ export function HrStaffDisciplinePanel({ userId, profileEvents = [] }) {
         </p>
       </div>
 
-      {loading ? <p className="text-sm text-slate-600">Loading discipline cases…</p> : null}
+      {loading ? <InlineLoader message="Loading discipline cases…" /> : null}
       {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
 
       <HrCard title="Open cases" subtitle={`${openCases.length} active case(s) for this employee`}>

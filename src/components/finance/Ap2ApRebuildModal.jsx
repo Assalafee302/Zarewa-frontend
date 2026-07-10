@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { AlertTriangle, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, ShieldCheck } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import { FinanceActionButton } from './FinanceActionButton';
+import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalActionFooter } from '../layout';
+import { InlineLoader } from '../ui/PageLoader';
+import { Button } from '../ui/button';
+import { FieldLabel, Textarea } from '../ui/Input';
 import { FinanceDataTable } from './FinanceDataTable';
 
 /**
@@ -39,8 +42,6 @@ export function Ap2ApRebuildModal({
   const [approvalNote, setApprovalNote] = useState('');
   const [confirmed, setConfirmed] = useState(false);
 
-  if (!open) return null;
-
   const s = preview?.summary || {};
   const affected = (preview?.rows || []).filter((r) => r.rebuildEligible && r.apDifferenceNgn !== 0);
 
@@ -72,29 +73,27 @@ export function Ap2ApRebuildModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/50">
-      <div
-        className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl"
-        role="dialog"
-        aria-labelledby="ap2-rebuild-title"
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 hover:bg-slate-100"
-          aria-label="Close"
-        >
-          <X size={18} />
-        </button>
+  const canSubmitApply =
+    mayApply &&
+    approvalNote.trim() &&
+    confirmed &&
+    preview?.previewHash &&
+    (preview.flags?.apReceivedBasisRebuildEnabled ?? true);
 
-        <div className="p-6 space-y-4">
-          <div className="flex items-start gap-3 pr-8">
+  return (
+    <ModalFrame
+      isOpen={open}
+      onClose={onClose}
+      title="AP received-basis rebuild preview"
+      surface="plain"
+    >
+      <ModalScrollShell size="xl">
+        <div className="h-1 shrink-0 bg-teal-700" />
+        <ModalScrollBody className="space-y-4">
+          <div className="flex items-start gap-3">
             <ShieldCheck className="text-teal-700 shrink-0 mt-1" size={22} />
             <div>
-              <h2 id="ap2-rebuild-title" className="text-lg font-black text-zarewa-teal">
-                AP received-basis rebuild preview
-              </h2>
+              <h2 className="text-lg font-black text-zarewa-teal">AP received-basis rebuild preview</h2>
               <p className="text-sm font-medium text-slate-600 mt-1">
                 {preview?.disclaimer || 'Preview only. No AP values were changed yet.'}
               </p>
@@ -117,9 +116,7 @@ export function Ap2ApRebuildModal({
             </p>
           ) : null}
 
-          {loading && !preview ? (
-            <p className="text-sm text-violet-800">Loading preview…</p>
-          ) : null}
+          {loading && !preview ? <InlineLoader message="Loading preview…" /> : null}
 
           {preview?.status === 'preview_only' ? (
             <>
@@ -169,16 +166,18 @@ export function Ap2ApRebuildModal({
               {mayApply ? (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
                   <p className="text-xs font-bold uppercase text-slate-600">Head of Accounts approval</p>
-                  <label className="block text-sm font-medium text-slate-700">
-                    Approval note (required)
-                    <textarea
-                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                  <div>
+                    <FieldLabel htmlFor="ap-rebuild-note" required>
+                      Approval note
+                    </FieldLabel>
+                    <Textarea
+                      id="ap-rebuild-note"
                       rows={3}
                       value={approvalNote}
                       onChange={(e) => setApprovalNote(e.target.value)}
                       placeholder="Document review of preview and business sign-off…"
                     />
-                  </label>
+                  </div>
                   <label className="flex items-start gap-2 text-sm font-medium text-slate-800">
                     <input
                       type="checkbox"
@@ -188,24 +187,6 @@ export function Ap2ApRebuildModal({
                     />
                     I confirm Head of Accounts has reviewed this preview
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    <FinanceActionButton
-                      variant="primary"
-                      onClick={() => void handleApply()}
-                      disabled={
-                        applyLoading ||
-                        !approvalNote.trim() ||
-                        !confirmed ||
-                        !preview.previewHash ||
-                        !(preview.flags?.apReceivedBasisRebuildEnabled ?? true)
-                      }
-                    >
-                      Approve received-basis AP rebuild
-                    </FinanceActionButton>
-                    <FinanceActionButton variant="secondary" onClick={onClose}>
-                      Cancel
-                    </FinanceActionButton>
-                  </div>
                   {preview.flags && !preview.flags.apReceivedBasisRebuildEnabled ? (
                     <p className="text-xs text-amber-800 font-bold">
                       Rebuild disabled until AP_RECEIVED_BASIS_REBUILD_ENABLED=1 on server.
@@ -219,8 +200,20 @@ export function Ap2ApRebuildModal({
               )}
             </>
           ) : null}
-        </div>
-      </div>
-    </div>
+        </ModalScrollBody>
+
+        <ModalActionFooter onCancel={onClose} cancelDisabled={applyLoading}>
+          {mayApply ? (
+            <Button
+              type="button"
+              onClick={() => void handleApply()}
+              disabled={applyLoading || !canSubmitApply}
+            >
+              {applyLoading ? 'Applying…' : 'Approve received-basis AP rebuild'}
+            </Button>
+          ) : null}
+        </ModalActionFooter>
+      </ModalScrollShell>
+    </ModalFrame>
   );
 }

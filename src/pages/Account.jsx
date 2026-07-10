@@ -89,7 +89,6 @@ import {
   treasuryOutflowLinesForRefund,
   treasuryOutflowPaymentTableRows,
   payFromCorrectionHeadlineForMovementType,
-  isPayFromCorrectionTreasuryRow,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
 import { findTreasuryPayoutShortAccount } from '../lib/financeDeskTreasury';
@@ -129,7 +128,6 @@ import {
   isReceiptPendingClearance,
   isReceiptReversed,
   RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE,
-  receiptClearanceBadgeLabel,
 } from '../lib/receiptClearance.js';
 
 import { AccountPageContext } from './account/AccountPageContext.jsx';

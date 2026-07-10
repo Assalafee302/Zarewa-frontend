@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchIncidents } from '../../lib/hrIncidents';
 import HrIncidentRegistryDetailModal from './HrIncidentRegistryDetailModal';
-import { HR_BTN_SECONDARY, HR_CARD, HR_FIELD_CLASS, HR_MUTED, HR_SECTION_TITLE } from './hrPageUi';
+import { HR_CARD, HR_FIELD_CLASS, HR_MUTED, HR_SECTION_TITLE, HrButton, HrAddButton } from './hrPageUi';
 import {
   AppTable,
   AppTableBody,
@@ -84,9 +84,9 @@ export default function HrIncidentRegistryPanel({ onOpenCase, focusRegistryId, o
           <h3 className={HR_SECTION_TITLE}>Incident registry</h3>
           <p className={HR_MUTED}>Unified view across HR discipline, operational, material, and performance incidents.</p>
         </div>
-        <button type="button" className={HR_BTN_SECONDARY} onClick={load} disabled={busy}>
+        <HrButton type="button" variant="secondary" onClick={load} disabled={busy}>
           {busy ? 'Refreshing…' : 'Refresh'}
-        </button>
+        </HrButton>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3">

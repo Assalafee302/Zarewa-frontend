@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -12,7 +13,7 @@ import {
   ProfileOverviewSection,
 } from '../../components/profile/profileOverviewUi';
 import { ProfileListRow, ProfileStatusChip } from '../../components/profile/profileDesign';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
+import { HR_BTN_PRIMARY } from '../../components/hr/hrFormStyles';
 import { createHrIdCardRequest, fetchHrIdCards } from '../../lib/hrIdCards';
 import {
   blankIdCardApplyForm,
@@ -197,13 +198,13 @@ export default function MyIdCard() {
         description="Request a new or replacement employee ID card. HR processes and issues the card after approval."
         actions={
           <div className="flex flex-wrap gap-2">
-            <button
+            <HrButton
               type="button"
               onClick={openDraftPreview}
-              className={HR_BTN_SECONDARY}
+              variant="secondary"
             >
               Preview card
-            </button>
+            </HrButton>
             <HrAddFormButton onClick={openModal} disabled={hasOpenRequest}>
               {hasOpenRequest ? 'Request in progress' : 'Request ID card'}
             </HrAddFormButton>
@@ -232,12 +233,12 @@ export default function MyIdCard() {
           />
 
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={openDraftPreview} className={HR_BTN_SECONDARY}>
+            <HrButton type="button" onClick={openDraftPreview} variant="secondary">
               Preview card
-            </button>
-            <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+            </HrButton>
+            <HrButton type="submit" disabled={busy} >
               {busy ? 'Submitting…' : 'Submit request'}
-            </button>
+            </HrButton>
           </div>
         </form>
       </HrFormModal>

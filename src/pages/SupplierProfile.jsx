@@ -19,7 +19,7 @@ import {
   Building2,
   Users,
 } from 'lucide-react';
-import { PageHeader, PageShell, MainPanel, ModalFrame } from '../components/layout';
+import { PageHeader, PageShell, MainPanel, ModalFrame, Breadcrumbs } from '../components/layout';
 import { ProcurementStatementPrintBlock } from '../components/procurement/ProcurementStatementPrintBlock';
 import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -264,6 +264,14 @@ const SupplierProfile = () => {
 
   return (
     <PageShell>
+      <Breadcrumbs
+        className="mb-4"
+        items={[
+          { label: 'Procurement', to: '/procurement' },
+          { label: 'Suppliers', to: '/procurement' },
+          { label: supplier.name },
+        ]}
+      />
       <PageHeader
         title={supplier.name}
         subtitle={`${supplier.supplierID} · ${supplier.city || '—'} · ${supplier.paymentTerms || '—'}${

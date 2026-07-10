@@ -1,10 +1,11 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { applyHrSalaryIncrement } from '../../lib/hrStaff';
 import { formatNgn } from '../../lib/hrFormat';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
  * Apply matrix band amounts to staff compensation (promotion / step-up wizard).
@@ -106,9 +107,9 @@ export function HrPromotionFromMatrix({ userId, staff, canViewAmounts, onUpdated
             Reason
             <input className={HR_FIELD_CLASS} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Promotion / step increment" />
           </label>
-          <button type="submit" disabled={busy || !match} className={HR_BTN_PRIMARY}>
+          <HrButton type="submit" disabled={busy || !match} >
             Apply matrix band
-          </button>
+          </HrButton>
         </form>
       </HrFormModal>
     </div>

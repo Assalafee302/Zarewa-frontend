@@ -4,12 +4,15 @@ export const HR_FIELD_CLASS =
 
 export const HR_TEXTAREA_CLASS = `${HR_FIELD_CLASS} min-h-[88px] resize-y font-medium text-gray-800`;
 
+/** @deprecated Prefer HrButton from hrPageUi — kept for backward compatibility. */
 export const HR_BTN_PRIMARY =
   'inline-flex min-h-11 w-full sm:w-auto items-center justify-center rounded-xl bg-zarewa-teal px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d3a] disabled:opacity-50';
 
+/** @deprecated Prefer HrButton variant="secondary" from hrPageUi. */
 export const HR_BTN_SECONDARY =
   'inline-flex min-h-11 w-full sm:w-auto items-center justify-center rounded-xl border border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50';
 
+/** @deprecated Prefer HrAddButton from hrPageUi. */
 export const HR_BTN_ADD =
   'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-zarewa-teal px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d3a]';
 

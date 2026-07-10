@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { HR_BTN_PRIMARY } from '../../components/hr/hrFormStyles';
@@ -86,9 +87,9 @@ export default function MyProfileDomesticPayments() {
 
       <ProfileOverviewSection title={DOMESTIC_BENEFITS.pdfStatementTitle} subtitle={DOMESTIC_BENEFITS.pdfStatementSubtitle}>
         <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
-          <button type="button" onClick={onDownload} disabled={downloading} className={HR_BTN_PRIMARY}>
+          <HrButton type="button" onClick={onDownload} disabled={downloading} >
             {downloading ? 'Generating…' : 'Download PDF statement'}
-          </button>
+          </HrButton>
         </div>
         {downloadError ? <ProfileInlineAlert variant="error">{downloadError}</ProfileInlineAlert> : null}
       </ProfileOverviewSection>

@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { appConfirm } from '../../lib/appConfirm';
 import { formatNgn } from '../../lib/hrFormat';
@@ -8,7 +9,7 @@ import {
 } from '../../lib/hrStaffObligations';
 import { canChairmanWaiveObligation, canMaintainStaffObligations } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
  * HR maintenance — pause/resume payroll deductions, adjust schedule, close, Chairman waiver.
@@ -140,19 +141,19 @@ export function HrObligationMaintenancePanel({ account, onUpdated }) {
                   onChange={(e) => setPauseUntil(e.target.value)}
                 />
               </label>
-              <button
+              <HrButton
                 type="button"
                 disabled={busy || pauseReason.trim().length < 3}
-                className={HR_BTN_SECONDARY}
+                variant="secondary"
                 onClick={() => togglePause(true)}
               >
                 Pause deductions
-              </button>
+              </HrButton>
             </div>
           ) : (
-            <button type="button" disabled={busy} className={HR_BTN_PRIMARY} onClick={() => togglePause(false)}>
+            <HrButton type="button" disabled={busy}  onClick={() => togglePause(false)}>
               Resume payroll deductions
-            </button>
+            </HrButton>
           )}
 
           <form onSubmit={submitAdjust} className="space-y-2 rounded-lg border border-slate-100 p-3">
@@ -189,22 +190,22 @@ export function HrObligationMaintenancePanel({ account, onUpdated }) {
               <input className={HR_FIELD_CLASS} value={maintNote} onChange={(e) => setMaintNote(e.target.value)} />
             </label>
             <div className="flex flex-wrap gap-2">
-              <button type="submit" disabled={busy} className={HR_BTN_SECONDARY}>
+              <HrButton type="submit" disabled={busy} variant="secondary">
                 Save adjustment
-              </button>
-              <button
+              </HrButton>
+              <HrButton
                 type="button"
                 disabled={busy}
-                className={HR_BTN_SECONDARY}
+                variant="secondary"
                 onClick={() =>
                   run(() => maintainObligationAccount(account.id, { recalculateInstallment: true }))
                 }
               >
                 Recalculate monthly from balance
-              </button>
-              <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={closeLoan}>
+              </HrButton>
+              <HrButton type="button" disabled={busy} variant="secondary" onClick={closeLoan}>
                 Close / write off
-              </button>
+              </HrButton>
             </div>
           </form>
         </div>
@@ -227,9 +228,9 @@ export function HrObligationMaintenancePanel({ account, onUpdated }) {
               placeholder="Board / Chairman approval reference"
             />
           </label>
-          <button type="submit" disabled={busy || waiverNote.trim().length < 3} className={HR_BTN_PRIMARY}>
+          <HrButton type="submit" disabled={busy || waiverNote.trim().length < 3} >
             Waive balance
-          </button>
+          </HrButton>
         </form>
       ) : null}
     </div>

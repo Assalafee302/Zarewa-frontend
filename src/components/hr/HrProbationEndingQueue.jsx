@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
@@ -29,7 +30,7 @@ export function HrProbationEndingQueue() {
   const rows = useMemo(() => staff.filter((s) => s?.userId), [staff]);
 
   if (loading && !rows.length) {
-    return <p className="text-sm text-slate-600">Loading probation queue…</p>;
+    return <InlineLoader message="Loading probation queue…" />;
   }
   if (error) {
     return <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>;

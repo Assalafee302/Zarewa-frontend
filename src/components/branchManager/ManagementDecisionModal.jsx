@@ -73,7 +73,7 @@ export function ManagementDecisionModal({
 }) {
   const { show: showToast } = useToast();
   const [materialDecisionRemark, setMaterialDecisionRemark] = useState('');
-  const [materialDecisionBusy, setMaterialDecisionBusy] = useState(false);
+  const [, setMaterialDecisionBusy] = useState(false);
 
   const asMoney = typeof formatNgn === 'function' ? formatNgn : formatNgnUtil;
   const asPersonName = formatPersonNameUtil;

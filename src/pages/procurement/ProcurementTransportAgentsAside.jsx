@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Truck, Pencil, Trash2 } from 'lucide-react';
-import { CARD_ROW, statusChipBorder } from './procurementTabShared.js';
+import { CARD_ROW } from './procurementTabShared.js';
+import { PoStatusChip } from '../../components/procurement/PoStatusChip';
 
 export function ProcurementTransportAgentsAside({ agents, onEdit, onRemove, onRegister, transitRows, onPreviewTransitPo }) {
   return (
@@ -104,11 +105,7 @@ export function ProcurementTransportAgentsAside({ agents, onEdit, onRemove, onRe
                           {meta2 || '—'}
                         </p>
                       </div>
-                      <span
-                        className={`text-ui-xs font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border shrink-0 ${statusChipBorder(p.status)}`}
-                      >
-                        {p.status}
-                      </span>
+                      <PoStatusChip status={p.status} className="shrink-0" />
                     </div>
                   </button>
                 </li>

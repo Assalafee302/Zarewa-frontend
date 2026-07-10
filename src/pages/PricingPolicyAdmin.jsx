@@ -1,3 +1,4 @@
+import { InlineLoader } from '../components/ui/PageLoader';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { MainPanel, PageHeader } from '../components/layout';
@@ -118,7 +119,7 @@ export default function PricingPolicyAdmin() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-600">Loading…</p>
+        <InlineLoader message="Loading…" />
       ) : (
         <form onSubmit={save} className="max-w-4xl space-y-8">
           <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm space-y-3">

@@ -1,9 +1,10 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { fetchHrPromotionDue } from '../../lib/hrPhase2';
-import { HrCard, HrEmptyState, HrStatusPill } from './hrPageUi';
+import { HrCard, HrEmptyState, HrStatusPill, HrButton, HrAddButton } from './hrPageUi';
 import { HR_BTN_SECONDARY } from './hrFormStyles';
 import {
   AppTable, AppTableBody, AppTableTd, AppTableTh, AppTableThead, AppTableTr, AppTableWrap,
@@ -46,7 +47,7 @@ export function HrPromotionDuePanel() {
       }
     >
       {error ? <div className="mb-3 text-sm text-red-800">{error}</div> : null}
-      {loading && !rows.length ? <p className="text-sm text-slate-600">Loading…</p> : rows.length === 0 ? (
+      {loading && !rows.length ? <InlineLoader message="Loading…" /> : rows.length === 0 ? (
         <HrEmptyState title="No staff match this filter." />
       ) : (
         <AppTableWrap>

@@ -7,12 +7,12 @@ const tabBtn =
  * Segmented control used across module pages for consistent UX.
  * tabs: [{ id: string, label: string, icon?: ReactNode }]
  */
-export function PageTabs({ tabs, value, onChange, ariaLabel = 'Section' }) {
+export function PageTabs({ tabs, value, onChange, ariaLabel = 'Section', className = '' }) {
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="inline-flex w-full max-w-full min-w-0 flex-wrap gap-1 overflow-x-auto overscroll-x-contain p-1.5 [-webkit-overflow-scrolling:touch] rounded-2xl border border-white/80 bg-white/88 shadow-[0_16px_32px_-26px_rgba(15,23,42,0.35)] backdrop-blur-xl max-sm:flex-nowrap sm:overflow-x-visible"
+      className={`inline-flex w-full max-w-full min-w-0 flex-wrap gap-1 overflow-x-auto overscroll-x-contain p-1.5 [-webkit-overflow-scrolling:touch] rounded-2xl border border-white/80 bg-white/88 shadow-[0_16px_32px_-26px_rgba(15,23,42,0.35)] backdrop-blur-xl max-sm:flex-nowrap sm:overflow-x-visible ${className}`}
     >
       {tabs.map((tab) => {
         const active = value === tab.id;

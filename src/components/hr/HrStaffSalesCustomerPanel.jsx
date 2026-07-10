@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ensureStaffSalesCustomer } from '../../lib/hrStaffPurchaseCredit';
-import { HrAlert, HrCard } from './hrPageUi';
+import { HrAlert, HrCard, HrButton, HrAddButton } from './hrPageUi';
 import { HR_BTN_PRIMARY } from './hrFormStyles';
 
 /**

@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';

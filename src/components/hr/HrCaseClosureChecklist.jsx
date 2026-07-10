@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useState } from 'react';
 import { fetchCaseClosureCheck } from '../../lib/hrIncidents';
 import { patchDisciplineCase } from '../../lib/hrDisciplineCases';
@@ -53,9 +54,9 @@ export default function HrCaseClosureChecklist({
         ))}
       </ul>
       {canManage ? (
-        <button type="button" disabled={busy || !check.ok} className={HR_BTN_PRIMARY} onClick={closeCase}>
+        <HrButton type="button" disabled={busy || !check.ok}  onClick={closeCase}>
           {busy ? 'Closing…' : 'Close case'}
-        </button>
+        </HrButton>
       ) : null}
       {err ? <p className="text-sm text-red-700">{err}</p> : null}
     </div>

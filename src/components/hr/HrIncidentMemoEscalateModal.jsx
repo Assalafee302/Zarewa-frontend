@@ -1,8 +1,9 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import { useState } from 'react';
 import { DISCIPLINE_CASE_TYPES, DISCIPLINE_SEVERITIES } from '../../lib/hrDisciplineCases';
 import { escalateHrIncident } from '../../lib/hrExtended';
 import { HrFormModal } from './HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 export default function HrIncidentMemoEscalateModal({ memo, open, onClose, onEscalated }) {
   const [caseType, setCaseType] = useState('investigation');
@@ -66,10 +67,10 @@ export default function HrIncidentMemoEscalateModal({ memo, open, onClose, onEsc
         </label>
         {err ? <p className="text-sm text-red-700">{err}</p> : null}
         <div className="flex justify-end gap-2">
-          <button type="button" className={HR_BTN_SECONDARY} onClick={onClose}>Cancel</button>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+          <HrButton type="button" variant="secondary" onClick={onClose}>Cancel</HrButton>
+          <HrButton type="submit" disabled={busy} >
             {busy ? 'Escalating…' : 'Create accountability case'}
-          </button>
+          </HrButton>
         </div>
       </form>
     </HrFormModal>

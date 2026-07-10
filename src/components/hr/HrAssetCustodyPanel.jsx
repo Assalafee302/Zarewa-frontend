@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { recordCustodyEvent } from '../../lib/hrIncidents';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_CARD, HR_INPUT, HR_MUTED, HR_SECTION_TITLE } from './hrPageUi';
+import { HR_CARD, HR_INPUT, HR_MUTED, HR_SECTION_TITLE, HrButton, HrAddButton, HR_BTN_SECONDARY } from './hrPageUi';
 
 export default function HrAssetCustodyPanel({ assetId, machineId, canManage }) {
   const [rows, setRows] = useState([]);
@@ -81,7 +81,7 @@ export default function HrAssetCustodyPanel({ assetId, machineId, canManage }) {
             <option value="report_missing">Report missing</option>
           </select>
           <input className={HR_INPUT} placeholder="Notes" value={form.note} onChange={(ev) => setForm((f) => ({ ...f, note: ev.target.value }))} />
-          <button type="submit" className={HR_BTN_PRIMARY} disabled={busy}>Record event</button>
+          <HrButton type="submit" disabled={busy}>Record event</HrButton>
         </form>
       ) : null}
       <ul className="space-y-2 text-sm">

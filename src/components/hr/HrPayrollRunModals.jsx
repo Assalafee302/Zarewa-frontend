@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_PRIMARY } from '../../components/hr/hrPageUi';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ModalFrame } from '../layout/ModalFrame';
 import { formatNgn } from '../../lib/hrFormat';
@@ -9,7 +10,7 @@ import {
   payrollPeriodsInUse,
 } from '../../lib/hrPayroll';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 const MODAL_PANEL =
   'z-modal-panel w-full max-w-lg rounded-2xl border border-slate-100 bg-white p-4 shadow-xl max-h-[min(92dvh,720px)] overflow-y-auto sm:p-6';
@@ -40,9 +41,9 @@ export function HrPayrollConfirmModal({
         {description ? <p className="text-sm text-slate-600">{description}</p> : null}
         {children ? <div className={description ? 'mt-4' : ''}>{children}</div> : null}
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} disabled={busy} className={HR_BTN_SECONDARY}>
+          <HrButton type="button" onClick={onClose} disabled={busy} variant="secondary">
             Cancel
-          </button>
+          </HrButton>
           <button type="button" onClick={onConfirm} disabled={busy} className={confirmCls}>
             {busy ? 'Please wait…' : confirmLabel}
           </button>
@@ -150,12 +151,12 @@ export function HrPayrollStartRunModal({ isOpen, onClose, runs = [], busy = fals
         </label>
 
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} disabled={busy} className={HR_BTN_SECONDARY}>
+          <HrButton type="button" onClick={onClose} disabled={busy} variant="secondary">
             Cancel
-          </button>
-          <button type="submit" disabled={busy || periodTaken || !periodYyyymm} className={HR_BTN_PRIMARY}>
+          </HrButton>
+          <HrButton type="submit" disabled={busy || periodTaken || !periodYyyymm} >
             {busy ? 'Creating…' : 'Start payroll'}
-          </button>
+          </HrButton>
         </div>
       </form>
     </ModalFrame>
@@ -204,12 +205,12 @@ export function HrPayrollPayeAdjustModal({ isOpen, onClose, line, busy = false, 
         </label>
         <p className="mt-2 text-xs text-slate-500">Fixed monthly PAYE from the staff profile. Adjust here only for this run.</p>
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} disabled={busy} className={HR_BTN_SECONDARY}>
+          <HrButton type="button" onClick={onClose} disabled={busy} variant="secondary">
             Cancel
-          </button>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+          </HrButton>
+          <HrButton type="submit" disabled={busy} >
             {busy ? 'Saving…' : 'Save PAYE'}
-          </button>
+          </HrButton>
         </div>
       </form>
     </ModalFrame>
@@ -271,9 +272,9 @@ export function HrPayrollMarkPaidModal({
         )}
 
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} disabled={busy} className={HR_BTN_SECONDARY}>
+          <HrButton type="button" onClick={onClose} disabled={busy} variant="secondary">
             Cancel
-          </button>
+          </HrButton>
           <button
             type="button"
             onClick={onConfirm}
@@ -327,9 +328,9 @@ export function HrPayrollLineHoldModal({ isOpen, onClose, line, busy = false, on
           <p className="text-sm text-slate-600">Release this hold and allow net pay on the run? Recompute afterward if amounts need refreshing.</p>
         )}
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} disabled={busy} className={HR_BTN_SECONDARY}>
+          <HrButton type="button" onClick={onClose} disabled={busy} variant="secondary">
             Cancel
-          </button>
+          </HrButton>
           <button type="submit" disabled={busy} className={`${HR_BTN_PRIMARY} ${isHeld ? '' : 'bg-amber-800 hover:bg-amber-900'}`}>
             {busy ? 'Saving…' : isHeld ? 'Release hold' : 'Hold pay'}
           </button>

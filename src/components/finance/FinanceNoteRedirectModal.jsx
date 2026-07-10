@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { FinanceActionButton } from './FinanceActionButton';
+import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalActionFooter } from '../layout';
+import { FieldLabel, Textarea } from '../ui/Input';
 
 /**
  * Short cashier note then navigate to legacy finance for full workflow.
@@ -9,45 +9,31 @@ import { FinanceActionButton } from './FinanceActionButton';
 export function FinanceNoteRedirectModal({ open, onClose, title, description, redirectTo, confirmLabel = 'Continue' }) {
   const [note, setNote] = useState('');
   const navigate = useNavigate();
-  if (!open) return null;
+
+  const handleConfirm = () => {
+    const q = note.trim() ? `?note=${encodeURIComponent(note.trim())}` : '';
+    navigate(`${redirectTo}${q}`);
+    setNote('');
+    onClose();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="text-lg font-black text-zarewa-teal">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="space-y-4 p-5">
+    <ModalFrame isOpen={open} onClose={onClose} title={title} surface="plain">
+      <ModalScrollShell size="sm">
+        <ModalScrollBody className="space-y-4">
           <p className="text-sm text-slate-600">{description}</p>
-          <label className="block text-xs font-bold text-slate-600">
-            Note (optional)
-            <textarea
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          <div>
+            <FieldLabel htmlFor="finance-redirect-note">Note (optional)</FieldLabel>
+            <Textarea
+              id="finance-redirect-note"
               rows={2}
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
-          </label>
-          <div className="flex justify-end gap-2">
-            <FinanceActionButton variant="secondary" onClick={onClose}>
-              Cancel
-            </FinanceActionButton>
-            <FinanceActionButton
-              variant="primary"
-              onClick={() => {
-                const q = note.trim() ? `?note=${encodeURIComponent(note.trim())}` : '';
-                navigate(`${redirectTo}${q}`);
-                onClose();
-              }}
-            >
-              {confirmLabel}
-            </FinanceActionButton>
           </div>
-        </div>
-      </div>
-    </div>
+        </ModalScrollBody>
+        <ModalActionFooter onCancel={onClose} onConfirm={handleConfirm} confirmLabel={confirmLabel} />
+      </ModalScrollShell>
+    </ModalFrame>
   );
 }

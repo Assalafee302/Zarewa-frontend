@@ -1,22 +1,17 @@
 import React from 'react';
-import { AppTableTd, AppTableTr } from '../ui/AppDataTable';
+import { TableLoadingSkeleton, TableEmptyRow } from '../ui/TableLoadingSkeleton';
 
-export function HrTableLoadingRow({ colSpan, message = 'Loading…' }) {
-  return (
-    <AppTableTr>
-      <AppTableTd colSpan={colSpan} align="center" truncate={false}>
-        <span className="block py-8 text-sm text-slate-500">{message}</span>
-      </AppTableTd>
-    </AppTableTr>
-  );
+/** @deprecated Use TableLoadingSkeleton directly. */
+export function HrTableLoadingRow({ colSpan, message, rows = 5 }) {
+  if (message && message !== 'Loading…') {
+    return <TableEmptyRow colSpan={colSpan} message={message} />;
+  }
+  return <TableLoadingSkeleton colSpan={colSpan} rows={rows} />;
 }
 
-export function HrTableEmptyRow({ colSpan, message = 'No records.' }) {
-  return (
-    <AppTableTr>
-      <AppTableTd colSpan={colSpan} align="center" truncate={false}>
-        <span className="block py-8 text-sm text-slate-500">{message}</span>
-      </AppTableTd>
-    </AppTableTr>
-  );
+/** @deprecated Use TableEmptyRow directly. */
+export function HrTableEmptyRow({ colSpan, message = 'No records.', description }) {
+  return <TableEmptyRow colSpan={colSpan} message={message} description={description} />;
 }
+
+export { TableLoadingSkeleton, TableEmptyRow };

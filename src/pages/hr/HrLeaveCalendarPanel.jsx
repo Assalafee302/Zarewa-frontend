@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useMemo, useState } from 'react';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { fetchHrLeaveCalendar } from '../../lib/hrExtended';
@@ -69,7 +70,7 @@ export default function HrLeaveCalendarPanel() {
         </label>
       </div>
       {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
-      {loading ? <p className="text-sm text-slate-600">Loading calendar…</p> : null}
+      {loading ? <InlineLoader message="Loading calendar…" /> : null}
       <AppTableWrap>
         <AppTable>
           <AppTableThead>

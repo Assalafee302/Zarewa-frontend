@@ -175,6 +175,11 @@ export function LiveProductionMonitor({
   const confirmDialogResolverRef = useRef(null);
   const [jobIntel, setJobIntel] = useState(null);
   const [jobIntelLoading, setJobIntelLoading] = useState(false);
+  const [accessoryCompletionDraft, setAccessoryCompletionDraft] = useState([]);
+  const [stoneFlatsheetCompletionDraft, setStoneFlatsheetCompletionDraft] = useState([]);
+  const [conversionPreview, setConversionPreview] = useState(null);
+  const [conversionPreviewError, setConversionPreviewError] = useState('');
+  const [conversionPreviewLoading, setConversionPreviewLoading] = useState(false);
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
@@ -495,29 +500,6 @@ export function LiveProductionMonitor({
     return liveJobMaterialPresentation(kind).chipLabel || null;
   }, [isAccessoriesOnlyQuote, linkedQuotation, linkedCuttingList, ws?.snapshot?.masterData?.materialTypes]);
 
-  useEffect(() => {
-    if (!operationsRegisterEdit || typeof onRegisterHeaderMeta !== 'function') return undefined;
-    if (!selectedJob?.jobID) {
-      onRegisterHeaderMeta(null);
-      return undefined;
-    }
-    onRegisterHeaderMeta({
-      status: displayJobStatus,
-      quotationRef: selectedJob.quotationRef || null,
-      machineName: selectedJob.machineName || null,
-      materialLabel: registerMaterialLabel,
-    });
-    return () => onRegisterHeaderMeta(null);
-  }, [
-    operationsRegisterEdit,
-    onRegisterHeaderMeta,
-    selectedJob?.jobID,
-    selectedJob?.status,
-    selectedJob?.quotationRef,
-    selectedJob?.machineName,
-    registerMaterialLabel,
-  ]);
-
   const reloadJobIntel = useCallback(async () => {
     const jobId = String(selectedJob?.jobID || '').trim();
     if (!jobId) {
@@ -578,7 +560,29 @@ export function LiveProductionMonitor({
   const jobSt = optimisticJobStatus ?? normalizeJobStatus(selectedJob?.status);
   const displayJobStatus = jobSt;
   const shopFloorUi = Boolean(inModal && operationsRegisterEdit);
-  const statusChipText = shopFloorUi ? 'text-xs' : 'text-ui-xs';
+
+  useEffect(() => {
+    if (!operationsRegisterEdit || typeof onRegisterHeaderMeta !== 'function') return undefined;
+    if (!selectedJob?.jobID) {
+      onRegisterHeaderMeta(null);
+      return undefined;
+    }
+    onRegisterHeaderMeta({
+      status: displayJobStatus,
+      quotationRef: selectedJob.quotationRef || null,
+      machineName: selectedJob.machineName || null,
+      materialLabel: registerMaterialLabel,
+    });
+    return () => onRegisterHeaderMeta(null);
+  }, [
+    operationsRegisterEdit,
+    onRegisterHeaderMeta,
+    selectedJob?.jobID,
+    selectedJob?.quotationRef,
+    selectedJob?.machineName,
+    registerMaterialLabel,
+    displayJobStatus,
+  ]);
   /** Same gate as post-completion FG metre adjustments — not plain production.manage. */
   const canEditCompletedCoilCorrections =
     jobSt === 'Completed' &&
@@ -973,12 +977,9 @@ export function LiveProductionMonitor({
   const sfDraftJobRef = useRef(null);
   const coilDraftJobRef = useRef(null);
   const selectedJobAllocationsRef = useRef(selectedJobAllocations);
-  selectedJobAllocationsRef.current = selectedJobAllocations;
-  const [accessoryCompletionDraft, setAccessoryCompletionDraft] = useState([]);
-  const [stoneFlatsheetCompletionDraft, setStoneFlatsheetCompletionDraft] = useState([]);
-  const [conversionPreview, setConversionPreview] = useState(null);
-  const [conversionPreviewError, setConversionPreviewError] = useState('');
-  const [conversionPreviewLoading, setConversionPreviewLoading] = useState(false);
+  useEffect(() => {
+    selectedJobAllocationsRef.current = selectedJobAllocations;
+  }, [selectedJobAllocations]);
 
   useEffect(() => {
     if (focusClTrim) {

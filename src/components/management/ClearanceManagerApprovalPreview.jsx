@@ -50,7 +50,6 @@ export function ClearanceManagerApprovalPreview({
   const paidNgn = Number(inboxRow?.paid_ngn ?? auditData?.summary?.paidNgn) || 0;
   const totalNgn = Number(inboxRow?.total_ngn ?? auditData?.summary?.orderTotalNgn) || 0;
   const waivedNgn = quotationWaivedBalanceNgn(inboxRow || auditData?.quotation || {});
-  const rawOutstandingAmountNgn = Math.max(0, Math.round(totalNgn - paidNgn));
   const strictReceivableNgn = accountingReceivableOutstandingNgn(totalNgn, paidNgn, waivedNgn);
   const receivableNgn = registerReceivableOutstandingNgn(totalNgn, paidNgn, waivedNgn);
   const writeOffEval = evaluateReceivableWriteOff(totalNgn, paidNgn, waivedNgn);

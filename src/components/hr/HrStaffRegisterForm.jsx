@@ -1,10 +1,11 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useMemo, useState } from 'react';
 import { HrStaffFormFields } from './HrStaffFormFields';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formToRegisterBody, registerHrStaff } from '../../lib/hrStaff';
 import { emptyStaffForm } from '../../lib/hrStaffConstants';
 import { payrollGroupMayHaveLogin } from '../../shared/hrStaffCohorts';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
+import { HR_BTN_PRIMARY } from './hrFormStyles';
 
 /**
  * @param {{ defaultBranchId?: string; onSuccess: (userId: string) => void; onCancel?: () => void }} props
@@ -50,13 +51,13 @@ export function HrStaffRegisterForm({ defaultBranchId, onSuccess, onCancel }) {
       ) : null}
       <HrStaffFormFields form={form} setForm={setForm} branches={branches} mode="register" showCompensation canViewFullBank />
       <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-        <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+        <HrButton type="submit" disabled={busy} >
           {busy ? 'Registering…' : 'Register staff'}
-        </button>
+        </HrButton>
         {onCancel ? (
-          <button type="button" onClick={onCancel} className={HR_BTN_SECONDARY}>
+          <HrButton type="button" onClick={onCancel} variant="secondary">
             Cancel
-          </button>
+          </HrButton>
         ) : null}
       </div>
     </form>

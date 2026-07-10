@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_PRIMARY } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -13,7 +14,7 @@ import {
   saveHrBeneficiary,
 } from '../../lib/hrExtended';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,

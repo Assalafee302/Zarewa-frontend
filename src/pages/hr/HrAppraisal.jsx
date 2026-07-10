@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { InlineLoader } from '../../components/ui/PageLoader';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { HrCard } from '../../components/hr/hrPageUi';
@@ -339,7 +340,7 @@ export default function HrAppraisal() {
       </div>
 
       {error && <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>}
-      {loading && <p className="text-sm text-slate-600">Loading…</p>}
+      {loading && <InlineLoader message="Loading…" />}
 
       {/* Cycles tab */}
       {tab === 'cycles' && !loading && (

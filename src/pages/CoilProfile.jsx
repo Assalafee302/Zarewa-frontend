@@ -9,7 +9,7 @@ import {
   Pencil,
   ScrollText,
 } from 'lucide-react';
-import { MainPanel, ModalFrame, PageHeader, PageShell } from '../components/layout';
+import { MainPanel, ModalFrame, PageHeader, PageShell, Breadcrumbs } from '../components/layout';
 import CoilDamageRecordModal from '../components/operations/CoilDamageRecordModal';
 import CoilEditMasterModal from '../components/operations/CoilEditMasterModal';
 import { INCIDENT_TYPES } from '../lib/materialIncidentConstants';
@@ -498,6 +498,14 @@ export default function CoilProfile() {
 
   return (
     <PageShell>
+      <Breadcrumbs
+        className="mb-4"
+        items={[
+          { label: 'Operations', to: '/operations' },
+          { label: 'Inventory', to: '/operations' },
+          { label: `Coil ${coil.coilNo}` },
+        ]}
+      />
       <PageHeader
         title={`Coil ${coil.coilNo}`}
         subtitle={`${coil.productID || '—'} · ${coil.colour || '—'} · ${coil.gaugeLabel || '—'}`}

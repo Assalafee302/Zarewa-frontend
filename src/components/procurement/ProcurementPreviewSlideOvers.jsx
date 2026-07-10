@@ -3,6 +3,7 @@ import { PrintModalPortal } from '../layout/PrintModalPortal';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, Info, Printer, X } from 'lucide-react';
 import { SlideOverPanel } from '../layout/SlideOverPanel';
+import { PoStatusChip } from './PoStatusChip';
 import { formatNgn } from '../../Data/mockData';
 import PurchaseOrderPrintView from './PurchaseOrderPrintView';
 import {
@@ -126,11 +127,8 @@ export function ProcurementPoPreviewSlideOver({
             <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500">Purchase order</p>
             <h2 className="mt-0.5 font-mono text-lg font-bold text-zarewa-teal">{po.poID}</h2>
             <p className="text-xs font-medium text-slate-600">{po.supplierName}</p>
-            <p className="mt-1 text-ui-xs font-semibold uppercase tracking-wide text-slate-500">
-              {kindTitle(kind)} ·{' '}
-              <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-zarewa-teal">
-                {po.status}
-              </span>
+            <p className="mt-1 text-ui-xs font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-2 flex-wrap">
+              {kindTitle(kind)} · <PoStatusChip status={po.status} />
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1">

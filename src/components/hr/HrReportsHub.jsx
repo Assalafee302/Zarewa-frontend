@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { InlineLoader } from '../../components/ui/PageLoader';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
@@ -9,10 +10,10 @@ import {
   fetchHrReportCatalog,
   fetchHrReportPreview,
 } from '../../lib/hrReportsCatalog';
-import { HrCard, HrEmptyState } from './hrPageUi';
+import { HrCard, HrEmptyState, HrButton, HrAddButton } from './hrPageUi';
 import { HrReportFilterPanel } from './HrReportFilterPanel';
 import { HrResponsiveTable } from './HrResponsiveTable';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
+import { HR_BTN_PRIMARY } from './hrFormStyles';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 
 function ExportButton({ label, disabled, disabledReason, onClick, busy }) {
@@ -167,9 +168,9 @@ export function HrReportsHub() {
             showEmploymentType={showEmploymentType}
           />
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" className={HR_BTN_PRIMARY} onClick={loadPreview} disabled={loading || sensitiveBlocked}>
+            <HrButton type="button" onClick={loadPreview} disabled={loading || sensitiveBlocked}>
               {loading ? 'Loading…' : 'Refresh preview'}
-            </button>
+            </HrButton>
             <ExportButton label="CSV" format="csv" disabled={sensitiveBlocked} disabledReason="Requires payroll sensitive permission" onClick={() => runExport('csv')} busy={exportBusy === 'csv'} />
             <ExportButton
               label="Excel"
@@ -187,9 +188,9 @@ export function HrReportsHub() {
               onClick={() => runExport('pdf')}
               busy={exportBusy === 'pdf'}
             />
-            <button type="button" className={HR_BTN_SECONDARY} onClick={printPreview} disabled={!preview || sensitiveBlocked}>
+            <HrButton type="button" variant="secondary" onClick={printPreview} disabled={!preview || sensitiveBlocked}>
               Print
-            </button>
+            </HrButton>
           </div>
           {sensitiveBlocked ? (
             <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
@@ -244,7 +245,7 @@ export function HrReportsHub() {
             ) : null}
           </HrCard>
         ) : loading ? (
-          <p className="text-sm text-slate-600">Loading report preview…</p>
+          <InlineLoader message="Loading report preview…" />
         ) : null}
       </div>
     </div>

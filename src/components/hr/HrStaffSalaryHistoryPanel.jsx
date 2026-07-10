@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useEffect, useState } from 'react';
 import { formatNgn } from '../../lib/hrFormat';
 import { fetchStaffSalaryHistory } from '../../lib/hrStaffExtras';
@@ -37,7 +38,7 @@ export function HrStaffSalaryHistoryPanel({ userId, canViewAmounts = false }) {
     };
   }, [userId]);
 
-  if (loading) return <p className="text-sm text-slate-600">Loading salary history…</p>;
+  if (loading) return <InlineLoader message="Loading salary history…" />;
   if (error) {
     return (
       <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>

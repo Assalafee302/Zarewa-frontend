@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { Suspense } from 'react';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
@@ -49,7 +50,7 @@ export default function ExecutiveHrFamilyHub() {
       {tab === 'family' ? <ExecutiveHrFamilyDashboard /> : null}
       {tab === 'domestic' ? <ExecutiveHrDomesticDashboard /> : null}
       {tab === 'benefits' ? (
-        <Suspense fallback={<p className="text-sm text-slate-600">Loading executive benefits…</p>}>
+        <Suspense fallback={<InlineLoader message="Loading executive benefits…" />}>
           <HrExecutiveBenefitsHub embedded />
         </Suspense>
       ) : null}

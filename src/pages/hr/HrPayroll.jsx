@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
@@ -83,7 +84,7 @@ function MissingBankModal({ runId, onClose }) {
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg font-bold leading-none">&times;</button>
         </div>
         <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
-          {loading && <p className="text-sm text-slate-600">Loading…</p>}
+          {loading && <InlineLoader message="Loading…" />}
           {error && <p className="text-sm text-red-700">{error}</p>}
           {!loading && !error && staff.length === 0 && (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">

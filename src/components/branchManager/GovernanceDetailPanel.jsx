@@ -14,7 +14,6 @@ function governanceSubtype(item) {
  */
 export function GovernanceDetailPanel({
   item,
-  formatNgn,
   onClose,
   onOpenRefund,
   onOpenQuotation,

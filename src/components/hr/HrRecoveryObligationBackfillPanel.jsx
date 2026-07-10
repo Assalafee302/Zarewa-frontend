@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { backfillRecoveryObligations } from '../../lib/hrStaffObligations';
-import { HrAlert, HrCard } from './hrPageUi';
+import { HrAlert, HrCard, HrButton, HrAddButton } from './hrPageUi';
 import { HR_BTN_SECONDARY } from './hrFormStyles';
 
 /**

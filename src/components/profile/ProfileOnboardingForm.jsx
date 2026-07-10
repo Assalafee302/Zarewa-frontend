@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { User, Phone, MapPin, Users, GraduationCap, CreditCard } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
@@ -6,7 +7,6 @@ import { staffToForm, submitMyHrProfile, updateMyHrProfile } from '../../lib/hrS
 import { HR_GENDERS } from '../../lib/hrStaffConstants';
 import { HR_MARITAL_STATUSES, HR_BLOOD_GROUPS } from '../../lib/hrStaffFormMeta';
 import { composeLegalDisplayName, validateEmployeeProfileSubmit } from '../../lib/hrLegalDisplayName';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../hr/hrFormStyles';
 import {
   PROFILE_INPUT_CLASS,
   PROFILE_TEXTAREA_CLASS,

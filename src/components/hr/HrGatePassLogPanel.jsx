@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { recordGatePassEvent } from '../../lib/hrIncidents';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_CARD, HR_INPUT, HR_MUTED, HR_SECTION_TITLE } from './hrPageUi';
+import { HR_CARD, HR_INPUT, HR_MUTED, HR_SECTION_TITLE, HrButton, HrAddButton, HR_BTN_SECONDARY } from './hrPageUi';
 
 export default function HrGatePassLogPanel({ canManage }) {
   const [rows, setRows] = useState([]);
@@ -86,7 +86,7 @@ export default function HrGatePassLogPanel({ canManage }) {
             Notes
             <input className={HR_INPUT} placeholder="Optional notes" value={form.notes} onChange={(ev) => setForm((f) => ({ ...f, notes: ev.target.value }))} />
           </label>
-          <button type="submit" className={HR_BTN_PRIMARY} disabled={busy}>Record pass</button>
+          <HrButton type="submit" disabled={busy}>Record pass</HrButton>
         </form>
       ) : null}
       <ul className="space-y-2 text-sm max-h-64 overflow-auto">

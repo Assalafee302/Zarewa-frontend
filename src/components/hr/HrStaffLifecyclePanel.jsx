@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
+import { InlineLoader } from '../../components/ui/PageLoader';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { hrHasPermission } from '../../lib/hrAccess';
 import {
@@ -7,7 +9,7 @@ import {
   patchHrLifecycleTask,
   patchHrStaffSeparation,
 } from '../../lib/hrStaffLifecycle';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { HrStaffPermanentDeletePanel } from './HrStaffPermanentDeletePanel';
 
@@ -138,7 +140,7 @@ export function HrStaffLifecyclePanel({ userId, staff, isSelf = false, initialLi
   };
 
   if (!lifecycle) {
-    return <p className="text-sm text-slate-600">Loading lifecycle checklist…</p>;
+    return <InlineLoader message="Loading lifecycle checklist…" />;
   }
 
   const showOffboarding =
@@ -213,9 +215,9 @@ export function HrStaffLifecyclePanel({ userId, staff, isSelf = false, initialLi
             Separating or Separated. Completing exit clearance also deactivates the login account and sets employment
             status to Exited or Retired.
           </p>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+          <HrButton type="submit" disabled={busy} >
             {busy ? 'Saving…' : 'Save separation'}
-          </button>
+          </HrButton>
         </form>
       ) : lifecycle.separation?.status !== 'active' ? (
         <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700">

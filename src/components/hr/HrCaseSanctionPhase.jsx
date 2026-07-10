@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { applyCaseDecision, DECISION_TYPE_OPTIONS } from '../../lib/hrIncidents';
 import { mapManagementDecisionToType } from '../../lib/hrAccountabilityStageProgress';
 import { patchDisciplineCase } from '../../lib/hrDisciplineCases';
-import { HrCard } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrButton, HrAddButton, HR_BTN_PRIMARY } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import HrCaseRecoveryPanel from './HrCaseRecoveryPanel';
 import HrCasePartyLettersPanel from './HrCasePartyLettersPanel';
 
@@ -226,10 +226,10 @@ export default function HrCaseSanctionPhase({
                   {busy ? 'Saving…' : isDeduction ? 'Save sanction & prepare recovery' : 'Apply sanction'}
                 </button>
               ) : null}
-              <button
+              <HrButton
                 type="button"
                 disabled={busy}
-                className={HR_BTN_SECONDARY}
+                variant="secondary"
                 onClick={async () => {
                   const ok = await saveSanctionFields();
                   if (ok) {
@@ -239,7 +239,7 @@ export default function HrCaseSanctionPhase({
                 }}
               >
                 {busy ? 'Saving…' : 'Save changes'}
-              </button>
+              </HrButton>
             </div>
           </div>
         </HrCard>

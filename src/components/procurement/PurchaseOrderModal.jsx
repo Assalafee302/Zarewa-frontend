@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2, UserPlus, X, ChevronDown, Save } from 'lucide-react';
 import { ModalFrame } from '../layout/ModalFrame';
+import { ModalDeskFooter, DeskFooterButton } from '../layout/ModalDeskFooter';
 import { ProcurementFormSection } from './ProcurementFormSection';
 import { apiFetch } from '../../lib/apiBase';
 import { appConfirm } from '../../lib/appConfirm';
@@ -369,19 +370,18 @@ export default function PurchaseOrderModal({
             {formError ? <p className="text-xs text-rose-600 font-semibold">{formError}</p> : null}
             {editApprovalSlot}
           </div>
-          <div className="px-5 py-4 bg-zarewa-teal text-white flex justify-between shrink-0">
-            <div><p className="text-ui-xs uppercase text-white/60">Total</p><p className="text-xl font-bold">{formatNgn(grandTotal)}</p></div>
-            <div className="flex gap-2">
-              <button type="button" onClick={handleClose} disabled={busy} className="px-4 py-2 rounded-lg bg-white/10 text-ui-xs uppercase">Cancel</button>
-              <button
-                type="submit"
-                disabled={busy || (isNewPo && (poBranchBlocked || !branchConfirmed))}
-                className="px-4 py-2 rounded-lg bg-white text-zarewa-teal text-ui-xs uppercase inline-flex gap-1 items-center disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Save size={14} /> Save
-              </button>
-            </div>
-          </div>
+          <ModalDeskFooter totalValue={formatNgn(grandTotal)}>
+            <DeskFooterButton type="button" onClick={handleClose} disabled={busy}>
+              Cancel
+            </DeskFooterButton>
+            <DeskFooterButton
+              type="submit"
+              variant="primary"
+              disabled={busy || (isNewPo && (poBranchBlocked || !branchConfirmed))}
+            >
+              <Save size={14} /> {busy ? 'Saving…' : 'Save'}
+            </DeskFooterButton>
+          </ModalDeskFooter>
         </form>
       </div>
     </ModalFrame>

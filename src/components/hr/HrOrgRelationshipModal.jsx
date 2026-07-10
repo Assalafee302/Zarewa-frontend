@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { HrFormModal } from './HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrButton } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import { ORG_RELATIONSHIP_TYPES } from '../../lib/hrOrgChartUi';
 
 /**
@@ -80,13 +81,17 @@ export function HrOrgRelationshipModal({
 
         {error ? <p className="text-sm text-red-700">{error}</p> : null}
 
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className={HR_BTN_PRIMARY} disabled={busy || (relType === 'reports_to' && !target)} onClick={() => onConfirm(relType)}>
-            {busy ? 'Saving…' : 'Save relationship'}
-          </button>
-          <button type="button" className={HR_BTN_SECONDARY} disabled={busy} onClick={onClose}>
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+          <HrButton type="button" variant="secondary" disabled={busy} onClick={onClose}>
             Cancel
-          </button>
+          </HrButton>
+          <HrButton
+            type="button"
+            disabled={busy || (relType === 'reports_to' && !target)}
+            onClick={() => onConfirm(relType)}
+          >
+            {busy ? 'Saving…' : 'Save relationship'}
+          </HrButton>
         </div>
       </div>
     </HrFormModal>

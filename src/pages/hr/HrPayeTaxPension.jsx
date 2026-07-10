@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
@@ -717,7 +718,7 @@ export default function HrPayeTaxPension({ embedded = false } = {}) {
           </select>
         </label>
       ) : loading ? (
-        <p className="text-sm text-slate-600">Loading runs…</p>
+        <InlineLoader message="Loading runs…" />
       ) : (
         <p className="text-sm text-slate-600">No payroll runs found.</p>
       )}

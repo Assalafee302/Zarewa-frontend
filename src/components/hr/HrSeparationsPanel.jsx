@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
@@ -5,8 +6,8 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { SEPARATION_TYPES, createHrExitClearance, fetchHrExitClearance } from '../../lib/hrPhase2';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
-import { HrCard, HrEmptyState, HrStatusPill } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrEmptyState, HrStatusPill, HrButton, HrAddButton } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import {
   AppTable, AppTableBody, AppTableTd, AppTableTh, AppTableThead, AppTableTr, AppTableWrap,
 } from '../ui/AppDataTable';
@@ -49,7 +50,7 @@ export function HrSeparationsPanel({ onOpenClearance }) {
   return (
     <HrCard title="Separations register" actions={<HrAddFormButton onClick={() => setModal(true)}>Initiate separation</HrAddFormButton>}>
       {error ? <div className="mb-3 text-sm text-red-800">{error}</div> : null}
-      {loading && !clearances.length ? <p className="text-sm text-slate-600">Loading…</p> : clearances.length === 0 ? (
+      {loading && !clearances.length ? <InlineLoader message="Loading…" /> : clearances.length === 0 ? (
         <HrEmptyState title="No separation or exit clearance records yet." description="Initiate a separation to start the exit clearance workflow." />
       ) : (
         <AppTableWrap>
@@ -111,8 +112,8 @@ export function HrSeparationsPanel({ onOpenClearance }) {
             <textarea className={`${HR_FIELD_CLASS} min-h-[72px]`} rows={3} required minLength={10} placeholder="Reason for separation" value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} />
           </label>
           <div className="flex gap-2">
-            <button type="submit" className={HR_BTN_PRIMARY} disabled={busy}>{busy ? 'Starting…' : 'Start exit clearance'}</button>
-            <button type="button" className={HR_BTN_SECONDARY} onClick={() => setModal(false)}>Cancel</button>
+            <HrButton type="submit" disabled={busy}>{busy ? 'Starting…' : 'Start exit clearance'}</HrButton>
+            <HrButton type="button" variant="secondary" onClick={() => setModal(false)}>Cancel</HrButton>
           </div>
         </form>
       </HrFormModal>

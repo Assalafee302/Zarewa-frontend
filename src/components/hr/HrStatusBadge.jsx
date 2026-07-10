@@ -87,8 +87,27 @@ const DISCIPLINE_TONE = {
   slate: 'bg-slate-100 text-slate-700 border-slate-200',
 };
 
+const ID_CARD_STYLES = {
+  pending: 'bg-amber-50 text-amber-800 border-amber-200',
+  processing: 'bg-sky-50 text-sky-800 border-sky-200',
+  printed: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+  ready: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  collected: 'bg-slate-100 text-slate-600 border-slate-200',
+  reissued: 'bg-violet-50 text-violet-900 border-violet-200',
+  expired: 'bg-red-50 text-red-800 border-red-200',
+};
+
+const DOCUMENT_VERIFY_STYLES = {
+  pending: 'bg-amber-50 text-amber-900 border-amber-200',
+  verified: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  rejected: 'bg-red-50 text-red-800 border-red-200',
+  expired: 'bg-slate-100 text-slate-600 border-slate-200',
+};
+
 function styleFor(variant, key) {
   if (variant === 'request') return hrRequestStatusClass(key);
+  if (variant === 'idCard') return ID_CARD_STYLES[key] || ID_CARD_STYLES.pending;
+  if (variant === 'documentVerify') return DOCUMENT_VERIFY_STYLES[key] || DOCUMENT_VERIFY_STYLES.pending;
   if (variant === 'payroll') return PAYROLL_STYLES[key] || PAYROLL_STYLES.draft;
   if (variant === 'staff') return STAFF_STYLES[key] || 'bg-slate-50 text-slate-700 border-slate-200';
   if (variant === 'benefit') return BENEFIT_STYLES[key] || BENEFIT_STYLES.draft;
@@ -112,7 +131,7 @@ function labelFor(variant, key, override) {
 }
 
 /**
- * @param {{ status?: string; variant?: 'request'|'payroll'|'staff'|'benefit'|'letter'|'transfer'|'workflow'|'discipline'|'alert'|'generic'; label?: string; className?: string }} props
+ * @param {{ status?: string; variant?: 'request'|'payroll'|'staff'|'benefit'|'letter'|'transfer'|'workflow'|'discipline'|'alert'|'idCard'|'documentVerify'|'generic'; label?: string; className?: string }} props
  */
 export function HrStatusBadge({ status, variant = 'generic', label, className = '' }) {
   const key = String(status || 'draft').toLowerCase();

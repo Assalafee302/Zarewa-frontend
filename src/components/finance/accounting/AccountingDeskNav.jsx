@@ -34,7 +34,7 @@ export function AccountingDeskNav({ tab, onTabChange, readOnlyExecutive = false 
   };
 
   return (
-    <div className="flex w-full max-w-full min-w-0 flex-col gap-2">
+    <div className="z-soft-panel w-full max-w-full min-w-0 p-2">
       <PageTabs tabs={zoneTabs} value={zoneId} onChange={onZoneChange} ariaLabel="Accounting desk zone" />
       {secondary.length > 1 ? (
         <PageTabs
@@ -45,6 +45,7 @@ export function AccountingDeskNav({ tab, onTabChange, readOnlyExecutive = false 
           value={tab}
           onChange={onTabChange}
           ariaLabel="Accounting desk section"
+          className="mt-2"
         />
       ) : null}
     </div>

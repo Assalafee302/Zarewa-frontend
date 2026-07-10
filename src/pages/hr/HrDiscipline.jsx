@@ -1,3 +1,5 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -8,7 +10,7 @@ import { fetchHrDisciplinaryEvents, recordHrDisciplinaryEvent } from '../../lib/
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HR_DISCIPLINARY_KINDS } from '../../lib/hrStaffConstants';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { navigateToHrLetter } from '../../lib/hrLetterDeepLink';
 import { canGenerateHrLetters } from '../../lib/hrAccess';
 import {
@@ -228,8 +230,8 @@ export default function HrDiscipline({ embedded = false } = {}) {
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Saving…' : 'Record event'}</button>
-            <button type="button" className={HR_BTN_SECONDARY} onClick={() => { setModalOpen(false); resetForm(); }}>Cancel</button>
+            <HrButton type="submit" disabled={busy} >{busy ? 'Saving…' : 'Record event'}</HrButton>
+            <HrButton type="button" variant="secondary" onClick={() => { setModalOpen(false); resetForm(); }}>Cancel</HrButton>
           </div>
         </form>
       </HrFormModal>
@@ -237,7 +239,7 @@ export default function HrDiscipline({ embedded = false } = {}) {
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
-      {loading && events.length === 0 ? <p className="text-sm text-slate-600">Loading…</p> : null}
+      {loading && events.length === 0 ? <InlineLoader message="Loading…" /> : null}
 
       {/* Policy alert banners for staff with high query counts */}
       {(() => {

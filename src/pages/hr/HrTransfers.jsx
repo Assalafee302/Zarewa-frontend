@@ -18,7 +18,7 @@ import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import HrTransferStageBar from '../../components/hr/HrTransferStageBar';
 import HrTransfersOverview from '../../components/hr/HrTransfersOverview';
-import { HrCard, HrEmptyState } from '../../components/hr/hrPageUi';
+import { HrCard, HrEmptyState, HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import { HrDualView } from '../../components/hr/HrDualView';
 import { HrMobileCard, HrMobileCardList } from '../../components/hr/HrMobileCard';
 import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
@@ -28,7 +28,7 @@ import { useAppTablePaging } from '../../lib/appDataTable';
 import {
   AppTable, AppTableBody, AppTablePager, AppTableTd, AppTableTh, AppTableThead, AppTableTr, AppTableWrap,
 } from '../../components/ui/AppDataTable';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { navigateToHrLetter, transferLetterKind } from '../../lib/hrLetterDeepLink';
 
 const emptyForm = () => ({
@@ -503,8 +503,8 @@ export default function HrTransfers({ embedded = false } = {}) {
             ) : null}
           </div>
           <div className="sm:col-span-2 flex gap-2">
-            <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Submitting…' : 'Submit transfer'}</button>
-            <button type="button" className={HR_BTN_SECONDARY} onClick={() => setModalOpen(false)}>Cancel</button>
+            <HrButton type="submit" disabled={busy} >{busy ? 'Submitting…' : 'Submit transfer'}</HrButton>
+            <HrButton type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</HrButton>
           </div>
         </form>
       </HrFormModal>
@@ -559,20 +559,20 @@ export default function HrTransfers({ embedded = false } = {}) {
                   Rejection reason
                   <textarea className={HR_FIELD_CLASS} rows={2} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} required />
                 </label>
-                <button
+                <HrButton
                   type="button"
-                  className={HR_BTN_PRIMARY}
+                  
                   disabled={!rejectReason.trim() || busy}
                   onClick={() => doAction(detailTransfer.id, 'reject', { rejectionReason: rejectReason.trim() })}
                 >
                   Confirm rejection
-                </button>
+                </HrButton>
               </div>
             ) : null}
             {canLetter && detailTransfer.status === 'completed' ? (
-              <button
+              <HrButton
                 type="button"
-                className={HR_BTN_SECONDARY}
+                variant="secondary"
                 onClick={() => navigateToHrLetter(navigate, {
                   letterKind: transferLetterKind(detailTransfer.transferType),
                   userId: detailTransfer.userId,
@@ -589,7 +589,7 @@ export default function HrTransfers({ embedded = false } = {}) {
                 })}
               >
                 Generate transfer letter
-              </button>
+              </HrButton>
             ) : null}
             {transferNeedsTenureGate(detailTransfer) && !detailTransfer.rejecting ? (
               <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-3 space-y-2">

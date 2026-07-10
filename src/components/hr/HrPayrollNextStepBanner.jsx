@@ -12,7 +12,6 @@ export function HrPayrollNextStepBanner({
   canPrepare,
   canGm,
   canMd,
-  canPay,
   heldLineCount = 0,
   payeAlertCount = 0,
   missingBankCount = null,

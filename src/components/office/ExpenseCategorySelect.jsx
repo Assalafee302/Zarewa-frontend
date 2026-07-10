@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { expenseCategoriesForActor, resolveExpenseCategoryPolicyLimits } from '../../shared/expenseCategoryPolicy.js';
 import { useWorkspace } from '../../context/WorkspaceContext.jsx';
-import { isExceptionExpenseCategory } from '../../shared/expenseCategoryLanes.js';
 import { ExpenseCategoryHintPanel } from './ExpenseCategoryHintPanel.jsx';
 
 /**

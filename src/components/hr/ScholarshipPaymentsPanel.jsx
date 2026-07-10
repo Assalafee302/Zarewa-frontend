@@ -4,19 +4,9 @@ import { formatNgn } from '../../lib/hrFormat';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { PAYMENT_KIND_ICON } from '../../lib/scholarshipUi';
 import { ScholarshipPaymentTracker } from './ScholarshipPaymentTracker';
+import { HrStatusBadge } from './HrStatusBadge';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
-
-const STATUS_PILL = {
-  paid: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  approved: 'bg-sky-50 text-sky-800 border-sky-200',
-  exported: 'bg-sky-50 text-sky-800 border-sky-200',
-  scheduled: 'bg-violet-50 text-violet-800 border-violet-200',
-  submitted: 'bg-amber-50 text-amber-900 border-amber-200',
-  finance_review: 'bg-amber-50 text-amber-900 border-amber-200',
-  md_review: 'bg-amber-50 text-amber-900 border-amber-200',
-  rejected: 'bg-rose-50 text-rose-800 border-rose-200',
-};
 
 /**
  * @param {{ payments?: object[]; showBackLink?: boolean; emptyTitle?: string; emptyHint?: string; hubTitle?: string; hubPath?: string }} props
@@ -56,7 +46,6 @@ export default function ScholarshipPaymentsPanel({
       <ul className="space-y-3">
         {payments.map((pmt) => {
           const statusKey = String(pmt.status || 'pending').toLowerCase();
-          const pill = STATUS_PILL[statusKey] || 'bg-slate-50 text-slate-700 border-slate-200';
           return (
             <li key={pmt.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -73,9 +62,12 @@ export default function ScholarshipPaymentsPanel({
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-black tabular-nums text-slate-900">{formatNgn(pmt.amountNgn)}</p>
-                  <span className={`mt-1 inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${pill}`}>
-                    {pmt.statusLabel || statusKey}
-                  </span>
+                  <HrStatusBadge
+                    status={statusKey}
+                    variant="benefit"
+                    label={pmt.statusLabel || statusKey}
+                    className="mt-1"
+                  />
                 </div>
               </div>
               {pmt.tracker && statusKey !== 'paid' ? (

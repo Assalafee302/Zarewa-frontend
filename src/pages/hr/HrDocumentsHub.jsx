@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { Suspense } from 'react';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
@@ -39,7 +40,7 @@ export default function HrDocumentsHub() {
     >
       {tab === 'letters' ? <HrLetters embedded /> : null}
       {tab === 'id-cards' ? (
-        <Suspense fallback={<p className="text-sm text-slate-600">Loading ID cards…</p>}>
+        <Suspense fallback={<InlineLoader message="Loading ID cards…" />}>
           <HrIdCards />
         </Suspense>
       ) : null}

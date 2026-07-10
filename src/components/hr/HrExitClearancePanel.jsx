@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -11,12 +12,12 @@ import {
   hrFinalClearHrExit,
   patchHrExitPropertyItem,
 } from '../../lib/hrPhase2';
-import { HrCard, HrEmptyState, HrStatusPill } from './hrPageUi';
+import { HrCard, HrEmptyState, HrStatusPill, HrButton, HrAddButton, HR_BTN_SECONDARY } from './hrPageUi';
 import { HrFormModal } from './HrFormModal';
 import { HrExitInterviewPanel } from './HrExitInterviewPanel';
 import { navigateToHrLetter } from '../../lib/hrLetterDeepLink';
 import { canGenerateHrLetters } from '../../lib/hrAccess';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import {
   AppTable, AppTableBody, AppTableTd, AppTableTh, AppTableThead, AppTableTr, AppTableWrap,
 } from '../ui/AppDataTable';
@@ -79,7 +80,7 @@ export function HrExitClearancePanel() {
   return (
     <HrCard title="Exit clearance & property return">
       {error ? <div className="mb-3 text-sm text-red-800">{error}</div> : null}
-      {loading && !clearances.length ? <p className="text-sm text-slate-600">Loading…</p> : clearances.length === 0 ? (
+      {loading && !clearances.length ? <InlineLoader message="Loading…" /> : clearances.length === 0 ? (
         <HrEmptyState title="No exit clearance workflows in progress." description="Initiate a separation to start clearance." />
       ) : (
         <AppTableWrap>
@@ -122,8 +123,8 @@ export function HrExitClearancePanel() {
                   <li key={it.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2 text-xs">
                     <span>{it.itemName}</span>
                     <div className="flex gap-2">
-                      <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => toggleItem(it, { returned: true })}>Returned</button>
-                      <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => toggleItem(it, { waived: true, waivedNote: 'Waived by HR' })}>Waive</button>
+                      <HrButton type="button" disabled={busy} variant="secondary" onClick={() => toggleItem(it, { returned: true })}>Returned</HrButton>
+                      <HrButton type="button" disabled={busy} variant="secondary" onClick={() => toggleItem(it, { waived: true, waivedNote: 'Waived by HR' })}>Waive</HrButton>
                     </div>
                   </li>
                 ))}
@@ -134,18 +135,18 @@ export function HrExitClearancePanel() {
             <div className="flex flex-wrap gap-2">
               {canLetter ? (
                 <>
-                  <button type="button" className={HR_BTN_SECONDARY} onClick={() => navigateToHrLetter(navigate, { letterKind: 'exit_clearance', userId: detail.userId, sourceRecordId: detail.id })}>Exit clearance letter</button>
-                  <button type="button" className={HR_BTN_SECONDARY} onClick={() => navigateToHrLetter(navigate, { letterKind: 'return_of_property', userId: detail.userId, sourceRecordId: detail.id })}>Return of property</button>
+                  <HrButton type="button" variant="secondary" onClick={() => navigateToHrLetter(navigate, { letterKind: 'exit_clearance', userId: detail.userId, sourceRecordId: detail.id })}>Exit clearance letter</HrButton>
+                  <HrButton type="button" variant="secondary" onClick={() => navigateToHrLetter(navigate, { letterKind: 'return_of_property', userId: detail.userId, sourceRecordId: detail.id })}>Return of property</HrButton>
                 </>
               ) : null}
               {canFinance && !detail.financeClearedByUserId ? (
-                <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => runClear('finance')}>Finance clear</button>
+                <HrButton type="button" disabled={busy} onClick={() => runClear('finance')}>Finance clear</HrButton>
               ) : null}
               {canAdmin && detail.financeClearedByUserId && !detail.adminClearedByUserId ? (
-                <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => runClear('admin')}>Admin / IT clear</button>
+                <HrButton type="button" disabled={busy} onClick={() => runClear('admin')}>Admin / IT clear</HrButton>
               ) : null}
               {canFinal && detail.adminClearedByUserId && detail.status !== 'completed' ? (
-                <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => runClear('final')}>HR final clearance</button>
+                <HrButton type="button" disabled={busy} onClick={() => runClear('final')}>HR final clearance</HrButton>
               ) : null}
               <a href={`/api/hr/exit-clearance/${encodeURIComponent(detail.id)}/pdf`} className={HR_BTN_SECONDARY} target="_blank" rel="noreferrer">PDF</a>
             </div>

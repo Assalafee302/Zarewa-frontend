@@ -44,7 +44,6 @@ import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { buildTransitDisplayRows, shouldShowPoInTransit } from '../lib/inTransitVisibility.js';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
-import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import {
   ProcurementPayablePreviewSlideOver,
   ProcurementPoPreviewSlideOver,
@@ -53,7 +52,6 @@ import { sortPurchaseOrdersList } from '../lib/procurementPoListSorting';
 
 import {
   purchaseOrderCanAssignTransport,
-  purchaseOrderTransportGapLabel,
 } from '../lib/purchaseOrderWorkflow';
 import { defaultTransportAgentProfile, mergeTransportAgentProfile } from '../lib/transportAgentIntel';
 import { sortAccountsPayableList } from '../lib/procurementPayablesSorting';

@@ -14,9 +14,8 @@ import { appConfirm } from '../../lib/appConfirm';
 import { customerPickerSearchBlob } from '../../lib/customerPickerSearch';
 import {
   customerInitials,
-  customerStatusTone,
-  customerTierTone,
 } from '../customers/customerUi';
+import { CustomerStatusChip, CustomerTierChip } from '../customers/CustomerStatusChip';
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
 const INSIGHT_DAYS = 90;
@@ -24,17 +23,6 @@ const INSIGHT_DAYS = 90;
 /** Match quotation row chrome; padding lives on the link / actions so the whole row is clickable */
 const CARD_ROW =
   'rounded-xl border border-slate-200/70 bg-white shadow-sm transition-all hover:border-teal-200/80 hover:shadow-md';
-
-const CHIP =
-  'inline-flex items-center text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border shrink-0';
-
-function customerStatusChipBorder(status) {
-  return customerStatusTone(status);
-}
-
-function customerTierChipBorder(tier) {
-  return customerTierTone(tier);
-}
 
 function parseMeters(totalStr) {
   const m = String(totalStr ?? '').match(/([\d.]+)\s*m/i);
@@ -326,8 +314,8 @@ export default function SalesCustomersTab({
                           {meta2}
                         </p>
                         <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                          <span className={`${CHIP} ${customerStatusChipBorder(c.status)}`}>{c.status}</span>
-                          <span className={`${CHIP} ${customerTierChipBorder(c.tier)}`}>{c.tier}</span>
+                          <CustomerStatusChip status={c.status} />
+                          <CustomerTierChip tier={c.tier} />
                         </div>
                       </div>
                     </Link>

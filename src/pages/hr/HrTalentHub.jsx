@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { Suspense } from 'react';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
@@ -65,7 +66,7 @@ export default function HrTalentHub() {
         <div className="space-y-6">
           <HrSubViewTabs tabs={RECRUIT_SECTIONS} value={recruitSection} onChange={setSection} ariaLabel="Recruit sections" />
           {recruitSection === 'jobs' || recruitSection === 'applicants' ? (
-            <Suspense fallback={<p className="text-sm text-slate-600">Loading recruiting…</p>}>
+            <Suspense fallback={<InlineLoader message="Loading recruiting…" />}>
               <HrRecruiting embedded />
             </Suspense>
           ) : null}
@@ -77,17 +78,17 @@ export default function HrTalentHub() {
         <div className="space-y-6">
           <HrSubViewTabs tabs={DEVELOP_SECTIONS} value={developSection} onChange={setSection} ariaLabel="Develop sections" />
           {developSection === 'appraisals' ? (
-            <Suspense fallback={<p className="text-sm text-slate-600">Loading appraisals…</p>}>
+            <Suspense fallback={<InlineLoader message="Loading appraisals…" />}>
               <HrAppraisal embedded />
             </Suspense>
           ) : null}
           {developSection === 'training' ? (
-            <Suspense fallback={<p className="text-sm text-slate-600">Loading training…</p>}>
+            <Suspense fallback={<InlineLoader message="Loading training…" />}>
               <HrLearning embedded />
             </Suspense>
           ) : null}
           {developSection === 'engagement' ? (
-            <Suspense fallback={<p className="text-sm text-slate-600">Loading engagement…</p>}>
+            <Suspense fallback={<InlineLoader message="Loading engagement…" />}>
               <HrEngagement embedded />
             </Suspense>
           ) : null}

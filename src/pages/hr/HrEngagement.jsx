@@ -9,16 +9,8 @@ import {
   patchHrEngagementSurvey,
 } from '../../lib/hrEngagement';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import {
-  HrCard,
-  HrEmptyState,
-  HrListItemButton,
-  HrPageBody,
-  HrPageIntro,
-  HrSplitWorkspace,
-  HrStatusPill,
-} from '../../components/hr/hrPageUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HrCard, HrEmptyState, HrListItemButton, HrPageBody, HrPageIntro, HrSplitWorkspace, HrStatusPill, HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 
 export default function HrEngagement({ embedded = false } = {}) {
   const ws = useWorkspace();
@@ -157,9 +149,9 @@ export default function HrEngagement({ embedded = false } = {}) {
             <input className={HR_FIELD_CLASS} value={title} onChange={(e) => setTitle(e.target.value)} required />
           </label>
           <p className="text-xs text-slate-500">Default questions: work clarity, recommend employer, manager support, open feedback.</p>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+          <HrButton type="submit" disabled={busy} >
             {busy ? 'Creating…' : 'Create draft'}
-          </button>
+          </HrButton>
         </form>
       </HrFormModal>
     </HrPageBody>

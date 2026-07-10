@@ -37,7 +37,7 @@ import {
 import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
-import { HrEmptyState } from '../../components/hr/hrPageUi';
+import { HrEmptyState, HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import { HR_BTN_PRIMARY } from '../../components/hr/hrFormStyles';
 import { HrStaffAvatar } from '../../components/hr/HrStaffAvatar';
 import { HrStaffDirectoryBulkBar } from '../../components/hr/HrStaffDirectoryBulkBar';

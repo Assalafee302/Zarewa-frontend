@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchHrIncidentMemos } from '../../lib/hrExtended';
 import HrIncidentMemoEscalateModal from './HrIncidentMemoEscalateModal';
-import { HrCard } from './hrPageUi';
+import { HrCard, HrButton, HrAddButton } from './hrPageUi';
 import { HR_BTN_SECONDARY } from './hrFormStyles';
 
 export default function HrAccountabilityMemoQueue({ canManage, onEscalated, onViewAll, focusMemoId, onFocusHandled }) {
@@ -70,13 +70,13 @@ export default function HrAccountabilityMemoQueue({ canManage, onEscalated, onVi
           </ul>
         )}
         <div className="flex flex-wrap gap-2 mt-3">
-          <button type="button" className={HR_BTN_SECONDARY} onClick={load} disabled={busy}>
+          <HrButton type="button" variant="secondary" onClick={load} disabled={busy}>
             {busy ? 'Refreshing…' : 'Refresh'}
-          </button>
+          </HrButton>
           {onViewAll ? (
-            <button type="button" className={HR_BTN_SECONDARY} onClick={onViewAll}>
+            <HrButton type="button" variant="secondary" onClick={onViewAll}>
               All incident memos
-            </button>
+            </HrButton>
           ) : null}
         </div>
       </HrCard>

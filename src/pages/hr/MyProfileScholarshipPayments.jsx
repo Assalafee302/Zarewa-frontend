@@ -1,8 +1,9 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { downloadScholarshipStatementPdf } from '../../lib/hrScholarship';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import { FamilyBenefitsContextBar } from '../../components/hr/FamilyBenefitsContextBar';
 import ScholarshipPaymentsPanel from '../../components/hr/ScholarshipPaymentsPanel';
@@ -112,9 +113,9 @@ export default function MyProfileScholarshipPayments() {
               ))}
             </select>
           </ProfileFormField>
-          <button type="button" onClick={onDownload} disabled={downloading} className={HR_BTN_PRIMARY}>
+          <HrButton type="button" onClick={onDownload} disabled={downloading} >
             {downloading ? 'Generating…' : 'Download PDF statement'}
-          </button>
+          </HrButton>
         </div>
         {downloadError ? <ProfileInlineAlert variant="error">{downloadError}</ProfileInlineAlert> : null}
       </ProfileOverviewSection>

@@ -1,8 +1,9 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { deleteHrStaffPermanently } from '../../lib/hrStaffExtras';
-import { HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 
 /**
@@ -104,9 +105,9 @@ export function HrStaffPermanentDeletePanel({ staff, onDeleted, redirectAfterDel
                 >
                   {busy ? 'Deleting…' : 'Delete permanently'}
                 </button>
-                <button
+                <HrButton
                   type="button"
-                  className={HR_BTN_SECONDARY}
+                  variant="secondary"
                   disabled={busy}
                   onClick={() => {
                     setOpen(false);
@@ -116,7 +117,7 @@ export function HrStaffPermanentDeletePanel({ staff, onDeleted, redirectAfterDel
                   }}
                 >
                   Cancel
-                </button>
+                </HrButton>
               </div>
             </form>
           )}

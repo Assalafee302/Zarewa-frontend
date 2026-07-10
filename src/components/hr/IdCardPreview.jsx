@@ -1,5 +1,6 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useEffect, useState } from 'react';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
+import { HR_BTN_PRIMARY } from './hrFormStyles';
 
 export function IdCardPreview({ request, person, onClose, onPrint, temporary = false, showActions = true }) {
   const [issueDate, setIssueDate] = useState('');
@@ -95,9 +96,9 @@ export function IdCardPreview({ request, person, onClose, onPrint, temporary = f
       </div>
       {showActions ? (
         <div className="flex gap-2 justify-end no-print">
-          <button type="button" onClick={onClose} className={HR_BTN_SECONDARY}>
+          <HrButton type="button" onClick={onClose} variant="secondary">
             Close
-          </button>
+          </HrButton>
           <button type="button" onClick={onPrint || (() => window.print())} className={HR_BTN_PRIMARY}>
             Print card
           </button>

@@ -39,7 +39,6 @@ export function accountabilityPhaseCompletion(
     hasEmployeeResponse,
     hasFindings,
     hasHrRec,
-    hasEvidence,
     hasAsset,
     hasLoss,
     financialCase,

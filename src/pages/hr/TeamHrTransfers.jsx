@@ -6,8 +6,8 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { createHrTransferRequest, fetchHrTransferRequests, patchHrTransferRequest } from '../../lib/hrTransfers';
 import HrTransferStageBar from '../../components/hr/HrTransferStageBar';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HrPageBody, HrPageIntro, HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
 import { ProfileFormField } from '../../components/profile/profileFormUi';
 import {
@@ -212,9 +212,9 @@ export default function TeamHrTransfers() {
           <ProfileFormField label="Reason" htmlFor="transfer-reason">
             <textarea id="transfer-reason" className={HR_FIELD_CLASS} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} required />
           </ProfileFormField>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+          <HrButton type="submit" disabled={busy} >
             Submit transfer
-          </button>
+          </HrButton>
         </form>
       </HrFormModal>
 
@@ -225,12 +225,12 @@ export default function TeamHrTransfers() {
             <p><strong>{detail.staffDisplayName}</strong></p>
             <p>{branchName(detail.fromBranchId)} → {branchName(detail.toBranchId)}</p>
             <p className="text-slate-600">{detail.reason}</p>
-            <button type="button" disabled={busy} className={HR_BTN_PRIMARY} onClick={() => endorse(detail.id)}>
+            <HrButton type="button" disabled={busy}  onClick={() => endorse(detail.id)}>
               Endorse → HR
-            </button>
-            <button type="button" className={HR_BTN_SECONDARY} onClick={() => setDetail(null)}>
+            </HrButton>
+            <HrButton type="button" variant="secondary" onClick={() => setDetail(null)}>
               Close
-            </button>
+            </HrButton>
           </div>
         ) : null}
       </HrFormModal>

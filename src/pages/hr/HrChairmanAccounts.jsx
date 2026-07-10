@@ -1,9 +1,10 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
 import { useSearchParams } from 'react-router-dom';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -450,9 +451,9 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
             {tab === 'export' ? (
               <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
                 <HrPayrollPeriodFields value={exportPeriod} onChange={setExportPeriod} labelMonth="Export month" compact />
-                <button type="button" className={HR_BTN_PRIMARY} disabled={exportBusy} onClick={() => void handleExport()}>
+                <HrButton type="button" disabled={exportBusy} onClick={() => void handleExport()}>
                   {exportBusy ? 'Exporting…' : FAMILY_BENEFITS.adminAllowanceExport}
-                </button>
+                </HrButton>
                 <p className="text-xs text-slate-500">Exports approved payments only. Not staff salary export.</p>
               </div>
             ) : null}
@@ -593,8 +594,8 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
           </div>
         ) : null}
         <div className="mt-6 flex justify-end gap-2">
-          <button type="button" className={HR_BTN_SECONDARY} onClick={closeModal}>Cancel</button>
-          <button type="button" className={HR_BTN_PRIMARY} onClick={() => void saveForm()}>Save</button>
+          <HrButton type="button" variant="secondary" onClick={closeModal}>Cancel</HrButton>
+          <HrButton type="button" onClick={() => void saveForm()}>Save</HrButton>
         </div>
       </HrFormModal>
     </div>

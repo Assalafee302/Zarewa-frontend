@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -20,7 +21,7 @@ import {
 } from '../../lib/hrExtended';
 import { parseHrLetterDeepLink } from '../../lib/hrLetterDeepLink';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -835,17 +836,17 @@ export default function HrLetters({ embedded = false } = {}) {
             ))}
 
             <div className="flex gap-2">
-              <button
+              <HrButton
                 type="button"
                 onClick={updatePreview}
-                className={HR_BTN_SECONDARY}
+                variant="secondary"
                 disabled={!userId}
               >
                 Preview
-              </button>
-              <button type="submit" disabled={busy || !userId} className={HR_BTN_PRIMARY}>
+              </HrButton>
+              <HrButton type="submit" disabled={busy || !userId} >
                 {busy ? 'Generating…' : 'Generate & Save'}
-              </button>
+              </HrButton>
               {preview && (
                 <button type="button" onClick={openPrint} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-400 cursor-not-allowed" title={LOCK_MSG}>
                   Print locked (draft)

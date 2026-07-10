@@ -10,8 +10,8 @@ import { canEditPensionPolicyRates, canManageHrSettings } from '../../lib/hrAcce
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, HR_TIME_ABSENCE, hrTabPath } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
-import { HrAlert, HrCard } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
+import { HrAlert, HrCard, HrButton, HrAddButton, HR_BTN_PRIMARY } from './hrPageUi';
 
 function PolicyMetric({ label, value, detail }) {
   return (
@@ -85,9 +85,9 @@ export function HrPublicHolidaysSection({ embedded = false }) {
               required
             />
           </label>
-          <button type="submit" className={HR_BTN_PRIMARY}>
+          <HrButton type="submit">
             Save holiday
-          </button>
+          </HrButton>
         </form>
       </HrFormModal>
 
@@ -461,9 +461,9 @@ export function HrLegacyPayBackfillSection({ embedded = false }) {
         Auto-document variance as multi-role consolidation when missing
       </label>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" className={HR_BTN_PRIMARY} disabled={Boolean(busy)} onClick={runPreview}>
+        <HrButton type="button" disabled={Boolean(busy)} onClick={runPreview}>
           {busy === 'preview' ? 'Previewing…' : 'Preview backfill'}
-        </button>
+        </HrButton>
         <button
           type="button"
           className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-60"
@@ -555,9 +555,9 @@ export function HrMatrixRevisionSection({ embedded = false }) {
         </select>
       </label>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" className={HR_BTN_PRIMARY} disabled={Boolean(busy)} onClick={runPreview}>
+        <HrButton type="button" disabled={Boolean(busy)} onClick={runPreview}>
           {busy === 'preview' ? 'Previewing…' : 'Preview matrix apply'}
-        </button>
+        </HrButton>
         <button
           type="button"
           className="rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-950 hover:bg-teal-100 disabled:opacity-60"
@@ -627,9 +627,9 @@ export function HrStaffImportGuideSection({ embedded = false }) {
         <Link to="/hr/employees" className={HR_BTN_PRIMARY}>
           Open staff directory
         </Link>
-        <button type="button" disabled={formBusy} onClick={downloadBlankForm} className={HR_BTN_SECONDARY}>
+        <HrButton type="button" disabled={formBusy} onClick={downloadBlankForm} variant="secondary">
           {formBusy ? 'Preparing…' : 'Blank staff form PDF'}
-        </button>
+        </HrButton>
       </div>
     </>
   );
@@ -792,9 +792,9 @@ export function HrOrgCatalogSection({ onCatalogUpdated }) {
           </ul>
         </div>
       ) : null}
-      <button type="button" className={HR_BTN_PRIMARY} disabled={seedBusy} onClick={runOrgSeed}>
+      <HrButton type="button" disabled={seedBusy} onClick={runOrgSeed}>
         {seedBusy ? 'Loading catalog…' : 'Load standard catalog'}
-      </button>
+      </HrButton>
     </>
   );
 

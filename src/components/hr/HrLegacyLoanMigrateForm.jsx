@@ -1,9 +1,10 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { fetchHrStaffForLoanRegister, migrateLegacyStaffLoan } from '../../lib/hrStaffObligations';
 import { HrStaffLoanBranchCashierNote } from './HrStaffLoanBranchCashierNote';
 import { ProfileFormActions, ProfileFormField } from '../profile/profileFormUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
  * HR registers a pre-ERP staff loan — no finance payout; payroll collection only.
@@ -133,12 +134,12 @@ export function HrLegacyLoanMigrateForm({ staffOptions: staffOptionsProp = [], d
       </p>
       <HrStaffLoanBranchCashierNote variant="legacy" />
       <ProfileFormActions>
-        <button type="button" className={HR_BTN_SECONDARY} onClick={onCancel} disabled={busy}>
+        <HrButton type="button" variant="secondary" onClick={onCancel} disabled={busy}>
           Cancel
-        </button>
-        <button type="submit" className={HR_BTN_PRIMARY} disabled={busy}>
+        </HrButton>
+        <HrButton type="submit" disabled={busy}>
           {busy ? 'Saving…' : 'Register legacy loan'}
-        </button>
+        </HrButton>
       </ProfileFormActions>
     </form>
   );

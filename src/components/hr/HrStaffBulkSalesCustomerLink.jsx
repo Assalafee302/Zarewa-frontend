@@ -1,7 +1,8 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { bulkEnsureStaffSalesCustomers } from '../../lib/hrStaffPurchaseCredit';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
+import { HR_BTN_PRIMARY } from './hrFormStyles';
 
 /**
  * HR tool — create/link sales customer records for staff missing purchase-credit linkage.
@@ -45,9 +46,9 @@ export function HrStaffBulkSalesCustomerLink() {
           {result.failed ? ` · ${result.failed} failed` : ''}.
         </p>
       ) : null}
-      <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => void run()}>
+      <HrButton type="button" disabled={busy} onClick={() => void run()}>
         {busy ? 'Linking…' : 'Run bulk link'}
-      </button>
+      </HrButton>
     </div>
   );
 }

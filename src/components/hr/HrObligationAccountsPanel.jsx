@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatNgn } from '../../lib/hrFormat';
 import {
@@ -9,7 +10,7 @@ import {
   recordObligationRepayment,
 } from '../../lib/hrStaffObligations';
 import { HrObligationMaintenancePanel } from './HrObligationMaintenancePanel';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 const KIND_LABEL = { loan: 'Loan', purchase: 'Purchase credit', recovery: 'Discipline recovery' };
 const KIND_FILTERS = [
@@ -292,17 +293,17 @@ export function HrObligationAccountsPanel() {
                 <span>Recalculate monthly installment from new balance (partial pay only)</span>
               </label>
               <div className="flex flex-wrap gap-2">
-                <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+                <HrButton type="submit" disabled={busy} >
                   {busy ? 'Posting…' : 'Post partial payment'}
-                </button>
-                <button
+                </HrButton>
+                <HrButton
                   type="button"
                   disabled={busy}
-                  className={HR_BTN_SECONDARY}
+                  variant="secondary"
                   onClick={(e) => submitRepayment(e, true)}
                 >
                   Pay in full ({formatNgn(detail.principalOutstandingNgn)})
-                </button>
+                </HrButton>
                 <button type="button" onClick={() => loadDetail(selectedId)} className={HR_BTN_SECONDARY}>
                   Refresh
                 </button>

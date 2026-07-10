@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { StaffPurchaseCreditQuotationPanel } from './sales/StaffPurchaseCreditQuotationPanel';
 import { ModalFrame } from './layout/ModalFrame';
+import { ModalDeskFooter, DeskFooterButton } from './layout/ModalDeskFooter';
+import { Button } from './ui/button';
+import { QuotationPipelineStepper } from './sales/QuotationPipelineStepper';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
@@ -1902,6 +1905,13 @@ const QuotationModal = ({
   }, [editData?.id, ws?.session?.user?.roleKey, ws?.snapshot?.receipts]);
   const quotationBalanceAfterPaidNgn = Math.max(0, grandTotalNgn - quotationPaidNgn);
 
+  const quotationPayStatusLabel = useMemo(() => {
+    if (!editData?.id) return 'Unpaid';
+    if (grandTotalNgn > 0 && quotationPaidNgn >= Math.round(grandTotalNgn * 0.995)) return 'Paid';
+    if (quotationPaidNgn > 0) return 'Partial';
+    return String(editData.paymentStatus || 'Unpaid').trim() || 'Unpaid';
+  }, [editData?.id, editData?.paymentStatus, grandTotalNgn, quotationPaidNgn]);
+
   const quoteDueNgn = useMemo(() => {
     if (!editData?.id) return 0;
     return Math.max(0, Math.round(grandTotalNgn) - quotationPaidNgn);
@@ -2404,6 +2414,16 @@ const QuotationModal = ({
           ) : null}
 
           {editData?.id ? (
+            <QuotationPipelineStepper
+              status={editData.status}
+              payStatus={quotationPayStatusLabel}
+              quotationId={editData.id}
+            />
+          ) : (
+            <QuotationPipelineStepper status="Pending" payStatus="Unpaid" quotationId="" />
+          )}
+
+          {editData?.id ? (
             <div className="mb-5 p-4 rounded-xl border border-slate-200 bg-slate-50/80">
               <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
                 Quotation status
@@ -2874,43 +2894,24 @@ const QuotationModal = ({
           </div>
         ) : null}
 
-        <div className="px-5 py-4 bg-zarewa-teal flex justify-between items-center text-white shrink-0 flex-wrap gap-3">
-          <div>
-            <p className="text-ui-xs font-semibold text-white/50 uppercase tracking-widest mb-0.5">Total</p>
-            <p className="text-2xl font-bold text-white tabular-nums">{formatNgn(grandTotalNgn)}</p>
-          </div>
-          <div className="flex gap-2 flex-wrap justify-end">
-            <button
-              type="button"
-              disabled={readOnly || saving || savingMaterial}
-              onClick={() => void onSaveDraft()}
-              className="bg-white/10 px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
-            >
-              <Save size={14} className="inline mr-1.5" /> {saving ? 'Saving…' : 'Save'}
-            </button>
-            <button
-              type="button"
-              onClick={() => openPrintPreview('quotation')}
-              className="bg-white text-zarewa-teal px-3 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"
-            >
-              <Printer size={14} /> Quote
-            </button>
-            <button
-              type="button"
-              onClick={() => openPrintPreview('invoice')}
-              className="bg-white text-zarewa-teal px-3 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"
-            >
-              <Printer size={14} /> Invoice
-            </button>
-            <button
-              type="button"
-              onClick={() => openPrintPreview('receipt')}
-              className="bg-white text-zarewa-teal px-3 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"
-            >
-              <Printer size={14} /> Receipt
-            </button>
-          </div>
-        </div>
+        <ModalDeskFooter totalValue={formatNgn(grandTotalNgn)}>
+          <DeskFooterButton
+            type="button"
+            disabled={readOnly || saving || savingMaterial}
+            onClick={() => void onSaveDraft()}
+          >
+            <Save size={14} /> {saving ? 'Saving…' : 'Save'}
+          </DeskFooterButton>
+          <DeskFooterButton type="button" variant="primary" onClick={() => openPrintPreview('quotation')}>
+            <Printer size={14} /> Quote
+          </DeskFooterButton>
+          <DeskFooterButton type="button" variant="primary" onClick={() => openPrintPreview('invoice')}>
+            <Printer size={14} /> Invoice
+          </DeskFooterButton>
+          <DeskFooterButton type="button" variant="primary" onClick={() => openPrintPreview('receipt')}>
+            <Printer size={14} /> Receipt
+          </DeskFooterButton>
+        </ModalDeskFooter>
       </div>
 
       <PrintModalPortal open={showPrint} onClose={() => setShowPrint(false)}>
@@ -2935,20 +2936,12 @@ const QuotationModal = ({
                   />
                 </div>
                 <div className="no-print mt-4 flex flex-wrap justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="rounded-lg bg-zarewa-teal px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-white shadow-lg"
-                  >
+                  <Button type="button" onClick={() => window.print()}>
                     Print / Save as PDF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowPrint(false)}
-                    className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-700"
-                  >
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setShowPrint(false)}>
                     Close
-                  </button>
+                  </Button>
                 </div>
               </div>
       </PrintModalPortal>

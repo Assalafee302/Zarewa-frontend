@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalScrollFooter } from '../layout';
+import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalActionFooter } from '../layout';
 
 /**
  * @param {{
@@ -59,27 +59,18 @@ export function AccountingRegisterClearModal({ item, open, busy, onClose, onConf
           </label>
         </ModalScrollBody>
 
-        <ModalScrollFooter className="flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              setAck(false);
-              onClose();
-            }}
-            className="min-h-11 rounded-lg border border-slate-200 bg-white px-4 py-2 text-ui-xs font-semibold uppercase tracking-wider text-slate-700 disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-ui-xs"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={busy || !ack}
-            onClick={() => void onConfirm()}
-            className="min-h-11 rounded-lg bg-zarewa-teal text-white px-4 py-2 text-ui-xs font-semibold uppercase tracking-wider disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-ui-xs"
-          >
-            {busy ? 'Clearing…' : 'Clear line'}
-          </button>
-        </ModalScrollFooter>
+        <ModalActionFooter
+          onCancel={() => {
+            setAck(false);
+            onClose();
+          }}
+          cancelDisabled={busy}
+          onConfirm={() => void onConfirm()}
+          confirmLabel="Clear line"
+          confirmDisabled={busy || !ack}
+          confirmLoading={busy}
+          confirmLoadingLabel="Clearing…"
+        />
       </ModalScrollShell>
     </ModalFrame>
   );

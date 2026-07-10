@@ -1,7 +1,8 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { FamilyBenefitsContextBar } from '../../components/hr/FamilyBenefitsContextBar';
@@ -248,9 +249,9 @@ export default function MyProfileScholarshipRequests() {
               <textarea id="req-notes" className={HR_FIELD_CLASS} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </ProfileFormField>
             <ProfileFormActions>
-              <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+              <HrButton type="submit" disabled={busy} >
                 {busy ? 'Submitting…' : FAMILY_BENEFITS.requestsSubmitOffice}
-              </button>
+              </HrButton>
             </ProfileFormActions>
           </form>
         </ProfileFormSection>
@@ -307,9 +308,9 @@ export default function MyProfileScholarshipRequests() {
               before or after submitting.
             </p>
             <ProfileFormActions>
-              <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+              <HrButton type="submit" disabled={busy} >
                 {busy ? 'Submitting…' : 'Submit fee request'}
-              </button>
+              </HrButton>
             </ProfileFormActions>
           </form>
         </ProfileFormSection>

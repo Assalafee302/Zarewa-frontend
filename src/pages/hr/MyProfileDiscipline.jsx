@@ -1,8 +1,9 @@
+import { HrButton, HrAddButton, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
+import { HR_BTN_PRIMARY } from '../../components/hr/hrFormStyles';
 import { HrConfidentialBanner } from '../../components/hr/HrSensitiveField';
 import { ProfileFormField } from '../../components/profile/profileFormUi';
 import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';

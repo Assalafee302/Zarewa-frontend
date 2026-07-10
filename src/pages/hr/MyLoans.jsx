@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { PageTabs } from '../../components/layout/PageTabs';
@@ -19,7 +20,7 @@ import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/pro
 import { ProfileKpiCard, ProfileStatusChip } from '../../components/profile/profileDesign';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { formatNgn } from '../../lib/hrFormat';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
 import { fetchMyQuotationsForPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
 import { StaffPurchaseCreditRequestModal } from '../../components/sales/StaffPurchaseCreditRequestModal';
@@ -339,20 +340,20 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                 deduction, and how to pay early if you choose.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button
+                <HrButton
                   type="button"
-                  className={HR_BTN_SECONDARY}
+                  variant="secondary"
                   onClick={() => setSearchParams((p) => { const n = new URLSearchParams(p); n.set('tab', 'loans'); return n; })}
                 >
                   Apply for staff loan
-                </button>
-                <button
+                </HrButton>
+                <HrButton
                   type="button"
-                  className={HR_BTN_SECONDARY}
+                  variant="secondary"
                   onClick={() => setSearchParams((p) => { const n = new URLSearchParams(p); n.set('tab', 'credit'); return n; })}
                 >
                   Request purchase credit
-                </button>
+                </HrButton>
               </div>
             </ProfileOverviewSection>
           ) : null}
@@ -575,9 +576,9 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                 Back
               </button>
             ) : (
-              <button type="button" onClick={closeModal} className={HR_BTN_SECONDARY}>
+              <HrButton type="button" onClick={closeModal} variant="secondary">
                 Cancel
-              </button>
+              </HrButton>
             )}
             {step < LOAN_STEPS.length - 1 ? (
               <button type="button" disabled={!canNext} onClick={() => setStep((s) => s + 1)} className={HR_BTN_PRIMARY}>

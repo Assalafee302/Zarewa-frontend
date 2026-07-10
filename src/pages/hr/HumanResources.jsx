@@ -1,6 +1,7 @@
 import React, { Suspense, useMemo } from 'react';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { PageLoader } from '../../components/ui/PageLoader';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
 import HrTabRedirect from '../../components/hr/HrTabRedirect';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -90,7 +91,7 @@ export default function HumanResources() {
         <Route path="letters" element={<HrTabRedirect base={HR_DOCUMENTS} tab="letters" />} />
         <Route path="reports" element={<HrTabRedirect base={HR_DOCUMENTS} tab="reports" />} />
         <Route path="appraisal" element={<Navigate to="/hr/talent?tab=develop&section=appraisals" replace />} />
-        <Route path="analytics" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading analytics…</p>}><HrAnalytics /></Suspense>} />
+        <Route path="analytics" element={<Suspense fallback={<PageLoader message="Loading analytics…" className="min-h-[30vh]" />}><HrAnalytics /></Suspense>} />
         <Route path="id-cards" element={<HrTabRedirect base={HR_DOCUMENTS} tab="id-cards" />} />
         <Route path="chairman" element={<Navigate to="/executive-hr/family?tab=benefits" replace />} />
         <Route path="engagement" element={<Navigate to="/hr/talent?tab=develop&section=engagement" replace />} />

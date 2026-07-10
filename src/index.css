@@ -11,6 +11,10 @@
     0 20px 60px -32px rgba(15, 23, 42, 0.28),
     0 10px 24px -18px rgba(20, 83, 45, 0.14);
   --radius-zarewa: 24px;
+  --radius-zarewa-sm: 12px;
+  --radius-zarewa-md: 16px;
+  --radius-zarewa-lg: 24px;
+  --radius-zarewa-xl: 28px;
   --zarewa-min-ui-text: 11px;
   --z-layer-nav-overlay: 45;
   --z-layer-nav-button: 55;
@@ -22,6 +26,41 @@
   --z-layer-print-content: 11070;
   --z-layer-auth-lock: 5000;
   --z-layer-force-auth: 12000;
+}
+
+/* Semantic theme tokens — use in new surfaces; light is default */
+:root {
+  --z-bg: #f9fafb;
+  --z-surface: #ffffff;
+  --z-surface-muted: #f8fafc;
+  --z-text: #0f172a;
+  --z-text-muted: #64748b;
+  --z-border: #e2e8f0;
+  --z-accent: #134e4a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --z-bg: #0b1220;
+    --z-surface: #0f172a;
+    --z-surface-muted: #1e293b;
+    --z-text: #f1f5f9;
+    --z-text-muted: #94a3b8;
+    --z-border: #334155;
+    --z-accent: #5eead4;
+    --color-sequence-bg: var(--z-bg);
+  }
+}
+
+.dark {
+  --z-bg: #0b1220;
+  --z-surface: #0f172a;
+  --z-surface-muted: #1e293b;
+  --z-text: #f1f5f9;
+  --z-text-muted: #94a3b8;
+  --z-border: #334155;
+  --z-accent: #5eead4;
+  --color-sequence-bg: var(--z-bg);
 }
 
 @utility text-ui-xs {
@@ -62,7 +101,7 @@ html {
 
 body {
   margin: 0;
-  background-color: var(--color-sequence-bg);
+  background-color: var(--z-bg, var(--color-sequence-bg));
   font-family:
     'Plus Jakarta Sans',
     system-ui,
@@ -70,7 +109,7 @@ body {
     Segoe UI,
     Roboto,
     sans-serif;
-  color: #0f172a;
+  color: var(--z-text, #0f172a);
   text-rendering: optimizeLegibility;
   overflow-x: clip;
   -webkit-tap-highlight-color: rgb(19 78 74 / 0.08);
@@ -161,6 +200,20 @@ summary {
   background: linear-gradient(180deg, rgb(248 250 252 / 0.95) 0%, rgb(255 255 255 / 0.85) 100%);
   border-color: rgb(226 232 240 / 0.9);
   box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.8);
+}
+
+/* Canonical radius utilities — prefer over ad-hoc rounded-[Npx] */
+.z-radius-sm {
+  border-radius: var(--radius-zarewa-sm);
+}
+.z-radius-md {
+  border-radius: var(--radius-zarewa-md);
+}
+.z-radius-lg {
+  border-radius: var(--radius-zarewa-lg);
+}
+.z-radius-xl {
+  border-radius: var(--radius-zarewa-xl);
 }
 
 /* Unified form labels — use across modals and pages */

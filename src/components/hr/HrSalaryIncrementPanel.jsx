@@ -1,3 +1,5 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useEffect, useState } from 'react';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { applyHrSalaryIncrement, fetchHrSalaryHistory } from '../../lib/hrStaff';
@@ -5,7 +7,7 @@ import { fetchDraftPayrollRuns, recomputePayrollRun } from '../../lib/hrExtended
 import { canApproveSalaryReduction } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -268,9 +270,9 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, permissi
               {formatNgn(delta)} ({((delta / Math.max(1, prevBase)) * 100).toFixed(1)}%)
             </p>
           ) : null}
-          <button type="submit" disabled={busy || !canViewAmounts} className={HR_BTN_PRIMARY}>
+          <HrButton type="submit" disabled={busy || !canViewAmounts} >
             {busy ? 'Saving…' : 'Apply increment'}
-          </button>
+          </HrButton>
         </form>
       </HrFormModal>
 
@@ -291,7 +293,7 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, permissi
       ) : null}
 
       {loading && history.length === 0 ? (
-        <p className="text-sm text-slate-600">Loading history…</p>
+        <InlineLoader message="Loading history…" />
       ) : history.length === 0 ? (
         <p className="text-sm text-slate-600">No salary changes recorded yet.</p>
       ) : (

@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { canManageHrSettings } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
-import { HrAlert, HrCard } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
+import { HrAlert, HrCard, HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrPageUi';
 
 export function HrLetterReferencePanel() {
   const ws = useWorkspace();

@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -19,11 +20,10 @@ import {
   generateDisciplineCaseLetter,
   patchDisciplineCase,
   severityClass,
-  statusMeta,
 } from '../../lib/hrDisciplineCases';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
-import { HrCard } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrButton, HrAddButton } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -214,7 +214,7 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
   if (!detail) {
     return (
       <HrFormModal isOpen title="Case details" onClose={onClose} size="xl">
-        <p className="text-sm text-slate-600">Loading case…</p>
+        <InlineLoader message="Loading case…" />
       </HrFormModal>
     );
   }
@@ -278,9 +278,9 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
               <li><strong>Close</strong> — issue letters, then close when checklist is green</li>
             </ol>
             {canManage ? (
-              <button type="button" className={HR_BTN_PRIMARY} onClick={() => setActivePhase('investigate')}>
+              <HrButton type="button" onClick={() => setActivePhase('investigate')}>
                 Start investigation →
-              </button>
+              </HrButton>
             ) : null}
           </div>
         ) : null}
@@ -349,10 +349,10 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
         {canLetter && activePhase === 'sanction' ? (
           <HrCard title="Extra letters" subtitle="Optional — query, warning, suspension outside recovery letters">
             <div className="flex flex-wrap gap-2">
-              <button type="button" className={HR_BTN_SECONDARY} onClick={() => issueLetter('query')}>Query letter</button>
-              <button type="button" className={HR_BTN_SECONDARY} onClick={() => issueLetter('warning')}>Warning</button>
-              <button type="button" className={HR_BTN_SECONDARY} onClick={() => issueLetter('suspension')}>Suspension</button>
-              <button type="button" className={HR_BTN_SECONDARY} onClick={() => navigateToHrLetter(navigate, { letterKind: 'dismissal', userId: detail.userId, sourceRecordKind: 'hr_discipline_case', sourceRecordId: detail.id })}>Dismissal (preview)</button>
+              <HrButton type="button" variant="secondary" onClick={() => issueLetter('query')}>Query letter</HrButton>
+              <HrButton type="button" variant="secondary" onClick={() => issueLetter('warning')}>Warning</HrButton>
+              <HrButton type="button" variant="secondary" onClick={() => issueLetter('suspension')}>Suspension</HrButton>
+              <HrButton type="button" variant="secondary" onClick={() => navigateToHrLetter(navigate, { letterKind: 'dismissal', userId: detail.userId, sourceRecordKind: 'hr_discipline_case', sourceRecordId: detail.id })}>Dismissal (preview)</HrButton>
             </div>
           </HrCard>
         ) : null}
@@ -644,8 +644,8 @@ export default function HrDisciplineCasesPanel() {
               </label>
             </fieldset>
             <div className="flex gap-2 justify-end">
-              <button type="button" className={HR_BTN_SECONDARY} onClick={() => setCreateOpen(false)}>Cancel</button>
-              <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Saving…' : 'Create case'}</button>
+              <HrButton type="button" variant="secondary" onClick={() => setCreateOpen(false)}>Cancel</HrButton>
+              <HrButton type="submit" disabled={busy} >{busy ? 'Saving…' : 'Create case'}</HrButton>
             </div>
           </form>
         </HrFormModal>

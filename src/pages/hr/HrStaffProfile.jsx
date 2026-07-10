@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
@@ -23,7 +24,8 @@ import { HrStaffTransferQuickStart } from '../../components/hr/HrStaffTransferQu
 import { PageHeader } from '../../components/layout/PageHeader';
 import { PageTabs } from '../../components/layout/PageTabs';
 import { HR_TALENT, HR_EMPLOYEES, HR_TIME_ABSENCE, HR_DISCIPLINE_EXIT, hrTabPath } from '../../lib/hrRoutes';
-import { hrRequestKindLabel, hrRequestStatusClass } from '../../lib/hrFormat';
+import { hrRequestKindLabel } from '../../lib/hrFormat';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { fetchHrTransferRequests } from '../../lib/hrTransfers';
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
@@ -33,12 +35,12 @@ import { HrIdCardApplyFields } from '../../components/hr/HrIdCardApplyFields';
 import { HrStaffDocumentsPanel } from '../../components/hr/HrStaffDocumentsPanel';
 import { HrStaffSalesCustomerPanel } from '../../components/hr/HrStaffSalesCustomerPanel';
 import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
-import { HrCard } from '../../components/hr/hrPageUi';
+import { HrCard, HrButton, HrAddButton, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import { HrContextBreadcrumb } from '../../components/hr/HrContextBreadcrumb';
 import { HrStaffFileChecklist } from '../../components/hr/HrStaffFileChecklist';
 import { HrStaffReportingBlock } from '../../components/hr/HrStaffReportingBlock';
 import { CRITICAL_MISSING_LABELS } from '../../lib/hrStaffDocumentKinds';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
+import { HR_BTN_PRIMARY } from '../../components/hr/hrFormStyles';
 import { formToProfilePatch, staffToForm, updateHrStaffProfile, downloadStaffRegistrationFormPdf } from '../../lib/hrStaff';
 import { createHrIdCardRequest } from '../../lib/hrIdCards';
 import {
@@ -613,7 +615,7 @@ export default function HrStaffProfile() {
   }, [tab, userId]);
   const disciplinary = staff?.profileExtra?.disciplinaryEvents;
 
-  if (loading && !staff) return <p className="text-sm text-slate-600">Loading employee profile…</p>;
+  if (loading && !staff) return <InlineLoader message="Loading employee profile…" />;
   if (error) {
     return (
       <div className="space-y-4">
@@ -745,12 +747,12 @@ export default function HrStaffProfile() {
               </p>
             ) : null}
             <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-              <button type="submit" disabled={saving} className={HR_BTN_PRIMARY}>
+              <HrButton type="submit" disabled={saving} >
                 {saving ? 'Saving…' : 'Save changes'}
-              </button>
-              <button type="button" onClick={cancelEdit} className={HR_BTN_SECONDARY}>
+              </HrButton>
+              <HrButton type="button" onClick={cancelEdit} variant="secondary">
                 Cancel
-              </button>
+              </HrButton>
             </div>
           </form>
         ) : null}
@@ -987,7 +989,7 @@ export default function HrStaffProfile() {
           {!canManageLeave ? (
             <p className="text-sm text-slate-600">Leave balances for other staff require HR leave permissions.</p>
           ) : leaveBalances == null ? (
-            <p className="text-sm text-slate-600">Loading leave balances…</p>
+            <InlineLoader message="Loading leave balances…" />
           ) : leaveBalances.length === 0 ? (
             <p className="text-sm text-slate-600">No leave balance records for this period.</p>
           ) : (
@@ -1023,9 +1025,7 @@ export default function HrStaffProfile() {
                 {leaveRequests.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs">
                     <span className="font-semibold text-slate-800">{r.title || hrRequestKindLabel(r.kind)}</span>
-                    <span className={`rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${hrRequestStatusClass(r.status)}`}>
-                      {r.status?.replace(/_/g, ' ')}
-                    </span>
+                    <HrStatusBadge status={r.status} variant="request" />
                     <Link
                       to={hrTabPath(HR_TIME_ABSENCE, 'approvals', { requestId: r.id })}
                       className="w-full font-bold text-zarewa-teal hover:underline sm:w-auto"
@@ -1155,7 +1155,7 @@ export default function HrStaffProfile() {
             </div>
           ) : null}
           {staffTransfers == null ? (
-            <p className="text-sm text-slate-600">Loading transfer records…</p>
+            <InlineLoader message="Loading transfer records…" />
           ) : staffTransfers.filter((t) => !['completed', 'cancelled', 'rejected'].includes(String(t.status || '').toLowerCase())).length ? (
             <HrCard className="!p-4">
               <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Active transfer requests</p>
@@ -1213,7 +1213,7 @@ export default function HrStaffProfile() {
 
       {tab === 'audit' ? (
         auditEvents == null ? (
-          <p className="text-sm text-slate-600">Loading audit trail…</p>
+          <InlineLoader message="Loading audit trail…" />
         ) : auditEvents.length === 0 ? (
           <p className="text-sm text-slate-600">No audit events for this employee.</p>
         ) : (
@@ -1266,9 +1266,9 @@ export default function HrStaffProfile() {
             <button type="button" onClick={() => setIdCardModal(false)} className={HR_BTN_SECONDARY}>
               Cancel
             </button>
-            <button type="submit" disabled={idCardBusy} className={HR_BTN_PRIMARY}>
+            <HrButton type="submit" disabled={idCardBusy} >
               {idCardBusy ? 'Submitting…' : 'Create request'}
-            </button>
+            </HrButton>
           </div>
         </form>
       </HrFormModal>

@@ -54,9 +54,6 @@ export function AccountingSupplierPolicyPanel({ branchId = null, enabled = true,
 
   const flags = data?.flags || {};
   const summary = data?.summary || {};
-  const anyOn =
-    flags.supplierAdvanceAccountingEnabled ||
-    flags.apGlAlignmentDiagnosticsEnabled;
 
   const refreshAction = (
     <button

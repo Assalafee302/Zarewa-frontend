@@ -3,8 +3,8 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
 import { canEditLeavePolicy } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HrAlert, HrCard } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrAlert, HrCard, HrButton, HrAddButton, HR_BTN_PRIMARY } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 /** Staff purchase credit limits — stored in HR policy config (`staffPurchaseCredit`). */
 export function HrStaffPurchaseCreditPolicySection() {

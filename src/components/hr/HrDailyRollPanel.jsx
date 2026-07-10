@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -214,7 +215,7 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
         </div>
       ) : null}
 
-      {loading && staff.length === 0 ? <p className="text-sm text-slate-600">Loading…</p> : null}
+      {loading && staff.length === 0 ? <InlineLoader message="Loading…" /> : null}
 
       {(!loading || staff.length > 0) && staff.length > 0 ? (
         <AppTableWrap>

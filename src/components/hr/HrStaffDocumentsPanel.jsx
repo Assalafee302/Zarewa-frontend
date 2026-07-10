@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useCallback, useMemo, useState } from 'react';
 import { CheckCircle2, Download, ShieldAlert, Trash2, Upload, XCircle } from 'lucide-react';
 import { appConfirm } from '../../lib/appConfirm';
@@ -15,17 +16,11 @@ import {
 } from '../../lib/hrStaffDocuments';
 import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
 import { HrFormModal } from './HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrStatusBadge } from './HrStatusBadge';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 const MAX_AVATAR_CHARS = 180_000;
 const DOC_ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp,application/pdf';
-
-const VERIFY_PILL = {
-  pending: 'bg-amber-50 text-amber-900 border-amber-200',
-  verified: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  rejected: 'bg-red-50 text-red-800 border-red-200',
-  expired: 'bg-slate-100 text-slate-600 border-slate-200',
-};
 
 function isExpired(iso) {
   if (!iso) return false;
@@ -276,9 +271,7 @@ export function HrStaffDocumentsPanel({
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-slate-800">{kind.label}</p>
                     {doc ? (
-                      <span className={`rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${VERIFY_PILL[status] || VERIFY_PILL.pending}`}>
-                        {status}
-                      </span>
+                      <HrStatusBadge status={status} variant="documentVerify" />
                     ) : (
                       <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-ui-xs font-bold uppercase text-amber-800">
                         Missing

@@ -1,9 +1,10 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { HrFormModal } from './HrFormModal';
 import { HrManagerPicker } from './HrManagerPicker';
 import { appConfirm } from '../../lib/appConfirm';
 import { bulkUpdateHrStaff } from '../../lib/hrStaffExtras';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
  * @param {{
@@ -60,25 +61,25 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onC
         <p className="text-xs font-bold uppercase tracking-wide text-zarewa-teal">
           {selectedIds.length} selected
         </p>
-        <button type="button" className={HR_BTN_SECONDARY} onClick={() => setManagerOpen(true)} disabled={!!busy}>
+        <HrButton type="button" variant="secondary" onClick={() => setManagerOpen(true)} disabled={!!busy}>
           Assign manager
-        </button>
+        </HrButton>
         {branches.length ? (
-          <button type="button" className={HR_BTN_SECONDARY} onClick={() => setBranchOpen(true)} disabled={!!busy}>
+          <HrButton type="button" variant="secondary" onClick={() => setBranchOpen(true)} disabled={!!busy}>
             Assign branch
-          </button>
+          </HrButton>
         ) : null}
-        <button
+        <HrButton
           type="button"
-          className={HR_BTN_SECONDARY}
+          variant="secondary"
           disabled={!!busy}
           onClick={() => runBulk({ flagForReview: true, action: 'review' })}
         >
           Flag for review
-        </button>
-        <button
+        </HrButton>
+        <HrButton
           type="button"
-          className={HR_BTN_SECONDARY}
+          variant="secondary"
           disabled={!!busy}
           onClick={async () => {
             if (!(await appConfirm({
@@ -90,18 +91,18 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onC
           }}
         >
           Deactivate
-        </button>
-        <button
+        </HrButton>
+        <HrButton
           type="button"
-          className={HR_BTN_SECONDARY}
+          variant="secondary"
           disabled={!!busy}
           onClick={() => runBulk({ accountStatus: 'active', action: 'activate' })}
         >
           Reactivate
-        </button>
-        <button type="button" className={HR_BTN_SECONDARY} onClick={exportSelectedCsv}>
+        </HrButton>
+        <HrButton type="button" variant="secondary" onClick={exportSelectedCsv}>
           Export selected
-        </button>
+        </HrButton>
         <button type="button" className="text-xs font-bold uppercase text-slate-500 hover:underline" onClick={onClear}>
           Clear
         </button>
@@ -115,17 +116,17 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onC
             <HrManagerPicker staff={staff} value={managerId} onChange={setManagerId} className={`${HR_FIELD_CLASS} mt-1`} />
           </label>
           <div className="flex gap-2">
-            <button
+            <HrButton
               type="button"
-              className={HR_BTN_PRIMARY}
+              
               disabled={!!busy}
               onClick={() => runBulk({ lineManagerUserId: managerId || null, action: 'manager' })}
             >
               {busy ? 'Saving…' : 'Apply to selected'}
-            </button>
-            <button type="button" className={HR_BTN_SECONDARY} onClick={() => setManagerOpen(false)}>
+            </HrButton>
+            <HrButton type="button" variant="secondary" onClick={() => setManagerOpen(false)}>
               Cancel
-            </button>
+            </HrButton>
           </div>
         </div>
       </HrFormModal>
@@ -144,17 +145,17 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onC
             </select>
           </label>
           <div className="flex gap-2">
-            <button
+            <HrButton
               type="button"
-              className={HR_BTN_PRIMARY}
+              
               disabled={!!busy || !branchId}
               onClick={() => runBulk({ branchId, action: 'branch' })}
             >
               {busy ? 'Saving…' : 'Apply to selected'}
-            </button>
-            <button type="button" className={HR_BTN_SECONDARY} onClick={() => setBranchOpen(false)}>
+            </HrButton>
+            <HrButton type="button" variant="secondary" onClick={() => setBranchOpen(false)}>
               Cancel
-            </button>
+            </HrButton>
           </div>
         </div>
       </HrFormModal>

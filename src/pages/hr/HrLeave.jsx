@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
@@ -208,7 +209,7 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
         </div>
       ) : null}
 
-      {loading ? <p className="text-sm text-slate-600">Loading balances…</p> : null}
+      {loading ? <InlineLoader message="Loading balances…" /> : null}
 
       {carryOverOpen && (
         <CarryOverModal

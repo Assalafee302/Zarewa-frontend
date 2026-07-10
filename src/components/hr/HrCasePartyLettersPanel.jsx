@@ -9,7 +9,7 @@ import {
   mdApproveHrLetter,
   submitHrLetter,
 } from '../../lib/hrExtended';
-import { HrCard } from './hrPageUi';
+import { HrCard, HrButton, HrAddButton } from './hrPageUi';
 import { HR_BTN_SECONDARY } from './hrFormStyles';
 
 function statusTone(status) {

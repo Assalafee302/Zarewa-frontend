@@ -1,4 +1,7 @@
 export { ModalScrollShell, ModalScrollHeader, ModalScrollBody, ModalScrollFooter } from './ModalScrollShell';
+export { ModalActionFooter } from './ModalActionFooter';
+export { ModalDeskFooter, DeskFooterButton } from './ModalDeskFooter';
+export { Breadcrumbs } from './Breadcrumbs';
 export { PageHeader } from './PageHeader';
 export { PageTabs } from './PageTabs';
 export { MainPanel } from './MainPanel';

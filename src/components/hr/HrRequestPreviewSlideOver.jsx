@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
@@ -10,7 +11,7 @@ import { HrRequestPayloadSummary } from './HrRequestPayloadSummary';
 import { HrChairmanWaiverLoanBanner } from './HrChairmanWaiverLoanBanner';
 import HrRequestStageBar from './HrRequestStageBar';
 import { HrStatusBadge } from './HrStatusBadge';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { canGmApproveChairmanWaiverLoan } from '../../lib/hrAccess';
 
@@ -171,9 +172,9 @@ export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onC
                     />
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    <button
+                    <HrButton
                       type="button"
-                      className={HR_BTN_PRIMARY}
+                      
                       disabled={busy || !canGmApproveChairmanWaiverLoan(request, permissions, roleKey)}
                       title={
                         !canGmApproveChairmanWaiverLoan(request, permissions, roleKey)
@@ -183,7 +184,7 @@ export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onC
                       onClick={() => void runReview(true)}
                     >
                       Approve
-                    </button>
+                    </HrButton>
                     <button
                       type="button"
                       className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-ui-xs font-bold uppercase text-red-900 hover:bg-red-100"

@@ -1,10 +1,11 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
 import { ProfileFormField } from '../profile/profileFormUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../profile/profileOverviewUi';
 import {
@@ -134,12 +135,12 @@ export function HrAttendanceUploadsPanel() {
           </ProfileFormField>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" className={HR_BTN_PRIMARY} disabled={busy || !branchId} onClick={() => void submit()}>
+          <HrButton type="button" disabled={busy || !branchId} onClick={() => void submit()}>
             {busy ? 'Uploading…' : 'Upload attendance'}
-          </button>
-          <button type="button" className={HR_BTN_SECONDARY} onClick={() => setRowsJson(SAMPLE_ROWS)}>
+          </HrButton>
+          <HrButton type="button" variant="secondary" onClick={() => setRowsJson(SAMPLE_ROWS)}>
             Reset sample
-          </button>
+          </HrButton>
         </div>
       </ProfileOverviewSection>
 

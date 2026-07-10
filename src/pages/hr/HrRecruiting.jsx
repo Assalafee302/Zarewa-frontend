@@ -17,17 +17,8 @@ import {
   patchHrJob,
 } from '../../lib/hrRecruiting';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import {
-  HrAlert,
-  HrCard,
-  HrEmptyState,
-  HrListItemButton,
-  HrPageBody,
-  HrPageIntro,
-  HrSplitWorkspace,
-  HrStatusPill,
-} from '../../components/hr/hrPageUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HrAlert, HrCard, HrEmptyState, HrListItemButton, HrPageBody, HrPageIntro, HrSplitWorkspace, HrStatusPill, HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 
 function countByStatus(applicants) {
   const counts = Object.fromEntries(APPLICANT_STATUSES.map((s) => [s.value, 0]));
@@ -466,9 +457,9 @@ export default function HrRecruiting({ embedded = false } = {}) {
             Description
             <textarea className={`${HR_FIELD_CLASS} min-h-[100px]`} value={jobForm.description} onChange={(e) => setJobForm((f) => ({ ...f, description: e.target.value }))} />
           </label>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+          <HrButton type="submit" disabled={busy} >
             {busy ? 'Saving…' : 'Create & publish'}
-          </button>
+          </HrButton>
         </form>
       </HrFormModal>
 
@@ -492,9 +483,9 @@ export default function HrRecruiting({ embedded = false } = {}) {
                 </label>
               ))}
             </div>
-            <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+            <HrButton type="submit" disabled={busy} >
               {busy ? 'Saving…' : 'Save scorecard'}
-            </button>
+            </HrButton>
           </form>
         ) : null}
       </HrFormModal>
@@ -543,9 +534,9 @@ export default function HrRecruiting({ embedded = false } = {}) {
             Notes
             <textarea className={`${HR_FIELD_CLASS} min-h-[80px]`} value={appForm.notes} onChange={(e) => setAppForm((f) => ({ ...f, notes: e.target.value }))} />
           </label>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+          <HrButton type="submit" disabled={busy} >
             {busy ? 'Saving…' : 'Add to pipeline'}
-          </button>
+          </HrButton>
         </form>
       </HrFormModal>
     </>

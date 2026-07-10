@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { downloadIncidentAuditPdf, fetchIncidentAuditFull } from '../../lib/hrIncidents';
 
-import { HR_BTN_SECONDARY, HR_BTN_PRIMARY, HR_CARD, HR_MUTED, HR_SECTION_TITLE } from './hrPageUi';
+import { HR_CARD, HR_MUTED, HR_SECTION_TITLE, HrButton, HrAddButton } from './hrPageUi';
 
 
 
@@ -144,23 +144,23 @@ export default function HrIncidentAuditPackPanel({ registryId, caseId }) {
 
         <div className="flex flex-wrap gap-2">
 
-          <button type="button" className={HR_BTN_SECONDARY} onClick={load} disabled={busy}>
+          <HrButton type="button" variant="secondary" onClick={load} disabled={busy}>
 
             {busy ? 'Loading…' : 'Refresh'}
 
-          </button>
+          </HrButton>
 
-          <button type="button" className={HR_BTN_PRIMARY} onClick={downloadPdf} disabled={busy || !pack}>
+          <HrButton type="button" onClick={downloadPdf} disabled={busy || !pack}>
 
             Download PDF
 
-          </button>
+          </HrButton>
 
-          <button type="button" className={HR_BTN_SECONDARY} onClick={downloadJson} disabled={!pack}>
+          <HrButton type="button" variant="secondary" onClick={downloadJson} disabled={!pack}>
 
             Download JSON
 
-          </button>
+          </HrButton>
 
         </div>
 

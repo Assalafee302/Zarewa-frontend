@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { registerAppConfirm, unregisterAppConfirm } from '../lib/appConfirm';

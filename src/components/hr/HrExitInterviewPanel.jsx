@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
-import { HrCard } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrButton, HrAddButton } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 const QUESTIONS = [
   { key: 'reasonForLeaving', label: 'Primary reason for leaving' },
@@ -74,9 +74,9 @@ export function HrExitInterviewPanel({ clearanceId, userId, canEdit = false }) {
               />
             </label>
           ))}
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+          <HrButton type="submit" disabled={busy} >
             {busy ? 'Saving…' : 'Save exit interview'}
-          </button>
+          </HrButton>
         </form>
       ) : (
         <dl className="space-y-2 text-sm">

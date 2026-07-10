@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -86,9 +87,9 @@ export function HrReportEmbedPanel({ reportId, title, description, limit = 25 })
         </>
       ) : null}
       <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-        <button type="button" className={HR_BTN_SECONDARY} onClick={() => void load()} disabled={loading}>
+        <HrButton type="button" variant="secondary" onClick={() => void load()} disabled={loading}>
           Refresh
-        </button>
+        </HrButton>
         <Link
           to={hrTabPath(HR_DOCUMENTS, 'reports', { report: reportId })}
           className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-zarewa-teal no-underline hover:bg-slate-50"

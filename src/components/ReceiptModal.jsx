@@ -10,6 +10,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { ModalFrame } from './layout/ModalFrame';
+import { ModalDeskFooter, DeskFooterButton } from './layout/ModalDeskFooter';
 import { PrintModalPortal } from './layout/PrintModalPortal';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
@@ -732,7 +733,7 @@ const ReceiptModal = ({
         } else if (activeBankDepositId && cashNeeded > 0 && cashNeeded < total) {
           linesForTreasury = validLines.map((line, idx) => {
             const raw = Math.round((parseNum(line.amount) * cashNeeded) / total);
-            return { ...line, amount: String(idx === validLines.length - 1 ? cashNeeded - validLines.slice(0, -1).reduce((s, l, i) => s + Math.round((parseNum(l.amount) * cashNeeded) / total), 0) : raw) };
+            return { ...line, amount: String(idx === validLines.length - 1 ? cashNeeded - validLines.slice(0, -1).reduce((s, l) => s + Math.round((parseNum(l.amount) * cashNeeded) / total), 0) : raw) };
           });
         }
         const paymentLinesPayload = linesForTreasury.map((line) => {
@@ -1379,54 +1380,44 @@ const ReceiptModal = ({
           </div>
         ) : null}
 
-        <div className="px-5 py-4 bg-emerald-600 flex justify-between items-center text-white shrink-0 flex-wrap gap-3">
-          <div>
-            <p className="text-ui-xs font-semibold text-white/50 uppercase tracking-widest mb-0.5">
-              Voucher total
-            </p>
-            <p className="text-2xl font-bold text-white tabular-nums">{formatNgn(lineTotalNgn)}</p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {isExistingPayment && !readOnly && onDeleteReceipt ? (
-              <button
-                type="button"
-                disabled={isPosting}
-                onClick={deleteCurrentReceipt}
-                className="bg-rose-700/90 px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide border border-rose-300/40 hover:bg-rose-700 disabled:opacity-40"
-              >
-                <Trash2 size={14} className="inline mr-1.5" /> Delete payment
-              </button>
-            ) : null}
-            <button
-              type="submit"
-              disabled={
-                readOnly ||
-                isPosting ||
-                (useLedgerApi && Boolean(quotationLedgerHold)) ||
-                (useLedgerApi && voucherInLockedPeriod)
-              }
-              className="bg-white/10 px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
-            >
-              <Save size={14} className="inline mr-1.5" /> {isPosting ? 'Posting…' : 'Post payment'}
-            </button>
-            <button
-              type="button"
-              onClick={() => openPrint('quick')}
-              disabled={!ws?.canMutate || !quotationRef}
-              className="bg-white/90 text-emerald-800 px-3 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm disabled:opacity-40"
-            >
-              <Printer size={14} className="inline mr-1" /> Summary (A4)
-            </button>
-            <button
-              type="button"
-              onClick={() => openPrint('full')}
-              disabled={!ws?.canMutate || !quotationRef}
-              className="bg-white text-emerald-700 px-3 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide shadow-sm disabled:opacity-40"
-            >
-              <Printer size={14} className="inline mr-1" /> Full detail (A4)
-            </button>
-          </div>
-        </div>
+        <ModalDeskFooter
+          totalLabel="Voucher total"
+          totalValue={formatNgn(lineTotalNgn)}
+          className="bg-emerald-600"
+        >
+          {isExistingPayment && !readOnly && onDeleteReceipt ? (
+            <DeskFooterButton type="button" variant="danger" disabled={isPosting} onClick={deleteCurrentReceipt}>
+              <Trash2 size={14} /> Delete payment
+            </DeskFooterButton>
+          ) : null}
+          <DeskFooterButton
+            type="submit"
+            disabled={
+              readOnly ||
+              isPosting ||
+              (useLedgerApi && Boolean(quotationLedgerHold)) ||
+              (useLedgerApi && voucherInLockedPeriod)
+            }
+          >
+            <Save size={14} /> {isPosting ? 'Posting…' : 'Post payment'}
+          </DeskFooterButton>
+          <DeskFooterButton
+            type="button"
+            variant="success"
+            onClick={() => openPrint('quick')}
+            disabled={!ws?.canMutate || !quotationRef}
+          >
+            <Printer size={14} /> Summary (A4)
+          </DeskFooterButton>
+          <DeskFooterButton
+            type="button"
+            variant="primary"
+            onClick={() => openPrint('full')}
+            disabled={!ws?.canMutate || !quotationRef}
+          >
+            <Printer size={14} /> Full detail (A4)
+          </DeskFooterButton>
+        </ModalDeskFooter>
       </form>
 
       <PrintModalPortal open={showPrint} onClose={() => setShowPrint(false)}>

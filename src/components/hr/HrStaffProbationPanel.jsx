@@ -4,8 +4,8 @@ import { CheckCircle2, Clock } from 'lucide-react';
 import { appConfirm } from '../../lib/appConfirm';
 import { updateStaffProbation } from '../../lib/hrStaffDirectoryApi';
 import { isOnProbation, isProbationEndingSoon, probationBadge } from '../../lib/hrStaffDirectoryUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
-import { HrCard } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrButton, HrAddButton } from './hrPageUi';
 
 /**
  * Guided probation confirm / extend workflow for employee profiles.
@@ -82,9 +82,9 @@ export function HrStaffProbationPanel({ staff, canManage, onUpdated }) {
               />
             </label>
             <div className="flex flex-wrap gap-2">
-              <button
+              <HrButton
                 type="button"
-                className={HR_BTN_PRIMARY}
+                
                 disabled={!!busy}
                 onClick={async () => {
                   if (!(await appConfirm({ message: `Confirm ${staff.displayName} has completed probation?` }))) return;
@@ -92,7 +92,7 @@ export function HrStaffProbationPanel({ staff, canManage, onUpdated }) {
                 }}
               >
                 {busy === 'confirm' ? 'Confirming…' : 'Confirm probation'}
-              </button>
+              </HrButton>
               <label className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
                 <Clock size={14} aria-hidden />
                 Extend to
@@ -102,14 +102,14 @@ export function HrStaffProbationPanel({ staff, canManage, onUpdated }) {
                   onChange={(e) => setExtendDate(e.target.value)}
                   className={HR_FIELD_CLASS}
                 />
-                <button
+                <HrButton
                   type="button"
-                  className={HR_BTN_SECONDARY}
+                  variant="secondary"
                   disabled={!!busy || !extendDate}
                   onClick={() => run('extend')}
                 >
                   {busy === 'extend' ? 'Saving…' : 'Extend'}
-                </button>
+                </HrButton>
               </label>
             </div>
             <p className="text-xs text-slate-500">

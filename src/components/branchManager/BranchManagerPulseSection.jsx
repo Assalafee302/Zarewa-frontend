@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, HelpCircle, LayoutDashboard, Radio } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import { MANAGER_METRIC_PERIODS, managementPeriodStartISO } from '../../lib/managementLiveFromWorkspace';
+import { MANAGER_METRIC_PERIODS } from '../../lib/managementLiveFromWorkspace';
 import { Card } from '../ui';
 import { formatPersonName } from '../../lib/formatPersonName';
 import { motion } from 'framer-motion';

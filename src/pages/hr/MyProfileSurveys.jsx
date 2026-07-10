@@ -1,6 +1,7 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { ProfileFormField } from '../../components/profile/profileFormUi';
 import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import {
@@ -92,9 +93,9 @@ export default function MyProfileSurveys() {
                     {s.answered ? (
                       <ProfileStatusChip variant="approved">Submitted</ProfileStatusChip>
                     ) : (
-                      <button
+                      <HrButton
                         type="button"
-                        className={HR_BTN_PRIMARY}
+                        
                         onClick={() => {
                           setActive(s);
                           setAnswers({});
@@ -102,7 +103,7 @@ export default function MyProfileSurveys() {
                         }}
                       >
                         Respond
-                      </button>
+                      </HrButton>
                     )}
                   </div>
                 </li>
@@ -142,9 +143,9 @@ export default function MyProfileSurveys() {
               </ProfileFormField>
             ))}
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+              <HrButton type="submit" disabled={busy} >
                 {busy ? 'Submitting…' : 'Submit response'}
-              </button>
+              </HrButton>
               <button
                 type="button"
                 onClick={() => setActive(null)}

@@ -8,7 +8,8 @@ import { useHrDashboardCounts } from '../../hooks/useHrDashboardCounts';
 import { generateLeaveDecisionLetter } from '../../lib/hrPhase2';
 import { generateStaffLoanAgreementLetter } from '../../lib/hrExtended';
 import { canGenerateHrLetters, canGmApproveChairmanWaiverLoan } from '../../lib/hrAccess';
-import { hrRequestKindLabel, hrRequestStatusClass } from '../../lib/hrFormat';
+import { hrRequestKindLabel } from '../../lib/hrFormat';
+import { HrStatusBadge } from './HrStatusBadge';
 import { hrRequestReviewPath } from '../../lib/hrRequests';
 import { filterHrRequestsList, HR_REQUEST_SORT_FIELDS, sortHrRequestsList } from '../../lib/hrRequestsList';
 import { useAppTablePaging } from '../../lib/appDataTable';
@@ -20,9 +21,9 @@ import { HrRequestScopeFilter } from './HrRequestScopeFilter';
 import { HrRequestPreviewSlideOver } from './HrRequestPreviewSlideOver';
 import { HrChairmanWaiverLoanBanner } from './HrChairmanWaiverLoanBanner';
 import { MyRequestDetailSlideOver } from './MyRequestDetailSlideOver';
-import { HrEmptyState } from './hrPageUi';
+import { HrEmptyState, HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrPageUi';
 import { hrRequestsEmptyState } from '../../lib/hrRequestsEmptyState';
-import { HR_BTN_PILL, HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
+import { HR_BTN_PILL, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
 
 const CARD_ROW =
   'group relative flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-3 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-zarewa-teal/25 hover:shadow-md sm:px-4';
@@ -468,9 +469,9 @@ export function HrRequestsPanel({
                 </select>
               ) : null}
               {scope !== 'mine' ? (
-                <button type="button" onClick={exportQueueCsv} className={HR_BTN_SECONDARY}>
+                <HrButton type="button" onClick={exportQueueCsv} variant="secondary">
                   Export CSV
-                </button>
+                </HrButton>
               ) : null}
               <p className={`${selfService ? 'text-xs' : 'text-ui-xs'} font-semibold ${selfService ? 'text-slate-500' : 'uppercase tracking-wide text-slate-500'}`}>
                 {loading ? 'Loading…' : `${visibleSortedRequests.length} ${selfService ? 'requests' : 'in queue'}`}
@@ -597,11 +598,7 @@ export function HrRequestsPanel({
                   </p>
                   {selfService && showStageBar ? <HrRequestStageBar status={r.status} kind={r.kind} compact /> : null}
                 </button>
-                <span
-                  className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${hrRequestStatusClass(r.status)}`}
-                >
-                  {r.status?.replace(/_/g, ' ')}
-                </span>
+                <HrStatusBadge status={r.status} variant="request" className="shrink-0" />
               </div>
               <div className="w-full sm:w-auto sm:shrink-0 pl-7 sm:pl-0">{renderRequestActions(r)}</div>
             </div>

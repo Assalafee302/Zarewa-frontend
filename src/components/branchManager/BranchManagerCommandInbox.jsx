@@ -62,7 +62,6 @@ export function BranchManagerCommandInbox(props) {
     openPurchaseOrderIntel,
     openGovernanceIntel,
     openEditApprovalIntel,
-    handleApproveEditApproval,
     formatPersonName,
     formatRefundReasonCategory,
     formatNgn,

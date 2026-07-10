@@ -22,6 +22,7 @@ import {
   RotateCcw,
   Tags,
   Library,
+  Palette,
 } from 'lucide-react';
 import { PageHeader, PageShell, MainPanel, PageTabs } from '../components/layout';
 import MasterDataWorkbench from '../components/settings/MasterDataWorkbench';
@@ -35,6 +36,7 @@ import QuotationLineIntegrityPanel from '../components/settings/QuotationLineInt
 import { SettingsIntegrationApiPanel } from '../components/settings/SettingsIntegrationApiPanel';
 import { ZareIntelligencePanel } from '../components/settings/ZareIntelligencePanel';
 import { KnowledgeCenterPanel } from '../components/settings/KnowledgeCenterPanel';
+import DesignSystemPanel from '../components/settings/DesignSystemPanel';
 import {
   DEFAULT_MANAGER_TARGETS_PER_MONTH,
   mergeDashboardPrefs,
@@ -125,6 +127,7 @@ const Settings = () => {
     ];
     if (showTeamTab) {
       tabs.push({ id: 'team', label: 'Team & access', icon: <Users size={14} /> });
+      tabs.push({ id: 'design-system', label: 'Design system', icon: <Palette size={14} /> });
     }
     if (showZareIntelligence) {
       tabs.push({ id: 'zare-intelligence', label: 'Zare intelligence', icon: <LifeBuoy size={14} /> });
@@ -701,6 +704,16 @@ const Settings = () => {
                       onRefresh={ws?.refresh}
                     />
                   </div>
+                ) : (
+                  <Navigate to="/settings/profile" replace />
+                )
+              }
+            />
+            <Route
+              path="design-system"
+              element={
+                showTeamTab ? (
+                  <DesignSystemPanel />
                 ) : (
                   <Navigate to="/settings/profile" replace />
                 )

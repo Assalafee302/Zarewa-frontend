@@ -3,9 +3,9 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
 import { canEditLeavePolicy } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HrAlert, HrCard } from './hrPageUi';
+import { HrAlert, HrCard, HrButton, HrAddButton, HR_BTN_PRIMARY } from './hrPageUi';
 import { HrHandbookReferenceCard } from './HrHandbookReferenceCard';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 function PolicyFieldGroup({ title, description, children }) {
   return (

@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { Suspense, useEffect } from 'react';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
@@ -67,7 +68,7 @@ export default function HrPayrollHub() {
         </div>
       ) : null}
       {tab === 'tax-pension' ? (
-        <Suspense fallback={<p className="text-sm text-slate-600">Loading PAYE & pension…</p>}>
+        <Suspense fallback={<InlineLoader message="Loading PAYE & pension…" />}>
           <HrPayeTaxPension embedded />
         </Suspense>
       ) : null}

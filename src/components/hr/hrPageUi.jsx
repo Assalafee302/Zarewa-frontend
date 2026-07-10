@@ -1,5 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '../ui/button';
+import { EmptyState } from '../ui/EmptyState';
+import { cn } from '../../lib/utils';
 import { HrStatusBadge } from './HrStatusBadge';
 
 export {
@@ -14,6 +17,29 @@ export {
   HR_SECTION_TITLE,
   HR_TEXTAREA_CLASS,
 } from './hrFormStyles';
+
+const hrBtnClass = 'min-h-11 w-full sm:w-auto text-xs font-bold uppercase tracking-wide';
+
+/** HR-styled button — prefer over HR_BTN_* class strings. */
+export function HrButton({ variant = 'primary', className, ...props }) {
+  const mapped =
+    variant === 'secondary' ? 'outline' : variant === 'destructive' ? 'destructive' : 'default';
+  return <Button variant={mapped} className={cn(hrBtnClass, className)} {...props} />;
+}
+
+/** HR add/create action button. */
+export function HrAddButton({ className, ...props }) {
+  return (
+    <Button
+      variant="default"
+      className={cn(hrBtnClass, 'inline-flex items-center gap-1.5', className)}
+      {...props}
+    />
+  );
+}
+
+export { InlineLoader } from '../ui/PageLoader';
+export { EmptyState } from '../ui/EmptyState';
 
 /** Constrains page content width inside HR main panel. */
 export function HrPageBody({ children, className = '', compact = false }) {
@@ -74,13 +100,16 @@ export function HrStatusPill({ status, label }) {
   return <HrStatusBadge status={status} variant="workflow" label={label || status} />;
 }
 
-export function HrEmptyState({ title, description, action }) {
+export function HrEmptyState({ title, description, action, actionLabel, onAction }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-10 text-center">
-      <p className="text-sm font-semibold text-slate-700">{title}</p>
-      {description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}
-      {action ? <div className="mt-4">{action}</div> : null}
-    </div>
+    <EmptyState
+      variant="compact"
+      title={title}
+      description={description}
+      action={action}
+      actionLabel={actionLabel}
+      onAction={onAction}
+    />
   );
 }
 

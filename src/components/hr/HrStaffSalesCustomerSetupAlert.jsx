@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Link2 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';

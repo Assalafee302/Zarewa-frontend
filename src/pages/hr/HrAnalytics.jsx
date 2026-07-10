@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
@@ -93,7 +94,7 @@ function DashboardTab() {
     })();
   }, []);
 
-  if (loading) return <p className="text-sm text-slate-600">Loading workforce analytics…</p>;
+  if (loading) return <InlineLoader message="Loading workforce analytics…" />;
   if (error) return <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>;
   if (!data) return null;
 
@@ -185,7 +186,7 @@ function AttendanceTab() {
     })();
   }, []);
 
-  if (loading) return <p className="text-sm text-slate-600">Loading attendance trends…</p>;
+  if (loading) return <InlineLoader message="Loading attendance trends…" />;
   if (error) return <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>;
   if (!data) return null;
 
@@ -284,7 +285,7 @@ function HeadcountTab() {
     })();
   }, []);
 
-  if (loading) return <p className="text-sm text-slate-600">Loading headcount…</p>;
+  if (loading) return <InlineLoader message="Loading headcount…" />;
   if (error) return <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>;
   if (!data) return null;
 
@@ -397,7 +398,7 @@ function LoanPortfolioTab() {
     })();
   }, []);
 
-  if (loading) return <p className="text-sm text-slate-600">Loading loan portfolio…</p>;
+  if (loading) return <InlineLoader message="Loading loan portfolio…" />;
   if (error) return <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>;
   if (!data) return null;
 
@@ -494,7 +495,7 @@ function TurnoverTab() {
     })();
   }, []);
 
-  if (loading) return <p className="text-sm text-slate-600">Loading turnover trends…</p>;
+  if (loading) return <InlineLoader message="Loading turnover trends…" />;
   if (error) return <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>;
   if (!data) return null;
 

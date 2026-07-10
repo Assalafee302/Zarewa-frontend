@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
@@ -31,7 +32,7 @@ export function HrOnboardingQueue() {
   const queue = useMemo(() => onboardingQueueFromStaff(staff), [staff]);
 
   if (loading && !staff.length) {
-    return <p className="text-sm text-slate-600">Loading onboarding queue…</p>;
+    return <InlineLoader message="Loading onboarding queue…" />;
   }
   if (error) {
     return <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>;

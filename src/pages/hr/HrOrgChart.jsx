@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
+import { InlineLoader } from '../../components/ui/PageLoader';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Download, Link2, Minus, Plus, Printer, Search } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -9,7 +11,7 @@ import { HrOrgRelationshipModal } from '../../components/hr/HrOrgRelationshipMod
 import { HrOrgDataQualityPanel } from '../../components/hr/HrOrgDataQualityPanel';
 import { applyOrgLineManager, fetchHrOrgChart } from '../../lib/hrOrgChart';
 import { orgChartExportCsvUrl } from '../../lib/hrStaffDirectoryApi';
-import { HR_FIELD_CLASS, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { HR_EMPLOYEES, hrTabPath } from '../../lib/hrRoutes';
 import { TEAM_HR_BASE } from '../../lib/teamHrRoutes';
 import { canManageHrStaff } from '../../lib/hrAccess';
@@ -350,9 +352,9 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
                 <span className="font-bold text-zarewa-teal">{linkSource.displayName || linkSource.userId}</span>
                 <span className="text-slate-600"> selected — click another person to set as line manager, or:</span>
               </p>
-              <button type="button" className={HR_BTN_SECONDARY} onClick={openRemoveManager}>
+              <HrButton type="button" variant="secondary" onClick={openRemoveManager}>
                 Remove manager
-              </button>
+              </HrButton>
               <button type="button" className="text-xs font-bold uppercase text-slate-500 hover:underline" onClick={() => setLinkSource(null)}>
                 Cancel selection
               </button>
@@ -501,7 +503,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
         </div>
       ) : null}
 
-      {loading && !chart.total ? <p className="text-sm text-slate-600">Loading organogram…</p> : null}
+      {loading && !chart.total ? <InlineLoader message="Loading organogram…" /> : null}
 
       <div className="hr-org-chart-canvas overflow-x-auto rounded-2xl border border-slate-100 bg-slate-50/60 p-4 sm:p-6">
         <div

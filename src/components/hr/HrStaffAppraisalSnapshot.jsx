@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchStaffAppraisalSummary } from '../../lib/hrStaffExtras';
@@ -33,7 +34,7 @@ export function HrStaffAppraisalSnapshot({ userId, compact = false }) {
     };
   }, [userId]);
 
-  if (loading) return <p className="text-sm text-slate-600">Loading appraisal…</p>;
+  if (loading) return <InlineLoader message="Loading appraisal…" />;
 
   const latest = summary?.latest;
   if (!latest) {

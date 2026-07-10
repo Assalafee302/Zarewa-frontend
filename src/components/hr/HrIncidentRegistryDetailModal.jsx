@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Link } from 'react-router-dom';
@@ -10,7 +11,7 @@ import HrIncidentDetailSections from './HrIncidentDetailSections';
 
 import { HrFormModal } from './HrFormModal';
 
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
+import { HR_BTN_PRIMARY } from './hrFormStyles';
 
 
 
@@ -182,11 +183,11 @@ export default function HrIncidentRegistryDetailModal({ registryId, onClose, onO
 
               {caseId && onOpenCase ? (
 
-                <button
+                <HrButton
 
                   type="button"
 
-                  className={HR_BTN_PRIMARY}
+                  
 
                   onClick={() => {
 
@@ -200,7 +201,7 @@ export default function HrIncidentRegistryDetailModal({ registryId, onClose, onO
 
                   Open discipline case
 
-                </button>
+                </HrButton>
 
               ) : null}
 
@@ -242,19 +243,19 @@ export default function HrIncidentRegistryDetailModal({ registryId, onClose, onO
 
               ) : null}
 
-              <button type="button" className={HR_BTN_SECONDARY} onClick={load} disabled={loading}>
+              <HrButton type="button" variant="secondary" onClick={load} disabled={loading}>
 
                 Refresh
 
-              </button>
+              </HrButton>
 
               {detail ? (
 
-                <button type="button" className={HR_BTN_SECONDARY} onClick={() => setShowRaw((v) => !v)}>
+                <HrButton type="button" variant="secondary" onClick={() => setShowRaw((v) => !v)}>
 
                   {showRaw ? 'Hide raw JSON' : 'Show raw JSON'}
 
-                </button>
+                </HrButton>
 
               ) : null}
 

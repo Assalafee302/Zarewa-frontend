@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { decideStaffPurchaseCredit, fetchStaffPurchaseCredits } from '../../lib/hrStaffPurchaseCredit';
@@ -6,7 +7,7 @@ import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit } from '../
 import { formatNgn } from '../../lib/hrFormat';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { PageTabs } from '../layout/PageTabs';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
+import { HR_BTN_PRIMARY } from './hrFormStyles';
 import { HrPurchaseCreditDecisionContext } from './HrPurchaseCreditDecisionContext';
 import { ProfileStatusChip } from '../profile/profileDesign';
 
@@ -174,25 +175,25 @@ export function HrStaffPurchaseCreditQueue() {
                           placeholder="Rejection reason (required)"
                         />
                         <div className="flex gap-2">
-                          <button type="button" className={HR_BTN_SECONDARY} onClick={() => setRejectId('')}>
+                          <HrButton type="button" variant="secondary" onClick={() => setRejectId('')}>
                             Cancel
-                          </button>
-                          <button
+                          </HrButton>
+                          <HrButton
                             type="button"
-                            className={HR_BTN_SECONDARY}
+                            variant="secondary"
                             disabled={busyId === item.id || rejectNote.trim().length < 3}
                             onClick={() => act(item.id, 'reject', rejectNote)}
                           >
                             Confirm
-                          </button>
+                          </HrButton>
                         </div>
                       </div>
                     ) : (
                       <div className="flex gap-2">
                         {mayReject ? (
-                          <button
+                          <HrButton
                             type="button"
-                            className={HR_BTN_SECONDARY}
+                            variant="secondary"
                             disabled={busyId === item.id}
                             onClick={() => {
                               setRejectId(item.id);
@@ -200,17 +201,17 @@ export function HrStaffPurchaseCreditQueue() {
                             }}
                           >
                             Reject
-                          </button>
+                          </HrButton>
                         ) : null}
                         {mayApprove ? (
-                          <button
+                          <HrButton
                             type="button"
-                            className={HR_BTN_PRIMARY}
+                            
                             disabled={busyId === item.id}
                             onClick={() => act(item.id, 'approve')}
                           >
                             Approve
-                          </button>
+                          </HrButton>
                         ) : null}
                       </div>
                     )}

@@ -1,10 +1,11 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { canManageHrTransfers } from '../../lib/hrAccess';
 import { createHrTransferRequest, TRANSFER_TYPES } from '../../lib/hrTransfers';
 import { HrFormModal } from './HrFormModal';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
  * Inline transfer wizard from employee profile.
@@ -139,9 +140,9 @@ export function HrStaffTransferQuickStart({ userId, staff, onCreated }) {
             />
           </label>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
-            <button type="submit" className={HR_BTN_PRIMARY} disabled={busy}>
+            <HrButton type="submit" disabled={busy}>
               {busy ? 'Submitting…' : 'Submit transfer'}
-            </button>
+            </HrButton>
             <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase text-slate-600" onClick={() => setOpen(false)}>
               Cancel
             </button>

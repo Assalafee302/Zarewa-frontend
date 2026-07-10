@@ -1,3 +1,5 @@
+import { poStatusChipClass } from '../../lib/procurementStatusUi';
+
 /** Rows per column for Coil / Stone-coated / Accessories lists on Purchases. */
 export const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
 export const PAYABLES_TABLE_PAGE_SIZE = 10;
@@ -60,23 +62,9 @@ export function poLineSummaryLabel(kind) {
 
 export const PILL = 'inline-flex items-center px-2 py-0.5 rounded-md text-ui-xs font-semibold uppercase tracking-wide';
 
-const normalizeNairaInput = (value) => String(value ?? '').replace(/[^\d]/g, '');
-const formatNairaInput = (value) => {
-  const normalized = normalizeNairaInput(value);
-  if (!normalized) return '';
-  return Number(normalized).toLocaleString('en-NG');
-};
-
 /** Bordered chip — matches Stock / Finance compact lists */
-export const statusChipBorder = (st) => {
-  if (st === 'Received') return 'border-emerald-200 bg-emerald-50 text-emerald-800';
-  if (st === 'In Transit') return 'border-sky-200 bg-sky-50 text-sky-900';
-  if (st === 'On loading') return 'border-violet-200 bg-violet-50 text-violet-900';
-  if (st === 'Approved') return 'border-teal-200 bg-teal-50 text-teal-900';
-  if (st === 'Rejected') return 'border-rose-200 bg-rose-50 text-rose-800';
-  return 'border-amber-200 bg-amber-50 text-amber-900';
-};
+export const statusChipBorder = poStatusChipClass;
 
 export const CARD_ROW =
   'rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm transition-colors hover:bg-white/70';
-
+

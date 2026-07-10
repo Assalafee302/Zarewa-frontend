@@ -52,8 +52,6 @@ export function buildBranchHealthSignals({
   qcCount = 0,
   materialCount = 0,
   governanceCount = 0,
-  editsCount = 0,
-  creditPendingCount = 0,
   stockRegisterCount = 0,
   procurementCount = 0,
   lowStockCount = 0,

@@ -19,7 +19,8 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react';
-import { MainPanel, PageHeader, PageShell, PageTabs } from '../components/layout';
+import { MainPanel, PageHeader, PageShell, PageTabs, Breadcrumbs } from '../components/layout';
+import { InlineLoader } from '../components/ui/PageLoader';
 import { ExecMdAlertStrip } from '../components/exec/ExecMdAlertStrip';
 import { EXEC_SELECT, EXEC_SECONDARY_BTN } from '../lib/execPageUi';
 import { formatNgn } from '../Data/mockData';
@@ -1411,7 +1412,7 @@ export default function ExecutiveCommandCentre() {
               </button>
             </div>
             {reserveModalBusy ? (
-              <p className="p-6 text-sm text-slate-600">Loading policy…</p>
+              <InlineLoader message="Loading policy…" className="p-6" />
             ) : (
               <form onSubmit={saveReservePolicy} className="p-5 space-y-4">
                 <p className="text-xs text-slate-600 leading-relaxed">

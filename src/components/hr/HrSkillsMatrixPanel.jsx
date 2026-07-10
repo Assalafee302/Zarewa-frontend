@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
-import { HrCard } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrButton, HrAddButton } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 export function HrSkillsMatrixPanel({ userId, canEdit = false }) {
   const [skills, setSkills] = useState([]);
@@ -66,7 +66,7 @@ export function HrSkillsMatrixPanel({ userId, canEdit = false }) {
             <select className={HR_FIELD_CLASS} value={form.proficiencyLevel} onChange={(e) => setForm({ ...form, proficiencyLevel: e.target.value })}>
               {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>Level {n}</option>)}
             </select>
-            <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Saving…' : 'Add skill'}</button>
+            <HrButton type="submit" disabled={busy} >{busy ? 'Saving…' : 'Add skill'}</HrButton>
           </form>
         ) : null}
       </HrCard>

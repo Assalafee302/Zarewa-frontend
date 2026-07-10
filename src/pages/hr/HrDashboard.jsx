@@ -24,7 +24,8 @@ import {
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
-import { hrRequestKindLabel, hrRequestStatusClass } from '../../lib/hrFormat';
+import { hrRequestKindLabel } from '../../lib/hrFormat';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { canManageHrSettings, canViewHrReports } from '../../lib/hrAccess';
 import {
   getHrDashboardAttentionCount,
@@ -906,11 +907,7 @@ export default function HrDashboard() {
                         <p className="truncate text-sm font-bold text-slate-900">{r.staffDisplayName || r.userId || 'Employee'}</p>
                         <p className="font-mono text-xs text-slate-500">{r.updatedAtIso?.slice(0, 10) || '—'}</p>
                       </div>
-                      <span
-                        className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${hrRequestStatusClass(r.status)}`}
-                      >
-                        {r.status?.replace(/_/g, ' ')}
-                      </span>
+                      <HrStatusBadge status={r.status} variant="request" className="shrink-0" />
                     </button>
                   ))}
                 </div>

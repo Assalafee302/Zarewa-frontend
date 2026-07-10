@@ -1,6 +1,7 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useEffect, useState } from 'react';
 import { patchDisciplineCase } from '../../lib/hrDisciplineCases';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 export default function HrCaseAssetLinkPanel({ caseId, detail, canManage, onSaved }) {
   const [assetId, setAssetId] = useState(detail?.assetId || '');
@@ -63,9 +64,9 @@ export default function HrCaseAssetLinkPanel({ caseId, detail, canManage, onSave
       </div>
       {err ? <p className="text-sm text-red-700">{err}</p> : null}
       {canManage ? (
-        <button type="button" className={HR_BTN_SECONDARY} disabled={busy} onClick={save}>
+        <HrButton type="button" variant="secondary" disabled={busy} onClick={save}>
           Save asset link
-        </button>
+        </HrButton>
       ) : null}
     </div>
   );

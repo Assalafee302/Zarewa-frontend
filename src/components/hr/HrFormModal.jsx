@@ -1,6 +1,7 @@
 import React from 'react';
 import { ModalFrame } from '../layout/ModalFrame';
 import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
+import { HrAddButton } from './hrPageUi';
 
 const SIZE_CLASS = {
   sm: 'max-w-md',
@@ -71,8 +72,8 @@ export function HrFormModal({
  */
 export function HrAddFormButton({ children, onClick, disabled }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className="hr-add-form-btn rounded-xl bg-zarewa-teal px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d3a] disabled:opacity-50">
+    <HrAddButton type="button" onClick={onClick} disabled={disabled}>
       {children}
-    </button>
+    </HrAddButton>
   );
 }

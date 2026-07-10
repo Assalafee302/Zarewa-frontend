@@ -2,7 +2,7 @@
  * Authenticated startup — catches TDZ when Dashboard/LegacyDashboard loads after session restore.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
+import { screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from './test/renderWithProviders';
 import React, { StrictMode } from 'react';
 

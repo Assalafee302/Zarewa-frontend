@@ -1,5 +1,6 @@
+import { HrButton, HrAddButton, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import { Link } from 'react-router-dom';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
+import { HR_BTN_PRIMARY } from './hrFormStyles';
 
 /**
  * @param {{
@@ -53,14 +54,14 @@ export default function HrDisciplineCaseNextSteps({
       ) : null}
       <div className="flex flex-wrap gap-2 pt-1">
         {needsSanction && onGoToSanction ? (
-          <button type="button" className={HR_BTN_PRIMARY} onClick={onGoToSanction}>
+          <HrButton type="button" onClick={onGoToSanction}>
             Go to sanction
-          </button>
+          </HrButton>
         ) : null}
         {(canManage || canApprove) && onGoToClose && (needsLetters || blockers.length) ? (
-          <button type="button" className={HR_BTN_SECONDARY} onClick={onGoToClose}>
+          <HrButton type="button" variant="secondary" onClick={onGoToClose}>
             Letters &amp; close
-          </button>
+          </HrButton>
         ) : null}
         {canApprove && gmCount > 0 ? (
           <Link

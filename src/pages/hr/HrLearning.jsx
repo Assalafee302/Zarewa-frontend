@@ -9,8 +9,8 @@ import { createHrTrainingRecord, deleteHrTrainingRecord, fetchHrTrainingRecords 
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { navigateToHrLetter } from '../../lib/hrLetterDeepLink';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HrCard, HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HrCard, HrPageBody, HrPageIntro, HrButton, HrAddButton, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable, AppTableBody, AppTableTd, AppTableTh, AppTableThead, AppTableTr, AppTableWrap,
 } from '../../components/ui/AppDataTable';
@@ -205,7 +205,7 @@ export default function HrLearning({ embedded = false } = {}) {
               <textarea className={HR_FIELD_CLASS} rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
             </label>
           </div>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Saving…' : 'Save record'}</button>
+          <HrButton type="submit" disabled={busy} >{busy ? 'Saving…' : 'Save record'}</HrButton>
         </form>
       </HrFormModal>
     </HrPageBody>

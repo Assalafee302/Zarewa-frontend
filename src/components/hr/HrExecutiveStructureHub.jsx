@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
@@ -26,8 +27,8 @@ import { HR_FUNCTIONAL_OFFICES, TITLE_TIERS } from '../../lib/hrOrgConstants';
 import { formatNgn } from '../../lib/hrFormat';
 import { appConfirm } from '../../lib/appConfirm';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
-import { HrCard, HrEmptyState } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrEmptyState, HrButton, HrAddButton } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -285,12 +286,12 @@ function RolesTermsManager({ canEdit }) {
           <button type="button" className="ml-2 underline" onClick={reload}>Retry</button>
         </div>
       ) : null}
-      {loading && !rows.length ? <p className="text-sm text-slate-600">Loading roles…</p> : null}
+      {loading && !rows.length ? <InlineLoader message="Loading roles…" /> : null}
       {!loading && !filtered.length ? (
         <HrEmptyState
           title="No roles match"
           description={rows.length ? 'Try clearing filters.' : 'Add your first job title or seed the org catalog.'}
-          action={canEdit && !rows.length ? <button type="button" className={HR_BTN_PRIMARY} onClick={openNew}>Add role</button> : null}
+          action={canEdit && !rows.length ? <HrButton type="button" onClick={openNew}>Add role</HrButton> : null}
         />
       ) : (
         <AppTableWrap>
@@ -462,8 +463,8 @@ function RolesTermsManager({ canEdit }) {
           </fieldset>
 
           <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Saving…' : 'Save role'}</button>
-            <button type="button" className={HR_BTN_SECONDARY} onClick={() => setModal(false)}>Cancel</button>
+            <HrButton type="submit" disabled={busy} >{busy ? 'Saving…' : 'Save role'}</HrButton>
+            <HrButton type="button" variant="secondary" onClick={() => setModal(false)}>Cancel</HrButton>
           </div>
         </form>
       </HrFormModal>
@@ -502,7 +503,7 @@ function RolesTermsManager({ canEdit }) {
               </div>
             ) : null}
             {canEdit ? (
-              <button type="button" className={HR_BTN_SECONDARY} onClick={() => { setTermsModal(false); openEdit(viewRow); }}>Edit this role</button>
+              <HrButton type="button" variant="secondary" onClick={() => { setTermsModal(false); openEdit(viewRow); }}>Edit this role</HrButton>
             ) : null}
           </div>
         ) : null}
@@ -600,9 +601,9 @@ function DepartmentsManager({ canEdit }) {
           <button type="button" className="ml-2 underline" onClick={reload}>Retry</button>
         </div>
       ) : null}
-      {loading && !rows.length ? <p className="text-sm text-slate-600">Loading…</p> : null}
+      {loading && !rows.length ? <InlineLoader message="Loading…" /> : null}
       {!loading && !rows.length ? (
-        <HrEmptyState title="No departments" action={canEdit ? <button type="button" className={HR_BTN_PRIMARY} onClick={openNew}>Add department</button> : null} />
+        <HrEmptyState title="No departments" action={canEdit ? <HrButton type="button" onClick={openNew}>Add department</HrButton> : null} />
       ) : (
         <AppTableWrap>
           <AppTable>
@@ -665,7 +666,7 @@ function DepartmentsManager({ canEdit }) {
             <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
             Active
           </label>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Saving…' : 'Save'}</button>
+          <HrButton type="submit" disabled={busy} >{busy ? 'Saving…' : 'Save'}</HrButton>
         </form>
       </HrFormModal>
     </HrCard>
@@ -789,7 +790,7 @@ function SalaryMatrixManager({ canEdit }) {
       {groupMeta?.hint ? <p className="mb-3 text-xs text-slate-500">{groupMeta.hint}</p> : null}
 
       {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
-      {loading ? <p className="text-sm text-slate-600">Loading matrix…</p> : null}
+      {loading ? <InlineLoader message="Loading matrix…" /> : null}
 
       {!loading ? (
         <>
@@ -930,7 +931,7 @@ function SalaryMatrixManager({ canEdit }) {
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Saving…' : 'Save'}</button>
+            <HrButton type="submit" disabled={busy} >{busy ? 'Saving…' : 'Save'}</HrButton>
             {form.id && canEdit ? (
               <button type="button" disabled={busy} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-800" onClick={remove}>
                 Delete row

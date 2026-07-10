@@ -22,10 +22,12 @@ import {
   SalesListTableFrame,
 } from '../../components/sales/SalesListTableFrame';
 import { PROCUREMENT_PO_SORT_FIELDS } from '../../lib/procurementPoListSorting';
+import { kgPerMFromStripDensity } from './procurementTabShared.js';
 import { TransportCatchUpPanel } from '../../components/procurement/TransportCatchUpPanel';
 import { purchaseOrderTransportGapLabel } from '../../lib/purchaseOrderWorkflow';
 import { PAYABLES_SORT_FIELDS } from '../../lib/procurementPayablesSorting';
 import { AppTablePager } from '../../components/ui/AppDataTable';
+import { PoStatusChip } from '../../components/procurement/PoStatusChip';
 import { ProcurementFormSection } from '../../components/procurement/ProcurementFormSection';
 import { PriceListPanel } from '../../components/procurement/PriceListPanel';
 import { useProcurementPage } from './ProcurementPageContext.jsx';
@@ -40,7 +42,6 @@ import {
   procurementCoilMaterialByKey,
   poLineSummaryLabel,
   PILL,
-  statusChipBorder,
   CARD_ROW,
 } from './procurementTabShared.js';
 
@@ -554,11 +555,7 @@ export function ProcurementTabPanels() {
                                   >
                                     {formatNgn(purchaseOrderOrderedValueNgn(p))}
                                   </span>
-                                  <span
-                                    className={`text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${statusChipBorder(p.status)}`}
-                                  >
-                                    {p.status}
-                                  </span>
+                                  <PoStatusChip status={p.status} />
                                 </div>
                               </div>
                               <p

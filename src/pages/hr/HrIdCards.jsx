@@ -1,9 +1,10 @@
+import { HrButton, HrAddButton, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../lib/apiBase';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
+import { HR_BTN_PRIMARY } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -15,6 +16,7 @@ import {
 } from '../../components/ui/AppDataTable';
 import { HrIdCardApplyFields } from '../../components/hr/HrIdCardApplyFields';
 import { IdCardPreview } from '../../components/hr/IdCardPreview';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { createHrIdCardRequest, fetchHrIdCards, patchHrIdCardRequest } from '../../lib/hrIdCards';
 import { canManageHrStaff } from '../../lib/hrAccess';
 import {
@@ -26,16 +28,6 @@ import {
 } from '../../lib/hrIdCardForm';
 
 const STATUS_STEPS = ['pending', 'processing', 'printed', 'ready', 'collected', 'reissued', 'expired'];
-
-const STATUS_PILL = {
-  pending: 'bg-amber-50 text-amber-800 border-amber-200',
-  processing: 'bg-sky-50 text-sky-800 border-sky-200',
-  printed: 'bg-indigo-50 text-indigo-800 border-indigo-200',
-  ready: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  collected: 'bg-slate-100 text-slate-600 border-slate-200',
-  reissued: 'bg-violet-50 text-violet-900 border-violet-200',
-  expired: 'bg-red-50 text-red-800 border-red-200',
-};
 
 function TempIdCardModal({ request, staff, onClose }) {
   const person = staff?.find((s) => s.userId === request?.userId) || request;
@@ -239,9 +231,7 @@ export default function HrIdCards() {
                     <AppTableTd>{r.createdAt?.slice(0, 10) || r.requestedAt?.slice(0, 10) || '—'}</AppTableTd>
                     <AppTableTd>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-full border px-2 py-0.5 text-xs font-bold ${STATUS_PILL[r.status] || STATUS_PILL.pending}`}>
-                          {r.status}
-                        </span>
+                        <HrStatusBadge status={r.status} variant="idCard" />
                         {!isManager ? (
                           <button type="button" className="text-ui-xs font-bold text-zarewa-teal hover:underline" onClick={() => openPreview(r)}>
                             Preview
@@ -312,9 +302,9 @@ export default function HrIdCards() {
           />
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setApplyModal(false)} className={HR_BTN_SECONDARY}>Cancel</button>
-            <button type="submit" disabled={applyBusy} className={HR_BTN_PRIMARY}>
+            <HrButton type="submit" disabled={applyBusy} >
               {applyBusy ? 'Submitting…' : 'Submit request'}
-            </button>
+            </HrButton>
           </div>
         </form>
       </HrFormModal>

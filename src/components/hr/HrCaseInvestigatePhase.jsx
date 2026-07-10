@@ -1,5 +1,5 @@
-import { HrCard } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrButton, HrAddButton } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import HrCaseResponsibilityPanel from './HrCaseResponsibilityPanel';
 import HrCaseAssetLinkPanel from './HrCaseAssetLinkPanel';
 import HrAssetCustodyPanel from './HrAssetCustodyPanel';
@@ -62,12 +62,12 @@ export default function HrCaseInvestigatePhase({
           </ul>
           {canManage && detail.appealStatus === 'pending' ? (
             <div className="flex flex-wrap gap-2 mt-3">
-              <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => onResolveAppeal('upheld')}>
+              <HrButton type="button" disabled={busy} variant="secondary" onClick={() => onResolveAppeal('upheld')}>
                 Uphold appeal
-              </button>
-              <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => onResolveAppeal('rejected')}>
+              </HrButton>
+              <HrButton type="button" disabled={busy} variant="secondary" onClick={() => onResolveAppeal('rejected')}>
                 Reject appeal
-              </button>
+              </HrButton>
             </div>
           ) : null}
         </HrCard>
@@ -101,15 +101,15 @@ export default function HrCaseInvestigatePhase({
               />
             </label>
             <div className="flex flex-wrap gap-2">
-              <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={onRequestResponse}>
+              <HrButton type="button" disabled={busy} variant="secondary" onClick={onRequestResponse}>
                 Request employee response
-              </button>
-              <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={onStartInvestigation}>
+              </HrButton>
+              <HrButton type="button" disabled={busy} variant="secondary" onClick={onStartInvestigation}>
                 Mark under investigation
-              </button>
-              <button type="button" disabled={busy} className={HR_BTN_PRIMARY} onClick={onSaveInvestigation}>
+              </HrButton>
+              <HrButton type="button" disabled={busy}  onClick={onSaveInvestigation}>
                 {busy ? 'Saving…' : 'Save investigation'}
-              </button>
+              </HrButton>
             </div>
           </div>
         </HrCard>
@@ -129,9 +129,9 @@ export default function HrCaseInvestigatePhase({
               value={evidenceDesc}
               onChange={(e) => setEvidenceDesc(e.target.value)}
             />
-            <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={onAddEvidence}>
+            <HrButton type="button" disabled={busy} variant="secondary" onClick={onAddEvidence}>
               Add
-            </button>
+            </HrButton>
           </div>
           <ul className="mb-3 space-y-1 text-sm">
             {(detail.witnesses || []).map((w) => (
@@ -153,9 +153,9 @@ export default function HrCaseInvestigatePhase({
               value={witnessForm.witnessRole}
               onChange={(e) => setWitnessForm({ ...witnessForm, witnessRole: e.target.value })}
             />
-            <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={onAddWitness}>
+            <HrButton type="button" disabled={busy} variant="secondary" onClick={onAddWitness}>
               Add witness
-            </button>
+            </HrButton>
           </div>
         </HrCard>
       ) : null}

@@ -1,10 +1,11 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { createHrLoanRequest } from '../../lib/hrStaff';
 import { fetchHrStaffForLoanRegister } from '../../lib/hrStaffObligations';
 import { HrStaffLoanBranchCashierNote } from './HrStaffLoanBranchCashierNote';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
  * @param {{ onSuccess?: () => void; onCancel?: () => void }} props
@@ -130,13 +131,13 @@ export function HrLoanApplicationForm({ onSuccess, onCancel }) {
         </label>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+        <HrButton type="submit" disabled={busy} >
           {busy ? 'Submitting…' : 'Submit loan request'}
-        </button>
+        </HrButton>
         {onCancel ? (
-          <button type="button" onClick={onCancel} className={HR_BTN_SECONDARY}>
+          <HrButton type="button" onClick={onCancel} variant="secondary">
             Cancel
-          </button>
+          </HrButton>
         ) : null}
       </div>
     </form>

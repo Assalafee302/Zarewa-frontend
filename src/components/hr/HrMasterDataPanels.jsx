@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -6,8 +7,8 @@ import { useToast } from '../../context/ToastContext';
 import { canManageHrSettings } from '../../lib/hrAccess';
 import { fetchHrDepartments, fetchHrDesignations, saveHrDepartment, saveHrDesignation } from '../../lib/hrMasterData';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
-import { HrCard, HrEmptyState } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrEmptyState, HrButton, HrAddButton, HR_BTN_PRIMARY } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import { HrResponsiveTable } from './HrResponsiveTable';
 
 const emptyDept = () => ({ name: '', code: '', branchScope: '', description: '', active: true });
@@ -100,12 +101,12 @@ export function HrDepartmentsPanel({ refreshKey = 0 }) {
           <button type="button" className="ml-2 underline" onClick={reload}>Retry</button>
         </div>
       ) : null}
-      {loading && !rows.length ? <p className="text-sm text-slate-600">Loading departments…</p> : null}
+      {loading && !rows.length ? <InlineLoader message="Loading departments…" /> : null}
       {!loading && !rows.length ? (
         <HrEmptyState
           title="No departments yet"
           description="Add your first department to standardise staff records."
-          action={canEdit ? <button type="button" className={HR_BTN_PRIMARY} onClick={openNew}>Add department</button> : null}
+          action={canEdit ? <HrButton type="button" onClick={openNew}>Add department</HrButton> : null}
         />
       ) : (
         <HrResponsiveTable
@@ -151,7 +152,7 @@ export function HrDepartmentsPanel({ refreshKey = 0 }) {
             <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
             Active
           </label>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Saving…' : 'Save'}</button>
+          <HrButton type="submit" disabled={busy} >{busy ? 'Saving…' : 'Save'}</HrButton>
         </form>
       </HrFormModal>
     </HrCard>
@@ -245,12 +246,12 @@ export function HrDesignationsPanel({ refreshKey = 0 }) {
           <button type="button" className="ml-2 underline" onClick={reload}>Retry</button>
         </div>
       ) : null}
-      {loading && !rows.length ? <p className="text-sm text-slate-600">Loading designations…</p> : null}
+      {loading && !rows.length ? <InlineLoader message="Loading designations…" /> : null}
       {!loading && !rows.length ? (
         <HrEmptyState
           title="No designations yet"
           description="Add job titles linked to departments."
-          action={canEdit ? <button type="button" className={HR_BTN_PRIMARY} onClick={openNew}>Add designation</button> : null}
+          action={canEdit ? <HrButton type="button" onClick={openNew}>Add designation</HrButton> : null}
         />
       ) : (
         <>

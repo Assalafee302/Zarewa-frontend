@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, FileText } from 'lucide-react';
@@ -7,7 +8,7 @@ import {
   fetchCaseResponsibility,
 } from '../../lib/hrIncidents';
 import { formatNgn } from '../../lib/hrFormat';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 function settlementLabel(p) {
   if (p.collectionChannel === 'cashier') {
@@ -188,9 +189,9 @@ export default function HrCaseRecoveryPanel({
                   </div>
                 ))}
               </div>
-              <button type="button" disabled={busy} className={HR_BTN_PRIMARY} onClick={initiateRecovery}>
+              <HrButton type="button" disabled={busy}  onClick={initiateRecovery}>
                 {busy ? 'Creating…' : 'Create recovery & send to cashier desk'}
-              </button>
+              </HrButton>
             </>
           ) : (
             <p className="text-xs text-amber-900">
@@ -256,9 +257,9 @@ export default function HrCaseRecoveryPanel({
         </ul>
       ) : null}
 
-      <button type="button" className={HR_BTN_SECONDARY} onClick={load} disabled={busy}>
+      <HrButton type="button" variant="secondary" onClick={load} disabled={busy}>
         Refresh
-      </button>
+      </HrButton>
     </div>
   );
 }

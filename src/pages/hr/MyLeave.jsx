@@ -1,3 +1,4 @@
+import { HrButton, HrAddButton, HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrPageUi';
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
@@ -15,7 +16,7 @@ import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/pro
 import { ProfileKpiCard } from '../../components/profile/profileDesign';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
 import { useUserProfile } from '../../context/UserProfileContext';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 
 const LEAVE_TYPES = HR_LEAVE_TYPES;
 
@@ -235,22 +236,22 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
               </button>
             ) : (
               <>
-                <button
+                <HrButton
                   type="button"
                   disabled={busy || casualBlockedByProbation}
                   onClick={saveDraft}
-                  className={HR_BTN_SECONDARY}
+                  variant="secondary"
                 >
                   Save draft
-                </button>
-                <button
+                </HrButton>
+                <HrButton
                   type="button"
                   disabled={busy || casualBlockedByProbation}
                   onClick={saveAndSubmit}
-                  className={HR_BTN_PRIMARY}
+                  
                 >
                   Submit for approval
-                </button>
+                </HrButton>
               </>
             )}
           </ProfileFormActions>

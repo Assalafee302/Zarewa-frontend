@@ -1,9 +1,10 @@
+import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
 import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { WorkPayFormModal } from '../profile/WorkPayFormModal';
 import { WorkPayFormAlert, WorkPayHeroButton } from '../profile/workPayFormUi';
 import { ProfileFormActions, ProfileFormField } from '../profile/profileFormUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 
 const TYPES = [
   { value: 'absent', label: 'Absent — approved reason' },
@@ -76,12 +77,12 @@ export function MyAttendanceExceptionModal({ onSubmitted }) {
         trackId="attendance-exception"
         footer={
           <ProfileFormActions className="!border-t-0 !pt-0">
-            <button type="button" onClick={close} className={HR_BTN_SECONDARY}>
+            <HrButton type="button" variant="secondary" onClick={close}>
               Cancel
-            </button>
-            <button type="submit" form="attendance-exception-form" disabled={busy} className={HR_BTN_PRIMARY}>
+            </HrButton>
+            <HrButton type="submit" form="attendance-exception-form" disabled={busy}>
               {busy ? 'Submitting…' : 'Submit for endorsement'}
-            </button>
+            </HrButton>
           </ProfileFormActions>
         }
       >

@@ -1,9 +1,10 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useEffect, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { canManageHrStaff, hrHasPermission } from '../../lib/hrAccess';
 import { createStaffFeedbackNote, fetchStaffFeedback } from '../../lib/hrStaffExtras';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
-import { HrCard } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrButton, HrAddButton } from './hrPageUi';
 
 export function HrStaffFeedbackPanel({ userId }) {
   const ws = useWorkspace();
@@ -48,7 +49,7 @@ export function HrStaffFeedbackPanel({ userId }) {
 
   return (
     <HrCard title="HR notes & feedback" subtitle="Internal notes visible to HR and line managers">
-      {loading ? <p className="text-sm text-slate-600">Loading notes…</p> : null}
+      {loading ? <InlineLoader message="Loading notes…" /> : null}
       {!loading && !notes?.length ? (
         <p className="text-sm text-slate-600">No feedback notes recorded for this employee.</p>
       ) : null}
@@ -79,9 +80,9 @@ export function HrStaffFeedbackPanel({ userId }) {
               placeholder="Performance note, coaching feedback, or HR observation…"
             />
           </label>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+          <HrButton type="submit" disabled={busy} >
             {busy ? 'Saving…' : 'Save note'}
-          </button>
+          </HrButton>
         </form>
       ) : null}
     </HrCard>

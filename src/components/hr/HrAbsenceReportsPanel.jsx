@@ -1,3 +1,4 @@
+import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -12,8 +13,8 @@ import {
   reviewHrAbsenceReport,
 } from '../../lib/hrPhase2';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
-import { HrCard, HrEmptyState, HrStatusPill } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HrCard, HrEmptyState, HrStatusPill, HrButton, HrAddButton } from './hrPageUi';
+import { HR_FIELD_CLASS } from './hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -183,7 +184,7 @@ export function HrAbsenceReportsPanel({ branchScoped = false, canManage = true, 
         ) : null}
 
         {loading && !reports.length ? (
-          <p className="text-sm text-slate-600">Loading…</p>
+          <InlineLoader message="Loading…" />
         ) : reports.length === 0 ? (
           <HrEmptyState title="No absence reports for this filter." />
         ) : (
@@ -282,8 +283,8 @@ export function HrAbsenceReportsPanel({ branchScoped = false, canManage = true, 
             <input className={`${HR_FIELD_CLASS} mt-1 w-full`} value={form.doctorNoteDocumentId} onChange={(e) => setForm((f) => ({ ...f, doctorNoteDocumentId: e.target.value }))} />
           </label>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" className={HR_BTN_SECONDARY} onClick={() => setModal('')}>Cancel</button>
-            <button type="submit" className={HR_BTN_PRIMARY} disabled={busy}>{busy ? 'Saving…' : 'Submit report'}</button>
+            <HrButton type="button" variant="secondary" onClick={() => setModal('')}>Cancel</HrButton>
+            <HrButton type="submit" disabled={busy}>{busy ? 'Saving…' : 'Submit report'}</HrButton>
           </div>
         </form>
       </HrFormModal>
@@ -294,8 +295,8 @@ export function HrAbsenceReportsPanel({ branchScoped = false, canManage = true, 
             <p className="text-sm text-slate-700">{selected.displayName} — {selected.reason}</p>
             <textarea className={`${HR_FIELD_CLASS} w-full`} rows={3} placeholder="Review note" value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} />
             <div className="flex justify-end gap-2">
-              <button type="button" className={HR_BTN_SECONDARY} onClick={() => runReview(false)} disabled={busy}>Reject</button>
-              <button type="button" className={HR_BTN_PRIMARY} onClick={() => runReview(true)} disabled={busy}>Approve</button>
+              <HrButton type="button" variant="secondary" onClick={() => runReview(false)} disabled={busy}>Reject</HrButton>
+              <HrButton type="button" onClick={() => runReview(true)} disabled={busy}>Approve</HrButton>
             </div>
           </div>
         ) : null}
@@ -308,7 +309,7 @@ export function HrAbsenceReportsPanel({ branchScoped = false, canManage = true, 
               Actual return date
               <input type="date" className={`${HR_FIELD_CLASS} mt-1 w-full`} value={form.expectedReturnIso} onChange={(e) => setForm((f) => ({ ...f, expectedReturnIso: e.target.value }))} />
             </label>
-            <button type="button" className={HR_BTN_PRIMARY} onClick={runClose} disabled={busy}>Mark closed</button>
+            <HrButton type="button" onClick={runClose} disabled={busy}>Mark closed</HrButton>
           </div>
         ) : null}
       </HrFormModal>

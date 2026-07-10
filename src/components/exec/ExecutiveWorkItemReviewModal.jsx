@@ -53,7 +53,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   const [settlementNote, setSettlementNote] = useState('');
   const [settlementActionError, setSettlementActionError] = useState('');
   const [staffCreditRow, setStaffCreditRow] = useState(null);
-  const [loadingStaffCredit, setLoadingStaffCredit] = useState(false);
+  const [loadingStaffCredit] = useState(false);
   const [payrollTotals, setPayrollTotals] = useState(null);
   const [loadingPayroll, setLoadingPayroll] = useState(false);
   const [interBranchLoan, setInterBranchLoan] = useState(null);
