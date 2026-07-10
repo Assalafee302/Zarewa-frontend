@@ -4,6 +4,7 @@ import { apiFetch, apiUrl } from '../lib/apiBase';
 import {
   formatBootstrapConnectError,
   formatBootstrapNetworkError,
+  isSpaHtmlResponse,
   probeDegradedApiHealth,
 } from '../lib/bootstrapConnectError';
 import { replaceLedgerEntries } from '../lib/customerLedgerStore';
@@ -118,6 +119,8 @@ function workspacePollIntervalMs() {
   }
   return 60_000;
 }
+
+const BOOTSTRAP_FETCH_TIMEOUT_MS = 25_000;
 
 function clearBootstrapCache() {
   try {
@@ -351,15 +354,29 @@ export function WorkspaceProvider({ children }) {
       const skipEtag = Boolean(opts?.forceReconnect);
       const etag = skipEtag ? '' : isPoll ? bootstrapPollEtagRef.current : bootstrapFullEtagRef.current;
       let r;
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId =
+        controller != null
+          ? window.setTimeout(() => controller.abort(), BOOTSTRAP_FETCH_TIMEOUT_MS)
+          : null;
       try {
         r = await fetch(apiUrl(`/api/bootstrap${qs}`), {
           method: 'GET',
           credentials: 'include',
           headers: etag ? { 'If-None-Match': etag } : {},
+          signal: controller?.signal,
         });
       } catch (err) {
         const degradedMsg = await probeDegradedApiHealth(fetch, apiUrl);
+        if (controller != null && err?.name === 'AbortError') {
+          throw new Error(
+            degradedMsg ||
+              'Workspace bootstrap timed out. The API or database may be slow or offline — check the server and try again.'
+          );
+        }
         throw new Error(degradedMsg || formatBootstrapNetworkError(err));
+      } finally {
+        if (timeoutId != null) window.clearTimeout(timeoutId);
       }
       if (r.status === 304) {
         // Server is reachable — leave degraded/read-only lock (304 used to leave status stuck).
@@ -369,6 +386,9 @@ export function WorkspaceProvider({ children }) {
         return snapshotRef.current;
       }
       const text = await r.text();
+      if (isSpaHtmlResponse(text)) {
+        throw new Error(formatBootstrapConnectError(r.status, { error: text.slice(0, 200) }));
+      }
       let data = null;
       try {
         data = text ? JSON.parse(text) : null;
@@ -799,6 +819,23 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => {
     void refresh({ mode: 'dashboard' });
   }, [refresh]);
+
+  /** Never leave the shell stuck on "Preparing live workspace…" if bootstrap hangs. */
+  useEffect(() => {
+    if (status !== 'checking') return undefined;
+    const id = window.setTimeout(() => {
+      setStatus((current) => {
+        if (current !== 'checking') return current;
+        return 'offline';
+      });
+      setLastError((prev) =>
+        prev ||
+        'Workspace bootstrap is taking too long. Check that the API server and database are running, then refresh.'
+      );
+      setSnapshot(null);
+    }, BOOTSTRAP_FETCH_TIMEOUT_MS + 5000);
+    return () => window.clearTimeout(id);
+  }, [status]);
 
   /** After a transient outage, retry bootstrap until live sync is restored. */
   useEffect(() => {

@@ -137,7 +137,9 @@ summary {
 }
 
 .z-chip {
-  @apply inline-flex items-center rounded-md border px-2 py-1 text-ui-xs font-semibold uppercase tracking-wide;
+  @apply inline-flex items-center rounded-md border px-2 py-1 font-semibold uppercase tracking-wide;
+  font-size: max(var(--zarewa-min-ui-text), 11px);
+  line-height: 1.35;
 }
 
 .z-list-row-compact {

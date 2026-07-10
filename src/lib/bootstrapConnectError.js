@@ -3,6 +3,11 @@
  * @param {number} httpStatus
  * @param {{ error?: string, bootError?: string, mysqlTarget?: string, fixHint?: string } | null | undefined} data
  */
+export function isSpaHtmlResponse(text) {
+  const t = String(text || '').trimStart().slice(0, 32).toLowerCase();
+  return t.startsWith('<!doctype') || t.startsWith('<html') || t.startsWith('<head');
+}
+
 export function formatBootstrapConnectError(httpStatus, data) {
   if (httpStatus === 503 && (data?.bootError || data?.fixHint || data?.mysqlTarget)) {
     const parts = [data?.error || 'API server failed during startup.'];
@@ -16,6 +21,13 @@ export function formatBootstrapConnectError(httpStatus, data) {
   }
   if (data?.detail) {
     return `${data?.error || 'Bootstrap failed'}: ${data.detail}`;
+  }
+  const errText = String(data?.error || '');
+  if (isSpaHtmlResponse(errText)) {
+    return (
+      'The API returned a web page instead of JSON — /api is probably not routed to the backend. ' +
+      'Set VITE_API_BASE to your API origin, or configure the reverse proxy for /api.'
+    );
   }
   return data?.error || 'Bootstrap failed';
 }

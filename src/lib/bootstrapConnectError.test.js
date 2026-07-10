@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { formatBootstrapConnectError, formatBootstrapNetworkError } from './bootstrapConnectError.js';
+import {
+  formatBootstrapConnectError,
+  formatBootstrapNetworkError,
+  isSpaHtmlResponse,
+} from './bootstrapConnectError.js';
 
 describe('bootstrapConnectError', () => {
   it('formats degraded startup 503 with boot hints', () => {
@@ -26,5 +30,12 @@ describe('bootstrapConnectError', () => {
       detail: 'Unknown column in field list',
     });
     expect(msg).toContain('Unknown column');
+  });
+
+  it('detects SPA HTML mistaken for bootstrap JSON', () => {
+    expect(isSpaHtmlResponse('<!DOCTYPE html><html>')).toBe(true);
+    expect(isSpaHtmlResponse('{"ok":true}')).toBe(false);
+    const msg = formatBootstrapConnectError(200, { error: '<!DOCTYPE html><html><body>' });
+    expect(msg).toContain('web page instead of JSON');
   });
 });
