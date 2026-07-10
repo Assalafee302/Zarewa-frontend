@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search,
@@ -8,9 +8,11 @@ import {
   Pencil,
   Trash2,
   Info,
+  BookOpen,
+  Ruler,
 } from 'lucide-react';
 
-import { MainPanel } from '../../components/layout';
+import { MainPanel, ModalFrame } from '../../components/layout';
 import { EditSecondApprovalInline } from '../../components/EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../../lib/editApprovalUi';
 import { CONVERSION_FLAG_RATIO, formatNgn } from '../../Data/mockData';
@@ -116,6 +118,8 @@ export function ProcurementTabPanels() {
     stdOverrideKgPerM,
     setShowMaterialPricingWorkbook,
   } = useProcurementPage();
+
+  const [showStandardConversionModal, setShowStandardConversionModal] = useState(false);
 
   return (
         <div className="col-span-full min-w-0 order-2">
@@ -675,182 +679,238 @@ export function ProcurementTabPanels() {
               )}
 
               {activeTab === 'conversion' && (
-                <div
-                  className={`grid grid-cols-1 gap-4 min-w-0 items-stretch ${
-                    canAccessPriceList ? 'lg:grid-cols-2' : ''
-                  }`}
-                >
-                  <div className="rounded-xl border border-slate-200/90 bg-white/90 shadow-sm p-4 sm:p-5 min-w-0 flex flex-col">
-                    <ProcurementFormSection letter="S" title="Standard conversion (density & gauges)" compact>
-                    <p className="text-ui-xs text-slate-600 mb-2 leading-relaxed">
-                      Theoretical <strong className="text-slate-800">kg/m</strong> for{' '}
-                      <strong className="text-slate-800">1.2 m</strong> strip width:{' '}
-                      <span className="font-mono">ρ × 1.2 × (gauge_mm ÷ 1000)</span>.
-                      Densities (as you specified):{' '}
-                      <strong className="text-slate-800">Aluminium 2.7 g/cm³</strong>,{' '}
-                      <strong className="text-slate-800">Aluzinc (PPGI) 7.8 g/cm³</strong>.                       Stonecoated is not included
-                      here — different material / build-up. Saved rows are matched to coils by stock product and gauge
-                      (and colour when listed) and used as the <strong className="text-slate-800">standard kg/m</strong> in
-                      production conversion checks.
-                    </p>
-                    <div className="z-scroll-x mb-3 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-                      <table className="min-w-full border-collapse text-left text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
-                            <th className="py-2.5 px-3">Gauge (mm)</th>
-                            <th className="py-2.5 px-3">Aluminium kg/m</th>
-                            <th className="py-2.5 px-3">Aluzinc (PPGI) kg/m</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {STANDARD_COIL_GAUGES_MM.map((gLabel) => {
-                            const mm = parseFloat(gLabel, 10);
-                            const alu = kgPerMFromStripDensity('alu', mm);
-                            const az = kgPerMFromStripDensity('aluzinc', mm);
-                            return (
-                              <tr key={gLabel} className="hover:bg-teal-50/30">
-                                <td className="py-2.5 px-3 font-semibold text-slate-800 tabular-nums whitespace-nowrap">
-                                  {gLabel}
-                                </td>
-                                <td className="py-2.5 px-3 font-mono tabular-nums text-zarewa-teal whitespace-nowrap">
-                                  {alu == null ? '—' : alu.toFixed(2)}
-                                </td>
-                                <td className="py-2.5 px-3 font-mono tabular-nums text-zarewa-teal whitespace-nowrap">
-                                  {az == null ? '—' : az.toFixed(2)}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    <form className="space-y-3" onSubmit={saveStandardConversion}>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Material</label>
-                          <select
-                            required
-                            value={standardConversionForm.materialKey}
-                            onChange={(e) => {
-                              const key = e.target.value;
-                              const opt = procurementCoilMaterialByKey(key);
-                              setStandardConversionForm((f) => ({
-                                ...f,
-                                materialKey: key,
-                                color: opt.defaultCatalogLabel,
-                              }));
-                            }}
-                            className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
-                          >
-                            {PROCUREMENT_COIL_MATERIALS.map((m) => (
-                              <option key={m.key} value={m.key}>
-                                {m.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Gauge (mm)</label>
-                          <select
-                            required
-                            value={standardConversionForm.gauge}
-                            onChange={(e) =>
-                              setStandardConversionForm((f) => ({ ...f, gauge: e.target.value }))
-                            }
-                            className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
-                          >
-                            {STANDARD_COIL_GAUGES_MM.map((g) => (
-                              <option key={g} value={g}>
-                                {g}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
-                          Catalogue label (colour / grade)
-                        </label>
-                        <input
-                          value={standardConversionForm.color}
-                          onChange={(e) =>
-                            setStandardConversionForm((f) => ({ ...f, color: e.target.value }))
-                          }
-                          placeholder="Defaults from material; override e.g. IV, GB, HMB"
-                          className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
-                          Override kg/m (optional)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.000001"
-                          value={standardConversionForm.conversionKgPerM}
-                          onChange={(e) =>
-                            setStandardConversionForm((f) => ({ ...f, conversionKgPerM: e.target.value }))
-                          }
-                          placeholder="Leave empty to use density calculation"
-                          className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold tabular-nums"
-                        />
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`${PILL} bg-sky-100 text-sky-900`}>
-                          Density kg/m:{' '}
-                          {standardPhysicsKgPerM == null ? '—' : standardPhysicsKgPerM.toFixed(2)}
-                        </span>
-                        <span className={`${PILL} border border-slate-200 bg-white text-slate-700`}>
-                          Will save:{' '}
-                          {standardEffectiveKgPerM == null ? '—' : standardEffectiveKgPerM.toFixed(2)} kg/m
-                        </span>
-                        {Number.isFinite(stdOverrideKgPerM) && stdOverrideKgPerM > 0 ? (
-                          <span className={`${PILL} bg-amber-100 text-amber-900`}>Using override</span>
-                        ) : null}
-                      </div>
-                      <div>
-                        <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Note</label>
-                        <input
-                          value={standardConversionForm.label}
-                          onChange={(e) =>
-                            setStandardConversionForm((f) => ({ ...f, label: e.target.value }))
-                          }
-                          placeholder="Optional (defaults to Standard (density) · material · gauge mm)"
-                          className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={standardConversionSaving || !wsCanMutate}
-                        className="z-btn-primary w-full sm:w-auto justify-center py-2.5 px-4 text-xs disabled:opacity-50"
-                      >
-                        {standardConversionSaving ? 'Saving…' : 'Save standard conversion'}
-                      </button>
-                    </form>
-                  </ProcurementFormSection>
-                  </div>
-
+                <div className="flex flex-col gap-4 min-w-0">
                   {canAccessPriceList ? (
-                    <div className="rounded-xl border border-slate-200/90 bg-white/90 shadow-sm p-4 sm:p-5 min-w-0 flex flex-col">
-                      <ProcurementFormSection letter="P" title="Price list (minimum ₦/m)" compact>
-                        <p className="text-ui-xs text-slate-600 mb-2 leading-relaxed">
-                          Minimum price per metre by gauge and design. Production can be blocked when a quotation is
-                          below list until the MD records a price exception.
-                        </p>
-                        <div className="flex flex-wrap justify-end gap-2 mb-3">
+                    <div className="rounded-xl border border-zarewa-teal/25 bg-gradient-to-br from-zarewa-teal/[0.07] via-white to-white shadow-sm p-4 sm:p-6 min-w-0">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 space-y-2">
+                          <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">
+                            Primary pricing desk
+                          </p>
+                          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                            Material pricing workbook
+                          </h2>
+                          <p className="text-ui-xs text-slate-600 leading-relaxed max-w-2xl">
+                            Build floor and list prices from Std / Ref / Hist conversion, cost per kg, overhead,
+                            profit, and commission — then sync published floors to the price list used on quotations.
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
                           <button
                             type="button"
                             onClick={() => setShowMaterialPricingWorkbook(true)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-zarewa-teal/30 bg-zarewa-teal/5 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal hover:bg-zarewa-teal/10"
+                            className="z-btn-primary inline-flex items-center justify-center gap-2 py-3 px-5 text-xs"
                           >
-                            Material pricing workbook
+                            <BookOpen className="size-4" aria-hidden />
+                            Open pricing workbook
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowStandardConversionModal(true)}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-ui-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+                          >
+                            <Ruler className="size-3.5" aria-hidden />
+                            Standard conversion (density)
                           </button>
                         </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200/90 bg-white/90 shadow-sm p-4 sm:p-5 min-w-0 flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-ui-xs text-slate-600 leading-relaxed max-w-xl">
+                        Density-based standard kg/m for production conversion checks. Pricing workbook requires{' '}
+                        <span className="font-mono">pricing.manage</span>.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowStandardConversionModal(true)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-ui-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        <Ruler className="size-3.5" aria-hidden />
+                        Standard conversion (density)
+                      </button>
+                    </div>
+                  )}
+
+                  {canAccessPriceList ? (
+                    <div className="rounded-xl border border-slate-200/90 bg-white/90 shadow-sm p-4 sm:p-5 min-w-0 flex flex-col">
+                      <ProcurementFormSection letter="P" title="Published price list (minimum ₦/m)" compact>
+                        <p className="text-ui-xs text-slate-600 mb-3 leading-relaxed">
+                          Floors synced from the workbook (or entered here). Quotations below list need an MD price
+                          exception before production can proceed.
+                        </p>
                         <PriceListPanel embedded />
                       </ProcurementFormSection>
                     </div>
                   ) : null}
+
+                  <ModalFrame
+                    isOpen={showStandardConversionModal}
+                    onClose={() => setShowStandardConversionModal(false)}
+                    title="Standard conversion (density & gauges)"
+                    description="Theoretical kg/m for 1.2 m strip width. Saved rows feed production conversion checks."
+                    edgeToEdgeMobile
+                  >
+                    <div className="space-y-3 max-h-[min(70vh,640px)] overflow-y-auto pr-1">
+                      <p className="text-ui-xs text-slate-600 leading-relaxed">
+                        Formula: <span className="font-mono">ρ × 1.2 × (gauge_mm ÷ 1000)</span>. Densities:{' '}
+                        <strong className="text-slate-800">Aluminium 2.7 g/cm³</strong>,{' '}
+                        <strong className="text-slate-800">Aluzinc (PPGI) 7.8 g/cm³</strong>. Stonecoated is not
+                        included — different material / build-up. Matched to coils by stock product and gauge (and
+                        colour when listed).
+                      </p>
+                      <div className="z-scroll-x overflow-x-auto rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+                        <table className="min-w-full border-collapse text-left text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
+                              <th className="py-2.5 px-3">Gauge (mm)</th>
+                              <th className="py-2.5 px-3">Aluminium kg/m</th>
+                              <th className="py-2.5 px-3">Aluzinc (PPGI) kg/m</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {STANDARD_COIL_GAUGES_MM.map((gLabel) => {
+                              const mm = parseFloat(gLabel, 10);
+                              const alu = kgPerMFromStripDensity('alu', mm);
+                              const az = kgPerMFromStripDensity('aluzinc', mm);
+                              return (
+                                <tr key={gLabel} className="hover:bg-teal-50/30">
+                                  <td className="py-2.5 px-3 font-semibold text-slate-800 tabular-nums whitespace-nowrap">
+                                    {gLabel}
+                                  </td>
+                                  <td className="py-2.5 px-3 font-mono tabular-nums text-zarewa-teal whitespace-nowrap">
+                                    {alu == null ? '—' : alu.toFixed(2)}
+                                  </td>
+                                  <td className="py-2.5 px-3 font-mono tabular-nums text-zarewa-teal whitespace-nowrap">
+                                    {az == null ? '—' : az.toFixed(2)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <form
+                        className="space-y-3"
+                        onSubmit={async (e) => {
+                          const saved = await saveStandardConversion(e);
+                          if (saved) setShowStandardConversionModal(false);
+                        }}
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Material</label>
+                            <select
+                              required
+                              value={standardConversionForm.materialKey}
+                              onChange={(e) => {
+                                const key = e.target.value;
+                                const opt = procurementCoilMaterialByKey(key);
+                                setStandardConversionForm((f) => ({
+                                  ...f,
+                                  materialKey: key,
+                                  color: opt.defaultCatalogLabel,
+                                }));
+                              }}
+                              className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
+                            >
+                              {PROCUREMENT_COIL_MATERIALS.map((m) => (
+                                <option key={m.key} value={m.key}>
+                                  {m.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Gauge (mm)</label>
+                            <select
+                              required
+                              value={standardConversionForm.gauge}
+                              onChange={(e) =>
+                                setStandardConversionForm((f) => ({ ...f, gauge: e.target.value }))
+                              }
+                              className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
+                            >
+                              {STANDARD_COIL_GAUGES_MM.map((g) => (
+                                <option key={g} value={g}>
+                                  {g}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
+                            Catalogue label (colour / grade)
+                          </label>
+                          <input
+                            value={standardConversionForm.color}
+                            onChange={(e) =>
+                              setStandardConversionForm((f) => ({ ...f, color: e.target.value }))
+                            }
+                            placeholder="Defaults from material; override e.g. IV, GB, HMB"
+                            className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">
+                            Override kg/m (optional)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.000001"
+                            value={standardConversionForm.conversionKgPerM}
+                            onChange={(e) =>
+                              setStandardConversionForm((f) => ({ ...f, conversionKgPerM: e.target.value }))
+                            }
+                            placeholder="Leave empty to use density calculation"
+                            className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold tabular-nums"
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`${PILL} bg-sky-100 text-sky-900`}>
+                            Density kg/m:{' '}
+                            {standardPhysicsKgPerM == null ? '—' : standardPhysicsKgPerM.toFixed(2)}
+                          </span>
+                          <span className={`${PILL} border border-slate-200 bg-white text-slate-700`}>
+                            Will save:{' '}
+                            {standardEffectiveKgPerM == null ? '—' : standardEffectiveKgPerM.toFixed(2)} kg/m
+                          </span>
+                          {Number.isFinite(stdOverrideKgPerM) && stdOverrideKgPerM > 0 ? (
+                            <span className={`${PILL} bg-amber-100 text-amber-900`}>Using override</span>
+                          ) : null}
+                        </div>
+                        <div>
+                          <label className="text-ui-xs font-bold text-slate-400 uppercase block mb-1">Note</label>
+                          <input
+                            value={standardConversionForm.label}
+                            onChange={(e) =>
+                              setStandardConversionForm((f) => ({ ...f, label: e.target.value }))
+                            }
+                            placeholder="Optional (defaults to Standard (density) · material · gauge mm)"
+                            className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2.5 text-xs font-semibold"
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <button
+                            type="submit"
+                            disabled={standardConversionSaving || !wsCanMutate}
+                            className="z-btn-primary justify-center py-2.5 px-4 text-xs disabled:opacity-50"
+                          >
+                            {standardConversionSaving ? 'Saving…' : 'Save standard conversion'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowStandardConversionModal(false)}
+                            className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </ModalFrame>
                 </div>
               )}
             </div>
