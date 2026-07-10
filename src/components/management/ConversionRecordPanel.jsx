@@ -35,7 +35,7 @@ export function ConversionComparisonGrid({ check, className = '' }) {
   );
 }
 
-function CoilConversionCard({ coilNo, coil, check }) {
+function CoilConversionCard({ coilNo, coil, check, suppressMaterialLine = false }) {
   const purchaseConv =
     coil?.coil_supplier_conversion_kg_per_m ??
     check?.supplier_conversion_kg_per_m ??
@@ -61,15 +61,17 @@ function CoilConversionCard({ coilNo, coil, check }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-mono text-xs font-bold text-slate-900">Coil {coilNo}</p>
-          <p className="mt-0.5 text-slate-600">
-            {[
-              coil?.coil_gauge_label || check?.gauge_label,
-              coil?.coil_colour,
-              coil?.coil_material_type || check?.material_type_name,
-            ]
-              .filter(Boolean)
-              .join(' · ') || '—'}
-          </p>
+          {!suppressMaterialLine ? (
+            <p className="mt-0.5 text-slate-600">
+              {[
+                coil?.coil_gauge_label || check?.gauge_label,
+                coil?.coil_colour,
+                coil?.coil_material_type || check?.material_type_name,
+              ]
+                .filter(Boolean)
+                .join(' · ') || '—'}
+            </p>
+          ) : null}
         </div>
         {alert ? (
           <span
@@ -116,7 +118,7 @@ function CoilConversionCard({ coilNo, coil, check }) {
   );
 }
 
-function JobConversionBlock({ job, jobCoils, conversionChecks }) {
+function JobConversionBlock({ job, jobCoils, conversionChecks, suppressMaterialLine = false }) {
   const coilRows = coilIntelRowsForJob(job.job_id || job.jobId, jobCoils, conversionChecks);
   const alert = job.conversion_alert_state || job.conversionAlertState || '—';
 
@@ -145,7 +147,13 @@ function JobConversionBlock({ job, jobCoils, conversionChecks }) {
       ) : (
         <ul className="mt-3 space-y-2 border-t border-slate-200/80 pt-3">
           {coilRows.map(({ coilNo, coil, check }) => (
-            <CoilConversionCard key={coilNo} coilNo={coilNo} coil={coil} check={check} />
+            <CoilConversionCard
+              key={coilNo}
+              coilNo={coilNo}
+              coil={coil}
+              check={check}
+              suppressMaterialLine={suppressMaterialLine}
+            />
           ))}
         </ul>
       )}
@@ -172,6 +180,7 @@ export function ConversionRecordPanel({
   loading = false,
   emptyMessage = 'No production conversion recorded for this quotation yet.',
   embedded = false,
+  suppressMaterialLine = false,
 }) {
   const productionLogs = useMemo(
     () => (Array.isArray(auditData?.productionLogs) ? auditData.productionLogs : []),
@@ -276,6 +285,7 @@ export function ConversionRecordPanel({
               job={job}
               jobCoils={jobCoils}
               conversionChecks={conversionChecks}
+              suppressMaterialLine={suppressMaterialLine}
             />
           ))}
         </div>

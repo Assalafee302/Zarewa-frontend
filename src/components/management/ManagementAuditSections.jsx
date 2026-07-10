@@ -1,9 +1,15 @@
-import React, { Fragment } from 'react';
+import React, { Fragment, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { formatActorAttribution, formatStageActor } from '../../lib/actorAttribution';
 import { flattenQuotationLineItems, ledgerTypeStyle } from '../../lib/managerDashboardCore';
+import {
+  quotationHasMaterialSpec,
+  quotationMaterialSpecLine,
+  lineMaterialSubtitle,
+} from '../../lib/managementQuotationIntel';
 import { ManagementActivityTimeline } from './ManagementActivityTimeline';
 import { ConversionRecordPanel } from './ConversionRecordPanel';
+import { SectionActorFooter } from './managementIntelUi';
 
 function auditUi(appearance) {
   const L = appearance === 'light';
@@ -11,77 +17,72 @@ function auditUi(appearance) {
     L,
     spin: L ? 'text-zarewa-teal' : 'text-teal-400',
     err: L ? 'text-xs text-rose-600' : 'text-xs text-rose-300/90',
-    sec: L ? 'mb-2 text-ui-xs font-black uppercase tracking-widest text-slate-500' : 'mb-2 text-ui-xs font-black uppercase tracking-widest text-white/40',
+    sec: L
+      ? 'mb-2 text-ui-xs font-black uppercase tracking-widest text-slate-500'
+      : 'mb-2 text-ui-xs font-black uppercase tracking-widest text-white/40',
     secTeal: L
       ? 'mb-2 text-ui-xs font-black uppercase tracking-widest text-zarewa-teal'
       : 'mb-2 text-ui-xs font-black uppercase tracking-widest text-teal-300/90',
-    card: L ? 'rounded-lg border border-slate-200 bg-white px-2.5 py-2 shadow-sm' : 'rounded-xl border border-white/10 bg-white/[0.07] p-3',
-    cardSoft: L ? 'rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2' : 'rounded-xl border border-white/10 bg-white/[0.06] p-3',
-    divide: L ? 'divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden bg-white' : 'divide-y divide-white/10 rounded-xl border border-white/10 overflow-hidden',
-    lineRow: L ? 'flex flex-wrap items-baseline justify-between gap-2 px-3 py-2 text-xs' : 'flex flex-wrap items-baseline justify-between gap-2 px-3 py-2 text-xs',
-    cat: L ? 'mr-2 text-ui-xs font-black uppercase text-slate-400' : 'mr-2 text-ui-xs font-black uppercase text-white/30',
+    card: L
+      ? 'rounded-lg border border-slate-200 bg-white px-2.5 py-2 shadow-sm'
+      : 'rounded-xl border border-white/10 bg-white/[0.07] p-3',
+    cardSoft: L
+      ? 'rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2'
+      : 'rounded-xl border border-white/10 bg-white/[0.06] p-3',
+    divide: L
+      ? 'divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden bg-white'
+      : 'divide-y divide-white/10 rounded-xl border border-white/10 overflow-hidden',
+    lineRow: 'flex flex-wrap items-baseline justify-between gap-2 px-3 py-2 text-xs',
     name: L ? 'font-semibold text-slate-900' : 'font-semibold text-white',
-    qty: L ? 'ml-1 text-slate-500' : 'ml-1 text-white/45',
+    qty: L ? 'ml-1.5 text-slate-500' : 'ml-1.5 text-white/45',
     amt: L ? 'shrink-0 text-right tabular-nums text-slate-700' : 'shrink-0 text-right tabular-nums text-white/80',
     empty: L ? 'py-2 text-xs text-slate-500' : 'py-2 text-xs text-white/35',
-    ledgerMeta: L ? 'mt-1 text-ui-xs text-slate-600' : 'mt-1 text-ui-xs text-white/45',
-    ledgerSub: L ? 'mt-0.5 font-mono text-ui-xs text-slate-400' : 'mt-0.5 font-mono text-ui-xs text-white/30',
-    ledgerNote: L ? 'mt-1 text-ui-xs leading-snug text-slate-500' : 'mt-1 text-ui-xs leading-snug text-white/35',
-    ledgerWhen: L ? 'mt-1 text-ui-xs text-slate-400' : 'mt-1 text-ui-xs text-white/25',
+    meterPaid: L
+      ? 'rounded-lg border border-emerald-200 bg-emerald-50/60 px-2.5 py-2'
+      : 'rounded-xl border border-teal-500/20 bg-teal-500/10 p-3',
+    meterLabel: L
+      ? 'text-ui-xs font-bold uppercase text-emerald-900/80'
+      : 'text-ui-xs font-bold uppercase text-teal-200/80',
+    meterValue: L
+      ? 'mt-0.5 text-sm font-bold tabular-nums text-slate-900'
+      : 'mt-1 text-lg font-black tabular-nums text-white',
+    meterNeutral: L
+      ? 'rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2'
+      : 'rounded-xl border border-white/10 bg-white/[0.06] p-3',
+    meterLabelN: L
+      ? 'text-ui-xs font-bold uppercase text-slate-500'
+      : 'text-ui-xs font-bold uppercase text-white/35',
+    meterValueN: L
+      ? 'mt-0.5 text-sm font-bold tabular-nums text-slate-800'
+      : 'mt-1 text-lg font-black tabular-nums text-white/90',
     refundCard: L
       ? 'rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs'
       : 'rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs',
     refundId: L ? 'font-mono font-bold text-amber-950' : 'font-mono font-bold text-amber-100',
     refundAmt: L ? 'font-black tabular-nums text-amber-900' : 'font-black tabular-nums text-amber-200',
     refundMeta: L ? 'mt-1 text-slate-700' : 'mt-1 text-white/60',
-    refundWhen: L ? 'mt-1 text-ui-xs text-slate-500' : 'mt-1 text-ui-xs text-white/40',
-    refundReason: L ? 'mt-2 text-ui-xs leading-snug text-slate-600' : 'mt-2 text-ui-xs leading-snug text-white/45',
-    meterPaid: L
-      ? 'rounded-lg border border-emerald-200 bg-emerald-50/60 px-2.5 py-2'
-      : 'rounded-xl border border-teal-500/20 bg-teal-500/10 p-3',
-    meterLabel: L ? 'text-ui-xs font-bold uppercase text-emerald-900/80' : 'text-ui-xs font-bold uppercase text-teal-200/80',
-    meterValue: L ? 'mt-0.5 text-sm font-bold tabular-nums text-slate-900' : 'mt-1 text-lg font-black tabular-nums text-white',
-    meterNeutral: L ? 'rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2' : 'rounded-xl border border-white/10 bg-white/[0.06] p-3',
-    meterLabelN: L ? 'text-ui-xs font-bold uppercase text-slate-500' : 'text-ui-xs font-bold uppercase text-white/35',
-    meterValueN: L ? 'mt-0.5 text-sm font-bold tabular-nums text-slate-800' : 'mt-1 text-lg font-black tabular-nums text-white/90',
-    clStatusDraft: L ? 'rounded-md bg-amber-100 px-2 py-0.5 text-ui-xs font-black uppercase text-amber-900' : 'rounded-md bg-amber-500/20 px-2 py-0.5 text-ui-xs font-black uppercase text-amber-300',
-    clStatusOk: L ? 'rounded-md bg-emerald-100 px-2 py-0.5 text-ui-xs font-black uppercase text-emerald-800' : 'rounded-md bg-emerald-500/20 px-2 py-0.5 text-ui-xs font-black uppercase text-emerald-300',
-    clDate: L ? 'text-ui-xs text-slate-400' : 'text-ui-xs text-white/35',
-    clId: L ? 'text-xs font-bold text-slate-900' : 'text-xs font-bold text-white',
-    clM: L ? 'mt-1 tabular-nums text-ui-xs text-slate-500' : 'mt-1 tabular-nums text-ui-xs text-white/40',
-    jobWrap: L ? 'overflow-hidden rounded-xl border border-slate-200 bg-slate-50' : 'overflow-hidden rounded-xl border border-white/10 bg-white/[0.05]',
-    jobHead: L ? 'border-b border-slate-200 p-3' : 'border-b border-white/10 p-3',
-    jobId: L ? 'font-mono text-xs font-black text-slate-900' : 'font-mono text-xs font-black text-white',
-    jobStatus: L
-      ? 'rounded-md bg-slate-200 px-2 py-0.5 text-ui-xs font-black uppercase text-slate-700'
-      : 'rounded-md bg-white/10 px-2 py-0.5 text-ui-xs font-black uppercase text-white/70',
-    jobProduct: L ? 'mt-1 text-xs font-bold text-slate-800' : 'mt-1 text-xs font-bold text-white/90',
-    jobSub: L ? 'mt-1 text-ui-xs text-slate-500' : 'mt-1 text-ui-xs text-white/40',
-    jobNums: L ? 'mt-2 flex flex-wrap gap-3 text-ui-xs tabular-nums text-slate-600' : 'mt-2 flex flex-wrap gap-3 text-ui-xs tabular-nums text-white/70',
-    convAlert: L ? 'mt-2 text-ui-xs text-violet-800' : 'mt-2 text-ui-xs text-violet-300/90',
-    done: L ? 'mt-1 text-ui-xs text-slate-400' : 'mt-1 text-ui-xs text-white/30',
-    sign: L ? 'mt-1 text-ui-xs text-emerald-800' : 'mt-1 text-ui-xs text-emerald-300/80',
-    coilBox: L ? 'border-b border-slate-100 bg-slate-100/60 px-3 py-2' : 'border-b border-white/5 bg-black/20 px-3 py-2',
-    coilTitle: L ? 'mb-1 text-ui-xs font-black uppercase text-slate-500' : 'mb-1 text-ui-xs font-black uppercase text-white/35',
-    coilLi: L ? 'flex justify-between gap-2 text-ui-xs text-slate-600' : 'flex justify-between gap-2 text-ui-xs text-white/60',
-    coilMono: L ? 'truncate font-mono text-slate-800' : 'truncate font-mono text-white/70',
-    chkBox: L ? 'bg-slate-100/80 px-3 py-2' : 'bg-black/25 px-3 py-2',
-    chkLi: L ? 'text-ui-xs text-slate-600' : 'text-ui-xs text-white/55',
-    chkMono: L ? 'font-mono text-slate-800' : 'font-mono text-white/70',
-    mgrRow: L ? 'mt-2 flex flex-wrap gap-2 text-ui-xs text-slate-500' : 'mt-2 flex flex-wrap gap-2 text-ui-xs text-white/40',
-    mgrFlag: L ? 'text-rose-600' : 'text-rose-300/90',
-    project: L ? 'text-xs text-slate-600' : 'text-xs text-white/50',
-    projectB: L ? 'font-bold text-slate-800' : 'font-bold text-white/70',
+    materialLine: L
+      ? 'mb-2 text-sm font-semibold leading-snug text-slate-800'
+      : 'mb-2 text-sm font-semibold leading-snug text-white',
+    actorMuted: L ? 'text-slate-500' : 'text-white/40',
+    historyBtn: L
+      ? 'text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline'
+      : 'text-ui-xs font-bold uppercase tracking-wide text-teal-300 hover:underline',
   };
 }
 
+function isAccessoryOrServiceCategory(cat) {
+  const c = String(cat || '').toLowerCase();
+  return c.includes('accessor') || c.includes('service');
+}
+
 /**
- * Rich audit body for quotation-linked management intel.
- * @param {{ appearance?: 'dark' | 'light' }} props — `light` matches workspace / Office slide-overs; Manager uses default `dark`.
+ * Lean quotation audit body — no duplicate order/balance, order lines, or second conversion stack.
  */
 export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, appearance = 'dark' }) {
   const u = auditUi(appearance);
   const ledgerTheme = u.L ? 'light' : 'dark';
+  const [showHistory, setShowHistory] = useState(false);
 
   if (loadingAudit && (!auditData || auditData.ok === false)) {
     return (
@@ -101,159 +102,133 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
   const totals = auditData.totals || {};
   const cuttingLists = Array.isArray(auditData.cuttingLists) ? auditData.cuttingLists : [];
   const stageActors = auditData.stageActors || {};
+  const materialLine = quotationMaterialSpecLine(auditData);
+  const hasQuoteMaterial = quotationHasMaterialSpec(auditData);
+
+  const productLines = lines.filter((ln) => !isAccessoryOrServiceCategory(ln.category));
+  const accessoryLines = lines.filter((ln) => String(ln.category || '').toLowerCase().includes('accessor'));
+  const serviceLines = lines.filter((ln) => String(ln.category || '').toLowerCase().includes('service'));
+
+  const quoteActors = [formatStageActor(stageActors.quotation)].filter(Boolean);
+  const caseActors = [
+    formatStageActor(stageActors.managerClear),
+    formatStageActor(stageActors.managerFlag),
+    formatStageActor(stageActors.managerProduction),
+  ].filter(Boolean);
+
+  function renderLines(list) {
+    if (!list.length) return null;
+    return (
+      <div className={u.divide}>
+        {list.map((ln, idx) => {
+          const material = !hasQuoteMaterial ? lineMaterialSubtitle(ln) : '';
+          return (
+            <div key={`${ln.category}-${idx}`} className={u.lineRow}>
+              <div className="min-w-0">
+                <span className={u.name}>{ln.name}</span>
+                <span className={u.qty}>
+                  {ln.qty !== '' && ln.qty != null ? `${ln.qty}${ln.unit ? ` ${ln.unit}` : ''}` : ''}
+                </span>
+                {material ? (
+                  <p className={`mt-0.5 text-ui-xs ${u.actorMuted}`}>{material}</p>
+                ) : null}
+              </div>
+              <div className={u.amt}>
+                {ln.lineTotal !== '' && ln.lineTotal != null
+                  ? formatNgn(ln.lineTotal)
+                  : ln.unitPrice
+                    ? `@ ${formatNgn(ln.unitPrice)}`
+                    : '—'}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <Fragment>
       {sum ? (
-        <section>
-          <p className={u.sec}>Order &amp; balance</p>
-          <div className={`grid grid-cols-1 sm:grid-cols-3 ${u.L ? 'gap-1.5' : 'gap-2'}`}>
-            <div className={u.card}>
-              <p className={u.meterLabelN}>Order total</p>
-              <p className={u.meterValue}>{formatNgn(sum.orderTotalNgn)}</p>
+        <section className={u.card}>
+          <div className={`grid grid-cols-3 ${u.L ? 'gap-1.5' : 'gap-2'}`}>
+            <div>
+              <p className={u.meterLabelN}>Order</p>
+              <p className={u.meterValueN}>{formatNgn(sum.orderTotalNgn)}</p>
             </div>
             <div className={u.meterPaid}>
-              <p className={u.meterLabel}>Paid in</p>
-              <p
-                className={
-                  u.L
-                    ? 'mt-0.5 text-sm font-bold tabular-nums text-emerald-800'
-                    : 'mt-1 text-lg font-black tabular-nums text-emerald-300'
-                }
-              >
-                {formatNgn(sum.paidNgn)}
-              </p>
+              <p className={u.meterLabel}>Paid</p>
+              <p className={u.meterValue}>{formatNgn(sum.paidNgn)}</p>
               {sum.percentPaid != null ? (
-                <p className={`mt-1 text-ui-xs tabular-nums ${u.L ? 'text-slate-500' : 'text-white/40'}`}>
-                  {sum.percentPaid}% of order
-                </p>
+                <p className={`text-ui-xs tabular-nums ${u.actorMuted}`}>{sum.percentPaid}%</p>
               ) : null}
             </div>
-            <div
-              className={
-                u.L
-                  ? 'rounded-lg border border-amber-200 bg-amber-50/70 px-2.5 py-2 shadow-sm'
-                  : 'rounded-xl border border-amber-500/20 bg-white/[0.07] p-3'
-              }
-            >
-              <p className={u.meterLabelN}>Outstanding</p>
-              <p className={`mt-0.5 text-sm font-bold tabular-nums ${u.L ? 'text-amber-900' : 'text-amber-200'}`}>
-                {formatNgn(sum.outstandingNgn)}
-              </p>
+            <div>
+              <p className={u.meterLabelN}>Out</p>
+              <p className={u.meterValueN}>{formatNgn(sum.outstandingNgn)}</p>
             </div>
           </div>
-          {[
-            formatStageActor(stageActors.quotation),
-            formatStageActor(stageActors.managerClear),
-            formatStageActor(stageActors.managerProduction),
-            formatStageActor(stageActors.managerFlag),
-            formatStageActor(stageActors.bmPriceException),
-            formatStageActor(stageActors.mdPriceException),
-          ].some(Boolean) ? (
-            <div className={`${u.mgrRow} flex-col items-start gap-0.5`}>
-              {[
-                formatStageActor(stageActors.quotation),
-                formatStageActor(stageActors.managerClear),
-                formatStageActor(stageActors.managerProduction),
-                formatStageActor(stageActors.managerFlag),
-                formatStageActor(stageActors.bmPriceException),
-                formatStageActor(stageActors.mdPriceException),
-              ]
-                .filter(Boolean)
-                .map((line) => (
-                  <span key={line}>{line}</span>
-                ))}
-            </div>
-          ) : null}
+          <SectionActorFooter lines={caseActors} />
         </section>
       ) : null}
 
-      {auditData.quotation?.projectName ? (
-        <p className={u.project}>
-          <span className={u.projectB}>Project:</span> {auditData.quotation.projectName}
-        </p>
-      ) : null}
-
       <section>
-        <p className={u.sec}>Order lines</p>
-        {lines.length === 0 ? (
-          <p className={u.empty}>No structured line items on file (check Sales for full quote).</p>
-        ) : (
-          <div className={u.divide}>
-            {lines.map((ln, idx) => (
-              <div key={`${ln.category}-${idx}`} className={u.lineRow}>
-                <div className="min-w-0">
-                  <span className={u.cat}>{ln.category}</span>
-                  <span className={u.name}>{ln.name}</span>
-                  <span className={u.qty}>
-                    {ln.qty !== '' && ln.qty != null ? `${ln.qty}${ln.unit ? ` ${ln.unit}` : ''}` : ''}
-                  </span>
-                </div>
-                <div className={u.amt}>
-                  {ln.lineTotal !== '' && ln.lineTotal != null
-                    ? formatNgn(ln.lineTotal)
-                    : ln.unitPrice
-                      ? `@ ${formatNgn(ln.unitPrice)}`
-                      : '—'}
-                </div>
+        <p className={u.sec}>Quote</p>
+        {auditData.quotation?.projectName ? (
+          <p className={`mb-1 text-xs ${u.L ? 'text-slate-600' : 'text-white/50'}`}>
+            {auditData.quotation.projectName}
+          </p>
+        ) : null}
+        {materialLine ? <p className={u.materialLine}>{materialLine}</p> : null}
+        {productLines.length || accessoryLines.length || serviceLines.length ? (
+          <div className="space-y-2">
+            {renderLines(productLines)}
+            {accessoryLines.length > 0 ? (
+              <div>
+                <p className={u.sec}>Accessories</p>
+                {renderLines(accessoryLines)}
               </div>
-            ))}
+            ) : null}
+            {serviceLines.length > 0 ? (
+              <div>
+                <p className={u.sec}>Services</p>
+                {renderLines(serviceLines)}
+              </div>
+            ) : null}
           </div>
+        ) : (
+          <p className={u.empty}>No structured line items on file.</p>
         )}
+        <SectionActorFooter lines={quoteActors} />
       </section>
 
       <section>
-        <p className={u.sec}>Ledger &amp; payments ({ledger.length})</p>
+        <p className={u.sec}>Money</p>
         <div className="custom-scrollbar max-h-[min(40vh,280px)] overflow-y-auto pr-1">
           {ledger.length === 0 ? (
             <p className={u.empty}>No ledger rows for this quotation.</p>
-          ) : u.L ? (
-            <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white">
-              {ledger.map((e, idx) => {
-                const hint = [e.payment_method, e.purpose, e.bank_reference, e.note].filter(Boolean).join(' · ');
-                return (
-                  <div key={e.id || idx} className="px-2.5 py-1.5" title={hint || undefined}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={`shrink-0 rounded px-1.5 py-0.5 text-[7px] font-black uppercase ${ledgerTypeStyle(e.type, ledgerTheme)}`}
-                      >
-                        {(e.type || '—').slice(0, 12)}
-                      </span>
-                      <p className="min-w-0 flex-1 truncate text-right text-xs font-semibold tabular-nums text-slate-900">
-                        {formatNgn(e.amount_ngn)}
-                      </p>
-                      <span className="shrink-0 font-mono text-ui-xs text-slate-400">
-                        {e.at_iso?.slice(0, 10) || '—'}
-                      </span>
-                    </div>
-                    {formatActorAttribution(e.created_by_name, e.at_iso) ? (
-                      <p className="mt-0.5 text-ui-xs text-slate-500">
-                        By {formatActorAttribution(e.created_by_name, e.at_iso)}
-                      </p>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
           ) : (
-            <div className="space-y-2">
+            <div className={u.divide}>
               {ledger.map((e, idx) => (
-                <div key={e.id || idx} className={u.cardSoft}>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-md px-2 py-0.5 text-ui-xs font-black uppercase ${ledgerTypeStyle(e.type, ledgerTheme)}`}>
-                        {e.type || '—'}
-                      </span>
-                      <p className={`text-sm font-black tabular-nums ${u.L ? 'text-slate-900' : 'text-white'}`}>
-                        {formatNgn(e.amount_ngn)}
-                      </p>
-                    </div>
-                    <p className={u.ledgerMeta}>{e.payment_method || e.purpose || '—'}</p>
-                    {e.bank_reference ? <p className={u.ledgerSub}>Ref: {e.bank_reference}</p> : null}
-                    {e.note ? <p className={u.ledgerNote}>{e.note}</p> : null}
-                    <p className={u.ledgerWhen}>
-                      {e.at_iso?.slice(0, 16)?.replace('T', ' ')} · {e.created_by_name || '—'}
+                <div key={e.id || idx} className="px-2.5 py-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-[7px] font-black uppercase ${ledgerTypeStyle(e.type, ledgerTheme)}`}
+                    >
+                      {(e.type || '—').slice(0, 12)}
+                    </span>
+                    <p className={`min-w-0 flex-1 truncate text-right text-xs font-semibold tabular-nums ${u.name}`}>
+                      {formatNgn(e.amount_ngn)}
                     </p>
+                    <span className={`shrink-0 font-mono text-ui-xs ${u.actorMuted}`}>
+                      {e.at_iso?.slice(0, 10) || '—'}
+                    </span>
                   </div>
+                  {formatActorAttribution(e.created_by_name, e.at_iso) ? (
+                    <p className={`mt-0.5 text-ui-xs ${u.actorMuted}`}>
+                      {formatActorAttribution(e.created_by_name, e.at_iso)}
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -263,7 +238,7 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
 
       {refunds.length ? (
         <section>
-          <p className={u.sec}>Refunds on this quote</p>
+          <p className={u.sec}>Refunds</p>
           <div className="space-y-2">
             {refunds.map((r) => (
               <div key={r.refund_id} className={u.refundCard}>
@@ -272,19 +247,15 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
                   <span className={u.refundAmt}>{formatNgn(r.amount_ngn)}</span>
                 </div>
                 <p className={u.refundMeta}>
-                  {r.status} · {r.product || '—'}
+                  {r.status}
+                  {r.requested_by ? ` · ${r.requested_by}` : ''}
+                  {r.product ? ` · ${r.product}` : ''}
                 </p>
-                {formatActorAttribution(r.requested_by, r.requested_at_iso) ? (
-                  <p className={u.refundWhen}>By {formatActorAttribution(r.requested_by, r.requested_at_iso)}</p>
-                ) : (
-                  <p className={u.refundWhen}>{r.requested_at_iso?.slice(0, 16)?.replace('T', ' ')}</p>
-                )}
                 {r.approved_by ? (
                   <p className={`text-ui-xs ${u.L ? 'text-emerald-800' : 'text-emerald-300/90'}`}>
                     Approved by {formatActorAttribution(r.approved_by, r.approval_date)}
                   </p>
                 ) : null}
-                {r.reason ? <p className={u.refundReason}>{r.reason}</p> : null}
               </div>
             ))}
           </div>
@@ -292,68 +263,53 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
       ) : null}
 
       <section>
-        <p className={u.secTeal}>Metres &amp; production totals</p>
-        <div className={`grid grid-cols-1 sm:grid-cols-3 ${u.L ? 'gap-1.5' : 'gap-2'}`}>
+        <p className={u.secTeal}>Production, conversion &amp; supply</p>
+        <div className={`mb-2 grid grid-cols-3 ${u.L ? 'gap-1.5' : 'gap-2'}`}>
           <div className={u.meterPaid}>
-            <p className={u.meterLabel}>Cutting lists (planned)</p>
+            <p className={u.meterLabel}>Cutting</p>
             <p className={u.meterValue}>{Number(totals.cuttingListMetersSum || 0).toLocaleString()} m</p>
           </div>
           <div className={u.meterPaid}>
-            <p className={u.meterLabel}>Produced (completed jobs)</p>
+            <p className={u.meterLabel}>Produced</p>
             <p className={u.meterValue}>{Number(totals.completedProductionMetersSum || 0).toLocaleString()} m</p>
           </div>
           <div className={u.meterNeutral}>
-            <p className={u.meterLabelN}>All job actuals</p>
+            <p className={u.meterLabelN}>Job actuals</p>
             <p className={u.meterValueN}>{Number(totals.productionJobsMetersSum || 0).toLocaleString()} m</p>
           </div>
         </div>
-      </section>
-
-      <section>
-        <p className={u.sec}>Cutting lists</p>
-        <div className="space-y-2">
-          {!cuttingLists.length ? (
-            <p className={u.empty}>None linked.</p>
-          ) : (
-            cuttingLists.map((cl, idx) => (
-              <div key={cl.id || idx} className={u.cardSoft}>
-                <div className="mb-1 flex items-start justify-between gap-2">
-                  <span className={cl.status === 'Draft' ? u.clStatusDraft : u.clStatusOk}>{cl.status}</span>
-                  <span className={u.clDate}>{cl.date_iso}</span>
-                </div>
-                <p className={u.clId}>{cl.id}</p>
-                <p className={u.clM}>{Number(cl.total_meters || 0).toLocaleString()} m</p>
-                {formatActorAttribution(cl.handled_by, cl.date_iso) ? (
-                  <p className={`mt-0.5 text-ui-xs ${u.L ? 'text-slate-500' : 'text-white/40'}`}>
-                    By {formatActorAttribution(cl.handled_by, cl.date_iso)}
-                  </p>
+        {cuttingLists.length > 0 ? (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {cuttingLists.map((cl, idx) => (
+              <span key={cl.id || idx} className={u.cardSoft}>
+                <span className={u.name}>{cl.id}</span>
+                <span className={`ml-1 tabular-nums ${u.actorMuted}`}>
+                  {Number(cl.total_meters || 0).toLocaleString()} m
+                </span>
+                {cl.handled_by ? (
+                  <span className={`ml-1 text-ui-xs ${u.actorMuted}`}>· {cl.handled_by}</span>
                 ) : null}
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-
-      <section>
+              </span>
+            ))}
+          </div>
+        ) : null}
         <ConversionRecordPanel
           auditData={auditData}
           showMeterTotals={false}
-          title="Production & conversion"
+          embedded
+          suppressMaterialLine={hasQuoteMaterial}
           emptyMessage="No production jobs for this quotation."
         />
-      </section>
-
-      <section className="mt-4">
-        <p className={u.secTeal}>Activity &amp; approvals</p>
-        <ManagementActivityTimeline
-          events={auditData.activityTimeline}
-          appearance={appearance}
-          formatNgn={formatNgn}
+        <SectionActorFooter
+          lines={[
+            formatStageActor(stageActors.managerProduction),
+            cuttingLists[0]?.handled_by ? `Cutting · ${cuttingLists[0].handled_by}` : null,
+          ].filter(Boolean)}
         />
       </section>
 
       {Array.isArray(auditData.editApprovals) && auditData.editApprovals.length > 0 ? (
-        <section className="mt-4">
+        <section>
           <p className={u.sec}>Edit approvals</p>
           <div className={u.divide}>
             {auditData.editApprovals.map((ea) => (
@@ -365,6 +321,23 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
               </div>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {Array.isArray(auditData.activityTimeline) && auditData.activityTimeline.length > 0 ? (
+        <section className="mt-2">
+          <button type="button" className={u.historyBtn} onClick={() => setShowHistory((v) => !v)}>
+            {showHistory ? 'Hide full history' : 'Full history'}
+          </button>
+          {showHistory ? (
+            <div className="mt-2">
+              <ManagementActivityTimeline
+                events={auditData.activityTimeline}
+                appearance={appearance}
+                formatNgn={formatNgn}
+              />
+            </div>
+          ) : null}
         </section>
       ) : null}
     </Fragment>

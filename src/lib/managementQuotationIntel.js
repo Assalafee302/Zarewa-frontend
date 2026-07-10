@@ -36,6 +36,26 @@ export function quotationMaterialSpecRows(auditData) {
   return rows;
 }
 
+/** Unlabeled material detail line: Aluzinc · 0.40 · Graybeige · 120 m */
+export function quotationMaterialSpecLine(auditData, { metres } = {}) {
+  const q = auditData?.quotation;
+  const sum = auditData?.summary;
+  const bits = [
+    String(sum?.materialTypeName || q?.materialTypeName || sum?.materialTypeId || q?.materialTypeId || '').trim(),
+    String(sum?.materialGauge || q?.materialGauge || '').trim(),
+    String(sum?.materialColor || q?.materialColor || '').trim(),
+    String(sum?.materialDesign || q?.materialDesign || '').trim(),
+  ].filter(Boolean);
+  const m = metres != null ? Number(metres) : Number(sum?.quotedMeters ?? q?.totalMeters ?? q?.meters);
+  if (Number.isFinite(m) && m > 0) bits.push(`${m.toLocaleString(undefined, { maximumFractionDigits: 2 })} m`);
+  return bits.length ? bits.join(' · ') : '';
+}
+
+/** True when quote-level material already covers line-level gauge/colour repeats. */
+export function quotationHasMaterialSpec(auditData) {
+  return Boolean(quotationMaterialSpecLine(auditData));
+}
+
 /**
  * Merge job coil usage + conversion check + coil lot economics for one production job.
  * @param {string} jobId

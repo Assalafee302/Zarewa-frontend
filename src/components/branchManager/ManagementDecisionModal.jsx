@@ -296,6 +296,12 @@ export function ManagementDecisionModal({
                   reviewContext={selectedIntel.reviewContext || 'clearance'}
                   fromProductionGate={Boolean(selectedIntel.fromProductionGate)}
                   cuttingListId={selectedIntel.cuttingListId || ''}
+                  officialRecord={selectedUnifiedWorkItem}
+                  onOpenRecord={
+                    selectedUnifiedWorkItem || openUnifiedWorkItem
+                      ? () => openUnifiedWorkItem?.(selectedUnifiedWorkItem)
+                      : undefined
+                  }
                   canProductionOverride={canApproveProductionGate(ws?.session?.user?.roleKey, {
                     paidNgn: Math.round(
                       Number(selectedIntel.row?.paid_ngn ?? auditData?.summary?.paidNgn ?? auditData?.quotation?.paidNgn) || 0
@@ -542,14 +548,15 @@ export function ManagementDecisionModal({
                   {selectedIntel.row?.product_name ? (
                     <p className="mt-1 text-ui-xs text-slate-500">{selectedIntel.row.product_name}</p>
                   ) : null}
+                  {(selectedUnifiedWorkItem?.referenceNo || selectedUnifiedWorkItem?.id) && (
+                    <p className="mt-2 font-mono text-ui-xs text-slate-500">
+                      Record {selectedUnifiedWorkItem.referenceNo || selectedUnifiedWorkItem.id}
+                      {selectedUnifiedWorkItem.keyDecisionSummary
+                        ? ` · ${selectedUnifiedWorkItem.keyDecisionSummary}`
+                        : ''}
+                    </p>
+                  )}
                 </DecisionBand>
-
-                <OfficialRecordBanner
-                  item={selectedUnifiedWorkItem}
-                  light={isLight}
-                  quoteFallbackId={officialRecordFallbackId}
-                  onOpenRecord={openUnifiedWorkItem}
-                />
 
                 <ConversionRecordPanel
                   auditData={auditData}
