@@ -24,16 +24,19 @@ const NotFound = () => {
           Check the sidebar for available modules, or jump to a common desk below.
         </p>
         <div className="grid gap-2 sm:grid-cols-2 mb-6">
-          {QUICK_LINKS.map(({ to, label, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-zarewa-teal no-underline hover:bg-slate-50"
-            >
-              <Icon size={16} aria-hidden />
-              {label}
-            </Link>
-          ))}
+          {QUICK_LINKS.map((item) => {
+            const ItemIcon = item.icon;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-zarewa-teal no-underline hover:bg-slate-50"
+              >
+                <ItemIcon size={16} aria-hidden />
+                {item.label}
+              </Link>
+            );
+          })}
         </div>
         <Link to="/" className="inline-flex items-center gap-2 z-btn-primary no-underline">
           <Home size={16} aria-hidden /> Back to workspace

@@ -24,6 +24,7 @@ import {
 } from '../lib/workspaceBranchCreate';
 import { sanitizeWorkItemForCache } from '../lib/workspaceSanitize.js';
 import { invalidateAppShellQueries } from '../lib/queryClient';
+import { mergeDashboardPollIntoSnapshot } from '../lib/bootstrapPollMerge';
 import {
   clearPendingPasswordChange,
   hasPendingPasswordChange,
@@ -343,7 +344,7 @@ export function WorkspaceProvider({ children }) {
         !isPoll &&
         !fullBootstrapLoadedRef.current &&
         loadedDomainsRef.current.size === 0;
-      const effectiveMode = wantsLight ? 'dashboard' : mode;
+      const effectiveMode = forceFull ? '' : mode || (isPoll ? 'dashboard' : wantsLight ? 'dashboard' : '');
       const qsParts = [];
       if (effectiveMode) qsParts.push(`mode=${encodeURIComponent(effectiveMode)}`);
       if (isPoll) qsParts.push('poll=1', 'active=1');
@@ -431,7 +432,12 @@ export function WorkspaceProvider({ children }) {
       }
       if (stale()) return snapshotRef.current;
       if (!isPoll) invalidateAppShellQueries();
-      return applySnapshot(withPendingPasswordSession(data), 'ok');
+      const prevSnap = snapshotRef.current;
+      const incoming =
+        isPoll && effectiveMode === 'dashboard' && prevSnap?.ok
+          ? mergeDashboardPollIntoSnapshot(prevSnap, data)
+          : data;
+      return applySnapshot(withPendingPasswordSession(incoming), 'ok');
     } catch (e) {
       if (stale()) return snapshotRef.current;
       const cached = readBootstrapCache(snapshotRef.current?.session);
@@ -503,24 +509,15 @@ export function WorkspaceProvider({ children }) {
       if (revEtag) workspaceRevisionEtagRef.current = revEtag;
       loadedDomainsRef.current = new Set();
       if (!revRes.ok) {
-        await refresh({
-          poll: true,
-          forceFull: fullBootstrapLoadedRef.current || loadedDomainsRef.current.size > 0,
-        });
+        await refresh({ poll: true, mode: 'dashboard' });
         return snapshotRef.current;
       }
       const revData = await revRes.json().catch(() => null);
       if (!revData?.ok) {
-        await refresh({
-          poll: true,
-          forceFull: fullBootstrapLoadedRef.current || loadedDomainsRef.current.size > 0,
-        });
+        await refresh({ poll: true, mode: 'dashboard' });
         return snapshotRef.current;
       }
-      return refresh({
-        poll: true,
-        forceFull: fullBootstrapLoadedRef.current || loadedDomainsRef.current.size > 0,
-      });
+      return refresh({ poll: true, mode: 'dashboard' });
     } catch {
       return snapshotRef.current;
     }

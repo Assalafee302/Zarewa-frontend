@@ -1,3 +1,4 @@
+import React from 'react';
 import { EmptyState } from './EmptyState';
 
 /** @deprecated Use EmptyState — kept for backward compatibility. */

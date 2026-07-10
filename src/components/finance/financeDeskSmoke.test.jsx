@@ -79,7 +79,7 @@ describe('finance desk components', () => {
         onApply={async () => null}
       />
     );
-    expect(screen.getByText(/Approval note \(required\)/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Approval note/i)).toBeTruthy();
     expect(screen.getByText(/Head of Accounts has reviewed/i)).toBeTruthy();
   });
 
