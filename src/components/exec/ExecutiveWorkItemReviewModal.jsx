@@ -23,7 +23,6 @@ import { OfficeThreadConversationDrawer } from '../office/OfficeThreadConversati
 import { decideStaffPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
 import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit, canMdApprovePayroll } from '../../lib/hrAccess';
 import { mdApprovePayrollRun } from '../../lib/hrExtended';
-import { postStockRegisterWorkflow } from '../reports/stockRegister/stockRegisterApi';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { formatPersonName } from '../../lib/formatPersonName';
 import {
@@ -542,29 +541,6 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
       return;
     }
     showToast('Inter-branch loan rejected.', { variant: 'success' });
-    await ws?.refresh?.();
-    await finish();
-  };
-
-  const handleStockRegisterMdApprove = async () => {
-    const periodKey = review.periodKey;
-    if (!periodKey || readOnly) return;
-    const branchHint = review.branchIdForRegister;
-    if (ws?.viewAllBranches) {
-      showToast(
-        `Switch workspace to branch ${branchHint || 'for this register'} before MD approval.`,
-        { variant: 'info' }
-      );
-      return;
-    }
-    setBusy(true);
-    const { ok, data } = await postStockRegisterWorkflow({ action: 'md_approve', periodKey });
-    setBusy(false);
-    if (!ok || !data?.ok) {
-      showToast(data?.error || 'MD stock register approval failed.', { variant: 'error' });
-      return;
-    }
-    showToast('Stock register MD approval recorded.', { variant: 'success' });
     await ws?.refresh?.();
     await finish();
   };
@@ -1088,29 +1064,19 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 title={review.periodKey || '—'}
                 subtitle={review.branchIdForRegister || item.branchName || null}
               >
-                {ws?.viewAllBranches ? (
-                  <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    Switch workspace from <strong>All branches</strong> to{' '}
-                    <strong>{review.branchIdForRegister || 'this branch'}</strong> in the branch bar, then approve.
-                  </p>
-                ) : null}
                 {loadingStock ? (
                   <p className="mt-1 text-xs text-slate-500">Loading register workflow…</p>
                 ) : (
                   <p className="mt-1 text-xs text-slate-700">
-                    Status: {String(stockWorkflow?.status || '—').replace(/_/g, ' ')}
+                    Status: {String(stockWorkflow?.status || '—').replace(/_/g, ' ')}. MD approval is no longer
+                    required — after procurement costing, Capture &amp; lock closes the month.
                   </p>
                 )}
               </DecisionBand>
               {!readOnly && item.canAct !== false ? (
-                <DecisionActionBar>
-                  <DecisionActionTile
-                    variant="brand"
-                    label="MD approve register"
-                    disabled={busy || ws?.viewAllBranches || stockWorkflow?.status !== 'procurement_costed'}
-                    onClick={() => void handleStockRegisterMdApprove()}
-                  />
-                </DecisionActionBar>
+                <p className="text-xs text-slate-600 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  Open Procurement → stock register to cost and lock, or Reports audit for reopen if already locked.
+                </p>
               ) : null}
             </div>
           ) : null}

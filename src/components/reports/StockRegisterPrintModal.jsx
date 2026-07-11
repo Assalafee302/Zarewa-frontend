@@ -4,6 +4,7 @@ import { PrintModalPortal } from '../layout/PrintModalPortal';
 import { StandardReportPrintShell } from './StandardReportPrintShell';
 import { StockRegisterPrintContent } from './StockRegisterPrintContent';
 import { STATUS_STEPS } from './stockRegister/stockRegisterConstants';
+import { formatStockRegisterMonth, stockRegisterStepIndex } from '../../lib/stockRegisterPeriod';
 
 /**
  * Body-portaled print preview — matches ReceiptModal / QuotationModal so @media print
@@ -36,10 +37,12 @@ export function StockRegisterPrintModal({
 
   const generated = new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   const statusKey = workflow?.status || 'draft';
+  const stepIdx = stockRegisterStepIndex(statusKey, STATUS_STEPS);
   const statusLabel =
-    STATUS_STEPS.find((s) => s.key === statusKey)?.label ||
+    (stepIdx >= 0 ? STATUS_STEPS[stepIdx]?.label : null) ||
     String(statusKey).replace(/_/g, ' ');
   const isCountSheet = viewMode === 'store' || viewMode === 'manager';
+  const monthLabel = formatStockRegisterMonth(register.periodEnd);
 
   return (
     <PrintModalPortal open={open} onClose={onClose}>
@@ -51,7 +54,7 @@ export function StockRegisterPrintModal({
           <StandardReportPrintShell
             documentTypeLabel="Month-end stock register"
             title={isCountSheet ? 'Physical count sheet' : 'Physical stock register'}
-            subtitle={`Branch ${branchLabel || branchId} · Period ending ${register.periodEnd}`}
+            subtitle={`Branch ${branchLabel || branchId} · ${monthLabel}`}
             rightColumn={
               <>
                 <p>
@@ -73,7 +76,7 @@ export function StockRegisterPrintModal({
             shellClassName="max-w-[210mm]"
             footer={
               <p className="text-center text-ui-xs text-slate-500">
-                Store confirm → BM clearance → Procurement costing → MD approve → Capture &amp; lock
+                Store confirm → BM clearance → Procurement costing → Capture &amp; lock
               </p>
             }
           >

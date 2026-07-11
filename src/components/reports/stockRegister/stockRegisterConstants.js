@@ -2,13 +2,13 @@ import { LINE_STATUS, QUERY_REASONS } from '../../../lib/stockRegisterLineCleara
 
 export { QUERY_REASONS };
 
+/** Ceremony steps — no MD gate; costing → capture & lock. */
 export const STATUS_STEPS = [
-  { key: 'draft', label: 'Draft' },
-  { key: 'printed', label: 'Printed' },
+  { key: 'draft', label: 'Open' },
+  { key: 'printed', label: 'Counting' },
   { key: 'store_confirmed', label: 'With manager' },
-  { key: 'bm_approved', label: 'BM OK' },
+  { key: 'bm_approved', label: 'Manager OK' },
   { key: 'procurement_costed', label: 'Costed' },
-  { key: 'md_approved', label: 'MD OK' },
   { key: 'locked', label: 'Locked' },
 ];
 

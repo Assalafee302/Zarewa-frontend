@@ -143,7 +143,7 @@ export function StockRegisterProcurementCosting({
     <div className="space-y-3 rounded-xl border border-teal-200/80 bg-teal-50/30 p-3 sm:p-4">
       <p className="text-xs text-slate-700 leading-relaxed">
         {readOnly
-          ? 'Saved purchase costs (read-only). MD must approve before capture.'
+          ? 'Saved purchase costs (read-only). Capture & lock freezes this month.'
           : (
             <>
               Enter purchase cost per kg (by gauge). Closing value uses <strong>net kg</strong> after manager count

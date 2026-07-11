@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchStockRegister } from '../components/reports/stockRegister/stockRegisterApi';
 import { STATUS_STEPS } from '../components/reports/stockRegister/stockRegisterConstants';
+import {
+  formatStockRegisterMonth,
+  isCaptureReadyStatus,
+  stockRegisterStepIndex,
+  stockRegisterWaitingLabel,
+} from '../lib/stockRegisterPeriod';
 
 export function stockStatusLooksReady(status) {
-  return status === 'md_approved' || status === 'locked' || status === 'captured';
+  return isCaptureReadyStatus(status) || status === 'locked' || status === 'captured';
 }
 
 /** Lightweight stock register status for Reports hub (no full panel mount). */
@@ -40,8 +46,11 @@ export function useStockRegisterStatus(endDate, branchId) {
     load();
   }, [load]);
 
-  const stepLabel = STATUS_STEPS.find((s) => s.key === status)?.label || status || '—';
+  const stepIdx = stockRegisterStepIndex(status, STATUS_STEPS);
+  const stepLabel = (stepIdx >= 0 ? STATUS_STEPS[stepIdx]?.label : null) || status || '—';
   const ready = stockStatusLooksReady(status);
+  const monthLabel = formatStockRegisterMonth(endDate);
+  const waitingLabel = status ? stockRegisterWaitingLabel(status) : '—';
 
-  return { loading, status, error, stepLabel, ready, reload: load };
+  return { loading, status, error, stepLabel, ready, reload: load, monthLabel, waitingLabel };
 }

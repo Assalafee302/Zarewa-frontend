@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp, Loader2, Lock, X } from 'lucide-react';
 import { ModalFrame } from '../../layout';
+import { formatStockRegisterMonth, isCaptureReadyStatus } from '../../lib/stockRegisterPeriod';
 import { captureStockRegisterClosing } from './stockRegisterApi';
 
 /**
- * Confirm month-end closing capture — procurement, requires md_approved + lock ack.
+ * Confirm month-end closing capture — after procurement costing + lock ack.
  */
 export function StockRegisterCaptureConfirmModal({
   open,
@@ -18,6 +19,7 @@ export function StockRegisterCaptureConfirmModal({
   const [capturing, setCapturing] = useState(false);
   const [ack, setAck] = useState(false);
   const [showAcct, setShowAcct] = useState(false);
+  const monthLabel = formatStockRegisterMonth(periodEnd);
 
   React.useEffect(() => {
     if (open) {
@@ -52,7 +54,7 @@ export function StockRegisterCaptureConfirmModal({
   };
 
   const status = workflow?.status || 'draft';
-  const disabled = status !== 'md_approved';
+  const disabled = !isCaptureReadyStatus(status);
 
   return (
     <ModalFrame isOpen={open} onClose={onClose} showCloseButton={false} surface="plain" title="Capture closing stock">
@@ -62,7 +64,8 @@ export function StockRegisterCaptureConfirmModal({
             <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Month-end lock</p>
             <h2 className="text-lg font-bold text-zarewa-teal">Capture &amp; lock register</h2>
             <p className="text-sm text-slate-600 mt-0.5">
-              {branchLabel} · {periodEnd}
+              {branchLabel ? `${branchLabel} · ` : ''}
+              {monthLabel}
             </p>
           </div>
           <button type="button" onClick={onClose} className="z-btn-secondary p-2" aria-label="Close" disabled={capturing}>
@@ -76,7 +79,7 @@ export function StockRegisterCaptureConfirmModal({
             <div className="space-y-1">
               <p className="font-semibold">This locks next month&apos;s opening stock from this count.</p>
               <p className="text-xs leading-relaxed">
-                Snapshots are frozen for <strong>{periodEnd}</strong>. Edits stop until an executive reopens with a
+                Snapshots are frozen for <strong>{monthLabel}</strong>. Edits stop until an executive reopens with a
                 written reason. This is <strong>not</strong> the finance accounting-period lock.
               </p>
             </div>
@@ -99,12 +102,13 @@ export function StockRegisterCaptureConfirmModal({
 
           {disabled ? (
             <p className="text-xs text-slate-600">
-              Status: <strong>{status.replace(/_/g, ' ')}</strong> — MD approval required before capture.
+              Status: <strong>{status.replace(/_/g, ' ')}</strong> — save procurement costing before capture.
             </p>
           ) : (
             <p className="text-xs text-teal-800">
-              MD approved by {workflow?.mdApprovedByName || '—'} on{' '}
-              {String(workflow?.mdApprovedAtISO || '').slice(0, 10) || '—'}.
+              Costing ready
+              {workflow?.procurementCostedByName ? ` (by ${workflow.procurementCostedByName})` : ''}. You can lock{' '}
+              {monthLabel} now.
             </p>
           )}
 
@@ -117,7 +121,7 @@ export function StockRegisterCaptureConfirmModal({
                 onChange={(e) => setAck(e.target.checked)}
               />
               <span>
-                I understand this <strong>locks</strong> the stock register for {periodEnd}
+                I understand this <strong>locks</strong> the stock register for {monthLabel}
                 {branchLabel ? ` (${branchLabel})` : ''}.
               </span>
             </label>

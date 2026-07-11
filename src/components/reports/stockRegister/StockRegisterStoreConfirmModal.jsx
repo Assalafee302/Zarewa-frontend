@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, Send, X } from 'lucide-react';
 import { ModalFrame } from '../../layout';
+import { formatStockRegisterMonth } from '../../../lib/stockRegisterPeriod';
 import { validateStoreChecklist } from '../../../lib/stockRegisterLineClearance.js';
 import { STORE_CHECKLIST_ITEMS } from './stockRegisterConstants';
 import { postStockRegisterWorkflow, postStoreChecklist } from './stockRegisterApi';
@@ -126,7 +127,8 @@ export function StockRegisterStoreConfirmModal({
             <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Physical count</p>
             <h2 className="text-lg font-bold text-zarewa-teal">Confirm store count</h2>
             <p className="text-sm text-slate-600 mt-0.5">
-              {branchLabel ? `${branchLabel} · ` : ''}Period ending {periodEnd}
+              {branchLabel ? `${branchLabel} · ` : ''}
+              {formatStockRegisterMonth(periodEnd)}
             </p>
           </div>
           <button type="button" onClick={onClose} className="z-btn-secondary p-2" aria-label="Close" disabled={saving}>

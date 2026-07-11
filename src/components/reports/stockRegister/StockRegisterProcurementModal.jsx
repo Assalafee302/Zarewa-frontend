@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Loader2, Save, ShieldCheck, X } from 'lucide-react';
 import { ModalFrame } from '../../layout';
+import { formatStockRegisterMonth } from '../../lib/stockRegisterPeriod';
 import {
   getProcurementPricingGaps,
   StockRegisterProcurementCosting,
@@ -68,7 +69,7 @@ export function StockRegisterProcurementModal({
         showToast?.(data?.error || 'Could not save costing.', { variant: 'error' });
         return;
       }
-      showToast?.('Costing saved — awaiting MD approval.');
+      showToast?.('Costing saved — next: Capture & lock.');
       onSaved?.(data);
       onClose?.();
     } finally {
@@ -86,7 +87,8 @@ export function StockRegisterProcurementModal({
               {readOnly ? 'Costing (saved)' : 'Procurement costing'}
             </h2>
             <p className="text-sm text-slate-600 mt-0.5">
-              {branchLabel ? `${branchLabel} · ` : ''}Period ending {periodEnd}
+              {branchLabel ? `${branchLabel} · ` : ''}
+              {formatStockRegisterMonth(periodEnd)}
             </p>
           </div>
           <button type="button" onClick={onClose} className="z-btn-secondary p-2" aria-label="Close">
@@ -95,17 +97,17 @@ export function StockRegisterProcurementModal({
         </header>
 
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 py-4 sm:px-5 space-y-3">
-          {status === 'procurement_costed' ? (
+          {status === 'procurement_costed' || status === 'md_approved' ? (
             <div className="rounded-lg border border-teal-200 bg-teal-50/70 p-3 text-xs text-teal-950 leading-relaxed">
-              <p className="font-bold">Next: awaiting MD approve</p>
-              <p className="mt-0.5">Managing Director must approve this closing value before capture &amp; lock.</p>
+              <p className="font-bold">Next: Capture &amp; lock</p>
+              <p className="mt-0.5">Costing is saved — procurement can lock this month&apos;s closing stock.</p>
             </div>
           ) : (
             <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-3 text-xs text-teal-950 leading-relaxed flex gap-2">
               <ShieldCheck size={16} className="shrink-0 mt-0.5 text-teal-800" />
               <p>
-                After you save costing, the <strong>Managing Director</strong> must approve before procurement can{' '}
-                <strong>capture closing stock</strong> for next month&apos;s opening balances.
+                After you save costing, you can <strong>capture &amp; lock</strong> closing stock for next
+                month&apos;s opening balances.
               </p>
             </div>
           )}
