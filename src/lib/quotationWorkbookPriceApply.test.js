@@ -104,4 +104,94 @@ describe('applyWorkbookPricesToProductRows', () => {
       expect(rows).toBe(stable);
     }
   });
+
+  it('preserves unit price edited above the price list', () => {
+    const rows = [
+      {
+        id: '1',
+        name: 'Roofing Sheet',
+        unitPrice: '5200',
+        floorPricePerMeter: 4000,
+        recommendedPricePerMeter: 4500,
+      },
+    ];
+    const out = applyWorkbookPricesToProductRows(rows, {
+      options,
+      resolveUnitPrice: () => 4500,
+      resolveWorkbookLineMeta: () => ({ floorPerMeter: 4000, suggestedListPerMeter: 4500 }),
+    });
+    expect(out).toBe(rows);
+    expect(out[0].unitPrice).toBe('5200');
+  });
+
+  it('preserves a custom price while refreshing floor/list meta', () => {
+    const rows = [
+      {
+        id: '1',
+        name: 'Roofing Sheet',
+        unitPrice: '5200',
+        floorPricePerMeter: 4000,
+        recommendedPricePerMeter: 4500,
+      },
+    ];
+    const out = applyWorkbookPricesToProductRows(rows, {
+      options,
+      resolveUnitPrice: () => 4800,
+      resolveWorkbookLineMeta: () => ({ floorPerMeter: 4200, suggestedListPerMeter: 4800 }),
+    });
+    expect(out).not.toBe(rows);
+    expect(out[0].unitPrice).toBe('5200');
+    expect(out[0].floorPricePerMeter).toBe(4200);
+    expect(out[0].recommendedPricePerMeter).toBe(4800);
+  });
+
+  it('rolls forward when the line is still on the previous list default', () => {
+    const rows = [
+      {
+        id: '1',
+        name: 'Roofing Sheet',
+        unitPrice: '4500',
+        floorPricePerMeter: 4000,
+        recommendedPricePerMeter: 4500,
+      },
+    ];
+    const out = applyWorkbookPricesToProductRows(rows, {
+      options,
+      resolveUnitPrice: () => 4800,
+      resolveWorkbookLineMeta: () => ({ floorPerMeter: 4200, suggestedListPerMeter: 4800 }),
+    });
+    expect(out[0].unitPrice).toBe('4800');
+    expect(out[0].recommendedPricePerMeter).toBe(4800);
+  });
+
+  it('preserves below-floor custom prices (MD approval path)', () => {
+    const rows = [
+      {
+        id: '1',
+        name: 'Roofing Sheet',
+        unitPrice: '3800',
+        floorPricePerMeter: 4000,
+        recommendedPricePerMeter: 4500,
+      },
+    ];
+    const out = applyWorkbookPricesToProductRows(rows, {
+      options,
+      resolveUnitPrice: () => 4500,
+      resolveWorkbookLineMeta: () => ({ floorPerMeter: 4000, suggestedListPerMeter: 4500 }),
+    });
+    expect(out).toBe(rows);
+    expect(out[0].unitPrice).toBe('3800');
+  });
+
+  it('preserves saved custom prices that have no recommended meta yet', () => {
+    const rows = [{ id: '1', name: 'Roofing Sheet', unitPrice: '5100' }];
+    const out = applyWorkbookPricesToProductRows(rows, {
+      options,
+      resolveUnitPrice: () => 4500,
+      resolveWorkbookLineMeta: () => ({ floorPerMeter: 4000, suggestedListPerMeter: 4500 }),
+    });
+    expect(out[0].unitPrice).toBe('5100');
+    expect(out[0].floorPricePerMeter).toBe(4000);
+    expect(out[0].recommendedPricePerMeter).toBe(4500);
+  });
 });

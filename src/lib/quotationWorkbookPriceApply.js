@@ -2,6 +2,11 @@
  * Pure apply step for QuotationModal workbook auto-price refresh.
  * Must return the same `prev` reference when nothing changed — rewriting rows
  * every time caused React #185 (product select → options → refresh → rows → …).
+ *
+ * Default unit price = published/suggested list. Sales may edit above list freely.
+ * Below-floor quotes stay editable (MD approval gates cutting list / production).
+ * Auto-refresh only fills empty lines or lines still on the previous list default;
+ * it must not overwrite a custom unit price.
  */
 
 import { isMeterSheetProductLine } from './materialWorkbookQuotationPrice.js';
@@ -44,7 +49,7 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
     const wbMeta = metaOf(name);
     const nextGirthMm =
       isQuotationTrimProductLine(name) && !row.girthMm && girthMm ? girthMm : row.girthMm;
-    const nextUnit = String(price);
+    const listUnit = String(price);
     const nextFloorStr = wbMeta?.floorPerMeter != null ? String(wbMeta.floorPerMeter) : '';
     const nextRecStr =
       wbMeta?.suggestedListPerMeter != null ? String(wbMeta.suggestedListPerMeter) : '';
@@ -56,10 +61,17 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
       row.recommendedPricePerMeter != null && row.recommendedPricePerMeter !== ''
         ? String(row.recommendedPricePerMeter)
         : '';
+    const prevUnit = String(row.unitPrice ?? '');
+    const prevUnitNum = Number(prevUnit);
+    const emptyUnit = !(prevUnitNum > 0);
+    // Still on the prior list default → safe to roll forward when list changes.
+    const trackingListDefault = prevRecStr !== '' && prevUnit === prevRecStr;
+    const shouldApplyListDefault = emptyUnit || trackingListDefault;
+    const nextUnit = shouldApplyListDefault ? listUnit : prevUnit;
     const floorSame = nextFloorStr === '' || prevFloorStr === nextFloorStr;
     const recSame = nextRecStr === '' || prevRecStr === nextRecStr;
     if (
-      String(row.unitPrice ?? '') === nextUnit &&
+      prevUnit === nextUnit &&
       String(row.girthMm ?? '') === String(nextGirthMm ?? '') &&
       floorSame &&
       recSame

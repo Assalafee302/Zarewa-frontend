@@ -24,4 +24,17 @@ describe('quotation workbook price refresh', () => {
     expect(out).not.toBe(rows);
     expect(out[0].unitPrice).toBe('4500');
   });
+
+  it('does not overwrite a custom unit price above list', () => {
+    const rows = [
+      {
+        id: '1',
+        name: 'Roofing Sheet',
+        unitPrice: '5200',
+        recommendedPricePerMeter: 4500,
+      },
+    ];
+    const out = applyWorkbookPricesToProductRows(rows, ctx(4500));
+    expect(out[0].unitPrice).toBe('5200');
+  });
 });
