@@ -728,6 +728,7 @@ export function InventoryProvider({ children }) {
             note,
             dateISO: dateISO || new Date().toISOString().slice(0, 10),
             acknowledgeCoilSkuDrift: Boolean(opts.acknowledgeCoilSkuDrift),
+            acknowledgeLargeAdjust: Boolean(opts.acknowledgeLargeAdjust),
           }),
         });
         if (status === 409 && data?.code === 'COIL_SKU_DRIFT') {
@@ -738,14 +739,26 @@ export function InventoryProvider({ children }) {
             coilLotCount: data?.coilLotCount,
           };
         }
+        if (status === 409 && data?.code === 'LARGE_ADJUST_CONFIRM') {
+          return {
+            ok: false,
+            code: data.code,
+            error: data?.error || 'Large adjustment needs manager acknowledgement.',
+            qty: data?.qty,
+            valueNgn: data?.valueNgn,
+          };
+        }
         if (status === 403 && data?.code === 'COIL_SKU_DRIFT_FORBIDDEN') {
           return { ok: false, code: data.code, error: data?.error || 'Manager approval required.' };
+        }
+        if (status === 403 && data?.code === 'LARGE_ADJUST_FORBIDDEN') {
+          return { ok: false, code: data.code, error: data?.error || 'Manager approval required for large adjust.' };
         }
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Adjustment failed on server.' };
         }
         await wsRefresh?.();
-        return { ok: true };
+        return { ok: true, glWarning: data?.glWarning || null, gl: data?.gl || null };
       }
       return {
         ok: false,

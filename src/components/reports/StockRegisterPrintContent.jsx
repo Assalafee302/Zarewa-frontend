@@ -43,7 +43,7 @@ function splitCoilRows(section) {
   return { activeGroups, finishedGroups };
 }
 
-function CoilTable({ groups, showCountedBlank = true }) {
+function CoilTable({ groups, showCountedBlank = true, blankSystemClose = false }) {
   if (!groups?.length) {
     return <p className="text-xs text-slate-500 italic">No lines this period.</p>;
   }
@@ -60,8 +60,8 @@ function CoilTable({ groups, showCountedBlank = true }) {
             <th className={`${TH} text-right`}>Used m</th>
             <th className={`${TH} text-right`}>Used kg</th>
             <th className={`${TH} text-right`}>kg/m</th>
-            <th className={`${TH} text-right`}>Close</th>
-            {showCountedBlank ? <th className={`${TH} text-center w-8`}>✎</th> : null}
+            <th className={`${TH} text-right`}>{blankSystemClose ? 'Sys' : 'Close'}</th>
+            {showCountedBlank ? <th className={`${TH} text-center min-w-[3.5rem]`}>Counted</th> : null}
             <th className={TH}>Remark</th>
           </tr>
         </thead>
@@ -75,9 +75,11 @@ function CoilTable({ groups, showCountedBlank = true }) {
               <td className={TDR}>{fmtNum(r.usedM)}</td>
               <td className={TDR}>{fmtNum(r.usedKg, 0)}</td>
               <td className={TDR}>{r.kgPerM != null ? fmtNum(r.kgPerM) : '—'}</td>
-              <td className={TDR}>{r.closingBlank ? '—' : fmtNum(r.closingKg, 0)}</td>
+              <td className={TDR}>
+                {blankSystemClose || r.closingBlank ? '—' : fmtNum(r.closingKg, 0)}
+              </td>
               {showCountedBlank ? (
-                <td className={`${TD} text-center text-slate-400`} aria-label="Counted (write-in)">
+                <td className={`${TD} text-center text-slate-400 border-dashed`} aria-label="Counted (write-in)">
                   {' '}
                 </td>
               ) : null}
@@ -92,18 +94,18 @@ function CoilTable({ groups, showCountedBlank = true }) {
   ));
 }
 
-function CoilSection({ title, section }) {
+function CoilSection({ title, section, blankSystemClose = false }) {
   const { activeGroups, finishedGroups } = splitCoilRows(section);
   return (
     <section className="break-inside-avoid">
       <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">{title}</h2>
-      <CoilTable groups={activeGroups} />
+      <CoilTable groups={activeGroups} blankSystemClose={blankSystemClose} />
       {finishedGroups.length ? (
         <div className="mt-4 pt-3 border-t border-dashed border-slate-300">
           <h3 className="text-xs font-black uppercase tracking-wide text-slate-700 mb-2">
             Finished coils (consumed this period)
           </h3>
-          <CoilTable groups={finishedGroups} showCountedBlank={false} />
+          <CoilTable groups={finishedGroups} showCountedBlank={blankSystemClose} blankSystemClose={false} />
         </div>
       ) : null}
     </section>
@@ -115,6 +117,8 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
   if (!register) return null;
   const bid = branchLabel || branchId || register.branchId || '—';
   const hideMoney = viewMode === 'store' || viewMode === 'manager';
+  /** Physical count sheets: hide system closing so yard writes counted figures (blind count). */
+  const blankSystemClose = hideMoney;
   const ps = register.procurementSummary;
 
   if (viewMode === 'procurement' && ps) {
@@ -157,8 +161,21 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
 
   return (
     <div className="space-y-5 text-slate-800">
-      <CoilSection title="A. Aluminium coils (gross kg)" section={register.coilSections?.aluminium} />
-      <CoilSection title="B. Aluzinc coils (gross kg)" section={register.coilSections?.aluzinc} />
+      {blankSystemClose ? (
+        <p className="no-print text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Count sheet: system closing kg is blank — write yard counts in <strong>Counted</strong>. Use landscape A4.
+        </p>
+      ) : null}
+      <CoilSection
+        title="A. Aluminium coils (gross kg)"
+        section={register.coilSections?.aluminium}
+        blankSystemClose={blankSystemClose}
+      />
+      <CoilSection
+        title="B. Aluzinc coils (gross kg)"
+        section={register.coilSections?.aluzinc}
+        blankSystemClose={blankSystemClose}
+      />
 
       {register.stoneCoated?.groups?.length ? (
         <section>
@@ -174,7 +191,8 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
                     <th className={`${TH} text-right`}>Rcvd</th>
                     <th className={`${TH} text-right`}>Total</th>
                     <th className={`${TH} text-right`}>Used</th>
-                    <th className={`${TH} text-right`}>Remain</th>
+                    <th className={`${TH} text-right`}>{blankSystemClose ? 'Sys rem' : 'Remain'}</th>
+                    {blankSystemClose ? <th className={`${TH} text-center min-w-[3.5rem]`}>Counted</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -185,7 +203,10 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
                       <td className={TDR}>{fmtNum(r.receivedM)}</td>
                       <td className={TDR}>{fmtNum(r.totalM)}</td>
                       <td className={TDR}>{fmtNum(r.usedM)}</td>
-                      <td className={TDR}>{fmtNum(r.remainingM)}</td>
+                      <td className={TDR}>{blankSystemClose ? '—' : fmtNum(r.remainingM)}</td>
+                      {blankSystemClose ? (
+                        <td className={`${TD} text-center text-slate-400 border-dashed`}> </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -206,7 +227,8 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
                 <th className={`${TH} text-right`}>Open</th>
                 <th className={`${TH} text-right`}>Rcvd</th>
                 <th className={`${TH} text-right`}>Used</th>
-                <th className={`${TH} text-right`}>Bal</th>
+                <th className={`${TH} text-right`}>{blankSystemClose ? 'Sys bal' : 'Bal'}</th>
+                {blankSystemClose ? <th className={`${TH} text-center min-w-[3.5rem]`}>Counted</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -217,7 +239,10 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
                   <td className={TDR}>{fmtNum(r.opening)}</td>
                   <td className={TDR}>{fmtNum(r.received)}</td>
                   <td className={TDR}>{fmtNum(r.used)}</td>
-                  <td className={TDR}>{fmtNum(r.balance)}</td>
+                  <td className={TDR}>{blankSystemClose ? '—' : fmtNum(r.balance)}</td>
+                  {blankSystemClose ? (
+                    <td className={`${TD} text-center text-slate-400 border-dashed`}> </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

@@ -294,10 +294,10 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
         </button>
 
         <KpiCard
-          title="Low stock (by gauge · type · colour)"
+          title="SKU below reorder level"
           value={String(liveLowStockCount)}
-          sub="Open inventory to reorder / GRN"
-          titleAttr="SKUs below minimum — detail lists material shape."
+          sub="Product threshold — not thin coils (&lt;85 kg)"
+          titleAttr="SKUs below lowStockThreshold. Thin coils are a separate Ops alert."
           onClick={() => navigate('/operations')}
           highlight={liveLowStockCount > 0 ? 'danger' : undefined}
         >

@@ -1,7 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { Loader2, Save, ShieldCheck, X } from 'lucide-react';
 import { ModalFrame } from '../../layout';
-import { StockRegisterProcurementCosting } from '../StockRegisterProcurementCosting';
+import {
+  getProcurementPricingGaps,
+  StockRegisterProcurementCosting,
+} from '../StockRegisterProcurementCosting';
 import { postStockRegisterWorkflow } from './stockRegisterApi';
 
 /**
@@ -12,7 +15,9 @@ export function StockRegisterProcurementModal({
   onClose,
   periodKey,
   periodEnd,
+  branchLabel,
   procurementSummary,
+  accessoryBalance = 0,
   initialPricing,
   workflow,
   showToast,
@@ -29,10 +34,27 @@ export function StockRegisterProcurementModal({
     }
   }, [open, initialPricing]);
 
+  const status = workflow?.status || 'draft';
+  const canEdit = status === 'bm_approved';
+  const viewAfterCosted = ['procurement_costed', 'md_approved', 'locked'].includes(status);
+  const readOnly = !canEdit && viewAfterCosted;
+
+  const gaps = canEdit
+    ? getProcurementPricingGaps(procurementSummary, pricing, accessoryBalance)
+    : [];
+  const canSave = canEdit && gaps.length === 0 && Boolean(pricing);
+
   const submit = async () => {
     const p = pricingRef.current ?? pricing;
     if (!p) {
       showToast?.('Enter procurement unit prices.', { variant: 'error' });
+      return;
+    }
+    const missing = getProcurementPricingGaps(procurementSummary, p, accessoryBalance);
+    if (missing.length) {
+      showToast?.(`Price required: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? '…' : ''}`, {
+        variant: 'error',
+      });
       return;
     }
     setSaving(true);
@@ -54,17 +76,18 @@ export function StockRegisterProcurementModal({
     }
   };
 
-  const status = workflow?.status || 'draft';
-  const disabled = status !== 'bm_approved';
-
   return (
     <ModalFrame isOpen={open} onClose={onClose} showCloseButton={false} surface="plain" title="Procurement costing">
       <div className="z-modal-panel-lg flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
           <div>
             <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Closing valuation</p>
-            <h2 className="text-lg font-bold text-zarewa-teal">Procurement costing</h2>
-            <p className="text-sm text-slate-600 mt-0.5">Period ending {periodEnd}</p>
+            <h2 className="text-lg font-bold text-zarewa-teal">
+              {readOnly ? 'Costing (saved)' : 'Procurement costing'}
+            </h2>
+            <p className="text-sm text-slate-600 mt-0.5">
+              {branchLabel ? `${branchLabel} · ` : ''}Period ending {periodEnd}
+            </p>
           </div>
           <button type="button" onClick={onClose} className="z-btn-secondary p-2" aria-label="Close">
             <X size={18} />
@@ -72,38 +95,62 @@ export function StockRegisterProcurementModal({
         </header>
 
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 py-4 sm:px-5 space-y-3">
-          <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-3 text-xs text-teal-950 leading-relaxed flex gap-2">
-            <ShieldCheck size={16} className="shrink-0 mt-0.5 text-teal-800" />
-            <p>
-              After you save costing, the <strong>Managing Director</strong> must approve before procurement can{' '}
-              <strong>capture closing stock</strong> for next month&apos;s opening balances.
-            </p>
-          </div>
+          {status === 'procurement_costed' ? (
+            <div className="rounded-lg border border-teal-200 bg-teal-50/70 p-3 text-xs text-teal-950 leading-relaxed">
+              <p className="font-bold">Next: awaiting MD approve</p>
+              <p className="mt-0.5">Managing Director must approve this closing value before capture &amp; lock.</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-3 text-xs text-teal-950 leading-relaxed flex gap-2">
+              <ShieldCheck size={16} className="shrink-0 mt-0.5 text-teal-800" />
+              <p>
+                After you save costing, the <strong>Managing Director</strong> must approve before procurement can{' '}
+                <strong>capture closing stock</strong> for next month&apos;s opening balances.
+              </p>
+            </div>
+          )}
 
           <StockRegisterProcurementCosting
             procurementSummary={procurementSummary}
             initialPricing={initialPricing}
+            accessoryBalance={accessoryBalance}
+            readOnly={readOnly}
             onChange={(p) => {
               pricingRef.current = p;
               setPricing(p);
             }}
           />
 
-          {disabled ? (
+          {!canEdit && !viewAfterCosted ? (
             <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
               Branch manager must approve the register before procurement costing.
+            </p>
+          ) : null}
+
+          {canEdit && gaps.length > 0 ? (
+            <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2">
+              Enter ₦ prices for every line with quantity: {gaps.slice(0, 4).join(', ')}
+              {gaps.length > 4 ? ` (+${gaps.length - 4} more)` : ''}.
             </p>
           ) : null}
         </div>
 
         <footer className="shrink-0 flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-3 sm:px-5">
           <button type="button" className="z-btn-secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {readOnly ? 'Close' : 'Cancel'}
           </button>
-          <button type="button" className="z-btn-primary inline-flex items-center gap-2" onClick={submit} disabled={disabled || saving}>
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Save costing
-          </button>
+          {canEdit ? (
+            <button
+              type="button"
+              className="z-btn-primary inline-flex items-center gap-2"
+              onClick={submit}
+              disabled={!canSave || saving}
+              title={!canSave ? 'Enter all required unit prices' : ''}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              Save costing
+            </button>
+          ) : null}
         </footer>
       </div>
     </ModalFrame>

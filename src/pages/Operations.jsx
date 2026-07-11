@@ -662,6 +662,10 @@ const Operations = () => {
   const [stockAdjustCoilPrompt, setStockAdjustCoilPrompt] = useState(false);
   const [stockAdjustCoilAck, setStockAdjustCoilAck] = useState(false);
   const [stockAdjustCoilCount, setStockAdjustCoilCount] = useState(null);
+  const [stockAdjustLargePrompt, setStockAdjustLargePrompt] = useState(false);
+  const [stockAdjustLargeAck, setStockAdjustLargeAck] = useState(false);
+  const [stockAdjustLargeMeta, setStockAdjustLargeMeta] = useState(/** @type {{ qty?: number, valueNgn?: number } | null} */ (null));
+  const [stockAdjustConfirmText, setStockAdjustConfirmText] = useState('');
   const [stockAdjustMaterialFamily, setStockAdjustMaterialFamily] = useState(
     /** @type {null | 'aluminium' | 'aluzinc'} */ (null)
   );
@@ -670,6 +674,10 @@ const Operations = () => {
       setStockAdjustCoilPrompt(false);
       setStockAdjustCoilAck(false);
       setStockAdjustCoilCount(null);
+      setStockAdjustLargePrompt(false);
+      setStockAdjustLargeAck(false);
+      setStockAdjustLargeMeta(null);
+      setStockAdjustConfirmText('');
     }
   }, [showStockAdjust]);
 
@@ -1569,10 +1577,19 @@ const Operations = () => {
       showToast('Book-only coil SKU decreases require branch manager approval.', { variant: 'error' });
       return;
     }
+    if (type === 'Decrease' && q >= 50 && stockAdjustConfirmText.trim().toUpperCase() !== 'CONFIRM') {
+      showToast('Type CONFIRM to post a decrease of 50 or more.', { variant: 'error' });
+      return;
+    }
+    if (stockAdjustLargeAck && !canAcknowledgeCoilSkuDrift) {
+      showToast('Large adjustments require branch manager acknowledgement.', { variant: 'error' });
+      return;
+    }
     setStockAdjustSubmitting(true);
     try {
       const res = await adjustStock(productID, type, q, reasonCode, reasonNote.trim(), date, {
         acknowledgeCoilSkuDrift: type === 'Decrease' && stockAdjustCoilAck,
+        acknowledgeLargeAdjust: stockAdjustLargeAck,
       });
       if (!res.ok) {
         if (res.code === 'COIL_SKU_DRIFT') {
@@ -1580,6 +1597,12 @@ const Operations = () => {
           setStockAdjustCoilCount(
             typeof res.coilLotCount === 'number' ? res.coilLotCount : null
           );
+          showToast(res.error, { variant: 'error' });
+          return;
+        }
+        if (res.code === 'LARGE_ADJUST_CONFIRM') {
+          setStockAdjustLargePrompt(true);
+          setStockAdjustLargeMeta({ qty: res.qty, valueNgn: res.valueNgn });
           showToast(res.error, { variant: 'error' });
           return;
         }
@@ -1596,8 +1619,16 @@ const Operations = () => {
       });
       setStockAdjustCoilAck(false);
       setStockAdjustCoilPrompt(false);
+      setStockAdjustLargeAck(false);
+      setStockAdjustLargePrompt(false);
+      setStockAdjustLargeMeta(null);
+      setStockAdjustConfirmText('');
       setShowStockAdjust(false);
-      showToast('Stock adjustment posted.');
+      if (res.glWarning) {
+        showToast(`Stock adjustment posted. GL note: ${res.glWarning}`, { variant: 'warning' });
+      } else {
+        showToast('Stock adjustment posted (GL variance when cost is known).');
+      }
     } finally {
       setStockAdjustSubmitting(false);
     }
@@ -2529,10 +2560,12 @@ const Operations = () => {
             </div>
             <div className="rounded-xl border border-red-200 bg-red-50/40 p-3">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-red-700 flex items-center gap-1">
-                <AlertTriangle size={12} /> Near-empty coils (&lt;85 kg)
+                <AlertTriangle size={12} /> Thin coils (&lt;85 kg · finish-roll)
               </p>
               <p className="mt-1 text-xl font-black text-red-700 tabular-nums">{inventoryStats.lowStock}</p>
-              <p className="mt-0.5 text-[10px] text-red-800/70">Finish-roll threshold — check Coil profile</p>
+              <p className="mt-0.5 text-[10px] text-red-800/70">
+                Not the same as SKU “below reorder level” on the home dashboard
+              </p>
             </div>
             <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-700 flex items-center gap-1">
@@ -3266,6 +3299,45 @@ const Operations = () => {
                       Book-only decreases require a branch manager. Ask BM to post, or use Coil control.
                     </p>
                   )}
+                </div>
+              ) : null}
+              {stockAdjustLargePrompt ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 space-y-3 text-sm text-rose-950">
+                  <p className="font-medium">
+                    Large adjustment
+                    {stockAdjustLargeMeta?.qty != null ? ` · qty ${stockAdjustLargeMeta.qty}` : ''}
+                    {stockAdjustLargeMeta?.valueNgn != null
+                      ? ` · est. ₦${Number(stockAdjustLargeMeta.valueNgn).toLocaleString()}`
+                      : ''}
+                    . Branch manager must acknowledge before posting.
+                  </p>
+                  {canAcknowledgeCoilSkuDrift ? (
+                    <label className="flex items-start gap-2 cursor-pointer font-medium">
+                      <input
+                        type="checkbox"
+                        className="mt-1 rounded border-rose-300"
+                        checked={stockAdjustLargeAck}
+                        onChange={(e) => setStockAdjustLargeAck(e.target.checked)}
+                      />
+                      <span>I acknowledge this large stock adjustment (posts inventory variance GL when cost is known).</span>
+                    </label>
+                  ) : (
+                    <p className="text-ui-xs font-semibold">Ask a branch manager to acknowledge and post.</p>
+                  )}
+                </div>
+              ) : null}
+              {stockAdjust.type === 'Decrease' && Number(stockAdjust.qty) >= 50 ? (
+                <div className="space-y-1">
+                  <label className="text-ui-xs font-bold uppercase text-slate-500">
+                    Type CONFIRM to post this decrease
+                  </label>
+                  <input
+                    value={stockAdjustConfirmText}
+                    onChange={(e) => setStockAdjustConfirmText(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                    placeholder="CONFIRM"
+                    autoComplete="off"
+                  />
                 </div>
               ) : null}
               <button

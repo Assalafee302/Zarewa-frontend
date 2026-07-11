@@ -16,6 +16,7 @@ import { STATUS_STEPS } from './stockRegister/stockRegisterConstants';
 import {
   fetchStockRegister,
   printStockRegisterSnapshot,
+  reopenStockRegisterClosing,
 } from './stockRegister/stockRegisterApi';
 import { StockRegisterStoreConfirmModal } from './stockRegister/StockRegisterStoreConfirmModal';
 import { StockRegisterBmReviewModal } from './stockRegister/StockRegisterBmReviewModal';
@@ -23,29 +24,57 @@ import { StockRegisterProcurementModal } from './stockRegister/StockRegisterProc
 import { StockRegisterCaptureConfirmModal } from './stockRegister/StockRegisterCaptureConfirmModal';
 import { StockRegisterMdApproveModal } from './stockRegister/StockRegisterMdApproveModal';
 
-function WorkflowStepper({ status }) {
+function WorkflowStepper({ status, roleMode }) {
   const idx = STATUS_STEPS.findIndex((s) => s.key === status);
+  const nextHint = (() => {
+    const st = String(status || 'draft');
+    if (roleMode === 'store') {
+      if (st === 'draft') return 'Next: Print for count';
+      if (st === 'printed') return 'Next: Store confirm → send to manager';
+      if (st === 'store_confirmed') return 'Waiting on branch manager';
+      return '';
+    }
+    if (roleMode === 'manager') {
+      if (st === 'store_confirmed' || st === 'printed') return 'Next: Clear lines → Approve';
+      if (st === 'bm_approved') return 'Waiting on procurement costing';
+      return '';
+    }
+    if (roleMode === 'procurement') {
+      if (st === 'bm_approved') return 'Next: Enter costing';
+      if (st === 'procurement_costed') return 'Waiting on MD approve';
+      if (st === 'md_approved') return 'Next: Capture & lock';
+      return '';
+    }
+    if (st === 'procurement_costed') return 'Next: MD approve closing value';
+    if (st === 'md_approved') return 'Next: Capture & lock (procurement)';
+    return '';
+  })();
+
   return (
-    <ol className="flex flex-wrap gap-1 mt-2">
-      {STATUS_STEPS.map((step, i) => {
-        const done = idx >= i && idx >= 0;
-        const active = step.key === status;
-        return (
-          <li
-            key={step.key}
-            className={`text-ui-xs font-bold px-2 py-0.5 rounded-full border ${
-              active
-                ? 'bg-teal-700 text-white border-teal-700'
-                : done
-                  ? 'bg-teal-50 text-teal-800 border-teal-200'
-                  : 'bg-slate-50 text-slate-400 border-slate-200'
-            }`}
-          >
-            {step.label}
-          </li>
-        );
-      })}
-    </ol>
+    <div className="mt-2 space-y-1.5">
+      <ol className="flex flex-wrap gap-1">
+        {STATUS_STEPS.map((step, i) => {
+          const done = idx >= i && idx >= 0;
+          const active = step.key === status;
+          return (
+            <li
+              key={step.key}
+              className={`text-ui-xs font-bold px-2 py-0.5 rounded-full border ${
+                active
+                  ? 'bg-teal-700 text-white border-teal-700'
+                  : done
+                    ? 'bg-teal-50 text-teal-800 border-teal-200'
+                    : 'bg-slate-50 text-slate-400 border-slate-200'
+              }`}
+            >
+              <span className="opacity-70 mr-1">{i + 1}.</span>
+              {step.label}
+            </li>
+          );
+        })}
+      </ol>
+      {nextHint ? <p className="text-ui-xs font-semibold text-teal-800">{nextHint}</p> : null}
+    </div>
   );
 }
 
@@ -85,6 +114,8 @@ export function StockRegisterPanel({
   const [procurementOpen, setProcurementOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [mdApproveOpen, setMdApproveOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+  const [reopening, setReopening] = useState(false);
 
   const viewMode = viewModeForRole(roleMode);
   const showCosting = roleMode === 'reports' || roleMode === 'procurement';
@@ -124,6 +155,13 @@ export function StockRegisterPanel({
   };
 
   const printForCount = async () => {
+    if (
+      !window.confirm(
+        'Create a versioned count snapshot and open the blind count sheet?\n\nSystem closing quantities will be blank so the yard writes counted figures.'
+      )
+    ) {
+      return;
+    }
     const { ok, data } = await printStockRegisterSnapshot(endDate);
     if (!ok || !data?.ok) {
       showToast?.(data?.error || 'Print snapshot failed.', { variant: 'error' });
@@ -131,9 +169,35 @@ export function StockRegisterPanel({
     }
     setRegister(data.register);
     setWorkflow(data.workflow);
-    showToast?.('Snapshot saved for physical count.');
+    showToast?.('Count snapshot saved — write yard figures in the Counted column.');
     setAutoPrint(true);
     setPreviewOpen(true);
+  };
+
+  const handleReopen = async () => {
+    if (!endDate || !branchId) {
+      showToast?.('Period end date and branch are required to reopen.', { variant: 'error' });
+      return;
+    }
+    const why = String(reopenReason || '').trim();
+    if (why.length < 8) {
+      showToast?.('Enter a reopen reason (at least 8 characters).', { variant: 'error' });
+      return;
+    }
+    setReopening(true);
+    try {
+      const { ok, data } = await reopenStockRegisterClosing(endDate, why);
+      if (!ok || !data?.ok) {
+        showToast?.(data?.error || 'Reopen failed.', { variant: 'error' });
+        return;
+      }
+      setWorkflow(data.workflow);
+      setReopenReason('');
+      showToast?.('Register reopened to MD approved — correct then Capture again.');
+      load();
+    } finally {
+      setReopening(false);
+    }
   };
 
   const rk = String(roleKey || '').toLowerCase();
@@ -158,12 +222,12 @@ export function StockRegisterPanel({
               <p className="text-sm font-medium text-slate-600 mt-1">
                 {branchLabel || branchId} · period ending <strong>{endDate}</strong>
               </p>
-              {register ? <WorkflowStepper status={status} /> : null}
+              {register ? <WorkflowStepper status={status} roleMode={roleMode} /> : null}
             </div>
           </div>
         ) : (
           <div className="mb-3">
-            {register ? <WorkflowStepper status={status} /> : null}
+            {register ? <WorkflowStepper status={status} roleMode={roleMode} /> : null}
           </div>
         )}
 
@@ -176,12 +240,18 @@ export function StockRegisterPanel({
             <>
               <button type="button" className="z-btn-secondary" onClick={openPreview} disabled={!register}>
                 <Eye size={14} />
-                Preview
+                Screen preview
               </button>
               {(roleMode === 'store' || roleMode === 'manager' || roleMode === 'reports') && (
-                <button type="button" className="z-btn-primary" onClick={printForCount} disabled={!register}>
+                <button
+                  type="button"
+                  className={status === 'draft' || status === 'printed' ? 'z-btn-primary' : 'z-btn-secondary'}
+                  onClick={printForCount}
+                  disabled={!register}
+                  title="Creates a versioned snapshot and opens the blind count sheet"
+                >
                   <Printer size={14} />
-                  Print
+                  Print for count
                 </button>
               )}
             </>
@@ -191,8 +261,9 @@ export function StockRegisterPanel({
             <button
               type="button"
               className="z-btn-primary inline-flex items-center gap-2"
-              disabled={!['printed', 'draft'].includes(status)}
+              disabled={status !== 'printed'}
               onClick={() => setStoreConfirmOpen(true)}
+              title={status !== 'printed' ? 'Print the count sheet first' : ''}
             >
               <Send size={14} />
               Store confirm
@@ -213,14 +284,24 @@ export function StockRegisterPanel({
 
           {roleMode === 'procurement' && register ? (
             <>
-              <button
-                type="button"
-                className="z-btn-primary text-sm inline-flex items-center gap-1"
-                disabled={status !== 'bm_approved'}
-                onClick={() => setProcurementOpen(true)}
-              >
-                Enter costing
-              </button>
+              {status === 'bm_approved' ? (
+                <button
+                  type="button"
+                  className="z-btn-primary text-sm inline-flex items-center gap-1"
+                  onClick={() => setProcurementOpen(true)}
+                >
+                  Enter costing
+                </button>
+              ) : null}
+              {['procurement_costed', 'md_approved', 'locked'].includes(status) ? (
+                <button
+                  type="button"
+                  className="z-btn-secondary text-sm inline-flex items-center gap-1"
+                  onClick={() => setProcurementOpen(true)}
+                >
+                  View costing
+                </button>
+              ) : null}
               {status === 'md_approved' ? (
                 <button
                   type="button"
@@ -228,10 +309,21 @@ export function StockRegisterPanel({
                   onClick={() => setCaptureOpen(true)}
                 >
                   <Lock size={14} />
-                  Capture closing
+                  Capture &amp; lock
                 </button>
               ) : null}
             </>
+          ) : null}
+
+          {roleMode === 'reports' && isExecutive && register && status === 'procurement_costed' ? (
+            <button
+              type="button"
+              className="z-btn-primary text-sm inline-flex items-center gap-1"
+              onClick={() => setMdApproveOpen(true)}
+            >
+              <ShieldCheck size={14} />
+              Approve closing stock value
+            </button>
           ) : null}
         </div>
 
@@ -249,14 +341,24 @@ export function StockRegisterPanel({
 
         {roleMode === 'store' && register ? (
           <p className="text-xs text-slate-500 mt-3">
-            Print the register for the floor count first, then open <strong>Store confirm</strong> to send to the branch
-            manager.
+            {status === 'draft'
+              ? 'Print for count first (creates a blind count sheet), then Store confirm to send to the branch manager.'
+              : status === 'printed'
+                ? 'Count sheet printed — complete Store confirm when the yard count is done.'
+                : 'Store confirmation follows Print for count → Send to manager.'}
           </p>
         ) : null}
 
         {roleMode === 'procurement' && register && status === 'procurement_costed' ? (
           <p className="text-xs text-teal-800 bg-teal-50 border border-teal-200 rounded-lg p-2 mt-3">
-            Costing saved — awaiting MD approval before capture.
+            Costing saved — next: MD approves closing value, then you Capture &amp; lock.
+          </p>
+        ) : null}
+
+        {roleMode === 'reports' && isExecutive && status === 'procurement_costed' ? (
+          <p className="text-xs text-teal-900 bg-teal-50 border border-teal-200 rounded-lg p-2 mt-3">
+            Costing is ready — use <strong>Approve closing stock value</strong> above. Capture &amp; lock is done by
+            procurement after your approval.
           </p>
         ) : null}
 
@@ -327,15 +429,41 @@ export function StockRegisterPanel({
             {workflowOpen ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 {isExecutive && status === 'procurement_costed' ? (
-                  <button type="button" className="z-btn-primary text-sm inline-flex items-center gap-1" onClick={() => setMdApproveOpen(true)}>
+                  <button type="button" className="z-btn-secondary text-sm inline-flex items-center gap-1" onClick={() => setMdApproveOpen(true)}>
                     <ShieldCheck size={14} />
-                    MD approve
+                    Approve closing stock value
                   </button>
                 ) : null}
                 {isBm && status === 'md_approved' ? (
-                  <button type="button" className="z-btn-secondary text-sm" onClick={() => setCaptureOpen(true)}>
-                    Capture closing
+                  <button
+                    type="button"
+                    className="z-btn-secondary text-sm"
+                    onClick={() => setCaptureOpen(true)}
+                    title="Audit path — primary Capture is owned by procurement"
+                  >
+                    Capture closing (audit)
                   </button>
+                ) : null}
+                {isExecutive && status === 'locked' ? (
+                  <div className="flex flex-wrap items-end gap-2 w-full">
+                    <div className="min-w-[220px] flex-1">
+                      <label className="text-ui-xs font-bold uppercase text-slate-500">Reopen reason</label>
+                      <input
+                        value={reopenReason}
+                        onChange={(e) => setReopenReason(e.target.value)}
+                        className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                        placeholder="Why reopen this locked register?"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="z-btn-secondary text-sm"
+                      disabled={reopening}
+                      onClick={handleReopen}
+                    >
+                      {reopening ? 'Reopening…' : 'Reopen locked register'}
+                    </button>
+                  </div>
                 ) : null}
               </div>
             ) : null}
@@ -362,6 +490,7 @@ export function StockRegisterPanel({
         onClose={() => setStoreConfirmOpen(false)}
         periodKey={periodKey}
         periodEnd={endDate}
+        branchLabel={branchLabel || branchId}
         workflow={workflow}
         initialCountNotes={workflow?.countNotes}
         initialChecklist={workflow?.storeChecklist}
@@ -390,7 +519,9 @@ export function StockRegisterPanel({
         onClose={() => setProcurementOpen(false)}
         periodKey={periodKey}
         periodEnd={endDate}
+        branchLabel={branchLabel || branchId}
         procurementSummary={procurementSummary}
+        accessoryBalance={(register?.accessories?.rows || []).reduce((s, r) => s + (Number(r.balance) || 0), 0)}
         initialPricing={procurementPricing}
         workflow={workflow}
         showToast={showToast}

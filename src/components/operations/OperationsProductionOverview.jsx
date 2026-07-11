@@ -63,7 +63,7 @@ function CoilFamilyBlock({ label, data }) {
       </div>
       {data.lowCount > 0 ? (
         <p className="text-ui-xs font-semibold text-amber-800 mb-2">
-          {data.lowCount} coil(s) under 100 kg
+          {data.lowCount} thin coil(s) under 85 kg
         </p>
       ) : (
         <p className="text-ui-xs text-slate-500 mb-2">No critically low coils in this family.</p>

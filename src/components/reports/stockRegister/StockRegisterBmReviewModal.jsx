@@ -151,8 +151,9 @@ export function StockRegisterBmReviewModal({
   };
 
   const approve = async () => {
-    if (!progress.complete) {
-      showToast?.('Complete all line reviews before approving.', { variant: 'error' });
+    const check = validateBmApprove(register, lineClearance, workflow?.bmAdjustments);
+    if (!check.ok) {
+      showToast?.(check.error || 'Complete all line reviews before approving.', { variant: 'error' });
       return;
     }
     setApproving(true);
@@ -177,6 +178,13 @@ export function StockRegisterBmReviewModal({
   };
 
   const returnToStore = async () => {
+    if (
+      !window.confirm(
+        'Return this register to the store for re-count? Store will need to confirm again after printing.'
+      )
+    ) {
+      return;
+    }
     const { ok, data } = await postStockRegisterWorkflow({ action: 'bm_return_to_store', periodKey });
     if (!ok || !data?.ok) {
       showToast?.(data?.error || 'Could not return to store.', { variant: 'error' });
@@ -187,9 +195,12 @@ export function StockRegisterBmReviewModal({
     onClose?.();
   };
 
-  const pct = progress.total > 0 ? Math.round(((progress.total - progress.pending - progress.finishedPending) / progress.total) * 100) : 0;
+  const pct = progress.total > 0 ? Math.round(((progress.total - progress.pending - progress.finishedPending - progress.query) / progress.total) * 100) : 0;
   const status = workflow?.status || 'draft';
-  const canEdit = ['store_confirmed', 'printed', 'bm_approved'].includes(status);
+  const canEdit = ['store_confirmed', 'printed'].includes(status);
+  const viewOnly = status === 'bm_approved' || status === 'procurement_costed' || status === 'md_approved' || status === 'locked';
+  const approveOk = validateBmApprove(register, lineClearance, workflow?.bmAdjustments).ok;
+  const tabHasAny = allItems.some((item) => item.kind === tabKind(tab));
 
   return (
     <>
@@ -202,6 +213,11 @@ export function StockRegisterBmReviewModal({
               <p className="text-sm text-slate-600 mt-0.5">
                 {branchLabel} · period ending {periodEnd}
               </p>
+              {viewOnly ? (
+                <p className="mt-1 inline-flex text-ui-xs font-bold uppercase tracking-wide text-teal-800 bg-teal-50 border border-teal-200 rounded-full px-2 py-0.5">
+                  Approved — view only
+                </p>
+              ) : null}
             </div>
             <button type="button" onClick={onClose} className="z-btn-secondary p-2" aria-label="Close">
               <X size={18} />
@@ -209,13 +225,24 @@ export function StockRegisterBmReviewModal({
           </header>
 
           <div className="shrink-0 border-b border-slate-100 px-4 py-3 sm:px-5 bg-slate-50/80 space-y-3">
+            {(workflow?.countNotes || workflow?.countCutoffIso) ? (
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
+                <p className="font-bold text-slate-800 mb-0.5">Store notes &amp; cutoff</p>
+                {workflow?.countCutoffIso ? (
+                  <p>Cutoff: {String(workflow.countCutoffIso).replace('T', ' ').slice(0, 16)}</p>
+                ) : null}
+                {workflow?.countNotes ? <p className="mt-0.5 whitespace-pre-wrap">{workflow.countNotes}</p> : null}
+              </div>
+            ) : null}
             <div>
               <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
                 <span>Review progress</span>
-                <span>{pct}% · {progress.total - progress.pending - progress.finishedPending}/{progress.total} lines</span>
+                <span>
+                  {pct}% · cleared {progress.cleared + progress.adjusted}/{progress.total}
+                </span>
               </div>
               <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-                <div className="h-full bg-teal-700 transition-all" style={{ width: `${pct}%` }} />
+                <div className="h-full bg-teal-700 transition-all" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
               </div>
               <p className="text-ui-xs text-slate-500 mt-1">
                 OK {progress.cleared} · Adjusted {progress.adjusted} · Query {progress.query} · Pending{' '}
@@ -256,7 +283,11 @@ export function StockRegisterBmReviewModal({
 
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 py-3 sm:px-5">
             {filteredItems.length === 0 ? (
-              <p className="text-sm text-slate-500 italic py-6 text-center">No lines in this tab / filter.</p>
+              <p className="text-sm text-slate-500 italic py-6 text-center">
+                {!tabHasAny
+                  ? 'No lines in this tab for this period.'
+                  : 'No lines match this filter — try All or clear the status filter.'}
+              </p>
             ) : (
               <ul className="space-y-1">
                 {filteredItems.map((item) => {
@@ -266,9 +297,9 @@ export function StockRegisterBmReviewModal({
                     <li key={item.key}>
                       <button
                         type="button"
-                        className="w-full flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left hover:border-teal-300 hover:bg-teal-50/30 transition"
+                        className="w-full flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left hover:border-teal-300 hover:bg-teal-50/30 transition disabled:opacity-70"
                         onClick={() => setSelectedLineKey(item.key)}
-                        disabled={!canEdit}
+                        disabled={!canEdit && !viewOnly}
                       >
                         <ClipboardList size={14} className="shrink-0 text-teal-800" />
                         <div className="min-w-0 flex-1">
@@ -285,35 +316,38 @@ export function StockRegisterBmReviewModal({
               </ul>
             )}
 
-            {approveBlockers.length && progress.complete === false ? (
+            {approveBlockers.length ? (
               <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-3">
                 {approveBlockers[0]}
+                {approveBlockers.length > 1 ? ` (+${approveBlockers.length - 1} more)` : ''}
               </p>
             ) : null}
           </div>
 
-          <footer className="shrink-0 flex flex-wrap gap-2 border-t border-slate-100 px-4 py-3 sm:px-5">
-            <button type="button" className="z-btn-secondary text-sm inline-flex items-center gap-1" onClick={() => onPrint?.()} disabled={!register}>
-              <Printer size={14} /> Print
-            </button>
-            <button type="button" className="z-btn-secondary text-sm inline-flex items-center gap-1" onClick={saveAll} disabled={!canEdit || saving}>
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              Save clearance
-            </button>
+          <footer className="shrink-0 flex flex-col gap-2 border-t border-slate-100 px-4 py-3 sm:px-5 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="z-btn-secondary text-sm inline-flex items-center gap-1" onClick={() => onPrint?.()} disabled={!register}>
+                <Printer size={14} /> Print
+              </button>
+              <button type="button" className="z-btn-secondary text-sm inline-flex items-center gap-1" onClick={saveAll} disabled={!canEdit || saving}>
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Save clearance
+              </button>
+              <button
+                type="button"
+                className="z-btn-secondary text-sm inline-flex items-center gap-1 text-rose-800 border-rose-200"
+                onClick={returnToStore}
+                disabled={status !== 'store_confirmed'}
+              >
+                <RotateCcw size={14} /> Return to store
+              </button>
+            </div>
             <button
               type="button"
-              className="z-btn-secondary text-sm inline-flex items-center gap-1"
-              onClick={returnToStore}
-              disabled={status !== 'store_confirmed'}
-            >
-              <RotateCcw size={14} /> Return to store
-            </button>
-            <button
-              type="button"
-              className="z-btn-primary text-sm inline-flex items-center gap-1 ml-auto"
+              className="z-btn-primary text-sm inline-flex items-center justify-center gap-1 w-full sm:w-auto sm:ml-auto"
               onClick={approve}
-              disabled={!canEdit || !progress.complete || approving || status === 'bm_approved'}
-              title={!progress.complete ? 'Complete all lines first' : approveBlockers[0] || ''}
+              disabled={!canEdit || !approveOk || approving}
+              title={!approveOk ? approveBlockers[0] || 'Complete clearance first' : ''}
             >
               {approving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
               Approve &amp; send to procurement

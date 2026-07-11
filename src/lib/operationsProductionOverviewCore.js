@@ -38,7 +38,7 @@ export function buildCoilStockOverview(coilLots, masterData = null) {
     const fam = coilFamily(c.materialTypeName);
     const bucket = families[fam];
     bucket.totalKg += kg;
-    if (kg > 0 && kg < 100) bucket.lowCount += 1;
+    if (kg > 0 && kg < 85) bucket.lowCount += 1;
 
     const gauge = c.gaugeLabel || '—';
     const colour = canonicalColourName(masterData, c.colour || '') || c.colour || '—';
@@ -254,7 +254,7 @@ export function buildCoilPurchaseSuggestions({ coilStock, pendingProductions, co
       colour: c.colour || '—',
       kgOnHand: kg,
       coilCount: 1,
-      note: `Coil ${c.coilNo || c.coilID} under 100 kg`,
+      note: `Coil ${c.coilNo || c.coilID} under 85 kg`,
       priority: 'critical',
     });
     if (suggestions.length >= 10) break;

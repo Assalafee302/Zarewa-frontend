@@ -51,3 +51,11 @@ export async function captureStockRegisterClosing(periodEnd) {
     body: JSON.stringify({ periodEnd }),
   });
 }
+
+export async function reopenStockRegisterClosing(periodEnd, reason) {
+  return apiFetch('/api/stock-register/reopen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ periodEnd, reason }),
+  });
+}

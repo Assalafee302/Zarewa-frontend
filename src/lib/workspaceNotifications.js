@@ -295,7 +295,7 @@ export function buildWorkspaceNotifications({
     items.push({
       id: 'low-stock',
       category: 'operations',
-      title: 'Low stock',
+      title: 'SKU below reorder level',
       detail: preview
         ? `${lowStockSkuCount} SKU(s) below minimum reorder level — e.g. ${preview}.`
         : `${lowStockSkuCount} SKU(s) below minimum reorder level.`,

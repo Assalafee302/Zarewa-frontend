@@ -26,8 +26,19 @@ export function StockRegisterMonthEndModal({
   const [periodEnd, setPeriodEnd] = useState(initialPeriodEnd || defaultMonthEndIso());
 
   useEffect(() => {
-    if (initialPeriodEnd) setPeriodEnd(initialPeriodEnd);
+    if (isOpen) {
+      setPeriodEnd(initialPeriodEnd || defaultMonthEndIso());
+    }
   }, [initialPeriodEnd, isOpen]);
+
+  const onPeriodChange = (next) => {
+    if (String(next) === String(periodEnd)) return;
+    const ok = window.confirm(
+      'Change period end date?\n\nIf a count is already in progress for the current date, you may be looking at a different month’s register.'
+    );
+    if (!ok) return;
+    setPeriodEnd(next);
+  };
 
   const titles = useMemo(
     () => ({
@@ -69,8 +80,9 @@ export function StockRegisterMonthEndModal({
               type="date"
               className="z-input w-full mt-1"
               value={periodEnd}
-              onChange={(e) => setPeriodEnd(e.target.value)}
+              onChange={(e) => onPeriodChange(e.target.value)}
             />
+            <p className="text-ui-xs text-slate-500 mt-1">Changing this loads a different month’s register.</p>
           </label>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 py-4 sm:px-5">

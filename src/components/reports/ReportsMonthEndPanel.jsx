@@ -30,13 +30,13 @@ export function ReportsMonthEndPanel({
     {
       id: 'period',
       done: periodValid,
-      label: 'Period set',
+      label: '1. Period set',
       detail: periodLabel,
     },
     {
       id: 'exceptions',
       done: openExceptionCount === 0,
-      label: openExceptionCount > 0 ? `${openExceptionCount} exception(s) open` : 'Exceptions clear',
+      label: openExceptionCount > 0 ? `2. ${openExceptionCount} exception(s) open` : '2. Exceptions clear',
       detail: openExceptionCount > 0 ? 'Review before close' : 'No open payment exceptions',
       action: openExceptionCount > 0 ? onOpenExceptions : null,
       actionLabel: 'Review',
@@ -44,18 +44,18 @@ export function ReportsMonthEndPanel({
     {
       id: 'stock',
       done: Boolean(stockReady),
-      label: 'Stock register',
-      detail: stockReady ? 'Reviewed for this end date' : 'Confirm or open finance review',
+      label: '3. Stock register locked',
+      detail: stockReady
+        ? 'Stock register captured/locked for this end date (separate from books period lock)'
+        : 'Open register → MD approve → Capture & lock. This is not the same as locking the accounting period.',
       action: onOpenStock,
-      actionLabel: 'Open stock',
+      actionLabel: 'Open stock register',
     },
     {
       id: 'bundle',
       done: bundleDone,
-      label: 'Download month-end workbooks',
-      detail: bundleAgo
-        ? `Downloaded · ${bundleAgo}`
-        : 'One Excel: costs, cash/AR, sales, operations',
+      label: '4. Download close bundle',
+      detail: bundleDone ? `Downloaded ${bundleAgo}` : 'Excel pack for finance working papers',
     },
   ];
 

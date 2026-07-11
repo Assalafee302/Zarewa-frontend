@@ -122,9 +122,9 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     },
     {
       icon: <LayoutGrid size={18} />,
-      label: 'Production',
+      label: 'Store & inventory',
       path: '/operations',
-      to: { pathname: '/operations', state: { focusOpsTab: 'production' } },
+      to: { pathname: '/operations', state: { focusOpsTab: 'inventory' } },
       active: pathMatches(p, '/operations'),
       visible: Boolean(ws?.canAccessModule?.('operations')),
     },
