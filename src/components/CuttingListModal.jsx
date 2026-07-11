@@ -328,28 +328,27 @@ function StoneFlatsheetBlock({
   onAddAfter,
   onRemoveLine,
 }) {
+  const totalSheets = lines.reduce((s, line) => s + parseNum(line.sheets), 0);
   return (
     <div className="rounded-xl border border-amber-200/90 bg-amber-50/50 p-3 space-y-2">
       <h4 className="text-ui-xs font-bold text-zarewa-teal uppercase tracking-widest border-b border-amber-200/80 pb-2">
         {title}
       </h4>
       <p className="text-ui-xs text-amber-950/80 leading-snug">
-        Enter sheet count and choose stock length (1.4 m or 2.0 m). Not coil metres.
+        Separate from roofing metres — enter sheet count and stock length (1.4 m or 2.0 m) only.
       </p>
-      <div className="hidden sm:grid grid-cols-[2rem_minmax(7rem,1fr)_4.5rem_3.5rem_4.5rem] gap-1 px-1 text-ui-xs font-semibold text-slate-400 uppercase tracking-wider items-center">
+      <div className="hidden sm:grid grid-cols-[2rem_minmax(7rem,1fr)_4.5rem_4.5rem] gap-1 px-1 text-ui-xs font-semibold text-slate-400 uppercase tracking-wider items-center">
         <div>#</div>
         <div>Type</div>
         <div>Sheets</div>
-        <div className="text-center">m line</div>
         <div className="text-center"> </div>
       </div>
       {lines.map((line, idx) => {
-        const totalM = parseNum(line.sheets) * parseNum(line.lengthM);
         const lengthVal = String(line.lengthM ?? '').trim() || '2';
         return (
           <div
             key={line.id}
-            className="grid grid-cols-1 sm:grid-cols-[2rem_minmax(7rem,1fr)_4.5rem_3.5rem_4.5rem] gap-1.5 sm:gap-1 items-center bg-white p-2 rounded-lg border border-amber-100"
+            className="grid grid-cols-1 sm:grid-cols-[2rem_minmax(7rem,1fr)_4.5rem_4.5rem] gap-1.5 sm:gap-1 items-center bg-white p-2 rounded-lg border border-amber-100"
           >
             <div className="flex sm:justify-center text-ui-xs font-bold text-slate-300">{idx + 1}</div>
             <div>
@@ -380,9 +379,6 @@ function StoneFlatsheetBlock({
                 className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-zarewa-teal"
               />
             </div>
-            <div className="text-center">
-              <span className="text-xs font-bold text-orange-600 tabular-nums">{totalM.toLocaleString()} m</span>
-            </div>
             <div className="flex justify-end gap-0.5 sm:justify-center">
               {!readOnly ? (
                 <>
@@ -408,6 +404,11 @@ function StoneFlatsheetBlock({
           </div>
         );
       })}
+      {totalSheets > 0 ? (
+        <p className="text-ui-xs font-semibold text-amber-950 text-right pt-1 border-t border-amber-200/80">
+          Stone flatsheet total: {totalSheets.toLocaleString()} sheets
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -707,16 +708,28 @@ const CuttingListModal = ({
   const totalMeters = useMemo(
     () =>
       cuttingListTotalMetresFromLines(
-        flatLinesWithType.map((line) => ({
-          sheets: line.sheets,
-          lengthM: line.lengthM,
-          lineType: line.type,
-        }))
+        flatLinesWithType
+          .filter((line) => line.type !== 'StoneFlatsheet')
+          .map((line) => ({
+            sheets: line.sheets,
+            lengthM: line.lengthM,
+            lineType: line.type,
+          }))
       ),
     [flatLinesWithType]
   );
   const computedSheets = useMemo(
-    () => flatLinesWithType.reduce((sum, line) => sum + line.sheets, 0),
+    () =>
+      flatLinesWithType
+        .filter((line) => line.type !== 'StoneFlatsheet')
+        .reduce((sum, line) => sum + line.sheets, 0),
+    [flatLinesWithType]
+  );
+  const stoneFlatsheetSheetCount = useMemo(
+    () =>
+      flatLinesWithType
+        .filter((line) => line.type === 'StoneFlatsheet')
+        .reduce((sum, line) => sum + line.sheets, 0),
     [flatLinesWithType]
   );
 
@@ -798,8 +811,9 @@ const CuttingListModal = ({
       dateISO: editData?.dateISO ?? dateISO,
       machineName: editData?.machineName ?? machineName,
       operatorName: editData?.operatorName ?? '',
-      totalMeters: Number(editData?.totalMeters) || 0,
-      sheetsToCut: Number(editData?.sheetsToCut) || 0,
+      totalMeters: Number(editData?.totalMeters) || totalMeters,
+      sheetsToCut: Number(editData?.sheetsToCut) || computedSheets,
+      stoneFlatsheetSheets: stoneFlatsheetSheetCount,
       linesByCat: printLinesByCat,
       receiptsForQuotation: quoteReceipts,
       productionFooterName: editData?.handledBy || activeDisplayName || handledByLabel,
@@ -829,6 +843,9 @@ const CuttingListModal = ({
       lastPrintedAtForSheet,
       lastPrintedByForSheet,
       isStoneMeterQuote,
+      totalMeters,
+      computedSheets,
+      stoneFlatsheetSheetCount,
     ]
   );
 
@@ -1905,9 +1922,19 @@ const CuttingListModal = ({
               ) : null}
               {!selectedQuotationAccessoriesOnly ? (
                 <div className="flex justify-between gap-2 text-ui-xs font-semibold">
-                  <span className="text-slate-500 shrink-0">List total m</span>
+                  <span className="text-slate-500 shrink-0">
+                    {isStoneMeterQuote ? 'List roofing/coil m' : 'List total m'}
+                  </span>
                   <span className="text-zarewa-teal text-right tabular-nums">
                     {totalMeters.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
+                  </span>
+                </div>
+              ) : null}
+              {!selectedQuotationAccessoriesOnly && isStoneMeterQuote && stoneFlatsheetSheetCount > 0 ? (
+                <div className="flex justify-between gap-2 text-ui-xs font-semibold">
+                  <span className="text-slate-500 shrink-0">Stone flatsheet sheets</span>
+                  <span className="text-zarewa-teal text-right tabular-nums">
+                    {stoneFlatsheetSheetCount.toLocaleString()}
                   </span>
                 </div>
               ) : null}
@@ -2104,12 +2131,19 @@ const CuttingListModal = ({
         <div className="no-print px-5 py-4 bg-zarewa-teal flex justify-between items-center text-white shrink-0 flex-wrap gap-3">
           <div>
             <p className="text-ui-xs font-semibold text-white/50 uppercase tracking-widest mb-0.5">
-              Total linear metres
+              {isStoneMeterQuote ? 'Roofing / coil metres' : 'Total linear metres'}
             </p>
             <p className="text-2xl font-bold text-white tabular-nums">
               {totalMeters.toLocaleString()} <span className="text-sm text-white/40 font-semibold ml-0.5">m</span>
             </p>
-            <p className="text-ui-xs text-white/40 mt-1">Sheets (qty sum): {computedSheets.toLocaleString()}</p>
+            <p className="text-ui-xs text-white/40 mt-1">
+              {isStoneMeterQuote ? 'Roofing / coil sheets' : 'Sheets (qty sum)'}: {computedSheets.toLocaleString()}
+            </p>
+            {isStoneMeterQuote && stoneFlatsheetSheetCount > 0 ? (
+              <p className="text-ui-xs text-amber-200 mt-1 font-semibold">
+                Stone flatsheet (separate): {stoneFlatsheetSheetCount.toLocaleString()} sheets
+              </p>
+            ) : null}
           </div>
           <button
             type="submit"

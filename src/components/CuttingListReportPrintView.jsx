@@ -208,9 +208,15 @@ function WaybillCutConfirmBlock({ grouped, cutStartIndex, fullRightColumn, categ
     running += (grouped[type] ?? []).length;
   }
   const anyLines = categories.some(({ type }) => (grouped[type] ?? []).length > 0);
-  const grandMeters = categories.reduce(
+  const metreCategories = categories.filter(({ type }) => type !== 'StoneFlatsheet');
+  const sfCategories = categories.filter(({ type }) => type === 'StoneFlatsheet');
+  const grandMeters = metreCategories.reduce(
     (sum, { type }) =>
       sum + (grouped[type] ?? []).reduce((catSum, line) => catSum + line.sheets * line.lengthM, 0),
+    0
+  );
+  const stoneFlatsheetSheets = sfCategories.reduce(
+    (sum, { type }) => sum + (grouped[type] ?? []).reduce((catSum, line) => catSum + line.sheets, 0),
     0
   );
   return (
@@ -226,14 +232,25 @@ function WaybillCutConfirmBlock({ grouped, cutStartIndex, fullRightColumn, categ
           const slice = grouped[type];
           if (!slice?.length) return null;
           const block = (
-            <CuttingCategoryTable title={title} lines={slice} startIndex={startIndexByType[type]} />
+            <CuttingCategoryTable
+              title={title}
+              lines={slice}
+              startIndex={startIndexByType[type]}
+              variant={type === 'StoneFlatsheet' ? 'stone_flatsheet' : 'metres'}
+            />
           );
           return <div key={type}>{block}</div>;
         })}
         {anyLines ? (
-          <p className="cl-factory-cut-empty font-bold text-right">
-            Grand total metres: {grandMeters.toLocaleString('en-NG', { maximumFractionDigits: 2 })} m
-          </p>
+          <div className="cl-factory-cut-empty font-bold text-right space-y-0.5">
+            <p>
+              Roofing / coil metres:{' '}
+              {grandMeters.toLocaleString('en-NG', { maximumFractionDigits: 2 })} m
+            </p>
+            {stoneFlatsheetSheets > 0 ? (
+              <p>Stone flatsheet (separate): {stoneFlatsheetSheets.toLocaleString('en-NG')} sheets</p>
+            ) : null}
+          </div>
         ) : null}
         {!anyLines ? <p className="cl-factory-cut-empty">No cutting lines on this section.</p> : null}
       </div>
@@ -251,6 +268,7 @@ function WaybillPanel({
   waybillAccessories = [],
   sheetsToCut,
   totalMeters,
+  stoneFlatsheetSheets = 0,
   continuation,
   chunkIndex,
   totalChunks,
@@ -262,6 +280,7 @@ function WaybillPanel({
   const project = selectedQuotation?.projectName ?? '—';
   const metersLabel = typeof totalMeters === 'number' ? totalMeters.toLocaleString() : String(totalMeters ?? '—');
   const sheetsLabel = typeof sheetsToCut === 'number' ? sheetsToCut.toLocaleString() : String(sheetsToCut ?? '—');
+  const sfSheets = Number(stoneFlatsheetSheets) || 0;
 
   return (
     <div className="cl-waybill-root">
@@ -317,10 +336,16 @@ function WaybillPanel({
                     </dd>
                   </>
                 ) : null}
-                <dt>Sheet</dt>
+                <dt>Roofing / coil sheets</dt>
                 <dd className="tabular-nums">{sheetsLabel}</dd>
-                <dt>Metres</dt>
+                <dt>Roofing / coil metres</dt>
                 <dd className="tabular-nums">{metersLabel} m</dd>
+                {sfSheets > 0 ? (
+                  <>
+                    <dt>Stone flatsheet</dt>
+                    <dd className="tabular-nums">{sfSheets.toLocaleString()} sheets</dd>
+                  </>
+                ) : null}
               </dl>
             </div>
 
@@ -378,12 +403,13 @@ function WaybillPanel({
   );
 }
 
-function CuttingCategoryTable({ title, lines, startIndex }) {
+function CuttingCategoryTable({ title, lines, startIndex, variant = 'metres' }) {
   if (!lines?.length) return null;
+  const isStoneFlatsheet = variant === 'stone_flatsheet';
   const catM = lines.reduce((s, line) => s + line.sheets * line.lengthM, 0);
   const catSheets = lines.reduce((s, line) => s + line.sheets, 0);
   return (
-    <div className="cl-factory-cut-block">
+    <div className={`cl-factory-cut-block${isStoneFlatsheet ? ' cl-factory-cut-block--stone-flatsheet' : ''}`}>
       <div className="cl-factory-cut-title-bar">
         <span className="cl-factory-cut-title-icon" aria-hidden />
         <p className="cl-factory-cut-title">{title}</p>
@@ -392,9 +418,17 @@ function CuttingCategoryTable({ title, lines, startIndex }) {
         <table className="cl-factory-cut-table w-full table-fixed border-collapse">
         <thead>
           <tr>
-            <th className="cl-factory-cut-th text-right w-[34%]">Length (m)</th>
-            <th className="cl-factory-cut-th text-right w-[30%]">Qty</th>
-            <th className="cl-factory-cut-th text-right w-[18%]">Total m</th>
+            <th className="cl-factory-cut-th text-right w-[34%]">
+              {isStoneFlatsheet ? 'Type (m)' : 'Length (m)'}
+            </th>
+            <th className="cl-factory-cut-th text-right w-[30%]">
+              {isStoneFlatsheet ? 'Sheets' : 'Qty'}
+            </th>
+            {!isStoneFlatsheet ? (
+              <th className="cl-factory-cut-th text-right w-[18%]">Total m</th>
+            ) : (
+              <th className="cl-factory-cut-th text-right w-[18%]"> </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -402,20 +436,34 @@ function CuttingCategoryTable({ title, lines, startIndex }) {
             const lineM = line.sheets * line.lengthM;
             return (
               <tr key={line.id ?? `r-${title}-${line.lengthM}-${startIndex + i}`}>
-                <td className="cl-factory-cut-td text-right tabular-nums">{line.lengthM}</td>
+                <td className="cl-factory-cut-td text-right tabular-nums">
+                  {isStoneFlatsheet ? `${line.lengthM} m stock` : line.lengthM}
+                </td>
                 <td className="cl-factory-cut-td text-right tabular-nums">{line.sheets}</td>
-                <td className="cl-factory-cut-td text-right tabular-nums">{lineM.toLocaleString('en-NG', { maximumFractionDigits: 2 })}</td>
+                {!isStoneFlatsheet ? (
+                  <td className="cl-factory-cut-td text-right tabular-nums">
+                    {lineM.toLocaleString('en-NG', { maximumFractionDigits: 2 })}
+                  </td>
+                ) : (
+                  <td className="cl-factory-cut-td text-right tabular-nums text-slate-400">—</td>
+                )}
               </tr>
             );
           })}
           <tr className="cl-factory-cut-total-row">
-            <td className="cl-factory-cut-td text-right font-bold">Total</td>
+            <td className="cl-factory-cut-td text-right font-bold">
+              {isStoneFlatsheet ? 'Sheet total' : 'Total'}
+            </td>
             <td className="cl-factory-cut-td text-right font-bold tabular-nums">
               {catSheets.toLocaleString('en-NG')}
             </td>
-            <td className="cl-factory-cut-td text-right font-bold tabular-nums">
-              {catM.toLocaleString('en-NG', { maximumFractionDigits: 2 })}
-            </td>
+            {!isStoneFlatsheet ? (
+              <td className="cl-factory-cut-td text-right font-bold tabular-nums">
+                {catM.toLocaleString('en-NG', { maximumFractionDigits: 2 })}
+              </td>
+            ) : (
+              <td className="cl-factory-cut-td text-right font-bold tabular-nums">sheets</td>
+            )}
           </tr>
         </tbody>
       </table>
@@ -570,6 +618,7 @@ export default function CuttingListReportPrintView({
   claddingSectionTitle = '',
   /** Stone-coated lists: Roof + coil Flatsheet + StoneFlatsheet (no cladding). */
   isStoneMeterQuote = false,
+  stoneFlatsheetSheets = 0,
   printCount = 0,
   lastPrintedAtISO = '',
   lastPrintedBy = '',
@@ -616,8 +665,16 @@ export default function CuttingListReportPrintView({
     }
   }
 
-  const printSheetsWaybill = flatLinesWaybill.reduce((s, l) => s + l.sheets, 0);
-  const printMetresWaybill = flatLinesWaybill.reduce((s, l) => s + l.sheets * l.lengthM, 0);
+  const metreLines = (lines) => lines.filter((l) => l.type !== 'StoneFlatsheet');
+  const printSheetsWaybill = metreLines(flatLinesWaybill).reduce((s, l) => s + l.sheets, 0);
+  const printMetresWaybill = metreLines(flatLinesWaybill).reduce((s, l) => s + l.sheets * l.lengthM, 0);
+  const printStoneFlatsheetSheets =
+    Number(stoneFlatsheetSheets) > 0
+      ? Number(stoneFlatsheetSheets)
+      : flatLines
+          .filter((l) => l.type === 'StoneFlatsheet')
+          .reduce((s, l) => s + l.sheets, 0);
+  const printMetreGrand = metreLines(chunk).reduce((sum, line) => sum + line.sheets * line.lengthM, 0);
 
   const ql = selectedQuotation?.quotationLines;
   const products = ql?.products ?? [];
@@ -660,6 +717,7 @@ export default function CuttingListReportPrintView({
     waybillAccessories,
     sheetsToCut: printSheetsWaybill,
     totalMeters: printMetresWaybill,
+    stoneFlatsheetSheets: printStoneFlatsheetSheets,
     totalChunks: 1,
   };
 
@@ -768,6 +826,7 @@ export default function CuttingListReportPrintView({
                       title={title}
                       lines={slice}
                       startIndex={cutStartIndexByType[type]}
+                      variant={type === 'StoneFlatsheet' ? 'stone_flatsheet' : 'metres'}
                     />
                   );
                   return <div key={type}>{block}</div>;
@@ -775,13 +834,17 @@ export default function CuttingListReportPrintView({
                 {chunk.length === 0 ? (
                   <p className="cl-factory-cut-empty">No cutting lines with qty and length (roof, flat, or cladding).</p>
                 ) : (
-                  <p className="cl-factory-cut-empty font-bold text-right">
-                    Grand total metres:{' '}
-                    {chunk
-                      .reduce((sum, line) => sum + line.sheets * line.lengthM, 0)
-                      .toLocaleString('en-NG', { maximumFractionDigits: 2 })}{' '}
-                    m
-                  </p>
+                  <div className="cl-factory-cut-empty font-bold text-right space-y-0.5">
+                    <p>
+                      Roofing / coil metres:{' '}
+                      {printMetreGrand.toLocaleString('en-NG', { maximumFractionDigits: 2 })} m
+                    </p>
+                    {printStoneFlatsheetSheets > 0 ? (
+                      <p>
+                        Stone flatsheet (separate): {printStoneFlatsheetSheets.toLocaleString('en-NG')} sheets
+                      </p>
+                    ) : null}
+                  </div>
                 )}
               </div>
             </div>
