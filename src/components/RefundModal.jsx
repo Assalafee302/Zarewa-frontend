@@ -1273,6 +1273,12 @@ const RefundModal = ({
     setForm((f) => (String(f.amountNgn) === String(sum) ? f : { ...f, amountNgn: String(sum) }));
   }, [form.calculationLines, mode, readOnly]);
 
+  /** Stale floor/CL errors must not stick after the user switches to overpayment-only lines. */
+  useEffect(() => {
+    if (mode !== 'create') return;
+    setPreviewError('');
+  }, [form.calculationLines, mode]);
+
   const refundHasCompletedProduction = useMemo(() => {
     const ref = String(form.quotationRef || '').trim();
     if (!ref) return false;
@@ -1656,6 +1662,10 @@ const RefundModal = ({
       productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
     });
     setSaving(false);
+    if (result?.ok === false) {
+      if (result?.error) setPreviewError(String(result.error));
+      return;
+    }
     if (result?.ok !== false) {
       touchRefundPayeeAccount({
         payeeName,
@@ -3247,7 +3257,8 @@ const RefundModal = ({
                             </p>
                             {lastPreviewSnapshot.economicFloor.incompleteFloorPricing ? (
                               <p className="text-ui-xs text-amber-400/90 mt-1">
-                                Floor ₦/m could not be resolved for all jobs — create is blocked until workbook pricing is fixed (MD/admin may override on server).
+                                Floor ₦/m could not be resolved for all jobs — production-related refunds need workbook
+                                pricing or an MD/admin override. Overpayment-only refunds are not blocked.
                               </p>
                             ) : null}
                             {lastPreviewSnapshot.economicFloor.usedPriceListFallback ? (

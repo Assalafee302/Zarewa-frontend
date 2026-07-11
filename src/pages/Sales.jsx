@@ -1058,8 +1058,9 @@ const Sales = () => {
         body: JSON.stringify(body),
       });
       if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not save refund request.', { variant: 'error' });
-        return { ok: false };
+        const err = data?.error || 'Could not save refund request.';
+        showToast(err, { variant: 'error' });
+        return { ok: false, error: err };
       }
       await ws.refresh();
       invalidateEligibleRefundQuotationsCache();
