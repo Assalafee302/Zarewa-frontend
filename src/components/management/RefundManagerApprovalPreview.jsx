@@ -655,12 +655,10 @@ export function RefundManagerApprovalPreview({
   const currentHasUnproduced = [...currentNorm].some((c) => c.includes('unproduced'));
   const priorHasOverpay = [...priorNorm].some((c) => c.includes('overpay'));
   const priorHasCancel = [...priorNorm].some((c) => c.includes('order cancellation'));
-  const priorHasUnproduced = [...priorNorm].some((c) => c.includes('unproduced'));
 
   const sameRequestOverpayAndCancel = currentHasOverpay && currentHasCancel;
   const crossRefundOverlap =
-    (priorHasOverpay && (currentHasCancel || currentHasUnproduced)) ||
-    ((priorHasCancel || priorHasUnproduced) && currentHasOverpay);
+    (priorHasOverpay && currentHasCancel) || (priorHasCancel && currentHasOverpay);
   const multiCategoryOverlap = sameRequestOverpayAndCancel || crossRefundOverlap;
 
   const partialProductionJobs = useMemo(
@@ -709,10 +707,10 @@ export function RefundManagerApprovalPreview({
         tone: sameRequestOverpayAndCancel ? 'rose' : 'amber',
         title: 'Multi-category overlap on quotation',
         body: sameRequestOverpayAndCancel
-          ? 'This request combines Overpayment with Order cancellation ? these double-count cash received. Reject or send back until one category is removed.'
+          ? 'This request combines Overpayment with Order cancellation — these double-count cash received. Reject or send back until one category is removed.'
           : priorRefundCategories.length
-            ? `Prior refund(s): ${priorRefundCategories.join(', ')}. Current: ${currentCategories.join(', ') || '?'}. Verify Overpayment is not double-counted with cancellation/unproduced meterage on this quote.`
-            : 'This quote has Overpayment combined with Order cancellation and/or Unproduced meterage across refund requests. Verify categories are not double-counting the same economic loss.',
+            ? `Prior refund(s): ${priorRefundCategories.join(', ')}. Current: ${currentCategories.join(', ') || '—'}. Overpayment must not be double-counted with Order cancellation on this quote.`
+            : 'This quote has Overpayment combined with Order cancellation across refund requests. Verify categories are not double-counting the same cash.',
       });
     }
     if (partialProductionJobs.length > 0 || cancellationWithProduction) {

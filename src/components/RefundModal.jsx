@@ -1446,15 +1446,12 @@ const RefundModal = ({
 
     const currentHasOverpay = [...currentNorm].some((c) => c.includes('overpay'));
     const currentHasCancel = [...currentNorm].some((c) => c.includes('order cancellation'));
-    const currentHasUnproduced = [...currentNorm].some((c) => c.includes('unproduced'));
     const priorHasOverpay = [...priorNorm].some((c) => c.includes('overpay'));
     const priorHasCancel = [...priorNorm].some((c) => c.includes('order cancellation'));
-    const priorHasUnproduced = [...priorNorm].some((c) => c.includes('unproduced'));
 
     const sameRequestOverpayAndCancel = currentHasOverpay && currentHasCancel;
     const crossRefundOverlap =
-      (priorHasOverpay && (currentHasCancel || currentHasUnproduced)) ||
-      ((priorHasCancel || priorHasUnproduced) && currentHasOverpay);
+      (priorHasOverpay && currentHasCancel) || (priorHasCancel && currentHasOverpay);
 
     if (!sameRequestOverpayAndCancel && !crossRefundOverlap) return null;
 
@@ -3586,7 +3583,7 @@ const RefundModal = ({
                     ? `Prior refund(s) on this quote: ${multiCategoryOverlapContext.priorLabels.join(', ')}. `
                     : ''}
                 {!multiCategoryOverlapContext.sameRequestOverpayAndCancel
-                  ? `This request: ${multiCategoryOverlapContext.currentLabels.join(', ') || '—'}. Overpayment must not be double-counted with Order cancellation or Unproduced meterage on the same quotation — acknowledge the production alignment warning below if amounts are verified.`
+                  ? `This request: ${multiCategoryOverlapContext.currentLabels.join(', ') || '—'}. Overpayment must not be double-counted with Order cancellation on the same quotation — resolve or reject the prior refund first.`
                   : null}
               </p>
             </div>
