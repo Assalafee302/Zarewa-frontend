@@ -14,6 +14,17 @@ const LINE_CATEGORIES = [
   { type: 'Cladding', title: 'Cladding' },
 ];
 
+const STONE_PRINT_CUT_LINE_CATEGORIES = [
+  { type: 'Roof', title: 'Stone roofing' },
+  { type: 'Flatsheet', title: 'Coil flatsheet / gutter' },
+  { type: 'StoneFlatsheet', title: 'Stone flatsheet' },
+];
+
+const STONE_WAYBILL_CUT_LINE_CATEGORIES = [
+  { type: 'Roof', title: 'Stone roofing' },
+  { type: 'StoneFlatsheet', title: 'Stone flatsheet' },
+];
+
 /** Full cutting list (factory pane): roof, flat sheet, cladding. */
 const PRINT_CUT_LINE_CATEGORIES = LINE_CATEGORIES;
 
@@ -69,7 +80,7 @@ function flattenCuttingLinesByCategories(linesByCat, categories) {
 }
 
 function groupByType(lines) {
-  const m = { Roof: [], Flatsheet: [], Cladding: [] };
+  const m = { Roof: [], Flatsheet: [], Cladding: [], StoneFlatsheet: [] };
   for (const line of lines) {
     if (m[line.type]) m[line.type].push(line);
   }
@@ -557,6 +568,8 @@ export default function CuttingListReportPrintView({
   omitCladdingSection = false,
   /** When set (e.g. "Stone flatsheet"), replaces the Cladding table title on print / waybill. */
   claddingSectionTitle = '',
+  /** Stone-coated lists: Roof + coil Flatsheet + StoneFlatsheet (no cladding). */
+  isStoneMeterQuote = false,
   printCount = 0,
   lastPrintedAtISO = '',
   lastPrintedBy = '',
@@ -564,22 +577,24 @@ export default function CuttingListReportPrintView({
   const b = ZAREWA_QUOTATION_BRANDING;
 
   const printCutCategories = useMemo(() => {
+    if (isStoneMeterQuote) return STONE_PRINT_CUT_LINE_CATEGORIES;
     const base = omitCladdingSection
       ? PRINT_CUT_LINE_CATEGORIES.filter((c) => c.type !== 'Cladding')
       : PRINT_CUT_LINE_CATEGORIES;
     const t = String(claddingSectionTitle || '').trim();
     if (!t) return base;
     return base.map((c) => (c.type === 'Cladding' ? { ...c, title: t } : c));
-  }, [claddingSectionTitle, omitCladdingSection]);
+  }, [claddingSectionTitle, omitCladdingSection, isStoneMeterQuote]);
 
   const waybillCutCategories = useMemo(() => {
+    if (isStoneMeterQuote) return STONE_WAYBILL_CUT_LINE_CATEGORIES;
     const base = omitCladdingSection
       ? WAYBILL_CUT_LINE_CATEGORIES.filter((c) => c.type !== 'Cladding')
       : WAYBILL_CUT_LINE_CATEGORIES;
     const t = String(claddingSectionTitle || '').trim();
     if (!t) return base;
     return base.map((c) => (c.type === 'Cladding' ? { ...c, title: t } : c));
-  }, [claddingSectionTitle, omitCladdingSection]);
+  }, [claddingSectionTitle, omitCladdingSection, isStoneMeterQuote]);
 
   const flatLines = mergeCuttingLinesByLengthDesc(
     flattenCuttingLinesByCategories(linesByCat, printCutCategories),

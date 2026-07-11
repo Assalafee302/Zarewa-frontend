@@ -22,7 +22,14 @@ import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { apiFetch } from '../lib/apiBase';
 import { formatNgn } from '../Data/mockData';
 import { receiptCashReceivedNgn, normalizeReceiptMatchDashes } from '../lib/salesReceiptsList';
-import { STONE_METER_INVENTORY_MODEL } from '../lib/stoneCoatedQuotationPolicy';
+import {
+  STONE_METER_INVENTORY_MODEL,
+  STONE_FLATSHEET_LENGTHS_M,
+  isStoneFlatsheetQuotationLine,
+  resolveStoneFlatsheetLengthM,
+  quotationRequiresStoneCoilCuttingListAlignment,
+  quotationRequiresStoneFlatsheetConsumption,
+} from '../lib/stoneCoatedQuotationPolicy';
 import { normalizeJobStatus } from '../lib/productionJobPick';
 import { quotationHasRecordedPayment } from '../lib/productionGateAccess';
 import {
@@ -34,6 +41,7 @@ import {
 } from '../lib/cuttingListPaymentGate';
 import { validateCuttingListQuotedRoofingAlignment, cuttingListTotalMetresFromLines } from '../lib/refundCuttingListQuotationReconciliation';
 import { assessCuttingListQuotationConsumption } from '../lib/cuttingListBlankConsumption';
+import { quotedRoofingSheetMetresFromLines } from '../lib/refundQuotationMetres';
 
 /** Compare quote / receipt links when pasted refs use en-dash etc. */
 function normQuoteKey(s) {
@@ -47,13 +55,28 @@ import {
   readCuttingListFormDraft,
   writeCuttingListFormDraft,
 } from '../lib/cuttingListFormDraftStorage';
-const LINE_TYPE_SET = new Set(['Roof', 'Flatsheet', 'Cladding']);
+const LINE_TYPE_SET = new Set(['Roof', 'Flatsheet', 'Cladding', 'StoneFlatsheet']);
 
 const CATEGORIES = [
   { type: 'Roof', title: 'Roofing sheet' },
   { type: 'Flatsheet', title: 'Flatsheet' },
   { type: 'Cladding', title: 'Cladding' },
 ];
+
+const STONE_CATEGORIES = [
+  { type: 'Roof', title: 'Stone roofing' },
+  { type: 'Flatsheet', title: 'Coil flatsheet / gutter' },
+  { type: 'StoneFlatsheet', title: 'Stone flatsheet' },
+];
+
+function quotationIsStoneMeterJob(q, materialTypes) {
+  if (!q) return false;
+  if (q.stoneMeterQuote === true) return true;
+  const mid = String(q.materialTypeId ?? q.material_type_id ?? '').trim();
+  if (mid === 'MAT-005') return true;
+  const row = (materialTypes || []).find((t) => String(t?.id ?? '').trim() === mid);
+  return String(row?.inventoryModel || row?.inventory_model || '').trim() === STONE_METER_INVENTORY_MODEL;
+}
 
 function newLineId() {
   return `cl-line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -63,11 +86,16 @@ function blankRow() {
   return { id: newLineId(), sheets: '', lengthM: '' };
 }
 
+function blankStoneFlatsheetRow() {
+  return { id: newLineId(), sheets: '', lengthM: '2' };
+}
+
 function emptyLinesByCat() {
   return {
     Roof: [blankRow()],
     Flatsheet: [blankRow()],
     Cladding: [blankRow()],
+    StoneFlatsheet: [blankStoneFlatsheetRow()],
   };
 }
 
@@ -80,22 +108,51 @@ function cuttingListHydrateSignature(editData) {
 }
 
 function linesByCatFromEditData(editData) {
-  const buckets = { Roof: [], Flatsheet: [], Cladding: [] };
+  const buckets = { Roof: [], Flatsheet: [], Cladding: [], StoneFlatsheet: [] };
   if (Array.isArray(editData?.lines)) {
     for (const line of editData.lines) {
       const t = LINE_TYPE_SET.has(line.lineType) ? line.lineType : 'Roof';
       buckets[t].push({
         id: `cl-line-${line.lineNo ?? newLineId()}`,
         sheets: Number(line.sheets) > 0 ? String(line.sheets) : '',
-        lengthM: Number(line.lengthM) > 0 ? String(line.lengthM) : '',
+        lengthM: Number(line.lengthM) > 0 ? String(line.lengthM) : t === 'StoneFlatsheet' ? '2' : '',
       });
     }
   }
+  const allTypes = ['Roof', 'Flatsheet', 'Cladding', 'StoneFlatsheet'];
   const next = {};
-  for (const { type } of CATEGORIES) {
-    next[type] = buckets[type].length ? buckets[type] : [blankRow()];
+  for (const type of allTypes) {
+    next[type] = buckets[type].length
+      ? buckets[type]
+      : type === 'StoneFlatsheet'
+        ? [blankStoneFlatsheetRow()]
+        : [blankRow()];
   }
   return next;
+}
+
+function stoneFlatsheetRowsFromQuotation(q) {
+  const products = q?.quotationLines?.products;
+  if (!Array.isArray(products)) return [];
+  const byLen = new Map();
+  for (const row of products) {
+    if (!isStoneFlatsheetQuotationLine(row?.name)) continue;
+    const qty = Number(String(row?.qty ?? '').replace(/,/g, '')) || 0;
+    if (qty <= 0) continue;
+    const len = resolveStoneFlatsheetLengthM(row);
+    if (len == null) continue;
+    byLen.set(len, (byLen.get(len) || 0) + qty);
+  }
+  return [...byLen.entries()].map(([lengthM, sheets]) => ({
+    id: newLineId(),
+    sheets: String(sheets),
+    lengthM: String(lengthM),
+  }));
+}
+
+function stoneFlatsheetBucketIsBlank(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return true;
+  return rows.every((line) => !(parseNum(line.sheets) > 0));
 }
 
 function parseNum(value) {
@@ -227,6 +284,98 @@ function CategoryBlock({
                 min="1"
                 placeholder="Qty"
                 value={line.sheets}
+                onChange={(e) => onUpdateLine(line.id, { sheets: e.target.value })}
+                className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-zarewa-teal"
+              />
+            </div>
+            <div className="text-center">
+              <span className="text-xs font-bold text-orange-600 tabular-nums">{totalM.toLocaleString()} m</span>
+            </div>
+            <div className="flex justify-end gap-0.5 sm:justify-center">
+              {!readOnly ? (
+                <>
+                  <button
+                    type="button"
+                    title="Add row after"
+                    onClick={() => onAddAfter(line.id)}
+                    className="p-1.5 rounded-lg text-orange-600 hover:bg-orange-50"
+                  >
+                    <Plus size={16} strokeWidth={2.5} />
+                  </button>
+                  <button
+                    type="button"
+                    title="Remove row"
+                    onClick={() => onRemoveLine(line.id)}
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StoneFlatsheetBlock({
+  title,
+  lines,
+  readOnly,
+  onUpdateLine,
+  onAddAfter,
+  onRemoveLine,
+}) {
+  return (
+    <div className="rounded-xl border border-amber-200/90 bg-amber-50/50 p-3 space-y-2">
+      <h4 className="text-ui-xs font-bold text-zarewa-teal uppercase tracking-widest border-b border-amber-200/80 pb-2">
+        {title}
+      </h4>
+      <p className="text-ui-xs text-amber-950/80 leading-snug">
+        Enter sheet count and choose stock length (1.4 m or 2.0 m). Not coil metres.
+      </p>
+      <div className="hidden sm:grid grid-cols-[2rem_minmax(7rem,1fr)_4.5rem_3.5rem_4.5rem] gap-1 px-1 text-ui-xs font-semibold text-slate-400 uppercase tracking-wider items-center">
+        <div>#</div>
+        <div>Type</div>
+        <div>Sheets</div>
+        <div className="text-center">m line</div>
+        <div className="text-center"> </div>
+      </div>
+      {lines.map((line, idx) => {
+        const totalM = parseNum(line.sheets) * parseNum(line.lengthM);
+        const lengthVal = String(line.lengthM ?? '').trim() || '2';
+        return (
+          <div
+            key={line.id}
+            className="grid grid-cols-1 sm:grid-cols-[2rem_minmax(7rem,1fr)_4.5rem_3.5rem_4.5rem] gap-1.5 sm:gap-1 items-center bg-white p-2 rounded-lg border border-amber-100"
+          >
+            <div className="flex sm:justify-center text-ui-xs font-bold text-slate-300">{idx + 1}</div>
+            <div>
+              <label className="sm:hidden text-ui-xs font-semibold text-slate-400 uppercase">Type</label>
+              <select
+                value={lengthVal === '1.4' || lengthVal === '2' ? lengthVal : '2'}
+                disabled={readOnly}
+                onChange={(e) => onUpdateLine(line.id, { lengthM: e.target.value })}
+                className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-zarewa-teal bg-white"
+              >
+                {STONE_FLATSHEET_LENGTHS_M.map((len) => (
+                  <option key={len} value={String(len)}>
+                    Stone flatsheet {len} m
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="sm:hidden text-ui-xs font-semibold text-slate-400 uppercase">Sheets</label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="Sheets"
+                value={line.sheets}
+                disabled={readOnly}
                 onChange={(e) => onUpdateLine(line.id, { sheets: e.target.value })}
                 className="w-full border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-zarewa-teal"
               />
@@ -441,6 +590,33 @@ const CuttingListModal = ({
     () => quotationIsAccessoriesOnly(selectedQuotation),
     [selectedQuotation]
   );
+  const isStoneMeterQuote = useMemo(
+    () => quotationIsStoneMeterJob(selectedQuotation, ws?.snapshot?.masterData?.materialTypes),
+    [selectedQuotation, ws?.snapshot?.masterData?.materialTypes]
+  );
+  const quotedStoneRoofingM = useMemo(() => {
+    if (!selectedQuotation || !isStoneMeterQuote) return 0;
+    return quotedRoofingSheetMetresFromLines(selectedQuotation.quotationLines ?? '');
+  }, [selectedQuotation, isStoneMeterQuote]);
+  const stoneNeedsCoilCl = useMemo(() => {
+    if (!selectedQuotation || !isStoneMeterQuote) return false;
+    return quotationRequiresStoneCoilCuttingListAlignment(selectedQuotation.quotationLines ?? '');
+  }, [selectedQuotation, isStoneMeterQuote]);
+  const stoneNeedsSfCl = useMemo(() => {
+    if (!selectedQuotation || !isStoneMeterQuote) return false;
+    return quotationRequiresStoneFlatsheetConsumption(selectedQuotation.quotationLines ?? '');
+  }, [selectedQuotation, isStoneMeterQuote]);
+
+  /** Prefill sold stone flatsheet sheet counts from the quotation when the SF section is still empty. */
+  useEffect(() => {
+    if (!isOpen || readOnly || !isStoneMeterQuote || !selectedQuotation) return;
+    const seeded = stoneFlatsheetRowsFromQuotation(selectedQuotation);
+    if (!seeded.length) return;
+    setLinesByCat((prev) => {
+      if (!stoneFlatsheetBucketIsBlank(prev.StoneFlatsheet)) return prev;
+      return { ...prev, StoneFlatsheet: seeded };
+    });
+  }, [isOpen, readOnly, isStoneMeterQuote, selectedQuotation, quotationRef]);
 
   const materialSpec = useMemo(() => materialSpecFromQuotation(selectedQuotation), [selectedQuotation]);
   const machineName = useMemo(() => {
@@ -464,7 +640,10 @@ const CuttingListModal = ({
     return String(row?.name ?? '').trim();
   }, [selectedQuotation, ws?.snapshot?.masterData?.materialTypes]);
 
-  const cuttingCategoriesUi = useMemo(() => CATEGORIES, []);
+  const cuttingCategoriesUi = useMemo(
+    () => (isStoneMeterQuote ? STONE_CATEGORIES : CATEGORIES),
+    [isStoneMeterQuote]
+  );
 
   const savedCuttingListId = String(editData?.id ?? '').trim();
   const isDraftRecord = cuttingListIsDraft(editData);
@@ -565,16 +744,18 @@ const CuttingListModal = ({
     return assessCuttingListQuotationConsumption({
       quotationLinesJson: selectedQuotation.quotationLines ?? '',
       cuttingListLines: cuttingListLinesForValidation,
+      stoneMeterQuote: isStoneMeterQuote,
     });
-  }, [selectedQuotation, selectedQuotationAccessoriesOnly, cuttingListLinesForValidation]);
+  }, [selectedQuotation, selectedQuotationAccessoriesOnly, cuttingListLinesForValidation, isStoneMeterQuote]);
 
   const quotationMetreAlignment = useMemo(() => {
     if (!selectedQuotation || selectedQuotationAccessoriesOnly) return { ok: true };
     return validateCuttingListQuotedRoofingAlignment({
       quotationLinesJson: selectedQuotation.quotationLines ?? '',
       cuttingListLines: cuttingListLinesForValidation,
+      stoneMeterQuote: isStoneMeterQuote,
     });
-  }, [selectedQuotation, selectedQuotationAccessoriesOnly, cuttingListLinesForValidation]);
+  }, [selectedQuotation, selectedQuotationAccessoriesOnly, cuttingListLinesForValidation, isStoneMeterQuote]);
 
   const hasUnsavedCuttingListChanges = useMemo(() => {
     if (!editData?.id || readOnly || isDraftRecord) return false;
@@ -624,7 +805,8 @@ const CuttingListModal = ({
       productionFooterName: editData?.handledBy || activeDisplayName || handledByLabel,
       treasuryMovements: Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
       claddingSectionTitle: '',
-      omitCladdingSection: false,
+      omitCladdingSection: isStoneMeterQuote,
+      isStoneMeterQuote,
       printCount: printCountForSheet,
       lastPrintedAtISO: lastPrintedAtForSheet,
       lastPrintedBy: lastPrintedByForSheet,
@@ -646,6 +828,7 @@ const CuttingListModal = ({
       printCountForSheet,
       lastPrintedAtForSheet,
       lastPrintedByForSheet,
+      isStoneMeterQuote,
     ]
   );
 
@@ -812,9 +995,9 @@ const CuttingListModal = ({
 
   const addLineAfter = useCallback((cat, afterId) => {
     setLinesByCat((prev) => {
-      const arr = prev[cat];
+      const arr = prev[cat] || [];
       const i = arr.findIndex((l) => l.id === afterId);
-      const nl = blankRow();
+      const nl = cat === 'StoneFlatsheet' ? blankStoneFlatsheetRow() : blankRow();
       const nextArr = i < 0 ? [...arr, nl] : [...arr.slice(0, i + 1), nl, ...arr.slice(i + 1)];
       return { ...prev, [cat]: nextArr };
     });
@@ -822,8 +1005,13 @@ const CuttingListModal = ({
 
   const removeLine = useCallback((cat, id) => {
     setLinesByCat((prev) => {
-      const arr = prev[cat];
-      if (arr.length <= 1) return { ...prev, [cat]: [blankRow()] };
+      const arr = prev[cat] || [];
+      if (arr.length <= 1) {
+        return {
+          ...prev,
+          [cat]: [cat === 'StoneFlatsheet' ? blankStoneFlatsheetRow() : blankRow()],
+        };
+      }
       return { ...prev, [cat]: arr.filter((line) => line.id !== id) };
     });
   }, []);
@@ -1602,17 +1790,48 @@ const CuttingListModal = ({
                   </p>
                 </div>
               ) : (
-                cuttingCategoriesUi.map(({ type, title }) => (
-                  <CategoryBlock
-                    key={type}
-                    title={title}
-                    lines={linesByCat[type]}
-                    readOnly={readOnly}
-                    onUpdateLine={(id, patch) => updateLine(type, id, patch)}
-                    onAddAfter={(id) => addLineAfter(type, id)}
-                    onRemoveLine={(id) => removeLine(type, id)}
-                  />
-                ))
+                <>
+                  {isStoneMeterQuote ? (
+                    <div className="rounded-xl border border-sky-200 bg-sky-50/90 p-3 text-xs text-sky-950 leading-snug">
+                      <p className="font-bold uppercase tracking-wider text-ui-xs text-sky-900">Stone-coated cutting list</p>
+                      <ul className="mt-1.5 list-disc pl-4 space-y-0.5">
+                        <li>
+                          <span className="font-semibold">Stone roofing</span> — finished lengths × qty (stone metre stock).
+                        </li>
+                        <li>
+                          <span className="font-semibold">Coil flatsheet / gutter</span> — aluzinc coil metres only (if quoted).
+                        </li>
+                        <li>
+                          <span className="font-semibold">Stone flatsheet</span> — sheet count + type (1.4 m or 2.0 m). Replaces cladding.
+                        </li>
+                        <li>Ridge / bargeboard are planned in production from extra SF, not on this list.</li>
+                      </ul>
+                    </div>
+                  ) : null}
+                  {cuttingCategoriesUi.map(({ type, title }) =>
+                    type === 'StoneFlatsheet' ? (
+                      <StoneFlatsheetBlock
+                        key={type}
+                        title={title}
+                        lines={linesByCat[type] || [blankStoneFlatsheetRow()]}
+                        readOnly={readOnly}
+                        onUpdateLine={(id, patch) => updateLine(type, id, patch)}
+                        onAddAfter={(id) => addLineAfter(type, id)}
+                        onRemoveLine={(id) => removeLine(type, id)}
+                      />
+                    ) : (
+                      <CategoryBlock
+                        key={type}
+                        title={title}
+                        lines={linesByCat[type] || [blankRow()]}
+                        readOnly={readOnly}
+                        onUpdateLine={(id, patch) => updateLine(type, id, patch)}
+                        onAddAfter={(id) => addLineAfter(type, id)}
+                        onRemoveLine={(id) => removeLine(type, id)}
+                      />
+                    )
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -1636,7 +1855,15 @@ const CuttingListModal = ({
                 <span className="text-slate-500 shrink-0">Gauge</span>
                 <span className="text-zarewa-teal text-right tabular-nums">{materialSpec.gauge}</span>
               </div>
-              {!selectedQuotationAccessoriesOnly ? (
+              {!selectedQuotationAccessoriesOnly && isStoneMeterQuote && quotedStoneRoofingM > 0 ? (
+                <div className="flex justify-between gap-2 text-ui-xs font-semibold">
+                  <span className="text-slate-500 shrink-0">Quoted stone roofing</span>
+                  <span className="text-zarewa-teal text-right tabular-nums">
+                    {quotedStoneRoofingM.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
+                  </span>
+                </div>
+              ) : null}
+              {!selectedQuotationAccessoriesOnly && !isStoneMeterQuote ? (
                 <div className="flex justify-between gap-2 text-ui-xs font-semibold">
                   <span className="text-slate-500 shrink-0">Quoted sheet m</span>
                   <span className="text-zarewa-teal text-right tabular-nums">
@@ -1646,13 +1873,29 @@ const CuttingListModal = ({
               ) : null}
               {!selectedQuotationAccessoriesOnly && quotationConsumption.quotedTrimBlankM > 0 ? (
                 <div className="flex justify-between gap-2 text-ui-xs font-semibold">
-                  <span className="text-slate-500 shrink-0">Trim blank m</span>
+                  <span className="text-slate-500 shrink-0">{isStoneMeterQuote ? 'Coil flatsheet m' : 'Trim blank m'}</span>
                   <span className="text-zarewa-teal text-right tabular-nums">
                     {quotationConsumption.quotedTrimBlankM.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
                   </span>
                 </div>
               ) : null}
-              {!selectedQuotationAccessoriesOnly ? (
+              {!selectedQuotationAccessoriesOnly && isStoneMeterQuote ? (
+                <div className="flex justify-between gap-2 text-ui-xs font-semibold">
+                  <span className="text-slate-500 shrink-0">Coil need on CL</span>
+                  <span className="text-zarewa-teal text-right tabular-nums">
+                    {stoneNeedsCoilCl
+                      ? `${quotationConsumption.expectedTotalM.toLocaleString(undefined, { maximumFractionDigits: 2 })} m`
+                      : 'None (SF / roofing only)'}
+                  </span>
+                </div>
+              ) : null}
+              {!selectedQuotationAccessoriesOnly && isStoneMeterQuote && stoneNeedsSfCl ? (
+                <div className="flex justify-between gap-2 text-ui-xs font-semibold">
+                  <span className="text-slate-500 shrink-0">Stone flatsheet</span>
+                  <span className="text-zarewa-teal text-right">Sheet count + type below</span>
+                </div>
+              ) : null}
+              {!selectedQuotationAccessoriesOnly && !isStoneMeterQuote ? (
                 <div className="flex justify-between gap-2 text-ui-xs font-semibold">
                   <span className="text-slate-500 shrink-0">Expected total m</span>
                   <span className="text-zarewa-teal text-right tabular-nums">

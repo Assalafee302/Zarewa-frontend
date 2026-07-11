@@ -1279,6 +1279,7 @@ const Sales = () => {
             totalM: line.totalM,
             lineType: line.lineType ?? line.line_type ?? 'Roof',
           })),
+          stoneMeterQuote: quotation.stoneMeterQuote === true,
         });
         if (assessment.trimBlankProductionBlocked) {
           showToast(
