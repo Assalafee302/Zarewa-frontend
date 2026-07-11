@@ -24,6 +24,8 @@ export function buildProductionRegisterIssues(ctx) {
     canMutate = true,
     jobStatus = '',
     isStoneMeterQuote = false,
+    stonePureNoCoil = false,
+    stoneCoilHybrid = false,
     completionUsesOffcutMode = false,
     unsavedCoilDraftCount = 0,
     savedCoilCount = 0,
@@ -41,6 +43,9 @@ export function buildProductionRegisterIssues(ctx) {
     canEditCompletedAccessoryCorrections = false,
   } = ctx;
 
+  /** Pure stone = no coil UI. Hybrid and non-stone still nag about coils. */
+  const skipCoilNag = Boolean(stonePureNoCoil) || (isStoneMeterQuote && !stoneCoilHybrid);
+
   const saveActionLabel =
     jobStatus === 'Planned' ? 'Save & start' : jobStatus === 'Running' ? 'Save while running' : 'Save';
 
@@ -56,7 +61,7 @@ export function buildProductionRegisterIssues(ctx) {
     return issues;
   }
 
-  if (!readOnly && !isStoneMeterQuote && !completionUsesOffcutMode && unsavedCoilDraftCount > 0) {
+  if (!readOnly && !skipCoilNag && !completionUsesOffcutMode && unsavedCoilDraftCount > 0) {
     const localCoilLines = countUnsavedCoilDraftRows(ctx.draftAllocations || []);
     issues.push({
       id: 'unsaved-coils',
@@ -76,7 +81,7 @@ export function buildProductionRegisterIssues(ctx) {
   if (
     canCaptureRun &&
     !completionUsesOffcutMode &&
-    !isStoneMeterQuote &&
+    !skipCoilNag &&
     Array.isArray(completionValidation.errors) &&
     completionValidation.errors.length > 0
   ) {
@@ -91,12 +96,14 @@ export function buildProductionRegisterIssues(ctx) {
     }
   }
 
-  if (canEditPlannedAllocations && !hasPersistedCoilAllocations && !isStoneMeterQuote && !completionUsesOffcutMode) {
+  if (canEditPlannedAllocations && !hasPersistedCoilAllocations && !skipCoilNag && !completionUsesOffcutMode) {
     issues.push({
       id: 'no-coils-saved',
       severity: 'warning',
       title: 'No coils saved to server',
-      detail: 'Pick at least one coil with opening kg, then tap Save & start so the run is visible to admin and manager.',
+      detail: stoneCoilHybrid
+        ? 'Pick a coil with opening kg for normal flatsheet (or switch to offcut), then tap Save & start.'
+        : 'Pick at least one coil with opening kg, then tap Save & start so the run is visible to admin and manager.',
       actionLabel: 'Save & start',
     });
   }
@@ -133,9 +140,12 @@ export function buildProductionRegisterIssues(ctx) {
     issues.push({
       id: 'stone-start',
       severity: 'warning',
-      title: 'Stone-coated job not started',
-      detail:
-        quotedStoneFlatsheetLinesCount > 0
+      title: stoneCoilHybrid ? 'Hybrid stone job not started' : 'Stone-coated job not started',
+      detail: stoneCoilHybrid
+        ? quotedStoneFlatsheetLinesCount > 0
+          ? 'Tap Save & start. Allocate coil or offcut for normal flatsheet; enter stone flatsheet m² before completing.'
+          : 'Tap Save & start, then allocate coil or offcut for normal flatsheet / gutter.'
+        : quotedStoneFlatsheetLinesCount > 0
           ? 'Tap Save & start (no coils). Enter stone flatsheet m² before completing.'
           : 'Tap Save & start to begin the stone-coated run (no coil allocation).',
       actionLabel: 'Save & start',
@@ -161,7 +171,7 @@ export function buildProductionRegisterIssues(ctx) {
   if (
     jobStatus === 'Running' &&
     !readOnly &&
-    !isStoneMeterQuote &&
+    !skipCoilNag &&
     !completionUsesOffcutMode &&
     unsavedCoilDraftCount === 0
   ) {
@@ -169,7 +179,9 @@ export function buildProductionRegisterIssues(ctx) {
       id: 'running-next-step',
       severity: 'info',
       title: 'Production is running',
-      detail: 'Enter closing kg and metres per coil. Save while running after each roll or when adding another coil.',
+      detail: stoneCoilHybrid
+        ? 'Enter closing kg and metres for flatsheet coils, plus stone metres for roofing. Save while running after each roll.'
+        : 'Enter closing kg and metres per coil. Save while running after each roll or when adding another coil.',
       actionLabel: 'Save while running',
     });
   }

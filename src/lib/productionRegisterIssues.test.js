@@ -21,6 +21,36 @@ describe('productionRegisterIssues', () => {
     expect(issues.find((i) => i.id === 'unsaved-coils')?.detail).toMatch(/only see 1 on the server/i);
   });
 
+  it('skips coil nags for pure stone but not hybrid stone+flatsheet', () => {
+    const pure = buildProductionRegisterIssues({
+      readOnly: false,
+      canMutate: true,
+      jobStatus: 'Planned',
+      isStoneMeterQuote: true,
+      stonePureNoCoil: true,
+      stoneCoilHybrid: false,
+      canEditPlannedAllocations: true,
+      hasPersistedCoilAllocations: false,
+      unsavedCoilDraftCount: 0,
+    });
+    expect(pure.some((i) => i.id === 'no-coils-saved')).toBe(false);
+    expect(pure.some((i) => i.id === 'stone-start')).toBe(true);
+
+    const hybrid = buildProductionRegisterIssues({
+      readOnly: false,
+      canMutate: true,
+      jobStatus: 'Planned',
+      isStoneMeterQuote: true,
+      stonePureNoCoil: false,
+      stoneCoilHybrid: true,
+      canEditPlannedAllocations: true,
+      hasPersistedCoilAllocations: false,
+      unsavedCoilDraftCount: 0,
+    });
+    expect(hybrid.some((i) => i.id === 'no-coils-saved')).toBe(true);
+    expect(hybrid.find((i) => i.id === 'no-coils-saved')?.detail).toMatch(/flatsheet/i);
+  });
+
   it('summarizes active job sync state for the queue', () => {
     expect(
       productionCoilSyncSummary({ savedCoilCount: 1, unsavedCoilDraftCount: 1, isActiveJob: true }).label

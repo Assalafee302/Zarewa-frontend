@@ -25,6 +25,7 @@ import {
   buildExpectedCoilSpecFromQuotation,
   coilMatchesQuotationSpec,
   coilVersusQuotationAndProductWarning,
+  quotationExpectsCoilAllocation,
 } from '../lib/coilSpecVersusProduct';
 import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
 import { normalizeJobStatus, pickProductionJobForFocusId } from '../lib/productionJobPick';
@@ -498,6 +499,14 @@ export function LiveProductionMonitor({
       }) === 'stone'
     );
   }, [linkedQuotation, linkedCuttingList, ws?.snapshot?.masterData?.materialTypes]);
+  /** Stone + Flat sheet / gutter / Coil — may allocate coil or complete from offcut for that portion. */
+  const expectsCoilAllocation = useMemo(
+    () => quotationExpectsCoilAllocation(linkedQuotation),
+    [linkedQuotation]
+  );
+  const stoneCoilHybrid = isStoneMeterQuote && expectsCoilAllocation;
+  /** Pure stone (roofing / SF / accessories only) — no coil UI. */
+  const stonePureNoCoil = isStoneMeterQuote && !expectsCoilAllocation;
   const isAccessoriesOnlyQuote = quotationIsAccessoriesOnlyForProduction(linkedQuotation);
   const isStoneAccessoriesOnlyQuote = isStoneMeterQuote && isAccessoriesOnlyQuote;
   const stoneMetreConsumptionRequired = useMemo(() => {
@@ -570,7 +579,7 @@ export function LiveProductionMonitor({
 
   const completionUsesOffcutMode =
     isStoneAccessoriesOnlyQuote ||
-    (!isStoneMeterQuote && (completionSourceMode === 'offcut' || isAccessoriesOnlyQuote));
+    (!stonePureNoCoil && (completionSourceMode === 'offcut' || isAccessoriesOnlyQuote));
   const jobSt = optimisticJobStatus ?? normalizeJobStatus(selectedJob?.status);
   const displayJobStatus = jobSt;
   const shopFloorUi = Boolean(inModal && operationsRegisterEdit);
@@ -601,7 +610,7 @@ export function LiveProductionMonitor({
   const canEditCompletedCoilCorrections =
     jobSt === 'Completed' &&
     !viewOnly &&
-    !isStoneMeterQuote &&
+    !stonePureNoCoil &&
     (Boolean(ws?.hasPermission?.('production.release')) || Boolean(ws?.hasPermission?.('operations.manage')));
   const canEditCompletedAccessoryCorrections =
     jobSt === 'Completed' &&
@@ -612,15 +621,15 @@ export function LiveProductionMonitor({
     jobSt === 'Cancelled' ||
     (jobSt === 'Completed' && !(canEditCompletedCoilCorrections || canEditCompletedAccessoryCorrections));
   const canEditPlannedAllocations = jobSt === 'Planned' && !readOnly;
-  const canAddSupplementalCoil = jobSt === 'Running' && !readOnly && !isStoneMeterQuote;
+  const canAddSupplementalCoil = jobSt === 'Running' && !readOnly && !stonePureNoCoil;
   /** Planned / mid-run supplemental rows, or post-completion register correction (add missing roll). */
   const canAppendCoilRow =
     canEditPlannedAllocations ||
     canAddSupplementalCoil ||
-    (canEditCompletedCoilCorrections && !isStoneMeterQuote);
+    (canEditCompletedCoilCorrections && !stonePureNoCoil);
   const canRecalculateJobStock =
     Boolean(selectedJob?.jobID) &&
-    !isStoneMeterQuote &&
+    !stonePureNoCoil &&
     !completionUsesOffcutMode &&
     selectedJobAllocations.length > 0 &&
     Boolean(ws?.hasPermission?.('production.manage'));
@@ -661,7 +670,7 @@ export function LiveProductionMonitor({
   }, [primaryIncidentCoilNo, selectedJobAllocations, draftAllocations]);
 
   const canReportMaterialIncident =
-    Boolean(selectedJob?.jobID) && !readOnly && !isStoneMeterQuote && jobSt !== 'Cancelled';
+    Boolean(selectedJob?.jobID) && !readOnly && !stonePureNoCoil && jobSt !== 'Cancelled';
 
   const openProductionMaterialIncident = () => {
     if (!primaryIncidentCoilNo && (jobSt === 'Running' || jobSt === 'Completed')) {
@@ -839,7 +848,7 @@ export function LiveProductionMonitor({
 
   /** Offcut-only or accessories-only completion — no coil run log required. */
   const resolvesToOffcutCompletion = useMemo(() => {
-    if (isStoneMeterQuote) return completionUsesOffcutMode;
+    if (stonePureNoCoil) return completionUsesOffcutMode;
     if (completionUsesOffcutMode) return true;
     if (offcutSupplyMetersTotal > 0 && !hasCoilRunLogCompletion) return true;
     if (offcutInventoryMetersNum > 0 && !hasCoilRunLogCompletion) return true;
@@ -847,13 +856,13 @@ export function LiveProductionMonitor({
   }, [
     completionUsesOffcutMode,
     hasCoilRunLogCompletion,
-    isStoneMeterQuote,
+    stonePureNoCoil,
     offcutInventoryMetersNum,
     offcutSupplyMetersTotal,
   ]);
 
   useEffect(() => {
-    if (isStoneMeterQuote || completionUsesOffcutMode) return;
+    if (stonePureNoCoil || completionUsesOffcutMode) return;
     if (
       (offcutSupplyMetersTotal > 0 || offcutInventoryMetersNum > 0) &&
       !hasCoilRunLogCompletion &&
@@ -864,7 +873,7 @@ export function LiveProductionMonitor({
   }, [
     completionUsesOffcutMode,
     hasCoilRunLogCompletion,
-    isStoneMeterQuote,
+    stonePureNoCoil,
     jobSt,
     offcutInventoryMetersNum,
     offcutSupplyMetersTotal,
@@ -891,11 +900,11 @@ export function LiveProductionMonitor({
   }, [isAccessoriesOnlyQuote, isStoneMeterQuote, jobSt]);
 
   const recordedMeters = useMemo(() => {
-    if (isStoneMeterQuote && !completionUsesOffcutMode && jobSt === 'Running') {
+    if (stonePureNoCoil && !completionUsesOffcutMode && jobSt === 'Running') {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       return Number.isFinite(m) && Math.abs(m) > 1e-9 ? m : 0;
     }
-    if (isStoneMeterQuote && !completionUsesOffcutMode && jobSt === 'Completed') {
+    if (stonePureNoCoil && !completionUsesOffcutMode && jobSt === 'Completed') {
       const posted = Number(selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters ?? 0);
       if (Number.isFinite(posted) && Math.abs(posted) > 1e-9) return posted;
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
@@ -910,7 +919,7 @@ export function LiveProductionMonitor({
     }, 0);
     if (
       !completionUsesOffcutMode &&
-      !isStoneMeterQuote &&
+      !stonePureNoCoil &&
       (jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections))
     ) {
       return coilM + offcutInventoryMetersNum;
@@ -921,7 +930,7 @@ export function LiveProductionMonitor({
     completionUsesOffcutMode,
     draftAllocations,
     effectiveOffcutOutputMeters,
-    isStoneMeterQuote,
+    stonePureNoCoil,
     jobSt,
     offcutInventoryMetersNum,
     resolvesToOffcutCompletion,
@@ -942,7 +951,7 @@ export function LiveProductionMonitor({
 
   const canRunConversionPreview = useMemo(() => {
     if (!selectedJob?.jobID) return false;
-    if (isStoneMeterQuote && !completionUsesOffcutMode) {
+    if (stonePureNoCoil && !completionUsesOffcutMode) {
       if (!stoneMetreConsumptionRequired) {
         return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
       }
@@ -965,7 +974,7 @@ export function LiveProductionMonitor({
     completionUsesOffcutMode,
     draftAllocations,
     effectiveOffcutOutputMeters,
-    isStoneMeterQuote,
+    stonePureNoCoil,
     jobSt,
     offcutInventoryMetersNum,
     offcutMetersProduced,
@@ -979,9 +988,9 @@ export function LiveProductionMonitor({
   /** Persisted coil rows — can save closing / metres / note to server while the run is open. */
   const runLogSaveReady = useMemo(
     () =>
-      Boolean(jobSt === 'Running' && !isStoneMeterQuote) &&
+      Boolean(jobSt === 'Running' && !stonePureNoCoil) &&
       draftAllocations.some((r) => !isDraftAllocationRow(r)),
-    [draftAllocations, isStoneMeterQuote, jobSt]
+    [draftAllocations, stonePureNoCoil, jobSt]
   );
 
   const conversionPreviewTimerRef = useRef(null);
@@ -1398,7 +1407,7 @@ export function LiveProductionMonitor({
 
   const conversionPreviewKey = useMemo(() => {
     if (!canRunConversionPreview || !selectedJob?.jobID) return '';
-    if (isStoneMeterQuote && !isAccessoriesOnlyQuote) {
+    if (stonePureNoCoil && !isAccessoriesOnlyQuote) {
       return JSON.stringify({
         job: selectedJob.jobID,
         stone: true,
@@ -1407,6 +1416,12 @@ export function LiveProductionMonitor({
         stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
       });
     }
+    const hybridStonePayload = stoneCoilHybrid
+      ? {
+          stoneMetersConsumed: Number(String(stoneMetersConsumed).replace(/,/g, '')),
+          stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
+        }
+      : {};
     if (resolvesToOffcutCompletion) {
       const outputM = effectiveOffcutOutputMeters;
       const offInv =
@@ -1422,6 +1437,7 @@ export function LiveProductionMonitor({
         offcutInventoryMeters: offInv,
         accessoriesSupplied: accessoriesSuppliedForApi,
         offcutSupply: offcutSupplySelections,
+        ...hybridStonePayload,
       });
     }
     const previewLines = draftAllocations
@@ -1432,6 +1448,7 @@ export function LiveProductionMonitor({
       lines: previewLines,
       accessoriesSupplied: accessoriesSuppliedForApi,
       offcutInventoryMeters: offcutInventoryMetersNum,
+      ...hybridStonePayload,
     });
   }, [
     accessoriesSuppliedForApi,
@@ -1440,7 +1457,8 @@ export function LiveProductionMonitor({
     draftAllocations,
     effectiveOffcutOutputMeters,
     isAccessoriesOnlyQuote,
-    isStoneMeterQuote,
+    stoneCoilHybrid,
+    stonePureNoCoil,
     offcutInventoryMetersNum,
     offcutSupplySelections,
     offcutSupplyMetersTotal,
@@ -1477,6 +1495,17 @@ export function LiveProductionMonitor({
       void (async () => {
         const parsed = JSON.parse(conversionPreviewKey);
         const previewPath = `/api/production-jobs/${encodeURIComponent(parsed.job)}/conversion-preview`;
+        const hybridStonePreview =
+          parsed.stoneMetersConsumed != null || parsed.stoneFlatsheetSupplied
+            ? {
+                ...(parsed.stoneMetersConsumed != null
+                  ? { stoneMetersConsumed: parsed.stoneMetersConsumed }
+                  : {}),
+                ...(parsed.stoneFlatsheetSupplied
+                  ? { stoneFlatsheetSupplied: parsed.stoneFlatsheetSupplied }
+                  : {}),
+              }
+            : {};
         const previewBody = parsed.stone
           ? {
               stoneMetersConsumed: parsed.stoneMetersConsumed,
@@ -1492,11 +1521,13 @@ export function LiveProductionMonitor({
                 ...(Array.isArray(parsed.offcutSupply) && parsed.offcutSupply.length
                   ? { offcutSupply: parsed.offcutSupply }
                   : {}),
+                ...hybridStonePreview,
               }
           : {
               allocations: parsed.lines,
               accessoriesSupplied: parsed.accessoriesSupplied || [],
               offcutInventoryMeters: Number(parsed.offcutInventoryMeters) || 0,
+              ...hybridStonePreview,
             };
         const { ok, data } = await apiFetch(previewPath, {
           method: 'POST',
@@ -1537,7 +1568,7 @@ export function LiveProductionMonitor({
 
   const needsConversionVarianceReason =
     canCaptureRun &&
-    !isStoneMeterQuote &&
+    !stonePureNoCoil &&
     !resolvesToOffcutCompletion &&
     (conversionReasonBand === 'High' || conversionReasonBand === 'Low');
 
@@ -1570,28 +1601,58 @@ export function LiveProductionMonitor({
   }, [conversionReasonBand, conversionReasonCode]);
 
   const completionValidation = useMemo(() => {
+    const hybridStoneMeterErrors = () => {
+      if (!stoneCoilHybrid || !stoneMetreConsumptionRequired) return [];
+      const sm = Number(String(stoneMetersConsumed).replace(/,/g, ''));
+      if (!Number.isFinite(sm) || Math.abs(sm) < 1e-9) {
+        return [
+          'Enter stone metres consumed as a non-zero number (positive uses stock; negative returns metres to stock).',
+        ];
+      }
+      return [];
+    };
     if (resolvesToOffcutCompletion) {
+      const stoneErrs = hybridStoneMeterErrors();
       if (effectiveOffcutOutputMeters > 0 || offcutSupplyMetersTotal > 0 || offcutInventoryMetersNum > 0) {
-        return { validLineCount: 1, errors: [], canComplete: true };
+        return {
+          validLineCount: 1,
+          errors: stoneErrs,
+          canComplete: stoneErrs.length === 0,
+        };
       }
       if (isAccessoriesOnlyQuote) {
-        return { validLineCount: 1, errors: [], canComplete: true };
+        return {
+          validLineCount: 1,
+          errors: stoneErrs,
+          canComplete: stoneErrs.length === 0,
+        };
       }
       const rawMeters = String(offcutMetersProduced).trim();
       if (!rawMeters) {
         return {
           validLineCount: 0,
-          errors: ['Enter offcut stock metres or finished-goods output metres before completing.'],
+          errors: [
+            'Enter offcut stock metres or finished-goods output metres before completing.',
+            ...stoneErrs,
+          ],
           canComplete: false,
         };
       }
       const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
       if (!Number.isFinite(m) || m < 0) {
-        return { validLineCount: 0, errors: ['Offcut produced metres must be zero or greater.'], canComplete: false };
+        return {
+          validLineCount: 0,
+          errors: ['Offcut produced metres must be zero or greater.', ...stoneErrs],
+          canComplete: false,
+        };
       }
-      return { validLineCount: 1, errors: [], canComplete: true };
+      return {
+        validLineCount: 1,
+        errors: stoneErrs,
+        canComplete: stoneErrs.length === 0,
+      };
     }
-    if (isStoneMeterQuote && !completionUsesOffcutMode) {
+    if (stonePureNoCoil && !completionUsesOffcutMode) {
       if (!stoneMetreConsumptionRequired) {
         return { validLineCount: 1, errors: [], canComplete: true };
       }
@@ -1607,7 +1668,7 @@ export function LiveProductionMonitor({
       }
       return { validLineCount: 1, errors: [], canComplete: true };
     }
-    const errors = [];
+    const errors = [...hybridStoneMeterErrors()];
     const rawOffInv = String(offcutInventoryMetersInput).trim();
     if (rawOffInv) {
       const om = Number(rawOffInv.replace(/,/g, ''));
@@ -1659,7 +1720,8 @@ export function LiveProductionMonitor({
     draftAllocations,
     effectiveOffcutOutputMeters,
     isAccessoriesOnlyQuote,
-    isStoneMeterQuote,
+    stoneCoilHybrid,
+    stonePureNoCoil,
     offcutInventoryMetersInput,
     offcutInventoryMetersNum,
     offcutMetersProduced,
@@ -1708,10 +1770,10 @@ export function LiveProductionMonitor({
   }, [canEditCompletedCoilCorrections, draftAllocations, selectedJobAllocations]);
   const plannedAllocSaveReady = useMemo(
     () =>
-      isStoneMeterQuote ||
+      stonePureNoCoil ||
       resolvesToOffcutCompletion ||
       draftAllocations.some((r) => r.coilNo?.trim() && Number(r.openingWeightKg) > 0),
-    [draftAllocations, isStoneMeterQuote, resolvesToOffcutCompletion]
+    [draftAllocations, stonePureNoCoil, resolvesToOffcutCompletion]
   );
   const canManageConversionSignoff =
     Boolean(ws?.hasPermission?.('production.release')) ||
@@ -1802,6 +1864,8 @@ export function LiveProductionMonitor({
         canMutate: Boolean(ws?.canMutate),
         jobStatus: jobSt,
         isStoneMeterQuote,
+        stonePureNoCoil,
+        stoneCoilHybrid,
         completionUsesOffcutMode,
         unsavedCoilDraftCount,
         savedCoilCount: selectedJobAllocations.length,
@@ -1825,6 +1889,8 @@ export function LiveProductionMonitor({
       ws?.canMutate,
       jobSt,
       isStoneMeterQuote,
+      stonePureNoCoil,
+      stoneCoilHybrid,
       completionUsesOffcutMode,
       unsavedCoilDraftCount,
       selectedJobAllocations.length,
@@ -1859,7 +1925,7 @@ export function LiveProductionMonitor({
 
   /** Unique rolls in the draft: summed est. metres from free kg (same coil on two rows counted once). */
   const allocationUniqueRollCapacityInsight = useMemo(() => {
-    if (isStoneMeterQuote) return null;
+    if (stonePureNoCoil) return null;
     const seen = new Set();
     let sumEst = 0;
     let anyUnknown = false;
@@ -1884,7 +1950,7 @@ export function LiveProductionMonitor({
       sumEst: sumEst > 0 ? sumEst : null,
       anyUnknown,
     };
-  }, [isStoneMeterQuote, draftAllocations, coilByNo, savedOpeningKgByCoil]);
+  }, [stonePureNoCoil, draftAllocations, coilByNo, savedOpeningKgByCoil]);
 
   const planProgressPct = useMemo(() => {
     if (!hasPlannedMeters) return null;
@@ -2247,7 +2313,13 @@ export function LiveProductionMonitor({
 
   const buildCompleteBody = () => {
     const productionDate = productionDateIso || new Date().toISOString().slice(0, 10);
-    if (isStoneMeterQuote && !completionUsesOffcutMode) {
+    const hybridStoneFields = stoneCoilHybrid
+      ? {
+          stoneMetersConsumed: Number(String(stoneMetersConsumed).replace(/,/g, '')),
+          stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
+        }
+      : {};
+    if (stonePureNoCoil && !completionUsesOffcutMode) {
       return {
         completedAtISO: completionDateIso,
         productionDateISO: productionDate,
@@ -2274,6 +2346,7 @@ export function LiveProductionMonitor({
         accessoriesSupplied: accessoriesSuppliedForApi,
         allocations: [],
         ...(offcutSupplySelections.length > 0 ? { offcutSupply: offcutSupplySelections } : {}),
+        ...hybridStoneFields,
       };
     }
     const invOff = offcutInventoryMetersNum;
@@ -2294,6 +2367,7 @@ export function LiveProductionMonitor({
             conversionVarianceReasonText: conversionReasonText.trim(),
           }
         : {}),
+      ...hybridStoneFields,
     };
   };
 
@@ -2485,7 +2559,7 @@ export function LiveProductionMonitor({
       }
       try {
         let lastStockRecalc = null;
-        if (runLogSaveReady && !isStoneMeterQuote) {
+        if (runLogSaveReady && !stonePureNoCoil) {
           const persistedRows = draftAllocations.filter((r) => !isDraftAllocationRow(r));
           const persistedMetersTotal = persistedRows.reduce(
             (s, row) => s + (Number(String(row.metersProduced).replace(/,/g, '')) || 0),
@@ -2540,7 +2614,7 @@ export function LiveProductionMonitor({
           }
           lastStockRecalc = resRl.data?.stockRecalc ?? lastStockRecalc;
         }
-        if (appendSaveReady && !isStoneMeterQuote && isRunningForSave) {
+        if (appendSaveReady && !stonePureNoCoil && isRunningForSave) {
           const pathAlloc = `${jobApi}/allocations`;
           const buildRunAppend = (withAck) => {
             const toAppend = draftAllocations.filter(
@@ -2597,35 +2671,45 @@ export function LiveProductionMonitor({
     if (type === 'allocations' || type === 'allocationsAndStart') {
       path = `${jobApi}/allocations`;
       if (isStoneMeterQuote && isPlannedForSave) {
-        const res = await apiFetch(path, { method: 'POST', body: JSON.stringify({ allocations: [] }) });
-        if (!res.ok || !res.data?.ok) {
+        const hasCoilOpeningDraft = draftAllocations.some(
+          (r) => r.coilNo?.trim() && Number(r.openingWeightKg) > 0
+        );
+        /* Hybrid with coils or offcut start → normal coil/offcut path below. */
+        if (!(stoneCoilHybrid && (hasCoilOpeningDraft || resolvesToOffcutCompletion))) {
+          const res = await apiFetch(path, { method: 'POST', body: JSON.stringify({ allocations: [] }) });
+          if (!res.ok || !res.data?.ok) {
+            setSavingAction('');
+            showToast(res.data?.error || 'Could not save stone job allocation.', { variant: 'error' });
+            return;
+          }
+          const startRes = await apiFetch(`${jobApi}/start`, {
+            method: 'POST',
+            body: JSON.stringify({ startedAtISO: productionDateIso }),
+          });
           setSavingAction('');
-          showToast(res.data?.error || 'Could not save stone job allocation.', { variant: 'error' });
-          return;
-        }
-        const startRes = await apiFetch(`${jobApi}/start`, {
-          method: 'POST',
-          body: JSON.stringify({ startedAtISO: productionDateIso }),
-        });
-        setSavingAction('');
-        if (!startRes.ok || !startRes.data?.ok) {
-          showToast(
-            formatProductionPriceBlockMessage(
-              startRes.data,
-              startRes.data?.error ||
-                'Stone step saved, but production could not be started (e.g. below-floor price approval). Use the pricing banner above, then Save & start again.'
-            ),
-            { variant: 'error' }
-          );
+          if (!startRes.ok || !startRes.data?.ok) {
+            showToast(
+              formatProductionPriceBlockMessage(
+                startRes.data,
+                startRes.data?.error ||
+                  'Stone step saved, but production could not be started (e.g. below-floor price approval). Use the pricing banner above, then Save & start again.'
+              ),
+              { variant: 'error' }
+            );
+            await refreshProductionWorkspace();
+            return;
+          }
+          setStoneAllocAck(true);
+          markProductionStarted();
           await refreshProductionWorkspace();
+          clearProdCoilDraftStorage(selectedJob.jobID);
+          showToast(
+            stoneCoilHybrid
+              ? `Hybrid stone job saved and started for ${listLabel}. Add coil or offcut for flatsheet when ready.`
+              : `Stone-coated job saved and production started for ${listLabel}.`
+          );
           return;
         }
-        setStoneAllocAck(true);
-        markProductionStarted();
-        await refreshProductionWorkspace();
-        clearProdCoilDraftStorage(selectedJob.jobID);
-        showToast(`Stone-coated job saved and production started for ${listLabel}.`);
-        return;
       }
       if (resolvesToOffcutCompletion && isPlannedForSave) {
         const startRes = await apiFetch(`${jobApi}/start`, {
@@ -3150,7 +3234,7 @@ export function LiveProductionMonitor({
                       {savingAction === 'allocationsAndStart' ? 'Saving & starting…' : 'Save & start'}
                     </button>
                   ) : null}
-                  {jobSt === 'Running' && !isStoneMeterQuote && !completionUsesOffcutMode ? (
+                  {jobSt === 'Running' && !stonePureNoCoil && !completionUsesOffcutMode ? (
                     <button
                       type="button"
                       onClick={() => void persist('runningCheckpoint')}
@@ -3526,7 +3610,7 @@ export function LiveProductionMonitor({
                   <p className="text-xs font-medium leading-snug text-slate-600">
                     {selectedJob.productName || selectedJob.productID || '—'}
                   </p>
-                  {!isStoneMeterQuote &&
+                  {!stonePureNoCoil &&
                   !completionUsesOffcutMode &&
                   (jobSt === 'Planned' || jobSt === 'Running') ? (
                     <p
@@ -3703,7 +3787,7 @@ export function LiveProductionMonitor({
 
               {allocationUniqueRollCapacityInsight &&
               allocationUniqueRollCapacityInsight.rollCount > 0 &&
-              !isStoneMeterQuote &&
+              !stonePureNoCoil &&
               !readOnly ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zarewa-teal/20 bg-zarewa-teal/[0.07] px-2 py-1.5 text-ui-xs text-slate-800">
                   <span className="min-w-0 font-semibold leading-tight">
@@ -4437,16 +4521,20 @@ export function LiveProductionMonitor({
                   <p className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
                     {isStoneAccessoriesOnlyQuote
                       ? 'Stone accessories only'
-                      : isStoneMeterQuote
-                        ? 'Stone-coated run'
-                        : completionUsesOffcutMode
-                          ? 'Offcut / accessories run'
-                          : 'Coils &amp; run log'}
+                      : stoneCoilHybrid
+                        ? 'Stone + coil / offcut'
+                        : isStoneMeterQuote
+                          ? 'Stone-coated run'
+                          : completionUsesOffcutMode
+                            ? 'Offcut / accessories run'
+                            : 'Coils &amp; run log'}
                   </p>
                   <p className="mt-px flex flex-wrap items-center gap-1 text-ui-xs leading-tight text-slate-600">
                     <span className="line-clamp-2">
                       {isStoneAccessoriesOnlyQuote
                         ? 'No roofing metres — issue accessories and complete (optional FG metres).'
+                        : stoneCoilHybrid
+                          ? 'Allocate coil or use offcut for normal flatsheet; enter stone metres for roofing → Complete.'
                         : isStoneMeterQuote
                         ? 'Metres only → Save & start → Complete.'
                         : completionUsesOffcutMode
@@ -4471,13 +4559,13 @@ export function LiveProductionMonitor({
                       <div className="absolute right-0 top-full z-20 mt-1 w-[min(calc(100vw-1.5rem),18rem)] rounded-lg border border-slate-200 bg-white p-2 text-ui-xs leading-snug text-slate-700 shadow-lg">
                         {completionUsesOffcutMode
                           ? 'Use when output came from offcuts or this job only supplies accessories. Coil allocation is skipped and completion posts accessories plus optional finished-goods metres.'
-                          : !isStoneMeterQuote && canEditPlannedAllocations
+                          : !stonePureNoCoil && canEditPlannedAllocations
                           ? 'While Planned you can change the whole set and Save & start again. After start, use Return to plan to swap primary coils (audit reason).'
-                          : !isStoneMeterQuote && canAddSupplementalCoil
+                          : !stonePureNoCoil && canAddSupplementalCoil
                             ? 'Running: only new blank rows attach as extra coils when you Save. Finished rolls stay on the list for the full job.'
-                            : !isStoneMeterQuote && canEditCompletedCoilCorrections
+                            : !stonePureNoCoil && canEditCompletedCoilCorrections
                               ? 'Completed job correction: use Add coil for a roll that was omitted; every row must have full readings before Save correction.'
-                            : !isStoneMeterQuote && canCaptureRun
+                            : !stonePureNoCoil && canCaptureRun
                               ? `Closing below ${COIL_TAIL_FINISH_MAX_KG} kg is allowed. Tick “Roll finished” only when clearing unusable spool/core tail from stock; otherwise leave it unchecked if steel stays on the roll. Conversion preview updates coil-by-coil.`
                               : 'Read-only record.'}
                       </div>
@@ -4485,7 +4573,7 @@ export function LiveProductionMonitor({
                   </p>
                 </div>
               </div>
-              {!isStoneMeterQuote && !completionUsesOffcutMode && canAppendCoilRow ? (
+              {!stonePureNoCoil && !completionUsesOffcutMode && canAppendCoilRow ? (
                 <button
                   type="button"
                   onClick={addDraftRow}
@@ -4498,7 +4586,7 @@ export function LiveProductionMonitor({
             </div>
 
             <div className={`${inModal ? 'space-y-1.5 p-2' : 'space-y-2 p-2 sm:p-2.5'}`}>
-              {!isStoneMeterQuote && !isAccessoriesOnlyQuote && (canCaptureRun || canEditPlannedAllocations) ? (
+              {!stonePureNoCoil && !isAccessoriesOnlyQuote && (canCaptureRun || canEditPlannedAllocations) ? (
                 <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/70 p-1">
                   <button
                     type="button"
@@ -4524,7 +4612,7 @@ export function LiveProductionMonitor({
                   </button>
                 </div>
               ) : null}
-              {!isStoneMeterQuote &&
+              {!stonePureNoCoil &&
               !completionUsesOffcutMode &&
               (canCaptureRun || canEditPlannedAllocations || canEditCompletedCoilCorrections) ? (
                 <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 space-y-1">
@@ -4546,7 +4634,7 @@ export function LiveProductionMonitor({
                   </p>
                 </div>
               ) : null}
-              {!isStoneMeterQuote &&
+              {!stonePureNoCoil &&
               !completionUsesOffcutMode &&
               (canCaptureRun || canEditPlannedAllocations || canEditCompletedCoilCorrections) ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700 space-y-2">
@@ -4590,8 +4678,10 @@ export function LiveProductionMonitor({
               {isStoneMeterQuote && !isStoneAccessoriesOnlyQuote && stoneMetreConsumptionRequired ? (
                 <div className="rounded-lg border border-teal-100 bg-teal-50/50 p-3 text-xs text-slate-700 space-y-2">
                   <p>
-                    <strong className="text-zarewa-teal">Stone-coated</strong> stock is tracked in metres (no coil
-                    numbers). Use <strong>Save &amp; start</strong> once to begin the run.
+                    <strong className="text-zarewa-teal">Stone-coated roofing</strong>{' '}
+                    {stoneCoilHybrid
+                      ? 'stock is tracked in metres. Use coil or offcut below for normal flatsheet / gutter.'
+                      : 'stock is tracked in metres (no coil numbers). Use Save & start once to begin the run.'}
                   </p>
                   {jobSt === 'Running' ? (
                     <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
@@ -4612,7 +4702,7 @@ export function LiveProductionMonitor({
                   </p>
                 </div>
               ) : null}
-              {isStoneMeterQuote && !isStoneAccessoriesOnlyQuote && !stoneMetreConsumptionRequired ? (
+              {stonePureNoCoil && !isStoneAccessoriesOnlyQuote && !stoneMetreConsumptionRequired ? (
                 <div className="rounded-lg border border-sky-100 bg-sky-50/50 p-3 text-xs text-slate-700 space-y-1">
                   <p>
                     <strong className="text-sky-900">Stone flatsheet only</strong> — no stone-coated metre draw on this
@@ -4673,7 +4763,7 @@ export function LiveProductionMonitor({
                   </label>
                 </div>
               ) : null}
-              {!isStoneMeterQuote && !completionUsesOffcutMode
+              {!stonePureNoCoil && !completionUsesOffcutMode
                 ? draftAllocations.map((row, index) => {
                     const lot = coilByNo[row.coilNo];
                     const addBackThisJob = row.coilNo ? savedOpeningKgByCoil.get(row.coilNo) ?? 0 : 0;
@@ -4682,7 +4772,7 @@ export function LiveProductionMonitor({
                     const canPickCoilAndOpening =
                       canEditPlannedAllocations ||
                       (canAddSupplementalCoil && draftRow) ||
-                      (jobSt === 'Running' && !readOnly && !isStoneMeterQuote && !draftRow) ||
+                      (jobSt === 'Running' && !readOnly && !stonePureNoCoil && !draftRow) ||
                       canEditCompletedCoilCorrections;
                     const coilSelectLockedRunningPrimary =
                       operationsRegisterEdit &&
@@ -5076,7 +5166,7 @@ export function LiveProductionMonitor({
                   {savingAction === 'allocationsAndStart' ? 'Saving…' : 'Save & start'}
                 </button>
               ) : null}
-              {jobSt === 'Running' && !isStoneMeterQuote && !completionUsesOffcutMode ? (
+              {jobSt === 'Running' && !stonePureNoCoil && !completionUsesOffcutMode ? (
                 <button
                   type="button"
                   onClick={() => void persist('runningCheckpoint')}
