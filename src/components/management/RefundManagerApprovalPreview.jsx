@@ -309,10 +309,30 @@ export function RefundManagerApprovalPreview({
   );
 
   const exceedsEconomicFloorCap = useMemo(() => {
+    const ackRaw = refund?.productionAlignmentAckJson ?? refund?.production_alignment_ack_json;
+    let floorOverride = null;
+    try {
+      const parsed = typeof ackRaw === 'string' ? JSON.parse(ackRaw || '{}') : ackRaw;
+      floorOverride = parsed?.economicFloorOverride || null;
+    } catch {
+      floorOverride = null;
+    }
+    if (
+      floorOverride?.used &&
+      String(floorOverride.note || '').trim().length >= 10 &&
+      Math.abs(refundAmountNgn - Math.round(Number(floorOverride.amountNgn) || 0)) <= 1
+    ) {
+      return false;
+    }
     const cap = Number(economicFloor?.maxDefensibleRefundNgn);
     if (!Number.isFinite(cap)) return false;
     return refundAmountNgn > cap + 1;
-  }, [economicFloor?.maxDefensibleRefundNgn, refundAmountNgn]);
+  }, [
+    economicFloor?.maxDefensibleRefundNgn,
+    refundAmountNgn,
+    refund?.productionAlignmentAckJson,
+    refund?.production_alignment_ack_json,
+  ]);
 
   const incompleteFloorBlocksApprove = useMemo(() => {
     if (!economicFloor?.incompleteFloorPricing) return false;

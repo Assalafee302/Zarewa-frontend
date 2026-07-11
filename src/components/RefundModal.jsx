@@ -37,7 +37,7 @@ import {
   MIN_REFUND_QUOTATION_REMAINING_NGN,
   quotationMeetsRefundPickerFloor,
 } from '../shared/refundConstants.js';
-import { userMayOverrideProductionAlignment, userMayBlockQuotationRefunds } from '../lib/workspaceGovernanceClient';
+import { userMayOverrideProductionAlignment, userMayBlockQuotationRefunds, isExecutiveRoleKey } from '../lib/workspaceGovernanceClient';
 import { quotationRefundsBlocked } from '../lib/refundEligibility';
 import {
   normQuoteItemKey,
@@ -1532,16 +1532,26 @@ const RefundModal = ({
       economicFloor?.maxDefensibleRefundNgn != null
         ? Math.round(Number(economicFloor.maxDefensibleRefundNgn))
         : null;
+    const mayMdBypassEconomicFloor =
+      String(ws?.session?.user?.roleKey || '')
+        .trim()
+        .toLowerCase() === 'admin' || isExecutiveRoleKey(ws?.session?.user?.roleKey);
+    const floorOverrideNoteOk = productionAlignmentOverrideNote.trim().length >= 10;
     if (
       maxDefensible != null &&
       Number.isFinite(maxDefensible) &&
-      amountNgn > maxDefensible + AMOUNT_LINE_TOL
+      amountNgn > maxDefensible + AMOUNT_LINE_TOL &&
+      !(mayMdBypassEconomicFloor && floorOverrideNoteOk)
     ) {
       const msg = `Refund amount (₦${amountNgn.toLocaleString(
         'en-NG'
       )}) exceeds the economic floor cap (₦${maxDefensible.toLocaleString(
         'en-NG'
-      )}) after produced metres at workbook minimum ₦/m.`;
+      )}) after produced metres at workbook minimum ₦/m.${
+        mayMdBypassEconomicFloor
+          ? ' Enter an MD/admin override note (min 10 characters) to proceed — it will carry through approval and payout.'
+          : ''
+      }`;
       showToast(msg, { variant: 'error' });
       setPreviewError(msg);
       return;
@@ -3610,7 +3620,15 @@ const RefundModal = ({
                   </li>
                 ))}
               </ul>
-              {productionAlignmentIssues.some((i) => i.submitAction === 'block') && canOverrideProductionAlignment ? (
+              {(productionAlignmentIssues.some((i) => i.submitAction === 'block') &&
+                canOverrideProductionAlignment) ||
+              (lastPreviewSnapshot?.economicFloor?.maxDefensibleRefundNgn != null &&
+                Math.round(Number(form.amountNgn) || 0) >
+                  Math.round(Number(lastPreviewSnapshot.economicFloor.maxDefensibleRefundNgn)) + 1 &&
+                (String(ws?.session?.user?.roleKey || '')
+                  .trim()
+                  .toLowerCase() === 'admin' ||
+                  isExecutiveRoleKey(ws?.session?.user?.roleKey))) ? (
                 <label className="block">
                   <span className="text-ui-xs font-bold uppercase text-amber-900">
                     Branch manager / MD override note (min 10 characters)
@@ -3620,8 +3638,12 @@ const RefundModal = ({
                     value={productionAlignmentOverrideNote}
                     onChange={(e) => setProductionAlignmentOverrideNote(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-slate-800 resize-none"
-                    placeholder="Explain why this refund category is correct despite production output…"
+                    placeholder="Explain production alignment and/or why this amount is correct above the economic floor…"
                   />
+                  <p className="mt-1 text-ui-xs text-amber-800/90 leading-snug">
+                    MD/admin floor overrides are stored on the request — approval and payout will not ask again for the
+                    same amount.
+                  </p>
                 </label>
               ) : null}
               {alignmentBlocksAction ? (
