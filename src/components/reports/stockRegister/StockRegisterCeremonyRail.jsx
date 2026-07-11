@@ -1,11 +1,11 @@
 import React from 'react';
 import { Check } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 import { STATUS_STEPS } from './stockRegisterConstants';
 import {
   stockRegisterStepIndex,
   stockRegisterWaitingLabel,
-} from '../../lib/stockRegisterPeriod';
+} from '../../../lib/stockRegisterPeriod';
 
 /**
  * Connected ceremony rail — same visual language as QuotationPipelineStepper.

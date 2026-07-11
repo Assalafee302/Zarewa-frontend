@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp, Loader2, Lock, X } from 'lucide-react';
 import { ModalFrame } from '../../layout';
-import { formatStockRegisterMonth, isCaptureReadyStatus } from '../../lib/stockRegisterPeriod';
+import { formatStockRegisterMonth, isCaptureReadyStatus } from '../../../lib/stockRegisterPeriod';
 import { captureStockRegisterClosing } from './stockRegisterApi';
 
 /**

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Loader2, Save, ShieldCheck, X } from 'lucide-react';
 import { ModalFrame } from '../../layout';
-import { formatStockRegisterMonth } from '../../lib/stockRegisterPeriod';
+import { formatStockRegisterMonth } from '../../../lib/stockRegisterPeriod';
 import {
   getProcurementPricingGaps,
   StockRegisterProcurementCosting,
