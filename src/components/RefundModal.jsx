@@ -1537,7 +1537,11 @@ const RefundModal = ({
         .trim()
         .toLowerCase() === 'admin' || isExecutiveRoleKey(ws?.session?.user?.roleKey);
     const floorOverrideNoteOk = productionAlignmentOverrideNote.trim().length >= 10;
+    const overpaymentOnlySubmit =
+      reasonCategory.length > 0 &&
+      reasonCategory.every((c) => String(c || '').trim().toLowerCase().includes('overpay'));
     if (
+      !overpaymentOnlySubmit &&
       maxDefensible != null &&
       Number.isFinite(maxDefensible) &&
       amountNgn > maxDefensible + AMOUNT_LINE_TOL &&
@@ -1557,14 +1561,18 @@ const RefundModal = ({
       return;
     }
     if (
+      !overpaymentOnlySubmit &&
       economicFloor?.incompleteFloorPricing &&
       Number(economicFloor.producedOutputMeters || 0) > 0.001
     ) {
-      const msg =
-        'Workbook floor ₦/m could not be resolved for all produced jobs. Resolve material workbook pricing or escalate to MD/CEO before creating this refund.';
-      showToast(msg, { variant: 'error' });
-      setPreviewError(msg);
-      return;
+      if (!(mayMdBypassEconomicFloor && floorOverrideNoteOk)) {
+        const msg = mayMdBypassEconomicFloor
+          ? 'Workbook floor ₦/m could not be resolved for produced jobs. Enter an MD/admin override note (min 10 characters) to create this refund.'
+          : 'Workbook floor ₦/m could not be resolved for all produced jobs. Resolve material workbook pricing or escalate to MD/CEO before creating this refund.';
+        showToast(msg, { variant: 'error' });
+        setPreviewError(msg);
+        return;
+      }
     }
 
     const overpayMax = moneyContext?.overpaymentExcessNgn ?? 0;

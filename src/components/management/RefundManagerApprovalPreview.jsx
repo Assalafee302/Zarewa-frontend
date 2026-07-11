@@ -309,6 +309,15 @@ export function RefundManagerApprovalPreview({
   );
 
   const exceedsEconomicFloorCap = useMemo(() => {
+    const cats = Array.isArray(refund?.reasonCategory)
+      ? refund.reasonCategory
+      : String(refund?.reasonCategory || refund?.reason_category || '')
+          .split(/[,;|]/)
+          .map((x) => x.trim())
+          .filter(Boolean);
+    if (cats.length > 0 && cats.every((c) => String(c).toLowerCase().includes('overpay'))) {
+      return false;
+    }
     const ackRaw = refund?.productionAlignmentAckJson ?? refund?.production_alignment_ack_json;
     let floorOverride = null;
     try {
@@ -330,15 +339,40 @@ export function RefundManagerApprovalPreview({
   }, [
     economicFloor?.maxDefensibleRefundNgn,
     refundAmountNgn,
+    refund?.reasonCategory,
+    refund?.reason_category,
     refund?.productionAlignmentAckJson,
     refund?.production_alignment_ack_json,
   ]);
 
   const incompleteFloorBlocksApprove = useMemo(() => {
+    const cats = Array.isArray(refund?.reasonCategory)
+      ? refund.reasonCategory
+      : String(refund?.reasonCategory || refund?.reason_category || '')
+          .split(/[,;|]/)
+          .map((x) => x.trim())
+          .filter(Boolean);
+    const overpaymentOnly =
+      cats.length > 0 && cats.every((c) => String(c).toLowerCase().includes('overpay'));
+    if (overpaymentOnly) return false;
     if (!economicFloor?.incompleteFloorPricing) return false;
     if (Number(economicFloor.producedOutputMeters || 0) <= 0) return false;
+    const ackRaw = refund?.productionAlignmentAckJson ?? refund?.production_alignment_ack_json;
+    try {
+      const parsed = typeof ackRaw === 'string' ? JSON.parse(ackRaw || '{}') : ackRaw;
+      if (parsed?.economicFloorOverride?.used) return false;
+    } catch {
+      /* ignore */
+    }
     return !canBypassIncompleteFloor;
-  }, [economicFloor, canBypassIncompleteFloor]);
+  }, [
+    economicFloor,
+    canBypassIncompleteFloor,
+    refund?.reasonCategory,
+    refund?.reason_category,
+    refund?.productionAlignmentAckJson,
+    refund?.production_alignment_ack_json,
+  ]);
 
   const financialBlocksApprove = useMemo(
     () => staleRefundWarnings.length > 0 || exceedsEconomicFloorCap || incompleteFloorBlocksApprove,
