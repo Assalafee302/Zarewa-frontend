@@ -1,5 +1,6 @@
 /**
- * Purchase order line types — keep in sync with Zarewa-backend-main/shared/lib/poLineTypes.js
+ * Purchase order line types — shared by server and frontend.
+ * Keep in sync with Zarewa-frontend-main/src/lib/poLineTypes.js
  */
 
 export const PO_LINE_TYPES = [
@@ -11,6 +12,8 @@ export const PO_LINE_TYPES = [
   'service',
 ];
 
+/** @typedef {'coil_kg' | 'coil_meter' | 'stone_meter' | 'stone_flatsheet' | 'accessory' | 'service'} PoLineType */
+
 export const PO_LINE_TYPE_LABELS = {
   coil_kg: 'Coil (kg)',
   coil_meter: 'Roll / metre order',
@@ -20,6 +23,7 @@ export const PO_LINE_TYPE_LABELS = {
   service: 'Service / loading fee',
 };
 
+/** Preset service descriptions on purchase orders (loading at mill, labour, etc.). */
 export const PO_DEFAULT_SERVICE_ITEMS = [
   'Loading fee',
   'Offloading at mill',
@@ -32,10 +36,17 @@ export const PO_DEFAULT_SERVICE_ITEMS = [
 
 export const PO_SERVICE_PRODUCT_ID = 'SVC-PO';
 
+/** Stone flatsheet effective width (m) for sheets → m² at GRN. */
 export const STONE_FLATSHEET_WIDTH_M = 1.2;
 
 const COIL_PRODUCT_IDS = new Set(['COIL-ALU', 'PRD-102']);
 
+/**
+ * @param {string | null | undefined} productId
+ * @param {{ dashboard_attrs_json?: string; dashboardAttrs?: object; unit?: string } | null} [productRow]
+ * @param {{ lineType?: string; line_type?: string; metersOffered?: number | null; meters_offered?: number | null; unitPricePerKgNgn?: number | null; unit_price_per_kg_ngn?: number | null; qtyOrdered?: number; qty_ordered?: number } | null} [poLine]
+ * @returns {PoLineType}
+ */
 export function inferLineTypeFromProduct(productId, productRow = null, poLine = null) {
   const explicit = String(poLine?.lineType ?? poLine?.line_type ?? '').trim();
   if (PO_LINE_TYPES.includes(explicit)) return explicit;
@@ -78,6 +89,9 @@ export function inferLineTypeFromProduct(productId, productRow = null, poLine = 
   return 'coil_kg';
 }
 
+/**
+ * @param {PoLineType} lineType
+ */
 export function poLinePriceSuffix(lineType) {
   if (lineType === 'stone' || lineType === 'stone_meter' || lineType === 'coil_meter') return '/m';
   if (lineType === 'stone_flatsheet') return '/sheet';
@@ -87,6 +101,7 @@ export function poLinePriceSuffix(lineType) {
   return '/kg';
 }
 
+/** GRN UI branch key per PO line. */
 export function grnKindForPoLine(line) {
   const lt = String(line?.lineType || '').trim() || inferLineTypeFromProduct(line?.productID, null, line);
   if (lt === 'stone_meter') return 'stone';
@@ -122,6 +137,11 @@ export function coilReceiptShortToleranceKg(qtyOrdered) {
   return Math.max(COIL_RECEIPT_SHORT_KG_MIN, q * COIL_RECEIPT_SHORT_PCT);
 }
 
+/**
+ * Open quantity still receivable on a PO line (0 when coil short-land is within tolerance).
+ * @param {{ lineType?: string; productID?: string; qtyOrdered?: number; qtyReceived?: number }} line
+ * @param {PoLineType} [lineType]
+ */
 export function poLineOpenQtyForReceiving(line, lineType) {
   const lt = lineType || inferLineTypeFromProduct(line?.productID, null, line);
   if (lt === 'service') return 0;
@@ -135,11 +155,16 @@ export function poLineOpenQtyForReceiving(line, lineType) {
   return gap;
 }
 
+/** @param {{ lineType?: string; productID?: string; qtyOrdered?: number; qtyReceived?: number }} line */
 export function poLineIsOpenForReceiving(line) {
   const lt = inferLineTypeFromProduct(line?.productID, null, line);
   return poLineOpenQtyForReceiving(line, lt) > 0;
 }
 
+/**
+ * @param {{ lineType?: string; qtyOrdered?: number; qtyReceived?: number }} line
+ * @param {PoLineType} lineType
+ */
 export function poLineQtyLabel(line, lineType) {
   const lt = lineType || inferLineTypeFromProduct(line?.productID, null, line);
   const open = poLineOpenQtyForReceiving(line, lt);
@@ -150,6 +175,10 @@ export function poLineQtyLabel(line, lineType) {
   return `${open.toLocaleString()} kg open`;
 }
 
+/**
+ * @param {object} line draft or API line
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
 export function validatePoLine(line) {
   const lineType = String(line?.lineType ?? line?.line_type ?? '').trim();
   if (!PO_LINE_TYPES.includes(lineType)) {
@@ -163,7 +192,7 @@ export function validatePoLine(line) {
 
   if (lineType === 'coil_kg' || lineType === 'coil_meter') {
     if (!COIL_PRODUCT_IDS.has(pid)) return { ok: false, error: 'Coil lines need aluminium or aluzinc material.' };
-    if (!String(line?.color ?? '').trim()) {
+    if (!String(line?.color ?? line?.color ?? '').trim()) {
       return { ok: false, error: 'Coil lines need colour.' };
     }
     if (!String(line?.gauge ?? '').trim()) return { ok: false, error: 'Coil lines need gauge.' };
@@ -187,7 +216,7 @@ export function validatePoLine(line) {
     }
     const len = Number(line?.metersOffered ?? line?.meters_offered);
     if (!Number.isFinite(len) || len <= 0) {
-      return { ok: false, error: 'Stone flatsheet lines need sheet length (1.4, 1.5, or 2 m).' };
+      return { ok: false, error: 'Stone flatsheet lines need sheet length (1.4 or 2 m).' };
     }
   }
 
@@ -212,6 +241,11 @@ export function validatePoLine(line) {
   return { ok: true };
 }
 
+/**
+ * Sheets × length × width → m² for stone flatsheet GRN.
+ * @param {number} sheets
+ * @param {number} lengthM
+ */
 export function stoneFlatsheetSheetsToM2(sheets, lengthM) {
   const s = Number(sheets);
   const len = Number(lengthM);
@@ -219,6 +253,10 @@ export function stoneFlatsheetSheetsToM2(sheets, lengthM) {
   return s * len * STONE_FLATSHEET_WIDTH_M;
 }
 
+/**
+ * @param {string[]} lineTypes
+ * @returns {'coil' | 'stone' | 'accessory' | 'mixed'}
+ */
 export function deriveProcurementKindFromLineTypes(lineTypes) {
   const kinds = new Set();
   for (const t of lineTypes || []) {
@@ -236,6 +274,9 @@ export function deriveProcurementKindFromLineTypes(lineTypes) {
   return 'mixed';
 }
 
+/**
+ * @param {{ lineType?: string; productID?: string }[]} lines
+ */
 export function deriveProcurementKindFromPoLines(lines) {
   const types = (lines || []).map((l) =>
     inferLineTypeFromProduct(l.productID ?? l.product_id, null, l)

@@ -36,9 +36,14 @@ import OffcutIncidentPicker from './material/OffcutIncidentPicker';
 import CoilDamageRecordModal from './operations/CoilDamageRecordModal';
 import { ProductionRegisterCoilRow } from './operations/ProductionRegisterCoilRow';
 import {
+  isStoneBargeboardQuotationLine,
   isStoneFlatsheetQuotationLine,
+  isStoneRidgeQuotationLine,
   quotationHasStoneMetreProductLines,
   resolveStoneFlatsheetLengthM,
+  stoneBargeboardMetresPerSheet,
+  stoneFlatsheetSheetsForFinishedMetres,
+  stoneRidgeMetresPerSheet,
 } from '../lib/stoneCoatedQuotationPolicy';
 import { formatProductionPriceBlockMessage } from '../lib/productionPriceBlock';
 import { coilFreeKg as coilFreeKgForJob } from '../lib/coilStockKg';
@@ -1057,10 +1062,37 @@ export function LiveProductionMonitor({
           name: n || 'Stone flatsheet',
           orderedM2: qm,
           lengthM,
+          demandKind: 'sold_sf',
         };
       })
       .filter((r) => isStoneFlatsheetQuotationLine(r.name) && r.orderedM2 > 0 && r.lengthM != null);
   }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
+
+  const quotedStoneSfYieldLines = useMemo(() => {
+    const ref = selectedJob?.quotationRef;
+    if (!ref || !Array.isArray(ws?.snapshot?.quotations)) return [];
+    const q = ws.snapshot.quotations.find((x) => x.id === ref);
+    const prod = q?.quotationLines?.products;
+    if (!Array.isArray(prod)) return [];
+    return prod
+      .map((r) => {
+        const n = String(r?.name ?? '').trim();
+        const orderedFinishedM = Number(String(r?.qty ?? '').replace(/,/g, '')) || 0;
+        let demandKind = null;
+        if (isStoneRidgeQuotationLine(n)) demandKind = 'ridge';
+        else if (isStoneBargeboardQuotationLine(n)) demandKind = 'bargeboard';
+        if (!demandKind || orderedFinishedM <= 0) return null;
+        return {
+          quoteLineId: String(r.id ?? '').trim(),
+          name: n,
+          orderedFinishedM,
+          demandKind,
+        };
+      })
+      .filter(Boolean);
+  }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
+
+  const stoneFlatsheetDemandCount = quotedStoneFlatsheetLines.length + quotedStoneSfYieldLines.length;
 
   const stoneFlatsheetLinesMissingLength = useMemo(() => {
     const ref = selectedJob?.quotationRef;
@@ -1078,7 +1110,7 @@ export function LiveProductionMonitor({
   }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
 
   const showStoneFlatsheetIssuedSection =
-    quotedStoneFlatsheetLines.length > 0 &&
+    stoneFlatsheetDemandCount > 0 &&
     stoneFlatsheetCompletionDraft.length > 0 &&
     !readOnly &&
     (canCaptureRun ||
@@ -1168,7 +1200,7 @@ export function LiveProductionMonitor({
   useEffect(() => {
     const quotationRef = selectedJob?.quotationRef;
     const jobId = selectedJob?.jobID;
-    if (!quotationRef || !jobId || !quotedStoneFlatsheetLines.length) {
+    if (!quotationRef || !jobId || stoneFlatsheetDemandCount <= 0) {
       sfDraftJobRef.current = null;
       setStoneFlatsheetCompletionDraft([]);
       return;
@@ -1191,7 +1223,7 @@ export function LiveProductionMonitor({
       const prevByKey = jobSwitch ? new Map() : new Map(prev.map((r) => [r.key, r]));
       const storedMap = hasPostedSfRowsForJob ? {} : readProdSfDraftMap(jobId);
 
-      return quotedStoneFlatsheetLines.map((line) => {
+      const soldRows = quotedStoneFlatsheetLines.map((line) => {
         const stableKey = line.quoteLineId || `name:${line.name}`;
         let prior = 0;
         for (const u of usage) {
@@ -1260,13 +1292,51 @@ export function LiveProductionMonitor({
           priorConsumedM2: prior,
           suppliedThisJobM2,
           deductionThisJobM2,
+          demandKind: 'sold_sf',
         };
       });
+
+      const yieldRows = quotedStoneSfYieldLines.map((line) => {
+        const stableKey = line.quoteLineId || `name:${line.name}:yield`;
+        const old = prevByKey.get(stableKey);
+        const stored = storedMap[stableKey];
+        let lengthM = old?.lengthM ?? stored?.lengthM ?? 2;
+        if (lengthM !== 1.4 && lengthM !== 2) lengthM = 2;
+        const metresPerSheet =
+          line.demandKind === 'ridge'
+            ? stoneRidgeMetresPerSheet(lengthM)
+            : stoneBargeboardMetresPerSheet(lengthM);
+        const sheetsExact = stoneFlatsheetSheetsForFinishedMetres(line.orderedFinishedM, metresPerSheet);
+        let sheetsUsed = old?.sheetsUsed ?? stored?.sheetsUsed;
+        if (!Number.isFinite(Number(sheetsUsed))) {
+          sheetsUsed = Math.ceil(sheetsExact - 1e-9);
+        }
+        const finishedCapacity = Number(sheetsUsed) * metresPerSheet;
+        const offcutFinishedM = Math.max(0, finishedCapacity - line.orderedFinishedM);
+        return {
+          key: stableKey,
+          quoteLineId: line.quoteLineId,
+          name: line.name,
+          lengthM,
+          orderedFinishedM: line.orderedFinishedM,
+          sheetsUsed,
+          offcutFinishedM,
+          demandKind: line.demandKind,
+          suppliedThisJobM2: 0,
+          deductionThisJobM2: 0,
+          orderedM2: 0,
+          priorConsumedM2: 0,
+        };
+      });
+
+      return [...soldRows, ...yieldRows];
     });
   }, [
     selectedJob?.jobID,
     selectedJob?.quotationRef,
     quotedStoneFlatsheetLines,
+    quotedStoneSfYieldLines,
+    stoneFlatsheetDemandCount,
     ws?.snapshot?.productionJobStoneFlatsheetUsage,
   ]);
 
@@ -1287,12 +1357,28 @@ export function LiveProductionMonitor({
 
   const stoneFlatsheetSuppliedForApi = useMemo(
     () =>
-      stoneFlatsheetCompletionDraft.map((r) => ({
-        quoteLineId: r.quoteLineId,
-        name: r.name,
-        suppliedM2: Number(String(r.suppliedThisJobM2).replace(/,/g, '')) || 0,
-        deductionM2: Number(String(r.deductionThisJobM2).replace(/,/g, '')) || 0,
-      })),
+      stoneFlatsheetCompletionDraft.map((r) => {
+        if (r.demandKind === 'ridge' || r.demandKind === 'bargeboard') {
+          const lengthM = r.lengthM === 1.4 ? 1.4 : 2;
+          const sheetsUsed = Math.max(0, Number(r.sheetsUsed) || 0);
+          return {
+            quoteLineId: r.quoteLineId,
+            name: r.name,
+            lengthM,
+            sheetsUsed,
+            demandKind: r.demandKind,
+            suppliedM2: 0,
+            deductionM2: 0,
+          };
+        }
+        return {
+          quoteLineId: r.quoteLineId,
+          name: r.name,
+          suppliedM2: Number(String(r.suppliedThisJobM2).replace(/,/g, '')) || 0,
+          deductionM2: Number(String(r.deductionThisJobM2).replace(/,/g, '')) || 0,
+          demandKind: 'sold_sf',
+        };
+      }),
     [stoneFlatsheetCompletionDraft]
   );
   const stoneFlatsheetDraftPage = useAppTablePaging(
@@ -3850,13 +3936,13 @@ export function LiveProductionMonitor({
           {showStoneFlatsheetIssuedSection ? (
             <div className="rounded-lg border border-sky-200/80 bg-sky-50/40 p-2 sm:p-2.5 space-y-1.5">
               <p className="text-ui-xs font-black uppercase tracking-widest text-sky-900">
-                Stone flatsheet (m²){jobSt === 'Completed' ? ' — correction' : ''}
+                Stone flatsheet{jobSt === 'Completed' ? ' — correction' : ''}
               </p>
               <p className="text-ui-xs text-slate-600 leading-snug">
-                Ordered m² on the quote vs already consumed on other completed jobs. Supplied + deduction counts against
-                remaining m² and reduces the stone flatsheet stock SKU for this colour and length.
+                Sold stone flatsheet is issued in m². Ridge and bargeboard consume extra SF sheets by yield (length chosen
+                here); offcut finished metres are recorded and kept.
                 {jobSt === 'Planned'
-                  ? ' You can enter m² while Planned; use Save & start before completing the job.'
+                  ? ' You can enter usage while Planned; use Save & start before completing the job.'
                   : null}
               </p>
               <div className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white">
@@ -3866,15 +3952,105 @@ export function LiveProductionMonitor({
                       <tr>
                         <th className="px-2 py-2">Item</th>
                         <th className="px-2 py-2 text-right">Len</th>
-                        <th className="px-2 py-2 text-right">Ordered m²</th>
-                        <th className="px-2 py-2 text-right">Prior m²</th>
-                        <th className="px-2 py-2 text-right">Remaining</th>
-                        <th className="px-2 py-2 text-right">Supplied</th>
-                        <th className="px-2 py-2 text-right">Deduction</th>
+                        <th className="px-2 py-2 text-right">Ordered</th>
+                        <th className="px-2 py-2 text-right">Prior</th>
+                        <th className="px-2 py-2 text-right">Remaining / sheets</th>
+                        <th className="px-2 py-2 text-right">Supplied / sheets</th>
+                        <th className="px-2 py-2 text-right">Deduction / offcut</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {stoneFlatsheetDraftPage.slice.map((row) => {
+                        const isYield = row.demandKind === 'ridge' || row.demandKind === 'bargeboard';
+                        if (isYield) {
+                          return (
+                            <tr key={row.key} className="hover:bg-sky-50/20">
+                              <td
+                                className="max-w-0 px-2 py-2 font-semibold text-slate-800 whitespace-nowrap truncate"
+                                title={`${row.name} (from stone flatsheet)`}
+                              >
+                                {row.name}
+                                <span className="ml-1 text-ui-xs font-normal text-sky-700">yield</span>
+                              </td>
+                              <td className="px-2 py-2 text-right whitespace-nowrap">
+                                <select
+                                  value={row.lengthM === 1.4 ? '1.4' : '2'}
+                                  onChange={(e) => {
+                                    const lengthM = e.target.value === '1.4' ? 1.4 : 2;
+                                    const metresPerSheet =
+                                      row.demandKind === 'ridge'
+                                        ? stoneRidgeMetresPerSheet(lengthM)
+                                        : stoneBargeboardMetresPerSheet(lengthM);
+                                    const sheetsExact = stoneFlatsheetSheetsForFinishedMetres(
+                                      row.orderedFinishedM,
+                                      metresPerSheet
+                                    );
+                                    const sheetsUsed = Math.ceil(sheetsExact - 1e-9);
+                                    const offcutFinishedM = Math.max(
+                                      0,
+                                      sheetsUsed * metresPerSheet - row.orderedFinishedM
+                                    );
+                                    setStoneFlatsheetCompletionDraft((prev) =>
+                                      prev.map((r) =>
+                                        r.key === row.key
+                                          ? { ...r, lengthM, sheetsUsed, offcutFinishedM }
+                                          : r
+                                      )
+                                    );
+                                  }}
+                                  className="rounded-md border border-slate-200 bg-white px-1 py-1 text-xs font-semibold text-sky-900"
+                                  aria-label={`SF length for ${row.name}`}
+                                >
+                                  <option value="1.4">1.4 m</option>
+                                  <option value="2">2 m</option>
+                                </select>
+                              </td>
+                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">
+                                {row.orderedFinishedM} m
+                              </td>
+                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">—</td>
+                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">
+                                {(() => {
+                                  const metresPerSheet =
+                                    row.demandKind === 'ridge'
+                                      ? stoneRidgeMetresPerSheet(row.lengthM)
+                                      : stoneBargeboardMetresPerSheet(row.lengthM);
+                                  return `${stoneFlatsheetSheetsForFinishedMetres(row.orderedFinishedM, metresPerSheet).toFixed(2)} sh`;
+                                })()}
+                              </td>
+                              <td className="px-2 py-2 text-right whitespace-nowrap">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={row.sheetsUsed}
+                                  onChange={(e) => {
+                                    const sheetsUsed = Number(e.target.value);
+                                    const metresPerSheet =
+                                      row.demandKind === 'ridge'
+                                        ? stoneRidgeMetresPerSheet(row.lengthM)
+                                        : stoneBargeboardMetresPerSheet(row.lengthM);
+                                    const offcutFinishedM = Number.isFinite(sheetsUsed)
+                                      ? Math.max(0, sheetsUsed * metresPerSheet - row.orderedFinishedM)
+                                      : 0;
+                                    setStoneFlatsheetCompletionDraft((prev) =>
+                                      prev.map((r) =>
+                                        r.key === row.key ? { ...r, sheetsUsed: e.target.value, offcutFinishedM } : r
+                                      )
+                                    );
+                                  }}
+                                  className="w-[4.5rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-right font-mono text-xs font-bold text-sky-900 outline-none focus:ring-2 focus:ring-sky-500/20"
+                                  aria-label={`Sheets used for ${row.name}`}
+                                />
+                              </td>
+                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">
+                                {Number.isFinite(Number(row.offcutFinishedM))
+                                  ? `${Number(row.offcutFinishedM).toFixed(2)} m offcut`
+                                  : '—'}
+                              </td>
+                            </tr>
+                          );
+                        }
                         const remaining = Math.max(0, row.orderedM2 - row.priorConsumedM2);
                         return (
                           <tr key={row.key} className="hover:bg-sky-50/20">
@@ -3882,7 +4058,7 @@ export function LiveProductionMonitor({
                               {row.name}
                             </td>
                             <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.lengthM} m</td>
-                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.orderedM2}</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.orderedM2} m²</td>
                             <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.priorConsumedM2}</td>
                             <td className="px-2 py-2 text-right tabular-nums text-slate-600">{remaining}</td>
                             <td className="px-2 py-2 text-right whitespace-nowrap">

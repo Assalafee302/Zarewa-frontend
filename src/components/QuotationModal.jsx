@@ -28,18 +28,19 @@ import {
   STONE_METER_INVENTORY_MODEL,
   STONE_PROFILE_FALLBACK,
   STONE_DEFAULT_COLOUR_KEYS,
+  STONE_QUOTE_FLAT_SHEET_COIL_MATERIAL_KEY,
   QUOTATION_MATERIAL_RULES_CODE,
   QUOTATION_LINE_INTEGRITY_CODE,
   applyStoneMeterMaterialChangeCleanup,
   accessoryLineAllowedForStone,
   isStoneFlatsheetQuotationLine,
   normQuoteItemKey,
+  productLineKey,
+  quotationHasFlatSheetLine,
   quotationLineQtyPriceEnabled,
   resolveStoneFlatsheetLengthM,
   validateQuotationLineIntegrity,
   productLineAllowedForStone,
-  productLineKey,
-  quotationHasFlatSheetLine,
 } from '../lib/stoneCoatedQuotationPolicy';
 import {
   QUOTATION_MATERIAL_HEADER_CODE,
@@ -153,7 +154,6 @@ const DEFAULT_PRODUCT_ITEMS = [
   'Cladding',
   'Flat sheet',
   'Stone flatsheet 1.4',
-  'Stone flatsheet 1.5',
   'Stone flatsheet 2',
   'Offcut',
   'Wall eaves',
@@ -230,6 +230,8 @@ function emptyOrderLine() {
     stoneFlatsheetLengthM: '',
     girthMm: '',
     lineKind: '',
+    /** Per-line gauge for normal flatsheet on stone quotes (always aluzinc coil). */
+    lineGauge: '',
   };
 }
 
@@ -306,6 +308,7 @@ function normalizeLoadedLines(raw) {
         r.stoneFlatsheetLengthM != null && r.stoneFlatsheetLengthM !== ''
           ? r.stoneFlatsheetLengthM
           : '',
+      lineGauge: r.lineGauge != null ? String(r.lineGauge) : r.gauge != null && productLineKey(r.name) === 'flat sheet' ? String(r.gauge) : '',
     };
     if (isQuotationTrimProductLine(x.name)) {
       if (!x.girthMm) x.girthMm = String(defaultGirthMmForTrimProduct(x.name));
@@ -352,7 +355,7 @@ function quotationRulesErrorMessage(data) {
   if (d.invalidHeader?.gauge) bits.push('(Gauge invalid)');
   if (d.invalidHeader?.colour) bits.push('(Colour invalid)');
   if (Array.isArray(d.stoneFlatsheetLengthMissing) && d.stoneFlatsheetLengthMissing.length) {
-    bits.push('(Stone flatsheet: choose 1.4 m, 1.5 m, or 2 m — product name or length per line)');
+    bits.push('(Stone flatsheet: choose 1.4 m or 2 m — product name or length per line)');
   }
   return bits.join(' ');
 }
@@ -423,6 +426,7 @@ function OrderLinesSection({
   showStoneFlatsheetLength = false,
   stoneProductOptgroups = false,
   stoneFlatsheetIssueLines = [],
+  stoneFlatSheetGaugeOptions = null,
 }) {
   const addRow = () => setRows((prev) => [...prev, emptyOrderLine()]);
   const updateRow = (id, patch) =>
@@ -665,20 +669,20 @@ function OrderLinesSection({
                         <select
                           aria-label="Stone flatsheet length"
                           value={
-                            row.stoneFlatsheetLengthM === 1.4 || row.stoneFlatsheetLengthM === '1.4'
+                            row.stoneFlatsheetLengthM === 1.4 ||
+                            row.stoneFlatsheetLengthM === '1.4' ||
+                            row.stoneFlatsheetLengthM === 1.5 ||
+                            row.stoneFlatsheetLengthM === '1.5'
                               ? '1.4'
-                              : row.stoneFlatsheetLengthM === 1.5 || row.stoneFlatsheetLengthM === '1.5'
-                                ? '1.5'
-                                : row.stoneFlatsheetLengthM === 2 ||
-                                    row.stoneFlatsheetLengthM === '2' ||
-                                    row.stoneFlatsheetLengthM === '2.0'
-                                  ? '2'
-                                  : ''
+                              : row.stoneFlatsheetLengthM === 2 ||
+                                  row.stoneFlatsheetLengthM === '2' ||
+                                  row.stoneFlatsheetLengthM === '2.0'
+                                ? '2'
+                                : ''
                           }
                           onChange={(e) => {
                             const v = e.target.value;
-                            const len =
-                              v === '1.4' ? 1.4 : v === '1.5' ? 1.5 : v === '2' ? 2 : '';
+                            const len = v === '1.4' ? 1.4 : v === '2' ? 2 : '';
                             const patch = {
                               stoneFlatsheetLengthM: len === '' ? '' : len,
                             };
@@ -691,8 +695,37 @@ function OrderLinesSection({
                         >
                           <option value="">—</option>
                           <option value="1.4">1.4 m</option>
-                          <option value="1.5">1.5 m</option>
                           <option value="2">2 m</option>
+                        </select>
+                      ) : Array.isArray(stoneFlatSheetGaugeOptions) &&
+                        productLineKey(row.name) === 'flat sheet' ? (
+                        <select
+                          aria-label="Flatsheet gauge (aluzinc)"
+                          title="Normal flatsheet on stone quotes uses aluzinc coil — choose gauge"
+                          value={String(row.lineGauge || '')}
+                          onChange={(e) => {
+                            const lg = e.target.value;
+                            const option = matchedOption;
+                            const suggestedPrice =
+                              typeof resolveUnitPrice === 'function'
+                                ? resolveUnitPrice(row.name, option || null, {
+                                    girthMm: row.girthMm,
+                                    lineGauge: lg,
+                                  })
+                                : 0;
+                            updateRow(row.id, {
+                              lineGauge: lg,
+                              ...(suggestedPrice > 0 ? { unitPrice: String(suggestedPrice) } : {}),
+                            });
+                          }}
+                          className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1 pr-1 text-ui-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15"
+                        >
+                          <option value="">Gauge</option>
+                          {stoneFlatSheetGaugeOptions.map((g) => (
+                            <option key={g.id || g.value} value={g.value}>
+                              {g.value}
+                            </option>
+                          ))}
                         </select>
                       ) : (
                         <div className="h-8" aria-hidden />
@@ -1237,7 +1270,7 @@ const QuotationModal = ({
       const qm = parseLineNum(row?.qty);
       if (!n || qm <= 0) continue;
       if (isStoneFlatsheetQuotationLine(n) && resolveStoneFlatsheetLengthM(row) == null) {
-        issues.push(`${n}: choose length 1.4 m, 1.5 m, or 2 m`);
+                        issues.push(`${n}: choose length 1.4 m or 2 m`);
       }
     }
     return issues;
@@ -1384,19 +1417,24 @@ const QuotationModal = ({
   );
 
   const resolveUnitPrice = useCallback(
-    (itemName, option, { girthMm: girthOverride } = {}) => {
+    (itemName, option, { girthMm: girthOverride, lineGauge: lineGaugeOverride } = {}) => {
       const name = String(itemName ?? '').trim();
       if (!name) return 0;
 
-      const materialKey = priceListMaterialKeyFromMeta(selectedMaterialTypeMeta);
+      const stoneFlatSheet =
+        isStoneMeter && productLineKey(name) === 'flat sheet';
+      const materialKey = stoneFlatSheet
+        ? STONE_QUOTE_FLAT_SHEET_COIL_MATERIAL_KEY
+        : priceListMaterialKeyFromMeta(selectedMaterialTypeMeta);
       const branchId = quotationBranchId;
+      const gaugeForLine = String(lineGaugeOverride || materialGauge || '').trim();
       const wbCtx = {
         materialPricingRows,
         ridgeAddOns: ridgeAddOnsEffective,
         materialKey,
-        gaugeLabel: materialGauge,
+        gaugeLabel: gaugeForLine,
         branchId,
-        designLabel: materialDesign,
+        designLabel: stoneFlatSheet ? '' : materialDesign,
       };
 
       if (isQuotationTrimProductLine(name)) {
@@ -1411,8 +1449,8 @@ const QuotationModal = ({
       // Prefer published price list (Publish path) over draft workbook suggested list.
       let publishedListN = 0;
       if (usesWorkbook && priceListItems.length > 0) {
-        const gaugeK = gaugeMmKeyFromQuotationGauge(materialGauge);
-        const designK = pricingNormKey(materialDesign);
+        const gaugeK = gaugeMmKeyFromQuotationGauge(gaugeForLine);
+        const designK = stoneFlatSheet ? '' : pricingNormKey(materialDesign);
 
         let bestScore = -1;
         let bestN = 0;
@@ -1453,9 +1491,9 @@ const QuotationModal = ({
       if (usesWorkbook) {
         const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
           materialKey,
-          gaugeMm: materialGauge,
+          gaugeMm: gaugeForLine,
           branchId,
-          designLabel: materialDesign,
+          designLabel: stoneFlatSheet ? '' : materialDesign,
         });
         if (hit?.suggestedListPerMeter > 0) return hit.suggestedListPerMeter;
       }
@@ -1491,6 +1529,7 @@ const QuotationModal = ({
       selectedColourMeta,
       selectedProfileMeta,
       selectedMaterialTypeMeta,
+      isStoneMeter,
     ]
   );
 
@@ -2062,6 +2101,9 @@ const QuotationModal = ({
           ...(isStoneFlatsheetQuotationLine(row.name) &&
           resolveStoneFlatsheetLengthM(row) != null
             ? { stoneFlatsheetLengthM: resolveStoneFlatsheetLengthM(row) }
+            : {}),
+          ...(isStoneMeter && productLineKey(row.name) === 'flat sheet' && String(row.lineGauge || '').trim()
+            ? { lineGauge: String(row.lineGauge).trim(), gauge: String(row.lineGauge).trim() }
             : {}),
         };
       }),
@@ -2894,6 +2936,7 @@ const QuotationModal = ({
             showStoneFlatsheetLength={isStoneMeter}
             stoneProductOptgroups={isStoneMeter}
             stoneFlatsheetIssueLines={stoneFlatsheetQuotationIssues}
+            stoneFlatSheetGaugeOptions={isStoneMeter ? gaugeOptions : null}
           />
           <OrderLinesSection
             title="Accessories"

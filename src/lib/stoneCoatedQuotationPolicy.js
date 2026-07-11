@@ -1,22 +1,45 @@
 /**
- * Mirror of Zarewa-backend-main/shared/lib/stoneCoatedQuotationPolicy.js — keep in sync when rules change.
+ * Stone-coated (stone_meter) quotation rules — shared by server validation and mirrored on the client.
+ * Keep in sync with Zarewa-frontend-main/src/lib/stoneCoatedQuotationPolicy.js
  */
 
 export const STONE_METER_INVENTORY_MODEL = 'stone_meter';
 
+/** Canonical profile labels when setup_profiles has no rows for the material type. */
 export const STONE_PROFILE_FALLBACK = ['Bond', 'Classic', 'Milano', 'Single', 'Roman'];
 
+/**
+ * Allowed product keys on stone_meter quotes (before Coil rule).
+ * Cladding and other coil trims are intentionally excluded.
+ */
 export const STONE_PRODUCT_BASE_KEYS = new Set([
   'roofing sheet',
   'stone flatsheet',
   'ridge',
   'ridge cap',
+  'bargeboard',
   'gutter',
   'flat sheet',
 ]);
 
+/** Valid stone flatsheet stock lengths (m). Legacy 1.5 maps to 1.4. */
+export const STONE_FLATSHEET_LENGTHS_M = Object.freeze([1.4, 2]);
+
+/**
+ * Yield from one stone flatsheet of length L:
+ * ridge → 3 pieces × L finished metres; bargeboard → 2 pieces × L finished metres.
+ */
+export const STONE_SF_YIELD_RIDGE_PCS_PER_SHEET = 3;
+export const STONE_SF_YIELD_BARGEBOARD_PCS_PER_SHEET = 2;
+
+/** Normal flatsheet on a stone quote always prices/fulfills as aluzinc coil. */
+export const STONE_QUOTE_FLAT_SHEET_COIL_MATERIAL_KEY = 'aluzinc';
+
 const COIL_KEY = 'coil';
 
+/**
+ * @param {string | null | undefined} s
+ */
 export function normQuoteItemKey(s) {
   return String(s ?? '')
     .trim()
@@ -37,32 +60,154 @@ export const STONE_DEFAULT_COLOUR_KEYS = new Set(
   ].map((k) => normQuoteItemKey(k))
 );
 
+/**
+ * Map display / legacy names to a whitelist key.
+ * @param {string | null | undefined} name
+ */
 export function productLineKey(name) {
   const k = normQuoteItemKey(name);
   if (k === 'flatsheet') return 'flat sheet';
   if (k === 'stone flatsheet' || k.startsWith('stone flatsheet ')) return 'stone flatsheet';
   if (k === 'stoneflatsheet' || k === 'stone flat sheet') return 'stone flatsheet';
+  if (k === 'barge board') return 'bargeboard';
   return k;
 }
 
 /**
- * Quotation product lines that issue stone flatsheet stock (m²), not stone-coated metre stock.
+ * Quotation product lines that issue stone flatsheet stock (m² / sheets), not stone-coated metre stock.
+ * @param {string | null | undefined} name
  */
 export function isStoneFlatsheetQuotationLine(name) {
   return productLineKey(name) === 'stone flatsheet';
 }
 
-/** @returns {1.4 | 1.5 | 2 | null} */
+/**
+ * Ridge / ridge cap — cut from stone flatsheet (extra SF consumption by yield).
+ * @param {string | null | undefined} name
+ */
+export function isStoneRidgeQuotationLine(name) {
+  const key = productLineKey(name);
+  return key === 'ridge' || key === 'ridge cap';
+}
+
+/**
+ * Bargeboard — cut from stone flatsheet (extra SF consumption by yield).
+ * @param {string | null | undefined} name
+ */
+export function isStoneBargeboardQuotationLine(name) {
+  return productLineKey(name) === 'bargeboard';
+}
+
+/**
+ * Products fulfilled by cutting stone flatsheet (sold SF, ridge, bargeboard).
+ * @param {string | null | undefined} name
+ */
+export function isStoneFlatsheetYieldProductLine(name) {
+  return (
+    isStoneFlatsheetQuotationLine(name) ||
+    isStoneRidgeQuotationLine(name) ||
+    isStoneBargeboardQuotationLine(name)
+  );
+}
+
+/**
+ * Roofing sheet only — draws stone metre stock (STONE-{profile}-{colour}-{gauge}).
+ * @param {string | null | undefined} name
+ */
+export function isStoneMetreRoofingQuotationLine(name) {
+  return productLineKey(name) === 'roofing sheet';
+}
+
+/**
+ * Coil-backed lines on a stone quote (cutting-list flatsheet / aluzinc coil path).
+ * @param {string | null | undefined} name
+ */
+export function isStoneCoilBackedQuotationLine(name) {
+  const key = productLineKey(name);
+  return key === 'gutter' || key === 'flat sheet' || key === COIL_KEY;
+}
+
+/**
+ * Finished ridge metres produced from one SF sheet of length L.
+ * @param {1.4 | 2} lengthM
+ */
+export function stoneRidgeMetresPerSheet(lengthM) {
+  const L = normalizeStoneFlatsheetLengthM(lengthM);
+  if (L == null) return 0;
+  return STONE_SF_YIELD_RIDGE_PCS_PER_SHEET * L;
+}
+
+/**
+ * Finished bargeboard metres produced from one SF sheet of length L.
+ * @param {1.4 | 2} lengthM
+ */
+export function stoneBargeboardMetresPerSheet(lengthM) {
+  const L = normalizeStoneFlatsheetLengthM(lengthM);
+  if (L == null) return 0;
+  return STONE_SF_YIELD_BARGEBOARD_PCS_PER_SHEET * L;
+}
+
+/**
+ * Sheets required to cover finished metres (exact; production records offcut for remainder).
+ * @param {number} finishedMetres
+ * @param {number} metresPerSheet
+ */
+export function stoneFlatsheetSheetsForFinishedMetres(finishedMetres, metresPerSheet) {
+  const need = Number(finishedMetres) || 0;
+  const per = Number(metresPerSheet) || 0;
+  if (need <= 0 || per <= 0) return 0;
+  return need / per;
+}
+
+/**
+ * Stock m² for one physical SF sheet (effective 1 m cover width × length).
+ * @param {1.4 | 2} lengthM
+ */
+export function stoneFlatsheetM2PerSheet(lengthM) {
+  const L = normalizeStoneFlatsheetLengthM(lengthM);
+  return L == null ? 0 : L;
+}
+
+/**
+ * Convert SF stock m² ↔ sheet pcs at a length.
+ * @param {number} m2
+ * @param {1.4 | 2} lengthM
+ */
+export function stoneFlatsheetM2ToPcs(m2, lengthM) {
+  const per = stoneFlatsheetM2PerSheet(lengthM);
+  if (per <= 0) return 0;
+  return (Number(m2) || 0) / per;
+}
+
+/**
+ * @param {number} pcs
+ * @param {1.4 | 2} lengthM
+ */
+export function stoneFlatsheetPcsToM2(pcs, lengthM) {
+  return (Number(pcs) || 0) * stoneFlatsheetM2PerSheet(lengthM);
+}
+
+/**
+ * Valid stone flatsheet stock lengths (m). Legacy 1.5 is remapped to 1.4.
+ * @param {unknown} raw — from `stoneFlatsheetLengthM` / `lengthM` on a quote line
+ * @returns {1.4 | 2 | null}
+ */
 export function normalizeStoneFlatsheetLengthM(raw) {
   const n = Number(raw);
   if (!Number.isFinite(n)) return null;
   if (Math.abs(n - 1.4) < 1e-6) return 1.4;
-  if (Math.abs(n - 1.5) < 1e-6) return 1.5;
+  /* Legacy SKU / quotes: 1.5 → 1.4 */
+  if (Math.abs(n - 1.5) < 1e-6) return 1.4;
   if (Math.abs(n - 2) < 1e-6 || Math.abs(n - 2.0) < 1e-6) return 2;
   return null;
 }
 
-/** @param {{ name?: string; stoneFlatsheetLengthM?: unknown; lengthM?: unknown } | null | undefined} row */
+/**
+ * Length for a stone flatsheet quote line: `stoneFlatsheetLengthM` on generic "Stone flatsheet" rows;
+ * for suffixed names ("Stone flatsheet 2"), the name encodes length and wins if it disagrees with a stale field.
+ * @param {{ name?: string; stoneFlatsheetLengthM?: unknown; lengthM?: unknown } | null | undefined} row
+ * @returns {1.4 | 2 | null}
+ */
 export function resolveStoneFlatsheetLengthM(row) {
   const k = normQuoteItemKey(row?.name);
   const m = k.match(/^stone flatsheet\s+(\d+(?:\.\d+)?)\s*$/);
@@ -90,6 +235,9 @@ export function resolveStoneFlatsheetLengthM(row) {
   return normalizeStoneFlatsheetLengthM(row?.lengthM);
 }
 
+/**
+ * @param {{ name?: string }[]} products
+ */
 export function quotationHasFlatSheetLine(products) {
   if (!Array.isArray(products)) return false;
   return products.some((row) => {
@@ -98,6 +246,9 @@ export function quotationHasFlatSheetLine(products) {
   });
 }
 
+/**
+ * @param {{ name?: string }[]} products
+ */
 export function quotationHasCoilLine(products) {
   if (!Array.isArray(products)) return false;
   return products.some((row) => productLineKey(row?.name) === COIL_KEY);
@@ -107,32 +258,89 @@ function parseQuoteLineQty(row) {
   return Number(String(row?.qty ?? '').replace(/,/g, '')) || 0;
 }
 
-/** Product lines with qty > 0 that draw stone-coated metre stock, not stone flatsheet m². */
-export function quotationHasStoneMetreProductLines(products) {
-  if (!Array.isArray(products)) return false;
-  return products.some((row) => {
-    const name = String(row?.name ?? '').trim();
-    if (!name || parseQuoteLineQty(row) <= 0) return false;
-    return !isStoneFlatsheetQuotationLine(name);
-  });
-}
-
-/** Whether production completion should consume stone-coated metre stock. */
-export function quotationRequiresStoneMetreConsumption(linesJson) {
+function parseLinesJsonProducts(linesJson) {
   let j = linesJson;
   if (typeof j === 'string') {
     try {
       j = JSON.parse(j || '{}');
     } catch {
-      return false;
+      return [];
     }
   }
-  if (!j || typeof j !== 'object') return false;
-  return quotationHasStoneMetreProductLines(j.products);
+  if (!j || typeof j !== 'object') return [];
+  return Array.isArray(j.products) ? j.products : [];
+}
+
+/**
+ * Product lines with qty > 0 that draw stone-coated metre stock (roofing sheet only).
+ * Ridge/bargeboard draw stone flatsheet; gutter / flat sheet draw coil.
+ * @param {{ name?: string; qty?: unknown }[] | null | undefined} products
+ */
+export function quotationHasStoneMetreProductLines(products) {
+  if (!Array.isArray(products)) return false;
+  return products.some((row) => {
+    const name = String(row?.name ?? '').trim();
+    if (!name || parseQuoteLineQty(row) <= 0) return false;
+    return isStoneMetreRoofingQuotationLine(name);
+  });
+}
+
+/**
+ * Whether the quote has coil-backed lines (gutter / normal flatsheet / coil) for CL metre checks.
+ * @param {{ name?: string; qty?: unknown }[] | null | undefined} products
+ */
+export function quotationHasStoneCoilBackedProductLines(products) {
+  if (!Array.isArray(products)) return false;
+  return products.some((row) => {
+    const name = String(row?.name ?? '').trim();
+    if (!name || parseQuoteLineQty(row) <= 0) return false;
+    return isStoneCoilBackedQuotationLine(name);
+  });
+}
+
+/**
+ * Sold SF, ridge, or bargeboard with qty — production must plan stone flatsheet usage.
+ * @param {{ name?: string; qty?: unknown }[] | null | undefined} products
+ */
+export function quotationHasStoneFlatsheetDemandLines(products) {
+  if (!Array.isArray(products)) return false;
+  return products.some((row) => {
+    const name = String(row?.name ?? '').trim();
+    if (!name || parseQuoteLineQty(row) <= 0) return false;
+    return isStoneFlatsheetYieldProductLine(name);
+  });
+}
+
+/**
+ * Whether completing production should consume stone-coated metre stock (vs stone flatsheet / coil only).
+ * @param {object | string | null | undefined} linesJson
+ */
+export function quotationRequiresStoneMetreConsumption(linesJson) {
+  return quotationHasStoneMetreProductLines(parseLinesJsonProducts(linesJson));
+}
+
+/**
+ * Whether cutting-list coil metre alignment applies (gutter / normal flatsheet on stone quotes).
+ * SF-only and ridge/barge-only stone quotes skip the roofing↔CL metre gate.
+ * @param {object | string | null | undefined} linesJson
+ */
+export function quotationRequiresStoneCoilCuttingListAlignment(linesJson) {
+  return quotationHasStoneCoilBackedProductLines(parseLinesJsonProducts(linesJson));
+}
+
+/**
+ * Whether production should consume stone flatsheet stock (sold SF and/or ridge/barge yield).
+ * @param {object | string | null | undefined} linesJson
+ */
+export function quotationRequiresStoneFlatsheetConsumption(linesJson) {
+  return quotationHasStoneFlatsheetDemandLines(parseLinesJsonProducts(linesJson));
 }
 
 export const STONE_ACCESSORY_KEYS = new Set([normQuoteItemKey('Stone nail'), normQuoteItemKey('Repair Kit')]);
 
+/**
+ * @param {string | null | undefined} name
+ */
 export function accessoryLineAllowedForStone(name) {
   const k = normQuoteItemKey(name);
   if (STONE_ACCESSORY_KEYS.has(k)) return true;
@@ -141,6 +349,10 @@ export function accessoryLineAllowedForStone(name) {
   return false;
 }
 
+/**
+ * @param {string} name
+ * @param {boolean} hasFlatSheet
+ */
 export function productLineAllowedForStone(name, hasFlatSheet) {
   const key = productLineKey(name);
   if (key === COIL_KEY) return hasFlatSheet;
@@ -164,22 +376,33 @@ export function priceListMaterialKeyFromMaterialTypeRow(row) {
   return '';
 }
 
+/**
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} materialTypeId
+ * @returns {Set<string>} normalized profile keys
+ */
 export function allowedStoneProfileKeysFromDb(db, materialTypeId) {
   const mid = String(materialTypeId || '').trim();
   if (!mid || !db) return new Set(STONE_PROFILE_FALLBACK.map(normQuoteItemKey));
   try {
     const rows = db
-      .prepare(`SELECT name FROM setup_profiles WHERE active = 1 AND material_type_id = ?`)
+      .prepare(
+        `SELECT name FROM setup_profiles WHERE active = 1 AND material_type_id = ?`
+      )
       .all(mid);
     if (rows.length) {
       return new Set(rows.map((r) => normQuoteItemKey(r.name)));
     }
   } catch {
-    /* ignore */
+    /* table missing in tests */
   }
   return new Set(STONE_PROFILE_FALLBACK.map(normQuoteItemKey));
 }
 
+/**
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} gaugeLabel
+ */
 export function gaugeLabelActiveInMaster(db, gaugeLabel) {
   const g = String(gaugeLabel || '').trim();
   if (!g || !db) return true;
@@ -193,6 +416,13 @@ export function gaugeLabelActiveInMaster(db, gaugeLabel) {
   }
 }
 
+/**
+ * Stone header colour: allowed if listed on setup_price_lists (colour_id) and/or on price_list_items
+ * (colour_key + material_type_key) for this material. If neither source constrains colours, any active colour passes.
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} materialTypeId
+ * @param {string} colourName — quotation header display name
+ */
 export function stoneColourAllowedByPriceList(db, materialTypeId, colourName) {
   const mid = String(materialTypeId || '').trim();
   const cname = String(colourName || '').trim();
@@ -225,7 +455,9 @@ export function stoneColourAllowedByPriceList(db, materialTypeId, colourName) {
       }
     }
 
-    const col = db.prepare(`SELECT colour_id FROM setup_colours WHERE active = 1 AND name = ?`).get(cname);
+    const col = db
+      .prepare(`SELECT colour_id FROM setup_colours WHERE active = 1 AND name = ?`)
+      .get(cname);
     const cid = col?.colour_id != null ? String(col.colour_id).trim() : '';
     const cnameKey = normQuoteItemKey(cname);
 
@@ -245,6 +477,11 @@ export function stoneColourAllowedByPriceList(db, materialTypeId, colourName) {
 
 export const QUOTATION_MATERIAL_RULES_CODE = 'QUOTATION_MATERIAL_RULES';
 
+/**
+ * @param {import('better-sqlite3').Database} db
+ * @param {object} linesJson — products, accessories, services, materialTypeId, materialGauge, materialColor, materialDesign
+ * @returns {{ ok: true } | { ok: false, error: string, code: string, details: object }}
+ */
 export function validateQuotationMaterialRules(db, linesJson) {
   const j = linesJson && typeof linesJson === 'object' ? linesJson : {};
   const mid = String(j.materialTypeId || '').trim();
@@ -253,7 +490,9 @@ export function validateQuotationMaterialRules(db, linesJson) {
   let inventoryModel = 'coil_kg';
   try {
     const row = db
-      .prepare(`SELECT inventory_model FROM setup_material_types WHERE material_type_id = ? AND active = 1`)
+      .prepare(
+        `SELECT inventory_model FROM setup_material_types WHERE material_type_id = ? AND active = 1`
+      )
       .get(mid);
     inventoryModel = String(row?.inventory_model || 'coil_kg').trim() || 'coil_kg';
   } catch {
@@ -288,7 +527,8 @@ export function validateQuotationMaterialRules(db, linesJson) {
 
   const design = String(j.materialDesign || '').trim();
   const profileKeys = allowedStoneProfileKeysFromDb(db, mid);
-  const invalidProfile = design.length > 0 && !profileKeys.has(normQuoteItemKey(design));
+  const invalidProfile =
+    design.length > 0 && !profileKeys.has(normQuoteItemKey(design));
 
   const gauge = String(j.materialGauge || '').trim();
   const invalidGauge = gauge.length > 0 && !gaugeLabelActiveInMaster(db, gauge);
@@ -332,7 +572,7 @@ export function validateQuotationMaterialRules(db, linesJson) {
   }
   if (stoneFlatsheetLengthMissing.length) {
     parts.push(
-      'Stone flatsheet lines with quantity must include length 1.4 m, 1.5 m, or 2 m (product name or length field per line).'
+      'Stone flatsheet lines with quantity must include length 1.4 m or 2 m (product name or length field per line).'
     );
   }
   if (invalidProfile) parts.push('Profile is not valid for this material type.');
@@ -352,6 +592,10 @@ export function validateQuotationMaterialRules(db, linesJson) {
   };
 }
 
+/**
+ * @param {import('better-sqlite3').Database} db
+ * @param {object} linesJson
+ */
 export function assertQuotationMaterialRules(db, linesJson) {
   const r = validateQuotationMaterialRules(db, linesJson);
   if (r.ok) return;
@@ -379,6 +623,12 @@ function quotationLineNumericUnitPrice(row) {
   return 0;
 }
 
+/**
+ * Every line with quantity or unit price must have a selected product name.
+ * Stone flatsheet lines with qty also require length 1.4 / 2 m (all material types).
+ * @param {object} linesJson
+ * @returns {{ ok: true } | { ok: false, error: string, code: string, details: object }}
+ */
 export function validateQuotationLineIntegrity(linesJson) {
   const j = linesJson && typeof linesJson === 'object' ? linesJson : {};
   const unnamedWithValues = [];
@@ -411,7 +661,7 @@ export function validateQuotationLineIntegrity(linesJson) {
   }
   if (stoneFlatsheetLengthMissing.length) {
     parts.push(
-      'Stone flatsheet lines with quantity must include length 1.4 m, 1.5 m, or 2 m (select product and length before entering m²).'
+      'Stone flatsheet lines with quantity must include length 1.4 m or 2 m (select product and length before entering m²).'
     );
   }
 
@@ -433,6 +683,7 @@ export function assertQuotationLineIntegrity(linesJson) {
   throw err;
 }
 
+/** UI gate: qty / unit price editable only when product (and stone length when required) is set. */
 export function quotationLineQtyPriceEnabled(row, opts = {}) {
   const n = String(row?.name ?? '').trim();
   if (!n) return false;
@@ -442,6 +693,17 @@ export function quotationLineQtyPriceEnabled(row, opts = {}) {
   return true;
 }
 
+/**
+ * Client-side: apply stone_meter cleanup when material type changes (no DB).
+ * @param {object} param0
+ * @param {boolean} param0.toStoneMeter
+ * @param {{ id: string, name: string, qty?: string, unitPrice?: string }[]} param0.products
+ * @param {{ id: string, name: string, qty?: string, unitPrice?: string }[]} param0.accessories
+ * @param {string} param0.materialGauge
+ * @param {string} param0.materialColor
+ * @param {string} param0.materialDesign
+ * @param {Set<string> | null} param0.allowedProfileKeys — from master profiles for new type, or null to use fallback
+ */
 export function applyStoneMeterMaterialChangeCleanup({
   toStoneMeter,
   products,
