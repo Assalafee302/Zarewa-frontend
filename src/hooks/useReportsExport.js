@@ -21,12 +21,14 @@ import {
   receiptAdvanceTreasuryReconciliationRows,
   refundPeriodOverviewRows,
   refundPeriodOverviewSummary,
+  refundsPaidInPeriodRows,
   salesPaymentsReceivedRows,
   salesPaymentsReceivedSummary,
 } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import {
   PACK_CASH_BANK_AR,
+  PACK_EXPENSES_REFUNDS,
   PACK_GL_AUDIT,
   PACK_MATERIAL_EXCEPTIONS,
   PACK_MATERIAL_TRANSACTION,
@@ -81,7 +83,7 @@ export function useReportsExport({
 }) {
   const [printOpen, setPrintOpen] = useState(false);
   const [printPayload, setPrintPayload] = useState(null);
-  const [printLayout, setPrintLayout] = useState('portrait');
+  const [printLayout, setPrintLayout] = useState('landscape');
   const [printDense, setPrintDense] = useState(false);
   const [materialTxnReport, setMaterialTxnReport] = useState(null);
   const [materialTxnPrintOpen, setMaterialTxnPrintOpen] = useState(false);
@@ -206,6 +208,61 @@ export function useReportsExport({
           ],
         };
       }
+      if (name === PACK_EXPENSES_REFUNDS) {
+        const exRows = buildPaidExpensePrintRows(expenses, paymentRequests, startDate, endDate);
+        const refundPaid = refundsPaidInPeriodRows(refunds, startDate, endDate);
+        const expensePrintRows = exRows.map((e) => ({
+          section: 'Expenses (paid)',
+          date: e.date || '—',
+          ref: e.expenseID || '—',
+          party: e.category || '—',
+          detail: e.type || '—',
+          amount: e.paidAmount || formatNgn(e._paidAmountNgn || 0),
+          status: Number(e._remainingAmountNgn) > 0 ? 'Part-paid' : 'Paid',
+          _amountNgn: Number(e._paidAmountNgn) || 0,
+        }));
+        const refundPrintRows = refundPaid.map((r) => ({
+          section: 'Refunds paid',
+          date: r.payoutDateISO || '—',
+          ref: displayDocNumber(r.refundId) || r.refundId || '—',
+          party: r.customerName || '—',
+          detail: displayDocNumber(r.quotationRef) || r.quotationRef || '—',
+          amount: formatNgn(r.amountNgn),
+          status: r.status || 'Paid',
+          _amountNgn: Number(r.amountNgn) || 0,
+        }));
+        const rows = [...expensePrintRows, ...refundPrintRows];
+        const expensePaidTotal = expensePrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
+        const refundPaidTotal = refundPrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
+        return {
+          title: PACK_EXPENSES_REFUNDS,
+          columns: [
+            { key: 'section', label: 'Section' },
+            { key: 'date', label: 'Date' },
+            { key: 'ref', label: 'Ref' },
+            { key: 'party', label: 'Category / Customer' },
+            { key: 'detail', label: 'Type / Quotation' },
+            { key: 'amount', label: 'Paid (NGN)', align: 'right' },
+            { key: 'status', label: 'Status' },
+          ],
+          rows,
+          grouping: {
+            groupBy: 'section',
+            subtotalKey: '_amountNgn',
+            subtotalColumnKey: 'amount',
+            groupLabel: 'Section',
+            subtotalLabel: 'Subtotal',
+            totalLabel: 'Overall paid',
+          },
+          summaryLines: [
+            { label: 'Expense lines', value: String(expensePrintRows.length) },
+            { label: 'Expenses paid', value: formatNgn(expensePaidTotal) },
+            { label: 'Refund payout lines', value: String(refundPrintRows.length) },
+            { label: 'Refunds paid', value: formatNgn(refundPaidTotal) },
+            { label: 'Combined paid', value: formatNgn(expensePaidTotal + refundPaidTotal) },
+          ],
+        };
+      }
       if (name === PACK_CASH_BANK_AR) {
         const br = filterBankReconciliationInRange(bankReconciliation, startDate, endDate);
         const rtExc = receiptAdvanceTreasuryReconciliationRows(
@@ -291,13 +348,13 @@ export function useReportsExport({
         const raw = refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate);
         const s = refundPeriodOverviewSummary(raw);
         const rows = raw.map((r) => ({
-          receiptPaymentDateISO: r.receiptPaymentDateISO || 'â€”',
-          customerName: r.customerName || 'â€”',
-          quotationRef: displayDocNumber(r.quotationRef) || r.quotationRef || 'â€”',
+          receiptPaymentDateISO: r.receiptPaymentDateISO || '—',
+          customerName: r.customerName || '—',
+          quotationRef: displayDocNumber(r.quotationRef) || r.quotationRef || '—',
           amountRefundPaidNgn: formatNgn(r.amountRefundPaidNgn),
-          refundPaymentDateISO: r.refundPaymentDateISO || 'â€”',
+          refundPaymentDateISO: r.refundPaymentDateISO || '—',
           amountRefundNotPaidNgn: formatNgn(r.amountRefundNotPaidNgn),
-          status: r.status || 'â€”',
+          status: r.status || '—',
         }));
         return {
           title: PACK_REFUND_PERIOD,
@@ -784,7 +841,7 @@ export function useReportsExport({
   ]);
 
   const openPrintSheet = useCallback(async (name) => {
-    setPrintLayout('portrait');
+    setPrintLayout('landscape');
     setPrintDense(false);
     if (name === PACK_GL_AUDIT) {
       if (!hasFinanceView) {

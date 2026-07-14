@@ -25,7 +25,7 @@ export function ManagementReportSheet({
   rows: rowsProp,
   summaryLines = [],
   documentTypeLabel = 'Management report',
-  layout = 'portrait',
+  layout = 'landscape',
   denseSingleLine = false,
   grouping = null,
   extraMetaLines = [],
@@ -203,14 +203,14 @@ export function ReportPrintModal({
   rows,
   summaryLines,
   documentTypeLabel,
-  layout = 'portrait',
+  layout = 'landscape',
   denseSingleLine = false,
   grouping = null,
   autoPrint = false,
   extraMetaLines = [],
 }) {
   const printedRef = useRef(false);
-  const isLandscape = layout === 'landscape';
+  const isLandscape = layout !== 'portrait';
   const shellMaxClass = isLandscape ? 'max-w-[297mm]' : 'max-w-[210mm]';
 
   useEffect(() => {

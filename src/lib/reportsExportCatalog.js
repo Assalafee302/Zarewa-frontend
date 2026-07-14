@@ -1,6 +1,7 @@
 import { Factory, Landmark, Receipt, Scale, Table2 } from 'lucide-react';
 
 export const PACK_PERIOD_COSTS_INVENTORY = 'Period costs & inventory (pack)';
+export const PACK_EXPENSES_REFUNDS = 'Expenses & refunds';
 export const PACK_CASH_BANK_AR = 'Cash, bank & AR reconciliation (pack)';
 export const PACK_GL_AUDIT = 'General ledger audit (period)';
 export const PACK_SALES_CUSTOMER = 'Sales report';
@@ -269,7 +270,7 @@ export const EXPORT_SECTIONS = [
         workbook: 'finance',
         title: 'Expenses & refunds',
         desc: 'Expense detail and summary by category, plus paid refunds and pipeline.',
-        printPack: PACK_PERIOD_COSTS_INVENTORY,
+        printPack: PACK_EXPENSES_REFUNDS,
         icon: Receipt,
       },
       {

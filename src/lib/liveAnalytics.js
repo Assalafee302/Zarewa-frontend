@@ -694,6 +694,59 @@ export function salesPaymentsReceivedSummary(rows = []) {
 }
 
 /**
+ * Flat refund payout lines dated in the period (matches Excel Refunds_paid sheet).
+ * One row per payout history line; falls back to refund.paidAtISO when history is empty/unusable.
+ */
+export function refundsPaidInPeriodRows(refunds = [], startDate, endDate) {
+  const paidInPeriod = [];
+  for (const r of refunds || []) {
+    const id = String(r.refundID ?? r.refund_id ?? '').trim();
+    const hist = Array.isArray(r.payoutHistory) ? r.payoutHistory : [];
+    let linesFromHistory = 0;
+    for (const p of hist) {
+      const iso = toIsoDate(p.postedAtISO || p.posted_at_iso || p.paidAtISO || p.atISO);
+      if (!iso) continue;
+      if (startDate && iso < startDate) continue;
+      if (endDate && iso > endDate) continue;
+      const amt = Math.round(Number(p.amountNgn) || 0);
+      if (amt <= 0) continue;
+      linesFromHistory += 1;
+      paidInPeriod.push({
+        payoutDateISO: iso,
+        refundId: id,
+        customerName: String(r.customer || '').trim() || '—',
+        quotationRef: String(r.quotationRef || '').trim() || '',
+        amountNgn: amt,
+        bankAccount: String(p.accountName || '').trim() || '—',
+        reference: String(p.reference || '').trim() || '—',
+        status: String(r.status || '').trim() || 'Paid',
+      });
+    }
+    if (linesFromHistory > 0) continue;
+    const iso = toIsoDate(r.paidAtISO || r.paid_at_iso);
+    const paid = Math.round(Number(r.paidAmountNgn) || 0);
+    if (paid > 0 && iso && (!startDate || iso >= startDate) && (!endDate || iso <= endDate)) {
+      paidInPeriod.push({
+        payoutDateISO: iso,
+        refundId: id,
+        customerName: String(r.customer || '').trim() || '—',
+        quotationRef: String(r.quotationRef || '').trim() || '',
+        amountNgn: paid,
+        bankAccount: '—',
+        reference: String(r.paymentNote || '').trim() || '—',
+        status: String(r.status || '').trim() || 'Paid',
+      });
+    }
+  }
+  paidInPeriod.sort(
+    (a, b) =>
+      String(a.payoutDateISO).localeCompare(String(b.payoutDateISO)) ||
+      String(a.refundId).localeCompare(String(b.refundId))
+  );
+  return paidInPeriod;
+}
+
+/**
  * Refund overview rows in selected period:
  * - paid amount in period (payout history / paid date)
  * - outstanding amount (approved/pending and still unpaid)
@@ -713,21 +766,20 @@ export function refundPeriodOverviewRows(refunds = [], ledgerEntries = [], start
   for (const r of refunds || []) {
     const qref = String(r.quotationRef || '').trim();
     const requestedISO = toIsoDate(r.requestedAtISO);
-    const paidISO = toIsoDate(r.paidAtISO);
+    const paidISO = toIsoDate(r.paidAtISO || r.paid_at_iso);
     const payoutHistory = Array.isArray(r.payoutHistory) ? r.payoutHistory : [];
     let paidInPeriodNgn = 0;
     let paidDateISO = '';
-    if (payoutHistory.length > 0) {
-      for (const p of payoutHistory) {
-        const iso = toIsoDate(p.postedAtISO);
-        const amt = Math.round(Number(p.amountNgn) || 0);
-        if (!iso || amt <= 0) continue;
-        if (startDate && iso < startDate) continue;
-        if (endDate && iso > endDate) continue;
-        paidInPeriodNgn += amt;
-        if (!paidDateISO || iso < paidDateISO) paidDateISO = iso;
-      }
-    } else {
+    for (const p of payoutHistory) {
+      const iso = toIsoDate(p.postedAtISO || p.posted_at_iso || p.paidAtISO || p.atISO);
+      const amt = Math.round(Number(p.amountNgn) || 0);
+      if (!iso || amt <= 0) continue;
+      if (startDate && iso < startDate) continue;
+      if (endDate && iso > endDate) continue;
+      paidInPeriodNgn += amt;
+      if (!paidDateISO || iso < paidDateISO) paidDateISO = iso;
+    }
+    if (paidInPeriodNgn <= 0) {
       const paidAmt = Math.round(Number(r.paidAmountNgn) || 0);
       if (paidAmt > 0 && paidISO && (!startDate || paidISO >= startDate) && (!endDate || paidISO <= endDate)) {
         paidInPeriodNgn += paidAmt;

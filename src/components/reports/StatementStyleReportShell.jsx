@@ -9,10 +9,10 @@ export function StatementStyleReportShell({
   title,
   metaLines = [],
   children,
-  layout = 'portrait',
+  layout = 'landscape',
   className = '',
 }) {
-  const maxW = layout === 'landscape' ? 'max-w-[297mm]' : 'max-w-[210mm]';
+  const maxW = layout === 'portrait' ? 'max-w-[210mm]' : 'max-w-[297mm]';
 
   return (
     <div
