@@ -1,14 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { Printer, X } from 'lucide-react';
 import { PrintModalPortal } from '../layout/PrintModalPortal';
-import { StandardReportPrintShell } from './StandardReportPrintShell';
+import { StatementStyleReportShell } from './StatementStyleReportShell';
 import { StockRegisterPrintContent } from './StockRegisterPrintContent';
 import { STATUS_STEPS } from './stockRegister/stockRegisterConstants';
 import { formatStockRegisterMonth, stockRegisterStepIndex } from '../../lib/stockRegisterPeriod';
 
 /**
- * Body-portaled print preview — matches ReceiptModal / QuotationModal so @media print
- * renders the same content as on-screen preview.
+ * Body-portaled print preview — statement-style (matches Finance account statement).
  */
 export function StockRegisterPrintModal({
   open,
@@ -35,7 +34,7 @@ export function StockRegisterPrintModal({
 
   if (!open || !register) return null;
 
-  const generated = new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const generated = new Date().toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
   const statusKey = workflow?.status || 'draft';
   const stepIdx = stockRegisterStepIndex(statusKey, STATUS_STEPS);
   const statusLabel =
@@ -43,42 +42,49 @@ export function StockRegisterPrintModal({
     String(statusKey).replace(/_/g, ' ');
   const isCountSheet = viewMode === 'store' || viewMode === 'manager';
   const monthLabel = formatStockRegisterMonth(register.periodEnd);
+  const title = isCountSheet ? 'Physical count sheet' : 'Physical stock register';
 
   return (
     <PrintModalPortal open={open} onClose={onClose}>
-      <div className="mx-auto max-w-5xl pb-16">
-        {autoPrint ? (
-          <p className="no-print mb-2 text-center text-sm font-medium text-teal-900">Preparing printer…</p>
-        ) : null}
+      <div className="mx-auto max-w-[210mm] pb-16">
+        <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div className="min-w-0">
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Print preview</p>
+            <p className="truncate text-sm font-bold text-zarewa-teal">{title}</p>
+            {autoPrint ? (
+              <p className="mt-0.5 text-xs font-medium text-teal-900">Preparing printer…</p>
+            ) : (
+              <p className="mt-0.5 text-ui-xs text-slate-500">Use landscape A4 for coil tables.</p>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => window.print()} className="z-btn-primary px-4 py-2.5">
+              <Printer size={16} />
+              {isCountSheet ? 'Print count sheet' : 'Print'}
+            </button>
+            <button type="button" onClick={onClose} className="z-btn-secondary px-3 py-2.5" aria-label="Close">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
         <div className="report-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
-          <StandardReportPrintShell
-            documentTypeLabel="Month-end stock register"
-            title={isCountSheet ? 'Physical count sheet' : 'Physical stock register'}
-            subtitle={`Branch ${branchLabel || branchId} · ${monthLabel}`}
-            rightColumn={
-              <>
-                <p>
-                  <strong>Status:</strong> {statusLabel}
-                </p>
-                <p>
-                  <strong>Preview:</strong> {generated}
-                </p>
-                <p>
-                  <strong>Coil lines:</strong> {register.meta?.coilRowCount ?? '—'}
-                </p>
-                {isCountSheet ? (
-                  <p>
-                    <strong>Sheet:</strong> Blind count (sys close blank)
-                  </p>
-                ) : null}
-              </>
-            }
-            shellClassName="max-w-[210mm]"
-            footer={
-              <p className="text-center text-ui-xs text-slate-500">
-                Store confirm → BM clearance → Procurement costing → Capture &amp; lock
-              </p>
-            }
+          <StatementStyleReportShell
+            title={title}
+            layout="portrait"
+            metaLines={[
+              { label: 'Branch', value: branchLabel || branchId || '—' },
+              { label: 'Period', value: monthLabel },
+              { label: 'Status', value: statusLabel },
+              { label: 'Printed', value: generated },
+              { label: 'Coil lines', value: String(register.meta?.coilRowCount ?? '—') },
+              isCountSheet
+                ? { label: 'Sheet', value: 'Blind count (sys close blank)' }
+                : null,
+              {
+                label: 'Workflow',
+                value: 'Store confirm → BM clearance → Procurement costing → Capture & lock',
+              },
+            ].filter(Boolean)}
           >
             <StockRegisterPrintContent
               register={register}
@@ -86,20 +92,7 @@ export function StockRegisterPrintModal({
               branchLabel={branchLabel}
               viewMode={viewMode}
             />
-          </StandardReportPrintShell>
-        </div>
-        <div className="no-print mt-4 flex flex-col items-center gap-2">
-          <p className="text-ui-xs text-slate-500">Use landscape A4 for coil tables.</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <button type="button" onClick={() => window.print()} className="z-btn-primary py-2.5 px-4">
-              <Printer size={16} />
-              {isCountSheet ? 'Print count sheet' : 'Print'}
-            </button>
-            <button type="button" onClick={onClose} className="z-btn-secondary py-2.5 px-3" aria-label="Close">
-              <X size={18} />
-              Close
-            </button>
-          </div>
+          </StatementStyleReportShell>
         </div>
       </div>
     </PrintModalPortal>

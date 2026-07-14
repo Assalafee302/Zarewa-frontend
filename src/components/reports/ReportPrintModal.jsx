@@ -1,41 +1,42 @@
 import React, { useEffect, useRef } from 'react';
 import { Printer, X } from 'lucide-react';
 import { PrintModalPortal } from '../layout/PrintModalPortal';
-import { StandardReportPrintShell } from './StandardReportPrintShell';
-
-const TH_BASE =
-  'px-2 py-1.5 text-left text-ui-xs font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
-const TD_BASE = 'px-2 py-1.5 align-top text-xs text-slate-800 print:text-[10pt]';
+import {
+  StatementStyleReportShell,
+  STATEMENT_TBL,
+  STATEMENT_TH,
+  STATEMENT_TD,
+  STATEMENT_TD_NUM,
+  STATEMENT_TF,
+  STATEMENT_TF_NUM,
+} from './StatementStyleReportShell';
 
 /**
- * A4 management report — use inside a wrapper with `report-print-root quotation-print-preview-mode` for @media print.
+ * Statement-style management report sheet — same visual language as
+ * Finance → treasury account statement (preview & print).
+ *
  * @param {'portrait'|'landscape'} [props.layout]
  * @param {boolean} [props.denseSingleLine] — nowrap + ellipsis on cells; use title for full value
  */
 export function ManagementReportSheet({
   title,
   periodLabel,
-  columns,
-  rows,
+  columns: columnsProp,
+  rows: rowsProp,
   summaryLines = [],
   documentTypeLabel = 'Management report',
   layout = 'portrait',
   denseSingleLine = false,
   grouping = null,
+  extraMetaLines = [],
 }) {
-  const generated = new Date().toLocaleString(undefined, {
-    dateStyle: 'medium',
+  const columns = Array.isArray(columnsProp) ? columnsProp : [];
+  const rows = Array.isArray(rowsProp) ? rowsProp : [];
+  const generated = new Date().toLocaleString('en-GB', {
+    dateStyle: 'short',
     timeStyle: 'short',
   });
 
-  const shellClass = layout === 'landscape' ? 'max-w-[297mm]' : 'max-w-4xl';
-
-  const tableClass = [
-    'report-print-table w-full border-collapse border border-slate-200',
-    denseSingleLine ? 'report-print-table--single-line' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
   const parseNumeric = (value) => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
     const cleaned = String(value ?? '')
@@ -72,26 +73,52 @@ export function ManagementReportSheet({
     : [];
   const overallTotal = shouldGroup ? groupedRows.reduce((sum, g) => sum + g.subtotal, 0) : 0;
 
+  const reportLabel =
+    documentTypeLabel &&
+    String(documentTypeLabel).trim().toLowerCase() !== String(title || '').trim().toLowerCase()
+      ? documentTypeLabel
+      : null;
+
+  const metaLines = [
+    reportLabel ? { label: 'Report', value: reportLabel } : null,
+    periodLabel ? { label: 'Period', value: periodLabel } : null,
+    { label: 'Printed', value: generated },
+    ...(Array.isArray(extraMetaLines) ? extraMetaLines : []),
+    ...(Array.isArray(summaryLines) ? summaryLines : []),
+  ].filter(Boolean);
+
+  const thClass = (align) => `${STATEMENT_TH}${align === 'right' ? ' text-right' : ''}`;
+  const tdClass = (align, zebra) => {
+    const base = align === 'right' ? STATEMENT_TD_NUM : STATEMENT_TD;
+    const dense = denseSingleLine ? ' max-w-[12rem] truncate' : '';
+    const zebraCls = zebra ? ' bg-slate-50/40' : '';
+    return `${base}${dense}${zebraCls}`;
+  };
+
+  const renderCells = (row, i, skipGroupKey = false) =>
+    columns.map((c) => {
+      const raw = skipGroupKey && c.key === grouping?.groupBy ? '' : row[c.key];
+      const text = raw != null && raw !== '' ? String(raw) : '—';
+      return (
+        <td
+          key={c.key}
+          title={denseSingleLine && text !== '—' ? text : undefined}
+          className={tdClass(c.align, i % 2 === 1)}
+        >
+          {text}
+        </td>
+      );
+    });
+
   return (
-    <StandardReportPrintShell
-      documentTypeLabel={documentTypeLabel}
-      title={title}
-      subtitle={periodLabel}
-      watermarkText="RPT"
-      shellClassName={shellClass}
-      rightColumn={
-        <>
-          <p className="text-ui-xs font-semibold uppercase tracking-wide text-slate-500 print:text-[9pt]">Generated</p>
-          <p className="mt-0.5 font-medium text-slate-900">{generated}</p>
-        </>
-      }
-      footer="Confidential — internal operations summary. Figures reflect workspace snapshot at generation time."
-    >
-      <table className={tableClass}>
+    <StatementStyleReportShell title={title} metaLines={metaLines} layout={layout}>
+      <table
+        className={`report-print-table ${STATEMENT_TBL}${denseSingleLine ? ' report-print-table--single-line' : ''}`}
+      >
         <thead>
-          <tr className="border-b border-slate-200 bg-slate-50/90">
+          <tr>
             {columns.map((c) => (
-              <th key={c.key} className={`${TH_BASE} ${c.align === 'right' ? 'text-right' : 'text-left'}`}>
+              <th key={c.key} className={thClass(c.align)}>
                 {c.label}
               </th>
             ))}
@@ -102,7 +129,7 @@ export function ManagementReportSheet({
             <tr>
               <td
                 colSpan={Math.max(1, columns.length)}
-                className="border-b border-slate-100 px-2 py-4 text-center text-slate-500 italic print:text-[9pt]"
+                className={`${STATEMENT_TD} text-center italic text-slate-500`}
               >
                 No rows in this period.
               </td>
@@ -111,113 +138,61 @@ export function ManagementReportSheet({
             <>
               {groupedRows.map((group, groupIdx) => (
                 <React.Fragment key={`${group.key}-${groupIdx}`}>
-                  <tr className="border-b border-slate-200 bg-slate-100/80">
+                  <tr>
                     <td
                       colSpan={Math.max(1, columns.length)}
-                      className="px-2 py-1.5 text-ui-xs font-black uppercase tracking-wide text-slate-700 print:text-[9pt]"
+                      className={`${STATEMENT_TF} uppercase tracking-wide`}
                     >
                       {grouping.groupLabel || 'Category'}: {group.key}
                     </td>
                   </tr>
                   {group.rows.map((row, i) => (
-                    <tr key={`${group.key}-${i}`} className="report-print-tr quotation-print-line border-b border-slate-100">
-                      {columns.map((c) => {
-                        const raw = c.key === grouping.groupBy ? '' : row[c.key];
-                        const text = raw != null && raw !== '' ? String(raw) : '—';
-                        return (
-                          <td
-                            key={c.key}
-                            title={denseSingleLine && text !== '—' ? text : undefined}
-                            className={`${TD_BASE} ${c.align === 'right' ? 'text-right tabular-nums' : ''} ${
-                              i % 2 === 1 ? 'bg-slate-50/50' : ''
-                            }`}
-                          >
-                            {text}
-                          </td>
-                        );
-                      })}
-                    </tr>
+                    <tr key={`${group.key}-${i}`}>{renderCells(row, i, true)}</tr>
                   ))}
-                  <tr className="border-b border-slate-200 bg-slate-50/90">
+                  <tr>
                     {columns.map((col, idx) => {
                       if (idx < subtotalColumnIndex) {
-                        return <td key={col.key} className="px-2 py-1.5" />;
+                        return <td key={col.key} className={STATEMENT_TD} />;
                       }
                       if (idx === subtotalColumnIndex) {
                         return (
-                          <td
-                            key={col.key}
-                            className="px-2 py-1.5 text-right text-ui-xs font-bold uppercase tracking-wide text-slate-600 print:text-[9pt]"
-                          >
+                          <td key={col.key} className={STATEMENT_TF_NUM}>
                             {`${grouping.subtotalLabel || 'Subtotal'}: ${formatSubtotal(group.subtotal)}`}
                           </td>
                         );
                       }
-                      return <td key={col.key} className="px-2 py-1.5" />;
+                      return <td key={col.key} className={STATEMENT_TD} />;
                     })}
                   </tr>
                 </React.Fragment>
               ))}
-              <tr className="border-b border-slate-300 bg-slate-100">
+              <tr>
                 {columns.map((col, idx) => {
                   if (idx < subtotalColumnIndex) {
-                    return <td key={col.key} className="px-2 py-1.5" />;
+                    return <td key={col.key} className={STATEMENT_TD} />;
                   }
                   if (idx === subtotalColumnIndex) {
                     return (
-                      <td
-                        key={col.key}
-                        className="px-2 py-1.5 text-right text-ui-xs font-black uppercase tracking-wide text-slate-700 print:text-[9pt]"
-                      >
+                      <td key={col.key} className={STATEMENT_TF_NUM}>
                         {`${grouping.totalLabel || 'Overall total'}: ${formatSubtotal(overallTotal)}`}
                       </td>
                     );
                   }
-                  return <td key={col.key} className="px-2 py-1.5" />;
+                  return <td key={col.key} className={STATEMENT_TD} />;
                 })}
               </tr>
             </>
           ) : (
-            rows.map((row, i) => (
-              <tr key={i} className="report-print-tr quotation-print-line border-b border-slate-100">
-                {columns.map((c) => {
-                  const raw = row[c.key];
-                  const text = raw != null && raw !== '' ? String(raw) : '—';
-                  return (
-                    <td
-                      key={c.key}
-                      title={denseSingleLine && text !== '—' ? text : undefined}
-                      className={`${TD_BASE} ${c.align === 'right' ? 'text-right tabular-nums' : ''} ${
-                        i % 2 === 1 ? 'bg-slate-50/50' : ''
-                      }`}
-                    >
-                      {text}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))
+            rows.map((row, i) => <tr key={i}>{renderCells(row, i)}</tr>)
           )}
         </tbody>
       </table>
-
-      {summaryLines.length > 0 ? (
-        <ul className="mt-6 space-y-2 border-t border-slate-200 pt-4 text-ui-xs text-slate-700 print:text-[9pt]">
-          {summaryLines.map((line, idx) => (
-            <li key={idx} className="flex justify-between gap-4 font-semibold">
-              <span className="text-slate-600">{line.label}</span>
-              <span className="shrink-0 tabular-nums text-slate-900">{line.value}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </StandardReportPrintShell>
+    </StatementStyleReportShell>
   );
 }
 
 /**
- * Body-portaled print preview — matches StockRegisterPrintModal / PurchaseReportPrintModal
- * so @media print renders the same content as on-screen preview (A4 landscape included).
+ * Body-portaled print preview — statement-style sheet (matches Finance account statement).
  */
 export function ReportPrintModal({
   isOpen,
@@ -232,10 +207,11 @@ export function ReportPrintModal({
   denseSingleLine = false,
   grouping = null,
   autoPrint = false,
+  extraMetaLines = [],
 }) {
   const printedRef = useRef(false);
   const isLandscape = layout === 'landscape';
-  const shellMaxClass = isLandscape ? 'max-w-[297mm]' : 'max-w-5xl';
+  const shellMaxClass = isLandscape ? 'max-w-[297mm]' : 'max-w-[210mm]';
 
   useEffect(() => {
     if (!isOpen || !autoPrint || printedRef.current) return;
@@ -263,14 +239,14 @@ export function ReportPrintModal({
         <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <div className="min-w-0">
             <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Print preview</p>
-            <p className="text-sm font-bold text-zarewa-teal truncate">{title}</p>
+            <p className="truncate text-sm font-bold text-zarewa-teal">{title}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button type="button" onClick={() => window.print()} className="z-btn-primary py-2.5 px-4">
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => window.print()} className="z-btn-primary px-4 py-2.5">
               <Printer size={16} aria-hidden />
               Print
             </button>
-            <button type="button" onClick={onClose} className="z-btn-secondary py-2.5 px-3" aria-label="Close">
+            <button type="button" onClick={onClose} className="z-btn-secondary px-3 py-2.5" aria-label="Close">
               <X size={18} />
             </button>
           </div>
@@ -286,6 +262,7 @@ export function ReportPrintModal({
             layout={layout}
             denseSingleLine={denseSingleLine}
             grouping={grouping}
+            extraMetaLines={extraMetaLines}
           />
         </div>
       </div>

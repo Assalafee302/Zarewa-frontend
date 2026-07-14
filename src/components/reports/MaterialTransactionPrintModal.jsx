@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Printer, X } from 'lucide-react';
 import { PrintModalPortal } from '../layout/PrintModalPortal';
-import { StandardReportPrintShell } from './StandardReportPrintShell';
+import { StatementStyleReportShell } from './StatementStyleReportShell';
 import { MaterialTransactionPrintContent } from './MaterialTransactionPrintContent';
 
 export function MaterialTransactionPrintModal({
@@ -27,45 +27,43 @@ export function MaterialTransactionPrintModal({
 
   if (!open || !report) return null;
 
-  const generated = new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const generated = new Date().toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
 
   return (
     <PrintModalPortal open={open} onClose={onClose}>
       <div className="mx-auto max-w-[297mm] pb-16">
-        <div className="report-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
-          <StandardReportPrintShell
-            documentTypeLabel="Material transaction register"
-            title="Material transaction register"
-            subtitle={periodLabel}
-            rightColumn={
-              <>
-                <p>
-                  <strong>Branch:</strong> {branchLabel || '—'}
-                </p>
-                <p>
-                  <strong>Generated:</strong> {generated}
-                </p>
-              </>
-            }
-            shellClassName="max-w-[297mm]"
-            footer={
-              <p className="text-center text-ui-xs text-slate-500">
-                Aluminium · Aluzinc · Stone · Accessories · Summary
-              </p>
-            }
-          >
-            <MaterialTransactionPrintContent report={report} branchLabel={branchLabel} periodLabel={periodLabel} />
-          </StandardReportPrintShell>
-          <div className="no-print flex justify-end gap-2 border-t border-slate-200 px-4 py-3">
-            <button type="button" className="z-btn-secondary text-sm" onClick={onClose}>
-              <X size={14} />
-              Close
-            </button>
-            <button type="button" className="z-btn-primary text-sm" onClick={() => window.print()}>
+        <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div className="min-w-0">
+            <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Print preview</p>
+            <p className="truncate text-sm font-bold text-zarewa-teal">Material transaction register</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => window.print()} className="z-btn-primary px-4 py-2.5">
               <Printer size={14} />
               Print
             </button>
+            <button type="button" onClick={onClose} className="z-btn-secondary px-3 py-2.5" aria-label="Close">
+              <X size={18} />
+            </button>
           </div>
+        </div>
+        <div className="report-print-root report-print-a4-landscape quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
+          <StatementStyleReportShell
+            title="Material transaction register"
+            layout="landscape"
+            metaLines={[
+              { label: 'Branch', value: branchLabel || '—' },
+              { label: 'Period', value: periodLabel || '—' },
+              { label: 'Printed', value: generated },
+              {
+                label: 'Note',
+                value:
+                  'DD/MM dates; Qt and coil = last 4 digits. New coil / New roll on first use; Finished when coil clears. Amber before = gap vs previous after.',
+              },
+            ]}
+          >
+            <MaterialTransactionPrintContent report={report} />
+          </StatementStyleReportShell>
         </div>
       </div>
     </PrintModalPortal>

@@ -23,9 +23,9 @@ function fmtPrice(v, suffix = '') {
   return `${formatNgn(v)}${suffix}`;
 }
 
-const TH = 'px-1.5 py-1 text-left text-ui-xs font-bold uppercase text-slate-600 border border-slate-300 print:text-[7pt]';
-const TD = 'px-1.5 py-0.5 text-[10px] text-slate-800 border border-slate-300 print:text-[8.5pt]';
-const TDR = `${TD} text-right tabular-nums`;
+const TH = 'border border-slate-300 bg-slate-50 px-[5px] py-[3px] text-left text-[11px] font-bold align-top leading-tight';
+const TD = 'border border-slate-300 px-[5px] py-[3px] text-[11px] text-slate-800 align-top leading-tight';
+const TDR = `${TD} text-right tabular-nums whitespace-nowrap text-[10px]`;
 
 function splitCoilRows(section) {
   const activeGroups = [];

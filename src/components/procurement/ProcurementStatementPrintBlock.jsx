@@ -55,7 +55,7 @@ export function ProcurementStatementPrintBlock({ kind, entityLabel, supplierId, 
           <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Statement for period</p>
         </div>
         <p className="text-xs text-slate-600 mb-3 leading-relaxed">
-          Choose dates (PO order date). Opens a printable A4 sheet — same layout as management reports.
+          Choose dates (PO order date). Opens a printable sheet — same layout as Finance account statements.
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <div>
