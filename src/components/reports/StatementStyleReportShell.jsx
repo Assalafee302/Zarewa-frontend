@@ -19,47 +19,60 @@ export function StatementStyleReportShell({
       className={`statement-style-report mx-auto w-full ${maxW} bg-white px-6 py-6 font-[Arial,Helvetica,sans-serif] text-slate-900 print:max-w-none print:px-0 print:py-0 ${className}`}
       style={{ color: '#0f172a' }}
     >
-      <h1 className="m-0 mb-2 text-[20px] font-bold leading-tight">{title}</h1>
+      <h1 className="m-0 mb-1.5 text-[18px] font-bold leading-tight tracking-tight">{title}</h1>
       {metaLines
         .filter((line) => line && (line.label != null || line.value != null || typeof line === 'string'))
         .map((line, idx) => {
           if (typeof line === 'string') {
             return (
-              <p key={idx} className="m-0 mb-1 text-[12px] text-slate-700" style={{ color: '#334155' }}>
+              <p
+                key={idx}
+                title={line}
+                className="m-0 mb-0.5 max-w-full truncate text-[11px] text-slate-700"
+                style={{ color: '#334155' }}
+              >
                 {line}
               </p>
             );
           }
           const { label, value } = line;
           if (!label && (value == null || value === '')) return null;
+          const display = value != null && value !== '' ? String(value) : '—';
+          const full = label ? `${label}: ${display}` : display;
           return (
-            <p key={idx} className="m-0 mb-1 text-[12px]" style={{ color: '#334155' }}>
+            <p
+              key={idx}
+              title={full}
+              className="m-0 mb-0.5 max-w-full truncate text-[11px]"
+              style={{ color: '#334155' }}
+            >
               {label ? (
                 <>
-                  <strong>{label}:</strong> {value != null && value !== '' ? value : '—'}
+                  <strong>{label}:</strong> {display}
                 </>
               ) : (
-                value
+                display
               )}
             </p>
           );
         })}
-      <div className="mt-4">{children}</div>
+      <div className="mt-3">{children}</div>
     </div>
   );
 }
 
-/** Table classes aligned with finance account statement HTML print. */
-export const STATEMENT_TBL = 'w-full border-collapse text-[11px] mt-0';
+/** Compact statement table cells — one equal-height line; long text ellipsizes. */
+export const STATEMENT_TBL =
+  'statement-dense-table w-full border-collapse table-fixed text-[10px] mt-0';
 export const STATEMENT_TH =
-  'border border-slate-300 bg-slate-50 px-[5px] py-[3px] text-left font-bold align-top leading-tight';
+  'border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-left font-bold align-middle leading-none whitespace-nowrap overflow-hidden text-ellipsis';
 export const STATEMENT_TD =
-  'border border-slate-300 px-[5px] py-[3px] align-top leading-tight text-slate-800';
+  'border border-slate-300 px-1.5 py-0.5 align-middle leading-none text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis';
 export const STATEMENT_TD_NUM =
-  'border border-slate-300 px-[5px] py-[3px] align-top leading-tight text-right whitespace-nowrap tabular-nums text-[10px]';
+  'border border-slate-300 px-1.5 py-0.5 align-middle leading-none text-right whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-[9.5px]';
 export const STATEMENT_TF =
-  'border border-slate-300 bg-slate-100 px-[5px] py-1 align-middle font-bold text-slate-800';
+  'border border-slate-300 bg-slate-100 px-1.5 py-0.5 align-middle font-bold text-slate-800 whitespace-nowrap overflow-hidden text-ellipsis leading-none';
 export const STATEMENT_TF_NUM =
-  'border border-slate-300 bg-slate-100 px-[5px] py-1 align-middle font-bold text-right whitespace-nowrap tabular-nums text-[10px]';
-export const STATEMENT_H3 = 'mb-2 mt-0 text-[13px] font-bold text-slate-900';
-export const STATEMENT_SUB = 'mb-1 text-[11px] font-bold text-slate-800';
+  'border border-slate-300 bg-slate-100 px-1.5 py-0.5 align-middle font-bold text-right whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-[9.5px] leading-none';
+export const STATEMENT_H3 = 'mb-1.5 mt-0 text-[12px] font-bold text-slate-900';
+export const STATEMENT_SUB = 'mb-0.5 text-[10px] font-bold text-slate-800 truncate';

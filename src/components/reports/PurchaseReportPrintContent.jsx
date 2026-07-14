@@ -14,7 +14,7 @@ import {
 const TBL = `${STATEMENT_TBL} table-fixed`;
 const TH = STATEMENT_TH;
 const THR = `${STATEMENT_TH} text-right`;
-const TD = `${STATEMENT_TD} break-words`;
+const TD = STATEMENT_TD;
 const TDR = STATEMENT_TD_NUM;
 const TDM = `${STATEMENT_TD_NUM} font-mono`;
 const TF = STATEMENT_TF;
@@ -168,18 +168,22 @@ function CoilReceiptSection({ title, section }) {
               {g.rows.map((r, i) => (
                 <tr key={`${r.coilNo}-${i}`}>
                   <td className={TDM}>{r.txnDateDisplay || r.txnDate}</td>
-                  <td className={`${TD} truncate`} title={r.supplier}>
+                  <td className={TD} title={r.supplier}>
                     {r.supplier}
                   </td>
                   <td className={TDM}>{r.coilNoDisplay}</td>
-                  <td className={TD}>{r.colour}</td>
+                  <td className={TD} title={r.colour}>
+                    {r.colour}
+                  </td>
                   <td className={TDM}>{r.poIdDisplay}</td>
                   <td className={TDR}>{fmtNum(r.receivedKg)}</td>
                   <td className={TDR}>{r.orderKg != null ? fmtNum(r.orderKg) : '—'}</td>
                   <td className={TDR}>{r.kgAmountNgn != null ? fmtMoney(r.kgAmountNgn) : '—'}</td>
                   <td className={TFR}>{r.totalNgn > 0 ? fmtMoney(r.totalNgn) : '—'}</td>
                   <PaymentCells r={r} />
-                  <td className={`${TD} text-[7.5px] leading-tight`}>{r.remark}</td>
+                  <td className={TD} title={r.remark}>
+                    {r.remark}
+                  </td>
                 </tr>
               ))}
               <tr className="bg-slate-100/90">
@@ -236,11 +240,11 @@ function QtyReceiptSection({ title, section, unitDefault }) {
               {g.rows.map((r, i) => (
                 <tr key={`${r.coilNo}-${i}`}>
                   <td className={TDM}>{r.txnDateDisplay || r.txnDate}</td>
-                  <td className={`${TD} truncate`} title={r.supplier}>
+                  <td className={TD} title={r.supplier}>
                     {r.supplier}
                   </td>
                   <td className={TDM}>{r.coilNoDisplay}</td>
-                  <td className={`${TD} truncate`} title={r.productName}>
+                  <td className={TD} title={r.productName}>
                     {r.productName}
                   </td>
                   <td className={TDM}>{r.poIdDisplay}</td>
@@ -255,7 +259,9 @@ function QtyReceiptSection({ title, section, unitDefault }) {
                   <td className={TDR}>{r.kgAmountNgn != null ? fmtMoney(r.kgAmountNgn) : '—'}</td>
                   <td className={TFR}>{r.totalNgn > 0 ? fmtMoney(r.totalNgn) : '—'}</td>
                   <PaymentCells r={r} />
-                  <td className={`${TD} text-[7.5px] leading-tight`}>{r.remark}</td>
+                  <td className={TD} title={r.remark}>
+                    {r.remark}
+                  </td>
                 </tr>
               ))}
               <tr className="bg-slate-100/90">

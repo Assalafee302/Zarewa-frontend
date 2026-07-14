@@ -84,7 +84,7 @@ export function useReportsExport({
   const [printOpen, setPrintOpen] = useState(false);
   const [printPayload, setPrintPayload] = useState(null);
   const [printLayout, setPrintLayout] = useState('landscape');
-  const [printDense, setPrintDense] = useState(false);
+  const [printDense, setPrintDense] = useState(true);
   const [materialTxnReport, setMaterialTxnReport] = useState(null);
   const [materialTxnPrintOpen, setMaterialTxnPrintOpen] = useState(false);
   const [purchaseReport, setPurchaseReport] = useState(null);
@@ -842,7 +842,7 @@ export function useReportsExport({
 
   const openPrintSheet = useCallback(async (name) => {
     setPrintLayout('landscape');
-    setPrintDense(false);
+    setPrintDense(true);
     if (name === PACK_GL_AUDIT) {
       if (!hasFinanceView) {
         showToast('General ledger pack requires finance.view.', { variant: 'info' });

@@ -14,7 +14,7 @@ import {
 const TBL = `${STATEMENT_TBL} table-fixed`;
 const TH = `${STATEMENT_TH} whitespace-nowrap`;
 const THR = `${STATEMENT_TH} text-right whitespace-nowrap`;
-const TD = `${STATEMENT_TD} break-words`;
+const TD = STATEMENT_TD;
 const TDR = STATEMENT_TD_NUM;
 const TDM = `${STATEMENT_TD_NUM} font-mono`;
 const TF = STATEMENT_TF;

@@ -23,9 +23,9 @@ function fmtPrice(v, suffix = '') {
   return `${formatNgn(v)}${suffix}`;
 }
 
-const TH = 'border border-slate-300 bg-slate-50 px-[5px] py-[3px] text-left text-[11px] font-bold align-top leading-tight';
-const TD = 'border border-slate-300 px-[5px] py-[3px] text-[11px] text-slate-800 align-top leading-tight';
-const TDR = `${TD} text-right tabular-nums whitespace-nowrap text-[10px]`;
+const TH = 'border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-left text-[10px] font-bold align-middle leading-none whitespace-nowrap overflow-hidden text-ellipsis';
+const TD = 'border border-slate-300 px-1.5 py-0.5 text-[10px] text-slate-800 align-middle leading-none whitespace-nowrap overflow-hidden text-ellipsis';
+const TDR = `${TD} text-right tabular-nums`;
 
 function splitCoilRows(section) {
   const activeGroups = [];
@@ -50,7 +50,7 @@ function CoilTable({ groups, showCountedBlank = true, blankSystemClose = false }
   return groups.map((g) => (
     <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
       <p className="text-xs font-bold text-slate-800 mb-1">{g.gaugeLabel}</p>
-      <table className="w-full border-collapse">
+      <table className="statement-dense-table w-full border-collapse table-fixed">
         <thead>
           <tr className="bg-slate-50">
             <th className={TH}>Colour</th>
@@ -129,7 +129,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
           ps[fam]?.length ? (
             <div key={fam}>
               <p className="text-xs font-bold mb-1 capitalize">{fam}</p>
-              <table className="w-full border-collapse border border-slate-300">
+              <table className="statement-dense-table w-full border-collapse table-fixed border border-slate-300">
                 <thead>
                   <tr className="bg-slate-50">
                     <th className={TH}>Gauge</th>
@@ -183,7 +183,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
           {register.stoneCoated.groups.map((g) => (
             <div key={g.gaugeLabel} className="mb-3 break-inside-avoid">
               <p className="text-xs font-bold mb-1">{g.gaugeLabel}</p>
-              <table className="w-full border-collapse">
+              <table className="statement-dense-table w-full border-collapse table-fixed">
                 <thead>
                   <tr className="bg-slate-50">
                     <th className={TH}>Colour</th>
@@ -219,7 +219,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
       {register.accessories?.rows?.length ? (
         <section className="break-inside-avoid">
           <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">D. Accessories</h2>
-          <table className="w-full border-collapse">
+          <table className="statement-dense-table w-full border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-50">
                 <th className={TH}>Item</th>
@@ -253,7 +253,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
       {!hideMoney ? (
       <section className="break-inside-avoid">
         <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">E. Stock summary &amp; closing value</h2>
-        <table className="w-full border-collapse">
+        <table className="statement-dense-table w-full border-collapse table-fixed">
           <thead>
             <tr className="bg-slate-50">
               <th className={TH}>Section</th>
@@ -322,7 +322,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
       ) : (
       <section className="break-inside-avoid">
         <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">E. Stock summary (physical)</h2>
-        <table className="w-full max-w-md border-collapse">
+        <table className="statement-dense-table w-full max-w-md border-collapse table-fixed">
           <tbody>
             {[
               ['Aluminium net kg', register.summary?.aluminium?.netClosingKg],
@@ -342,7 +342,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
       {register.inTransit?.length ? (
         <section>
           <h2 className="text-sm font-black uppercase tracking-wide text-zarewa-teal mb-2">F. In transit (not stock)</h2>
-          <table className="w-full border-collapse">
+          <table className="statement-dense-table w-full border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-50">
                 <th className={TH}>Ref</th>

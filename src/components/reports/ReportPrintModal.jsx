@@ -16,7 +16,7 @@ import {
  * Finance → treasury account statement (preview & print).
  *
  * @param {'portrait'|'landscape'} [props.layout]
- * @param {boolean} [props.denseSingleLine] — nowrap + ellipsis on cells; use title for full value
+ * @param {boolean} [props.denseSingleLine] — nowrap + ellipsis on cells (default true for neat equal rows)
  */
 export function ManagementReportSheet({
   title,
@@ -26,7 +26,7 @@ export function ManagementReportSheet({
   summaryLines = [],
   documentTypeLabel = 'Management report',
   layout = 'landscape',
-  denseSingleLine = false,
+  denseSingleLine = true,
   grouping = null,
   extraMetaLines = [],
 }) {
@@ -87,12 +87,12 @@ export function ManagementReportSheet({
     ...(Array.isArray(summaryLines) ? summaryLines : []),
   ].filter(Boolean);
 
-  const thClass = (align) => `${STATEMENT_TH}${align === 'right' ? ' text-right' : ''}`;
+  const thClass = (align) =>
+    `${STATEMENT_TH}${align === 'right' ? ' text-right' : ''}`;
   const tdClass = (align, zebra) => {
     const base = align === 'right' ? STATEMENT_TD_NUM : STATEMENT_TD;
-    const dense = denseSingleLine ? ' max-w-[12rem] truncate' : '';
     const zebraCls = zebra ? ' bg-slate-50/40' : '';
-    return `${base}${dense}${zebraCls}`;
+    return `${base}${zebraCls}`;
   };
 
   const renderCells = (row, i, skipGroupKey = false) =>
@@ -100,11 +100,7 @@ export function ManagementReportSheet({
       const raw = skipGroupKey && c.key === grouping?.groupBy ? '' : row[c.key];
       const text = raw != null && raw !== '' ? String(raw) : '—';
       return (
-        <td
-          key={c.key}
-          title={denseSingleLine && text !== '—' ? text : undefined}
-          className={tdClass(c.align, i % 2 === 1)}
-        >
+        <td key={c.key} title={text !== '—' ? text : undefined} className={tdClass(c.align, i % 2 === 1)}>
           {text}
         </td>
       );
@@ -113,7 +109,7 @@ export function ManagementReportSheet({
   return (
     <StatementStyleReportShell title={title} metaLines={metaLines} layout={layout}>
       <table
-        className={`report-print-table ${STATEMENT_TBL}${denseSingleLine ? ' report-print-table--single-line' : ''}`}
+        className={`report-print-table report-print-table--single-line statement-dense-table ${STATEMENT_TBL}`}
       >
         <thead>
           <tr>
@@ -141,6 +137,7 @@ export function ManagementReportSheet({
                   <tr>
                     <td
                       colSpan={Math.max(1, columns.length)}
+                      title={`${grouping.groupLabel || 'Category'}: ${group.key}`}
                       className={`${STATEMENT_TF} uppercase tracking-wide`}
                     >
                       {grouping.groupLabel || 'Category'}: {group.key}
@@ -204,7 +201,7 @@ export function ReportPrintModal({
   summaryLines,
   documentTypeLabel,
   layout = 'landscape',
-  denseSingleLine = false,
+  denseSingleLine = true,
   grouping = null,
   autoPrint = false,
   extraMetaLines = [],

@@ -386,17 +386,24 @@ summary {
 }
 
 @media screen {
-  .report-print-table.report-print-table--single-line {
+  .report-print-table.report-print-table--single-line,
+  .statement-dense-table {
     table-layout: fixed;
     width: 100%;
   }
 
   .report-print-table.report-print-table--single-line td,
-  .report-print-table.report-print-table--single-line th {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .report-print-table.report-print-table--single-line th,
+  .statement-dense-table td,
+  .statement-dense-table th {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
     max-width: 0;
+    vertical-align: middle;
+    line-height: 1.15;
+    padding-top: 2px;
+    padding-bottom: 2px;
   }
 }
 
@@ -2831,21 +2838,33 @@ summary {
   }
 
   .statement-style-report h1 {
-    font-size: 16pt !important;
+    font-size: 14pt !important;
     font-weight: bold !important;
-    margin: 0 0 6pt !important;
+    margin: 0 0 4pt !important;
   }
 
-  .statement-style-report table {
-    font-size: 9pt !important;
+  .statement-style-report table,
+  .statement-dense-table,
+  .report-print-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    font-size: 8pt !important;
   }
 
+  .statement-style-report td,
+  .statement-style-report th,
+  .statement-dense-table td,
+  .statement-dense-table th,
   .report-print-table.report-print-table--single-line td,
   .report-print-table.report-print-table--single-line th {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
     max-width: 0;
+    vertical-align: middle !important;
+    line-height: 1.1 !important;
+    padding-top: 1.5pt !important;
+    padding-bottom: 1.5pt !important;
   }
 
   /* Receipts: thermal (~80mm), advance A6 portrait, or full A5 landscape */
