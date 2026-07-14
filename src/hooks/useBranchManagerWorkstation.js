@@ -51,6 +51,7 @@ import {
 } from '../lib/productionGateAccess';
 import {
   userMayPerformManagerQuotationClearance,
+  userMayReviewPaymentRequests,
   userMayReleaseQuotationPaymentHold,
   userMayWriteOffReceivableBadDebt,
 } from '../lib/workspaceGovernanceClient';
@@ -177,8 +178,10 @@ export function useBranchManagerWorkstation() {
     () => userMayViewManagementReportsClient(ws?.session?.user?.roleKey, ws?.permissions),
     [ws?.session?.user?.roleKey, ws?.permissions]
   );
-  const canApprovePaymentRequests =
-    Boolean(ws?.hasPermission?.('finance.approve')) || Boolean(ws?.hasPermission?.('*'));
+  const canApprovePaymentRequests = userMayReviewPaymentRequests(
+    ws?.session?.user,
+    (perm) => Boolean(ws?.hasPermission?.(perm))
+  );
   const canManagerClearance = userMayPerformManagerQuotationClearance(ws?.session?.user);
   const canReleasePaymentHolds = userMayReleaseQuotationPaymentHold(ws?.session?.user);
   const canWriteOffBadDebt = userMayWriteOffReceivableBadDebt(ws?.session?.user);

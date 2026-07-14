@@ -2,6 +2,7 @@ import { hasPermissionInList } from './moduleAccess.js';
 import { userCanApproveEditMutationsClient } from './editApprovalUi.js';
 import { isManagerInboxWorkItemDocType } from './managerInboxWorkItemTypes.js';
 import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit } from './hrAccess.js';
+import { userMayReviewPaymentRequests } from './workspaceGovernanceClient.js';
 
 /**
  * Mirrors server `canSeeManagementApprovalQueues` (workItems.js) for client-side inbox filtering.
@@ -64,7 +65,10 @@ export function workItemShowsOnWorkspaceUnifiedInbox(item, { userId, roleKey, pe
     return true;
   }
 
-  if (dt === 'payment_request' && hasPermissionInList(permissions, 'finance.approve')) {
+  if (
+    dt === 'payment_request' &&
+    userMayReviewPaymentRequests({ roleKey, permissions }, (perm) => hasPermissionInList(permissions, perm))
+  ) {
     return true;
   }
 

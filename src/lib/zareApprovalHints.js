@@ -3,6 +3,7 @@
  */
 import { hasPermissionInList } from './moduleAccess.js';
 import { canApproveStaffPurchaseCredit } from './hrAccess.js';
+import { userMayReviewPaymentRequests } from './workspaceGovernanceClient.js';
 
 /**
  * @param {object} ctx
@@ -16,7 +17,9 @@ export function userCanApproveWorkItem(item, ctx = {}) {
   const dt = String(item?.documentType || '').trim().toLowerCase();
   const roleKey = String(ctx.roleKey || '').trim().toLowerCase();
 
-  if (dt === 'payment_request') return hasPermissionInList(permissions, 'finance.approve');
+  if (dt === 'payment_request') {
+    return userMayReviewPaymentRequests({ roleKey, permissions }, (perm) => hasPermissionInList(permissions, perm));
+  }
   if (dt === 'refund_request') {
     return (
       hasPermissionInList(permissions, 'refunds.approve') ||
@@ -114,7 +117,7 @@ export function explainApprovalBlock(ctx = {}) {
     reasons.push(ctx.missingPermission);
   } else if (ctx.canApprove === false) {
     if (documentType === 'payment_request') {
-      reasons.push('Finance approval permission (finance.approve) is required.');
+      reasons.push('Branch manager, Finance, or MD approval authority is required for this payment request.');
     } else if (documentType === 'refund_request') {
       reasons.push('Refund approval permission (refunds.approve or finance.approve) is required.');
     } else if (documentType === 'purchase_order' || documentType === 'procurement_po') {

@@ -4,6 +4,7 @@ import {
   isManagerClearanceAuthorityRoleKey,
   userMayReleaseQuotationPaymentHold,
   isExecutiveRoleKey,
+  userMayReviewPaymentRequests,
 } from './workspaceGovernanceClient.js';
 
 /** Expected parity with shared/workspaceGovernance.js (server source of truth). */
@@ -38,5 +39,11 @@ describe('workspaceGovernance client rules', () => {
     expect(isExecutiveRoleKey('md')).toBe(true);
     expect(isExecutiveRoleKey('ceo')).toBe(true);
     expect(isExecutiveRoleKey('sales_staff')).toBe(false);
+  });
+
+  it('payment-request review authority includes branch manager', () => {
+    expect(userMayReviewPaymentRequests({ roleKey: 'sales_manager' }, () => false)).toBe(true);
+    expect(userMayReviewPaymentRequests({ roleKey: 'sales_staff' }, () => false)).toBe(false);
+    expect(userMayReviewPaymentRequests({ roleKey: 'finance_manager' }, (p) => p === 'finance.approve')).toBe(true);
   });
 });

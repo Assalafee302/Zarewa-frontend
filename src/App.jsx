@@ -194,7 +194,6 @@ function DegradedWorkspaceLock() {
     } catch {
       /* ignore */
     }
-    window.location.href = '/';
   };
 
   return (
@@ -923,9 +922,8 @@ function AppShell() {
                             if (!ok) return;
                             try {
                               await ws?.logout?.();
-                              window.location.href = '/';
                             } catch {
-                              window.location.href = '/';
+                              /* ignore */
                             }
                           }}
                         >

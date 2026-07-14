@@ -381,9 +381,8 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
           try {
             closeIfMobile();
             await ws?.logout?.();
-            window.location.href = '/';
           } catch {
-            window.location.href = '/';
+            /* ignore */
           }
         }}
         title="Sign out"

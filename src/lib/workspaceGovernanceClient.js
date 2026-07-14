@@ -10,6 +10,16 @@ export function isExecutiveRoleKey(roleKey) {
   return ['md', 'chairman', 'ceo'].includes(String(roleKey || '').trim().toLowerCase());
 }
 
+/** @param {{ roleKey?: string } | null | undefined} actor @param {(perm: string) => boolean} hasPermission */
+export function userMayReviewPaymentRequests(actor, hasPermission) {
+  if (hasPermission('*')) return true;
+  const rk = String(actor?.roleKey || actor?.role_key || '').trim().toLowerCase();
+  if (rk === 'admin') return true;
+  if (isExecutiveRoleKey(rk)) return true;
+  if (isBranchExpenseApproverRoleKey(rk)) return true;
+  return hasPermission('finance.approve');
+}
+
 export function userMayOverrideProductionAlignment(roleKey) {
   const rk = String(roleKey || '').trim().toLowerCase();
   if (rk === 'admin') return true;

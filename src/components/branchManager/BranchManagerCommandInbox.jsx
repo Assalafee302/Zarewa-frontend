@@ -502,7 +502,7 @@ export function BranchManagerCommandInbox(props) {
     if (!canApprovePaymentRequests && effectiveAttentionFilter === 'cash') {
       return {
         title: 'Cash approvals need Finance',
-        detail: 'Expense payment requests require finance.approve. Refunds may still appear for managers who can approve them.',
+        detail: 'Payment-request approval needs branch manager, Finance, or MD authority. Refunds may still appear for managers who can approve them.',
       };
     }
     return {

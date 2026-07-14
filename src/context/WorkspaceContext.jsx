@@ -23,7 +23,7 @@ import {
   isBranchScopedCreateBlocked,
 } from '../lib/workspaceBranchCreate';
 import { sanitizeWorkItemForCache } from '../lib/workspaceSanitize.js';
-import { invalidateAppShellQueries } from '../lib/queryClient';
+import { appQueryClient, invalidateAppShellQueries } from '../lib/queryClient';
 import { mergeDashboardPollIntoSnapshot } from '../lib/bootstrapPollMerge';
 import {
   clearPendingPasswordChange,
@@ -132,6 +132,7 @@ function clearBootstrapCache() {
       if (k && k.startsWith(prefix)) keys.push(k);
     }
     for (const k of keys) sessionStorage.removeItem(k);
+    sessionStorage.removeItem(BOOTSTRAP_CACHE_LAST_KEY);
     sessionStorage.removeItem('zarewa.bootstrap.cache.v2');
     sessionStorage.removeItem('zarewa.bootstrap.cache.v3');
   } catch {
@@ -408,6 +409,7 @@ export function WorkspaceProvider({ children }) {
           return snapshotRef.current;
         }
         clearBootstrapCache();
+        appQueryClient.clear();
         setStatus('auth_required');
         setSnapshot(null);
         setLastError(null);
@@ -662,11 +664,13 @@ export function WorkspaceProvider({ children }) {
     if (uid) clearPendingPasswordChange(uid);
     replaceLedgerEntries([]);
     clearBootstrapCache();
+    appQueryClient.clear();
     bootstrapPollEtagRef.current = '';
     bootstrapFullEtagRef.current = '';
     workspaceRevisionEtagRef.current = '';
     loadedDomainsRef.current = new Set();
     fullBootstrapLoadedRef.current = false;
+    sessionNoticeShownRef.current = false;
     setSnapshot(null);
     setDashboardSummary(null);
     setDashboardSummaryEtag('');
@@ -685,11 +689,13 @@ export function WorkspaceProvider({ children }) {
     if (uid) clearPendingPasswordChange(uid);
     replaceLedgerEntries([]);
     clearBootstrapCache();
+    appQueryClient.clear();
     bootstrapPollEtagRef.current = '';
     bootstrapFullEtagRef.current = '';
     workspaceRevisionEtagRef.current = '';
     loadedDomainsRef.current = new Set();
     fullBootstrapLoadedRef.current = false;
+    sessionNoticeShownRef.current = false;
     setSnapshot(null);
     setDashboardSummary(null);
     setDashboardSummaryEtag('');

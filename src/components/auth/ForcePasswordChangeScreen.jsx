@@ -49,7 +49,6 @@ export default function ForcePasswordChangeModal() {
       message: 'Sign out? You will need your temporary password to sign in again.',
     }))) return;
     await ws?.logout?.();
-    window.location.href = '/';
   };
 
   const modal = (

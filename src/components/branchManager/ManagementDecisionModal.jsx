@@ -189,7 +189,7 @@ export function ManagementDecisionModal({
               status: selectedIntel.row?.approval_status || 'Pending',
               canApprove: false,
               canMutate: ws?.canMutate !== false,
-              missingPermission: 'Payment request approval requires finance.approve permission.',
+              missingPermission: 'Payment request approval requires branch manager, Finance, or MD authority.',
               zareQuery: `Why can't I approve payment request ${selectedIntel.requestId}?`,
             }}
           />

@@ -1,6 +1,7 @@
 import { isManagerInboxWorkItemDocType } from './managerInboxWorkItemTypes';
 import { userCanApproveEditMutationsClient } from './editApprovalUi';
 import { userMaySeeManagementApprovalQueues, userMaySeeRefundApprovalQueue } from './workItemPersonalInbox';
+import { userMayReviewPaymentRequests } from './workspaceGovernanceClient';
 
 function enc(value) {
   return encodeURIComponent(String(value || '').trim());
@@ -74,7 +75,7 @@ export function workItemShouldOpenManagerDesk(item, ctx = {}) {
   if (dt === 'refund_request' && userMaySeeRefundApprovalQueue(permissions)) {
     return true;
   }
-  if (dt === 'payment_request' && has('finance.approve')) {
+  if (dt === 'payment_request' && userMayReviewPaymentRequests({ roleKey, permissions }, has)) {
     return true;
   }
   if (dt === 'edit_approval' && userCanApproveEditMutationsClient(roleKey, permissions)) {

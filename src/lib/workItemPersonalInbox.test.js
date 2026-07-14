@@ -53,7 +53,7 @@ describe('workItemPersonalInbox', () => {
     ).toBe(true);
   });
 
-  it('shows payment_request for finance.approve and refund_request for refunds.approve', () => {
+  it('shows payment_request for branch manager or finance approver, and refund_request for refunds.approve', () => {
     const pay = { documentType: 'payment_request' };
     expect(
       workItemShowsOnWorkspaceUnifiedInbox(pay, {
@@ -67,6 +67,13 @@ describe('workItemPersonalInbox', () => {
         userId: 'x',
         roleKey: 'finance_manager',
         permissions: ['finance.approve'],
+      })
+    ).toBe(true);
+    expect(
+      workItemShowsOnWorkspaceUnifiedInbox(pay, {
+        userId: 'x',
+        roleKey: 'sales_manager',
+        permissions: [],
       })
     ).toBe(true);
 
