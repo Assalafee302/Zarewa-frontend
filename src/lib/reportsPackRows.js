@@ -159,6 +159,8 @@ function buildPaidExpensePrintRows(expenses = [], paymentRequests = [], startDat
     lastCategory = category;
     return {
       ...row,
+      /** Unblanked category for combined reports / secondary sort. */
+      _category: category,
       category: showCategory ? category : '',
     };
   });

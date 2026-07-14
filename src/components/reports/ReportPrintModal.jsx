@@ -55,21 +55,36 @@ export function ManagementReportSheet({
       )
     : 0;
   const groupedRows = shouldGroup
-    ? rows.reduce((acc, row) => {
-        const key = String(row[grouping.groupBy] || 'Uncategorized');
-        const existing = acc.find((g) => g.key === key);
-        if (existing) {
-          existing.rows.push(row);
-          existing.subtotal += parseNumeric(row[grouping.subtotalKey]);
-        } else {
-          acc.push({
-            key,
-            rows: [row],
-            subtotal: parseNumeric(row[grouping.subtotalKey]),
-          });
-        }
-        return acc;
-      }, [])
+    ? rows
+        .reduce((acc, row) => {
+          const key = String(row[grouping.groupBy] || 'Uncategorized');
+          const existing = acc.find((g) => g.key === key);
+          if (existing) {
+            existing.rows.push(row);
+            existing.subtotal += parseNumeric(row[grouping.subtotalKey]);
+          } else {
+            acc.push({
+              key,
+              rows: [row],
+              subtotal: parseNumeric(row[grouping.subtotalKey]),
+            });
+          }
+          return acc;
+        }, [])
+        .sort((a, b) => {
+          const aRefund = a.key === 'Refunds paid' || /^refund/i.test(a.key);
+          const bRefund = b.key === 'Refunds paid' || /^refund/i.test(b.key);
+          if (aRefund !== bRefund) return aRefund ? 1 : -1;
+          return String(a.key).localeCompare(String(b.key), undefined, { sensitivity: 'base' });
+        })
+        .map((g) => ({
+          ...g,
+          rows: g.rows.slice().sort((a, b) => {
+            const d = String(a.date || '').localeCompare(String(b.date || ''));
+            if (d !== 0) return d;
+            return String(a.ref || a.expenseID || '').localeCompare(String(b.ref || b.expenseID || ''));
+          }),
+        }))
     : [];
   const overallTotal = shouldGroup ? groupedRows.reduce((sum, g) => sum + g.subtotal, 0) : 0;
 

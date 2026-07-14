@@ -211,18 +211,23 @@ export function useReportsExport({
       if (name === PACK_EXPENSES_REFUNDS) {
         const exRows = buildPaidExpensePrintRows(expenses, paymentRequests, startDate, endDate);
         const refundPaid = refundsPaidInPeriodRows(refunds, startDate, endDate);
-        const expensePrintRows = exRows.map((e) => ({
-          section: 'Expenses (paid)',
-          date: e.date || '—',
-          ref: e.expenseID || '—',
-          party: e.category || '—',
-          detail: e.type || '—',
-          amount: e.paidAmount || formatNgn(e._paidAmountNgn || 0),
-          status: Number(e._remainingAmountNgn) > 0 ? 'Part-paid' : 'Paid',
-          _amountNgn: Number(e._paidAmountNgn) || 0,
-        }));
+        const expensePrintRows = exRows.map((e) => {
+          const category = String(e._category || e.category || 'Uncategorized').trim() || 'Uncategorized';
+          return {
+            groupKey: `Expense · ${category}`,
+            section: 'Expense',
+            date: e.date || '—',
+            ref: e.expenseID || '—',
+            party: category,
+            detail: e.type || '—',
+            amount: e.paidAmount || formatNgn(e._paidAmountNgn || 0),
+            status: Number(e._remainingAmountNgn) > 0 ? 'Part-paid' : 'Paid',
+            _amountNgn: Number(e._paidAmountNgn) || 0,
+          };
+        });
         const refundPrintRows = refundPaid.map((r) => ({
-          section: 'Refunds paid',
+          groupKey: 'Refunds paid',
+          section: 'Refund',
           date: r.payoutDateISO || '—',
           ref: displayDocNumber(r.refundId) || r.refundId || '—',
           party: r.customerName || '—',
@@ -231,13 +236,24 @@ export function useReportsExport({
           status: r.status || 'Paid',
           _amountNgn: Number(r.amountNgn) || 0,
         }));
-        const rows = [...expensePrintRows, ...refundPrintRows];
+        const rows = [...expensePrintRows, ...refundPrintRows].sort((a, b) => {
+          const ga = String(a.groupKey || '');
+          const gb = String(b.groupKey || '');
+          const aRefund = ga === 'Refunds paid';
+          const bRefund = gb === 'Refunds paid';
+          if (aRefund !== bRefund) return aRefund ? 1 : -1;
+          const g = ga.localeCompare(gb);
+          if (g !== 0) return g;
+          const d = String(a.date || '').localeCompare(String(b.date || ''));
+          if (d !== 0) return d;
+          return String(a.ref || '').localeCompare(String(b.ref || ''));
+        });
         const expensePaidTotal = expensePrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
         const refundPaidTotal = refundPrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
         return {
           title: PACK_EXPENSES_REFUNDS,
           columns: [
-            { key: 'section', label: 'Section' },
+            { key: 'groupKey', label: 'Category' },
             { key: 'date', label: 'Date' },
             { key: 'ref', label: 'Ref' },
             { key: 'party', label: 'Category / Customer' },
@@ -247,10 +263,10 @@ export function useReportsExport({
           ],
           rows,
           grouping: {
-            groupBy: 'section',
+            groupBy: 'groupKey',
             subtotalKey: '_amountNgn',
             subtotalColumnKey: 'amount',
-            groupLabel: 'Section',
+            groupLabel: 'Category',
             subtotalLabel: 'Subtotal',
             totalLabel: 'Overall paid',
           },
