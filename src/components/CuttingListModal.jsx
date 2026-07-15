@@ -601,11 +601,15 @@ const CuttingListModal = ({
   }, [selectedQuotation, isStoneMeterQuote]);
   const stoneNeedsCoilCl = useMemo(() => {
     if (!selectedQuotation || !isStoneMeterQuote) return false;
-    return quotationRequiresStoneCoilCuttingListAlignment(selectedQuotation.quotationLines ?? '');
+    return quotationRequiresStoneCoilCuttingListAlignment(selectedQuotation.quotationLines ?? '', {
+      stoneMeterQuote: true,
+    });
   }, [selectedQuotation, isStoneMeterQuote]);
   const stoneNeedsSfCl = useMemo(() => {
     if (!selectedQuotation || !isStoneMeterQuote) return false;
-    return quotationRequiresStoneFlatsheetConsumption(selectedQuotation.quotationLines ?? '');
+    return quotationRequiresStoneFlatsheetConsumption(selectedQuotation.quotationLines ?? '', {
+      stoneMeterQuote: true,
+    });
   }, [selectedQuotation, isStoneMeterQuote]);
 
   /** Prefill sold stone flatsheet sheet counts from the quotation when the SF section is still empty. */
