@@ -1057,7 +1057,7 @@ export function LiveProductionMonitor({
 
   const quotedStoneFlatsheetLines = useMemo(() => {
     const ref = selectedJob?.quotationRef;
-    if (!ref || !Array.isArray(ws?.snapshot?.quotations)) return [];
+    if (!isStoneMeterQuote || !ref || !Array.isArray(ws?.snapshot?.quotations)) return [];
     const q = ws.snapshot.quotations.find((x) => x.id === ref);
     const prod = q?.quotationLines?.products;
     if (!Array.isArray(prod)) return [];
@@ -1075,11 +1075,11 @@ export function LiveProductionMonitor({
         };
       })
       .filter((r) => isStoneFlatsheetQuotationLine(r.name) && r.orderedM2 > 0 && r.lengthM != null);
-  }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
+  }, [isStoneMeterQuote, selectedJob?.quotationRef, ws?.snapshot?.quotations]);
 
   const quotedStoneSfYieldLines = useMemo(() => {
     const ref = selectedJob?.quotationRef;
-    if (!ref || !Array.isArray(ws?.snapshot?.quotations)) return [];
+    if (!isStoneMeterQuote || !ref || !Array.isArray(ws?.snapshot?.quotations)) return [];
     const q = ws.snapshot.quotations.find((x) => x.id === ref);
     const prod = q?.quotationLines?.products;
     if (!Array.isArray(prod)) return [];
@@ -1099,7 +1099,7 @@ export function LiveProductionMonitor({
         };
       })
       .filter(Boolean);
-  }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
+  }, [isStoneMeterQuote, selectedJob?.quotationRef, ws?.snapshot?.quotations]);
 
   const stoneFlatsheetDemandCount = quotedStoneFlatsheetLines.length + quotedStoneSfYieldLines.length;
 

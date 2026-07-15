@@ -641,10 +641,12 @@ const CuttingListModal = ({
     return String(row?.name ?? '').trim();
   }, [selectedQuotation, ws?.snapshot?.masterData?.materialTypes]);
 
-  const cuttingCategoriesUi = useMemo(
-    () => (isStoneMeterQuote ? STONE_CATEGORIES : CATEGORIES),
-    [isStoneMeterQuote]
-  );
+  const cuttingCategoriesUi = useMemo(() => {
+    if (!isStoneMeterQuote) return CATEGORIES;
+    // Only show coil flatsheet / gutter when the quotation has those lines.
+    if (stoneNeedsCoilCl) return STONE_CATEGORIES;
+    return STONE_CATEGORIES.filter((c) => c.type !== 'Flatsheet');
+  }, [isStoneMeterQuote, stoneNeedsCoilCl]);
 
   const savedCuttingListId = String(editData?.id ?? '').trim();
   const isDraftRecord = cuttingListIsDraft(editData);
@@ -1816,7 +1818,8 @@ const CuttingListModal = ({
                           <span className="font-semibold">Stone roofing</span> — finished lengths × qty (stone metre stock).
                         </li>
                         <li>
-                          <span className="font-semibold">Coil flatsheet / gutter</span> — aluzinc coil metres only (if quoted).
+                          <span className="font-semibold">Coil flatsheet / gutter</span> — aluzinc coil metres only when
+                          gutter, flat sheet, or coil is on the quotation (section hidden otherwise).
                         </li>
                         <li>
                           <span className="font-semibold">Stone flatsheet</span> — sheet count + type (1.4 m or 2.0 m). Replaces cladding.

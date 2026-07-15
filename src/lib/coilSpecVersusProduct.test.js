@@ -22,6 +22,16 @@ describe('coilSpecVersusProduct', () => {
     expect(e.materialType).toBe('Steel');
   });
 
+  it('does not fall back to product names like bargeboard as raw coil material', () => {
+    const q = {
+      materialGauge: '0.28mm',
+      materialColor: 'Traffic Black',
+      quotationLines: { products: [{ name: 'Bargeboard' }] },
+    };
+    const e = buildExpectedCoilSpecFromQuotation(q, null);
+    expect(e.materialType).toBeNull();
+  });
+
   it('coilMatchesQuotationSpec is true when coil aligns', () => {
     const lot = { gaugeLabel: '0.5mm', colour: 'Traffic White', materialTypeName: 'Steel sheet' };
     const exp = { gauge: '0.5mm', colour: 'traffic white', materialType: 'Steel', design: null };
