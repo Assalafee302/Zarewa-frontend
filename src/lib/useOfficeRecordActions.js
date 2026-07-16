@@ -1,7 +1,7 @@
 import { appConfirm } from './appConfirm';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { useToast } from '../context/ToastContext';
+import { useOptionalToast } from '../context/ToastContext';
 import { apiFetch } from './apiBase';
 import { buildOfficeInternalMemoPackHtml } from './officeMemoPackPrint.js';
 import { escapeHtml, openPrintHtmlDocument, openPrintWindow } from './officeDeskPrint.js';
@@ -29,7 +29,7 @@ function parseThreadPayload(thread) {
  */
 export function useOfficeRecordActions({ workItem, threadId, onRefresh }) {
   const ws = useWorkspace();
-  const { show: showToast } = useToast();
+  const { show: showToast } = useOptionalToast();
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);

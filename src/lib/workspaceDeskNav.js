@@ -1,7 +1,12 @@
 import { normalizeRoleKey } from './departmentWorkspace.js';
 import { canAccessModuleWithPermissions } from './moduleAccess.js';
 
-/** Desk profile keys */
+/**
+ * Desk profile keys
+ * @deprecated For Workspace V3 (`VITE_WORKSPACE_V3`), use `workspaceZoneConfig.js` five-zone model.
+ * This file remains the source of truth for legacy WorkspaceDesk / OFFICE_DESK_V2 and for
+ * `resolveDeskProfile` reused by zone config.
+ */
 export const DESK_PROFILES = {
   staff: 'staff',
   branch: 'branch',

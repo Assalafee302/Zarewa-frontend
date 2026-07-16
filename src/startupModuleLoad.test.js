@@ -11,6 +11,11 @@ describe('startup module graph', () => {
     expect(typeof mod.default).toBe('function');
   });
 
+  it('loads WorkspaceShell without TDZ', async () => {
+    const mod = await import('./pages/WorkspaceShell.jsx');
+    expect(typeof mod.default).toBe('function');
+  });
+
   it('loads WorkspaceDesk without TDZ', async () => {
     const mod = await import('./pages/WorkspaceDesk.jsx');
     expect(typeof mod.default).toBe('function');
