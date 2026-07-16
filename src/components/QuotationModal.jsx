@@ -78,7 +78,10 @@ import {
   quotationLineKindForProductName,
   TRIM_GIRTH_OPTIONS_MM,
 } from '../lib/cuttingListBlankConsumption';
-import { resolveTrimListPricePerMeterFromWorkbook } from '../lib/materialWorkbookTrimPrice';
+import {
+  resolveTrimListPricePerMeterFromWorkbook,
+  resolveTrimWorkbookMetaFromWorkbook,
+} from '../lib/materialWorkbookTrimPrice';
 import {
   applyWorkbookPricesToProductRows,
   productUsesWorkbookAutoPrice,
@@ -403,6 +406,7 @@ function normalizeOptionItems(optionItems) {
         id: item,
         name: item,
         defaultUnitPriceNgn: 0,
+        floorUnitPriceNgn: 0,
         unit: '',
       };
     }
@@ -410,6 +414,7 @@ function normalizeOptionItems(optionItems) {
       id: item.id || item.name,
       name: item.name || '',
       defaultUnitPriceNgn: Number(item.defaultUnitPriceNgn) || 0,
+      floorUnitPriceNgn: Number(item.floorUnitPriceNgn) || 0,
       unit: String(item.unit || '').trim(),
     };
   });
@@ -584,27 +589,40 @@ function OrderLinesSection({
                                   : option?.defaultUnitPriceNgn || 0;
                               const wbMeta =
                                 typeof resolveWorkbookLineMeta === 'function'
-                                  ? resolveWorkbookLineMeta(nextName)
+                                  ? resolveWorkbookLineMeta(nextName, { girthMm: trimMeta.girthMm })
                                   : null;
                               const lmPick = resolveStoneFlatsheetLengthM({ name: nextName });
                               const isSfLine = isStoneFlatsheetQuotationLine(nextName);
                               const keepLen =
                                 showStoneFlatsheetLength && title === 'Products' && isSfLine;
+                              const listFallback =
+                                suggestedPrice > 0
+                                  ? suggestedPrice
+                                  : option?.defaultUnitPriceNgn > 0
+                                    ? Number(option.defaultUnitPriceNgn)
+                                    : 0;
+                              const sfFloor =
+                                isSfLine && listFallback > 0
+                                  ? Math.round(
+                                      Number(option?.floorUnitPriceNgn) > 0
+                                        ? Number(option.floorUnitPriceNgn)
+                                        : Math.min(5500, listFallback)
+                                    )
+                                  : 0;
                               updateRow(row.id, {
                                 customLine: false,
                                 name: nextName,
-                                unitPrice:
-                                  suggestedPrice > 0
-                                    ? String(suggestedPrice)
-                                    : option?.defaultUnitPriceNgn > 0
-                                      ? String(option.defaultUnitPriceNgn)
-                                      : row.unitPrice,
+                                unitPrice: listFallback > 0 ? String(listFallback) : row.unitPrice,
                                 ...(wbMeta?.floorPerMeter
                                   ? { floorPricePerMeter: wbMeta.floorPerMeter }
-                                  : {}),
+                                  : sfFloor > 0
+                                    ? { floorPricePerMeter: sfFloor }
+                                    : {}),
                                 ...(wbMeta?.suggestedListPerMeter
                                   ? { recommendedPricePerMeter: wbMeta.suggestedListPerMeter }
-                                  : {}),
+                                  : listFallback > 0 && isSfLine
+                                    ? { recommendedPricePerMeter: listFallback }
+                                    : {}),
                                 stoneFlatsheetLengthM: keepLen
                                   ? lmPick != null
                                     ? lmPick
@@ -1225,6 +1243,7 @@ const QuotationModal = ({
           id: row.id,
           name: row.name,
           defaultUnitPriceNgn: row.defaultUnitPriceNgn,
+          floorUnitPriceNgn: row.floorUnitPriceNgn,
           unit: String(row.unit || '').trim(),
         }));
       const seen = new Set(fromMaster.map((x) => x.name.trim().toLowerCase()));
@@ -1240,6 +1259,7 @@ const QuotationModal = ({
           id: `preset-${itemType}-${slug(name) || `n${idx}`}`,
           name,
           defaultUnitPriceNgn: 0,
+          floorUnitPriceNgn: 0,
           unit: '',
         }));
       return [...fromMaster, ...extras].sort((a, b) => compareSelectLabels(a.name, b.name));
@@ -1392,13 +1412,28 @@ const QuotationModal = ({
   );
 
   const resolveWorkbookLineMeta = useCallback(
-    (itemName) => {
-      if (!productUsesWorkbookAutoPrice(itemName) || isQuotationTrimProductLine(itemName)) return null;
+    (itemName, { girthMm: girthOverride } = {}) => {
+      if (!productUsesWorkbookAutoPrice(itemName)) return null;
+      const materialKey = priceListMaterialKeyFromMeta(selectedMaterialTypeMeta);
+      const branchId = quotationBranchId;
+      if (isQuotationTrimProductLine(itemName)) {
+        const girth =
+          Number(girthOverride) > 0 ? Number(girthOverride) : defaultGirthMmForTrimProduct(itemName);
+        return resolveTrimWorkbookMetaFromWorkbook({
+          materialPricingRows,
+          ridgeAddOns: ridgeAddOnsEffective,
+          materialKey,
+          gaugeLabel: materialGauge,
+          branchId,
+          designLabel: materialDesign,
+          girthMm: girth,
+        });
+      }
       const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
-        materialKey: priceListMaterialKeyFromMeta(selectedMaterialTypeMeta),
+        materialKey,
         gaugeMm: materialGauge,
         // Must match resolveUnitPrice — empty branchId makes workbook lookup always miss.
-        branchId: quotationBranchId,
+        branchId,
         designLabel: materialDesign,
       });
       if (!hit?.floorPerMeter) return null;
@@ -1413,6 +1448,7 @@ const QuotationModal = ({
       materialGauge,
       materialDesign,
       quotationBranchId,
+      ridgeAddOnsEffective,
     ]
   );
 

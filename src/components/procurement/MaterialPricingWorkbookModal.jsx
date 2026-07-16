@@ -22,6 +22,7 @@ const MATERIAL_OPTIONS = [
   { key: 'alu', label: 'Aluminium' },
   { key: 'aluzinc', label: 'Aluzinc (PPGI)' },
   { key: 'stone-coated', label: 'Stone-coated' },
+  { key: 'stone-flatsheet', label: 'Stone flatsheet' },
   { key: 'ridge-flashing', label: 'Ridge / flashing' },
   { key: 'accessories', label: 'Accessories' },
 ];
@@ -32,6 +33,14 @@ const RIDGE_MATERIAL_OPTIONS = [
   { key: 'alu', label: 'Aluminium' },
   { key: 'aluzinc', label: 'Aluzinc (PPGI)' },
 ];
+
+function isStoneFlatsheetQuoteItemName(name) {
+  const n = String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  return n === 'stone flatsheet' || n.startsWith('stone flatsheet ');
+}
 
 function isWorkbookMaterialKey(k) {
   return WORKBOOK_MATERIAL_KEYS.has(String(k || ''));
@@ -259,7 +268,9 @@ export function MaterialPricingWorkbook({
   const canAccessWorkbook = Boolean(
     canPricingManage || ws?.hasPermission?.('md.price_exception.approve') || ws?.hasPermission?.('*')
   );
-  const canSetupManage = Boolean(ws?.hasPermission?.('settings.view') || ws?.hasPermission?.('*'));
+  const canSetupManage = Boolean(
+    ws?.hasPermission?.('settings.manage') || ws?.hasPermission?.('settings.view') || ws?.hasPermission?.('*')
+  );
   const branches = useMemo(
     () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
     [ws?.snapshot?.workspaceBranches, ws?.session?.branches]
@@ -281,6 +292,8 @@ export function MaterialPricingWorkbook({
   const [refRidgeAddOns, setRefRidgeAddOns] = useState([]);
   /** Accessories from master data (reference tab). */
   const [refAccessories, setRefAccessories] = useState([]);
+  /** Stone flatsheet quote products (reference tab) — list + floor ₦/m². */
+  const [refStoneFlatsheets, setRefStoneFlatsheets] = useState([]);
   /** Ridge calculator rows (gauge + material). */
   const [ridgeCalcRows, setRidgeCalcRows] = useState([]);
   /** Base list price by material+gauge key. */
@@ -289,6 +302,7 @@ export function MaterialPricingWorkbook({
   const [ridgeCustomerLabelByGauge, setRidgeCustomerLabelByGauge] = useState({});
   const [savingRidges, setSavingRidges] = useState(false);
   const [savingAccessories, setSavingAccessories] = useState(false);
+  const [savingStoneFlatsheets, setSavingStoneFlatsheets] = useState(false);
   const [printPreview, setPrintPreview] = useState(null);
   const [printPack, setPrintPack] = useState(null);
   const [printLoading, setPrintLoading] = useState(false);
@@ -399,11 +413,17 @@ export function MaterialPricingWorkbook({
         ]);
         if (signal.aborted) return;
         const ridges = policyR.ok && Array.isArray(policyR.data?.ridgeAddOns) ? policyR.data.ridgeAddOns : [];
-        const accRaw =
+        const quoteItems =
           setupR.ok && setupR.data?.ok && Array.isArray(setupR.data?.masterData?.quoteItems)
             ? setupR.data.masterData.quoteItems
             : [];
-        const acc = accRaw.filter((r) => String(r?.itemType || '').toLowerCase() === 'accessory');
+        const acc = quoteItems.filter((r) => String(r?.itemType || '').toLowerCase() === 'accessory');
+        const stoneFs = quoteItems.filter(
+          (r) =>
+            String(r?.itemType || '').toLowerCase() === 'product' &&
+            isStoneFlatsheetQuoteItemName(r?.name) &&
+            r?.active !== false
+        );
         setSheet({
           ok: true,
           isReferenceTab: true,
@@ -414,6 +434,19 @@ export function MaterialPricingWorkbook({
         setEvents([]);
         setRefRidgeAddOns(ridges);
         setRefAccessories(acc);
+        setRefStoneFlatsheets(
+          stoneFs.map((r) => ({
+            id: r.id,
+            itemType: 'product',
+            name: r.name,
+            unit: r.unit || 'm²',
+            defaultUnitPriceNgn: Math.round(Number(r.defaultUnitPriceNgn) || 0),
+            floorUnitPriceNgn: Math.round(Number(r.floorUnitPriceNgn) || 0),
+            active: r.active !== false,
+            inventoryProductId: r.inventoryProductId || '',
+            sortOrder: Number(r.sortOrder) || 0,
+          }))
+        );
         const sheets = [aluSheetR?.data, aluzSheetR?.data].filter((s) => s?.ok);
         const baseMap = {};
         const labelByGauge = {};
@@ -442,6 +475,7 @@ export function MaterialPricingWorkbook({
         setSheet(null);
         setRefRidgeAddOns([]);
         setRefAccessories([]);
+        setRefStoneFlatsheets([]);
         setRidgeBaseByMatGauge({});
         setRidgeCustomerLabelByGauge({});
         showToast('Could not load ridge/accessory reference.', { variant: 'error' });
@@ -905,6 +939,99 @@ export function MaterialPricingWorkbook({
     }
     setSavingAccessories(false);
     showToast('Accessories saved.');
+    void loadSheet();
+  };
+
+  const addStoneFlatsheetRow = () => {
+    setRefStoneFlatsheets((prev) => [
+      ...prev,
+      {
+        id: '',
+        itemType: 'product',
+        name: 'Stone flatsheet',
+        unit: 'm²',
+        defaultUnitPriceNgn: 0,
+        floorUnitPriceNgn: 0,
+        active: true,
+        inventoryProductId: '',
+        sortOrder: 13,
+      },
+    ]);
+  };
+
+  const saveStoneFlatsheets = async () => {
+    if (!canSetupManage) {
+      showToast('You do not have permission to edit stone flatsheet prices.', { variant: 'error' });
+      return;
+    }
+    setSavingStoneFlatsheets(true);
+    for (const row of refStoneFlatsheets) {
+      const name = String(row?.name || '').trim();
+      if (!name || !isStoneFlatsheetQuoteItemName(name)) {
+        setSavingStoneFlatsheets(false);
+        showToast('Stone flatsheet names must start with “Stone flatsheet” (e.g. Stone flatsheet 1.4).', {
+          variant: 'error',
+        });
+        return;
+      }
+      const listNgn = Math.round(Number(row?.defaultUnitPriceNgn) || 0);
+      const floorNgn = Math.round(Number(row?.floorUnitPriceNgn) || 0);
+      if (floorNgn > 0 && listNgn > 0 && floorNgn > listNgn) {
+        setSavingStoneFlatsheets(false);
+        showToast(`Floor cannot exceed list for "${name}".`, { variant: 'error' });
+        return;
+      }
+      const payload = {
+        ...(row?.id ? { id: row.id } : {}),
+        itemType: 'product',
+        name,
+        unit: String(row?.unit || 'm²').trim() || 'm²',
+        defaultUnitPriceNgn: listNgn,
+        floorUnitPriceNgn: floorNgn,
+        active: row?.active !== false,
+        inventoryProductId: String(row?.inventoryProductId || '').trim() || undefined,
+        sortOrder: Number(row?.sortOrder) || 13,
+      };
+      const { ok, data } = await apiFetch('/api/setup/quote-items', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (!ok || !data?.ok) {
+        setSavingStoneFlatsheets(false);
+        showToast(data?.error || `Could not save "${name}". Check setup permission.`, { variant: 'error' });
+        return;
+      }
+      const quoteItemId = data?.id || row?.id;
+      if (quoteItemId && listNgn > 0) {
+        const priceId =
+          quoteItemId === 'SQI-037'
+            ? 'PRI-SF-14'
+            : quoteItemId === 'SQI-039'
+              ? 'PRI-SF-20'
+              : `PRI-SF-${String(quoteItemId).replace(/^SQI-/, '')}`;
+        await apiFetch('/api/setup/price-list', {
+          method: 'POST',
+          body: JSON.stringify({
+            id: priceId,
+            quoteItemId,
+            itemName: name,
+            unit: payload.unit,
+            unitPriceNgn: listNgn,
+            materialTypeId: 'MAT-005',
+            notes:
+              floorNgn > 0
+                ? `List ₦/m² from pricing workbook. Floor ₦${floorNgn.toLocaleString('en-NG')}/m².`
+                : 'List ₦/m² from pricing workbook (stone flatsheet).',
+            active: true,
+            bookLabel: 'Standard',
+            bookVersion: 1,
+            effectiveFromISO: '2020-01-01',
+          }),
+        });
+      }
+    }
+    setSavingStoneFlatsheets(false);
+    showToast('Stone flatsheet prices saved.');
     void loadSheet();
   };
 
@@ -1410,6 +1537,26 @@ export function MaterialPricingWorkbook({
                 {savingRidges ? 'Saving…' : 'Save add-ons'}
               </button>
             </>
+          ) : materialKey === 'stone-flatsheet' ? (
+            <>
+              <button
+                type="button"
+                disabled={busy || savingStoneFlatsheets || !sheet || !canSetupManage}
+                onClick={addStoneFlatsheetRow}
+                className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1"
+              >
+                <Plus size={14} className="shrink-0" aria-hidden />
+                Add length
+              </button>
+              <button
+                type="button"
+                disabled={busy || savingStoneFlatsheets || !sheet || !canSetupManage}
+                onClick={() => void saveStoneFlatsheets()}
+                className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
+              >
+                {savingStoneFlatsheets ? 'Saving…' : 'Save stone flatsheet'}
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -1727,11 +1874,137 @@ export function MaterialPricingWorkbook({
                 Edit add-on rates in the policy table above, then <strong>Save add-ons</strong>. Calculator updates after refresh or reload.
               </p>
             </div>
+          ) : isReferenceTab && materialKey === 'stone-flatsheet' ? (
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Set <strong className="text-slate-800">list</strong> and <strong className="text-slate-800">floor</strong>{' '}
+                ₦/m² for stone flatsheet lengths used on quotations. These are not coil metre workbook rows — save here to
+                update quotation defaults. Use <strong className="text-slate-800">Save stone flatsheet</strong> when done.
+              </p>
+              <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table className="min-w-[780px] w-full border-collapse text-left text-xs">
+                  <thead className="bg-slate-50 text-ui-xs font-black uppercase tracking-wide text-slate-600">
+                    <tr>
+                      <th className="px-3 py-2 border-b border-slate-200">Item</th>
+                      <th className="px-3 py-2 border-b border-slate-200">Unit</th>
+                      <th className="px-3 py-2 border-b border-slate-200">Active</th>
+                      <th
+                        className="px-3 py-2 border-b border-slate-200 text-right"
+                        title="Default selling ₦/m² filled on quotations"
+                      >
+                        List ₦/m²
+                      </th>
+                      <th
+                        className="px-3 py-2 border-b border-slate-200 text-right"
+                        title="Minimum ₦/m² shown on the quotation line"
+                      >
+                        Floor ₦/m²
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {refStoneFlatsheets.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-3 py-6 text-center text-sm text-slate-500">
+                          No stone flatsheet products in master data. Use <strong>Add length</strong>.
+                        </td>
+                      </tr>
+                    ) : (
+                      refStoneFlatsheets.map((a, i) => {
+                        const missingPrice = !(Number(a.defaultUnitPriceNgn) > 0) && a.active !== false;
+                        return (
+                          <tr key={a.id || i} className={missingPrice ? 'bg-amber-50/80' : undefined}>
+                            <td className="px-3 py-2">
+                              <input
+                                className="w-full rounded border border-slate-200 px-2 py-1"
+                                value={a.name ?? ''}
+                                onChange={(e) =>
+                                  setRefStoneFlatsheets((prev) =>
+                                    prev.map((x, idx) => (idx === i ? { ...x, name: e.target.value } : x))
+                                  )
+                                }
+                                disabled={!canSetupManage}
+                                placeholder="Stone flatsheet 1.4"
+                              />
+                              {missingPrice ? (
+                                <div className="mt-0.5 text-[10px] font-semibold text-amber-800">No list price</div>
+                              ) : null}
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                className="w-full rounded border border-slate-200 px-2 py-1"
+                                value={a.unit ?? 'm²'}
+                                onChange={(e) =>
+                                  setRefStoneFlatsheets((prev) =>
+                                    prev.map((x, idx) => (idx === i ? { ...x, unit: e.target.value } : x))
+                                  )
+                                }
+                                disabled={!canSetupManage}
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <label className="inline-flex items-center gap-1 text-ui-xs text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  checked={a.active !== false}
+                                  onChange={(e) =>
+                                    setRefStoneFlatsheets((prev) =>
+                                      prev.map((x, idx) => (idx === i ? { ...x, active: e.target.checked } : x))
+                                    )
+                                  }
+                                  disabled={!canSetupManage}
+                                />
+                                Active
+                              </label>
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="number"
+                                className="w-full rounded border border-slate-200 px-2 py-1 text-right font-mono tabular-nums"
+                                value={a.defaultUnitPriceNgn ?? 0}
+                                onChange={(e) =>
+                                  setRefStoneFlatsheets((prev) =>
+                                    prev.map((x, idx) =>
+                                      idx === i ? { ...x, defaultUnitPriceNgn: e.target.value } : x
+                                    )
+                                  )
+                                }
+                                disabled={!canSetupManage}
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="number"
+                                className="w-full rounded border border-slate-200 px-2 py-1 text-right font-mono tabular-nums"
+                                value={a.floorUnitPriceNgn ?? 0}
+                                onChange={(e) =>
+                                  setRefStoneFlatsheets((prev) =>
+                                    prev.map((x, idx) =>
+                                      idx === i ? { ...x, floorUnitPriceNgn: e.target.value } : x
+                                    )
+                                  )
+                                }
+                                disabled={!canSetupManage}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : isReferenceTab && materialKey === 'accessories' ? (
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
               <p className="text-xs text-slate-600 leading-relaxed">
                 Edit accessory rows and default unit prices used in workbook prints and quotation master data. Use{' '}
                 <strong className="text-slate-800">Save accessories</strong> to apply changes.
+                {refAccessories.some((a) => !(Number(a.defaultUnitPriceNgn) > 0) && a.active !== false) ? (
+                  <span className="ml-1 text-amber-800 font-semibold">
+                    Highlighted rows still have no default ₦ — set a price so quotations can auto-fill.
+                  </span>
+                ) : null}
               </p>
               <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-[720px] w-full border-collapse text-left text-xs">
@@ -1753,8 +2026,9 @@ export function MaterialPricingWorkbook({
                       </tr>
                     ) : (
                       refAccessories.map((a, i) => {
+                        const missingPrice = !(Number(a.defaultUnitPriceNgn) > 0) && a.active !== false;
                         return (
-                          <tr key={i}>
+                          <tr key={i} className={missingPrice ? 'bg-amber-50/80' : undefined}>
                             <td className="px-2 py-1.5 align-middle">
                               <button
                                 type="button"
@@ -1777,6 +2051,9 @@ export function MaterialPricingWorkbook({
                                 }
                                 disabled={!canSetupManage}
                               />
+                              {missingPrice ? (
+                                <div className="mt-0.5 text-[10px] font-semibold text-amber-800">No default price</div>
+                              ) : null}
                             </td>
                             <td className="px-3 py-2">
                               <input

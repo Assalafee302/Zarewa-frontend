@@ -27,7 +27,7 @@ export function productUsesWorkbookAutoPrice(name) {
  * @param {{
  *   options: { name: string }[];
  *   resolveUnitPrice: (name: string, option: object | null, opts?: { girthMm?: string }) => number;
- *   resolveWorkbookLineMeta: (name: string) => null | { floorPerMeter?: number; suggestedListPerMeter?: number };
+ *   resolveWorkbookLineMeta: (name: string, opts?: { girthMm?: string | number }) => null | { floorPerMeter?: number; suggestedListPerMeter?: number };
  * }} ctx
  * @returns {object[]}
  */
@@ -46,7 +46,7 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
       row.girthMm || (isQuotationTrimProductLine(name) ? String(defaultGirthMmForTrimProduct(name)) : '');
     const price = priceOf(name, option, { girthMm });
     if (!(price > 0)) return row;
-    const wbMeta = metaOf(name);
+    const wbMeta = metaOf(name, { girthMm });
     const nextGirthMm =
       isQuotationTrimProductLine(name) && !row.girthMm && girthMm ? girthMm : row.girthMm;
     const listUnit = String(price);
