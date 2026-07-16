@@ -1073,17 +1073,18 @@ const CORE_HELP_ARTICLES = [
       'expense approval sales',
     ],
     answer:
-      'Sales staff with **expenses.create** can submit expense requests from Sales; Finance approves and posts according to branch policy.',
+      'Staff with **expenses.create** submit expense requests from the workspace. **Branch Manager** approves under Management / Needs action. Finance then posts treasury payout from Desk or Treasury — there is no direct expense posting that skips approval.',
     steps: [
-      'Sales workspace → expense request panel (if your role shows it).',
-      'Fill amount, category, and reference; submit for approval.',
-      'Track status — Finance may need to approve before ledger posting.',
-      'If panel is hidden, ask admin to confirm role permissions include expenses.create.',
+      'Workspace → New expense request (if your role shows it).',
+      'Fill line items, category, pay-to account (if bank transfer), and submit.',
+      'Branch Manager reviews and approves in Management / Needs action.',
+      'After approval, Finance pays from Desk or Treasury.',
+      'If the request panel is hidden, ask admin to confirm role permissions include expenses.create.',
     ],
     links: [
       { label: 'Sales', to: '/sales' },
+      { label: 'Branch Manager', to: '/manager' },
       { label: 'Finance', to: '/accounts' },
-      { label: 'Edit approvals', to: '/edit-approvals' },
     ],
   },
   {

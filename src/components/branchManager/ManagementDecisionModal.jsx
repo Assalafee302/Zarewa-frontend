@@ -189,7 +189,7 @@ export function ManagementDecisionModal({
               status: selectedIntel.row?.approval_status || 'Pending',
               canApprove: false,
               canMutate: ws?.canMutate !== false,
-              missingPermission: 'Payment request approval requires branch manager, Finance, or MD authority.',
+              missingPermission: 'Expense requests are approved by the Branch Manager (Management / Needs action).',
               zareQuery: `Why can't I approve payment request ${selectedIntel.requestId}?`,
             }}
           />
@@ -439,6 +439,29 @@ export function ManagementDecisionModal({
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-snug text-slate-600">
                       {selectedIntel.row.description}
                     </p>
+                  ) : null}
+                  {(selectedIntel.row?.payee_name ||
+                    selectedIntel.row?.payee_account_no ||
+                    selectedIntel.row?.payee_bank_name ||
+                    selectedIntel.row?.payeeName ||
+                    selectedIntel.row?.payeeAccountNo ||
+                    selectedIntel.row?.payeeBankName) ? (
+                    <div className="mt-3 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950 space-y-1">
+                      <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">Pay to</p>
+                      {(selectedIntel.row.payee_name || selectedIntel.row.payeeName) ? (
+                        <p className="font-bold text-sky-950">
+                          {selectedIntel.row.payee_name || selectedIntel.row.payeeName}
+                        </p>
+                      ) : null}
+                      <p className="font-mono text-xs font-semibold tabular-nums leading-snug">
+                        {[
+                          selectedIntel.row.payee_bank_name || selectedIntel.row.payeeBankName,
+                          selectedIntel.row.payee_account_no || selectedIntel.row.payeeAccountNo,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') || '—'}
+                      </p>
+                    </div>
                   ) : null}
                 </DecisionBand>
 

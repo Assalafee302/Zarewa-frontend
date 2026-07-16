@@ -125,6 +125,8 @@ export function FinanceDeskWorkQueues({
 
   onCancelRefund,
 
+  onCancelPaymentRequest,
+
   onPayRegisterSettlement,
 
   onPayPoTransport,
@@ -726,7 +728,7 @@ export function FinanceDeskWorkQueues({
             paymentRequests={approvedPayments}
             registerSettlements={approvedRegisterSettlements}
             poTransport={poTransportAwaiting}
-            expensePanelDescription="Managers approved these expense requests — record bank or cash payout from the correct treasury account."
+            expensePanelDescription="Branch Manager approved these requests — verify payee, amount, and category before paying. Refuse payout if something is wrong."
             poTransportPanelAction={
               onViewPoTransport ? (
                 <FinanceActionButton variant="link" onClick={() => onGoToTab("treasury")}>
@@ -757,6 +759,11 @@ export function FinanceDeskWorkQueues({
                 >
                   Payout
                 </FinanceDeskQueueActionButton>
+                {onCancelPaymentRequest ? (
+                  <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelPaymentRequest(req)}>
+                    Refuse
+                  </FinanceDeskQueueActionButton>
+                ) : null}
                 {onViewPaymentRequest ? (
                   <FinanceDeskQueueActionButton
                     tone="slate"

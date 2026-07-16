@@ -233,6 +233,9 @@ export const normalizePaymentRequest = (row) => ({
   attachmentName: row?.attachmentName || '',
   attachmentMime: row?.attachmentMime || '',
   attachmentPresent: Boolean(row?.attachmentPresent),
+  payeeName: row?.payeeName || '',
+  payeeAccountNo: row?.payeeAccountNo || '',
+  payeeBankName: row?.payeeBankName || '',
 });
 
 export const createRequestPayLine = (defaultAccountId = '', amount = '') => ({

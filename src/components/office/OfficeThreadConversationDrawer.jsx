@@ -460,7 +460,7 @@ export function OfficeThreadConversationDrawer({
         showToast(data?.error || 'Could not convert.', { variant: 'error' });
         return;
       }
-      showToast(`Payment request ${data.requestID} created — approve under Accounts.`);
+      showToast(`Payment request ${data.requestID} created — Branch Manager must approve before payout.`);
       setConvertOpen(false);
       if (payFileRef.current) payFileRef.current.value = '';
       setExpenseForm(initialExpenseRequestFormState());

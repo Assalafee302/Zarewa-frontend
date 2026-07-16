@@ -403,6 +403,15 @@ export function useBranchManagerWorkstation() {
           requestReference: String(selectedIntel?.row?.request_reference || requestId || '').trim(),
           expenseCategory: String(selectedIntel?.row?.expense_category || '').trim(),
           description: String(selectedIntel?.row?.description || '').trim() || '—',
+          payeeName: String(
+            selectedIntel?.row?.payee_name ?? selectedIntel?.row?.payeeName ?? ''
+          ).trim(),
+          payeeAccountNo: String(
+            selectedIntel?.row?.payee_account_no ?? selectedIntel?.row?.payeeAccountNo ?? ''
+          ).trim(),
+          payeeBankName: String(
+            selectedIntel?.row?.payee_bank_name ?? selectedIntel?.row?.payeeBankName ?? ''
+          ).trim(),
           attachment: null,
         });
         setEditingPaymentRequestId(requestId);
@@ -1641,20 +1650,24 @@ export function useBranchManagerWorkstation() {
   const handlePaymentDecision = useCallback(
     async (status) => {
       if (selectedIntel?.kind !== 'payment') return;
+      const isReject = status !== 'Approved';
       const asked = await requestRemark({
-        title: status === 'Approved' ? 'Approval note (optional)' : 'Rejection reason (optional)',
-        description:
-          status === 'Approved'
-            ? 'Add an optional manager note for this payment request.'
-            : 'Add an optional reason for rejecting this payment request.',
-        confirmLabel: status === 'Approved' ? 'Approve request' : 'Reject request',
-        minLength: 0,
-        optional: true,
-        variant: status === 'Approved' ? 'default' : 'warning',
+        title: isReject ? 'Rejection reason (required)' : 'Approval note (optional)',
+        description: isReject
+          ? 'Explain what is wrong so the requester can correct and resubmit.'
+          : 'Add an optional manager note for this payment request.',
+        confirmLabel: isReject ? 'Reject request' : 'Approve request',
+        minLength: isReject ? 3 : 0,
+        optional: !isReject,
+        variant: isReject ? 'warning' : 'default',
         onSubmit: 'payment_decision_note',
       });
       if (!asked?.ok) return;
       const note = String(asked.value || '').trim();
+      if (isReject && note.length < 3) {
+        showToast('Rejection reason is required (at least 3 characters).', { variant: 'error' });
+        return;
+      }
       setDecisionBusy(true);
       const { ok, data } = await apiFetch(
         `/api/payment-requests/${encodeURIComponent(selectedIntel.requestId)}/decision`,
@@ -1668,9 +1681,12 @@ export function useBranchManagerWorkstation() {
         showToast(data?.error || 'Could not update payment request.', { variant: 'error' });
         return;
       }
-      showToast(status === 'Approved' ? 'Payment request approved.' : 'Payment request rejected.', {
-        variant: 'success',
-      });
+      showToast(
+        status === 'Approved'
+          ? 'Payment request approved — Finance can pay from Desk.'
+          : 'Payment request rejected — requester can resubmit from the archive.',
+        { variant: 'success' }
+      );
       const nextItem = findNextAttentionItemAfterDecision();
       await fetchData({ background: true });
       setSelectedIntel(null);

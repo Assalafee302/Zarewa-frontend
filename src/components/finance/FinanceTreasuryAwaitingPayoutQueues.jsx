@@ -35,19 +35,53 @@ function PaymentRequestCategoryExtra({ req }) {
   );
 }
 
-function RefundPayeeExtra({ refund }) {
-  if (!refund?.payeeAccountNo) return null;
-  const payeeTitle = [refund.payeeName, refund.payeeBankName, refund.payeeAccountNo].filter(Boolean).join(' · ');
+function PayeeAccountExtra({ payeeName, payeeBankName, payeeAccountNo }) {
+  if (!payeeAccountNo && !payeeName && !payeeBankName) return null;
+  const payeeTitle = [payeeName, payeeBankName, payeeAccountNo].filter(Boolean).join(' · ');
   return (
     <p className="text-ui-xs font-semibold text-sky-900/90 mt-0.5 truncate" title={payeeTitle || undefined}>
-      Pay to: <span className="font-mono tabular-nums">{refund.payeeAccountNo}</span>
-      {refund.payeeName || refund.payeeBankName ? (
+      Pay to:{' '}
+      {payeeAccountNo ? (
+        <span className="font-mono tabular-nums">{payeeAccountNo}</span>
+      ) : (
+        <span className="font-sans">—</span>
+      )}
+      {payeeName || payeeBankName ? (
         <span className="font-sans text-sky-900/85">
           {' '}
-          ({[refund.payeeName, refund.payeeBankName].filter(Boolean).join(' · ')})
+          ({[payeeName, payeeBankName].filter(Boolean).join(' · ')})
         </span>
       ) : null}
     </p>
+  );
+}
+
+function RefundPayeeExtra({ refund }) {
+  return (
+    <PayeeAccountExtra
+      payeeName={refund?.payeeName}
+      payeeBankName={refund?.payeeBankName}
+      payeeAccountNo={refund?.payeeAccountNo}
+    />
+  );
+}
+
+function PaymentRequestPayeeExtra({ req }) {
+  return (
+    <PayeeAccountExtra
+      payeeName={req?.payeeName}
+      payeeBankName={req?.payeeBankName}
+      payeeAccountNo={req?.payeeAccountNo}
+    />
+  );
+}
+
+function PaymentRequestQueueExtra({ req }) {
+  return (
+    <div className="space-y-0.5">
+      <PaymentRequestCategoryExtra req={req} />
+      <PaymentRequestPayeeExtra req={req} />
+    </div>
   );
 }
 
@@ -74,7 +108,7 @@ export function FinanceTreasuryAwaitingPayoutQueues({
   registerSettlements = [],
   poTransport = [],
   branchNameById = {},
-  expensePanelDescription = 'Approve elsewhere, then record bank or cash payout here.',
+  expensePanelDescription = 'Branch Manager approves first. Verify payee, amount, and category — refuse payout if something is wrong.',
   poTransportPanelAction = null,
   sectionIdPrefix = '',
   renderRefundActions,
@@ -144,7 +178,7 @@ export function FinanceTreasuryAwaitingPayoutQueues({
                   </>
                 }
                 meta={paymentRequestPayoutMetaLine(req, branchNameById)}
-                extra={<PaymentRequestCategoryExtra req={req} />}
+                extra={<PaymentRequestQueueExtra req={req} />}
                 amount={formatNgn(paymentRequestOutstandingNgn(req))}
                 actions={renderPaymentRequestActions(req)}
               />

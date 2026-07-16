@@ -97,7 +97,7 @@ export function WorkspaceExpenseQuickActions() {
     });
     if (payRequestFileRef.current) payRequestFileRef.current.value = '';
     setShowPayRequestModal(false);
-    showToast('Expense request submitted for approval.');
+    showToast('Expense request submitted — awaiting Branch Manager approval.');
   };
 
   if (!ws?.session) return null;
@@ -125,8 +125,8 @@ export function WorkspaceExpenseQuickActions() {
           Expense requests
         </h3>
         <p className="text-ui-xs text-gray-500 leading-snug">
-          Submit one payment request for approval — no Finance screen required. Paid expenses are recorded by treasury
-          after approval.
+          Submit one expense request for Branch Manager approval. Finance records treasury payout only after
+          approval — no direct expense posting.
         </p>
         <button
           type="button"

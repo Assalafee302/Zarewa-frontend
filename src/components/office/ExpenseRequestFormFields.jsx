@@ -139,6 +139,49 @@ export function ExpenseRequestFormFields({
         ) : null}
       </div>
       </div>
+      <div className="rounded-xl border border-sky-200/70 bg-sky-50/40 p-4 space-y-3">
+        <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/80">
+          Pay to (bank account)
+        </p>
+        <p className="text-ui-xs text-slate-500 -mt-1">
+          Optional. Account details for treasury to transfer payment when the request is approved.
+        </p>
+        <div>
+          <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
+            Beneficiary name
+          </label>
+          <input
+            value={form.payeeName || ''}
+            onChange={(e) => setForm((f) => ({ ...f, payeeName: e.target.value }))}
+            placeholder="Name on the account"
+            className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">Bank name</label>
+            <input
+              value={form.payeeBankName || ''}
+              onChange={(e) => setForm((f) => ({ ...f, payeeBankName: e.target.value }))}
+              placeholder="e.g. Access Bank"
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
+              Account number
+            </label>
+            <input
+              value={form.payeeAccountNo || ''}
+              onChange={(e) => setForm((f) => ({ ...f, payeeAccountNo: e.target.value }))}
+              placeholder="Nigerian bank account no."
+              inputMode="numeric"
+              autoComplete="off"
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold font-mono outline-none tabular-nums"
+            />
+          </div>
+        </div>
+      </div>
       <div className="rounded-xl border border-slate-200/70 bg-white p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Line items</label>

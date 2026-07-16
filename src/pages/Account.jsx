@@ -66,11 +66,10 @@ import { ExpenseCategoryLaneBadge } from '../components/office/ExpenseCategoryLa
 import { ExpenseCategoryExceptionBanner } from '../components/office/ExpenseCategoryExceptionBanner.jsx';
 import { ExpenseCategoryPayoutReadinessPanel } from '../components/office/ExpenseCategoryPayoutReadinessPanel.jsx';
 import { OthersJustificationField } from '../components/office/OthersJustificationField.jsx';
-import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../lib/expenseRequestFormCore.js';
+import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState, expenseRequestFormFromPaymentRequest } from '../lib/expenseRequestFormCore.js';
 import {
   isFinanceExceptionExpenseItem,
   resolveExpenseCategoryPolicyLimits,
-  validateExpenseCategorySelection,
 } from '../shared/expenseCategoryPolicy.js';
 import { ExpenseCategoryReclassPreviewPanel } from '../components/office/ExpenseCategoryReclassPreviewPanel.jsx';
 import { downloadExpenseCategoryExceptionsCsv } from '../lib/expenseCategoryExceptionExport.js';
@@ -179,7 +178,6 @@ const Account = () => {
   const [showAddBank, setShowAddBank] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
-  const [savingExpense, setSavingExpense] = useState(false);
   const [savingPayRequest, setSavingPayRequest] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [editingTransferBatchId, setEditingTransferBatchId] = useState('');
@@ -200,6 +198,7 @@ const Account = () => {
   const [requestPayNote, setRequestPayNote] = useState('');
   const [paymentGlPreview, setPaymentGlPreview] = useState(null);
   const [cancelRefundBusyId, setCancelRefundBusyId] = useState('');
+  const [cancelPayRequestBusyId, setCancelPayRequestBusyId] = useState('');
   const [treasuryPayoutSubmitting, setTreasuryPayoutSubmitting] = useState(false);
   const [transportPayEditApprovalId, setTransportPayEditApprovalId] = useState('');
   const [customerRefunds, setCustomerRefunds] = useState([]);
@@ -329,16 +328,6 @@ const Account = () => {
   }, [ws?.refreshEpoch, ws?.hasWorkspaceData, ws?.snapshot]);
    
 
-  const [expenseForm, setExpenseForm] = useState({
-    expenseType: 'COGS — materials & stock',
-    amountNgn: '',
-    date: '',
-    category: '',
-    categoryJustification: '',
-    paymentMethod: 'Bank Transfer',
-    debitAccountId: '',
-    reference: '',
-  });
 
   const [requestForm, setRequestForm] = useState(() => ({
     ...initialExpenseRequestFormState(),
@@ -933,6 +922,76 @@ const Account = () => {
     [cancelRefundBeforePay]
   );
 
+  const cancelPaymentRequestBeforePay = useCallback(
+    async (req) => {
+      const rid = String(req?.requestID || req?.id || '').trim();
+      if (!rid || cancelPayRequestBusyId) return;
+      const noteRaw = window.prompt(
+        `Why refuse payout for ${rid}?\nDescribe the error (wrong amount, payee, category, duplicate…). Required.`
+      );
+      if (noteRaw == null) return;
+      const note = String(noteRaw || '').trim();
+      if (note.length < 3) {
+        showToast('Enter a short reason so the requester can correct and resubmit.', { variant: 'error' });
+        return;
+      }
+      if (
+        !(await appConfirm({
+          message: `Refuse payout for ${rid}? This cancels the approved request (no bank debit). Requester can resubmit a corrected request for Branch Manager approval.`,
+          variant: 'danger',
+        }))
+      ) {
+        return;
+      }
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Reconnect to refuse expense payouts — workspace is read-only.'
+            : 'Connect to the API to refuse expense payouts.',
+          { variant: 'info' }
+        );
+        return;
+      }
+      setCancelPayRequestBusyId(rid);
+      try {
+        const { ok, data } = await apiFetch(
+          `/api/payment-requests/${encodeURIComponent(rid)}/cancel-before-pay`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              note,
+              actedAtISO: new Date().toISOString().slice(0, 10),
+            }),
+          }
+        );
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not refuse expense payout.', { variant: 'error' });
+          return;
+        }
+        if (selectedPayment?.type === 'payment_request' && selectedPayment?.id === rid) {
+          setShowPaymentEntry(false);
+          setSelectedPayment(null);
+          setRequestPayLines([]);
+          setRequestPayNote('');
+        }
+        await ws.refresh();
+        showToast(
+          `Expense request ${rid} cancelled before payout. Resubmit from the archive after correcting.`
+        );
+      } finally {
+        setCancelPayRequestBusyId('');
+      }
+    },
+    [cancelPayRequestBusyId, selectedPayment, showToast, ws]
+  );
+
+  const handleDeskCancelPaymentRequest = useCallback(
+    (req) => {
+      void cancelPaymentRequestBeforePay(req);
+    },
+    [cancelPaymentRequestBeforePay]
+  );
+
   const confirmRefundPaid = async (e) => {
     e.preventDefault();
     if (!refundPayTarget?.refundID || treasuryPayoutSubmitting) return;
@@ -1045,6 +1104,11 @@ const Account = () => {
       paid: paidAmountNgn,
       date: req.requestDate,
       desc: req.expenseID,
+      payeeName: req.payeeName || '',
+      payeeAccountNo: req.payeeAccountNo || '',
+      payeeBankName: req.payeeBankName || '',
+      approvalNote: req.approvalNote || '',
+      expenseCategory: req.expenseCategory || '',
     });
     setRequestPayLines([createRequestPayLine(bankAccountsForPayout[0]?.id ?? '', outstanding)]);
     setRequestPayNote(req.paymentNote || '');
@@ -1579,15 +1643,14 @@ const Account = () => {
         setRequestForm({
           ...initialExpenseRequestFormState(),
           requestDate: todayIso,
-          requestReference: '',
-          expenseCategory: '',
-          description: '',
-          attachment: null,
         });
         if (payRequestFileRef.current) payRequestFileRef.current.value = '';
         setShowPayRequestModal(true);
       } else {
-        showToast('Open My desk to pay approved payment requests.', { variant: 'info' });
+        showToast(
+          'Submit a new expense request from the workspace. Branch Manager approves under Management / Needs action.',
+          { variant: 'info' }
+        );
       }
       return;
     }
@@ -1595,13 +1658,18 @@ const Account = () => {
     if (st.openExpenseModal) {
       const resolved = goToResolvedTab('disbursements');
       if (resolved === 'disbursements') {
-        setExpenseForm((f) => ({
-          ...f,
-          debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
-        }));
-        setShowExpenseModal(true);
+        setRequestForm({
+          ...initialExpenseRequestFormState(),
+          requestDate: todayIso,
+        });
+        if (payRequestFileRef.current) payRequestFileRef.current.value = '';
+        setShowPayRequestModal(true);
+        showToast('All expenses need Branch Manager approval before treasury can pay.', { variant: 'info' });
       } else {
-        showToast('Expense recording is on the payment register — use My desk for payouts.', { variant: 'info' });
+        showToast(
+          'Submit an expense request from the workspace for Branch Manager approval.',
+          { variant: 'info' }
+        );
       }
       return;
     }
@@ -1610,32 +1678,38 @@ const Account = () => {
       const correction = st.openExpenseCorrection || {};
       const requestId = String(correction.requestId || '').trim();
       const req = requestId ? payRequests.find((row) => String(row.requestID || '').trim() === requestId) : null;
-      const amountNgn = Number(req?.amountRequestedNgn ?? correction.amountRequestedNgn ?? 0);
-      const chosenCategory = String(req?.expenseCategory || correction.expenseCategory || '').trim();
-      const suggestedReference = String(
-        req?.requestReference || correction.requestReference || requestId || req?.requestID || ''
-      ).trim();
       const resolved = goToResolvedTab('disbursements');
       if (resolved === 'disbursements') {
-        setExpenseForm({
-          expenseType: 'Operational — correction entry',
-          amountNgn: amountNgn > 0 ? String(amountNgn) : '',
-          date: String(req?.requestDate || correction.requestDate || todayIso).slice(0, 10),
-          category: chosenCategory,
-          categoryJustification: String(req?.categoryJustification || correction.categoryJustification || '').trim(),
-          paymentMethod: 'Bank Transfer',
-          debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
-          reference: suggestedReference || 'Correction entry',
-        });
-        setShowExpenseModal(true);
+        setRequestForm(
+          expenseRequestFormFromPaymentRequest(
+            req || {
+              amountRequestedNgn: correction.amountRequestedNgn,
+              requestDate: correction.requestDate,
+              expenseCategory: correction.expenseCategory,
+              categoryJustification: correction.categoryJustification,
+              requestReference: correction.requestReference || requestId,
+              description: correction.description || 'Corrected expense request',
+              payeeName: correction.payeeName,
+              payeeAccountNo: correction.payeeAccountNo,
+              payeeBankName: correction.payeeBankName,
+              lineItems: correction.lineItems,
+            },
+            { todayIso }
+          )
+        );
+        if (payRequestFileRef.current) payRequestFileRef.current.value = '';
+        setShowPayRequestModal(true);
         showToast(
           requestId
-            ? `Rejected request ${requestId} moved to archive. Record the corrected expense below.`
-            : 'Rejected request moved to archive. Record the corrected expense below.',
+            ? `Resubmit a corrected request for ${requestId}. Branch Manager must approve before payout.`
+            : 'Resubmit a corrected expense request. Branch Manager must approve before payout.',
           { variant: 'info' }
         );
       } else {
-        showToast('Open My desk for payout work — payment register is not on your role.', { variant: 'info' });
+        showToast(
+          'Open the workspace expense request panel to resubmit for Branch Manager approval.',
+          { variant: 'info' }
+        );
       }
     }
   }, [
@@ -2061,86 +2135,17 @@ const Account = () => {
 
   const saveExpense = async (e) => {
     e.preventDefault();
-    if (savingExpense) return;
-    const amount = Number(expenseForm.amountNgn);
-    const debitId = Number(expenseForm.debitAccountId);
-    if (!expenseForm.category.trim() || Number.isNaN(amount) || amount <= 0) return;
-    if (!debitId) {
-      showToast('Select the account paying this expense.', { variant: 'error' });
-      return;
-    }
-    const debitAcc = bankAccounts.find((a) => a.id === debitId);
-    if (!debitAcc || treasuryBookDisplayNgn(debitAcc) < amount) {
-      showToast('Selected account has insufficient balance.', { variant: 'error' });
-      return;
-    }
-    const catCheck = validateExpenseCategorySelection({
-      actor: { roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions },
-      category: expenseForm.category.trim(),
-      amountNgn: amount,
-      description: expenseForm.expenseType || expenseForm.reference || '',
-      categoryJustification: expenseForm.categoryJustification,
-      hasAttachment: false,
-      requireAttachment: false,
-      hasPermission: (p) => Boolean(ws?.hasPermission?.(p)),
-      policyLimits: ws?.snapshot?.orgGovernanceLimits,
-    });
-    if (!catCheck.ok) {
-      showToast(catCheck.error || 'Check expense category and justification.', { variant: 'error' });
-      return;
-    }
-    const row = {
-      expenseType: expenseForm.expenseType,
-      amountNgn: amount,
-      date: expenseForm.date || new Date().toISOString().slice(0, 10),
-      category: expenseForm.category.trim(),
-      categoryJustification: String(expenseForm.categoryJustification || '').trim() || undefined,
-      paymentMethod: expenseForm.paymentMethod,
-      debitAccountId: debitId,
-      reference: expenseForm.reference.trim() || '—',
-    };
-    if (ws?.canMutate) {
-      setSavingExpense(true);
-      let ok = false;
-      let data = null;
-      try {
-        ({ ok, data } = await apiFetch('/api/expenses', {
-          method: 'POST',
-          body: JSON.stringify({
-            ...row,
-            treasuryAccountId: debitId,
-            createdBy: activeActorLabel,
-          }),
-        }));
-      } finally {
-        setSavingExpense(false);
-      }
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not save expense on server.', { variant: 'error' });
-        return;
-      }
-      await ws.refresh();
-    } else {
-      showToast(
-        ws?.usingCachedData
-          ? 'Reconnect to save expenses — workspace is read-only.'
-          : 'Connect to the API to record expenses.',
-        { variant: 'info' }
-      );
-      return;
-    }
-    setExpenseForm({
-      expenseType: 'COGS — materials & stock',
-      amountNgn: '',
-      date: '',
-      category: '',
-      categoryJustification: '',
-      paymentMethod: 'Bank Transfer',
-      debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
-      reference: '',
-    });
     setShowExpenseModal(false);
-    showToast('Expense recorded and synced.');
+    setRequestForm({
+      ...initialExpenseRequestFormState(),
+      requestDate: todayIso,
+    });
+    if (payRequestFileRef.current) payRequestFileRef.current.value = '';
+    setShowPayRequestModal(true);
+    showToast(
+      'All expenses need Branch Manager approval. Submit a request — treasury pays only after approval.',
+      { variant: 'info' }
+    );
   };
 
   const mapTreasuryMovementToPayFromRow = useCallback(
@@ -2332,8 +2337,20 @@ const Account = () => {
     });
     if (payRequestFileRef.current) payRequestFileRef.current.value = '';
     setShowPayRequestModal(false);
-    showToast('Expense request submitted for approval.');
+    showToast('Expense request submitted — awaiting Branch Manager approval.');
   };
+
+  const openExpenseRequestForCorrection = useCallback(
+    (req) => {
+      setRequestForm(expenseRequestFormFromPaymentRequest(req, { todayIso }));
+      if (payRequestFileRef.current) payRequestFileRef.current.value = '';
+      setShowPayRequestModal(true);
+      showToast('Resubmit for Branch Manager approval. Treasury pays only after approval.', {
+        variant: 'info',
+      });
+    },
+    [todayIso, showToast]
+  );
 
   const openEditTreasuryAccount = (acc) => {
     const opening =
@@ -2619,9 +2636,10 @@ const Account = () => {
 
   const disbursementsActivePayRequests = useMemo(
     () =>
-      disbursementsFilteredPayRequests.filter(
-        (req) => String(req.approvalStatus || '').trim().toLowerCase() !== 'rejected'
-      ),
+      disbursementsFilteredPayRequests.filter((req) => {
+        const st = String(req.approvalStatus || '').trim().toLowerCase();
+        return st !== 'rejected' && st !== 'cancelled';
+      }),
     [disbursementsFilteredPayRequests]
   );
 
@@ -2640,9 +2658,10 @@ const Account = () => {
 
   const disbursementsArchivedRejectedPayRequests = useMemo(
     () =>
-      disbursementsFilteredPayRequests.filter(
-        (req) => String(req.approvalStatus || '').trim().toLowerCase() === 'rejected'
-      ),
+      disbursementsFilteredPayRequests.filter((req) => {
+        const st = String(req.approvalStatus || '').trim().toLowerCase();
+        return st === 'rejected' || st === 'cancelled';
+      }),
     [disbursementsFilteredPayRequests]
   );
 
@@ -3167,6 +3186,9 @@ const Account = () => {
       filteredSalesReceipts,
       handleAccountTabChange,
       handleDeskCancelRefund,
+      handleDeskCancelPaymentRequest,
+      cancelPaymentRequestBeforePay,
+      cancelPayRequestBusyId,
       handleDeskConfirmReceipt,
       handleDeskPayPoTransport,
       handleDeskPayRefund,
@@ -3220,14 +3242,13 @@ const Account = () => {
       setDisbursementsPayRequestQueue,
       setDisbursementsSearch,
       setEditingTransferBatchId,
-      setExpenseForm,
       setPaymentsMutateApprovalId,
       setPaymentsTablePage,
       setReceiptsSortDir,
       setReceiptsSortKey,
-      setReceiptsTableSearch,
-      setShowExpenseModal,
-      setShowTransferModal,
+    setReceiptsTableSearch,
+    openExpenseRequestForCorrection,
+    setShowTransferModal,
       setStatementAccount,
       setTransferForm,
       setWaitingReceiptsPage,
@@ -3283,6 +3304,9 @@ const Account = () => {
       filteredSalesReceipts,
       handleAccountTabChange,
       handleDeskCancelRefund,
+      handleDeskCancelPaymentRequest,
+      cancelPaymentRequestBeforePay,
+      cancelPayRequestBusyId,
       handleDeskConfirmReceipt,
       handleDeskPayPoTransport,
       handleDeskPayRefund,
@@ -3336,14 +3360,13 @@ const Account = () => {
       setDisbursementsPayRequestQueue,
       setDisbursementsSearch,
       setEditingTransferBatchId,
-      setExpenseForm,
       setPaymentsMutateApprovalId,
       setPaymentsTablePage,
       setReceiptsSortDir,
       setReceiptsSortKey,
-      setReceiptsTableSearch,
-      setShowExpenseModal,
-      setShowTransferModal,
+    setReceiptsTableSearch,
+    openExpenseRequestForCorrection,
+    setShowTransferModal,
       setStatementAccount,
       setTransferForm,
       setWaitingReceiptsPage,
@@ -4108,6 +4131,32 @@ const Account = () => {
               {selectedPayment?.type === 'po_transport' ? `PO ${selectedPayment?.id}` : selectedPayment?.id}
             </span>
           </div>
+          {selectedPayment?.type === 'payment_request' &&
+          (selectedPayment.payeeName || selectedPayment.payeeAccountNo || selectedPayment.payeeBankName) ? (
+            <div className="mb-4 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950 space-y-1">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">Pay to (from request)</p>
+              {selectedPayment.payeeName ? (
+                <p className="font-bold text-sky-950">{selectedPayment.payeeName}</p>
+              ) : null}
+              <p className="font-mono text-xs font-semibold tabular-nums leading-snug">
+                {[selectedPayment.payeeBankName, selectedPayment.payeeAccountNo].filter(Boolean).join(' · ') ||
+                  selectedPayment.payeeAccountNo ||
+                  '—'}
+              </p>
+            </div>
+          ) : null}
+          {selectedPayment?.type === 'payment_request' && selectedPayment.approvalNote ? (
+            <div className="mb-4 rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2.5 text-xs text-amber-950">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-900/90">Branch Manager note</p>
+              <p className="mt-1 whitespace-pre-wrap leading-snug">{selectedPayment.approvalNote}</p>
+            </div>
+          ) : null}
+          {selectedPayment?.type === 'payment_request' ? (
+            <p className="mb-3 text-ui-xs text-slate-500 leading-snug">
+              Check amount, category{selectedPayment.expenseCategory ? ` (${selectedPayment.expenseCategory})` : ''}, and
+              payee before posting. If anything is wrong, refuse payout — do not pay blindly.
+            </p>
+          ) : null}
           {selectedPayment?.type === 'payment_request' ? (
             <ExpenseCategoryPayoutReadinessPanel
               glPreview={paymentGlPreview}
@@ -4220,23 +4269,43 @@ const Account = () => {
                   onChange={setTransportPayEditApprovalId}
                 />
               ) : null}
-              <button
-                type="button"
-                onClick={confirmProcessPaymentModal}
-                disabled={
-                  treasuryPayoutSubmitting ||
-                  (selectedPayment?.type === 'payment_request' &&
-                    paymentGlPreview?.payoutGate &&
-                    paymentGlPreview.payoutGate.ok === false)
-                }
-                className="w-full bg-zarewa-teal text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {treasuryPayoutSubmitting
-                  ? 'Posting payout…'
-                  : selectedPayment?.type === 'po_transport'
-                    ? 'Confirm transport payout'
-                    : 'Confirm transaction'}
-              </button>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {selectedPayment?.type === 'payment_request' && canPayRequests ? (
+                  <button
+                    type="button"
+                    disabled={treasuryPayoutSubmitting || cancelPayRequestBusyId === selectedPayment.id}
+                    onClick={() =>
+                      void cancelPaymentRequestBeforePay({
+                        requestID: selectedPayment.id,
+                      })
+                    }
+                    className="w-full border border-rose-200 bg-rose-50 text-rose-800 py-4 rounded-xl font-bold text-xs uppercase tracking-widest disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {cancelPayRequestBusyId === selectedPayment.id ? 'Refusing…' : 'Refuse payout'}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={confirmProcessPaymentModal}
+                  disabled={
+                    treasuryPayoutSubmitting ||
+                    (selectedPayment?.type === 'payment_request' &&
+                      paymentGlPreview?.payoutGate &&
+                      paymentGlPreview.payoutGate.ok === false)
+                  }
+                  className={`w-full bg-zarewa-teal text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl disabled:opacity-70 disabled:cursor-not-allowed ${
+                    selectedPayment?.type === 'payment_request' && canPayRequests ? '' : 'sm:col-span-2'
+                  }`}
+                >
+                  {treasuryPayoutSubmitting
+                    ? 'Posting payout…'
+                    : selectedPayment?.type === 'po_transport'
+                      ? 'Confirm transport payout'
+                      : selectedPayment?.type === 'payment_request'
+                        ? 'Post expense payout'
+                        : 'Confirm transaction'}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -4462,157 +4531,35 @@ const Account = () => {
         <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
             <div className="flex justify-between items-center mb-6 gap-3">
               <h3 className="text-xl font-bold text-zarewa-teal">Expense entry</h3>
-              <div className="flex items-center gap-2">
-                <ZareHelpButton
-                  compact
-                  transactionContext={{
-                    module: 'finance',
-                    currentPage: 'expense',
-                    pathname: '/accounts',
-                    transactionType: 'expense',
-                    status: 'draft',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowExpenseModal(false)}
-                  className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
-                >
-                  <X size={22} />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowExpenseModal(false)}
+                className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
+              >
+                <X size={22} />
+              </button>
             </div>
-            <form className="space-y-4" onSubmit={saveExpense}>
-              <div>
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Expense type
-                </label>
-                <select
-                  value={expenseForm.expenseType}
-                  onChange={(e) =>
-                    setExpenseForm((f) => ({ ...f, expenseType: e.target.value }))
-                  }
-                  className="w-full z-finance-field rounded-xl font-bold outline-none"
-                >
-                  <option value="COGS — materials & stock">COGS — materials & stock</option>
-                  <option value="Employee — payroll & commissions">Employee — payroll & commissions</option>
-                  <option value="Logistics & haulage">Logistics & haulage</option>
-                  <option value="Maintenance — plant & equipment">Maintenance — plant & equipment</option>
-                  <option value="Operational — rent & utilities">Operational — rent & utilities</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
-                    Amount (₦)
-                  </label>
-                  <input
-                    required
-                    type="number"
-                    min="1"
-                    value={expenseForm.amountNgn}
-                    onChange={(e) =>
-                      setExpenseForm((f) => ({ ...f, amountNgn: e.target.value }))
-                    }
-                    className="w-full z-finance-field rounded-xl font-bold outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={expenseForm.date}
-                    onChange={(e) =>
-                      setExpenseForm((f) => ({ ...f, date: e.target.value }))
-                    }
-                    className="w-full z-finance-field rounded-xl font-bold outline-none"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Category
-                </label>
-                <ExpenseCategorySelect
-                  required
-                  value={expenseForm.category}
-                  onChange={(category) => setExpenseForm((f) => ({ ...f, category }))}
-                  actor={{ roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions }}
-                  hasPermission={(p) => Boolean(ws?.hasPermission?.(p))}
-                  othersMinJustificationLen={othersMinJustificationLen}
-                  className="w-full z-finance-field rounded-xl font-bold outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-200/40"
-                />
-                {isExceptionExpenseCategory(expenseForm.category) ? (
-                  <OthersJustificationField
-                    value={expenseForm.categoryJustification || ''}
-                    onChange={(e) =>
-                      setExpenseForm((f) => ({ ...f, categoryJustification: e.target.value }))
-                    }
-                    minLength={othersMinJustificationLen}
-                  />
-                ) : null}
-              </div>
-              <div>
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Payment method
-                </label>
-                <select
-                  value={expenseForm.paymentMethod}
-                  onChange={(e) =>
-                    setExpenseForm((f) => ({ ...f, paymentMethod: e.target.value }))
-                  }
-                  className="w-full z-finance-field rounded-xl font-bold outline-none"
-                >
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Cash">Cash</option>
-                  <option value="POS">POS</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Pay from account
-                </label>
-                <select
-                  required
-                  value={expenseForm.debitAccountId}
-                  onChange={(e) =>
-                    setExpenseForm((f) => ({ ...f, debitAccountId: e.target.value }))
-                  }
-                  className="w-full z-finance-field rounded-xl font-bold outline-none"
-                >
-                  <option value="">Select account…</option>
-                  {bankAccountsSelectOrder.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Receipt / invoice reference
-                </label>
-                <input
-                  value={expenseForm.reference}
-                  onChange={(e) =>
-                    setExpenseForm((f) => ({ ...f, reference: e.target.value }))
-                  }
-                  className="w-full z-finance-field rounded-xl font-bold outline-none"
-                />
-              </div>
-              <p className="text-ui-xs text-gray-400">
-                Expense ID is generated on save (e.g. EXP-26-015).
+            <div className="space-y-4">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Direct expense posting is disabled. Every expense must be submitted as a request and approved by the{' '}
+                <span className="font-bold text-slate-800">Branch Manager</span> before Finance can pay from treasury.
               </p>
               <button
-                type="submit"
-                disabled={savingExpense}
-                className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => {
+                  setShowExpenseModal(false);
+                  setRequestForm({
+                    ...initialExpenseRequestFormState(),
+                    requestDate: todayIso,
+                  });
+                  if (payRequestFileRef.current) payRequestFileRef.current.value = '';
+                  setShowPayRequestModal(true);
+                }}
+                className="z-btn-primary w-full justify-center py-3"
               >
-                {savingExpense ? 'Saving expense...' : 'Save expense'}
+                Open expense request
               </button>
-            </form>
+            </div>
         </div>
       </ModalFrame>
 
@@ -4641,9 +4588,10 @@ const Account = () => {
             showToast={showToast}
             formatNgn={formatNgn}
             submitting={savingPayRequest}
-            hintBeforeSubmit="Extra rows can be left blank — only completed lines are sent. Request ID is assigned on save. Use Print on the list row for a filing copy."
+            hintBeforeSubmit="Branch Manager must approve this request before Finance can pay from treasury. Extra rows can be left blank — only completed lines are sent."
             actor={{ roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions }}
             hasPermission={(p) => Boolean(ws?.hasPermission?.(p))}
+            scrollable
           />
         </div>
       </ModalFrame>

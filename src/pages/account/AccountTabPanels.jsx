@@ -78,6 +78,9 @@ export function AccountTabPanels() {
     filteredSalesReceipts,
     handleAccountTabChange,
     handleDeskCancelRefund,
+    handleDeskCancelPaymentRequest,
+    cancelPaymentRequestBeforePay,
+    cancelPayRequestBusyId,
     handleDeskConfirmReceipt,
     handleDeskPayPoTransport,
     handleDeskPayRefund,
@@ -131,13 +134,12 @@ export function AccountTabPanels() {
     setDisbursementsPayRequestQueue,
     setDisbursementsSearch,
     setEditingTransferBatchId,
-    setExpenseForm,
     setPaymentsMutateApprovalId,
     setPaymentsTablePage,
     setReceiptsSortDir,
     setReceiptsSortKey,
     setReceiptsTableSearch,
-    setShowExpenseModal,
+    openExpenseRequestForCorrection,
     setShowTransferModal,
     setStatementAccount,
     setTransferForm,
@@ -167,6 +169,7 @@ export function AccountTabPanels() {
                   onViewPaymentRequest={handleDeskViewPaymentRequest}
                   onPayRefund={handleDeskPayRefund}
                   onCancelRefund={handleDeskCancelRefund}
+                  onCancelPaymentRequest={handleDeskCancelPaymentRequest}
                   onPayRegisterSettlement={handleDeskPayRegisterSettlement}
                   onPayPoTransport={handleDeskPayPoTransport}
                   onViewPoTransport={handleDeskViewPoTransport}
@@ -1109,8 +1112,8 @@ export function AccountTabPanels() {
                       1) Expenses (posted records)
                     </h3>
                     <p className="text-[11px] text-gray-500 mt-1">
-                      Record completed spending entries. New expense requests open from the workspace; approval is in
-                      Management or workspace Needs action. After approval, post treasury payout from{' '}
+                      Posted after Branch Manager approval and treasury payout. New requests open from the
+                      workspace; Branch Manager approves under Management / Needs action. Then pay from{' '}
                       <span className="font-semibold text-slate-700">Desk</span> or{' '}
                       <span className="font-semibold text-slate-700">Treasury</span>.
                     </p>
@@ -1317,7 +1320,7 @@ export function AccountTabPanels() {
                                       canApprove: false,
                                       canMutate: ws?.canMutate !== false,
                                       missingPermission:
-                                        'Expense payment requests need finance.approve before treasury payout.',
+                                        'Awaiting Branch Manager approval in Management / Needs action.',
                                       zareQuery: `Why can't I approve payment request ${req.requestID}?`,
                                     }}
                                   />
@@ -1339,6 +1342,20 @@ export function AccountTabPanels() {
                                       title="Record treasury payout"
                                     >
                                       Pay
+                                    </button>
+                                  ) : null}
+                                  {req.approvalStatus === 'Approved' &&
+                                  paid <= 0 &&
+                                  canPayRequests &&
+                                  ws?.canMutate ? (
+                                    <button
+                                      type="button"
+                                      disabled={cancelPayRequestBusyId === req.requestID}
+                                      onClick={() => void cancelPaymentRequestBeforePay(req)}
+                                      className="text-ui-xs font-semibold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50"
+                                      title="Refuse payout if amount, payee, or category is wrong — requester can resubmit"
+                                    >
+                                      {cancelPayRequestBusyId === req.requestID ? '…' : 'Refuse'}
                                     </button>
                                   ) : null}
                                   {req.approvalStatus === 'Approved' &&
@@ -1411,18 +1428,19 @@ export function AccountTabPanels() {
                 <section className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-zarewa-teal">
-                      Archived rejected expense requests
+                      Archived rejected / cancelled expense requests
                     </h3>
                     <span className="text-ui-xs font-bold text-slate-500 tabular-nums">
                       {disbursementsArchivedRejectedPayRequests.length} archived
                     </span>
                   </div>
                   <p className="text-ui-xs text-slate-500">
-                    Rejected requests are hidden from active payout flow and kept here as archived history.
+                    Rejected by Branch Manager or refused by Finance before payout. Resubmit a corrected request for
+                    approval — treasury never pays from this archive.
                   </p>
                   {disbursementsArchivedRejectedPayRequests.length === 0 ? (
                     <p className="text-ui-xs text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
-                      No rejected expense requests in archive.
+                      No rejected or cancelled expense requests in archive.
                     </p>
                   ) : (
                     <ul className="space-y-1.5">
@@ -1449,14 +1467,25 @@ export function AccountTabPanels() {
                               <div className="min-w-0 leading-tight flex-1">
                                 <p className="text-[11px] font-bold text-slate-700 truncate">
                                   <span className="font-mono">{req.requestID}</span>
+                                  <span className="ml-1.5 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-700">
+                                    {String(req.approvalStatus || 'Rejected')}
+                                  </span>
                                   <span className="font-medium text-slate-500">
                                     {' '}
-                                    · {req.description || 'Rejected request'}
+                                    · {req.description || 'Archived request'}
                                   </span>
                                 </p>
                                 <p className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta2}>
                                   {meta2}
                                 </p>
+                                {req.approvalNote ? (
+                                  <p
+                                    className="text-ui-xs text-rose-800/90 mt-1 line-clamp-2 italic"
+                                    title={req.approvalNote}
+                                  >
+                                    Note: {req.approvalNote}
+                                  </p>
+                                ) : null}
                               </div>
                               <div className="flex flex-col items-end gap-1 shrink-0">
                                 <span className="text-[11px] font-black text-slate-700 tabular-nums">
@@ -1465,24 +1494,10 @@ export function AccountTabPanels() {
                                 <div className="flex flex-wrap justify-end gap-1">
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      setExpenseForm({
-                                        expenseType: 'Operational — correction entry',
-                                        amountNgn: String(Number(req.amountRequestedNgn) || ''),
-                                        date: String(req.requestDate || todayIso).slice(0, 10),
-                                        category: String(req.expenseCategory || '').trim(),
-                                        categoryJustification: String(req.categoryJustification || '').trim(),
-                                        paymentMethod: 'Bank Transfer',
-                                        debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
-                                        reference: String(
-                                          req.requestReference || req.requestID || 'Correction entry'
-                                        ).trim(),
-                                      });
-                                      setShowExpenseModal(true);
-                                    }}
+                                    onClick={() => openExpenseRequestForCorrection(req)}
                                     className="text-ui-xs font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
                                   >
-                                    Correct entry
+                                    Resubmit request
                                   </button>
                                   {canFinanceReceiptSettlement && ws?.canMutate && archPrTreasuryOut.length > 0 ? (
                                     <button
