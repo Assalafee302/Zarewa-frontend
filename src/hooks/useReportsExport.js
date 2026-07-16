@@ -28,6 +28,7 @@ import {
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import {
   PACK_CASH_BANK_AR,
+  PACK_CONVERSION_SUMMARY,
   PACK_EXPENSES_REFUNDS,
   PACK_GL_AUDIT,
   PACK_MATERIAL_EXCEPTIONS,
@@ -40,7 +41,9 @@ import {
 } from '../lib/reportsExportCatalog.js';
 import {
   buildPaidExpensePrintRows,
+  conversionSummaryExcelRows,
   downloadRows,
+  fetchConversionSummaryReport,
   fetchMaterialTransactionReport,
   fetchPurchaseRegisterReport,
   materialTransactionExcelSheets,
@@ -822,6 +825,22 @@ export function useReportsExport({
       const flat = sheets.flatMap((s) => s.rows.map((row) => ({ sheet: s.name, ...row })));
       downloadRows(name, flat, fmt);
       showToast(`${name} exported as ${fmt}.`);
+      return;
+    }
+
+    if (name === PACK_CONVERSION_SUMMARY) {
+      const res = await fetchConversionSummaryReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const rows = conversionSummaryExcelRows(res.report);
+      if (!rows.length) {
+        showToast('No conversion summary rows for the selected range.', { variant: 'info' });
+        return;
+      }
+      downloadRows(name, rows, 'Excel');
+      showToast(`${name} exported as Excel.`);
       return;
     }
 

@@ -10,6 +10,7 @@ export const PACK_OPS_PROCUREMENT = 'Operations & procurement (pack)';
 export const PACK_MATERIAL_TRANSACTION = 'Material transaction register';
 export const PACK_PURCHASE_REGISTER = 'Purchase register';
 export const PACK_MATERIAL_EXCEPTIONS = 'Material exceptions (offcut)';
+export const PACK_CONVERSION_SUMMARY = 'Conversion summary by material & gauge';
 
 /** Jobs on /reports — URL ?job= */
 export const REPORT_JOBS = {
@@ -384,6 +385,16 @@ export const EXPORT_SECTIONS = [
         desc: 'GRN purchases by material and gauge with supplier payments and PO outstanding.',
         icon: Table2,
         formats: ['Excel', 'CSV'],
+      },
+      {
+        id: 'conversion-summary',
+        kind: 'pack',
+        pack: PACK_CONVERSION_SUMMARY,
+        title: 'Conversion summary',
+        desc: 'Standard, history, and purchase conversions by material and gauge for the selected period, plus average of three and margin.',
+        icon: Scale,
+        formats: ['Excel'],
+        excelOnly: true,
       },
       {
         id: 'material-exceptions-pack',

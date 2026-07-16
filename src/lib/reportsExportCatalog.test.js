@@ -28,7 +28,7 @@ describe('reportsExportCatalog', () => {
     expect(EXPORT_SECTIONS.map((s) => s.id)).toEqual(['audit', 'finance', 'sales', 'operations']);
     const ids = EXPORT_SECTIONS.flatMap((s) => s.items.map((i) => i.id));
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids.length).toBe(13);
+    expect(ids.length).toBe(14);
   });
 
   it('marks coil stock audit workbook as excel-only', () => {
@@ -47,9 +47,16 @@ describe('reportsExportCatalog', () => {
     expect(ops?.items.some((i) => i.pack === PACK_MATERIAL_TRANSACTION)).toBe(true);
   });
 
+  it('includes conversion summary under operations', () => {
+    const ops = EXPORT_SECTIONS.find((s) => s.id === 'operations');
+    expect(ops?.items.some((i) => i.id === 'conversion-summary')).toBe(true);
+    const item = ops?.items.find((i) => i.id === 'conversion-summary');
+    expect(item?.excelOnly).toBe(true);
+  });
+
   it('flattens catalog with month-end flags', () => {
     const flat = flattenExportCatalog();
-    expect(flat.length).toBe(13);
+    expect(flat.length).toBe(14);
     expect(flat.filter((i) => i.monthEndRecommended).map((i) => i.id).sort()).toEqual(
       [...MONTH_END_RECOMMENDED_IDS].sort()
     );

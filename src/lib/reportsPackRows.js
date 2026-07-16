@@ -450,6 +450,27 @@ async function fetchMaterialTransactionReport(apiFetch, startDate, endDate) {
   return { ok: true, report: data.report };
 }
 
+async function fetchConversionSummaryReport(apiFetch, startDate, endDate) {
+  const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+  const { ok, data } = await apiFetch(`/api/reports/conversion-summary?${q}`);
+  if (!ok || !data?.ok) {
+    return { ok: false, error: data?.error || 'Could not load conversion summary report.' };
+  }
+  return { ok: true, report: data.report };
+}
+
+function conversionSummaryExcelRows(report) {
+  return (report?.rows || []).map((r) => ({
+    Material: r.material,
+    Gauge: r.gauge,
+    'Standard conversion': r.standardConversion ?? '',
+    'History conversion': r.historyConversion ?? '',
+    'Average purchase conversion': r.averagePurchaseConversion ?? '',
+    'Average of the 3 conversions': r.averageOfThreeConversions ?? '',
+    Margin: r.marginNgnPerM ?? '',
+  }));
+}
+
 function coilPurchaseExport(r, material, gauge) {
   return {
     section: material,
@@ -618,5 +639,7 @@ export {
   purchaseRegisterExcelSheets,
   purchaseRegisterHasRows,
   fetchPurchaseRegisterReport,
+  fetchConversionSummaryReport,
+  conversionSummaryExcelRows,
   downloadRows,
 };
