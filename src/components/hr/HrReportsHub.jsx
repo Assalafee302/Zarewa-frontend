@@ -4,17 +4,19 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { canViewHrReports, canViewOrgSensitiveHr } from '../../lib/hrAccess';
+import { fetchHrDepartments } from '../../lib/hrMasterData';
 import {
+  HR_PRINT_ROW_LIMIT,
   REPORT_CATEGORY_LABELS,
   downloadHrReport,
   fetchHrReportCatalog,
   fetchHrReportPreview,
 } from '../../lib/hrReportsCatalog';
-import { HrCard, HrEmptyState, HrButton, HrAddButton } from './hrPageUi';
+import { HrCard, HrEmptyState, HrButton } from './hrPageUi';
 import { HrReportFilterPanel } from './HrReportFilterPanel';
 import { HrResponsiveTable } from './HrResponsiveTable';
-import { HR_BTN_PRIMARY } from './hrFormStyles';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
+import { ReportPrintModal } from '../reports/ReportPrintModal';
 
 function ExportButton({ label, disabled, disabledReason, onClick, busy }) {
   return (
@@ -32,6 +34,18 @@ function ExportButton({ label, disabled, disabledReason, onClick, busy }) {
   );
 }
 
+const CATEGORY_ORDER = [
+  'employee',
+  'attendance',
+  'leave',
+  'payroll',
+  'development',
+  'discipline',
+  'transfers',
+  'compliance',
+  'executive',
+];
+
 export function HrReportsHub() {
   const ws = useWorkspace();
   const { show: toast } = useToast();
@@ -47,6 +61,8 @@ export function HrReportsHub() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [exportBusy, setExportBusy] = useState('');
+  const [printOpen, setPrintOpen] = useState(false);
+  const [departments, setDepartments] = useState([]);
 
   const branches = useMemo(() => {
     const list = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
@@ -66,10 +82,23 @@ export function HrReportsHub() {
     }
   }, [canReports, searchParams]);
 
+  useEffect(() => {
+    if (!canReports) return;
+    fetchHrDepartments(false).then(({ ok, data }) => {
+      if (ok && data?.ok && Array.isArray(data.departments)) {
+        setDepartments(
+          data.departments.map((d) => (typeof d === 'string' ? d : d.name || d.id)).filter(Boolean)
+        );
+      }
+    });
+  }, [canReports]);
+
   const selectedMeta = useMemo(
     () => catalog?.reports?.find((r) => r.id === selectedId),
     [catalog, selectedId]
   );
+
+  const filterKeys = selectedMeta?.filters || [];
 
   const loadPreview = useCallback(async () => {
     if (!selectedId || !canReports) return;
@@ -100,24 +129,24 @@ export function HrReportsHub() {
     toast(`Downloaded ${r.filename}`, { variant: 'success' });
   };
 
-  const printPreview = () => {
+  const printRows = useMemo(() => {
+    if (!preview?.rows) return [];
+    return preview.rows.slice(0, HR_PRINT_ROW_LIMIT);
+  }, [preview]);
+
+  const printTruncated = Boolean(
+    preview && (preview.totalCount > printRows.length || preview.rows.length > printRows.length)
+  );
+
+  const openPrint = () => {
     if (!preview) return;
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(`<html><head><title>${preview.title}</title></head><body style="font-family:Arial,sans-serif;padding:24px">`);
-    w.document.write(`<h1>Zarewa Aluminium & Plastics Ltd</h1><h2>${preview.title}</h2>`);
-    w.document.write(`<p><small>${preview.filtersSummary} · ${preview.totalCount} records · ${preview.generatedAtIso?.slice(0, 19)}</small></p>`);
-    w.document.write('<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:12px"><tr>');
-    preview.columns.forEach((c) => { w.document.write(`<th>${c.label}</th>`); });
-    w.document.write('</tr>');
-    preview.rows.slice(0, 200).forEach((row) => {
-      w.document.write('<tr>');
-      preview.columns.forEach((c) => { w.document.write(`<td>${row[c.key] ?? ''}</td>`); });
-      w.document.write('</tr>');
-    });
-    w.document.write('</table></body></html>');
-    w.document.close();
-    w.print();
+    if (printTruncated) {
+      toast(
+        `Print includes first ${HR_PRINT_ROW_LIMIT} of ${preview.totalCount} rows. Export Excel/CSV for the full set.`,
+        { variant: 'warning' }
+      );
+    }
+    setPrintOpen(true);
   };
 
   if (!canReports) {
@@ -125,20 +154,28 @@ export function HrReportsHub() {
   }
 
   const byCategory = catalog?.byCategory || {};
-  const showPeriod = selectedMeta?.filters?.includes('periodYyyymm');
-  const showStatus = selectedMeta?.filters?.includes('status');
-  const showEmploymentType = selectedMeta?.filters?.includes('employmentType');
+  const orderedCategories = [
+    ...CATEGORY_ORDER.filter((c) => byCategory[c]?.length),
+    ...Object.keys(byCategory).filter((c) => !CATEGORY_ORDER.includes(c)),
+  ];
+
+  const showBranch = filterKeys.includes('branch');
+  const showDepartment = filterKeys.includes('department');
+  const showDateRange = filterKeys.includes('fromIso') || filterKeys.includes('toIso');
+  const showPeriod = filterKeys.includes('periodYyyymm');
+  const showStatus = filterKeys.includes('status');
+  const showEmploymentType = filterKeys.includes('employmentType');
   const sensitiveBlocked = selectedMeta?.sensitive && !canSensitive;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
       <aside className="space-y-4">
         <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Report picker</p>
-        {Object.entries(byCategory).map(([cat, reports]) => (
+        {orderedCategories.map((cat) => (
           <div key={cat}>
             <p className="mb-1 text-xs font-bold text-zarewa-teal">{REPORT_CATEGORY_LABELS[cat] || cat}</p>
             <ul className="space-y-0.5">
-              {reports.map((r) => (
+              {(byCategory[cat] || []).map((r) => (
                 <li key={r.id}>
                   <button
                     type="button"
@@ -163,6 +200,10 @@ export function HrReportsHub() {
             filters={filters}
             onChange={setFilters}
             branches={branches}
+            departments={departments}
+            showBranch={showBranch}
+            showDepartment={showDepartment}
+            showDateRange={showDateRange}
             showPeriod={showPeriod}
             showStatus={showStatus}
             showEmploymentType={showEmploymentType}
@@ -171,27 +212,42 @@ export function HrReportsHub() {
             <HrButton type="button" onClick={loadPreview} disabled={loading || sensitiveBlocked}>
               {loading ? 'Loading…' : 'Refresh preview'}
             </HrButton>
-            <ExportButton label="CSV" format="csv" disabled={sensitiveBlocked} disabledReason="Requires payroll sensitive permission" onClick={() => runExport('csv')} busy={exportBusy === 'csv'} />
+            <ExportButton
+              label="CSV"
+              disabled={sensitiveBlocked}
+              disabledReason="Requires payroll sensitive permission"
+              onClick={() => runExport('csv')}
+              busy={exportBusy === 'csv'}
+            />
             <ExportButton
               label="Excel"
-              format="xlsx"
               disabled={sensitiveBlocked || selectedMeta?.xlsx === false}
-              disabledReason={selectedMeta?.xlsx === false ? 'Excel not available for this report' : 'Requires payroll sensitive permission'}
+              disabledReason={
+                selectedMeta?.xlsx === false ? 'Excel not available for this report' : 'Requires payroll sensitive permission'
+              }
               onClick={() => runExport('xlsx')}
               busy={exportBusy === 'xlsx'}
             />
             <ExportButton
               label="PDF"
-              format="pdf"
               disabled={sensitiveBlocked || selectedMeta?.pdf === false}
-              disabledReason={selectedMeta?.pdf === false ? 'PDF not available for this report' : 'Requires payroll sensitive permission'}
+              disabledReason={
+                selectedMeta?.pdf === false
+                  ? 'PDF not available for this report'
+                  : 'Requires payroll sensitive permission'
+              }
               onClick={() => runExport('pdf')}
               busy={exportBusy === 'pdf'}
             />
-            <HrButton type="button" variant="secondary" onClick={printPreview} disabled={!preview || sensitiveBlocked}>
+            <HrButton type="button" variant="secondary" onClick={openPrint} disabled={!preview || sensitiveBlocked}>
               Print
             </HrButton>
           </div>
+          {selectedMeta?.pdf !== false ? (
+            <p className="mt-2 text-xs text-slate-500">
+              PDF download is a simple text file. For a table layout use <strong>Print → Save as PDF</strong>.
+            </p>
+          ) : null}
           {sensitiveBlocked ? (
             <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
               This report contains payroll-sensitive data. Unlock sensitive HR or use a role with payroll view permission.
@@ -200,20 +256,25 @@ export function HrReportsHub() {
           {error ? (
             <div className="mt-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">
               {error}
-              <button type="button" className="ml-2 underline" onClick={loadPreview}>Retry</button>
+              <button type="button" className="ml-2 underline" onClick={loadPreview}>
+                Retry
+              </button>
             </div>
           ) : null}
         </HrCard>
 
         {preview ? (
-          <HrCard
-            title="Preview"
-            subtitle={`${preview.totalCount} record(s) · ${preview.filtersSummary}`}
-          >
+          <HrCard title="Preview" subtitle={`${preview.totalCount} record(s) · ${preview.filtersSummary}`}>
             <p className="mb-3 text-ui-xs text-slate-500 uppercase tracking-wide">
               Generated {preview.generatedAtIso?.slice(0, 19).replace('T', ' ')}
               {preview.generatedBy ? ` by ${preview.generatedBy}` : ''}
             </p>
+            {printTruncated ? (
+              <p className="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                Preview/print shows up to {HR_PRINT_ROW_LIMIT} rows ({preview.totalCount} total). Export Excel or CSV for
+                the full report.
+              </p>
+            ) : null}
             <HrResponsiveTable
               columns={preview.columns}
               rows={preview.rows.map((row) => {
@@ -239,8 +300,10 @@ export function HrReportsHub() {
             {preview.rows.some((r) => r.userId) ? (
               <p className="mt-2 text-xs text-slate-500">
                 Rows with staff names link to{' '}
-                <Link to={HR_EMPLOYEES} className="font-bold text-zarewa-teal hover:underline">employee profiles</Link>
-                {' '}via the staff directory.
+                <Link to={HR_EMPLOYEES} className="font-bold text-zarewa-teal hover:underline">
+                  employee profiles
+                </Link>{' '}
+                via the staff directory.
               </p>
             ) : null}
           </HrCard>
@@ -248,6 +311,28 @@ export function HrReportsHub() {
           <InlineLoader message="Loading report preview…" />
         ) : null}
       </div>
+
+      <ReportPrintModal
+        isOpen={printOpen && Boolean(preview)}
+        onClose={() => setPrintOpen(false)}
+        title={preview?.title || selectedMeta?.label || 'HR report'}
+        periodLabel={preview?.filtersSummary || ''}
+        columns={preview?.columns || []}
+        rows={printRows}
+        documentTypeLabel="HR report"
+        layout="landscape"
+        summaryLines={[
+          { label: 'Records in print', value: String(printRows.length) },
+          { label: 'Total matching filter', value: String(preview?.totalCount ?? 0) },
+          printTruncated
+            ? {
+                label: 'Note',
+                value: `Truncated to ${HR_PRINT_ROW_LIMIT} rows — export Excel/CSV for the full set.`,
+              }
+            : null,
+        ].filter(Boolean)}
+        extraMetaLines={[{ label: 'Company', value: 'Zarewa Aluminium & Plastics Ltd' }]}
+      />
     </div>
   );
 }

@@ -46,7 +46,7 @@ export function StockRegisterPrintModal({
 
   return (
     <PrintModalPortal open={open} onClose={onClose}>
-      <div className="mx-auto max-w-[210mm] pb-16">
+      <div className="mx-auto max-w-[297mm] pb-16">
         <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <div className="min-w-0">
             <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Print preview</p>
@@ -54,7 +54,7 @@ export function StockRegisterPrintModal({
             {autoPrint ? (
               <p className="mt-0.5 text-xs font-medium text-teal-900">Preparing printer…</p>
             ) : (
-              <p className="mt-0.5 text-ui-xs text-slate-500">Use landscape A4 for coil tables.</p>
+              <p className="mt-0.5 text-ui-xs text-slate-500">Landscape A4 recommended for coil tables.</p>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -67,10 +67,10 @@ export function StockRegisterPrintModal({
             </button>
           </div>
         </div>
-        <div className="report-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
+        <div className="report-print-root report-print-a4-landscape quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
           <StatementStyleReportShell
             title={title}
-            layout="portrait"
+            layout="landscape"
             metaLines={[
               { label: 'Branch', value: branchLabel || branchId || '—' },
               { label: 'Period', value: monthLabel },

@@ -45,7 +45,7 @@ const SUBHDR = 'z-section-title mb-4';
 
 const JOB_TABS = [
   { id: REPORT_JOBS.close, label: 'Close the month' },
-  { id: REPORT_JOBS.export, label: 'Downloads' },
+  { id: REPORT_JOBS.export, label: 'Library' },
   { id: REPORT_JOBS.stock, label: 'Stock' },
   { id: REPORT_JOBS.exceptions, label: 'Exceptions' },
 ];
@@ -54,7 +54,7 @@ function resolveJobFromSearch(searchParams, roleKey, openExceptionCount) {
   const raw = searchParams.get('job') || searchParams.get('tab');
   if (raw === 'operational' || raw === 'exceptions') return REPORT_JOBS.exceptions;
   if (raw === 'stock') return REPORT_JOBS.stock;
-  if (raw === 'export' || raw === 'downloads') return REPORT_JOBS.export;
+  if (raw === 'export' || raw === 'downloads' || raw === 'library') return REPORT_JOBS.export;
   if (raw === 'close' || raw === 'month-end') return REPORT_JOBS.close;
   return defaultReportsJob(roleKey, { openExceptionCount });
 }
@@ -298,7 +298,7 @@ const Reports = () => {
         ? 'Stock register'
         : job === REPORT_JOBS.exceptions
           ? 'Payment exceptions'
-          : 'Export centre';
+          : 'Report library';
 
   return (
     <PageShell>
@@ -365,7 +365,7 @@ const Reports = () => {
 
       <PageHeader
         title={pageTitle}
-        subtitle="Pick a job, set the period, then download. Finance and ops workflows live on their desks."
+        subtitle="Pick a job, set the period, then download. Period packs live here; live GL and costing stay on Accounting Desk; workforce reports on HR."
       />
 
       <MainPanel className="!p-0 min-w-0 overflow-x-hidden sm:!p-0">
@@ -444,6 +444,7 @@ const Reports = () => {
                   onOpenExceptions={() => setJob(REPORT_JOBS.exceptions)}
                   onRequestExport={onRequestExport}
                   onGoExports={() => setJob(REPORT_JOBS.export)}
+                  onOpenJob={setJob}
                   bundleBusy={bundleBusy}
                   bundleDownloadedAt={lastDownloadMap.__bundle__ || ''}
                   lastDownloadMap={lastDownloadMap}
@@ -458,6 +459,7 @@ const Reports = () => {
                     hasFinanceView={hasFinanceView}
                     periodValid={periodValid}
                     onRequestExport={onRequestExport}
+                    onOpenJob={setJob}
                     recentIds={recentIds}
                     lastDownloadMap={lastDownloadMap}
                     busyId={busyId}
@@ -487,6 +489,12 @@ const Reports = () => {
                   closureNotes={exceptionClosureNotes}
                   onToggleClosed={toggleExceptionClosed}
                   onUpdateNote={updateExceptionNote}
+                  onOpenCashBankExport={() => {
+                    const item = catalogById.get('cash-bank-ar');
+                    if (!item) return;
+                    setJob(REPORT_JOBS.export);
+                    onRequestExport(item, 'Excel');
+                  }}
                 />
               ) : null}
 
@@ -523,6 +531,11 @@ const Reports = () => {
                 showAccounting={showAccountingSections || hasFinanceView}
                 showIntelligence={showIntelligence}
                 showOperations={typeof ws.canAccessModule === 'function' && ws.canAccessModule('operations')}
+                showFinanceDesk={
+                  typeof ws.canAccessModule === 'function' &&
+                  (ws.canAccessModule('finance') || ws.canAccessModule('cashier_desk'))
+                }
+                showCustomers={typeof ws.canAccessModule === 'function' && ws.canAccessModule('sales')}
               />
             </>
           )}

@@ -9,8 +9,13 @@ export const REPORT_CATEGORY_LABELS = {
   payroll: 'Payroll & Benefits Reports',
   development: 'Performance & Development Reports',
   discipline: 'Discipline & Exit Reports',
+  transfers: 'Transfers',
   compliance: 'Compliance Reports',
+  executive: 'Executive Beneficiaries',
 };
+
+/** Max rows included in HR browser print preview (full export still available). */
+export const HR_PRINT_ROW_LIMIT = 200;
 
 export function buildReportQuery(filters = {}) {
   const q = new URLSearchParams();

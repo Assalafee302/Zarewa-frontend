@@ -3,7 +3,7 @@ import { ModalFrame } from '../layout';
 import { formatPeriodLabel } from '../../lib/reportsExportCatalog.js';
 
 /**
- * Confirm period/branch before generating an export.
+ * Confirm period/branch before generating an export or print preview.
  */
 export function ReportsConfirmExportDialog({
   open,
@@ -18,18 +18,25 @@ export function ReportsConfirmExportDialog({
 }) {
   if (!open) return null;
 
+  const isPrint = String(formatLabel || '').trim().toLowerCase() === 'print';
+  const title = isPrint ? 'Confirm print preview' : 'Confirm download';
+  const description = isPrint
+    ? 'Confirm period and branch before opening print preview'
+    : 'Confirm period and branch before download';
+  const confirmLabel = isPrint ? 'Open preview' : 'Download';
+
   return (
     <ModalFrame
       isOpen={open}
       onClose={onClose}
-      title="Confirm export"
-      description="Confirm period and branch before download"
+      title={title}
+      description={description}
       surface="plain"
       showCloseButton={false}
     >
       <div className="z-modal-panel-lg flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-zarewa-teal">Confirm export</h2>
+          <h2 className="text-lg font-bold text-zarewa-teal">{title}</h2>
           <p className="text-sm text-slate-600 mt-1">
             {itemTitle}
             {formatLabel ? ` · ${formatLabel}` : ''}
@@ -52,7 +59,7 @@ export function ReportsConfirmExportDialog({
             Cancel
           </button>
           <button type="button" className="z-btn-primary" onClick={onConfirm} disabled={busy}>
-            {busy ? 'Working…' : 'Generate'}
+            {busy ? 'Working…' : confirmLabel}
           </button>
         </div>
       </div>

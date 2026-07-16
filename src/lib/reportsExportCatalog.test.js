@@ -1,15 +1,22 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import {
   EXPORT_SECTIONS,
+  MONTH_END_BUNDLE_IDS,
   MONTH_END_RECOMMENDED_IDS,
   PACK_GL_AUDIT,
   PACK_MATERIAL_TRANSACTION,
+  PACK_PURCHASE_REGISTER,
+  catalogItemSupportsPrint,
   defaultReportsJob,
   detectPeriodPreset,
   filterExportCatalog,
   flattenExportCatalog,
   formatPeriodLabel,
+  groupCatalogRows,
   periodRangeForPreset,
+  printCoverageChipLabel,
+  printItemForPair,
+  resolvePrintCoverage,
   startOfMonthYmd,
   ymdLocal,
 } from './reportsExportCatalog';
@@ -35,11 +42,13 @@ describe('reportsExportCatalog', () => {
     const stock = EXPORT_SECTIONS.find((s) => s.id === 'audit')?.items.find((i) => i.id === 'std-stock');
     expect(stock?.excelOnly).toBe(true);
     expect(stock?.workbook).toBe('stock');
+    expect(resolvePrintCoverage(stock)).toBe('none');
   });
 
   it('requires finance.view for GL audit pack', () => {
     const gl = EXPORT_SECTIONS.find((s) => s.id === 'finance')?.items.find((i) => i.pack === PACK_GL_AUDIT);
     expect(gl?.requiresFinanceView).toBe(true);
+    expect(resolvePrintCoverage(gl)).toBe('summary');
   });
 
   it('includes material transaction register under operations', () => {
@@ -54,12 +63,67 @@ describe('reportsExportCatalog', () => {
     expect(item?.excelOnly).toBe(true);
   });
 
-  it('flattens catalog with month-end flags', () => {
+  it('wires purchases workbook print to purchase register', () => {
+    const purchases = EXPORT_SECTIONS.find((s) => s.id === 'audit')?.items.find((i) => i.id === 'std-purchases');
+    expect(purchases?.printPack).toBe(PACK_PURCHASE_REGISTER);
+  });
+
+  it('hides print for material exceptions until a layout ships', () => {
+    const item = EXPORT_SECTIONS.find((s) => s.id === 'operations')?.items.find(
+      (i) => i.id === 'material-exceptions-pack'
+    );
+    expect(item?.printAvailable).toBe(false);
+    expect(catalogItemSupportsPrint(item)).toBe(false);
+    expect(resolvePrintCoverage(item)).toBe('none');
+  });
+
+  it('marks full-coverage prints for material and purchase registers', () => {
+    const flat = flattenExportCatalog();
+    expect(flat.find((i) => i.id === 'material-transaction-register')?.printCoverage).toBe('full');
+    expect(flat.find((i) => i.id === 'purchase-register')?.printCoverage).toBe('full');
+    expect(printCoverageChipLabel('full')).toBe('Print = full');
+    expect(printCoverageChipLabel('summary')).toBe('Print = summary');
+  });
+
+  it('collapses official + working paper pairs when both are visible', () => {
+    const flat = flattenExportCatalog();
+    const rows = groupCatalogRows(flat);
+    const pairs = rows.filter((r) => r.type === 'pair');
+    expect(pairs.map((p) => p.pairId).sort()).toEqual(['pair-finance', 'pair-purchases', 'pair-sales']);
+    expect(rows.filter((r) => r.type === 'single').length).toBe(8);
+    const sales = pairs.find((p) => p.pairId === 'pair-sales');
+    expect(printItemForPair(sales.official, sales.working)?.id).toBe('sales-customer-pack');
+  });
+
+  it('does not collapse when only one side of a pair is filtered in', () => {
+    const flat = flattenExportCatalog().filter((i) => i.id === 'std-sales');
+    const rows = groupCatalogRows(flat);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].type).toBe('single');
+    expect(rows[0].item.id).toBe('std-sales');
+  });
+
+  it('aligns month-end recommended shortlist with the close bundle', () => {
+    expect([...MONTH_END_RECOMMENDED_IDS].sort()).toEqual([...MONTH_END_BUNDLE_IDS].sort());
+    expect(MONTH_END_BUNDLE_IDS).toEqual([
+      'period-costs-inventory',
+      'cash-bank-ar',
+      'sales-customer-pack',
+      'ops-procurement-pack',
+    ]);
+  });
+
+  it('flattens catalog with month-end flags only for bundle ids', () => {
     const flat = flattenExportCatalog();
     expect(flat.length).toBe(14);
     expect(flat.filter((i) => i.monthEndRecommended).map((i) => i.id).sort()).toEqual(
       [...MONTH_END_RECOMMENDED_IDS].sort()
     );
+    expect(flat.filter((i) => i.includedInMonthEndBundle).map((i) => i.id).sort()).toEqual(
+      [...MONTH_END_BUNDLE_IDS].sort()
+    );
+    expect(flat.some((i) => i.id === 'gl-audit-pack' && i.includedInMonthEndBundle)).toBe(false);
+    expect(flat.some((i) => i.id === 'std-sales' && i.monthEndRecommended)).toBe(false);
   });
 
   it('filters by query and hides finance-locked when no finance view', () => {

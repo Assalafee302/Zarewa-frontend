@@ -20,8 +20,111 @@ export const REPORT_JOBS = {
   exceptions: 'exceptions',
 };
 
+/**
+ * Catalog ids included in “Download month-end bundle” (must match downloadMonthEndBundle packs).
+ * Recommended shortlist on Close uses the same list so checklist, badges, and file agree.
+ */
+export const MONTH_END_BUNDLE_IDS = [
+  'period-costs-inventory',
+  'cash-bank-ar',
+  'sales-customer-pack',
+  'ops-procurement-pack',
+];
+
 /** Recommended shortlist for month-end close (catalog item ids). */
-export const MONTH_END_RECOMMENDED_IDS = ['std-sales', 'std-finance', 'std-purchases', 'std-stock'];
+export const MONTH_END_RECOMMENDED_IDS = [...MONTH_END_BUNDLE_IDS];
+
+/** Whether the catalog row should offer Print preview. */
+export function resolvePrintCoverage(item) {
+  if (!item) return 'none';
+  if (item.excelOnly || item.printAvailable === false) return 'none';
+  if (item.printCoverage === 'full' || item.printCoverage === 'summary' || item.printCoverage === 'none') {
+    return item.printCoverage;
+  }
+  return 'summary';
+}
+
+export function catalogItemSupportsPrint(item) {
+  return resolvePrintCoverage(item) !== 'none';
+}
+
+/** Chip label for print honesty. */
+export function printCoverageChipLabel(coverage) {
+  if (coverage === 'full') return 'Print = full';
+  if (coverage === 'summary') return 'Print = summary';
+  return 'No print';
+}
+
+/**
+ * Official workbook + working paper pairs (collapsed in Library when both visible).
+ * Print prefers the working paper when it has full coverage.
+ */
+export const EXPORT_PAIRS = [
+  {
+    id: 'pair-sales',
+    title: 'Sales & customer payments',
+    desc: 'Official sales audit workbook, plus customer payments working paper for the same period.',
+    officialId: 'std-sales',
+    workingId: 'sales-customer-pack',
+  },
+  {
+    id: 'pair-purchases',
+    title: 'Purchases & GRN register',
+    desc: 'Official purchases audit workbook, plus purchase register for supplier follow-up.',
+    officialId: 'std-purchases',
+    workingId: 'purchase-register',
+  },
+  {
+    id: 'pair-finance',
+    title: 'Expenses & refunds',
+    desc: 'Official expenses/refunds workbook, plus refund overview working paper.',
+    officialId: 'std-finance',
+    workingId: 'refund-period-report',
+  },
+];
+
+/**
+ * Collapse official + working paper into one row when both survive filters.
+ * @returns {Array<{ type: 'single', item: object } | { type: 'pair', pairId: string, title: string, desc: string, official: object, working: object, icon: unknown }>}
+ */
+export function groupCatalogRows(items) {
+  const list = Array.isArray(items) ? items : [];
+  const byId = new Map(list.map((i) => [i.id, i]));
+  const consumed = new Set();
+  const rows = [];
+
+  for (const pair of EXPORT_PAIRS) {
+    const official = byId.get(pair.officialId);
+    const working = byId.get(pair.workingId);
+    if (official && working) {
+      consumed.add(pair.officialId);
+      consumed.add(pair.workingId);
+      rows.push({
+        type: 'pair',
+        pairId: pair.id,
+        title: pair.title,
+        desc: pair.desc,
+        official,
+        working,
+        icon: official.icon || working.icon,
+      });
+    }
+  }
+
+  for (const item of list) {
+    if (consumed.has(item.id)) continue;
+    rows.push({ type: 'single', item });
+  }
+  return rows;
+}
+
+/** Prefer full-coverage working paper for pair print. */
+export function printItemForPair(official, working) {
+  if (resolvePrintCoverage(working) === 'full') return working;
+  if (catalogItemSupportsPrint(working)) return working;
+  if (catalogItemSupportsPrint(official)) return official;
+  return null;
+}
 
 export const PERIOD_PRESETS = [
   { id: 'mtd', label: 'This month' },
@@ -99,15 +202,18 @@ export function formatPeriodLabel(startDate, endDate) {
 export function flattenExportCatalog(sections) {
   const list = sections || EXPORT_SECTIONS;
   return list.flatMap((section) =>
-    section.items.map((item) => ({
-      ...item,
-      sectionId: section.id,
-      sectionTitle: section.title,
-      monthEndRecommended: MONTH_END_RECOMMENDED_IDS.includes(item.id),
-      includedInMonthEndBundle:
-        MONTH_END_RECOMMENDED_IDS.includes(item.id) || section.id === 'finance' || section.id === 'audit',
-      badge: item.kind === 'api-workbook' ? 'Official workbook' : 'Quick pack',
-    }))
+    section.items.map((item) => {
+      const printCoverage = resolvePrintCoverage(item);
+      return {
+        ...item,
+        sectionId: section.id,
+        sectionTitle: section.title,
+        monthEndRecommended: MONTH_END_RECOMMENDED_IDS.includes(item.id),
+        includedInMonthEndBundle: MONTH_END_BUNDLE_IDS.includes(item.id),
+        printCoverage,
+        badge: item.kind === 'api-workbook' ? 'Official workbook' : 'Quick pack',
+      };
+    })
   );
 }
 
@@ -263,6 +369,7 @@ export const EXPORT_SECTIONS = [
         title: 'Sales',
         desc: 'Production revenue, receipts register, AR as-at, and sales bridge checks.',
         printPack: PACK_SALES_CUSTOMER,
+        printCoverage: 'summary',
         icon: Table2,
       },
       {
@@ -272,6 +379,7 @@ export const EXPORT_SECTIONS = [
         title: 'Expenses & refunds',
         desc: 'Expense detail and summary by category, plus paid refunds and pipeline.',
         printPack: PACK_EXPENSES_REFUNDS,
+        printCoverage: 'summary',
         icon: Receipt,
       },
       {
@@ -280,7 +388,8 @@ export const EXPORT_SECTIONS = [
         workbook: 'purchases',
         title: 'Purchases',
         desc: 'Ordered, received, and paid purchase views for audit reconciliation.',
-        printPack: PACK_OPS_PROCUREMENT,
+        printPack: PACK_PURCHASE_REGISTER,
+        printCoverage: 'summary',
         icon: Factory,
       },
       {
@@ -290,6 +399,8 @@ export const EXPORT_SECTIONS = [
         title: 'Coil stock as-at',
         desc: 'Inventory position snapshot using the selected end date.',
         excelOnly: true,
+        printCoverage: 'none',
+        deepLink: { job: 'stock', label: 'Open Stock job' },
         icon: Table2,
       },
     ],
@@ -307,6 +418,7 @@ export const EXPORT_SECTIONS = [
         desc: 'Expenses, unpaid accruals, coil/stone valuation, and COGS movements (one sheet per section).',
         icon: Receipt,
         formats: ['Excel', 'CSV'],
+        printCoverage: 'summary',
       },
       {
         id: 'cash-bank-ar',
@@ -316,6 +428,7 @@ export const EXPORT_SECTIONS = [
         desc: 'Bank lines, receipt/treasury exceptions, AR control list, and treasury movements.',
         icon: Landmark,
         formats: ['Excel', 'CSV'],
+        printCoverage: 'summary',
       },
       {
         id: 'gl-audit-pack',
@@ -326,6 +439,7 @@ export const EXPORT_SECTIONS = [
         icon: Scale,
         formats: ['Excel', 'CSV'],
         requiresFinanceView: true,
+        printCoverage: 'summary',
       },
     ],
   },
@@ -342,6 +456,7 @@ export const EXPORT_SECTIONS = [
         desc: 'Payments received in period, grouped by materials produced vs not produced.',
         icon: Table2,
         formats: ['Excel', 'CSV'],
+        printCoverage: 'full',
       },
       {
         id: 'refund-period-report',
@@ -351,6 +466,7 @@ export const EXPORT_SECTIONS = [
         desc: 'Refund paid and unpaid analysis with quotation and customer detail.',
         icon: Table2,
         formats: ['Excel', 'CSV'],
+        printCoverage: 'full',
       },
     ],
   },
@@ -367,6 +483,7 @@ export const EXPORT_SECTIONS = [
         desc: 'SKU stock, POs with procurement kind, GRN/lot register, accrual bridge, and accessory usage.',
         icon: Factory,
         formats: ['Excel', 'CSV'],
+        printCoverage: 'summary',
       },
       {
         id: 'material-transaction-register',
@@ -376,6 +493,7 @@ export const EXPORT_SECTIONS = [
         desc: 'Alu/aluzinc by gauge, stone coated, accessories, cancelled coils, and listed-not-produced.',
         icon: Table2,
         formats: ['Excel', 'CSV'],
+        printCoverage: 'full',
       },
       {
         id: 'purchase-register',
@@ -385,6 +503,7 @@ export const EXPORT_SECTIONS = [
         desc: 'GRN purchases by material and gauge with supplier payments and PO outstanding.',
         icon: Table2,
         formats: ['Excel', 'CSV'],
+        printCoverage: 'full',
       },
       {
         id: 'conversion-summary',
@@ -395,6 +514,8 @@ export const EXPORT_SECTIONS = [
         icon: Scale,
         formats: ['Excel'],
         excelOnly: true,
+        printCoverage: 'none',
+        deepLink: { to: '/procurement', label: 'Open Procurement' },
       },
       {
         id: 'material-exceptions-pack',
@@ -404,6 +525,8 @@ export const EXPORT_SECTIONS = [
         desc: 'Loss by type, offcut aging, and pool reconciliation (incident and legacy buckets).',
         icon: Table2,
         formats: ['Excel', 'CSV'],
+        printAvailable: false,
+        printCoverage: 'none',
       },
     ],
   },

@@ -122,3 +122,9 @@ export function useToast() {
   if (!ctx) throw new Error('useToast must be used within ToastProvider');
   return ctx;
 }
+
+/** Safe for unit tests / shells that may mount without ToastProvider. */
+export function useOptionalToast() {
+  const ctx = useContext(ToastContext);
+  return ctx || { show: () => {}, toasts: [] };
+}

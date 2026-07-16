@@ -878,6 +878,12 @@ export function useReportsExport({
   const openPrintSheet = useCallback(async (name) => {
     setPrintLayout('landscape');
     setPrintDense(true);
+    if (name === PACK_MATERIAL_EXCEPTIONS) {
+      showToast('Material exceptions has no print layout yet — export Excel or CSV instead.', {
+        variant: 'info',
+      });
+      return;
+    }
     if (name === PACK_GL_AUDIT) {
       if (!hasFinanceView) {
         showToast('General ledger pack requires finance.view.', { variant: 'info' });

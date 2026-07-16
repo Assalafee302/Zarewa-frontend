@@ -18,6 +18,7 @@ export function ReportsMonthEndPanel({
   onOpenExceptions,
   onRequestExport,
   onGoExports,
+  onOpenJob,
   bundleBusy = false,
   bundleDownloadedAt = '',
   lastDownloadMap = {},
@@ -55,7 +56,9 @@ export function ReportsMonthEndPanel({
       id: 'bundle',
       done: bundleDone,
       label: '4. Download close bundle',
-      detail: bundleDone ? `Downloaded ${bundleAgo}` : 'Excel pack for finance working papers',
+      detail: bundleDone
+        ? `Downloaded ${bundleAgo}`
+        : 'Working papers: period costs, cash/bank/AR, customer payments, ops & procurement',
     },
   ];
 
@@ -105,18 +108,23 @@ export function ReportsMonthEndPanel({
           </button>
           <button type="button" onClick={onGoExports} className="z-btn-secondary justify-center min-h-10">
             <Package size={16} />
-            All downloads
+            All library reports
           </button>
         </div>
       </div>
 
       <div>
         <h4 className="text-sm font-semibold text-slate-800 mb-3">Recommended for month-end</h4>
+        <p className="text-xs text-slate-500 mb-3 max-w-2xl">
+          Same four packs as the close bundle. Official audit workbooks (Sales, Expenses & refunds,
+          Purchases, Coil stock) stay under Report library.
+        </p>
         <ReportsExportCatalog
           hasFinanceView={hasFinanceView}
           periodValid={periodValid}
           recommendedOnly
           onRequestExport={onRequestExport}
+          onOpenJob={onOpenJob}
           lastDownloadMap={lastDownloadMap}
           busyId={busyId}
         />

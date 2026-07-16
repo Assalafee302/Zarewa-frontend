@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileSpreadsheet, Printer } from 'lucide-react';
-import { EXPORT_SECTIONS } from '../../lib/reportsExportCatalog';
+import { EXPORT_SECTIONS, catalogItemSupportsPrint } from '../../lib/reportsExportCatalog';
 
 function ExportCard({ item, financeLocked, onPrint, onDownload, onApiWorkbook }) {
   const Icon = item.icon;
@@ -41,7 +41,7 @@ function ExportCard({ item, financeLocked, onPrint, onDownload, onApiWorkbook })
         </div>
       </div>
       <div className="z-form-actions !mt-0 !pt-0 !border-0 flex-wrap">
-        {!item.excelOnly ? (
+        {catalogItemSupportsPrint(item) ? (
           <button
             type="button"
             onClick={runPrint}
