@@ -23,7 +23,10 @@ function resolveVariant(opts) {
 function durationForMessage(message, opts) {
   if (typeof opts.duration === 'number') return opts.duration;
   const len = String(message || '').length;
-  return Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, 3200 + len * 35));
+  const base = Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, 3200 + len * 35));
+  // Action toasts stay a bit longer so the CTA remains usable.
+  if (opts.action?.label) return Math.min(MAX_DURATION_MS, Math.max(base, 7000));
+  return base;
 }
 
 export function ToastProvider({ children }) {
@@ -40,7 +43,14 @@ export function ToastProvider({ children }) {
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random()}`;
       const variant = resolveVariant(opts);
-      setToasts((t) => [...t, { id, message, variant }].slice(-TOAST_CAP));
+      const action =
+        opts.action && typeof opts.action.label === 'string' && opts.action.label.trim()
+          ? {
+              label: String(opts.action.label).trim(),
+              onClick: typeof opts.action.onClick === 'function' ? opts.action.onClick : null,
+            }
+          : null;
+      setToasts((t) => [...t, { id, message, variant, action }].slice(-TOAST_CAP));
       const ms = durationForMessage(message, opts);
       window.setTimeout(() => dismiss(id), ms);
     },
@@ -75,9 +85,21 @@ export function ToastProvider({ children }) {
               <div className={`w-1 shrink-0 ${cfg.bar}`} aria-hidden />
               <div className="flex flex-1 items-start gap-3 py-3.5 pl-2 pr-1">
                 <Icon className={`shrink-0 mt-0.5 ${cfg.iconClass}`} size={20} strokeWidth={2} />
-                <p className="text-[13px] font-medium text-gray-800 leading-snug flex-1 pt-0.5">
-                  {t.message}
-                </p>
+                <div className="flex-1 min-w-0 pt-0.5 space-y-1.5">
+                  <p className="text-[13px] font-medium text-gray-800 leading-snug">{t.message}</p>
+                  {t.action?.label && t.action.onClick ? (
+                    <button
+                      type="button"
+                      className="text-[12px] font-semibold text-zarewa-teal hover:underline"
+                      onClick={() => {
+                        t.action.onClick();
+                        dismiss(t.id);
+                      }}
+                    >
+                      {t.action.label}
+                    </button>
+                  ) : null}
+                </div>
                 <button
                   type="button"
                   onClick={() => dismiss(t.id)}

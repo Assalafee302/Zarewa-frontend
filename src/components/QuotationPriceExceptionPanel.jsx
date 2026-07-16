@@ -134,6 +134,13 @@ export function QuotationPriceExceptionPanel({
     }
   };
 
+  const totalGapNgn = violations.reduce((sum, v) => {
+    const quoted = Number(v.quotedPerMeter) || 0;
+    const min = Number(v.minAllowedPerMeter ?? v.minimumPerMeter ?? v.floorPerMeter) || 0;
+    if (!(min > 0) || !(quoted > 0) || quoted >= min) return sum;
+    return sum + (min - quoted);
+  }, 0);
+
   return (
     <div
       className={`rounded-xl border border-amber-300 bg-amber-50/95 px-3 py-2.5 space-y-2 ${className}`.trim()}
@@ -145,20 +152,51 @@ export function QuotationPriceExceptionPanel({
           ? 'MD below-floor approval is on file — cutting lists and production may proceed if other gates are satisfied.'
           : 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and production are blocked until the Managing Director or an administrator approves this exception.'}
       </p>
+      {totalGapNgn > 0 && !mdApproved ? (
+        <p className="text-ui-xs font-semibold text-amber-950 bg-amber-100/80 border border-amber-200 rounded-lg px-2 py-1.5">
+          Margin impact: ~{formatNgn(totalGapNgn)}/m total shortfall vs minimum across flagged lines (before qty).
+        </p>
+      ) : null}
       {loading ? <p className="text-ui-xs text-amber-900/70">Checking pricing…</p> : null}
-      <ul className="text-ui-xs text-amber-950 space-y-1 list-disc pl-4">
-        {violations.map((v, i) => (
-          <li key={i}>
-            <span className="font-semibold capitalize">{v.lineCategory || 'line'}</span> #{Number(v.lineIndex) + 1}:{' '}
-            {v.code === 'below_floor'
+      <ul className="text-ui-xs text-amber-950 space-y-1.5 list-none pl-0">
+        {violations.map((v, i) => {
+          const quoted = Number(v.quotedPerMeter) || 0;
+          const min = Number(v.minAllowedPerMeter ?? v.minimumPerMeter ?? v.floorPerMeter) || 0;
+          const floor = Number(v.floorPerMeter) || min;
+          const gap = min > 0 && quoted > 0 && quoted < min ? min - quoted : 0;
+          const label =
+            v.code === 'below_floor'
               ? v.trimWorkbook || v.priceBasis === 'published_list_plus_ridge'
                 ? 'Below trim list price'
                 : 'Below workbook floor'
-              : 'Below trading band'}{' '}
-            — quoted {formatNgn(v.quotedPerMeter)}/m; minimum{' '}
-            {formatNgn(v.minAllowedPerMeter ?? v.minimumPerMeter ?? v.floorPerMeter)}/m
-          </li>
-        ))}
+              : 'Below trading band';
+          return (
+            <li
+              key={i}
+              className="rounded-lg border border-amber-200/80 bg-white/70 px-2.5 py-2 space-y-1"
+            >
+              <p className="font-semibold capitalize">
+                {v.lineCategory || 'line'} #{Number(v.lineIndex) + 1}: {label}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-700">
+                  Quoted {formatNgn(quoted)}/m
+                </span>
+                <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-red-800">
+                  Floor {formatNgn(floor)}/m
+                </span>
+                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-amber-950">
+                  Min {formatNgn(min)}/m
+                </span>
+                {gap > 0 ? (
+                  <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-rose-800">
+                    Gap −{formatNgn(gap)}/m
+                  </span>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
       </ul>
       {ws?.canMutate && canApproveMdPriceException && !mdApproved ? (
         <button

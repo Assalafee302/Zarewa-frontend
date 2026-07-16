@@ -976,6 +976,10 @@ const Procurement = () => {
   };
 
   const submitUnifiedPo = async (payload) => {
+    const workbookReviewAction = {
+      label: 'Review workbook pricing',
+      onClick: () => navigate('/procurement/pricing'),
+    };
     if (payload.poID) {
       const { poID, ...rest } = payload;
       const res = await updatePurchaseOrder({
@@ -988,7 +992,9 @@ const Procurement = () => {
         return false;
       }
       setProcurementPoEditApprovalId('');
-      showToast(`${poID} updated.`);
+      showToast(`${poID} updated. Buy cost feeds workbook Purchase avg / ₦/kg — review floors if cost moved.`, {
+        action: workbookReviewAction,
+      });
       return true;
     }
     const res = await createPurchaseOrder({ ...payload, status: 'Pending' });
@@ -996,7 +1002,9 @@ const Procurement = () => {
       showToast(res.error || 'Could not save PO', { variant: 'error' });
       return false;
     }
-    showToast(`${res.poID} created — approve, then assign transport.`);
+    showToast(`${res.poID} created — approve, then assign transport.`, {
+      action: workbookReviewAction,
+    });
     return true;
   };
 
@@ -1505,7 +1513,12 @@ const Procurement = () => {
               return false;
             }
             setProcurementPoEditApprovalId('');
-            showToast(`${poID} updated.`);
+            showToast(`${poID} updated. Buy cost feeds workbook Purchase avg / ₦/kg — review floors if cost moved.`, {
+              action: {
+                label: 'Review workbook pricing',
+                onClick: () => navigate('/procurement/pricing'),
+              },
+            });
             return true;
           }
           const res = await createPurchaseOrder({ ...payload, status: 'Pending' });
@@ -1513,7 +1526,12 @@ const Procurement = () => {
             showToast(res.error || 'Could not save PO', { variant: 'error' });
             return false;
           }
-          showToast(`${res.poID} created — approve, then assign transport.`);
+          showToast(`${res.poID} created — approve, then assign transport.`, {
+            action: {
+              label: 'Review workbook pricing',
+              onClick: () => navigate('/procurement/pricing'),
+            },
+          });
           return true;
         }}
       />
@@ -1557,7 +1575,12 @@ const Procurement = () => {
               return false;
             }
             setProcurementPoEditApprovalId('');
-            showToast(`${poID} updated.`);
+            showToast(`${poID} updated. Review stone floors in the pricing workbook if buy cost moved.`, {
+              action: {
+                label: 'Review workbook pricing',
+                onClick: () => navigate('/procurement/pricing?material=stone-coated'),
+              },
+            });
             return true;
           }
           const res = await createPurchaseOrder({ ...payload, status: 'Pending' });
@@ -1565,7 +1588,12 @@ const Procurement = () => {
             showToast(res.error || 'Could not save PO', { variant: 'error' });
             return false;
           }
-          showToast(`${res.poID} created — approve, then assign transport.`);
+          showToast(`${res.poID} created — approve, then assign transport.`, {
+            action: {
+              label: 'Review workbook pricing',
+              onClick: () => navigate('/procurement/pricing?material=stone-coated'),
+            },
+          });
           return true;
         }}
       />
@@ -1608,7 +1636,12 @@ const Procurement = () => {
               return false;
             }
             setProcurementPoEditApprovalId('');
-            showToast(`${poID} updated.`);
+            showToast(`${poID} updated.`, {
+              action: {
+                label: 'Review accessory defaults',
+                onClick: () => navigate('/procurement/pricing?material=accessories'),
+              },
+            });
             return true;
           }
           const res = await createPurchaseOrder({ ...payload, status: 'Pending' });
@@ -1616,7 +1649,12 @@ const Procurement = () => {
             showToast(res.error || 'Could not save PO', { variant: 'error' });
             return false;
           }
-          showToast(`${res.poID} created — approve, then assign transport.`);
+          showToast(`${res.poID} created — approve, then assign transport.`, {
+            action: {
+              label: 'Review accessory defaults',
+              onClick: () => navigate('/procurement/pricing?material=accessories'),
+            },
+          });
           return true;
         }}
       />

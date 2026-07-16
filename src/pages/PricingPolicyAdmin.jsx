@@ -1,6 +1,6 @@
 import { InlineLoader } from '../components/ui/PageLoader';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { MainPanel, PageHeader } from '../components/layout';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useToast } from '../context/ToastContext';
@@ -125,8 +125,27 @@ export default function PricingPolicyAdmin() {
           <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm space-y-3">
             <h2 className="text-xs font-black uppercase text-zarewa-teal">Default trading band</h2>
             <p className="text-xs text-slate-600 leading-relaxed">
-              When no gauge tier matches, this ₦/m allowance below <strong>recommended</strong> (but not below <strong>floor</strong>) applies without MD approval.
+              Sales may quote below <strong>List / recommended</strong> by this band without MD approval — but never below{' '}
+              <strong>Floor</strong>. Below floor always needs MD exception.
             </p>
+            <div
+              className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3"
+              aria-hidden
+            >
+              <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide">
+                <span className="rounded-md bg-red-100 px-2 py-1 text-red-800">Floor (min)</span>
+                <span className="text-slate-400">——</span>
+                <span className="rounded-md bg-amber-100 px-2 py-1 text-amber-900">
+                  Band −₦{Math.max(0, Math.round(Number(defaultBand) || 0)).toLocaleString('en-NG')}
+                </span>
+                <span className="text-slate-400">——</span>
+                <span className="rounded-md bg-teal-100 px-2 py-1 text-zarewa-teal">List / recommended</span>
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500 leading-relaxed">
+                Within the amber band: OK without MD. Red side of Floor: blocked for cutting list / production until MD
+                approves.
+              </p>
+            </div>
             <label className="block text-ui-xs font-bold text-slate-500 uppercase">
               ₦ / metre
               <input
@@ -205,11 +224,22 @@ export default function PricingPolicyAdmin() {
           </section>
 
           <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm space-y-3">
-            <h2 className="text-xs font-black uppercase text-zarewa-teal">Ridge add-ons</h2>
-            <p className="text-xs text-slate-600">
-              <strong>Add-on ₦/m</strong> is used in ridge floor math. <strong>Customer list ₦/m</strong> is optional: when set, that value is
-              what appears on the customer price list / print for the add-on row; leave blank to use the same as add-on.
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="text-xs font-black uppercase text-zarewa-teal">Ridge add-ons</h2>
+                <p className="text-xs text-slate-600 mt-1">
+                  <strong>Add-on ₦/m</strong> feeds ridge floor math. <strong>Customer list ₦/m</strong> is optional on the
+                  printed add-on; leave blank to use the same as add-on. Prefer the workbook Ridge tab for the live trim
+                  calculator (sheet List ÷ strips + add-on).
+                </p>
+              </div>
+              <Link
+                to="/procurement/pricing?material=ridge-flashing"
+                className="shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-semibold text-zarewa-teal hover:border-zarewa-teal"
+              >
+                Open ridge desk →
+              </Link>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               {canPolicy ? (
                 <button

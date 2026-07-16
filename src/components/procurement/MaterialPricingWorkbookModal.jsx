@@ -34,6 +34,40 @@ const RIDGE_MATERIAL_OPTIONS = [
   { key: 'aluzinc', label: 'Aluzinc (PPGI)' },
 ];
 
+/** Design keys written to the published price list (quotes resolve against these). */
+const COIL_SYNC_DESIGN_OPTIONS = [
+  { value: 'longspan', label: 'Longspan' },
+  { value: 'metcoppo', label: 'Metcoppo' },
+  { value: 'steptiles', label: 'Steptiles' },
+  { value: 'rome', label: 'Rome' },
+];
+const STONE_SYNC_DESIGN_OPTIONS = [{ value: 'stone-coated', label: 'Stone-coated' }];
+const SYNC_DESIGN_OTHER = '__other__';
+
+function syncDesignOptionsForMaterial(materialKey) {
+  return materialKey === 'stone-coated' ? STONE_SYNC_DESIGN_OPTIONS : COIL_SYNC_DESIGN_OPTIONS;
+}
+
+function syncDesignSelectValue(raw, materialKey) {
+  const v = String(raw || '').trim().toLowerCase();
+  const opts = syncDesignOptionsForMaterial(materialKey);
+  if (opts.some((o) => o.value === v)) return v;
+  // Blank or unknown custom key → Other (custom text field).
+  return SYNC_DESIGN_OTHER;
+}
+
+function normGaugeKeyMatch(g) {
+  return String(g || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s*mm$/i, '')
+    .trim();
+}
+
+function priceListLookupKey(gaugeMm, designKey) {
+  return `${normGaugeKeyMatch(gaugeMm)}|${String(designKey || '').trim().toLowerCase()}`;
+}
+
 function isStoneFlatsheetQuoteItemName(name) {
   const n = String(name || '')
     .trim()
@@ -308,6 +342,9 @@ export function MaterialPricingWorkbook({
   const [printLoading, setPrintLoading] = useState(false);
   const [publishPreviewOpen, setPublishPreviewOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  /** Live price-list ₦/m by `gauge|design` for publish preview deltas. */
+  const [liveListByKey, setLiveListByKey] = useState(() => new Map());
+  const [publishPreviewLoading, setPublishPreviewLoading] = useState(false);
 
   useEffect(() => {
     if (isActive) setMaterialKey(initialMaterialKey);
@@ -377,6 +414,14 @@ export function MaterialPricingWorkbook({
     },
     [isDirty, materialKey]
   );
+
+  const prevInitialMaterialKeyRef = useRef(initialMaterialKey);
+  useEffect(() => {
+    if (prevInitialMaterialKeyRef.current === initialMaterialKey) return;
+    prevInitialMaterialKeyRef.current = initialMaterialKey;
+    const next = String(initialMaterialKey || 'alu').trim();
+    if (next) void requestMaterialKey(next);
+  }, [initialMaterialKey, requestMaterialKey]);
 
   const requestBranchId = useCallback(
     async (next) => {
@@ -760,22 +805,30 @@ export function MaterialPricingWorkbook({
                 numOrUndef(dr.profitNgnPerM)
               );
         const floorBelowSuggested = sug != null && sug > 0 && floor > 0 && floor < sug;
+        const floorMissing = !(floor > 0);
+        const designKey =
+          String(dr.syncDesignKey || line.designKey || '').trim() ||
+          (materialKey === 'stone-coated' ? 'stone-coated' : 'longspan');
+        const prevList = liveListByKey.get(priceListLookupKey(g, designKey));
+        const listDelta =
+          prevList != null && Number.isFinite(prevList) && listNgn > 0 ? listNgn - prevList : null;
         const lowConfidence = usedConf === 'none' || usedConf === 'low';
         return {
           key: line.key,
           serverId: line.serverId,
           gaugeMm: g,
-          designKey:
-            String(dr.syncDesignKey || line.designKey || '').trim() ||
-            (materialKey === 'stone-coated' ? 'stone-coated' : 'longspan'),
+          designKey,
           floor,
           listNgn,
+          prevList: prevList != null && Number.isFinite(prevList) ? prevList : null,
+          listDelta,
           usedConf,
           floorBelowSuggested,
-          warn: lowConfidence || floorBelowSuggested,
+          floorMissing,
+          warn: lowConfidence || floorBelowSuggested || floorMissing,
         };
       });
-  }, [workbookLines, materialKey, sheet]);
+  }, [workbookLines, materialKey, sheet, liveListByKey]);
 
   const publishPreviewHasWarnings = useMemo(
     () => publishPreviewRows.some((r) => r.warn),
@@ -796,13 +849,35 @@ export function MaterialPricingWorkbook({
       return;
     }
     if (!publishPreviewRows.length) {
-      showToast('Tick “Include in publish” on at least one row first.', { variant: 'error' });
+      showToast('Tick “Publish this gauge” on at least one row first.', { variant: 'error' });
       return;
     }
     const unsaved = publishPreviewRows.filter((r) => !r.serverId);
     if (unsaved.length) {
       showToast('Save all drafts first — some publish rows are not yet on the server.', { variant: 'error' });
       return;
+    }
+    const missingFloor = publishPreviewRows.filter((r) => r.floorMissing);
+    if (missingFloor.length) {
+      showToast('Set a Floor (minimum ₦/m) on every row you publish.', { variant: 'error' });
+      return;
+    }
+    setPublishPreviewLoading(true);
+    try {
+      const { ok, data } = await apiFetch('/api/pricing/price-list');
+      const next = new Map();
+      if (ok && data?.ok && Array.isArray(data.items)) {
+        for (const it of data.items) {
+          const k = priceListLookupKey(it.gaugeKey, it.designKey);
+          const n = Math.round(Number(it.unitPricePerMeterNgn) || 0);
+          if (k && n > 0) next.set(k, n);
+        }
+      }
+      setLiveListByKey(next);
+    } catch {
+      setLiveListByKey(new Map());
+    } finally {
+      setPublishPreviewLoading(false);
     }
     setPublishPreviewOpen(true);
   }, [canPricingManage, materialKey, isDirty, publishPreviewRows, showToast]);
@@ -1251,21 +1326,28 @@ export function MaterialPricingWorkbook({
       isOpen={publishPreviewOpen}
       onClose={() => !publishing && setPublishPreviewOpen(false)}
       title="Publish to price list"
-      description="Rows with Include in publish will write floor + commission as list ₦/m."
+      description="Rows marked Publish this gauge will write Floor + Commission as live List ₦/m."
       layer={isPage ? 'default' : 'nested'}
       showCloseButton={!publishing}
     >
-      <div className="z-modal-panel w-full max-w-lg p-4 sm:p-5 space-y-3">
+      <div className="z-modal-panel w-full max-w-2xl p-4 sm:p-5 space-y-3">
         <div>
-          <h3 className="text-base font-black text-zarewa-teal">Publish to price list</h3>
+          <h3 className="text-base font-black text-zarewa-teal">Review → go live</h3>
           <p className="text-ui-xs text-slate-600 mt-1 leading-relaxed">
-            Confirm rows marked Include in publish. List ₦/m = floor + commission (published rounding).
+            Drafts stay private until you publish. List ₦/m = Floor + Commission (published rounding).
+            Effective date: <strong className="text-slate-800">{localCalendarDateIso()}</strong>.
           </p>
+          <ol className="mt-2 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wide">
+            <li className="rounded-md bg-slate-100 px-2 py-1 text-slate-500">1. Draft</li>
+            <li className="rounded-md bg-slate-100 px-2 py-1 text-slate-500">2. Saved</li>
+            <li className="rounded-md bg-teal-100 px-2 py-1 text-zarewa-teal">3. Review</li>
+            <li className="rounded-md bg-slate-100 px-2 py-1 text-slate-500">4. Live list</li>
+          </ol>
         </div>
         {publishPreviewHasWarnings ? (
           <p className="text-ui-xs text-amber-900 bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2 leading-relaxed">
-            Warning: one or more rows have <strong>None/Low</strong> conversion confidence or a floor below
-            suggested. Review before publishing.
+            Warning: one or more rows have <strong>None/Low</strong> conversion confidence, a missing Floor, or a
+            Floor below Suggested. Review before publishing.
           </p>
         ) : null}
         <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200">
@@ -1275,8 +1357,10 @@ export function MaterialPricingWorkbook({
                 <th className="px-3 py-2 border-b">Gauge</th>
                 <th className="px-3 py-2 border-b">Design</th>
                 <th className="px-3 py-2 border-b">Conf.</th>
-                <th className="px-3 py-2 border-b text-right">Floor</th>
-                <th className="px-3 py-2 border-b text-right">List</th>
+                <th className="px-3 py-2 border-b text-right">Floor (min)</th>
+                <th className="px-3 py-2 border-b text-right">Prev list</th>
+                <th className="px-3 py-2 border-b text-right">New list</th>
+                <th className="px-3 py-2 border-b text-right">Δ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1288,6 +1372,9 @@ export function MaterialPricingWorkbook({
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${confidenceBadgeClass(r.usedConf)}`}>
                       {confidenceLabel(r.usedConf)}
                     </span>
+                    {r.floorMissing ? (
+                      <span className="ml-1 text-[10px] font-semibold text-red-700">no floor</span>
+                    ) : null}
                     {r.floorBelowSuggested ? (
                       <span className="ml-1 text-[10px] font-semibold text-amber-800">floor&lt;sug</span>
                     ) : null}
@@ -1295,8 +1382,28 @@ export function MaterialPricingWorkbook({
                   <td className="px-3 py-2 text-right font-mono tabular-nums">
                     {r.floor > 0 ? formatNgn(r.floor) : '—'}
                   </td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-500">
+                    {r.prevList != null ? formatNgn(r.prevList) : '—'}
+                  </td>
                   <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold">
                     {r.listNgn > 0 ? formatNgn(r.listNgn) : '—'}
+                  </td>
+                  <td
+                    className={`px-3 py-2 text-right font-mono tabular-nums font-semibold ${
+                      r.listDelta == null
+                        ? 'text-slate-400'
+                        : r.listDelta > 0
+                          ? 'text-emerald-700'
+                          : r.listDelta < 0
+                            ? 'text-amber-800'
+                            : 'text-slate-500'
+                    }`}
+                  >
+                    {r.listDelta == null
+                      ? '—'
+                      : r.listDelta === 0
+                        ? '0'
+                        : `${r.listDelta > 0 ? '+' : ''}${formatNgn(r.listDelta)}`}
                   </td>
                 </tr>
               ))}
@@ -1321,11 +1428,15 @@ export function MaterialPricingWorkbook({
           </button>
           <button
             type="button"
-            disabled={publishing || !publishPreviewRows.length}
+            disabled={publishing || publishPreviewLoading || !publishPreviewRows.length}
             onClick={() => void confirmPublish()}
             className="rounded-lg bg-zarewa-teal px-4 py-2 text-xs font-black uppercase text-white disabled:opacity-50"
           >
-            {publishing ? 'Publishing…' : `Publish ${publishPreviewRows.length} row(s)`}
+            {publishing
+              ? 'Publishing…'
+              : publishPreviewLoading
+                ? 'Loading…'
+                : `Publish ${publishPreviewRows.length} row(s) live`}
           </button>
         </div>
       </div>
@@ -1347,6 +1458,38 @@ export function MaterialPricingWorkbook({
               Build draft floors from conversion and cost, then <strong className="text-slate-800">Publish</strong> to
               update the selling price list. Save only stores drafts — it does not change quotations until you publish.
             </p>
+            <p className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-black uppercase tracking-wide">
+              <span className={`rounded-md px-2 py-1 ${isDirty ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-500'}`}>
+                1. Draft{isDirty ? ' · unsaved' : ''}
+              </span>
+              <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-500">2. Save</span>
+              <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-500">3. Publish</span>
+              <span className="rounded-md bg-teal-50 px-2 py-1 text-zarewa-teal">4. Live list → quotes</span>
+            </p>
+            <nav
+              className="mt-2 flex flex-wrap items-center gap-2 text-ui-xs font-semibold"
+              aria-label="Pricing desk"
+            >
+              <span className="rounded-md bg-zarewa-teal px-2 py-1 text-white">Workbook</span>
+              <Link
+                to="/price-list"
+                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-600 hover:border-zarewa-teal hover:text-zarewa-teal"
+              >
+                Published list
+              </Link>
+              <Link
+                to="/pricing-policy"
+                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-600 hover:border-zarewa-teal hover:text-zarewa-teal"
+              >
+                Policy
+              </Link>
+              <Link
+                to="/operations/material-exceptions"
+                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-600 hover:border-zarewa-teal hover:text-zarewa-teal"
+              >
+                Exceptions
+              </Link>
+            </nav>
             {branchName ? (
               <p className="mt-2 text-ui-xs font-semibold text-zarewa-teal bg-teal-50/80 border border-teal-100 rounded-lg px-2.5 py-1.5 inline-block">
                 Editing prices for {branchName}
@@ -1358,26 +1501,23 @@ export function MaterialPricingWorkbook({
               </summary>
               <ul className="mt-2 space-y-1.5 list-disc pl-4 leading-relaxed">
                 <li>
-                  <strong>Std</strong> — catalog/theory kg/m (read-only).
+                  <strong>Density</strong> — catalog/theory kg/m (read-only).
                 </li>
                 <li>
-                  <strong>Ref</strong> — supplier purchase samples (≈ last {lookbackDays}d coil GRNs).
+                  <strong>Purchase avg</strong> — supplier purchase samples (≈ last {lookbackDays}d coil GRNs).
                 </li>
                 <li>
-                  <strong>Hist</strong> — production actual conversion (≈ last {lookbackDays}d jobs).
+                  <strong>Production</strong> — production actual conversion (≈ last {lookbackDays}d jobs).
                 </li>
                 <li>
-                  <strong>Used</strong> — average of Std/Ref/Hist, or your override (2 dp).
+                  <strong>Kg used</strong> — average of Density / Purchase / Production, or your override (2 dp).
                 </li>
                 <li>
-                  <strong>Floor</strong> — minimum ₦/m; <strong>List</strong> = published round(floor + commission).
-                </li>
-                <li>
-                  Production crosswalk: Ref ≈ Sup (supplier); Hist ≈ gauge history; Std ≈ production standard.
+                  <strong>Floor</strong> — minimum ₦/m (MD gate); <strong>List</strong> = published round(Floor + Commission) — customer price.
                 </li>
                 <li>
                   Confidence: <strong>None</strong> / <strong>Low</strong> / <strong>Medium</strong> / <strong>High</strong>{' '}
-                  from Ref/Hist sample depth (and Std). Prefer Medium+ before publishing.
+                  from Purchase/Production sample depth (and Density). Prefer Medium+ before publishing.
                 </li>
               </ul>
             </details>
@@ -1465,16 +1605,16 @@ export function MaterialPricingWorkbook({
           {!isReferenceTab ? (
             <>
               <label
-                className="text-ui-xs font-bold uppercase text-slate-500 block min-w-[130px]"
+                className="text-ui-xs font-bold uppercase text-slate-500 block min-w-[150px]"
                 title="Marks rows to include when you Publish to price list"
               >
-                Include in publish (all)
+                Publish gauges (all)
                 <span className="mt-1 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700">
                   <input
                     type="checkbox"
                     checked={syncListAllChecked}
                     onChange={(e) => setSyncListForAll(e.target.checked)}
-                    aria-label="Include all workbook rows in next publish"
+                    aria-label="Mark all workbook rows to publish to price list"
                   />
                   Apply to all rows
                 </span>
@@ -1486,26 +1626,28 @@ export function MaterialPricingWorkbook({
                   onClick={() => void persistAllRows()}
                   className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
                 >
-                  {savingAll ? 'Saving…' : 'Save all'}
+                  {savingAll ? 'Saving…' : 'Save drafts'}
                 </button>
                 {isDirty ? (
                   <span className="text-ui-xs font-semibold text-amber-700 tabular-nums">
-                    {dirtyCount} unsaved change{dirtyCount === 1 ? '' : 's'}
+                    {dirtyCount} unsaved change{dirtyCount === 1 ? '' : 's'} — save before publish
                   </span>
                 ) : null}
               </div>
               <button
                 type="button"
-                disabled={busy || savingAll || publishing || !sheet || !canPricingManage}
+                disabled={busy || savingAll || publishing || publishPreviewLoading || !sheet || !canPricingManage || isDirty}
                 onClick={() => void openPublishPreview()}
                 className="rounded-lg border border-zarewa-teal/40 bg-teal-50 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
                 title={
-                  canPricingManage
-                    ? 'Push rows marked Include in publish to the floor price list'
-                    : 'Publishing requires Pricing Manager'
+                  !canPricingManage
+                    ? 'Publishing requires Pricing Manager'
+                    : isDirty
+                      ? 'Save drafts first — Publish is blocked while changes are unsaved'
+                      : 'Push rows marked Publish this gauge to the live price list'
                 }
               >
-                Publish to price list
+                {publishPreviewLoading ? 'Preparing…' : 'Publish to price list'}
               </button>
             </>
           ) : materialKey === 'ridge-flashing' ? (
@@ -1629,6 +1771,24 @@ export function MaterialPricingWorkbook({
           ) : null}
         </div>
 
+        {isDirty && !isReferenceTab ? (
+          <div className="sticky top-0 z-[2] flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 sm:px-5">
+            <p className="text-ui-xs font-semibold text-amber-950">
+              {dirtyCount} unsaved draft change{dirtyCount === 1 ? '' : 's'} — Save drafts before Publish.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={busy || savingAll || !sheet}
+                onClick={() => void persistAllRows()}
+                className="rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-black uppercase text-white disabled:opacity-50"
+              >
+                {savingAll ? 'Saving…' : 'Save drafts'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex-1 min-h-0 overflow-auto px-2 sm:px-4 py-3">
           {materialKey === 'stone-coated' && !isReferenceTab ? (
             <p className="mb-3 text-ui-xs text-slate-600 leading-relaxed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
@@ -1660,11 +1820,10 @@ export function MaterialPricingWorkbook({
           ) : isReferenceTab && materialKey === 'ridge-flashing' ? (
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
               <p className="text-xs text-slate-600 leading-relaxed">
-                Ridge/flat-sheet calculator by gauge and material using your split rule:
-                <strong className="text-slate-800"> 150=÷8, 300=÷4, 400=÷3, 600=÷2 </strong>
-                plus configured add-ons. Base is the workbook published <strong className="text-slate-800">List ₦/m</strong> for the selected
-                gauge/material. Gauge labels include the <strong className="text-slate-800">customer label</strong> from each workbook row when
-                set.
+                <strong className="text-slate-800">Primary ridge desk</strong> — edit add-ons here (same data as Pricing Policy).
+                Calculator: sheet List ₦/m ÷ strips (
+                <strong className="text-slate-800">150=÷8, 300=÷4, 400=÷3, 600=÷2</strong>) + add-on. Base is the workbook
+                published List for the selected gauge/material. Gauge labels use the customer label when set.
               </p>
               <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2">
                 <p className="text-ui-xs font-black uppercase tracking-wide text-slate-600">Add-on rates (policy)</p>
@@ -2106,59 +2265,114 @@ export function MaterialPricingWorkbook({
           ) : (
             <>
               <div className="z-scroll-x overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-              <table className="min-w-[1120px] w-full border-collapse text-left text-xs">
+              <table className="min-w-[1180px] w-full border-collapse text-left text-xs">
                 <thead className="bg-slate-50 text-ui-xs font-black uppercase tracking-wide text-slate-600 sticky top-0 z-[1]">
+                  <tr className="text-[10px] tracking-wider">
+                    <th colSpan={3} className="px-2 py-1.5 border-b border-slate-200 bg-slate-100/90 text-slate-500 font-bold normal-case tracking-normal">
+                      Line
+                    </th>
+                    <th
+                      colSpan={8}
+                      className="px-2 py-1.5 border-b border-l border-slate-200 bg-sky-50/90 text-sky-900 font-bold normal-case tracking-normal"
+                    >
+                      Economics{sheet?.isStoneCoatedWorkbook ? ' (N/A for stone — use Floor & Commission)' : ''}
+                    </th>
+                    <th
+                      colSpan={3}
+                      className="px-2 py-1.5 border-b border-l border-slate-200 bg-teal-50/90 text-zarewa-teal font-bold normal-case tracking-normal"
+                    >
+                      Pricing — Floor (min) → List (customer)
+                    </th>
+                    <th
+                      colSpan={2}
+                      className="px-2 py-1.5 border-b border-l border-slate-200 bg-amber-50/80 text-amber-900 font-bold normal-case tracking-normal"
+                    >
+                      Publish
+                    </th>
+                  </tr>
                   <tr>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap w-10" aria-label="Remove row" />
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Gauge (mm)</th>
+                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap sticky left-0 bg-slate-50 z-[2]">
+                      Gauge (mm)
+                    </th>
                     <th
                       className="px-2 py-2 border-b border-slate-200 whitespace-nowrap min-w-[120px]"
                       title="Shown on customer price list instead of raw mm when set"
                     >
                       Customer label
                     </th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Std kg/m</th>
                     <th
-                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap"
-                      title="Reference kg/m — hint from average supplier conversion on received coils (purchases)."
+                      className="px-2 py-2 border-b border-l border-slate-200 whitespace-nowrap bg-sky-50/40"
+                      title="Catalog/theory kg/m (read-only)"
                     >
-                      Ref
-                    </th>
-                    <th
-                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap"
-                      title="History kg/m — hint from average actual conversion in production (gauge history)."
-                    >
-                      Hist
-                    </th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Used</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Cost/m</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">OH/m</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Profit/m</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Suggested</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap" title="Floor minimum ₦/m">
-                      Floor
+                      Density
                     </th>
                     <th
-                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap"
-                      title="Commission ₦/m on top of floor; list = published round(floor + commission)"
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap bg-sky-50/40"
+                      title="Purchase average kg/m from supplier coil GRNs"
                     >
-                      Comm/m
+                      Purchase
                     </th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">List ₦/m</th>
                     <th
-                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap"
-                      title="Include this row when you Publish to price list"
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap bg-sky-50/40"
+                      title="Production average kg/m from recent jobs"
                     >
-                      Publish
+                      Production
                     </th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap min-w-[100px]">Notes</th>
+                    <th
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap bg-sky-50/40"
+                      title="Kg/m used in cost build-up — average or your override"
+                    >
+                      Kg used
+                    </th>
+                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap bg-sky-50/40">Cost/m</th>
+                    <th
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap bg-sky-50/40"
+                      title="Overhead ₦/m"
+                    >
+                      Overhead
+                    </th>
+                    <th
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap bg-sky-50/40"
+                      title="Profit ₦/m"
+                    >
+                      Profit
+                    </th>
+                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap bg-sky-50/40">Suggested</th>
+                    <th
+                      className="px-2 py-2 border-b border-l border-slate-200 whitespace-nowrap bg-teal-50/50"
+                      title="Floor — minimum ₦/m. Quotes below this need MD approval for production."
+                    >
+                      Floor (min)
+                    </th>
+                    <th
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap bg-teal-50/50"
+                      title="Commission ₦/m on top of Floor; List = published round(Floor + Commission)"
+                    >
+                      Commission
+                    </th>
+                    <th
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap bg-teal-50/50"
+                      title="Customer list price after publish"
+                    >
+                      List (customer)
+                    </th>
+                    <th
+                      className="px-2 py-2 border-b border-l border-slate-200 whitespace-nowrap bg-amber-50/50"
+                      title="Mark this gauge to push Floor + Commission to the live price list"
+                    >
+                      Publish gauge
+                    </th>
+                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap min-w-[100px] bg-amber-50/50">
+                      Notes
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {workbookLines.length === 0 ? (
                     <tr>
                       <td colSpan={16} className="px-4 py-8 text-center text-sm text-slate-500">
-                        No lines yet. Use <strong>Add line</strong>, choose a gauge, enter prices, then Save all.
+                        No lines yet. Use <strong>Add line</strong>, choose a gauge, enter prices, then Save drafts.
                       </td>
                     </tr>
                   ) : (
@@ -2302,28 +2516,64 @@ export function MaterialPricingWorkbook({
                             ) : (
                               <>
                                 <input
-                                  className={inp}
+                                  className={`${inp}${
+                                    dr.conversionUsedKgPerM !== '' &&
+                                    dr.conversionUsedKgPerM != null &&
+                                    !(numOrUndef(dr.conversionUsedKgPerM) > 0)
+                                      ? ' border-red-400 bg-red-50'
+                                      : ''
+                                  }`}
                                   placeholder={
                                     g && rv.usedSuggested != null && Number.isFinite(Number(rv.usedSuggested))
                                       ? `~${fmtConv2(rv.usedSuggested)}`
                                       : '—'
                                   }
-                                  title="Leave blank to use the average of Std, Ref, and Hist"
+                                  title="Leave blank to use the average of Density, Purchase, and Production"
                                   value={dr.conversionUsedKgPerM ?? ''}
                                   onChange={(e) => updateLineDraft(line.key, { conversionUsedKgPerM: e.target.value })}
                                   disabled={!g}
+                                  aria-invalid={
+                                    dr.conversionUsedKgPerM !== '' &&
+                                    dr.conversionUsedKgPerM != null &&
+                                    !(numOrUndef(dr.conversionUsedKgPerM) > 0)
+                                  }
                                 />
                                 <div className="mt-0.5 flex flex-wrap items-center gap-1">
                                   <p className="text-ui-xs text-slate-400">Override avg (kg/m)</p>
                                   {g ? (
                                     <span
                                       className={`rounded px-1 py-0.5 text-[10px] font-bold uppercase tracking-wide ${confidenceBadgeClass(usedConf)}`}
-                                      title="Confidence from Ref/Hist sample depth and Std: None / Low / Medium / High"
+                                      title="Confidence from Purchase/Production sample depth and Density"
                                     >
                                       {confidenceLabel(usedConf)}
                                     </span>
                                   ) : null}
                                 </div>
+                                {g && !sheet?.isStoneCoatedWorkbook ? (
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    {[
+                                      { label: 'Density', val: rv.std },
+                                      { label: 'Purchase', val: rv.ref },
+                                      { label: 'Production', val: rv.hist },
+                                    ].map((src) =>
+                                      src.val != null && Number(src.val) > 0 ? (
+                                        <button
+                                          key={src.label}
+                                          type="button"
+                                          className="rounded border border-slate-200 bg-white px-1 py-0.5 text-[10px] font-semibold text-slate-600 hover:border-zarewa-teal hover:text-zarewa-teal"
+                                          title={`Use ${src.label} kg/m`}
+                                          onClick={() =>
+                                            updateLineDraft(line.key, {
+                                              conversionUsedKgPerM: String(roundConv2(Number(src.val)) ?? src.val),
+                                            })
+                                          }
+                                        >
+                                          Use {src.label}
+                                        </button>
+                                      ) : null
+                                    )}
+                                  </div>
+                                ) : null}
                               </>
                             )}
                           </td>
@@ -2367,30 +2617,83 @@ export function MaterialPricingWorkbook({
                               </p>
                             ) : null}
                           </td>
-                          <td className="px-2 py-1.5">
+                          <td className="px-2 py-1.5 align-top">
+                            <div className="flex flex-wrap items-center gap-1 mb-1">
+                              <span
+                                className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 tabular-nums"
+                                title="Floor — minimum sell ₦/m"
+                              >
+                                Floor {minimumNgn > 0 ? formatNgn(minimumNgn) : '—'}
+                              </span>
+                              <span
+                                className="rounded-md bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold text-zarewa-teal tabular-nums"
+                                title="List — customer price after publish (Floor + Commission, rounded)"
+                              >
+                                List {listNgn > 0 ? formatNgn(listNgn) : '—'}
+                              </span>
+                            </div>
                             <input
-                              className={inp}
+                              className={`${inp}${
+                                floorBelowSuggested
+                                  ? ' border-amber-400 bg-amber-50'
+                                  : dr.syncMinimumToPriceList && !(minimumNgn > 0)
+                                    ? ' border-red-400 bg-red-50'
+                                    : ''
+                              }`}
                               value={dr.minimumPricePerMeterNgn ?? ''}
                               onChange={(e) => updateLineDraft(line.key, { minimumPricePerMeterNgn: e.target.value })}
+                              aria-invalid={
+                                Boolean(floorBelowSuggested) ||
+                                Boolean(dr.syncMinimumToPriceList && !(minimumNgn > 0))
+                              }
+                              title={
+                                floorBelowSuggested
+                                  ? 'Floor is below Suggested — check margin before publishing'
+                                  : 'Floor minimum ₦/m'
+                              }
                             />
+                            {floorBelowSuggested ? (
+                              <p className="mt-0.5 text-[10px] font-semibold text-amber-800">Below Suggested</p>
+                            ) : dr.syncMinimumToPriceList && !(minimumNgn > 0) ? (
+                              <p className="mt-0.5 text-[10px] font-semibold text-red-700">Floor required to publish</p>
+                            ) : null}
+                            {displaySug != null && displaySug > 0 && !floorBelowSuggested ? (
+                              <button
+                                type="button"
+                                className="mt-1 text-[10px] font-semibold text-zarewa-teal hover:underline"
+                                onClick={() =>
+                                  updateLineDraft(line.key, { minimumPricePerMeterNgn: String(displaySug) })
+                                }
+                              >
+                                Match Floor to Suggested
+                              </button>
+                            ) : null}
                           </td>
-                          <td className="px-2 py-1.5">
+                          <td className="px-2 py-1.5 align-top">
                             <input
                               className={inp}
                               inputMode="decimal"
                               placeholder="0"
-                              title="Commission ₦/m added to floor for published list price"
+                              title="Commission ₦/m added to Floor for published List price"
                               value={dr.commissionNgnPerM ?? ''}
                               onChange={(e) => updateLineDraft(line.key, { commissionNgnPerM: e.target.value })}
                             />
+                            {listNgn > 0 ? (
+                              <p className="mt-0.5 text-[10px] text-slate-500 leading-snug">
+                                List will be <span className="font-semibold text-slate-700 tabular-nums">{formatNgn(listNgn)}</span>
+                              </p>
+                            ) : null}
                           </td>
-                          <td className="px-2 py-1.5 font-mono text-xs font-semibold text-slate-800 tabular-nums">
-                            {listNgn > 0 ? formatNgn(listNgn) : '—'}
+                          <td className="px-2 py-1.5 align-top">
+                            <div className="font-mono text-xs font-semibold text-slate-800 tabular-nums">
+                              {listNgn > 0 ? formatNgn(listNgn) : '—'}
+                            </div>
+                            <p className="mt-0.5 text-[10px] text-slate-400">Customer after publish</p>
                           </td>
                           <td className="px-2 py-1.5 align-top space-y-1">
                             <label
                               className="flex items-center gap-1 text-ui-xs text-slate-600 whitespace-nowrap"
-                              title="Include in next Publish to price list"
+                              title="Publish this gauge to the live price list"
                             >
                               <input
                                 type="checkbox"
@@ -2401,21 +2704,60 @@ export function MaterialPricingWorkbook({
                                   if (checked && !String(dr.syncDesignKey ?? '').trim() && materialKey !== 'stone-coated') {
                                     patch.syncDesignKey = 'longspan';
                                   }
+                                  if (checked && materialKey === 'stone-coated' && !String(dr.syncDesignKey ?? '').trim()) {
+                                    patch.syncDesignKey = 'stone-coated';
+                                  }
                                   updateLineDraft(line.key, patch);
                                 }}
                               />
-                              Include
+                              Publish this gauge
                             </label>
-                            <input
-                              className={`${inp} text-ui-xs`}
-                              placeholder={materialKey !== 'stone-coated' ? 'longspan' : 'Design key'}
-                              title="Design key written to the floor price list (e.g. longspan, metcoppo). Defaults to longspan for coil materials."
-                              value={dr.syncDesignKey ?? ''}
-                              onChange={(e) => updateLineDraft(line.key, { syncDesignKey: e.target.value })}
-                            />
+                            {(() => {
+                              const designOpts = syncDesignOptionsForMaterial(materialKey);
+                              const selectVal = syncDesignSelectValue(dr.syncDesignKey, materialKey);
+                              const isOther = selectVal === SYNC_DESIGN_OTHER;
+                              return (
+                                <>
+                                  <select
+                                    className={`${inp} font-sans text-ui-xs`}
+                                    value={selectVal}
+                                    aria-label="Design key for price list"
+                                    title="Design key written to the price list (must match quotation design)"
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      if (v === SYNC_DESIGN_OTHER) {
+                                        const current = String(dr.syncDesignKey || '').trim().toLowerCase();
+                                        const known = designOpts.some((o) => o.value === current);
+                                        updateLineDraft(line.key, {
+                                          syncDesignKey: known ? '' : String(dr.syncDesignKey || ''),
+                                        });
+                                        return;
+                                      }
+                                      updateLineDraft(line.key, { syncDesignKey: v });
+                                    }}
+                                  >
+                                    {designOpts.map((o) => (
+                                      <option key={o.value} value={o.value}>
+                                        {o.label}
+                                      </option>
+                                    ))}
+                                    <option value={SYNC_DESIGN_OTHER}>Other…</option>
+                                  </select>
+                                  {isOther ? (
+                                    <input
+                                      className={`${inp} text-ui-xs`}
+                                      placeholder="Custom design key"
+                                      title="Custom design key for the price list"
+                                      value={dr.syncDesignKey ?? ''}
+                                      onChange={(e) => updateLineDraft(line.key, { syncDesignKey: e.target.value })}
+                                    />
+                                  ) : null}
+                                </>
+                              );
+                            })()}
                             {listNgn > 0 && !dr.syncMinimumToPriceList ? (
                               <p className="text-ui-xs text-emerald-700 font-semibold">
-                                ✓ list set — tick Include to publish
+                                List ready — tick Publish this gauge
                               </p>
                             ) : null}
                           </td>

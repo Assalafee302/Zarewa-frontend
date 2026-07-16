@@ -505,7 +505,7 @@ function OrderLinesSection({
               ) : null}
               {anyTrimRow ? <div className="w-[3.75rem] shrink-0 text-center">Width</div> : null}
               <div className="w-14 sm:w-16 shrink-0 text-center">{anyStoneFlatsheetRow ? 'Qty m²' : 'Qty'}</div>
-              <div className="w-[4.25rem] sm:w-24 shrink-0 text-center">Unit ₦</div>
+              <div className="w-[5.5rem] sm:w-28 shrink-0 text-center">Unit ₦</div>
               <div className="w-[5.25rem] sm:w-28 shrink-0 text-right tabular-nums">Amount</div>
               <div className="w-[4.5rem] shrink-0" aria-hidden />
             </div>
@@ -807,33 +807,133 @@ function OrderLinesSection({
                     }`}
                     placeholder={isStoneFlatsheetRow ? 'm²' : '0'}
                   />
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    placeholder="0"
-                    disabled={!qtyPriceEnabled}
-                    title={(() => {
-                      if (!qtyPriceEnabled) {
-                        return needsStoneFlatsheetLengthPicker
-                          ? 'Select stone flatsheet product and length before entering unit price'
-                          : 'Select a product before entering unit price';
-                      }
+                  <div className="w-[5.5rem] sm:w-28 shrink-0 flex flex-col items-stretch gap-0.5">
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="0"
+                      disabled={!qtyPriceEnabled}
+                      title={(() => {
+                        if (!qtyPriceEnabled) {
+                          return needsStoneFlatsheetLengthPicker
+                            ? 'Select stone flatsheet product and length before entering unit price'
+                            : 'Select a product before entering unit price';
+                        }
+                        const wb =
+                          typeof resolveWorkbookLineMeta === 'function'
+                            ? resolveWorkbookLineMeta(row.name)
+                            : null;
+                        if (!wb?.floorPerMeter) return undefined;
+                        return `Floor (min) ${formatNgn(wb.floorPerMeter)}/m · List ${formatNgn(wb.suggestedListPerMeter)}/m`;
+                      })()}
+                      value={row.unitPrice}
+                      onChange={(e) => updateRow(row.id, { unitPrice: e.target.value })}
+                      className={`w-full border py-1.5 px-1 rounded-lg text-xs text-center font-semibold outline-none tabular-nums ${
+                        qtyPriceEnabled
+                          ? 'bg-white border-slate-200 text-zarewa-teal'
+                          : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
+                    />
+                    {(() => {
+                      if (title !== 'Products' || !qtyPriceEnabled) return null;
                       const wb =
                         typeof resolveWorkbookLineMeta === 'function'
                           ? resolveWorkbookLineMeta(row.name)
                           : null;
-                      if (!wb?.floorPerMeter) return undefined;
-                      return `Workbook floor ${formatNgn(wb.floorPerMeter)}/m · suggested list ${formatNgn(wb.suggestedListPerMeter)}/m (floor + commission)`;
+                      const floorN =
+                        Number(row.floorPricePerMeter) > 0
+                          ? Number(row.floorPricePerMeter)
+                          : Number(wb?.floorPerMeter) > 0
+                            ? Number(wb.floorPerMeter)
+                            : 0;
+                      const listN =
+                        Number(row.recommendedPricePerMeter) > 0
+                          ? Number(row.recommendedPricePerMeter)
+                          : Number(wb?.suggestedListPerMeter) > 0
+                            ? Number(wb.suggestedListPerMeter)
+                            : 0;
+                      if (!(floorN > 0) && !(listN > 0)) return null;
+                      const unitN = parseLineNum(row.unitPrice);
+                      const isCustom =
+                        listN > 0 && unitN > 0 && Math.abs(unitN - listN) > 0.5;
+                      const belowFloor = floorN > 0 && unitN > 0 && unitN < floorN;
+                      const inBandTowardFloor =
+                        !belowFloor &&
+                        listN > 0 &&
+                        floorN > 0 &&
+                        unitN > 0 &&
+                        unitN < listN &&
+                        unitN >= floorN;
+                      const isTrim = isQuotationTrimProductLine(String(row.name || ''));
+                      return (
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <div className="flex flex-wrap gap-0.5 justify-center">
+                            {floorN > 0 ? (
+                              <span
+                                className="rounded bg-slate-100 px-1 py-px text-[9px] font-bold text-slate-600 tabular-nums"
+                                title="Floor — minimum ₦/m (MD gate)"
+                              >
+                                Floor {formatNgn(floorN)}
+                              </span>
+                            ) : null}
+                            {listN > 0 ? (
+                              <span
+                                className="rounded bg-teal-50 px-1 py-px text-[9px] font-bold text-zarewa-teal tabular-nums"
+                                title="List — published / workbook customer price"
+                              >
+                                List {formatNgn(listN)}
+                              </span>
+                            ) : null}
+                          </div>
+                          {isCustom ? (
+                            <span
+                              className="text-center text-[9px] font-bold text-amber-800"
+                              title="Custom unit price — auto-list updates will not overwrite this"
+                            >
+                              Custom price locked
+                            </span>
+                          ) : listN > 0 ? (
+                            <span className="text-center text-[9px] font-semibold text-slate-400">
+                              Tracking list
+                            </span>
+                          ) : null}
+                          {belowFloor ? (
+                            <span className="text-center text-[9px] font-bold text-red-700">
+                              Below floor — MD needed
+                            </span>
+                          ) : inBandTowardFloor ? (
+                            <span className="text-center text-[9px] font-semibold text-amber-700">
+                              Within band — no MD
+                            </span>
+                          ) : null}
+                          {isTrim && listN > 0 && Number(row.girthMm) > 0 ? (
+                            <span
+                              className="text-center text-[9px] text-slate-500 leading-tight"
+                              title="Trim list = sheet list ÷ (1200÷girth) + ridge add-on"
+                            >
+                              Trim @ {row.girthMm} mm
+                            </span>
+                          ) : null}
+                          {isCustom && listN > 0 ? (
+                            <button
+                              type="button"
+                              className="text-[9px] font-semibold text-zarewa-teal hover:underline"
+                              onClick={() =>
+                                updateRow(row.id, {
+                                  unitPrice: String(listN),
+                                  recommendedPricePerMeter: listN,
+                                  floorPricePerMeter: floorN > 0 ? floorN : row.floorPricePerMeter,
+                                })
+                              }
+                            >
+                              Reset to list
+                            </button>
+                          ) : null}
+                        </div>
+                      );
                     })()}
-                    value={row.unitPrice}
-                    onChange={(e) => updateRow(row.id, { unitPrice: e.target.value })}
-                    className={`w-[4.25rem] sm:w-24 shrink-0 border py-1.5 px-1 rounded-lg text-xs text-center font-semibold outline-none tabular-nums ${
-                      qtyPriceEnabled
-                        ? 'bg-white border-slate-200 text-zarewa-teal'
-                        : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
-                  />
+                  </div>
                   <div className="w-[5.25rem] sm:w-28 shrink-0 text-right pr-0.5 sm:pr-1 text-ui-xs sm:text-xs font-bold text-zarewa-teal tabular-nums leading-tight">
                     {formatNgn(amt)}
                   </div>
@@ -2477,23 +2577,60 @@ const QuotationModal = ({
                   ? 'MD below-floor approval is on file — cutting lists and production may proceed if other gates are satisfied.'
                   : 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and production stay blocked until the Managing Director or an administrator approves a below-floor price exception.'}
               </p>
-              <ul className="text-ui-xs text-amber-950 space-y-1.5 list-disc pl-4">
-                {pricingViolationsList.map((v, i) => (
-                  <li key={i}>
-                    <span className="font-semibold capitalize">{v.lineCategory || 'line'}</span> #{Number(v.lineIndex) + 1}:{' '}
-                    {v.code === 'below_floor'
-                      ? v.trimWorkbook || v.priceBasis === 'published_list_plus_ridge'
-                        ? 'Below trim list price'
-                        : v.lineCategory === 'products'
-                          ? 'Below workbook floor'
-                          : 'Below list floor'
-                      : 'Below allowed band (quoted deeper than recommended − trading band)'}{' '}
-                    — quoted{' '}
-                    {formatNgn(v.quotedPerMeter)}/m; minimum without exception{' '}
-                    {formatNgn(v.minAllowedPerMeter ?? v.minimumPerMeter ?? v.floorPerMeter)}/m (floor {formatNgn(v.floorPerMeter)}/m, trading band ₦
-                    {v.bandNgn ?? '—'}).
-                  </li>
-                ))}
+              {(() => {
+                const totalGap = pricingViolationsList.reduce((sum, v) => {
+                  const quoted = Number(v.quotedPerMeter) || 0;
+                  const min = Number(v.minAllowedPerMeter ?? v.minimumPerMeter ?? v.floorPerMeter) || 0;
+                  return quoted > 0 && min > quoted ? sum + (min - quoted) : sum;
+                }, 0);
+                return totalGap > 0 && !quotationBelowFloorExceptionApproved(editData) ? (
+                  <p className="text-ui-xs font-semibold text-amber-950 bg-amber-100/80 border border-amber-200 rounded-lg px-2 py-1.5">
+                    Margin impact: ~{formatNgn(totalGap)}/m total shortfall vs minimum across flagged lines (before qty).
+                  </p>
+                ) : null;
+              })()}
+              <ul className="text-ui-xs text-amber-950 space-y-1.5 list-none pl-0">
+                {pricingViolationsList.map((v, i) => {
+                  const quoted = Number(v.quotedPerMeter) || 0;
+                  const min = Number(v.minAllowedPerMeter ?? v.minimumPerMeter ?? v.floorPerMeter) || 0;
+                  const floor = Number(v.floorPerMeter) || min;
+                  const gap = min > 0 && quoted > 0 && quoted < min ? min - quoted : 0;
+                  return (
+                    <li key={i} className="rounded-lg border border-amber-200/80 bg-white/70 px-2.5 py-2 space-y-1">
+                      <p className="font-semibold capitalize">
+                        {v.lineCategory || 'line'} #{Number(v.lineIndex) + 1}:{' '}
+                        {v.code === 'below_floor'
+                          ? v.trimWorkbook || v.priceBasis === 'published_list_plus_ridge'
+                            ? 'Below trim list price'
+                            : v.lineCategory === 'products'
+                              ? 'Below workbook floor'
+                              : 'Below list floor'
+                          : 'Below allowed band (quoted deeper than recommended − trading band)'}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums">
+                          Quoted {formatNgn(quoted)}/m
+                        </span>
+                        <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-red-800">
+                          Floor {formatNgn(floor)}/m
+                        </span>
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums">
+                          Min {formatNgn(min)}/m
+                        </span>
+                        {v.bandNgn != null ? (
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600">
+                            Band ₦{v.bandNgn}
+                          </span>
+                        ) : null}
+                        {gap > 0 ? (
+                          <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-rose-800">
+                            Gap −{formatNgn(gap)}/m
+                          </span>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
               {useQuotationApi &&
               ws?.canMutate &&
