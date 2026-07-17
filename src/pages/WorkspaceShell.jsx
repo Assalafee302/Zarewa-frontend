@@ -129,6 +129,7 @@ export default function WorkspaceShell() {
   activityEventsRef.current = activityEvents;
   const messagesReqIdRef = useRef(0);
   const messagesAbortRef = useRef(null);
+  const profileRef = useRef(null);
 
   const visibleWorkItems = useMemo(() => {
     const raw = Array.isArray(ws?.snapshot?.unifiedWorkItems) ? ws.snapshot.unifiedWorkItems : [];
@@ -261,7 +262,7 @@ export default function WorkspaceShell() {
       }
     } catch (err) {
       if (err?.name === 'AbortError') return;
-      throw err;
+      showToast?.('Could not load messages — try again', { variant: 'error' });
     } finally {
       if (seq === messagesReqIdRef.current && !silent) setMessagesLoading(false);
     }
@@ -319,6 +320,10 @@ export default function WorkspaceShell() {
   }, []);
 
   useEffect(() => {
+    const prevProfile = profileRef.current;
+    profileRef.current = zoneConfig.profile;
+    // Only reset zone/chips when the desk profile actually changes — not on every mount refresh.
+    if (prevProfile && prevProfile === zoneConfig.profile) return;
     setActiveZone(zoneConfig.defaultZone);
     setActiveChip(null);
     setTaskTab((prev) => (isValidTaskQueueTab(prev) ? prev : 'needs_action'));
@@ -328,17 +333,16 @@ export default function WorkspaceShell() {
     if (!selectedItem?.id) return;
     const id = String(selectedItem.id);
     const fresh = visibleWorkItems.find((item) => String(item.id) === id);
-    if (fresh) {
-      if (fresh !== selectedItem) setSelectedItem(fresh);
+    const candidate = fresh || wsRef.current?.getUnifiedWorkItemById?.(id);
+    if (!candidate) {
+      setSelectedItem(null);
       return;
     }
-    const fromSnapshot = ws?.getUnifiedWorkItemById?.(id);
-    if (fromSnapshot) {
-      setSelectedItem(fromSnapshot);
-      return;
-    }
-    setSelectedItem(null);
-  }, [visibleWorkItems, selectedItem?.id, ws]);
+    const rev = (item) =>
+      `${item.id}|${item.updatedAtIso || ''}|${item.status || ''}|${item.title || ''}`;
+    if (rev(candidate) === rev(selectedItem)) return;
+    setSelectedItem(candidate);
+  }, [visibleWorkItems, selectedItem]);
 
   useEffect(() => {
     void loadRooms();

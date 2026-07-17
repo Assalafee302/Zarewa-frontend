@@ -43,7 +43,9 @@ async function fileToAttachment(file) {
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(1, Math.round(img.width * scale));
       canvas.height = Math.max(1, Math.round(img.height * scale));
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not process image in this browser.');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       const outMime = mime === 'image/png' && file.size <= MAX_ATTACHMENT_BYTES ? 'image/png' : 'image/jpeg';
       const compressed = canvas.toDataURL(outMime, 0.82);
       if (compressed.length < dataUrl.length || file.size > MAX_ATTACHMENT_BYTES) {

@@ -53,8 +53,9 @@ export default function OfficeRecordDetail({ workItem, onClose, onRefresh, recor
     onRefresh,
   });
   const actions = recordActions || localActions;
-  const n = normalizeWorkItem(workItem, { userId: ws?.session?.user?.id });
-  const badges = officeRecordStatusBadges(workItem);
+  const n = workItem ? normalizeWorkItem(workItem, { userId: ws?.session?.user?.id }) : null;
+  const badges = workItem ? officeRecordStatusBadges(workItem) : { primary: { label: '', className: '' } };
+
   const loadTimeline = useCallback(async () => {
     if (!workItem?.id) return;
     setLoadingTimeline(true);
@@ -107,6 +108,14 @@ export default function OfficeRecordDetail({ workItem, onClose, onRefresh, recor
     ['approvals', 'Approvals'],
     ['audit', 'Audit Trail'],
   ];
+
+  if (!workItem || !n) {
+    return (
+      <div className="flex h-full min-h-[12rem] items-center justify-center rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
+        Select a record to view details.
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-[420px] flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
