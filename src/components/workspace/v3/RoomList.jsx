@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Hash, Search, X, SquarePen } from 'lucide-react';
+import { Archive, BellOff, Hash, MoreHorizontal, Search, X, SquarePen } from 'lucide-react';
 import PresenceAvatar from './PresenceAvatar';
 import { ListEmptyState } from '../../ui/ListEmptyState';
 
@@ -23,7 +23,53 @@ function previewTime(iso) {
 }
 
 /** Teams-style chat row: avatar + presence, name, last-message preview, time, unread. */
-function ChatRow({ room, activeRoomId, onSelectRoom, presenceByUser, currentUserId }) {
+function RoomActions({ room, channel, onMuteRoom, onArchiveRoom }) {
+  const [open, setOpen] = useState(false);
+  if (!onMuteRoom && (!channel || !onArchiveRoom)) return null;
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        aria-label={`Actions for ${room.name || room.slug}`}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+      >
+        <MoreHorizontal size={16} aria-hidden />
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-full z-30 mt-1 min-w-[9rem] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onMuteRoom?.(room, !room.muted);
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <BellOff size={14} aria-hidden />
+            {room.muted ? 'Unmute' : 'Mute 8 hours'}
+          </button>
+          {channel && onArchiveRoom ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onArchiveRoom(room);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-red-700 hover:bg-red-50"
+            >
+              <Archive size={14} aria-hidden />
+              Archive
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ChatRow({ room, activeRoomId, onSelectRoom, presenceByUser, currentUserId, onMuteRoom }) {
   const unread = Number(room.unreadCount || 0);
   const active = activeRoomId === room.id;
   const label = room.name || `#${room.slug}`;
@@ -33,12 +79,13 @@ function ChatRow({ room, activeRoomId, onSelectRoom, presenceByUser, currentUser
   const preview = last ? `${mineLast ? 'You: ' : ''}${last.preview}` : 'Start the conversation';
 
   return (
+    <div className={`flex items-center rounded-lg ${room.muted ? 'opacity-60' : ''}`}>
     <button
       type="button"
       aria-label={`Chat with ${label}${unread > 0 ? `, ${unread} unread` : ''}`}
       aria-current={active ? 'location' : undefined}
       onClick={() => onSelectRoom?.(room)}
-      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
+      className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
         active ? 'bg-teal-50' : 'hover:bg-slate-50'
       }`}
     >
@@ -51,6 +98,7 @@ function ChatRow({ room, activeRoomId, onSelectRoom, presenceByUser, currentUser
             }`}
           >
             {label}
+            {room.muted ? <BellOff size={12} className="ml-1 inline text-slate-400" aria-label="Muted" /> : null}
           </span>
           {last?.createdAtIso ? (
             <span className={`shrink-0 text-[10px] ${unread > 0 ? 'font-semibold text-teal-800' : 'text-slate-400'}`}>
@@ -74,26 +122,30 @@ function ChatRow({ room, activeRoomId, onSelectRoom, presenceByUser, currentUser
         </span>
       </span>
     </button>
+      <RoomActions room={room} onMuteRoom={onMuteRoom} />
+    </div>
   );
 }
 
-function ChannelRow({ room, activeRoomId, onSelectRoom }) {
+function ChannelRow({ room, activeRoomId, onSelectRoom, onMuteRoom, onArchiveRoom }) {
   const unread = Number(room.unreadCount || 0);
   const active = activeRoomId === room.id;
   const label = room.name || `#${room.slug}`;
   const last = room.lastMessage;
 
   return (
+    <div className={`flex items-center rounded-lg ${room.muted ? 'opacity-60' : ''}`}>
     <button
       type="button"
       aria-label={`${label}${unread > 0 ? `, ${unread} unread` : ''}`}
       aria-current={active ? 'location' : undefined}
       onClick={() => onSelectRoom?.(room)}
-      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
+      className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg px-3 py-2 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
         active ? 'bg-teal-50 text-teal-900' : 'text-slate-700 hover:bg-slate-50'
       }`}
     >
       <Hash size={16} className="shrink-0 text-slate-400" aria-hidden />
+      {room.muted ? <BellOff size={12} className="shrink-0 text-slate-400" aria-label="Muted" /> : null}
       <span className="min-w-0 flex-1">
         <span className={`block truncate ${unread > 0 ? 'font-bold' : 'font-medium'}`}>{label}</span>
         {last ? (
@@ -106,6 +158,8 @@ function ChannelRow({ room, activeRoomId, onSelectRoom }) {
         </span>
       ) : null}
     </button>
+      <RoomActions room={room} channel onMuteRoom={onMuteRoom} onArchiveRoom={onArchiveRoom} />
+    </div>
   );
 }
 
@@ -193,6 +247,8 @@ export default function RoomList({
   dmCreating = false,
   presenceByUser = {},
   currentUserId = '',
+  onMuteRoom,
+  onArchiveRoom,
 }) {
   const [dmOpen, setDmOpen] = useState(false);
   const channels = rooms.filter((r) => r.scopeKind !== 'dm' && r.kind !== 'dm');
@@ -316,6 +372,7 @@ export default function RoomList({
                         onSelectRoom={onSelectRoom}
                         presenceByUser={presenceByUser}
                         currentUserId={currentUserId}
+                        onMuteRoom={onMuteRoom}
                       />
                     </li>
                   ))}
@@ -332,7 +389,13 @@ export default function RoomList({
                 <ul className="mt-1 space-y-0.5">
                   {channels.map((r) => (
                     <li key={r.id}>
-                      <ChannelRow room={r} activeRoomId={activeRoomId} onSelectRoom={onSelectRoom} />
+                      <ChannelRow
+                        room={r}
+                        activeRoomId={activeRoomId}
+                        onSelectRoom={onSelectRoom}
+                        onMuteRoom={onMuteRoom}
+                        onArchiveRoom={onArchiveRoom}
+                      />
                     </li>
                   ))}
                 </ul>

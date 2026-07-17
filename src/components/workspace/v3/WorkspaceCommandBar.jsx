@@ -7,6 +7,9 @@ const CREATE_OPTIONS = [
   { id: 'memo', label: 'Memo', profiles: ['staff', 'branch', 'office', 'executive'] },
   { id: 'expense', label: 'Expense request', profiles: ['staff', 'branch', 'office', 'executive'] },
   { id: 'material', label: 'Material request', profiles: ['staff', 'branch', 'office'] },
+  { id: 'incident', label: 'Operations incident', profiles: ['staff', 'branch', 'office'] },
+  { id: 'fuel', label: 'Fuel / diesel record', profiles: ['staff', 'branch', 'office'] },
+  { id: 'leave', label: 'Leave request', profiles: ['staff', 'branch', 'office', 'executive'] },
   { id: 'notice', label: 'Official notice', profiles: ['office', 'executive'] },
 ];
 
@@ -136,6 +139,7 @@ export default function WorkspaceCommandBar({
             <Search size={14} aria-hidden />
             Search
           </button>
+          <span className="hidden text-[10px] text-slate-400 sm:inline">Press / or Ctrl+K to search</span>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">

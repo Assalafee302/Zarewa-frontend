@@ -15,12 +15,14 @@ export async function fetchWorkspaceRooms() {
   return { rooms: Array.isArray(data.rooms) ? data.rooms : [], error: null };
 }
 
-export async function fetchRoomMessages(roomId, { limit = 80, signal } = {}) {
+export async function fetchRoomMessages(roomId, { limit = 80, beforeIso, signal } = {}) {
   const id = requireRoomId(roomId);
   if (!id) return { messages: [], pinned: [], error: 'Room id required' };
   const safeLimit = Math.min(200, Math.max(1, Number(limit) || 80));
+  const params = new URLSearchParams({ limit: String(safeLimit) });
+  if (beforeIso) params.set('beforeIso', String(beforeIso));
   const { ok, data } = await apiFetch(
-    `/api/workspace/rooms/${encodeURIComponent(id)}/messages?limit=${safeLimit}`,
+    `/api/workspace/rooms/${encodeURIComponent(id)}/messages?${params.toString()}`,
     signal ? { signal } : {}
   );
   if (!ok || !data?.ok) return { messages: [], pinned: [], error: data?.error || 'Failed to load messages' };
@@ -28,6 +30,7 @@ export async function fetchRoomMessages(roomId, { limit = 80, signal } = {}) {
     messages: Array.isArray(data.messages) ? data.messages : [],
     pinned: Array.isArray(data.pinned) ? data.pinned : [],
     threadId: data.threadId,
+    hasMore: typeof data.hasMore === 'boolean' ? data.hasMore : Boolean(data.messages?.length >= safeLimit),
     error: null,
   };
 }
@@ -48,6 +51,7 @@ export async function sendRoomMessage(roomId, body) {
   if (!id) return { message: null, error: 'Room id required' };
   const text = typeof body === 'string' ? body : body?.body;
   const attachments = typeof body === 'object' && Array.isArray(body?.attachments) ? body.attachments : [];
+  const parentMessageId = typeof body === 'object' ? body?.parentMessageId : null;
   if (!String(text || '').trim() && attachments.length === 0) {
     return { message: null, error: 'Message is required' };
   }
@@ -56,10 +60,57 @@ export async function sendRoomMessage(roomId, body) {
     body: postBody({
       body: String(text || '').trim(),
       ...(attachments.length ? { attachments } : {}),
+      ...(parentMessageId ? { parentMessageId } : {}),
     }),
   });
   if (!ok || !data?.ok) return { message: null, error: data?.error || 'Send failed' };
   return { message: data.message || null, error: null };
+}
+
+export async function muteWorkspaceRoom(roomId, { mutedUntilIso, unmute = false } = {}) {
+  const id = requireRoomId(roomId);
+  if (!id) return { ok: false, error: 'Room id required' };
+  const { ok, data } = await apiFetch(`/api/workspace/rooms/${encodeURIComponent(id)}/mute`, {
+    method: 'POST',
+    body: postBody({ mutedUntilIso: unmute ? null : mutedUntilIso, unmute }),
+  });
+  if (!ok || !data?.ok) return { ok: false, error: data?.error || 'Mute update failed' };
+  return { ok: true, muted: Boolean(data.muted), mutedUntilIso: data.mutedUntilIso || null, error: null };
+}
+
+export async function archiveWorkspaceRoom(roomId, { archived = true } = {}) {
+  const id = requireRoomId(roomId);
+  if (!id) return { ok: false, error: 'Room id required' };
+  const { ok, data } = await apiFetch(`/api/workspace/rooms/${encodeURIComponent(id)}/archive`, {
+    method: 'POST',
+    body: postBody({ archived }),
+  });
+  if (!ok || !data?.ok) return { ok: false, error: data?.error || 'Archive failed' };
+  return { ok: true, archived: data.archived !== false, error: null };
+}
+
+export async function editRoomMessage(roomId, messageId, { body } = {}) {
+  const id = requireRoomId(roomId);
+  const mid = String(messageId || '').trim();
+  if (!id || !mid) return { ok: false, message: null, error: 'Room and message id required' };
+  const { ok, data } = await apiFetch(
+    `/api/workspace/rooms/${encodeURIComponent(id)}/messages/${encodeURIComponent(mid)}`,
+    { method: 'PATCH', body: postBody({ body: String(body || '').trim() }) }
+  );
+  if (!ok || !data?.ok) return { ok: false, message: null, error: data?.error || 'Edit failed' };
+  return { ok: true, message: data.message || null, error: null };
+}
+
+export async function deleteRoomMessage(roomId, messageId) {
+  const id = requireRoomId(roomId);
+  const mid = String(messageId || '').trim();
+  if (!id || !mid) return { ok: false, error: 'Room and message id required' };
+  const { ok, data } = await apiFetch(
+    `/api/workspace/rooms/${encodeURIComponent(id)}/messages/${encodeURIComponent(mid)}`,
+    { method: 'DELETE' }
+  );
+  if (!ok || !data?.ok) return { ok: false, error: data?.error || 'Delete failed' };
+  return { ok: true, error: null };
 }
 
 export async function pinRoomWorkCard(roomId, payload) {
@@ -105,10 +156,10 @@ export async function fetchWorkspacePresence() {
   return { presence: Array.isArray(data.presence) ? data.presence : [], error: null };
 }
 
-export async function postPresenceHeartbeat({ status = 'online' } = {}) {
+export async function postPresenceHeartbeat({ status = 'online', deskKey } = {}) {
   const { ok, data } = await apiFetch('/api/workspace/presence/heartbeat', {
     method: 'POST',
-    body: postBody({ status }),
+    body: postBody({ status, ...(deskKey ? { deskKey } : {}) }),
   });
   return Boolean(ok && data?.ok);
 }

@@ -80,6 +80,9 @@ export default function MessageComposer({
   showPromote = true,
   placeholder = 'Type a message…',
   deskProfile = 'staff',
+  replyTo = null,
+  onCancelReply,
+  directory = [],
 }) {
   const [body, setBody] = useState('');
   const [attachments, setAttachments] = useState([]);
@@ -91,6 +94,15 @@ export default function MessageComposer({
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const promoteOptions = PROMOTE.filter((p) => p.profiles.includes(deskProfile));
+  const mentionMatch = body.match(/@([a-z0-9_.-]*)$/i);
+  const mentionQuery = String(mentionMatch?.[1] || '').toLowerCase();
+  const mentionSuggestions = mentionMatch
+    ? (directory || [])
+        .filter((user) =>
+          `${user.username || ''} ${user.displayName || ''}`.toLowerCase().includes(mentionQuery)
+        )
+        .slice(0, 6)
+    : [];
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -141,12 +153,17 @@ export default function MessageComposer({
   const submit = async () => {
     const text = body.trim();
     if ((!text && attachments.length === 0) || sending || disabled || attaching) return;
-    const result = await onSend?.({ body: text, attachments });
+    const result = await onSend?.({
+      body: text,
+      attachments,
+      ...(replyTo?.id ? { parentMessageId: replyTo.id } : {}),
+    });
     // onSend returns false on failure — keep the draft so nothing is lost.
     if (result !== false) {
       setBody('');
       setAttachments([]);
       setAttachError(null);
+      onCancelReply?.();
     }
     textareaRef.current?.focus?.();
   };
@@ -157,6 +174,17 @@ export default function MessageComposer({
 
   return (
     <div className="border-t border-slate-200 bg-white p-3">
+      {replyTo ? (
+        <div className="mb-2 flex items-start justify-between gap-2 rounded-lg border-l-4 border-teal-600 bg-teal-50 px-3 py-2">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-teal-900">Replying to {replyTo.authorDisplayName || 'message'}</p>
+            <p className="truncate text-xs text-slate-600">{replyTo.body || 'Attachment'}</p>
+          </div>
+          <button type="button" onClick={onCancelReply} aria-label="Cancel reply" className="text-slate-500">
+            <X size={14} aria-hidden />
+          </button>
+        </div>
+      ) : null}
       {disabled && disabledReason ? (
         <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900">
           {disabledReason}
@@ -220,6 +248,26 @@ export default function MessageComposer({
           aria-label="Message"
           className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:bg-slate-50"
         />
+        {mentionSuggestions.length ? (
+          <ul className="rounded-lg border border-slate-200 bg-white py-1 shadow-lg" aria-label="Mention suggestions">
+            {mentionSuggestions.map((user) => (
+              <li key={user.id || user.username}>
+                <button
+                  type="button"
+                  className="w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-teal-50"
+                  onClick={() => {
+                    const username = user.username || String(user.displayName || '').replace(/\s+/g, '.').toLowerCase();
+                    setBody((value) => value.replace(/@([a-z0-9_.-]*)$/i, `@${username} `));
+                    textareaRef.current?.focus?.();
+                  }}
+                >
+                  <span className="font-semibold">{user.displayName || user.username}</span>
+                  {user.username ? <span className="ml-1 text-slate-400">@{user.username}</span> : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1">
             <input

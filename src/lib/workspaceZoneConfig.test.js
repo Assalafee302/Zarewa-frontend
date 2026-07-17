@@ -40,6 +40,8 @@ describe('workspaceZoneConfig', () => {
     expect(noPerms.apps.some((a) => a.path.includes('account'))).toBe(false);
     const wildcard = getWorkspaceZoneConfig({ roleKey: 'finance_manager', permissions: ['*'] });
     expect(wildcard.apps.some((a) => a.path.includes('account'))).toBe(true);
+    const staffHr = getWorkspaceZoneConfig({ roleKey: 'sales_staff', permissions: ['hr.self'] });
+    expect(staffHr.apps.some((a) => a.path === '/my-profile')).toBe(true);
   });
 
   it('maps executive to activity with high_value chip', () => {
@@ -73,7 +75,11 @@ describe('workspaceZoneConfig', () => {
     expect(workItemMatchesActionChip(approval, 'approvals')).toBe(true);
     expect(workItemMatchesActionChip(expense, 'approvals')).toBe(false);
     expect(workItemMatchesActionChip(expense, null)).toBe(true);
-    expect(workItemMatchesActionChip(expense, 'branch_pulse')).toBe(true);
+    expect(workItemMatchesActionChip(expense, 'branch_pulse')).toBe(false);
+    expect(workItemMatchesActionChip({ status: 'waiting' }, 'branch_pulse')).toBe(true);
+    expect(workItemMatchesActionChip({ priority: 'high' }, 'high_value')).toBe(true);
+    expect(workItemMatchesActionChip({ amountNgn: 1500000 }, 'high_value')).toBe(true);
+    expect(workItemMatchesActionChip({ documentType: 'payment_request' }, 'finance')).toBe(true);
   });
 
   it('isValidWorkspaceZone accepts the five zones only', () => {

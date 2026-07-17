@@ -18,6 +18,10 @@ import { officeThreadIdFromWorkItem } from '../lib/officeThreadFromWorkItem';
 import { useOfficeRecordActions } from '../lib/useOfficeRecordActions';
 import { apiFetch } from '../lib/apiBase';
 import CreateOfficeRecordWizard from '../components/workspace/CreateOfficeRecordWizard';
+import TodayWorkCards, { useTodayWorkCounts } from '../components/workspace/TodayWorkCards';
+import MyHrWorkspaceCard from '../components/hr/MyHrWorkspaceCard';
+import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
+import { HR_SELF_SERVICE_PATH } from '../lib/hrSelfServiceRoutes';
 import WorkspaceCommandBar from '../components/workspace/v3/WorkspaceCommandBar';
 import WorkspaceRail from '../components/workspace/v3/WorkspaceRail';
 import ContextRail from '../components/workspace/v3/ContextRail';
@@ -38,6 +42,11 @@ import {
   postPresenceHeartbeat,
   promoteRoomMessage,
   createWorkspaceDm,
+  muteWorkspaceRoom,
+  archiveWorkspaceRoom,
+  editRoomMessage,
+  deleteRoomMessage,
+  pinRoomWorkCard,
   openWorkspaceRealtime,
 } from '../lib/workspaceV3Api';
 
@@ -45,7 +54,12 @@ const CREATE_KIND_MAP = {
   memo: 'general_internal',
   expense: 'expense_support',
   material: 'procurement_request',
+  incident: 'operations_incident',
+  fuel: 'fuel_diesel',
 };
+
+const LAST_ZONE_KEY = 'zarewa.workspace.v3.lastZone';
+const draftQueueKey = (roomId) => `zarewa.workspace.v3.messageDraft.${roomId}`;
 
 const ZONE_HOTKEYS = {
   '1': 'activity',
@@ -87,7 +101,14 @@ export default function WorkspaceShell() {
     [roleKey, ws?.permissions]
   );
 
-  const [activeZone, setActiveZone] = useState(zoneConfig.defaultZone);
+  const [activeZone, setActiveZone] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(LAST_ZONE_KEY);
+      return isValidWorkspaceZone(saved) ? saved : zoneConfig.defaultZone;
+    } catch {
+      return zoneConfig.defaultZone;
+    }
+  });
   const [taskTab, setTaskTab] = useState('needs_action');
   const [activeChip, setActiveChip] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -107,6 +128,8 @@ export default function WorkspaceShell() {
   const [pinnedCards, setPinnedCards] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [hasEarlierMessages, setHasEarlierMessages] = useState(false);
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [dmDirectory, setDmDirectory] = useState(null);
   const [dmLoadFailed, setDmLoadFailed] = useState(false);
   const [dmCreating, setDmCreating] = useState(false);
@@ -119,14 +142,11 @@ export default function WorkspaceShell() {
   // Refs keep callbacks referentially stable so effects (SSE, initial load)
   // don't tear down and refire whenever work items or the toast change.
   const wsRef = useRef(ws);
-  wsRef.current = ws;
   const activeRoomIdRef = useRef(activeRoomId);
-  activeRoomIdRef.current = activeRoomId;
   const activityFallbackToastShownRef = useRef(false);
   const roomsRef = useRef(rooms);
-  roomsRef.current = rooms;
   const activityEventsRef = useRef(activityEvents);
-  activityEventsRef.current = activityEvents;
+  const showToastRef = useRef(showToast);
   const messagesReqIdRef = useRef(0);
   const messagesAbortRef = useRef(null);
   const profileRef = useRef(null);
@@ -135,6 +155,7 @@ export default function WorkspaceShell() {
     const raw = Array.isArray(ws?.snapshot?.unifiedWorkItems) ? ws.snapshot.unifiedWorkItems : [];
     return raw.filter((item) => workItemShowsOnWorkspaceUnifiedInbox(item, inboxCtx));
   }, [ws?.snapshot?.unifiedWorkItems, inboxCtx]);
+  const todayCounts = useTodayWorkCounts(visibleWorkItems, inboxCtx);
 
   const intelligence = useMemo(
     () =>
@@ -147,7 +168,15 @@ export default function WorkspaceShell() {
     [visibleWorkItems, userId, inboxCtx, roleKey]
   );
   const intelligenceRef = useRef(intelligence);
-  intelligenceRef.current = intelligence;
+
+  useEffect(() => {
+    wsRef.current = ws;
+    activeRoomIdRef.current = activeRoomId;
+    roomsRef.current = rooms;
+    activityEventsRef.current = activityEvents;
+    intelligenceRef.current = intelligence;
+    showToastRef.current = showToast;
+  }, [ws, activeRoomId, rooms, activityEvents, intelligence, showToast]);
 
   const unread = useMemo(() => {
     // Action badge matches the "Needs my action" tab count exactly.
@@ -246,25 +275,33 @@ export default function WorkspaceShell() {
     }
   }, []);
 
-  const loadMessages = useCallback(async (roomId, { silent } = {}) => {
+  const loadMessages = useCallback(async (roomId, { silent, beforeIso } = {}) => {
     if (!roomId) return;
     messagesAbortRef.current?.abort();
     const ac = new AbortController();
     messagesAbortRef.current = ac;
     const seq = ++messagesReqIdRef.current;
-    if (!silent) setMessagesLoading(true);
+    if (beforeIso) setLoadingEarlier(true);
+    else if (!silent) setMessagesLoading(true);
     try {
-      const { messages: msgs, pinned, error } = await fetchRoomMessages(roomId, { signal: ac.signal });
+      const { messages: msgs, pinned, hasMore, error } = await fetchRoomMessages(roomId, {
+        signal: ac.signal,
+        beforeIso,
+      });
       if (seq !== messagesReqIdRef.current) return;
       if (!error) {
-        setMessages(msgs);
+        setMessages((prev) => (beforeIso ? [...msgs, ...prev] : msgs));
         setPinnedCards(pinned || []);
+        setHasEarlierMessages(Boolean(hasMore));
       }
     } catch (err) {
       if (err?.name === 'AbortError') return;
-      showToast?.('Could not load messages — try again', { variant: 'error' });
+      showToastRef.current?.('Could not load messages — try again', { variant: 'error' });
     } finally {
-      if (seq === messagesReqIdRef.current && !silent) setMessagesLoading(false);
+      if (seq === messagesReqIdRef.current) {
+        if (beforeIso) setLoadingEarlier(false);
+        else if (!silent) setMessagesLoading(false);
+      }
     }
   }, []);
 
@@ -323,11 +360,20 @@ export default function WorkspaceShell() {
     const prevProfile = profileRef.current;
     profileRef.current = zoneConfig.profile;
     // Only reset zone/chips when the desk profile actually changes — not on every mount refresh.
-    if (prevProfile && prevProfile === zoneConfig.profile) return;
+    if (!prevProfile || prevProfile === zoneConfig.profile) return;
     setActiveZone(zoneConfig.defaultZone);
     setActiveChip(null);
     setTaskTab((prev) => (isValidTaskQueueTab(prev) ? prev : 'needs_action'));
   }, [zoneConfig.profile, zoneConfig.defaultZone]);
+
+  useEffect(() => {
+    if (!isValidWorkspaceZone(activeZone)) return;
+    try {
+      sessionStorage.setItem(LAST_ZONE_KEY, activeZone);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [activeZone]);
 
   useEffect(() => {
     if (!selectedItem?.id) return;
@@ -389,6 +435,7 @@ export default function WorkspaceShell() {
     if (activeZone !== 'rooms') return;
     setMessages([]);
     setPinnedCards([]);
+    setHasEarlierMessages(false);
     if (activeRoomId) {
       void loadMessages(activeRoomId);
       // Clear the unread cursor for the viewed room, then refresh badges.
@@ -407,11 +454,12 @@ export default function WorkspaceShell() {
   useEffect(() => {
     const beat = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      void postPresenceHeartbeat({ status: 'online' });
+      void postPresenceHeartbeat({ status: 'online', deskKey: activeZone });
     };
     const onVisibility = () => {
       void postPresenceHeartbeat({
         status: document.visibilityState === 'hidden' ? 'away' : 'online',
+        deskKey: activeZone,
       });
     };
     const t = setInterval(beat, HEARTBEAT_MS);
@@ -421,7 +469,7 @@ export default function WorkspaceShell() {
       clearInterval(t);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []);
+  }, [activeZone]);
 
   // Single SSE connection for the life of the shell — room switches read
   // from the ref instead of tearing the socket down.
@@ -460,7 +508,18 @@ export default function WorkspaceShell() {
     }
     if (st?.zone && isValidWorkspaceZone(String(st.zone))) setActiveZone(String(st.zone));
     if (st?.taskTab && isValidTaskQueueTab(String(st.taskTab))) setTaskTab(String(st.taskTab));
-    if (st && (st.openCompose || st.zone || st.taskTab)) {
+    if (st?.roomId) {
+      setActiveRoomId(String(st.roomId));
+      setActiveZone('rooms');
+    }
+    if (st?.workItemId && ws?.getUnifiedWorkItemById) {
+      const item = ws.getUnifiedWorkItemById(String(st.workItemId));
+      if (item) {
+        setSelectedItem(item);
+        setActiveZone('action');
+      }
+    }
+    if (st && (st.openCompose || st.zone || st.taskTab || st.roomId || st.workItemId)) {
       navigate('.', { replace: true, state: {} });
     }
   }, [location.state, navigate, ws]);
@@ -521,6 +580,10 @@ export default function WorkspaceShell() {
       setRecordsSubView('notices');
       return;
     }
+    if (kind === 'leave') {
+      navigate(HR_SELF_SERVICE_PATH.timeOff);
+      return;
+    }
     setCreatePrefill({ recordType: CREATE_KIND_MAP[kind] || kind });
     setCreateOpen(true);
   };
@@ -535,6 +598,19 @@ export default function WorkspaceShell() {
     try {
       const { message, error } = await sendRoomMessage(activeRoomId, payload);
       if (error) {
+        const offline =
+          ws?.usingCachedData ||
+          (typeof navigator !== 'undefined' && !navigator.onLine) ||
+          /network|offline|fetch/i.test(error);
+        if (offline) {
+          try {
+            sessionStorage.setItem(draftQueueKey(activeRoomId), JSON.stringify(payload));
+            showToast?.('Message queued and will retry when you reconnect', { variant: 'warning' });
+            return true;
+          } catch {
+            /* preserve the composer draft */
+          }
+        }
         showToast?.(error, { variant: 'error' });
         return false;
       }
@@ -545,6 +621,110 @@ export default function WorkspaceShell() {
     } finally {
       setSending(false);
     }
+  };
+
+  useEffect(() => {
+    const retryQueued = async () => {
+      if (!activeRoomId || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
+      let payload;
+      try {
+        payload = JSON.parse(sessionStorage.getItem(draftQueueKey(activeRoomId)) || 'null');
+      } catch {
+        payload = null;
+      }
+      if (!payload) return;
+      const { message, error } = await sendRoomMessage(activeRoomId, payload);
+      if (error) return;
+      try {
+        sessionStorage.removeItem(draftQueueKey(activeRoomId));
+      } catch {
+        /* storage unavailable */
+      }
+      if (message) setMessages((prev) => [...prev, message]);
+      else void loadMessages(activeRoomId);
+      showToast?.('Queued message sent', { variant: 'success' });
+    };
+    window.addEventListener('online', retryQueued);
+    void retryQueued();
+    return () => window.removeEventListener('online', retryQueued);
+  }, [activeRoomId, loadMessages, showToast]);
+
+  const handleMuteRoom = async (room, shouldMute) => {
+    const mutedUntilIso = shouldMute ? new Date(Date.now() + 8 * 3600000).toISOString() : null;
+    const result = await muteWorkspaceRoom(room.id, { mutedUntilIso, unmute: !shouldMute });
+    if (!result.ok) {
+      showToast?.(result.error || 'Could not update mute', { variant: 'error' });
+      return;
+    }
+    setRooms((prev) =>
+      prev.map((entry) =>
+        entry.id === room.id
+          ? { ...entry, muted: result.muted, mutedUntilIso: result.mutedUntilIso }
+          : entry
+      )
+    );
+  };
+
+  const handleArchiveRoom = async (room) => {
+    if (room.scopeKind === 'dm' || room.kind === 'dm') return;
+    if (!window.confirm(`Archive ${room.name || room.slug || 'this channel'}?`)) return;
+    const result = await archiveWorkspaceRoom(room.id, { archived: true });
+    if (!result.ok) {
+      showToast?.(result.error || 'Could not archive channel', { variant: 'error' });
+      return;
+    }
+    setRooms((prev) => prev.filter((entry) => entry.id !== room.id));
+    setActiveRoomId((current) => (current === room.id ? null : current));
+  };
+
+  const handleEditMessage = async (message) => {
+    const body = window.prompt('Edit message', message.body || '');
+    if (body === null || !body.trim() || body.trim() === message.body) return;
+    const result = await editRoomMessage(activeRoomId, message.id, { body });
+    if (!result.ok) {
+      showToast?.(result.error || 'Could not edit message', { variant: 'error' });
+      return;
+    }
+    setMessages((prev) =>
+      prev.map((entry) =>
+        entry.id === message.id
+          ? result.message || { ...entry, body: body.trim(), editedAtIso: new Date().toISOString() }
+          : entry
+      )
+    );
+  };
+
+  const handleDeleteMessage = async (message) => {
+    if (!window.confirm('Delete this message?')) return;
+    const result = await deleteRoomMessage(activeRoomId, message.id);
+    if (!result.ok) {
+      showToast?.(result.error || 'Could not delete message', { variant: 'error' });
+      return;
+    }
+    setMessages((prev) =>
+      prev.map((entry) =>
+        entry.id === message.id
+          ? { ...entry, body: 'This message was deleted', deleted: true, deletedAtIso: new Date().toISOString(), attachments: [] }
+          : entry
+      )
+    );
+  };
+
+  const handlePinSelectedToRoom = async () => {
+    if (!activeRoomId || !selectedItem) return;
+    const result = await pinRoomWorkCard(activeRoomId, {
+      workItemId: selectedItem.id,
+      title: selectedItem.title || selectedItem.referenceNo || 'Pinned work item',
+      subtitle: selectedItem.referenceNo || selectedItem.status || '',
+      status: selectedItem.status,
+      kind: selectedItem.documentType || 'work_item',
+    });
+    if (!result.ok) {
+      showToast?.(result.error || 'Could not pin work item', { variant: 'error' });
+      return;
+    }
+    showToast?.('Work item pinned to chat', { variant: 'success' });
+    await loadMessages(activeRoomId, { silent: true });
   };
 
   const handleStartDm = async (user) => {
@@ -564,7 +744,7 @@ export default function WorkspaceShell() {
     }
   };
 
-  const handlePromote = async (kind, excerpt) => {
+  const handlePromote = async (kind, excerpt, messageId) => {
     if (!activeRoomId) return;
     if (!excerpt?.trim()) {
       showToast?.('Add message text before converting', { variant: 'warning' });
@@ -579,7 +759,7 @@ export default function WorkspaceShell() {
       setCreateOpen(true);
       return;
     }
-    const { ok, error, result } = await promoteRoomMessage(activeRoomId, { kind, excerpt });
+    const { ok, error, result } = await promoteRoomMessage(activeRoomId, { kind, excerpt, messageId });
     if (!ok) {
       showToast?.(error || 'Promote failed', { variant: 'error' });
       return;
@@ -694,7 +874,21 @@ export default function WorkspaceShell() {
 
           <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto p-3 sm:p-4">
             {activeZone === 'activity' ? (
-              <ActivityFeed
+              <div className="space-y-4">
+                <TodayWorkCards
+                  counts={todayCounts}
+                  onNavigate={(_section, tab) => {
+                    setTaskTab(tab);
+                    setActiveZone('action');
+                  }}
+                />
+                {zoneConfig.profile === 'staff' || zoneConfig.profile === 'office' ? (
+                  <div className="grid gap-3 xl:grid-cols-2">
+                    <MyHrWorkspaceCard />
+                    <WorkspaceExpenseQuickActions />
+                  </div>
+                ) : null}
+                <ActivityFeed
                 events={activityEvents}
                 loading={activityLoading && activityEvents.length === 0}
                 priorityBanner={priorityBanner}
@@ -722,7 +916,8 @@ export default function WorkspaceShell() {
                     setActiveZone('action');
                   }
                 }}
-              />
+                />
+              </div>
             ) : null}
 
             {activeZone === 'rooms' ? (
@@ -748,6 +943,8 @@ export default function WorkspaceShell() {
                     dmCreating={dmCreating}
                     presenceByUser={presenceByUser}
                     currentUserId={userId}
+                    onMuteRoom={handleMuteRoom}
+                    onArchiveRoom={handleArchiveRoom}
                   />
                 </div>
                 <div
@@ -763,6 +960,17 @@ export default function WorkspaceShell() {
                     sending={sending}
                     onSend={handleSend}
                     onPromote={handlePromote}
+                    hasMore={hasEarlierMessages}
+                    loadingEarlier={loadingEarlier}
+                    onLoadEarlier={() => {
+                      const oldest = messages[0]?.createdAtIso;
+                      if (oldest) void loadMessages(activeRoomId, { beforeIso: oldest });
+                    }}
+                    onMuteRoom={handleMuteRoom}
+                    onArchiveRoom={handleArchiveRoom}
+                    onEditMessage={handleEditMessage}
+                    onDeleteMessage={handleDeleteMessage}
+                    directory={dmDirectory || []}
                     presenceByUser={presenceByUser}
                     currentUserId={userId}
                     onBack={() => setActiveRoomId(null)}
@@ -805,6 +1013,15 @@ export default function WorkspaceShell() {
                 onClearSelection={() => setSelectedItem(null)}
                 onRefresh={handleRefresh}
                 recordActions={recordActions}
+                todayCounts={todayCounts}
+                onTodayNavigate={(_section, tab) => {
+                  setTaskTab(tab);
+                  setActiveChip(null);
+                }}
+                onOpenSourceRoom={(roomId) => {
+                  setActiveRoomId(roomId);
+                  setActiveZone('rooms');
+                }}
               />
             ) : null}
 
@@ -814,6 +1031,26 @@ export default function WorkspaceShell() {
                 onSubViewChange={setRecordsSubView}
                 items={visibleWorkItems}
                 inboxCtx={inboxCtx}
+                onOpenItem={(item) => {
+                  setSelectedItem(item);
+                  setActiveZone('action');
+                  setContextOpen(true);
+                }}
+                onCreateNotice={async () => {
+                  if (blocksCreate) return false;
+                  const title = window.prompt('Official notice title');
+                  if (!title?.trim()) return false;
+                  const content = window.prompt('Official notice content');
+                  if (!content?.trim()) return false;
+                  const { ok, data } = await apiFetch('/api/official-notices', {
+                    method: 'POST',
+                    body: JSON.stringify({ title: title.trim(), content: content.trim() }),
+                  });
+                  showToast?.(ok && data?.ok ? 'Official notice published' : data?.error || 'Could not publish notice', {
+                    variant: ok && data?.ok ? 'success' : 'error',
+                  });
+                  return Boolean(ok && data?.ok);
+                }}
               />
             ) : null}
 
@@ -829,13 +1066,18 @@ export default function WorkspaceShell() {
           >
             <ContextRail
               workItem={contextOpen ? selectedItem : null}
-              room={contextOpen && activeZone === 'rooms' ? activeRoom : null}
+              room={contextOpen ? activeRoom : null}
               presence={presence}
               actionsBusy={recordActions.busy}
               fileBusy={filingBusy}
               onApprove={canContextApprove ? () => void recordActions.endorse() : undefined}
               onReject={canContextReject ? () => void recordActions.returnForInfo() : undefined}
               onFile={canContextFile ? () => void fileSelectedRecord() : undefined}
+              onPinToRoom={selectedItem && activeRoom && !readOnly ? () => void handlePinSelectedToRoom() : undefined}
+              onOpenOriginRoom={(roomId) => {
+                setActiveRoomId(roomId);
+                setActiveZone('rooms');
+              }}
               onClose={() => {
                 setContextOpen(false);
                 if (window.matchMedia('(max-width: 1279px)').matches) setSelectedItem(null);

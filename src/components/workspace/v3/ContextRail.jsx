@@ -31,6 +31,8 @@ export default function ContextRail({
   onApprove,
   onReject,
   onFile,
+  onPinToRoom,
+  onOpenOriginRoom,
   actionsBusy = false,
   fileBusy = false,
   children,
@@ -83,6 +85,20 @@ export default function ContextRail({
             {workItem?.referenceNo ? (
               <p className="text-xs text-slate-500">Ref {workItem.referenceNo}</p>
             ) : null}
+            {workItem?.filingNo || workItem?.filingReference || workItem?.data?.filingNo ? (
+              <p className="text-xs text-slate-500">
+                Filing {workItem.filingNo || workItem.filingReference || workItem.data?.filingNo}
+              </p>
+            ) : null}
+            {workItem?.originRoomId || workItem?.data?.originRoomId ? (
+              <button
+                type="button"
+                onClick={() => onOpenOriginRoom?.(workItem.originRoomId || workItem.data?.originRoomId)}
+                className="text-xs font-semibold text-teal-800 hover:underline"
+              >
+                Open source chat
+              </button>
+            ) : null}
           </section>
         ) : null}
         {presence?.length ? (
@@ -109,7 +125,7 @@ export default function ContextRail({
             </ul>
           </section>
         ) : null}
-        {workItem && (onApprove || onReject || onFile) ? (
+        {workItem && (onApprove || onReject || onFile || (room && onPinToRoom)) ? (
           <section className="flex flex-col gap-2 border-t border-slate-100 pt-3">
             {onApprove ? (
               <button
@@ -142,6 +158,16 @@ export default function ContextRail({
                 className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
               >
                 {fileBusy ? 'Filing…' : 'File'}
+              </button>
+            ) : null}
+            {room && onPinToRoom ? (
+              <button
+                type="button"
+                onClick={onPinToRoom}
+                disabled={railBusy}
+                className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-900 hover:bg-teal-100 disabled:opacity-50"
+              >
+                Pin to chat
               </button>
             ) : null}
           </section>

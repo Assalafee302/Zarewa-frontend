@@ -24,14 +24,14 @@ Living metrics for Workspace 2.0. Update every 10 find→fix cycles.
 
 | Field | Value |
 |-------|-------|
-| closed_count | 200 |
+| closed_count | 300 |
 | open_p0 | 0 |
 | open_p1 | 0 |
 | open_p2 | 0 |
 | open_p3 | 0 |
-| last_cycle | 200 |
+| last_cycle | 300 |
 | consecutive_p3_only | 0 |
-| last_wv3_id | WV3-200 |
+| last_wv3_id | WV3-300 |
 
 ## Phase status
 

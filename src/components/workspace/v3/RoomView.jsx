@@ -1,5 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { ArrowLeft, ArrowDown, FileText, Download } from 'lucide-react';
+import {
+  Archive,
+  ArrowLeft,
+  ArrowDown,
+  BellOff,
+  Copy,
+  Download,
+  FileText,
+  Pencil,
+  Reply,
+  Trash2,
+} from 'lucide-react';
 import MessageComposer from './MessageComposer';
 import WorkCard from './WorkCard';
 import PresenceAvatar from './PresenceAvatar';
@@ -111,10 +122,19 @@ export default function RoomView({
   composerDisabled = false,
   composerDisabledReason,
   deskProfile = 'staff',
+  hasMore = false,
+  loadingEarlier = false,
+  onLoadEarlier,
+  onMuteRoom,
+  onArchiveRoom,
+  onEditMessage,
+  onDeleteMessage,
+  directory = [],
 }) {
   const scrollRef = useRef(null);
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const [hasNewBelow, setHasNewBelow] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     const el = scrollRef.current;
@@ -209,6 +229,28 @@ export default function RoomView({
               <p className="mt-0.5 text-xs text-slate-500">{room.description}</p>
             ) : null}
           </div>
+          {onMuteRoom ? (
+            <button
+              type="button"
+              onClick={() => onMuteRoom(room, !room.muted)}
+              className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
+              aria-label={room.muted ? 'Unmute room' : 'Mute room for 8 hours'}
+              title={room.muted ? 'Unmute' : 'Mute 8 hours'}
+            >
+              <BellOff size={16} aria-hidden />
+            </button>
+          ) : null}
+          {!isDm && onArchiveRoom ? (
+            <button
+              type="button"
+              onClick={() => onArchiveRoom(room)}
+              className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
+              aria-label="Archive channel"
+              title="Archive channel"
+            >
+              <Archive size={16} aria-hidden />
+            </button>
+          ) : null}
         </div>
       </div>
       {pinnedCards.length ? (
@@ -241,6 +283,18 @@ export default function RoomView({
               Loading messages…
             </p>
           ) : null}
+          {!loading && hasMore ? (
+            <div className="mb-3 text-center">
+              <button
+                type="button"
+                disabled={loadingEarlier}
+                onClick={onLoadEarlier}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                {loadingEarlier ? 'Loading earlier messages...' : 'Load earlier'}
+              </button>
+            </div>
+          ) : null}
           {!loading && messages.length === 0 ? (
             <ListEmptyState
               title="No messages yet"
@@ -263,7 +317,7 @@ export default function RoomView({
                   </div>
                 ) : null}
                 <div
-                  className={`flex gap-2 ${mine ? 'justify-end' : ''} ${grouped ? 'mt-0.5' : 'mt-2.5'}`}
+                  className={`group flex gap-2 ${mine ? 'justify-end' : ''} ${grouped ? 'mt-0.5' : 'mt-2.5'}`}
                 >
                   {!mine ? (
                     grouped ? (
@@ -282,6 +336,45 @@ export default function RoomView({
                       </div>
                     ) : null}
                     <div className={`inline-block text-left ${mine ? 'ml-auto' : ''}`}>
+                      {!m.deleted ? (
+                        <div className={`mb-1 hidden items-center gap-0.5 group-hover:flex group-focus-within:flex ${mine ? 'justify-end' : ''}`}>
+                          <button type="button" onClick={() => setReplyTo(m)} className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-700" aria-label="Reply">
+                            <Reply size={13} aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void navigator.clipboard?.writeText?.(m.body || '')}
+                            className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                            aria-label="Copy message"
+                          >
+                            <Copy size={13} aria-hidden />
+                          </button>
+                          {mine && onEditMessage ? (
+                            <button type="button" onClick={() => onEditMessage(m)} className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-700" aria-label="Edit message">
+                              <Pencil size={13} aria-hidden />
+                            </button>
+                          ) : null}
+                          {mine && onDeleteMessage ? (
+                            <button type="button" onClick={() => onDeleteMessage(m)} className="rounded p-1 text-slate-400 hover:bg-white hover:text-red-700" aria-label="Delete message">
+                              <Trash2 size={13} aria-hidden />
+                            </button>
+                          ) : null}
+                          {onPromote && hasBody ? (
+                            <button
+                              type="button"
+                              onClick={() => onPromote('work_item', m.body, m.id)}
+                              className="rounded px-1.5 py-1 text-[10px] font-semibold text-slate-500 hover:bg-white hover:text-teal-800"
+                            >
+                              Promote
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {m.parentMessageId ? (
+                        <p className="mb-1 max-w-xs truncate rounded border-l-2 border-slate-300 bg-slate-100 px-2 py-1 text-[10px] text-slate-500">
+                          Reply to {m.parentMessageId}
+                        </p>
+                      ) : null}
                       {hasBody ? (
                         <div
                           className={`rounded-2xl px-3 py-2 text-sm shadow-sm ${
@@ -290,7 +383,8 @@ export default function RoomView({
                               : 'rounded-bl-md border border-slate-200 bg-white text-slate-800'
                           }`}
                         >
-                          <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                          <p className={`whitespace-pre-wrap break-words ${m.deleted ? 'italic opacity-70' : ''}`}>{m.body}</p>
+                          {m.editedAtIso && !m.deleted ? <span className="mt-1 block text-[10px] opacity-70">edited</span> : null}
                         </div>
                       ) : null}
                       <MessageAttachments attachments={m.attachments} mine={mine} />
@@ -329,6 +423,9 @@ export default function RoomView({
         showPromote
         deskProfile={deskProfile}
         placeholder={isDm ? `Message ${room.name || ''}…` : 'Message this channel…'}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+        directory={directory}
       />
     </div>
   );

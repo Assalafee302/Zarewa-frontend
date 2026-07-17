@@ -1,6 +1,10 @@
 import { resolveDeskProfile, DESK_PROFILES } from './workspaceDeskNav.js';
 import { TASK_QUEUE_TABS, isValidTaskQueueTab } from './workspaceTaskQueue.js';
 import { canAccessModuleWithPermissions } from './moduleAccess.js';
+import {
+  WORKSPACE_CATEGORIES,
+  workItemMatchesCategory,
+} from './workspaceCategoryRegistry.js';
 
 export { isValidTaskQueueTab };
 
@@ -8,12 +12,16 @@ export { isValidTaskQueueTab };
 const APP_MODULE_BY_ID = {
   sales: 'sales',
   hr: 'hr',
+  my_hr: 'my_profile_hr',
   manager: 'sales',
   operations: 'operations',
+  production: 'operations',
+  cashier: 'cashier_desk',
   monitoring: 'office',
   accounts: 'finance',
   accounting: 'accounting_desk',
   edit_approvals: 'edit_approvals',
+  procurement: 'procurement',
   exec: 'office',
   reports: 'reports',
 };
@@ -39,19 +47,28 @@ export function isValidWorkspaceZone(zoneId) {
 }
 
 /** Role-scoped smart filter chips (not top-level nav) */
+const CATEGORY_CHIP_IDS = ['sales', 'finance', 'inventory', 'operations', 'hr_admin', 'memos'];
+const CATEGORY_CHIPS = CATEGORY_CHIP_IDS.map((id) => ({
+  id,
+  label: WORKSPACE_CATEGORIES[id]?.label || id,
+}));
+
 const ACTION_CHIPS_BY_PROFILE = {
-  [DESK_PROFILES.staff]: [],
+  [DESK_PROFILES.staff]: [...CATEGORY_CHIPS],
   [DESK_PROFILES.branch]: [
+    ...CATEGORY_CHIPS,
     { id: 'endorsements', label: 'Endorsements' },
     { id: 'team_requests', label: 'Team requests' },
     { id: 'incidents', label: 'Incidents' },
   ],
   [DESK_PROFILES.office]: [
+    ...CATEGORY_CHIPS,
     { id: 'review', label: 'Review' },
     { id: 'approvals', label: 'Approvals' },
     { id: 'conversions', label: 'Conversions' },
   ],
   [DESK_PROFILES.executive]: [
+    ...CATEGORY_CHIPS,
     { id: 'high_value', label: 'High value' },
     { id: 'overdue', label: 'Overdue' },
     { id: 'branch_pulse', label: 'Branch pulse' },
@@ -68,11 +85,19 @@ const DEFAULT_ZONE_BY_PROFILE = {
 const APPS_BY_PROFILE = {
   [DESK_PROFILES.staff]: [
     { id: 'sales', label: 'Sales', path: '/sales' },
-    { id: 'hr', label: 'My HR', path: '/hr' },
+    { id: 'my_hr', label: 'My HR', path: '/my-profile' },
+    { id: 'operations', label: 'Operations', path: '/operations' },
+    {
+      id: 'production',
+      label: 'Production',
+      path: '/operations',
+      description: 'Production and material operations',
+    },
   ],
   [DESK_PROFILES.branch]: [
     { id: 'manager', label: 'Branch Command', path: '/manager' },
     { id: 'sales', label: 'Sales', path: '/sales' },
+    { id: 'cashier', label: 'Cashier', path: '/cashier' },
     { id: 'operations', label: 'Operations', path: '/operations' },
     { id: 'monitoring', label: 'Monitoring', path: '/workspace/monitoring' },
   ],
@@ -81,6 +106,7 @@ const APPS_BY_PROFILE = {
     { id: 'accounting', label: 'Accounting', path: '/accounting' },
     { id: 'hr', label: 'HR', path: '/hr' },
     { id: 'edit_approvals', label: 'Edit Approvals', path: '/edit-approvals' },
+    { id: 'procurement', label: 'Procurement', path: '/procurement' },
   ],
   [DESK_PROFILES.executive]: [
     { id: 'exec', label: 'Executive Centre', path: '/exec' },
@@ -149,11 +175,25 @@ export function actionChipToTaskTab(chipId) {
  */
 export function workItemMatchesActionChip(item, chipId) {
   if (!chipId) return true;
+  if (CATEGORY_CHIP_IDS.includes(chipId)) return workItemMatchesCategory(item, chipId);
   const docType = String(item?.documentType || '').toLowerCase();
   const docClass = String(item?.documentClass || '').toLowerCase();
   const title = String(item?.title || '').toLowerCase();
   const priority = String(item?.priority || '').toLowerCase();
+  const status = String(item?.status || '').toLowerCase();
   const hay = `${docType} ${docClass} ${title}`;
+  const amount = [
+    item?.amount,
+    item?.amountNgn,
+    item?.total,
+    item?.totalNgn,
+    item?.data?.amount,
+    item?.data?.amountNgn,
+    item?.payload?.amount,
+    item?.payload?.amountNgn,
+  ]
+    .map(Number)
+    .find(Number.isFinite);
   switch (chipId) {
     case 'endorsements':
       return Boolean(item?.requiresApproval) || /endorse/.test(hay);
@@ -168,11 +208,11 @@ export function workItemMatchesActionChip(item, chipId) {
     case 'conversions':
       return /expense|payment|material|procure/.test(hay);
     case 'high_value':
-      return priority === 'urgent' || priority === 'high' || Boolean(item?.requiresApproval);
+      return priority === 'urgent' || priority === 'high' || (Number.isFinite(amount) && amount >= 1000000);
     case 'overdue':
       return true; // tab itself is the overdue filter
     case 'branch_pulse':
-      return true;
+      return Boolean(item?.requiresApproval) || /waiting|overdue|returned|blocked/.test(status);
     default:
       return true;
   }

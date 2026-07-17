@@ -204,6 +204,106 @@ Format: `WV3-NNN | severity | area | role | status | note`
 | WV3-198 | P2 | function | all | closed | Tests for leadership deny, announcement post deny, activity filter — added |
 | WV3-199 | P3 | function | all | closed | DM create peer inactive / slug reuse hardened |
 | WV3-200 | P2 | docs | all | closed | ISSUE_LOG + SCORECARD updated for 151–200 hardening pass |
+| WV3-201 | P2 | erp-fit | all | closed | Apps ERP completeness: real route inventory and permission gates |
+| WV3-202 | P2 | erp-fit | Staff | closed | Apps ERP completeness: Sales and HR links |
+| WV3-203 | P2 | erp-fit | Staff | closed | Apps ERP completeness: Operations link |
+| WV3-204 | P2 | erp-fit | Staff | closed | Apps ERP completeness: Production uses the real Operations route |
+| WV3-205 | P2 | erp-fit | BM | closed | Apps ERP completeness: Cashier link |
+| WV3-206 | P2 | erp-fit | BM | closed | Apps ERP completeness: Operations and monitoring links |
+| WV3-207 | P2 | erp-fit | Office | closed | Apps ERP completeness: Accounts and Accounting links |
+| WV3-208 | P2 | erp-fit | Office | closed | Apps ERP completeness: HR and Edit Approvals links |
+| WV3-209 | P2 | erp-fit | Office | closed | Apps ERP completeness: Procurement link |
+| WV3-210 | P2 | erp-fit | Exec | closed | Apps ERP completeness: Reports retained with executive tools |
+| WV3-211 | P2 | ux | all | closed | ERP category chips added across profiles |
+| WV3-212 | P2 | function | all | closed | Sales chip uses category registry matching |
+| WV3-213 | P2 | function | all | closed | Finance chip uses category registry matching |
+| WV3-214 | P2 | function | all | closed | Inventory chip uses category registry matching |
+| WV3-215 | P2 | function | all | closed | Operations chip uses category registry matching |
+| WV3-216 | P2 | function | all | closed | HR/Admin chip uses category registry matching |
+| WV3-217 | P2 | function | all | closed | Memos chip uses category registry matching |
+| WV3-218 | P2 | function | BM | closed | Endorsement heuristics retained |
+| WV3-219 | P2 | function | Office | closed | Review and approval heuristics retained |
+| WV3-220 | P2 | function | Exec | closed | High-value and branch-pulse filters narrowed |
+| WV3-221 | P2 | ux | all | closed | Today work cards moved into Activity |
+| WV3-222 | P2 | function | all | closed | Today cards deep-link to Action tabs |
+| WV3-223 | P2 | ux | Staff | closed | My HR card restored in Activity |
+| WV3-224 | P2 | ux | Office | closed | My HR card restored for office profiles |
+| WV3-225 | P2 | ux | Staff | closed | Expense quick actions restored in Activity |
+| WV3-226 | P2 | ux | Office | closed | Expense quick actions restored for office profiles |
+| WV3-227 | P1 | function | all | closed | Zone deep-link state supported |
+| WV3-228 | P1 | function | all | closed | Task-tab deep-link state supported |
+| WV3-229 | P1 | function | all | closed | Room deep-link state supported |
+| WV3-230 | P1 | function | all | closed | Work-item deep-link state supported |
+| WV3-231 | P2 | function | all | closed | Compose deep-link preserved |
+| WV3-232 | P2 | ux | all | closed | Last valid zone persisted per session |
+| WV3-233 | P2 | function | all | closed | Invalid saved zones safely ignored |
+| WV3-234 | P1 | function | all | closed | Room mute API client wired |
+| WV3-235 | P1 | function | all | closed | Room archive API client wired |
+| WV3-236 | P1 | function | all | closed | Message edit API client wired |
+| WV3-237 | P1 | function | all | closed | Message delete API client wired |
+| WV3-238 | P2 | function | all | closed | Message pagination cursor sent to API |
+| WV3-239 | P2 | function | all | closed | Earlier messages prepend without replacing history |
+| WV3-240 | P2 | ux | all | closed | Load-earlier progress and availability added |
+| WV3-241 | P1 | function | all | closed | Selected work item can pin to active room |
+| WV3-242 | P2 | ux | all | closed | Pin action exposed in context rail |
+| WV3-243 | P2 | function | all | closed | Operations incident create type mapped |
+| WV3-244 | P2 | function | all | closed | Fuel/diesel create type mapped |
+| WV3-245 | P2 | function | all | closed | Leave creation links to HR self-service |
+| WV3-246 | P2 | function | all | closed | Presence heartbeat sends active desk key |
+| WV3-247 | P1 | function | all | closed | Failed offline messages queue per room |
+| WV3-248 | P1 | function | all | closed | Queued messages retry on reconnect |
+| WV3-249 | P2 | ux | all | closed | Queue status is reported without losing the draft |
+| WV3-250 | P2 | function | all | closed | Workspace API additions degrade through structured errors |
+| WV3-251 | P2 | ui | all | closed | Muted room indicator added |
+| WV3-252 | P2 | ui | all | closed | Muted room opacity styling added |
+| WV3-253 | P2 | ux | all | closed | Room overflow actions added |
+| WV3-254 | P2 | function | all | closed | Mute for eight hours action added |
+| WV3-255 | P2 | function | all | closed | Unmute action added |
+| WV3-256 | P2 | function | all | closed | Archive limited to channels |
+| WV3-257 | P2 | ux | all | closed | Room header mute control added |
+| WV3-258 | P2 | ux | all | closed | Channel header archive control added |
+| WV3-259 | P2 | ux | all | closed | Message hover and focus actions added |
+| WV3-260 | P2 | function | all | closed | Reply action populates composer context |
+| WV3-261 | P2 | function | all | closed | Reply sends parent message id |
+| WV3-262 | P2 | function | all | closed | Copy message action added |
+| WV3-263 | P1 | function | all | closed | Own-message edit action added |
+| WV3-264 | P1 | function | all | closed | Own-message delete action added |
+| WV3-265 | P2 | function | all | closed | Message promotion carries source message id |
+| WV3-266 | P2 | ui | all | closed | Edited marker rendered |
+| WV3-267 | P2 | ui | all | closed | Deleted message tombstone rendered |
+| WV3-268 | P2 | ux | all | closed | Reply context rendered above composer |
+| WV3-269 | P2 | ux | all | closed | Mention autocomplete detects active at-token |
+| WV3-270 | P2 | function | all | closed | Directory mention suggestions insert usernames |
+| WV3-271 | P2 | ux | all | closed | Records notices tab retained |
+| WV3-272 | P2 | ux | all | closed | Records filing tab deepened |
+| WV3-273 | P2 | ux | all | closed | Records search tab deepened |
+| WV3-274 | P2 | ux | all | closed | Records drafts tab added |
+| WV3-275 | P2 | ux | all | closed | Records filed tab added |
+| WV3-276 | P2 | function | all | closed | Needs-filing records listed from live items |
+| WV3-277 | P2 | function | all | closed | Filed records listed from live items |
+| WV3-278 | P2 | function | all | closed | Record rows open Action detail |
+| WV3-279 | P2 | function | all | closed | Local record title filtering added |
+| WV3-280 | P2 | function | all | closed | Local filing-number filtering added |
+| WV3-281 | P2 | function | Office | closed | Official notice creation uses existing API |
+| WV3-282 | P2 | ux | all | closed | Action inbox accepts compact Today cards |
+| WV3-283 | P2 | function | all | closed | Action item source-room link added |
+| WV3-284 | P2 | function | all | closed | Context source-room link added |
+| WV3-285 | P2 | ui | all | closed | Filing reference shown in context |
+| WV3-286 | P2 | ux | all | closed | Apps support optional icons |
+| WV3-287 | P2 | ux | all | closed | Apps support descriptions |
+| WV3-288 | P2 | function | all | closed | Apps support optional badge maps |
+| WV3-289 | P2 | ux | all | closed | Incident added to Create menu |
+| WV3-290 | P2 | ux | all | closed | Fuel record added to Create menu |
+| WV3-291 | P2 | ux | all | closed | Leave request added to Create menu |
+| WV3-292 | P3 | ux | all | closed | Search keyboard hint added |
+| WV3-293 | P2 | a11y | all | closed | Room action controls have accessible labels |
+| WV3-294 | P2 | a11y | all | closed | Message actions expose focus states |
+| WV3-295 | P2 | a11y | all | closed | Mention suggestions have an accessible label |
+| WV3-296 | P2 | function | all | closed | Existing APIs verified before frontend wiring |
+| WV3-297 | P2 | function | all | closed | Production avoids a nonexistent route |
+| WV3-298 | P2 | function | all | closed | Category, zone, and flag tests pass |
+| WV3-299 | P2 | docs | all | closed | Completion themes mapped in issue log |
+| WV3-300 | P2 | docs | all | closed | SCORECARD advanced through Workspace V3 completion pass |
 
 ## Severity
 

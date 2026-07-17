@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import TaskQueuePanel from '../TaskQueuePanel';
 import OfficeRecordDetail from '../OfficeRecordDetail';
+import TodayWorkCards from '../TodayWorkCards';
 import { workItemMatchesActionChip } from '../../../lib/workspaceZoneConfig';
 
 /**
@@ -20,6 +21,9 @@ export default function ActionInbox({
   onClearSelection,
   onRefresh,
   recordActions = null,
+  todayCounts,
+  onTodayNavigate,
+  onOpenSourceRoom,
 }) {
   const chipFiltered = useMemo(
     () => (activeChip ? items.filter((item) => workItemMatchesActionChip(item, activeChip)) : items),
@@ -29,6 +33,11 @@ export default function ActionInbox({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row" role="region" aria-label="Action inbox">
       <div className={`min-w-0 ${selectedItem ? 'hidden lg:flex lg:w-[40%] lg:flex-col' : 'flex flex-1 flex-col'}`}>
+        {todayCounts ? (
+          <div className="mb-3">
+            <TodayWorkCards counts={todayCounts} onNavigate={onTodayNavigate} />
+          </div>
+        ) : null}
         {actionChips.length ? (
           <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Content filters">
             <button
@@ -70,6 +79,17 @@ export default function ActionInbox({
       </div>
       {selectedItem ? (
         <div className="min-w-0 flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white lg:w-[60%]">
+          {selectedItem.originRoomId || selectedItem.data?.originRoomId ? (
+            <div className="border-b border-slate-100 px-4 py-2">
+              <button
+                type="button"
+                onClick={() => onOpenSourceRoom?.(selectedItem.originRoomId || selectedItem.data?.originRoomId)}
+                className="text-xs font-semibold text-teal-800 hover:underline"
+              >
+                Open source chat
+              </button>
+            </div>
+          ) : null}
           <OfficeRecordDetail
             workItem={selectedItem}
             onClose={onClearSelection}
