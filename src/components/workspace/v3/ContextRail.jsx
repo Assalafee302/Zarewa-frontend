@@ -32,8 +32,10 @@ export default function ContextRail({
   onReject,
   onFile,
   actionsBusy = false,
+  fileBusy = false,
   children,
 }) {
+  const railBusy = Boolean(actionsBusy || fileBusy);
   if (!workItem && !room && !children) {
     return (
       <aside
@@ -90,8 +92,14 @@ export default function ContextRail({
               {presence.slice(0, 12).map((p) => (
                 <li key={p.userId} className="flex items-center gap-2 text-sm text-slate-800">
                   <span
-                    className={`h-2 w-2 rounded-full ${
-                      p.status === 'online' ? 'bg-green-500' : p.status === 'away' || p.status === 'busy' ? 'bg-amber-400' : 'bg-slate-300'
+                    className={`h-2 w-2 shrink-0 rounded-full ${
+                      p.status === 'online'
+                        ? 'bg-green-500'
+                        : p.status === 'busy'
+                          ? 'bg-red-500'
+                          : p.status === 'away'
+                            ? 'bg-amber-400'
+                            : 'bg-slate-300'
                     }`}
                     aria-hidden
                   />
@@ -107,18 +115,18 @@ export default function ContextRail({
               <button
                 type="button"
                 onClick={onApprove}
-                disabled={actionsBusy}
+                disabled={railBusy}
                 aria-label="Approve or endorse work item"
                 className="rounded-lg bg-teal-800 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-50"
               >
-                {actionsBusy ? 'Working…' : 'Approve'}
+                {railBusy ? 'Working…' : 'Approve'}
               </button>
             ) : null}
             {onReject ? (
               <button
                 type="button"
                 onClick={onReject}
-                disabled={actionsBusy}
+                disabled={railBusy}
                 aria-label="Reject or return work item"
                 className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
               >
@@ -129,11 +137,11 @@ export default function ContextRail({
               <button
                 type="button"
                 onClick={onFile}
-                disabled={actionsBusy}
+                disabled={railBusy}
                 aria-label="File work item"
                 className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
               >
-                File
+                {fileBusy ? 'Filing…' : 'File'}
               </button>
             ) : null}
           </section>

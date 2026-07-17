@@ -20,7 +20,6 @@ export default function RecordsZone({
     { id: 'search', label: 'Search' },
   ];
   const active = subView || 'notices';
-  const panelId = `records-panel-${active}`;
 
   return (
     <div className="space-y-3">
@@ -36,7 +35,7 @@ export default function RecordsZone({
             role="tab"
             id={`records-tab-${tab.id}`}
             aria-selected={active === tab.id}
-            aria-controls={panelId}
+            aria-controls={`records-panel-${tab.id}`}
             onClick={() => onSubViewChange?.(tab.id)}
             className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
               active === tab.id ? 'bg-white text-teal-900 shadow-sm ring-1 ring-slate-200' : 'text-slate-600'
@@ -46,11 +45,19 @@ export default function RecordsZone({
           </button>
         ))}
       </div>
-      <div id={panelId} role="tabpanel" aria-labelledby={`records-tab-${active}`}>
-        {active === 'notices' ? <OfficialNoticesPanel /> : null}
-        {active === 'filing' ? <FilingPanel items={items} inboxCtx={inboxCtx} /> : null}
-        {active === 'search' ? <DeskSearchPanel /> : null}
-      </div>
+      {tabs.map((tab) => (
+        <div
+          key={tab.id}
+          id={`records-panel-${tab.id}`}
+          role="tabpanel"
+          aria-labelledby={`records-tab-${tab.id}`}
+          hidden={active !== tab.id}
+        >
+          {active === tab.id && tab.id === 'notices' ? <OfficialNoticesPanel /> : null}
+          {active === tab.id && tab.id === 'filing' ? <FilingPanel items={items} inboxCtx={inboxCtx} /> : null}
+          {active === tab.id && tab.id === 'search' ? <DeskSearchPanel /> : null}
+        </div>
+      ))}
     </div>
   );
 }

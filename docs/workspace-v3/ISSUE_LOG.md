@@ -154,6 +154,56 @@ Format: `WV3-NNN | severity | area | role | status | note`
 | WV3-148 | P2 | function | all | closed | New tests: chip filters, chip→tab validity, zone validation |
 | WV3-149 | P3 | ui | all | closed | Stray blank line / disabled textarea styling in command bar & composer |
 | WV3-150 | P2 | docs | all | closed | ISSUE_LOG + SCORECARD updated for the 101–150 hardening pass |
+| WV3-151 | P1 | metric | all | closed | Priority banner read intelligence.alerts/items — now uses suggestions + overdue deep-link |
+| WV3-152 | P1 | function | all | closed | Activity fallback synthesized from wrong intelligence fields — fixed to suggestions + priorities.overdue |
+| WV3-153 | P2 | ux | all | closed | Activity/rooms polling flashed loading spinner — silent refresh when data already present |
+| WV3-154 | P1 | function | all | closed | Dual useOfficeRecordActions in shell + detail — shared recordActions prop |
+| WV3-155 | P1 | function | all | closed | Room switch race showed stale messages — seq guard + AbortController |
+| WV3-156 | P1 | function | all | closed | Promote work item opened before refresh — await refresh then resolve item |
+| WV3-157 | P2 | function | all | closed | Deep-link taskTab not validated — isValidTaskQueueTab guard |
+| WV3-158 | P2 | ux | all | closed | Profile change left stale action chip — cleared on profile switch |
+| WV3-159 | P2 | metric | BM | closed | canMonitor omitted branch_manager/chairman/ceo — MONITOR_ROLES expanded |
+| WV3-160 | P1 | ux | all | closed | Create allowed in read-only snapshot — blocksCreate includes readOnly |
+| WV3-161 | P2 | a11y | all | closed | Zone hotkeys fired while create menu open — gated on createMenuOpen |
+| WV3-162 | P2 | function | all | closed | Mark all read optimistically on API failure — checks markWorkspaceActivityRead result |
+| WV3-163 | P2 | function | Office | closed | Context rail File had no busy state — filingBusy + fileBusy prop |
+| WV3-164 | P2 | ui | all | closed | Main canvas missing min-h-0 — flex overflow fixed |
+| WV3-165 | P2 | function | all | closed | Selected work item stale after refresh — sync effect from visibleWorkItems |
+| WV3-166 | P2 | function | all | closed | DM directory fetch failure set empty array — retry-friendly null/undefined |
+| WV3-167 | P2 | a11y | all | closed | Task queue selection not announced — aria-current on selected row |
+| WV3-168 | P2 | a11y | all | closed | Records sub-tabs missing aria-controls — tabpanel wiring |
+| WV3-169 | P2 | erp-fit | Exec | closed | Executive could promote material request — deskProfile-gated promote menu |
+| WV3-170 | P2 | erp-fit | all | closed | Apps grid showed modules without permission — APP_MODULE_BY_ID filter |
+| WV3-171 | P2 | function | all | closed | Unknown task queue tab showed full inbox — default case returns false |
+| WV3-172 | P3 | ux | all | closed | Activity timestamps raw ISO — relative formatActivityWhen |
+| WV3-173 | P2 | ui | all | closed | Context rail presence busy/away same color — four-color palette |
+| WV3-174 | P2 | function | Office | closed | OfficeRecordDetail filed without read-only guard — reconnect warning |
+| WV3-175 | P2 | function | all | closed | fetchRoomMessages lacked abort signal — passed through apiFetch |
+| WV3-176 | P2 | function | all | closed | Room unread not cleared on view — markRoomRead on open + SSE |
+| WV3-177 | P2 | function | all | closed | workspaceV3Api missing markRoomRead export — added POST /read client |
+| WV3-178 | P3 | function | all | closed | zone config tests assumed apps without permissions — permissions in test |
+| WV3-179 | P0 | erp-fit | all | closed | DM/channel office threads visible via admin/HQ rollup — conversation_mode gate |
+| WV3-180 | P0 | erp-fit | Exec | closed | Leadership company room readable by all branch staff — exec role ACL |
+| WV3-181 | P0 | erp-fit | all | closed | Mention activity visible to whole branch — target_user_id recipient filter |
+| WV3-182 | P1 | erp-fit | all | closed | Announcements room writable by any member — userMayPostInRoom exec-only |
+| WV3-183 | P1 | erp-fit | all | closed | Department rooms visible to whole branch — dept role + membership ACL |
+| WV3-184 | P1 | erp-fit | all | closed | DM rooms listed without membership SQL filter — EXISTS member subquery |
+| WV3-185 | P1 | function | all | closed | Duplicate default rooms on concurrent provision — unique index on scope/branch/slug |
+| WV3-186 | P2 | function | all | closed | getRoomMessages marked read on every load — markRead default false + POST read |
+| WV3-187 | P2 | function | all | closed | No message pagination cursor — beforeIso on getRoomMessages |
+| WV3-188 | P2 | function | all | closed | SSE unbounded connections — per-user cap 3, total cap 500 |
+| WV3-189 | P2 | function | all | closed | pinRoomWorkCard skipped work item visibility — confidential check |
+| WV3-190 | P2 | function | all | closed | Mention resolution matched display_name ambiguously — username only |
+| WV3-191 | P2 | function | all | closed | promoteFromRoom ignored messageId thread ownership — verified |
+| WV3-192 | P2 | function | all | closed | postRoomMessage/createDmRoom/pin missing audit — appendAuditLog added |
+| WV3-193 | P2 | function | all | closed | Muted room members still got unread — muted_until_iso respected |
+| WV3-194 | P2 | function | all | closed | Presence desk_key not persisted — upsert/list deskKey |
+| WV3-195 | P2 | function | all | closed | Mention inserts outside transaction — folded into message txn |
+| WV3-196 | P2 | function | all | closed | schema/migrate missing activity target_user_id + room indexes |
+| WV3-197 | P2 | function | all | closed | httpApi missing POST /rooms/:id/read — route added |
+| WV3-198 | P2 | function | all | closed | Tests for leadership deny, announcement post deny, activity filter — added |
+| WV3-199 | P3 | function | all | closed | DM create peer inactive / slug reuse hardened |
+| WV3-200 | P2 | docs | all | closed | ISSUE_LOG + SCORECARD updated for 151–200 hardening pass |
 
 ## Severity
 

@@ -1,11 +1,28 @@
 import { resolveDeskProfile, DESK_PROFILES } from './workspaceDeskNav.js';
-import { TASK_QUEUE_TABS } from './workspaceTaskQueue.js';
+import { TASK_QUEUE_TABS, isValidTaskQueueTab } from './workspaceTaskQueue.js';
+import { canAccessModuleWithPermissions } from './moduleAccess.js';
+
+export { isValidTaskQueueTab };
+
+/** App deep-links → module keys for permission gating. */
+const APP_MODULE_BY_ID = {
+  sales: 'sales',
+  hr: 'hr',
+  manager: 'sales',
+  operations: 'operations',
+  monitoring: 'office',
+  accounts: 'finance',
+  accounting: 'accounting_desk',
+  edit_approvals: 'edit_approvals',
+  exec: 'office',
+  reports: 'reports',
+};
 
 /** @typedef {'activity' | 'rooms' | 'action' | 'records' | 'apps'} WorkspaceZoneId */
 
 export const WORKSPACE_ZONES = [
   { id: 'activity', label: 'Activity', shortLabel: 'Activity' },
-  { id: 'rooms', label: 'Rooms', shortLabel: 'Rooms' },
+  { id: 'rooms', label: 'Chat', shortLabel: 'Chat' },
   { id: 'action', label: 'Action', shortLabel: 'Action' },
   { id: 'records', label: 'Records', shortLabel: 'Records' },
   { id: 'apps', label: 'Apps', shortLabel: 'Apps' },
@@ -78,13 +95,19 @@ const APPS_BY_PROFILE = {
  */
 export function getWorkspaceZoneConfig(ctx = {}) {
   const profile = resolveDeskProfile(ctx);
+  const perms = ctx.permissions || [];
+  const apps = (APPS_BY_PROFILE[profile] || APPS_BY_PROFILE[DESK_PROFILES.staff]).filter((app) => {
+    const moduleKey = APP_MODULE_BY_ID[app.id];
+    if (!moduleKey) return Boolean(app.path);
+    return canAccessModuleWithPermissions(perms, moduleKey);
+  });
   return {
     profile,
     zones: WORKSPACE_ZONES,
     defaultZone: DEFAULT_ZONE_BY_PROFILE[profile] || 'action',
     actionTabs: ACTION_TABS,
     actionChips: ACTION_CHIPS_BY_PROFILE[profile] || [],
-    apps: APPS_BY_PROFILE[profile] || APPS_BY_PROFILE[DESK_PROFILES.staff],
+    apps,
     title:
       profile === DESK_PROFILES.executive
         ? 'Executive Workspace'

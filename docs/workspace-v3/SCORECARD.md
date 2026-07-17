@@ -14,19 +14,24 @@ Living metrics for Workspace 2.0. Update every 10 find→fix cycles.
 | Unread badge accuracy | matches server | matches | Action badge = needs_action tab count; own events excluded |
 | SSE event confidentiality | branch/member scoped | scoped | Clients registered with scope; DM events member-only |
 | getRoomMessages query count | O(1) queries | 1 + reads upsert | N+1 per-message SELECTs removed |
+| Mention activity confidentiality | recipient-only | recipient-only | target_user_id filter on listActivityEvents |
+| Leadership/announcement room ACL | exec-only write | enforced | userMayPostInRoom + userMayAccessRoom |
+| DM office-thread API leak | blocked | blocked | conversation_mode dm/channel participant gate |
+| Apps zone permission gating | module ACL | enforced | APP_MODULE_BY_ID filter in zone config |
+| Room read cursor | explicit mark-read | explicit | GET messages no longer marks read by default |
 
 ## Loop progress
 
 | Field | Value |
 |-------|-------|
-| closed_count | 150 |
+| closed_count | 200 |
 | open_p0 | 0 |
 | open_p1 | 0 |
 | open_p2 | 0 |
 | open_p3 | 0 |
-| last_cycle | 150 |
+| last_cycle | 200 |
 | consecutive_p3_only | 0 |
-| last_wv3_id | WV3-150 |
+| last_wv3_id | WV3-200 |
 
 ## Phase status
 

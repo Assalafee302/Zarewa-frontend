@@ -1,6 +1,25 @@
 import React from 'react';
 import { ListEmptyState } from '../../ui/ListEmptyState';
 
+function formatActivityWhen(iso) {
+  if (!iso) return '';
+  try {
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t)) return String(iso);
+    const diff = Date.now() - t;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(t).toLocaleDateString();
+  } catch {
+    return String(iso);
+  }
+}
+
 /**
  * Activity feed — mentions, assignments, SLA, system events.
  */
@@ -60,7 +79,8 @@ export default function ActivityFeed({
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
           {events.map((ev, idx) => {
             const summary = ev.summaryText || ev.summary || ev.title || 'Activity event';
-            const meta = [ev.eventKind || ev.kind, ev.createdAtIso || ev.at].filter(Boolean).join(' · ');
+            const when = formatActivityWhen(ev.createdAtIso || ev.at);
+            const meta = [ev.eventKind || ev.kind, when].filter(Boolean).join(' · ');
             const unread = ev.read === false;
             return (
               <li key={ev.id || `activity-${idx}`}>
@@ -68,6 +88,7 @@ export default function ActivityFeed({
                   type="button"
                   onClick={() => onOpenEvent?.(ev)}
                   aria-label={`${summary}${unread ? ', unread' : ''}`}
+                  title={ev.createdAtIso || undefined}
                   className="flex w-full items-start gap-2 px-4 py-3 text-left hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-600"
                 >
                   {unread ? (

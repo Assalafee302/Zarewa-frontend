@@ -15,12 +15,13 @@ export async function fetchWorkspaceRooms() {
   return { rooms: Array.isArray(data.rooms) ? data.rooms : [], error: null };
 }
 
-export async function fetchRoomMessages(roomId, { limit = 80 } = {}) {
+export async function fetchRoomMessages(roomId, { limit = 80, signal } = {}) {
   const id = requireRoomId(roomId);
   if (!id) return { messages: [], pinned: [], error: 'Room id required' };
   const safeLimit = Math.min(200, Math.max(1, Number(limit) || 80));
   const { ok, data } = await apiFetch(
-    `/api/workspace/rooms/${encodeURIComponent(id)}/messages?limit=${safeLimit}`
+    `/api/workspace/rooms/${encodeURIComponent(id)}/messages?limit=${safeLimit}`,
+    signal ? { signal } : {}
   );
   if (!ok || !data?.ok) return { messages: [], pinned: [], error: data?.error || 'Failed to load messages' };
   return {
@@ -31,14 +32,31 @@ export async function fetchRoomMessages(roomId, { limit = 80 } = {}) {
   };
 }
 
+/** Mark the room's unread cursor as read for the current user. */
+export async function markRoomRead(roomId) {
+  const id = requireRoomId(roomId);
+  if (!id) return false;
+  const { ok, data } = await apiFetch(`/api/workspace/rooms/${encodeURIComponent(id)}/read`, {
+    method: 'POST',
+    body: postBody({}),
+  });
+  return Boolean(ok && data?.ok);
+}
+
 export async function sendRoomMessage(roomId, body) {
   const id = requireRoomId(roomId);
   if (!id) return { message: null, error: 'Room id required' };
   const text = typeof body === 'string' ? body : body?.body;
-  if (!String(text || '').trim()) return { message: null, error: 'Message is required' };
+  const attachments = typeof body === 'object' && Array.isArray(body?.attachments) ? body.attachments : [];
+  if (!String(text || '').trim() && attachments.length === 0) {
+    return { message: null, error: 'Message is required' };
+  }
   const { ok, data } = await apiFetch(`/api/workspace/rooms/${encodeURIComponent(id)}/messages`, {
     method: 'POST',
-    body: postBody({ body: String(text).trim() }),
+    body: postBody({
+      body: String(text || '').trim(),
+      ...(attachments.length ? { attachments } : {}),
+    }),
   });
   if (!ok || !data?.ok) return { message: null, error: data?.error || 'Send failed' };
   return { message: data.message || null, error: null };

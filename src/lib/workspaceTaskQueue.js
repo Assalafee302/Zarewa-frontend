@@ -73,8 +73,13 @@ export function workItemMatchesTaskQueueTab(item, tabId, inboxCtx) {
     case 'completed':
       return workItemIsCompletedTab(item);
     default:
-      return true;
+      // Unknown tab ids must not show the full inbox.
+      return false;
   }
+}
+
+export function isValidTaskQueueTab(tabId) {
+  return TASK_QUEUE_TABS.some((t) => t.id === tabId);
 }
 
 /**

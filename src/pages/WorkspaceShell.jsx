@@ -8,6 +8,7 @@ import {
   getWorkspaceZoneConfig,
   actionChipToTaskTab,
   isValidWorkspaceZone,
+  isValidTaskQueueTab,
 } from '../lib/workspaceZoneConfig';
 import { workItemShowsOnWorkspaceUnifiedInbox } from '../lib/workItemPersonalInbox';
 import { workItemMatchesTaskQueueTab } from '../lib/workspaceTaskQueue';
@@ -29,6 +30,7 @@ import RoomView from '../components/workspace/v3/RoomView';
 import {
   fetchWorkspaceRooms,
   fetchRoomMessages,
+  markRoomRead,
   sendRoomMessage,
   fetchWorkspaceActivity,
   markWorkspaceActivityRead,
@@ -57,6 +59,15 @@ const ROOMS_POLL_MS = 30000;
 const IDLE_POLL_MS = 60000;
 const HEARTBEAT_MS = 30000;
 
+const MONITOR_ROLES = new Set([
+  'branch_manager',
+  'chairman',
+  'ceo',
+  'md',
+  'admin',
+  'sales_manager',
+]);
+
 export default function WorkspaceShell() {
   const ws = useWorkspace();
   const helpChat = useHelpChat();
@@ -82,9 +93,11 @@ export default function WorkspaceShell() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [recordsSubView, setRecordsSubView] = useState('notices');
   const [createOpen, setCreateOpen] = useState(false);
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [createPrefill, setCreatePrefill] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [contextOpen, setContextOpen] = useState(true);
+  const [filingBusy, setFilingBusy] = useState(false);
 
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
@@ -95,6 +108,7 @@ export default function WorkspaceShell() {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [dmDirectory, setDmDirectory] = useState(null);
+  const [dmLoadFailed, setDmLoadFailed] = useState(false);
   const [dmCreating, setDmCreating] = useState(false);
 
   const [activityEvents, setActivityEvents] = useState([]);
@@ -109,6 +123,12 @@ export default function WorkspaceShell() {
   const activeRoomIdRef = useRef(activeRoomId);
   activeRoomIdRef.current = activeRoomId;
   const activityFallbackToastShownRef = useRef(false);
+  const roomsRef = useRef(rooms);
+  roomsRef.current = rooms;
+  const activityEventsRef = useRef(activityEvents);
+  activityEventsRef.current = activityEvents;
+  const messagesReqIdRef = useRef(0);
+  const messagesAbortRef = useRef(null);
 
   const visibleWorkItems = useMemo(() => {
     const raw = Array.isArray(ws?.snapshot?.unifiedWorkItems) ? ws.snapshot.unifiedWorkItems : [];
@@ -121,7 +141,7 @@ export default function WorkspaceShell() {
         items: visibleWorkItems,
         userId,
         inboxCtx,
-        canMonitor: ['admin', 'ceo', 'md', 'sales_manager'].includes(String(roleKey || '')),
+        canMonitor: MONITOR_ROLES.has(String(roleKey || '').toLowerCase()),
       }),
     [visibleWorkItems, userId, inboxCtx, roleKey]
   );
@@ -172,18 +192,27 @@ export default function WorkspaceShell() {
   });
 
   const priorityBanner = useMemo(() => {
-    const alerts = intelligence?.alerts || intelligence?.items || [];
+    const suggestions = intelligence?.suggestions || [];
     const high =
-      alerts.find((a) => a.priority === 'urgent') ||
-      alerts.find((a) => a.priority === 'high') ||
+      suggestions.find((s) => s.priority === 'urgent') ||
+      suggestions.find((s) => s.priority === 'high') ||
       null;
     if (!high) return null;
+    const overdueItem = intelligence?.priorities?.overdue?.[0];
     return {
       title: high.label || high.title,
       subtitle: high.description,
       onOpen: () => {
-        // Deep-link straight to the item when the alert names one.
-        const targetId = high.workItemId || high.itemId || null;
+        const targetId =
+          high.workItemId ||
+          overdueItem?.id ||
+          overdueItem?.workItemId ||
+          null;
+        if (high.view && isValidTaskQueueTab(high.view)) {
+          setTaskTab(high.view);
+        } else {
+          setTaskTab('needs_action');
+        }
         if (targetId && wsRef.current?.getUnifiedWorkItemById) {
           const item = wsRef.current.getUnifiedWorkItemById(targetId);
           if (item) {
@@ -193,17 +222,17 @@ export default function WorkspaceShell() {
           }
         }
         setActiveZone('action');
-        setTaskTab('needs_action');
       },
     };
   }, [intelligence]);
 
-  const loadRooms = useCallback(async () => {
-    setRoomsLoading(true);
+  const loadRooms = useCallback(async ({ silent } = {}) => {
+    const isFirstLoad = roomsRef.current.length === 0;
+    if (!silent || isFirstLoad) setRoomsLoading(true);
     try {
       const { rooms: list, error } = await fetchWorkspaceRooms();
       if (error) {
-        setRooms([]);
+        if (isFirstLoad) setRooms([]);
       } else {
         setRooms(list);
         setActiveRoomId((prev) => {
@@ -212,48 +241,74 @@ export default function WorkspaceShell() {
         });
       }
     } finally {
-      setRoomsLoading(false);
+      if (!silent || isFirstLoad) setRoomsLoading(false);
     }
   }, []);
 
-  const loadMessages = useCallback(async (roomId) => {
+  const loadMessages = useCallback(async (roomId, { silent } = {}) => {
     if (!roomId) return;
-    setMessagesLoading(true);
+    messagesAbortRef.current?.abort();
+    const ac = new AbortController();
+    messagesAbortRef.current = ac;
+    const seq = ++messagesReqIdRef.current;
+    if (!silent) setMessagesLoading(true);
     try {
-      const { messages: msgs, pinned, error } = await fetchRoomMessages(roomId);
+      const { messages: msgs, pinned, error } = await fetchRoomMessages(roomId, { signal: ac.signal });
+      if (seq !== messagesReqIdRef.current) return;
       if (!error) {
         setMessages(msgs);
         setPinnedCards(pinned || []);
       }
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+      throw err;
     } finally {
-      setMessagesLoading(false);
+      if (seq === messagesReqIdRef.current && !silent) setMessagesLoading(false);
     }
   }, []);
 
-  const loadActivity = useCallback(async () => {
-    setActivityLoading(true);
+  const loadActivity = useCallback(async ({ silent } = {}) => {
+    const isFirstLoad = activityEventsRef.current.length === 0;
+    if (!silent || isFirstLoad) setActivityLoading(true);
     try {
       const { events, error } = await fetchWorkspaceActivity();
       if (!error) {
         setActivityEvents(events);
       } else {
-        // Warn once, not on every poll cycle.
         if (!activityFallbackToastShownRef.current) {
           activityFallbackToastShownRef.current = true;
           showToast?.('Activity feed unavailable — showing desk insights', { variant: 'warning' });
         }
         const intel = intelligenceRef.current;
-        const synth = (intel?.alerts || intel?.items || []).map((a, i) => ({
-          id: a.id || `intel-${i}`,
-          summaryText: a.label || a.title,
-          eventKind: a.category || 'insight',
-          createdAtIso: '',
-          read: false,
-        }));
+        const synth = [];
+        for (const [i, s] of (intel?.suggestions || []).entries()) {
+          synth.push({
+            id: s.id || `intel-sug-${i}`,
+            summaryText: s.label || s.title,
+            eventKind: s.category || 'insight',
+            createdAtIso: '',
+            read: false,
+            targetKind: s.workItemId ? 'work_item' : undefined,
+            targetId: s.workItemId,
+          });
+        }
+        for (const item of intel?.priorities?.overdue || []) {
+          const itemId = item?.id || item?.workItemId;
+          if (!itemId) continue;
+          synth.push({
+            id: `intel-overdue-${itemId}`,
+            summaryText: item.title || `Overdue item`,
+            eventKind: 'overdue',
+            createdAtIso: item.dueAtIso || '',
+            read: false,
+            targetKind: 'work_item',
+            targetId: itemId,
+          });
+        }
         setActivityEvents(synth);
       }
     } finally {
-      setActivityLoading(false);
+      if (!silent || isFirstLoad) setActivityLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -265,7 +320,25 @@ export default function WorkspaceShell() {
 
   useEffect(() => {
     setActiveZone(zoneConfig.defaultZone);
+    setActiveChip(null);
+    setTaskTab((prev) => (isValidTaskQueueTab(prev) ? prev : 'needs_action'));
   }, [zoneConfig.profile, zoneConfig.defaultZone]);
+
+  useEffect(() => {
+    if (!selectedItem?.id) return;
+    const id = String(selectedItem.id);
+    const fresh = visibleWorkItems.find((item) => String(item.id) === id);
+    if (fresh) {
+      if (fresh !== selectedItem) setSelectedItem(fresh);
+      return;
+    }
+    const fromSnapshot = ws?.getUnifiedWorkItemById?.(id);
+    if (fromSnapshot) {
+      setSelectedItem(fromSnapshot);
+      return;
+    }
+    setSelectedItem(null);
+  }, [visibleWorkItems, selectedItem?.id, ws]);
 
   useEffect(() => {
     void loadRooms();
@@ -276,34 +349,53 @@ export default function WorkspaceShell() {
   // Lazily fetch the office directory the first time Rooms is opened
   // (feeds the New DM picker).
   useEffect(() => {
-    if (activeZone !== 'rooms' || dmDirectory !== null) return;
+    if (activeZone !== 'rooms' || Array.isArray(dmDirectory) || dmLoadFailed) return;
     let cancelled = false;
     (async () => {
       const { ok, data } = await apiFetch('/api/office/directory');
       if (cancelled) return;
-      const users = ok && data?.ok && Array.isArray(data.users) ? data.users : [];
-      setDmDirectory(users.filter((u) => String(u.id || '') !== userId));
+      if (ok && data?.ok && Array.isArray(data.users)) {
+        setDmDirectory(data.users.filter((u) => String(u.id || '') !== userId));
+        setDmLoadFailed(false);
+      } else {
+        setDmLoadFailed(true);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [activeZone, dmDirectory, userId]);
+  }, [activeZone, dmDirectory, dmLoadFailed, userId]);
 
   useEffect(() => {
     if (realtimeStatus !== 'polling') return undefined;
     const interval = activeZone === 'rooms' ? ROOMS_POLL_MS : IDLE_POLL_MS;
     const t = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      void loadRooms();
-      void loadActivity();
+      void loadRooms({ silent: true });
+      void loadActivity({ silent: true });
       void loadPresence();
-      if (activeZone === 'rooms' && activeRoomIdRef.current) void loadMessages(activeRoomIdRef.current);
+      if (activeZone === 'rooms' && activeRoomIdRef.current) {
+        void loadMessages(activeRoomIdRef.current, { silent: true });
+      }
     }, interval);
     return () => clearInterval(t);
   }, [realtimeStatus, activeZone, loadRooms, loadActivity, loadPresence, loadMessages]);
 
   useEffect(() => {
-    if (activeZone === 'rooms' && activeRoomId) void loadMessages(activeRoomId);
+    if (activeZone !== 'rooms') return;
+    setMessages([]);
+    setPinnedCards([]);
+    if (activeRoomId) {
+      void loadMessages(activeRoomId);
+      // Clear the unread cursor for the viewed room, then refresh badges.
+      void markRoomRead(activeRoomId).then((ok) => {
+        if (ok) {
+          setRooms((prev) =>
+            prev.map((r) => (r.id === activeRoomId ? { ...r, unreadCount: 0 } : r))
+          );
+        }
+      });
+    }
   }, [activeZone, activeRoomId, loadMessages]);
 
   // Presence heartbeat pauses while the tab is hidden and reports away/online
@@ -336,11 +428,12 @@ export default function WorkspaceShell() {
         setRealtimeStatus('connected');
         if (payload?.type === 'message.created') {
           if (payload.roomId && payload.roomId === activeRoomIdRef.current) {
-            void loadMessages(activeRoomIdRef.current);
+            void loadMessages(activeRoomIdRef.current, { silent: true });
+            void markRoomRead(activeRoomIdRef.current);
           }
-          void loadRooms();
+          void loadRooms({ silent: true });
         }
-        if (payload?.type === 'activity.created') void loadActivity();
+        if (payload?.type === 'activity.created') void loadActivity({ silent: true });
         if (payload?.type === 'presence.changed') void loadPresence();
         if (payload?.type === 'work_item.updated') void wsRef.current?.refresh?.();
       },
@@ -358,9 +451,11 @@ export default function WorkspaceShell() {
 
   useEffect(() => {
     const st = location.state;
-    if (st?.openCompose && !ws?.blocksBranchScopedCreate) setCreateOpen(true);
+    if (st?.openCompose && !ws?.blocksBranchScopedCreate && ws?.canMutate !== false && !ws?.usingCachedData) {
+      setCreateOpen(true);
+    }
     if (st?.zone && isValidWorkspaceZone(String(st.zone))) setActiveZone(String(st.zone));
-    if (st?.taskTab) setTaskTab(String(st.taskTab));
+    if (st?.taskTab && isValidTaskQueueTab(String(st.taskTab))) setTaskTab(String(st.taskTab));
     if (st && (st.openCompose || st.zone || st.taskTab)) {
       navigate('.', { replace: true, state: {} });
     }
@@ -385,8 +480,8 @@ export default function WorkspaceShell() {
         }
         return;
       }
-      // No zone jumps while a dialog is open.
-      if (createOpen) return;
+      // No zone jumps while a dialog or create menu is open.
+      if (createOpen || createMenuOpen) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const zone = ZONE_HOTKEYS[e.key];
       if (zone) {
@@ -397,7 +492,7 @@ export default function WorkspaceShell() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [createOpen, selectedItem, activeZone, activeRoomId]);
+  }, [createOpen, createMenuOpen, selectedItem, activeZone, activeRoomId]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -415,7 +510,7 @@ export default function WorkspaceShell() {
   };
 
   const handleCreate = (kind) => {
-    if (ws?.blocksBranchScopedCreate) return;
+    if (ws?.blocksBranchScopedCreate || ws?.usingCachedData || ws?.canMutate === false) return;
     if (kind === 'notice') {
       // Official notices are published from Records, not the memo wizard.
       setActiveZone('records');
@@ -426,19 +521,22 @@ export default function WorkspaceShell() {
     setCreateOpen(true);
   };
 
-  /** @returns {Promise<boolean>} false on failure so the composer keeps the draft. */
-  const handleSend = async (body) => {
+  /**
+   * @param {{ body: string, attachments?: object[] } | string} payload
+   * @returns {Promise<boolean>} false on failure so the composer keeps the draft.
+   */
+  const handleSend = async (payload) => {
     if (!activeRoomId) return false;
     setSending(true);
     try {
-      const { message, error } = await sendRoomMessage(activeRoomId, body);
+      const { message, error } = await sendRoomMessage(activeRoomId, payload);
       if (error) {
         showToast?.(error, { variant: 'error' });
         return false;
       }
       if (message) setMessages((prev) => [...prev, message]);
       else await loadMessages(activeRoomId);
-      void loadRooms();
+      void loadRooms({ silent: true });
       return true;
     } finally {
       setSending(false);
@@ -483,14 +581,15 @@ export default function WorkspaceShell() {
       return;
     }
     showToast?.('Work item created', { variant: 'success' });
-    if (result?.workItemId && ws?.getUnifiedWorkItemById) {
-      const item = ws.getUnifiedWorkItemById(result.workItemId);
-      if (item) {
-        setSelectedItem(item);
-        setActiveZone('action');
-      }
-    }
     await ws.refresh?.();
+    if (result?.workItemId) {
+      const item =
+        ws?.getUnifiedWorkItemById?.(result.workItemId) ||
+        result?.item ||
+        { id: result.workItemId };
+      setSelectedItem(item);
+      setActiveZone('action');
+    }
   };
 
   const fileSelectedRecord = async () => {
@@ -502,16 +601,21 @@ export default function WorkspaceShell() {
       showToast?.('No office thread linked to file.', { variant: 'warning' });
       return;
     }
-    const { ok, data } = await apiFetch(`/api/office/threads/${encodeURIComponent(selectedThreadId)}/file`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-    if (!ok || !data?.ok) {
-      showToast?.(data?.error || 'Could not file record.', { variant: 'error' });
-      return;
+    setFilingBusy(true);
+    try {
+      const { ok, data } = await apiFetch(`/api/office/threads/${encodeURIComponent(selectedThreadId)}/file`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      if (!ok || !data?.ok) {
+        showToast?.(data?.error || 'Could not file record.', { variant: 'error' });
+        return;
+      }
+      showToast?.(`Filed: ${data.filingNo}`, { variant: 'success' });
+      await ws.refresh?.();
+    } finally {
+      setFilingBusy(false);
     }
-    showToast?.(`Filed: ${data.filingNo}`, { variant: 'success' });
-    await ws.refresh?.();
   };
 
   const aiContext = useMemo(
@@ -530,8 +634,11 @@ export default function WorkspaceShell() {
     [activeZone, taskTab, roleKey, ws, intelligence]
   );
 
-  const blocksCreate = Boolean(ws?.blocksBranchScopedCreate);
   const readOnly = Boolean(ws?.usingCachedData) || ws?.canMutate === false;
+  const blocksCreate = Boolean(ws?.blocksBranchScopedCreate) || readOnly;
+  const createBlockedMessage = readOnly
+    ? 'Read-only snapshot — reconnect to create records.'
+    : ws?.branchScopedCreateMessage;
 
   const mobileTabs = zoneConfig.zones.map((z) => ({
     id: z.id,
@@ -561,10 +668,12 @@ export default function WorkspaceShell() {
           }
           onCreate={handleCreate}
           blocksCreate={blocksCreate}
-          createBlockedMessage={ws?.branchScopedCreateMessage}
+          createBlockedMessage={createBlockedMessage}
           usingCachedData={ws?.usingCachedData}
           realtimeStatus={realtimeStatus}
           deskProfile={zoneConfig.profile}
+          createMenuOpen={createMenuOpen}
+          onCreateMenuOpenChange={setCreateMenuOpen}
         />
 
         <div className="flex min-h-0 flex-1">
@@ -579,15 +688,19 @@ export default function WorkspaceShell() {
             unread={unread}
           />
 
-          <main className="flex min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto p-3 sm:p-4">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto p-3 sm:p-4">
             {activeZone === 'activity' ? (
               <ActivityFeed
                 events={activityEvents}
-                loading={activityLoading}
+                loading={activityLoading && activityEvents.length === 0}
                 priorityBanner={priorityBanner}
                 onMarkRead={async () => {
-                  await markWorkspaceActivityRead();
-                  setActivityEvents((prev) => prev.map((e) => ({ ...e, read: true })));
+                  const ok = await markWorkspaceActivityRead();
+                  if (ok) {
+                    setActivityEvents((prev) => prev.map((e) => ({ ...e, read: true })));
+                  } else {
+                    showToast?.('Could not mark activity as read', { variant: 'error' });
+                  }
                 }}
                 onOpenEvent={(ev) => {
                   if (ev.targetKind === 'work_item' && ev.targetId && ws?.getUnifiedWorkItemById) {
@@ -611,21 +724,26 @@ export default function WorkspaceShell() {
             {activeZone === 'rooms' ? (
               <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden">
                 <div
-                  className={`w-full max-w-[14rem] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white ${
+                  className={`w-full shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white md:max-w-[18rem] ${
                     activeRoom ? 'hidden md:block' : 'block'
                   }`}
                 >
                   <RoomList
                     rooms={filteredRooms}
                     activeRoomId={activeRoomId}
-                    loading={roomsLoading}
+                    loading={roomsLoading && rooms.length === 0}
                     searchQuery={roomQuery}
                     onSearchQueryChange={setRoomQuery}
                     onSelectRoom={(r) => setActiveRoomId(r.id)}
-                    onRetry={() => void loadRooms()}
+                    onRetry={() => {
+                      setDmLoadFailed(false);
+                      void loadRooms();
+                    }}
                     onStartDm={handleStartDm}
                     dmDirectory={dmDirectory}
                     dmCreating={dmCreating}
+                    presenceByUser={presenceByUser}
+                    currentUserId={userId}
                   />
                 </div>
                 <div
@@ -642,11 +760,13 @@ export default function WorkspaceShell() {
                     onSend={handleSend}
                     onPromote={handlePromote}
                     presenceByUser={presenceByUser}
+                    currentUserId={userId}
                     onBack={() => setActiveRoomId(null)}
                     composerDisabled={readOnly}
                     composerDisabledReason={
                       readOnly ? 'Read-only snapshot — reconnect to send messages.' : undefined
                     }
+                    deskProfile={zoneConfig.profile}
                     onOpenCard={(card) => {
                       if (card.workItemId && ws?.getUnifiedWorkItemById) {
                         const item = ws.getUnifiedWorkItemById(card.workItemId);
@@ -680,6 +800,7 @@ export default function WorkspaceShell() {
                 }}
                 onClearSelection={() => setSelectedItem(null)}
                 onRefresh={handleRefresh}
+                recordActions={recordActions}
               />
             ) : null}
 
@@ -707,6 +828,7 @@ export default function WorkspaceShell() {
               room={contextOpen && activeZone === 'rooms' ? activeRoom : null}
               presence={presence}
               actionsBusy={recordActions.busy}
+              fileBusy={filingBusy}
               onApprove={canContextApprove ? () => void recordActions.endorse() : undefined}
               onReject={canContextReject ? () => void recordActions.returnForInfo() : undefined}
               onFile={canContextFile ? () => void fileSelectedRecord() : undefined}

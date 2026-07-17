@@ -26,10 +26,20 @@ describe('workspaceZoneConfig', () => {
   });
 
   it('maps office finance role to action with review chips', () => {
-    const cfg = getWorkspaceZoneConfig({ roleKey: 'finance_manager' });
+    const cfg = getWorkspaceZoneConfig({
+      roleKey: 'finance_manager',
+      permissions: ['finance.view', 'accounting.desk.view', 'hr.directory.view', 'dashboard.view'],
+    });
     expect(cfg.defaultZone).toBe('action');
     expect(cfg.actionChips.some((c) => c.id === 'approvals' || c.id === 'review')).toBe(true);
     expect(cfg.apps.some((a) => a.path.includes('account'))).toBe(true);
+  });
+
+  it('filters apps by module permissions', () => {
+    const noPerms = getWorkspaceZoneConfig({ roleKey: 'finance_manager', permissions: [] });
+    expect(noPerms.apps.some((a) => a.path.includes('account'))).toBe(false);
+    const wildcard = getWorkspaceZoneConfig({ roleKey: 'finance_manager', permissions: ['*'] });
+    expect(wildcard.apps.some((a) => a.path.includes('account'))).toBe(true);
   });
 
   it('maps executive to activity with high_value chip', () => {

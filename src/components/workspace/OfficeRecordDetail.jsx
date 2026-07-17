@@ -34,7 +34,7 @@ function TimelineList({ events }) {
 /**
  * Professional office record detail with tabs; delegates conversation to thread drawer inline.
  */
-export default function OfficeRecordDetail({ workItem, onClose, onRefresh }) {
+export default function OfficeRecordDetail({ workItem, onClose, onRefresh, recordActions = null }) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
   const [tab, setTab] = useState('overview');
@@ -43,9 +43,16 @@ export default function OfficeRecordDetail({ workItem, onClose, onRefresh }) {
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const [bmEditOpen, setBmEditOpen] = useState(false);
   const [openConvertExpense, setOpenConvertExpense] = useState(false);
+  const [filingBusy, setFilingBusy] = useState(false);
   const threadId = officeThreadIdFromWorkItem(workItem);
 
-  const actions = useOfficeRecordActions({ workItem, threadId, onRefresh });
+  // Prefer a shared actions instance from WorkspaceShell to avoid dual thread fetches.
+  const localActions = useOfficeRecordActions({
+    workItem: recordActions ? null : workItem,
+    threadId: recordActions ? null : threadId,
+    onRefresh,
+  });
+  const actions = recordActions || localActions;
   const n = normalizeWorkItem(workItem, { userId: ws?.session?.user?.id });
   const badges = officeRecordStatusBadges(workItem);
   const loadTimeline = useCallback(async () => {
@@ -69,16 +76,26 @@ export default function OfficeRecordDetail({ workItem, onClose, onRefresh }) {
 
   const fileRecord = async () => {
     if (!threadId) return;
-    const { ok, data } = await apiFetch(`/api/office/threads/${encodeURIComponent(threadId)}/file`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-    if (!ok || !data?.ok) {
-      showToast(data?.error || 'Could not file record.', { variant: 'error' });
+    if (ws?.usingCachedData || ws?.canMutate === false) {
+      showToast('Reconnect before filing records.', { variant: 'warning' });
       return;
     }
-    showToast(`Filed: ${data.filingNo}`, { variant: 'success' });
-    onRefresh?.();
+    if (filingBusy || actions.busy) return;
+    setFilingBusy(true);
+    try {
+      const { ok, data } = await apiFetch(`/api/office/threads/${encodeURIComponent(threadId)}/file`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not file record.', { variant: 'error' });
+        return;
+      }
+      showToast(`Filed: ${data.filingNo}`, { variant: 'success' });
+      onRefresh?.();
+    } finally {
+      setFilingBusy(false);
+    }
   };
 
   const tabs = [

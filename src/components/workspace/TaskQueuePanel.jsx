@@ -9,15 +9,18 @@ import {
 } from '../../lib/workspaceTaskQueue';
 import { workItemShowsOnWorkspaceUnifiedInbox } from '../../lib/workItemPersonalInbox';
 
-function TaskCard({ item, branchNames, onSelect }) {
+function TaskCard({ item, branchNames, onSelect, selected }) {
   const n = normalizeWorkItem(item, { branchNames, userId: item._userId });
   const badges = officeRecordStatusBadges(item);
   return (
     <button
       type="button"
       data-work-item-row
+      aria-current={selected ? 'true' : undefined}
       onClick={() => onSelect?.(item)}
-      className="w-full rounded-xl border border-slate-200/90 bg-white p-4 text-left shadow-sm transition hover:border-teal-200 hover:shadow-md"
+      className={`w-full rounded-xl border bg-white p-4 text-left shadow-sm transition hover:border-teal-200 hover:shadow-md ${
+        selected ? 'border-teal-300 ring-1 ring-teal-100' : 'border-slate-200/90'
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold text-slate-900 line-clamp-2">{n.title}</p>
@@ -36,7 +39,15 @@ function TaskCard({ item, branchNames, onSelect }) {
   );
 }
 
-export default function TaskQueuePanel({ items, inboxCtx, activeTab, onTabChange, onSelectItem, emptyMessage }) {
+export default function TaskQueuePanel({
+  items,
+  inboxCtx,
+  activeTab,
+  onTabChange,
+  onSelectItem,
+  selectedItemId,
+  emptyMessage,
+}) {
   const branchNames = inboxCtx.branchNames || {};
 
   const visible = useMemo(
@@ -84,7 +95,13 @@ export default function TaskQueuePanel({ items, inboxCtx, activeTab, onTabChange
       ) : (
         <div className="space-y-2">
           {filtered.map((item) => (
-            <TaskCard key={item.id} item={item} branchNames={branchNames} onSelect={onSelectItem} />
+            <TaskCard
+              key={item.id}
+              item={item}
+              branchNames={branchNames}
+              onSelect={onSelectItem}
+              selected={String(selectedItemId || '') === String(item.id || '')}
+            />
           ))}
         </div>
       )}

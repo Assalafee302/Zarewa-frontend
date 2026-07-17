@@ -19,6 +19,7 @@ export default function ActionInbox({
   onSelectItem,
   onClearSelection,
   onRefresh,
+  recordActions = null,
 }) {
   const chipFiltered = useMemo(
     () => (activeChip ? items.filter((item) => workItemMatchesActionChip(item, activeChip)) : items),
@@ -62,16 +63,25 @@ export default function ActionInbox({
             activeTab={taskTab || 'needs_action'}
             onTabChange={onTaskTabChange}
             onSelectItem={onSelectItem}
+            selectedItemId={selectedItem?.id}
             emptyMessage={activeChip ? 'No items match this filter' : undefined}
           />
         </div>
       </div>
       {selectedItem ? (
         <div className="min-w-0 flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white lg:w-[60%]">
-          <OfficeRecordDetail workItem={selectedItem} onClose={onClearSelection} onRefresh={onRefresh} />
+          <OfficeRecordDetail
+            workItem={selectedItem}
+            onClose={onClearSelection}
+            onRefresh={onRefresh}
+            recordActions={recordActions}
+          />
         </div>
       ) : (
-        <div className="hidden min-w-0 flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center lg:flex lg:w-[60%]" role="status">
+        <div
+          className="hidden min-w-0 flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center lg:flex lg:w-[60%]"
+          role="status"
+        >
           <p className="text-sm text-slate-500">Select an item to review, approve, or file.</p>
         </div>
       )}

@@ -10,6 +10,9 @@ const CREATE_OPTIONS = [
   { id: 'notice', label: 'Official notice', profiles: ['office', 'executive'] },
 ];
 
+/** Shared with MessageComposer Convert menu. */
+export const WORKSPACE_CREATE_PROFILES = CREATE_OPTIONS;
+
 export default function WorkspaceCommandBar({
   title,
   onRefresh,
@@ -22,18 +25,28 @@ export default function WorkspaceCommandBar({
   usingCachedData,
   realtimeStatus,
   deskProfile = 'staff',
+  createMenuOpen: createMenuOpenProp,
+  onCreateMenuOpenChange,
 }) {
-  const [createOpen, setCreateOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const controlled = typeof createMenuOpenProp === 'boolean';
+  const createOpen = controlled ? createMenuOpenProp : uncontrolledOpen;
   const menuRef = useRef(null);
   const createOptions = CREATE_OPTIONS.filter((opt) => opt.profiles.includes(deskProfile));
+
+  const setMenuOpen = (next) => {
+    const value = typeof next === 'function' ? next(createOpen) : next;
+    if (!controlled) setUncontrolledOpen(Boolean(value));
+    onCreateMenuOpenChange?.(Boolean(value));
+  };
 
   useEffect(() => {
     if (!createOpen) return undefined;
     const onDoc = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setCreateOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
     };
     const onKey = (e) => {
-      if (e.key === 'Escape') setCreateOpen(false);
+      if (e.key === 'Escape') setMenuOpen(false);
     };
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onKey);
@@ -41,6 +54,7 @@ export default function WorkspaceCommandBar({
       document.removeEventListener('mousedown', onDoc);
       document.removeEventListener('keydown', onKey);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createOpen]);
 
   return (
@@ -61,7 +75,7 @@ export default function WorkspaceCommandBar({
               aria-expanded={createOpen}
               onClick={() => {
                 if (blocksCreate) return;
-                setCreateOpen((o) => !o);
+                setMenuOpen((o) => !o);
               }}
               className={`inline-flex items-center gap-1.5 rounded-lg bg-teal-800 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-900${
                 blocksCreate ? ' cursor-not-allowed opacity-50' : ''
@@ -83,7 +97,7 @@ export default function WorkspaceCommandBar({
                       role="menuitem"
                       className="w-full px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-teal-50"
                       onClick={() => {
-                        setCreateOpen(false);
+                        setMenuOpen(false);
                         onCreate?.(opt.id);
                       }}
                     >

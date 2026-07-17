@@ -36,7 +36,7 @@ export function useOfficeRecordActions({ workItem, threadId, onRefresh }) {
 
   const userId = String(ws?.session?.user?.id || '').trim();
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
-  const n = useMemo(() => normalizeWorkItem(workItem, { userId }), [workItem, userId]);
+  const n = useMemo(() => (workItem ? normalizeWorkItem(workItem, { userId }) : null), [workItem, userId]);
   const status = String(workItem?.status || detail?.thread?.status || 'open').toLowerCase();
   const thread = detail?.thread;
   const threadPayload = useMemo(() => parseThreadPayload(thread), [thread]);
