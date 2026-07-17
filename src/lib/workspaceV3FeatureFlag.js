@@ -1,11 +1,12 @@
 /**
  * Workspace V3 Feature Flag
  *
- * Opt-in via `VITE_WORKSPACE_V3=1` (or `true`). When enabled, `Dashboard.jsx`
- * mounts `WorkspaceShell` instead of WorkspaceDesk / LegacyDashboard.
+ * On by default. Set `VITE_WORKSPACE_V3=0` (or `false`) to fall back to
+ * Office Desk V2 / LegacyDashboard. When enabled, `Dashboard.jsx` mounts
+ * `WorkspaceShell`.
  *
  * Priority order (first match wins):
- * 1. Workspace V3 (`VITE_WORKSPACE_V3`)
+ * 1. Workspace V3 (`VITE_WORKSPACE_V3`, default on)
  * 2. Office Desk V2 (`VITE_OFFICE_DESK_V2`)
  * 3. Legacy dashboard
  *
@@ -15,11 +16,12 @@
 export function isWorkspaceV3Enabled() {
   try {
     const raw = import.meta.env?.VITE_WORKSPACE_V3;
-    if (raw === '1' || raw === 'true') return true;
     if (raw === '0' || raw === 'false') return false;
-    return false;
+    if (raw === '1' || raw === 'true') return true;
+    // Unset → V3 is the production workspace (Teams-style Chat shell).
+    return true;
   } catch {
-    return false;
+    return true;
   }
 }
 

@@ -9,9 +9,9 @@ describe('workspaceV3FeatureFlag', () => {
     else import.meta.env.VITE_WORKSPACE_V3 = prev;
   });
 
-  it('defaults off when unset', () => {
+  it('defaults on when unset', () => {
     delete import.meta.env.VITE_WORKSPACE_V3;
-    expect(isWorkspaceV3Enabled()).toBe(false);
+    expect(isWorkspaceV3Enabled()).toBe(true);
     expect(isWorkspaceV3ExplicitlyDisabled()).toBe(false);
   });
 
