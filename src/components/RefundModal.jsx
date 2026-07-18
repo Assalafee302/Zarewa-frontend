@@ -2571,7 +2571,7 @@ const RefundModal = ({
                                   <p className="font-bold uppercase tracking-wide text-sky-800/90">
                                     How this amount is calculated
                                   </p>
-                                  {substitutionPerMeterBreakdown.map((row) => {
+                                  {substitutionPerMeterBreakdown.map((row, subIdx) => {
                                     const qPpm = Number(row.quotedPricePerMeterNgn || 0);
                                     const coilPpm = Number(row.producedListPricePerMeterNgn || 0);
                                     const dPpm = Number(row.deltaPerMeterNgn || 0);
@@ -2589,7 +2589,7 @@ const RefundModal = ({
                                       ) : null;
                                     return (
                                       <div
-                                        key={row.jobId || `${row.productName}-${m}`}
+                                        key={`${row.jobId || row.productName || 'job'}-${cg || 'g'}-${m}-${subIdx}`}
                                         className="border-t border-sky-100/80 pt-1.5 first:border-t-0 first:pt-0"
                                       >
                                         <p className="text-slate-800">
@@ -3339,9 +3339,18 @@ const RefundModal = ({
                           ) : null}
                         </p>
                         <ul className="space-y-2">
-                          {substitutionPerMeterBreakdown.map((row) => (
-                            <li key={row.jobId || row.productName} className="text-ui-xs text-white/85 leading-snug">
+                          {substitutionPerMeterBreakdown.map((row, subIdx) => (
+                            <li
+                              key={`${row.jobId || row.productName || 'job'}-${row.coilGaugeFromAllocations || 'g'}-${Number(row.meters) || 0}-${subIdx}`}
+                              className="text-ui-xs text-white/85 leading-snug"
+                            >
                               <span className="font-semibold text-white">{row.productName || row.jobId}</span>
+                              {row.coilGaugeFromAllocations ? (
+                                <span className="text-slate-400">
+                                  {' '}
+                                  ({row.coilGaugeFromAllocations})
+                                </span>
+                              ) : null}
                               <span className="text-slate-400"> · </span>
                               {Number(row.meters || 0).toFixed(2)}m × ₦
                               {Number(row.deltaPerMeterNgn || 0).toLocaleString('en-NG')}/m
