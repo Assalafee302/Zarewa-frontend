@@ -616,10 +616,40 @@ export function LiveProductionMonitor({
     jobSt === 'Completed' &&
     !viewOnly &&
     (Boolean(ws?.hasPermission?.('production.release')) || Boolean(ws?.hasPermission?.('operations.manage')));
+  const canEditCompletedStoneMetresCorrections =
+    jobSt === 'Completed' &&
+    !viewOnly &&
+    isStoneMeterQuote &&
+    !isStoneAccessoriesOnlyQuote &&
+    stoneMetreConsumptionRequired &&
+    (Boolean(ws?.hasPermission?.('production.release')) || Boolean(ws?.hasPermission?.('operations.manage')));
   const readOnly =
     Boolean(viewOnly) ||
     jobSt === 'Cancelled' ||
-    (jobSt === 'Completed' && !(canEditCompletedCoilCorrections || canEditCompletedAccessoryCorrections));
+    (jobSt === 'Completed' &&
+      !(
+        canEditCompletedCoilCorrections ||
+        canEditCompletedAccessoryCorrections ||
+        canEditCompletedStoneMetresCorrections
+      ));
+
+  useEffect(() => {
+    if (!selectedJob?.jobID) return;
+    if (jobSt !== 'Completed') return;
+    if (!stonePureNoCoil || !stoneMetreConsumptionRequired) return;
+    const draft = readProdMeterDraft(selectedJob.jobID);
+    if (String(draft.stoneMetersConsumed ?? '').trim()) return;
+    const posted = Number(selectedJob?.actualMeters ?? 0);
+    if (!Number.isFinite(posted) || Math.abs(posted) < 1e-9) return;
+    setStoneMetersConsumed(String(posted));
+  }, [
+    selectedJob?.jobID,
+    jobSt,
+    selectedJob?.actualMeters,
+    stonePureNoCoil,
+    stoneMetreConsumptionRequired,
+  ]);
+
   const canEditPlannedAllocations = jobSt === 'Planned' && !readOnly;
   const canAddSupplementalCoil = jobSt === 'Running' && !readOnly && !stonePureNoCoil;
   /** Planned / mid-run supplemental rows, or post-completion register correction (add missing roll). */
@@ -1786,7 +1816,26 @@ export function LiveProductionMonitor({
     Boolean(ws?.hasPermission?.('production.manage'));
 
   const openRecallEntry = useCallback(() => {
-    if (readOnly || viewOnly) {
+    if (viewOnly) {
+      showToast('This register is view-only.', { variant: 'info' });
+      return;
+    }
+    if (jobSt === 'Completed') {
+      setShowCompletedFixGuidance(true);
+      window.requestAnimationFrame(() => {
+        completedFixGuidanceRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+      });
+      showToast(
+        canEditCompletedStoneMetresCorrections
+          ? 'Completed jobs cannot be fully reopened. Edit stone metres below and Save stone metres, or use Post stock correction for warehouse metres.'
+          : stonePureNoCoil || stoneCoilHybrid
+            ? 'Completed stone jobs cannot be reopened by line operators. Ask a manager with Production release to Save stone metres (or Post stock correction).'
+            : 'Completed jobs cannot be fully reopened. Edit coil lines below and Save correction, or use Post stock correction for warehouse metres.',
+        { variant: 'info' }
+      );
+      return;
+    }
+    if (readOnly) {
       showToast('This register is view-only.', { variant: 'info' });
       return;
     }
@@ -1818,19 +1867,18 @@ export function LiveProductionMonitor({
       setReturnModalOpen(true);
       return;
     }
-    if (jobSt === 'Completed') {
-      setShowCompletedFixGuidance(true);
-      window.requestAnimationFrame(() => {
-        completedFixGuidanceRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
-      });
-      showToast(
-        'Completed jobs cannot be fully reopened. Edit coil lines below and Save correction, or use Post stock correction for warehouse metres.',
-        { variant: 'info' }
-      );
-      return;
-    }
     showToast('Recall is not available for this job status.', { variant: 'info' });
-  }, [readOnly, viewOnly, ws?.canMutate, jobSt, canReturnJobToPlanned, showToast]);
+  }, [
+    readOnly,
+    viewOnly,
+    ws?.canMutate,
+    jobSt,
+    canReturnJobToPlanned,
+    showToast,
+    stonePureNoCoil,
+    stoneCoilHybrid,
+    canEditCompletedStoneMetresCorrections,
+  ]);
 
   useEffect(() => {
     if (!initialRecallIntent) {
@@ -2388,6 +2436,16 @@ export function LiveProductionMonitor({
       showToast('No stone flatsheet lines found on the quotation for correction.', { variant: 'info' });
       return;
     }
+    if (kind === 'stoneMetres') {
+      const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
+      if (!Number.isFinite(m) || Math.abs(m) < 1e-9) {
+        showToast(
+          'Enter the correct total stone metres consumed (non-zero) before saving the correction.',
+          { variant: 'error' }
+        );
+        return;
+      }
+    }
     if (editMutationNeedsSecondApprovalRole(rk) && !postCompletionEditApprovalId.trim()) {
       showToast(
         'After completion, register corrections need an Edit OKs code — request approval, enter the 6-digit code, then save again.',
@@ -2500,6 +2558,33 @@ export function LiveProductionMonitor({
         setCorrectionModalKind(null);
         setCorrectionReason('');
         showToast('Stone flatsheet correction saved.');
+        return;
+      }
+      if (correctionModalKind === 'stoneMetres') {
+        const metres = Number(String(stoneMetersConsumed).replace(/,/g, ''));
+        const res = await apiFetch(`${jobApi}/completion-stone-metres-corrections`, {
+          method: 'POST',
+          body: JSON.stringify({
+            reason,
+            stoneMetersConsumed: metres,
+            ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
+          }),
+        });
+        if (!res.ok || !res.data?.ok) {
+          showToast(res.data?.error || 'Could not apply stone metres correction.', { variant: 'error' });
+          await refreshProductionWorkspace();
+          return;
+        }
+        await refreshProductionWorkspace();
+        setPostCompletionEditApprovalId('');
+        setCorrectionModalKind(null);
+        setCorrectionReason('');
+        const delta = Number(res.data?.deltaStoneMeters);
+        const deltaLabel =
+          Number.isFinite(delta) && Math.abs(delta) >= 1e-6
+            ? ` (${delta >= 0 ? '+' : ''}${delta.toFixed(2)} m)`
+            : '';
+        showToast(`Stone metres correction saved${deltaLabel}.`);
       }
     } catch (e) {
       showToast(e?.message || 'Save failed.', { variant: 'error' });
@@ -2548,6 +2633,12 @@ export function LiveProductionMonitor({
     if (type === 'completedStoneFlatsheetCorrection') {
       setSavingAction('');
       beginCorrectionModal('stoneSf');
+      return;
+    }
+
+    if (type === 'completedStoneMetresCorrection') {
+      setSavingAction('');
+      beginCorrectionModal('stoneMetres');
       return;
     }
 
@@ -3300,6 +3391,22 @@ export function LiveProductionMonitor({
                       {savingAction === 'completedStoneFlatsheetCorrection' ? 'Saving…' : 'Save stone flatsheet'}
                     </button>
                   ) : null}
+                  {jobSt === 'Completed' && canEditCompletedStoneMetresCorrections ? (
+                    <button
+                      type="button"
+                      onClick={() => void persist('completedStoneMetresCorrection')}
+                      disabled={savingAction !== ''}
+                      title="Correct stone-coated metres after completion. Enter the correct total metres above, then save with a 12+ character reason. Adjusts stone and finished-goods stock; does not reverse posted GL automatically."
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors disabled:opacity-45 ${
+                        savingAction === 'completedStoneMetresCorrection'
+                          ? 'bg-teal-100 text-teal-900'
+                          : 'border border-teal-500 bg-teal-50 text-teal-950 hover:bg-teal-100'
+                      }`}
+                    >
+                      <Save size={15} />
+                      {savingAction === 'completedStoneMetresCorrection' ? 'Saving…' : 'Save stone metres'}
+                    </button>
+                  ) : null}
                   {canReportMaterialIncident ? (
                     <button
                       type="button"
@@ -3461,10 +3568,19 @@ export function LiveProductionMonitor({
             Completed jobs cannot be fully recalled. To correct what was saved:
           </p>
           <ol className="mt-1.5 list-decimal space-y-1 pl-4 text-xs leading-snug text-violet-950/95">
-            <li>
-              Edit coil lines (coil #, opening/closing kg, metres) above, then{' '}
-              <strong className="font-semibold">Save correction</strong> (reason required; Edit OKs when gated).
-            </li>
+            {stonePureNoCoil || stoneCoilHybrid ? (
+              <li>
+                For stone-coated roofing, edit <strong className="font-semibold">metres consumed</strong> above,
+                then <strong className="font-semibold">Save stone metres</strong> (reason required; Edit OKs when
+                gated). Enter the correct <em>total</em>, not just the missing amount.
+              </li>
+            ) : null}
+            {!stonePureNoCoil ? (
+              <li>
+                Edit coil lines (coil #, opening/closing kg, metres) above, then{' '}
+                <strong className="font-semibold">Save correction</strong> (reason required; Edit OKs when gated).
+              </li>
+            ) : null}
             <li>
               If warehouse finished-goods metres are still wrong, a manager uses{' '}
               <strong className="font-semibold">Post stock correction</strong> below.
@@ -4500,7 +4616,9 @@ export function LiveProductionMonitor({
 
           {jobSt === 'Completed' &&
           selectedJob?.jobID &&
-          (canEditCompletedCoilCorrections || canPostFgCompletionAdjustment) ? (
+          (canEditCompletedCoilCorrections ||
+            canEditCompletedStoneMetresCorrections ||
+            canPostFgCompletionAdjustment) ? (
             <EditSecondApprovalInline
               entityKind="production_job"
               entityId={selectedJob.jobID}
@@ -4683,9 +4801,11 @@ export function LiveProductionMonitor({
                       ? 'stock is tracked in metres. Use coil or offcut below for normal flatsheet / gutter.'
                       : 'stock is tracked in metres (no coil numbers). Use Save & start once to begin the run.'}
                   </p>
-                  {jobSt === 'Running' ? (
+                  {jobSt === 'Running' || canEditCompletedStoneMetresCorrections ? (
                     <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                      Metres consumed (stone stock)
+                      {canEditCompletedStoneMetresCorrections
+                        ? 'Corrected metres consumed (stone stock — enter total, not delta)'
+                        : 'Metres consumed (stone stock)'}
                       <input
                         type="text"
                         inputMode="decimal"
@@ -4695,10 +4815,25 @@ export function LiveProductionMonitor({
                         className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
                       />
                     </label>
+                  ) : jobSt === 'Completed' ? (
+                    <p className="text-sm font-bold text-zarewa-teal">
+                      {stonePureNoCoil ? (
+                        <span className="font-mono">
+                          Posted:{' '}
+                          {formatMeters(Number(selectedJob?.actualMeters ?? 0) || 0)} m
+                        </span>
+                      ) : (
+                        <span>Stone metres were recorded at completion.</span>
+                      )}
+                      <span className="ml-1 font-sans text-ui-xs font-medium text-slate-500">
+                        (manager with Production release can correct)
+                      </span>
+                    </p>
                   ) : null}
                   <p className="text-ui-xs leading-snug text-slate-500">
-                    Positive metres draw stone stock (balance may go negative). Negative metres return stock. Ensure
-                    the quotation header matches the stone SKU (design, colour, gauge).
+                    {canEditCompletedStoneMetresCorrections
+                      ? 'Enter the correct total metres, then use Save stone metres. Positive draws stone stock; negative returns stock. Pure stone jobs also update finished-goods metres.'
+                      : 'Positive metres draw stone stock (balance may go negative). Negative metres return stock. Ensure the quotation header matches the stone SKU (design, colour, gauge).'}
                   </p>
                 </div>
               ) : null}
@@ -5230,6 +5365,22 @@ export function LiveProductionMonitor({
                 >
                   <Save size={12} />
                   {savingAction === 'completedStoneFlatsheetCorrection' ? 'Saving…' : 'Stone FS'}
+                </button>
+              ) : null}
+              {jobSt === 'Completed' && canEditCompletedStoneMetresCorrections ? (
+                <button
+                  type="button"
+                  onClick={() => void persist('completedStoneMetresCorrection')}
+                  disabled={savingAction !== ''}
+                  title="Correct stone-coated metres after completion (enter correct total above)."
+                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-ui-xs font-semibold transition-colors disabled:opacity-45 ${
+                    savingAction === 'completedStoneMetresCorrection'
+                      ? 'bg-teal-100 text-teal-900'
+                      : 'border border-teal-500 bg-teal-50 text-teal-950 hover:bg-teal-100'
+                  }`}
+                >
+                  <Save size={12} />
+                  {savingAction === 'completedStoneMetresCorrection' ? 'Saving…' : 'Stone metres'}
                 </button>
               ) : null}
               {canReportMaterialIncident ? (

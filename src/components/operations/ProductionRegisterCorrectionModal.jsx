@@ -20,11 +20,18 @@ const COPY = {
     placeholder: 'e.g. Flatsheet m² under-recorded — remeasure showed 12.4 m² not 11.0 m².',
     confirm: 'Save stone flatsheet',
   },
+  stoneMetres: {
+    title: 'Save stone metres correction',
+    description:
+      'Restate the total stone-coated metres consumed on this completed job (enter the correct total, not a delta). Updates stone stock and finished-goods metres for pure stone runs. The reason is audited.',
+    placeholder: 'e.g. Metres under-recorded on complete — actual produced was 128.5 m not 100 m.',
+    confirm: 'Save stone metres',
+  },
 };
 
 /**
  * @param {{
- *   kind: 'coil' | 'accessory' | 'stoneSf';
+ *   kind: 'coil' | 'accessory' | 'stoneSf' | 'stoneMetres';
  *   reason: string;
  *   saving?: boolean;
  *   onReasonChange: (value: string) => void;
