@@ -2124,8 +2124,8 @@ const Sales = () => {
                                         setCuttingAccessMode('edit');
                                         setShowCuttingModal(true);
                                       }}
-                                      editDisabled={!canEditCuttingList(c, job)}
-                                      editTitle={cuttingListEditBlockedReason(c, job) ?? ''}
+                                      editDisabled={!canEditCuttingList(c, job, roleKey)}
+                                      editTitle={cuttingListEditBlockedReason(c, job, roleKey) ?? ''}
                                       onPush={
                                         !c.productionRegistered &&
                                         !c.productionEditLocked &&

@@ -465,7 +465,9 @@ const RefundModal = ({
 
   const fetchEligibleQuotes = useCallback(async (opts = {}) => {
     setLoadingQuotes(true);
-    const rows = await fetchEligibleRefundQuotationsCached(apiFetch, opts);
+    // Keep modal opening responsive. Exact older quotation IDs remain available through
+    // "Use quotation id"; selecting any row still loads its complete refund preview.
+    const rows = await fetchEligibleRefundQuotationsCached(apiFetch, { limit: 20, ...opts });
     setLoadingQuotes(false);
     setEligibleQuotes(rows);
   }, []);
@@ -2214,7 +2216,6 @@ const RefundModal = ({
                                   ? 'Loading quotations…'
                                   : 'Type quotation id, customer, or prepared by'
                               }
-                              disabled={loadingQuotes}
                               value={quotationSearchText}
                               onChange={(e) => {
                                 const v = e.target.value;
@@ -2228,7 +2229,7 @@ const RefundModal = ({
                               }}
                               onKeyDown={(e) => {
                                 if (e.key !== 'Enter') return;
-                                if (identityLocked || loadingQuotes || manualQuotationVerifyBusy) return;
+                                if (identityLocked || manualQuotationVerifyBusy) return;
                                 const hasOpenSuggestions =
                                   quotationSuggestOpen && quotationSearchFiltered.length > 0;
                                 if (hasOpenSuggestions) return;

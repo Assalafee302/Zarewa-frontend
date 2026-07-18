@@ -1,4 +1,5 @@
 import { normalizeJobStatus } from './productionJobPick.js';
+import { editMutationNeedsSecondApprovalRole } from './editApprovalUi.js';
 
 export const SALES_ROLE_LABELS = {
   admin: 'Administrator',
@@ -74,18 +75,25 @@ export function receiptEditBlockedReason(record, role) {
   return 'You do not have permission to change this payment. Ask a branch manager or finance if a correction is needed.';
 }
 
-export function canEditCuttingList(c, linkedJob = null) {
+/** Admin/MD may edit cutting lists after production completes (server parity). */
+export function canEditCuttingListAfterProduction(roleKey) {
+  return !editMutationNeedsSecondApprovalRole(roleKey);
+}
+
+export function canEditCuttingList(c, linkedJob = null, roleKey = null) {
   if (!c?.id) return true;
   if (linkedJob && normalizeJobStatus(linkedJob.status) === 'Running') return false;
-  if (c.productionEditLocked) return false;
-  if (c.productionRegistered && String(c.status || '').trim().toLowerCase() === 'finished') return false;
+  const productionFinished =
+    Boolean(c.productionEditLocked) ||
+    (Boolean(c.productionRegistered) && String(c.status || '').trim().toLowerCase() === 'finished');
+  if (productionFinished && !canEditCuttingListAfterProduction(roleKey)) return false;
   return true;
 }
 
-export function cuttingListEditBlockedReason(c, linkedJob = null) {
+export function cuttingListEditBlockedReason(c, linkedJob = null, roleKey = null) {
   if (linkedJob && normalizeJobStatus(linkedJob.status) === 'Running') {
     return 'Production is Running for this list — editing is blocked. Finish or pause the job on Operations / production, then try again.';
   }
-  if (canEditCuttingList(c, linkedJob)) return null;
+  if (canEditCuttingList(c, linkedJob, roleKey)) return null;
   return 'Production is finished for this cutting list — editing is blocked to protect the completed record.';
 }

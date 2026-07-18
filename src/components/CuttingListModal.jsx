@@ -50,6 +50,7 @@ function normQuoteKey(s) {
 import CuttingListReportPrintView from './CuttingListReportPrintView';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import { cuttingListEditNeedsSecondApprovalClient } from '../lib/editApprovalUi';
+import { canEditCuttingListAfterProduction } from '../lib/salesWorkspaceAccess';
 import {
   clearCuttingListFormDraft,
   readCuttingListFormDraft,
@@ -435,14 +436,17 @@ const CuttingListModal = ({
   const minPaidFraction = useMemo(() => cuttingListMinPaidFractionFromSession(ws?.session), [ws?.session]);
   const minPaidPercentLabel = Math.round(minPaidFraction * 100);
   const navigate = useNavigate();
-  const productionCompletedLock = Boolean(
+  const mayEditAfterProduction = canEditCuttingListAfterProduction(ws?.session?.user?.roleKey);
+  const productionFinished = Boolean(
     editData?.productionEditLocked ??
       (editData?.productionRegistered && String(editData?.status || '').trim().toLowerCase() === 'finished')
   );
+  // Admin/MD can still correct finished lists; other roles stay locked.
+  const productionCompletedLock = productionFinished && !mayEditAfterProduction;
   const productionJobRunningLock = Boolean(
     linkedProductionJob && normalizeJobStatus(linkedProductionJob.status) === 'Running'
   );
-  const productionOnQueue = Boolean(editData?.productionRegistered && !productionCompletedLock);
+  const productionOnQueue = Boolean(editData?.productionRegistered && !productionFinished);
   const readOnly = accessMode === 'view' || productionCompletedLock || productionJobRunningLock;
   const [quotationRef, setQuotationRef] = useState('');
   const [dateISO, setDateISO] = useState('');
@@ -1541,6 +1545,11 @@ const CuttingListModal = ({
         {productionCompletedLock ? (
           <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-ui-xs font-medium text-amber-900">
             Production is finished for this list — editing is blocked to protect the completed record.
+          </div>
+        ) : null}
+        {productionFinished && mayEditAfterProduction && !productionJobRunningLock ? (
+          <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-ui-xs font-medium text-amber-900">
+            Production is finished — admin/MD correction edit is enabled. Change lengths carefully; this updates the completed record.
           </div>
         ) : null}
         {productionJobRunningLock ? (
