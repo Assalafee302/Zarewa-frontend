@@ -1045,28 +1045,32 @@ const CuttingListModal = ({
 
   const headerBadge = productionCompletedLock
     ? 'bg-amber-100 text-amber-900 ring-1 ring-amber-300/50'
-    : productionJobRunningLock
-      ? 'bg-violet-100 text-violet-900 ring-1 ring-violet-300/50'
-      : accessMode === 'view'
-        ? 'bg-slate-200 text-slate-700'
-        : productionOnQueue
-          ? 'bg-teal-100 text-teal-900 ring-1 ring-teal-300/50'
-          : isDraftRecord
-            ? 'bg-slate-200 text-slate-800 ring-1 ring-slate-300/50'
-            : 'bg-orange-100 text-orange-800 ring-1 ring-orange-400/30';
+    : productionFinished && mayEditAfterProduction
+      ? 'bg-amber-100 text-amber-900 ring-1 ring-amber-300/50'
+      : productionJobRunningLock
+        ? 'bg-violet-100 text-violet-900 ring-1 ring-violet-300/50'
+        : accessMode === 'view'
+          ? 'bg-slate-200 text-slate-700'
+          : productionOnQueue
+            ? 'bg-teal-100 text-teal-900 ring-1 ring-teal-300/50'
+            : isDraftRecord
+              ? 'bg-slate-200 text-slate-800 ring-1 ring-slate-300/50'
+              : 'bg-orange-100 text-orange-800 ring-1 ring-orange-400/30';
   const headerBadgeText = productionCompletedLock
     ? 'Locked'
-    : productionJobRunningLock
-      ? 'Running'
-      : accessMode === 'view'
-        ? 'View'
-        : productionOnQueue
-          ? 'Production'
-          : isDraftRecord
-            ? 'Draft'
-            : editData?.id
-              ? 'Edit'
-              : 'New';
+    : productionFinished && mayEditAfterProduction
+      ? 'Correct'
+      : productionJobRunningLock
+        ? 'Running'
+        : accessMode === 'view'
+          ? 'View'
+          : productionOnQueue
+            ? 'Production'
+            : isDraftRecord
+              ? 'Draft'
+              : editData?.id
+                ? 'Edit'
+                : 'New';
   const isCreate = !editData?.id;
 
   const serverDraftForQuote = useMemo(() => {
