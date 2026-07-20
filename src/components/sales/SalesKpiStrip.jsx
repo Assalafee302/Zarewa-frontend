@@ -39,7 +39,14 @@ export default function SalesKpiStrip({ salesTab, listStats, followUpCount = 0 }
         ];
       case 'receipts':
         return [
-          { label: 'Records', value: listStats.receipts.shown },
+          {
+            label: 'Matching',
+            value: listStats.receipts.matching,
+            hint:
+              listStats.receipts.matching > listStats.receipts.shown
+                ? `${listStats.receipts.shown} visible`
+                : undefined,
+          },
           {
             label: 'Awaiting cashier',
             value: listStats.receipts.awaitingCashier,

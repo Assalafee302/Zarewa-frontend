@@ -108,6 +108,22 @@ export function receiptLedgerReceiptTreasurySplits(receiptRow, treasuryMovements
     }));
 }
 
+/** Finance/cashier clearance fields copied from workspace receipt mirror onto ledger rows. */
+export function salesReceiptMirrorClearanceFields(mirror) {
+  if (!mirror) return {};
+  return {
+    status: mirror.status ?? mirror.statusLabel ?? undefined,
+    bankConfirmedAtISO: mirror.bankConfirmedAtISO ?? null,
+    bankConfirmedByUserId: mirror.bankConfirmedByUserId ?? null,
+    bankReceivedAmountNgn: mirror.bankReceivedAmountNgn ?? null,
+    financeDeliveryClearedAtISO: mirror.financeDeliveryClearedAtISO ?? null,
+    financeDeliveryClearedByUserId: mirror.financeDeliveryClearedByUserId ?? null,
+    financeReconciliationSavedAtISO: mirror.financeReconciliationSavedAtISO ?? null,
+    financeReconciliationSavedByUserId: mirror.financeReconciliationSavedByUserId ?? null,
+    financeReconciliationSavedBy: mirror.financeReconciliationSavedBy ?? null,
+  };
+}
+
 function quotePaymentHint(quotation) {
   if (!quotation) return { badge: 'No quote link', sub: '' };
   const due = amountDueOnQuotation(quotation);
@@ -151,12 +167,14 @@ export function mergeReceiptRowsForSales(importedReceipts, quotations, _ledgerEp
       const hint = quotePaymentHint(q);
       const dateISO = (e.atISO || '').slice(0, 10) || '';
       const mirror = regById.get(String(e.id)) || regByLedgerId.get(String(e.id));
+      const mirrorClearance = salesReceiptMirrorClearanceFields(mirror);
       const alloc = Math.round(Number(e.amountNgn) || 0);
       const extra = companionOverpay.get(String(e.id)) || 0;
       const receiptRow = {
         amountNgn: alloc,
-        financeReconciliationSavedAtISO: mirror?.financeReconciliationSavedAtISO ?? null,
-        bankReceivedAmountNgn: mirror?.bankReceivedAmountNgn ?? null,
+        financeReconciliationSavedAtISO: mirrorClearance.financeReconciliationSavedAtISO ?? null,
+        bankReceivedAmountNgn: mirrorClearance.bankReceivedAmountNgn ?? null,
+        status: mirrorClearance.status,
       };
       const cash = receiptEffectiveCashNgn(receiptRow, { companionOverpayNgn: extra });
       return {
@@ -171,13 +189,9 @@ export function mergeReceiptRowsForSales(importedReceipts, quotations, _ledgerEp
         quotationAllocatedNgn: extra > 0 ? alloc : undefined,
         cashReceivedNgn: cash,
         amount: formatNgn(cash),
-        status: 'Recorded',
-        handledBy: '—',
-        bankConfirmedAtISO: mirror?.bankConfirmedAtISO ?? null,
-        bankConfirmedByUserId: mirror?.bankConfirmedByUserId ?? null,
-        bankReceivedAmountNgn: mirror?.bankReceivedAmountNgn ?? null,
-        financeDeliveryClearedAtISO: mirror?.financeDeliveryClearedAtISO ?? null,
-        financeReconciliationSavedAtISO: mirror?.financeReconciliationSavedAtISO ?? null,
+        handledBy: mirror?.handledBy ?? '—',
+        ...mirrorClearance,
+        status: mirrorClearance.status ?? 'Pending clearance',
         _ledgerEntry: e,
         _payBadge: hint.badge,
         _subLabel: 'From customer ledger',

@@ -632,6 +632,31 @@ const Sales = () => {
     [mergedReceiptRows, cuttingListByQuoteRef]
   );
 
+  const searchFilteredReceiptRows = useMemo(() => {
+    const q = debouncedSearchQuery.trim().toLowerCase();
+    if (!q) return mergedReceiptRowsWithCuttingMeta;
+    return mergedReceiptRowsWithCuttingMeta.filter((row) => {
+      const blob = [
+        row.id,
+        row.customer,
+        row.quotationRef,
+        row.date,
+        row.dateISO,
+        row.amount,
+        row.source,
+        row._payBadge,
+        row._subLabel,
+        row._detailNote,
+        row._cuttingListLabel,
+        row._cuttingListId,
+        row._cuttingListLinkKind === 'linked' ? 'linked cutting list' : 'no cutting list',
+      ]
+        .join(' ')
+        .toLowerCase();
+      return blob.includes(q);
+    });
+  }, [mergedReceiptRowsWithCuttingMeta, debouncedSearchQuery]);
+
   const paymentCountByQuoteRef = useMemo(
     () => paymentCountByQuotationRef(mergedReceiptRowsWithCuttingMeta),
     [mergedReceiptRowsWithCuttingMeta]
@@ -658,46 +683,31 @@ const Sales = () => {
   }, [quotations, mergedReceiptRows, refunds, cuttingLists]);
 
   const receiptPaymentStatusCounts = useMemo(() => {
-    const rows = mergedReceiptRowsWithCuttingMeta;
+    const rows = searchFilteredReceiptRows;
     let awaiting = 0;
     let confirmed = 0;
+    let reversed = 0;
     for (const row of rows) {
       const bucket = receiptSalesPaymentFilterBucket(row);
       if (bucket === 'awaiting') awaiting += 1;
       if (bucket === 'confirmed') confirmed += 1;
+      if (bucket === 'reversed') reversed += 1;
     }
-    return { all: rows.length, awaiting, confirmed };
-  }, [mergedReceiptRowsWithCuttingMeta]);
+    return { all: rows.length - reversed, awaiting, confirmed, reversed };
+  }, [searchFilteredReceiptRows]);
 
   const awaitingCashierReceiptCount = receiptPaymentStatusCounts.awaiting;
 
+  const paymentFilteredReceiptRows = useMemo(() => {
+    return searchFilteredReceiptRows.filter((row) =>
+      receiptMatchesSalesPaymentFilter(row, receiptPaymentStatusFilter)
+    );
+  }, [searchFilteredReceiptRows, receiptPaymentStatusFilter]);
+
   const filteredMergedReceipts = useMemo(() => {
-    const q = debouncedSearchQuery.trim().toLowerCase();
-    const filtered = mergedReceiptRowsWithCuttingMeta.filter((row) => {
-      if (!receiptMatchesSalesPaymentFilter(row, receiptPaymentStatusFilter)) return false;
-      if (!q) return true;
-      const blob = [
-        row.id,
-        row.customer,
-        row.quotationRef,
-        row.date,
-        row.dateISO,
-        row.amount,
-        row.source,
-        row._payBadge,
-        row._subLabel,
-        row._detailNote,
-        row._cuttingListLabel,
-        row._cuttingListId,
-        row._cuttingListLinkKind === 'linked' ? 'linked cutting list' : 'no cutting list',
-      ]
-        .join(' ')
-        .toLowerCase();
-      return blob.includes(q);
-    });
-    const sorted = sortReceiptsList(filtered, salesListSort.field, salesListSort.dir);
+    const sorted = sortReceiptsList(paymentFilteredReceiptRows, salesListSort.field, salesListSort.dir);
     return sorted.slice(0, showCount);
-  }, [mergedReceiptRowsWithCuttingMeta, debouncedSearchQuery, showCount, salesListSort, receiptPaymentStatusFilter]);
+  }, [paymentFilteredReceiptRows, showCount, salesListSort]);
 
   const filteredCuttingLists = useMemo(() => {
     const q = debouncedSearchQuery.trim().toLowerCase();
@@ -764,6 +774,7 @@ const Sales = () => {
       },
       receipts: {
         shown: filteredMergedReceipts.length,
+        matching: paymentFilteredReceiptRows.length,
         awaitingCashier: awaitingCashierReceiptCount,
       },
       cuttinglist: { shown: filteredCuttingLists.length },
@@ -780,6 +791,7 @@ const Sales = () => {
     [
       filteredQuotations,
       filteredMergedReceipts,
+      paymentFilteredReceiptRows,
       awaitingCashierReceiptCount,
       filteredCuttingLists,
       filteredRefunds,
@@ -1766,7 +1778,14 @@ const Sales = () => {
                           : ''}
                       </>
                     )}
-                    {salesTab === 'receipts' && <>{listStats.receipts.shown} records</>}
+                    {salesTab === 'receipts' && (
+                      <>
+                        {filteredMergedReceipts.length} showing
+                        {paymentFilteredReceiptRows.length > filteredMergedReceipts.length
+                          ? ` · ${paymentFilteredReceiptRows.length} match filter`
+                          : ''}
+                      </>
+                    )}
                     {salesTab === 'cuttinglist' && <>{listStats.cuttinglist.shown} records</>}
                     {salesTab === 'refund' && (
                       <>
@@ -2041,7 +2060,7 @@ const Sales = () => {
                         })}
                       </ul>
                     )}
-                    {mergedReceiptRows.length > showCount && (
+                    {paymentFilteredReceiptRows.length > showCount && (
                       <div className="flex justify-center mt-6">
                         <button
                           type="button"
