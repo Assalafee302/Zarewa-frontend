@@ -589,7 +589,7 @@ const Sales = () => {
         const id = String(eq.id ?? '').trim();
         const full = byId.get(id);
         const remainingNgn = Number(eq.remaining_ngn ?? eq.remainingNgn) || 0;
-        return full ? { ...full, remainingNgn } : { ...eq, id, remainingNgn };
+        return full ? { ...full, ...eq, id, remainingNgn } : { ...eq, id, remainingNgn };
       })
       .filter((row) => String(row.id ?? '').trim() && quotationMeetsRefundPickerFloor(row))
       .sort((a, b) => {

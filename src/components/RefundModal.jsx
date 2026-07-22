@@ -467,7 +467,7 @@ const RefundModal = ({
     setLoadingQuotes(true);
     // Keep modal opening responsive. Exact older quotation IDs remain available through
     // "Use quotation id"; selecting any row still loads its complete refund preview.
-    const rows = await fetchEligibleRefundQuotationsCached(apiFetch, { limit: 20, ...opts });
+    const rows = await fetchEligibleRefundQuotationsCached(apiFetch, { limit: 50, ...opts });
     setLoadingQuotes(false);
     setEligibleQuotes(rows);
   }, []);
