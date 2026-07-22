@@ -60,8 +60,12 @@ describe('receiptClearance', () => {
       financeReconciliationSavedAtISO: '2026-05-20T10:00:00.000Z',
       financeReconciliationSavedBy: 'Cashier Hauwa',
     };
+    const legacyConfirmed = { amountNgn: 50_000, status: 'Confirmed' };
     expect(receiptSalesPaymentStatusLabel(pending)).toBe(SALES_RECEIPT_PAYMENT_STATUS_AWAITING_CASHIER);
     expect(receiptSalesPaymentStatusLabel(cleared)).toBe(SALES_RECEIPT_PAYMENT_STATUS_CASHIER_CONFIRMED);
+    expect(receiptSalesPaymentStatusLabel(legacyConfirmed)).toBe(SALES_RECEIPT_PAYMENT_STATUS_CASHIER_CONFIRMED);
+    expect(isReceiptCleared(legacyConfirmed)).toBe(true);
+    expect(isReceiptPendingClearance(legacyConfirmed)).toBe(false);
     expect(receiptSalesPaymentStatusChipClass(pending)).toContain('amber');
     expect(receiptSalesPaymentStatusChipClass(cleared)).toContain('teal');
     expect(receiptSalesPaymentStatusDetail(cleared)).toBe('Confirmed by Cashier Hauwa · 20/05/2026');

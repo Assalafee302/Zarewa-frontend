@@ -124,6 +124,7 @@ import {
   unreconciledReceiptsPrintPayload,
 } from '../lib/reconciliationPrint';
 import {
+  isReceiptCleared,
   isReceiptPendingClearance,
   isReceiptReversed,
   RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE,
@@ -1887,10 +1888,7 @@ const Account = () => {
   }, [isAdminRole, wsCanMutate, showToast, wsRefresh]);
 
   const confirmedReceipts = useMemo(
-    () =>
-      sortedFilteredSalesReceipts.filter(
-        (r) => !isReceiptReversed(r) && Boolean(r.financeReconciliationSavedAtISO)
-      ),
+    () => sortedFilteredSalesReceipts.filter((r) => isReceiptCleared(r)),
     [sortedFilteredSalesReceipts]
   );
 
