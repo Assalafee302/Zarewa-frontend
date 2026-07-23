@@ -1,7 +1,64 @@
 import { formatNgn } from '../Data/mockData';
 import { escapeHtml, openPrintHtmlDocument } from './officeDeskPrint';
 import { isReceiptPendingClearance, pendingClearanceTotalNgn, receiptEffectiveCashNgn } from './receiptClearance';
-import { receiptLedgerReceiptTreasurySplits } from './salesReceiptsList';
+import { normSalesQuotationRefKey, receiptLedgerReceiptTreasurySplits } from './salesReceiptsList';
+
+function formatPrintMeters(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return '—';
+  return `${n.toLocaleString(undefined, { maximumFractionDigits: 2 })} m`;
+}
+
+/** @param {object[]} customers */
+function customerPhoneByIdMap(customers = []) {
+  const map = new Map();
+  for (const c of customers || []) {
+    const id = String(c?.customerID || c?.id || '').trim();
+    if (!id || map.has(id)) continue;
+    const phone = String(c?.phoneNumber || c?.phone || '').trim();
+    if (phone) map.set(id, phone);
+  }
+  return map;
+}
+
+/** @param {object[]} quotations */
+function quotationMaterialByRefMap(quotations = []) {
+  const map = new Map();
+  for (const q of quotations || []) {
+    const key = normSalesQuotationRefKey(q?.id || q?.quotationRef);
+    if (!key || map.has(key)) continue;
+    const colour = String(q?.materialColor ?? q?.material_color ?? q?.color ?? '').trim();
+    const gauge = String(q?.materialGauge ?? q?.material_gauge ?? q?.gauge ?? '').trim();
+    map.set(key, { colour: colour || '—', gauge: gauge || '—' });
+  }
+  return map;
+}
+
+/** @param {object[]} cuttingLists */
+function cuttingListSummaryByQuoteRefMap(cuttingLists = []) {
+  const map = new Map();
+  for (const cl of cuttingLists || []) {
+    const key = normSalesQuotationRefKey(cl?.quotationRef);
+    if (!key || map.has(key)) continue;
+    const metres = Number(cl?.totalMeters);
+    map.set(key, {
+      totalMetersLabel: formatPrintMeters(metres),
+    });
+  }
+  return map;
+}
+
+/** Customer name with phone when available (print column). */
+export function formatReceiptCustomerWithPhone(receipt, phoneByCustomerId) {
+  const name = String(receipt?.customer || receipt?.customerName || '—').trim() || '—';
+  const customerId = String(receipt?.customerID || '').trim();
+  const phone =
+    String(receipt?.customerPhone || receipt?.phoneNumber || '').trim() ||
+    (customerId && phoneByCustomerId?.get?.(customerId)) ||
+    '';
+  if (!phone || phone === '—') return name;
+  return name === '—' ? phone : `${name} · ${phone}`;
+}
 
 /** Plain table print — matches treasury account statement (lines + data only). */
 export function buildReconciliationListPrintHtml(payload) {
@@ -101,9 +158,19 @@ export function unreconciledReceiptRows(receipts = []) {
  * Print payload for customer receipts awaiting finance clearance / reconciliation.
  * @param {object[]} receipts
  * @param {object[]} treasuryMovements
- * @param {{ branchLabel?: string; generatedAt?: Date }} [opts]
+ * @param {{
+ *   branchLabel?: string;
+ *   generatedAt?: Date;
+ *   customers?: object[];
+ *   quotations?: object[];
+ *   cuttingLists?: object[];
+ * }} [opts]
  */
 export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [], opts = {}) {
+  const phoneByCustomerId = customerPhoneByIdMap(opts.customers);
+  const materialByQuote = quotationMaterialByRefMap(opts.quotations);
+  const cuttingByQuote = cuttingListSummaryByQuoteRefMap(opts.cuttingLists);
+
   const rows = unreconciledReceiptRows(receipts)
     .slice()
     .sort((a, b) => {
@@ -119,15 +186,20 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
         splits.length > 0
           ? splits.map((s) => `${s.accountLabel} (${formatNgn(s.amountNgn)})`).join('; ')
           : '—';
+      const qKey = normSalesQuotationRefKey(r.quotationRef);
+      const material = qKey ? materialByQuote.get(qKey) : null;
+      const cutting = qKey ? cuttingByQuote.get(qKey) : null;
       return {
         receiptId: String(r.id || '—'),
         receiptDate: String(r.dateISO || r.date || '—'),
-        customer: String(r.customer || '—'),
+        customer: formatReceiptCustomerWithPhone(r, phoneByCustomerId),
         quotationRef: String(r.quotationRef || '—'),
         amountReceived: formatNgn(cash),
         treasuryAccounts: accounts,
+        colour: material?.colour || '—',
+        gauge: material?.gauge || '—',
+        totalMeters: cutting?.totalMetersLabel || '—',
         status: 'Pending clearance',
-        reference: String(r.bankReference || r.method || r.paymentMethod || '—'),
       };
     });
 
@@ -150,7 +222,9 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       { key: 'quotationRef', label: 'Quotation' },
       { key: 'amountReceived', label: 'Received', align: 'right' },
       { key: 'treasuryAccounts', label: 'Bank / cash account' },
-      { key: 'reference', label: 'Reference / method' },
+      { key: 'colour', label: 'Colour' },
+      { key: 'gauge', label: 'Gauge' },
+      { key: 'totalMeters', label: 'Total metres', align: 'right' },
       { key: 'status', label: 'Status' },
     ],
     rows,

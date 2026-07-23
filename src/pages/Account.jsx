@@ -401,6 +401,14 @@ const Account = () => {
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
   );
+  const liveCustomers = useMemo(
+    () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.customers) ? ws.snapshot.customers : []),
+    [ws?.hasWorkspaceData, ws?.snapshot?.customers]
+  );
+  const liveCuttingLists = useMemo(
+    () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : []),
+    [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
+  );
   const liveProductionJobs = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : [],
@@ -1831,9 +1839,13 @@ const Account = () => {
     [sortedFilteredSalesReceipts]
   );
 
-  const openUnreconciledReceiptsPrint = useCallback(() => {
+  const openUnreconciledReceiptsPrint = useCallback(async () => {
+    const snap = (await ws?.ensureDomainLoaded?.('sales')) || ws?.snapshot;
     const payload = unreconciledReceiptsPrintPayload(waitingConfirmationReceipts, liveTreasuryMovements, {
-      branchLabel: workspaceBranchLabel || ws?.snapshot?.branch?.name || ws?.workspaceBranchId || '',
+      branchLabel: workspaceBranchLabel || snap?.branch?.name || ws?.workspaceBranchId || '',
+      customers: Array.isArray(snap?.customers) ? snap.customers : liveCustomers,
+      quotations: Array.isArray(snap?.quotations) ? snap.quotations : liveQuotations,
+      cuttingLists: Array.isArray(snap?.cuttingLists) ? snap.cuttingLists : liveCuttingLists,
     });
     if (!payload.rows.length) {
       showToast('No unreconciled receipts to print.', { variant: 'info' });
@@ -1845,8 +1857,12 @@ const Account = () => {
   }, [
     waitingConfirmationReceipts,
     liveTreasuryMovements,
+    liveCustomers,
+    liveQuotations,
+    liveCuttingLists,
     workspaceBranchLabel,
-    ws?.snapshot?.branch?.name,
+    ws?.ensureDomainLoaded,
+    ws?.snapshot,
     ws?.workspaceBranchId,
     showToast,
   ]);

@@ -30,6 +30,7 @@ describe('reconciliationPrint', () => {
         {
           id: 'RC-2026-010',
           customer: 'Acme Ltd',
+          customerID: 'CUS-001',
           quotationRef: 'QT-100',
           dateISO: '2026-06-10',
           cashReceivedNgn: 250000,
@@ -47,11 +48,25 @@ describe('reconciliationPrint', () => {
           amountNgn: 250000,
         },
       ],
-      { branchLabel: 'Kaduna (HQ)' }
+      {
+        branchLabel: 'Kaduna (HQ)',
+        customers: [{ customerID: 'CUS-001', phoneNumber: '08035550142' }],
+        quotations: [{ id: 'QT-100', materialColor: 'Heritage Blue', materialGauge: '0.45mm' }],
+        cuttingLists: [{ id: 'CL-1', quotationRef: 'QT-100', totalMeters: 120.5 }],
+      }
     );
     expect(payload.rows).toHaveLength(1);
     expect(payload.rows[0].receiptId).toBe('RC-2026-010');
+    expect(payload.rows[0].customer).toBe('Acme Ltd · 08035550142');
     expect(payload.rows[0].treasuryAccounts).toContain('GTBank Main');
+    expect(payload.rows[0].colour).toBe('Heritage Blue');
+    expect(payload.rows[0].gauge).toBe('0.45mm');
+    expect(payload.rows[0].totalMeters).toMatch(/120\.5/);
+    expect(payload.rows[0].reference).toBeUndefined();
+    expect(payload.columns.some((c) => c.key === 'reference')).toBe(false);
+    expect(payload.columns.map((c) => c.key)).toEqual(
+      expect.arrayContaining(['colour', 'gauge', 'totalMeters'])
+    );
     expect(payload.summaryLines[0].value).toBe('1');
   });
 
