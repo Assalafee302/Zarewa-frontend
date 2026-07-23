@@ -96,6 +96,7 @@ export function BranchManagerCommandInbox(props) {
     selectedIntel,
     decisionBusy = false,
     canManagerClearance = false,
+    canAdminBulkClearPaid = false,
     handleClearAllClearance,
     openQuotationIntel,
     openAttentionItem,
@@ -123,8 +124,30 @@ export function BranchManagerCommandInbox(props) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
 
+  const emptyIcon = () => {
+    if (activeTab === 'orders') return <CheckCircle2 size={36} className="opacity-25 mb-3 text-teal-600" />;
+    if (activeTab === 'cash_out') return <DollarSign size={36} className="opacity-25 mb-3 text-amber-600" />;
+    if (activeTab === 'qc') return <BarChart3 size={36} className="opacity-25 mb-3 text-slate-500" />;
+    if (activeTab === 'material') return <ClipboardList size={36} className="opacity-25 mb-3 text-teal-600" />;
+    if (activeTab === 'procurement') return <ShoppingCart size={36} className="opacity-25 mb-3 text-slate-500" />;
+    if (activeTab === 'governance') return <AlertTriangle size={36} className="opacity-25 mb-3 text-rose-600" />;
+    if (activeTab === 'edits') return <PencilLine size={36} className="opacity-25 mb-3 text-slate-500" />;
+    return <Sparkles size={36} className="opacity-25 mb-3 text-teal-600" />;
+  };
+
   const pacView = pacViewFromActiveTab(activeTab);
   const pacTabs = MANAGER_PAC_TABS.filter((t) => t.key !== 'credit' || showDeliveryCreditTab);
+
+  const hasClearablePaid =
+    attentionItems.some((it) => it.kind === 'clearance') ||
+    filteredInboxRows.some((r) => r._inboxKind === 'clearance');
+  const hasClearableConversionGaps =
+    attentionItems.some((it) => it.kind === 'conversions') ||
+    (activeTab === 'qc' && filteredInboxRows.length > 0) ||
+    (Number(tabCounts.qc) || 0) > 0;
+  /** Admin-only bulk clear for paid quotes + High/Low conversion gaps. */
+  const showClearAllPaid =
+    canAdminBulkClearPaid && (hasClearablePaid || hasClearableConversionGaps);
 
   const selectPac = (key) => {
     if (key === 'attention') {
@@ -450,24 +473,6 @@ export function BranchManagerCommandInbox(props) {
     return null;
   };
 
-  const emptyIcon = () => {
-    if (activeTab === 'orders') return <CheckCircle2 size={36} className="opacity-25 mb-3 text-teal-600" />;
-    if (activeTab === 'cash_out') return <DollarSign size={36} className="opacity-25 mb-3 text-amber-600" />;
-    if (activeTab === 'qc') return <BarChart3 size={36} className="opacity-25 mb-3 text-slate-500" />;
-    if (activeTab === 'material') return <ClipboardList size={36} className="opacity-25 mb-3 text-teal-600" />;
-    if (activeTab === 'procurement') return <ShoppingCart size={36} className="opacity-25 mb-3 text-slate-500" />;
-    if (activeTab === 'governance') return <AlertTriangle size={36} className="opacity-25 mb-3 text-rose-600" />;
-    if (activeTab === 'edits') return <PencilLine size={36} className="opacity-25 mb-3 text-slate-500" />;
-    return <Sparkles size={36} className="opacity-25 mb-3 text-teal-600" />;
-  };
-
-  const showClearAllPaid =
-    canManagerClearance &&
-    ((activeTab === 'orders' && filteredInboxRows.some((r) => r._inboxKind === 'clearance')) ||
-      (pacView === 'attention' &&
-        (attentionFilter === 'orders' || attentionFilter === 'all') &&
-        attentionItems.some((it) => it.kind === 'clearance')));
-
   const effectiveAttentionFilter =
     pacView === 'attention'
       ? activeTab === 'attention'
@@ -534,7 +539,7 @@ export function BranchManagerCommandInbox(props) {
                 className="shrink-0 w-full sm:w-auto"
               >
                 <CheckCircle2 size={14} />
-                Clear all paid
+                Clear all paid & gaps
               </Button>
             ) : null}
             <div className="relative w-full sm:w-64">

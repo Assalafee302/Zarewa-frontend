@@ -183,6 +183,11 @@ export function useBranchManagerWorkstation() {
     (perm) => Boolean(ws?.hasPermission?.(perm))
   );
   const canManagerClearance = userMayPerformManagerQuotationClearance(ws?.session?.user);
+  /** Bulk “Clear all paid” (+ conversion gaps) — admin only (not branch manager / MD). */
+  const canAdminBulkClearPaid =
+    managerRoleKey === 'admin' ||
+    (Array.isArray(ws?.session?.user?.permissions) && ws.session.user.permissions.includes('*')) ||
+    Boolean(ws?.hasPermission?.('*'));
   const canReleasePaymentHolds = userMayReleaseQuotationPaymentHold(ws?.session?.user);
   const canWriteOffBadDebt = userMayWriteOffReceivableBadDebt(ws?.session?.user);
   const canApproveRefunds = userMayApproveRefundRequests(ws);
@@ -1452,8 +1457,8 @@ export function useBranchManagerWorkstation() {
   );
 
   const handleClearAllClearance = useCallback(async () => {
-    if (!canManagerClearance) {
-      showToast('Quotation clearance requires Branch Manager authority.', { variant: 'error' });
+    if (!canAdminBulkClearPaid) {
+      showToast('Bulk clear is restricted to Admin.', { variant: 'error' });
       return;
     }
     const fromFiltered = filteredInboxRows.filter((row) => row._inboxKind === 'clearance');
@@ -1468,22 +1473,35 @@ export function useBranchManagerWorkstation() {
       return total <= 0 || isEffectivelyFullyPaid(paid, total);
     });
     const skippedBalance = rows.length - eligible.length;
-    if (eligible.length === 0) {
+
+    const conversionRows = (displayItems.pendingConversionReviews || []).filter((row) =>
+      String(row.job_id || '').trim()
+    );
+
+    if (eligible.length === 0 && conversionRows.length === 0) {
       showToast(
         skippedBalance > 0
           ? 'None of the visible quotes meet the 99.5% paid rule — post remaining balances before sign-off.'
-          : 'No quotations to clear.',
+          : 'Nothing to clear (no paid quotations or conversion gaps).',
         { variant: 'error' }
       );
       return;
+    }
+
+    const parts = [];
+    if (eligible.length > 0) {
+      parts.push(`${eligible.length} paid quotation(s)`);
+    }
+    if (conversionRows.length > 0) {
+      parts.push(`${conversionRows.length} conversion gap review(s)`);
     }
     const skipNote =
       skippedBalance > 0
         ? `\n\n${skippedBalance} quote(s) with balance due will be skipped.`
         : '';
     const ok = await requestConfirm({
-      title: 'Approve all paid quotations?',
-      description: `Approve order sign-off for ${eligible.length} quotation(s)? Each quote is reviewed individually; bulk clear applies only to quotes at 99.5% paid or above.${skipNote}`,
+      title: 'Admin bulk clear?',
+      description: `Clear ${parts.join(' and ')}? Paid quotes must be at 99.5% paid or above. Conversion High/Low (too-much-gap) reviews are signed off with an admin bulk remark.${skipNote}`,
       onConfirm: 'clear_all_clearance',
       variant: 'danger',
     });
@@ -1500,23 +1518,70 @@ export function useBranchManagerWorkstation() {
       if (reqOk && data?.ok !== false) cleared += 1;
       else failed += 1;
     }
+
+    let convCleared = 0;
+    let convFailed = 0;
+    const bulkConvRemark = 'Admin bulk clear — conversion gap reviewed.';
+    for (const row of conversionRows) {
+      const jobId = String(row.job_id || '').trim();
+      if (!jobId) {
+        convFailed += 1;
+        continue;
+      }
+      const { ok: reqOk, data } = await apiFetch(
+        `/api/production-jobs/${encodeURIComponent(jobId)}/manager-review-signoff`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ remark: bulkConvRemark }),
+        }
+      );
+      if (reqOk && data?.ok !== false) convCleared += 1;
+      else convFailed += 1;
+    }
+
     setDecisionBusy(false);
     await fetchData({ background: true });
     setSelectedIntel(null);
     setAuditData(null);
 
-    if (failed === 0) {
-      const suffix = skippedBalance > 0 ? ` (${skippedBalance} skipped — balance due.)` : '';
-      showToast(`Clearance approved for ${cleared} quotation(s).${suffix}`, { variant: 'success' });
-    } else if (cleared > 0) {
-      showToast(
-        `Cleared ${cleared}; ${failed} could not be cleared.${skippedBalance > 0 ? ` ${skippedBalance} skipped (balance due).` : ''}`,
-        { variant: 'success' }
+    const summaryBits = [];
+    if (eligible.length > 0 || cleared > 0 || failed > 0) {
+      summaryBits.push(
+        failed === 0
+          ? `${cleared} quotation(s) cleared`
+          : cleared > 0
+            ? `${cleared} quotation(s) cleared, ${failed} failed`
+            : 'no quotations cleared'
       );
-    } else {
-      showToast('Could not clear any quotations.', { variant: 'error' });
     }
-  }, [canManagerClearance, displayItems.pendingClearance, fetchData, filteredInboxRows, requestConfirm, showToast]);
+    if (conversionRows.length > 0 || convCleared > 0 || convFailed > 0) {
+      summaryBits.push(
+        convFailed === 0
+          ? `${convCleared} conversion gap(s) signed off`
+          : convCleared > 0
+            ? `${convCleared} conversion gap(s) signed off, ${convFailed} failed`
+            : 'no conversion gaps signed off'
+      );
+    }
+    const suffix = skippedBalance > 0 ? ` (${skippedBalance} quote(s) skipped — balance due.)` : '';
+    const anyOk = cleared > 0 || convCleared > 0;
+    const anyFail = failed > 0 || convFailed > 0;
+    if (anyOk && !anyFail) {
+      showToast(`${summaryBits.join('; ')}.${suffix}`, { variant: 'success' });
+    } else if (anyOk) {
+      showToast(`${summaryBits.join('; ')}.${suffix}`, { variant: 'success' });
+    } else {
+      showToast(`Could not clear items.${suffix}`, { variant: 'error' });
+    }
+  }, [
+    canAdminBulkClearPaid,
+    displayItems.pendingClearance,
+    displayItems.pendingConversionReviews,
+    fetchData,
+    filteredInboxRows,
+    requestConfirm,
+    showToast,
+  ]);
 
   const handleRefundDecision = useCallback(
     async (status, decisionExtras = {}) => {
@@ -2003,6 +2068,7 @@ export function useBranchManagerWorkstation() {
     showBiShortcut,
     canApprovePaymentRequests,
     canManagerClearance,
+    canAdminBulkClearPaid,
     canReleasePaymentHolds,
     canWriteOffBadDebt,
     canApproveRefunds,
