@@ -20,13 +20,18 @@ import {
 } from 'lucide-react';
 
 import { metreVarianceExceedsThreshold } from '../lib/productionMetreVariance';
-import { WORKSPACE_EMPTY_LIST_CLASS } from '../lib/workspaceListStyle';
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody, ModalScrollFooter } from '../components/layout';
 import { WorkspacePanelToolbar } from '../components/workspace';
 import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import RegisterCoilModal from '../components/operations/RegisterCoilModal';
 import { OperationsProductionOverview } from '../components/operations/OperationsProductionOverview';
+import {
+  ProductionListTableFrame,
+  ProductionListSearchInput,
+  ProductionListSortBar,
+} from '../components/operations/ProductionListTableFrame';
+import { ProductionRowMenu } from '../components/operations/ProductionRowMenu';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import MaterialExceptions from './MaterialExceptions';
 import { useInventory } from '../context/InventoryContext';
@@ -36,6 +41,8 @@ import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { apiFetch } from '../lib/apiBase';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../lib/appDataTable';
 import { AppTablePager, AppTableWrap } from '../components/ui/AppDataTable';
+import { ListEmptyState } from '../components/ui/ListEmptyState';
+import { SALES_STATUS_CHIP } from '../lib/salesStatusUi';
 import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
@@ -161,10 +168,11 @@ function productionAttentionScore(row) {
 }
 
 /**
- * @param {'attention'|'id'|'idDesc'|'registeredDesc'|'customer'|'status'} sortKey
+ * Ascending baseline for production queue sort fields (dir applied by caller).
+ * @param {'attention'|'id'|'registered'|'customer'|'status'} field
  */
-function compareProductionQueueRows(a, b, sortKey) {
-  if (sortKey === 'attention') {
+function compareProductionQueueRows(a, b, field) {
+  if (field === 'attention') {
     const pa = productionAttentionScore(a);
     const pb = productionAttentionScore(b);
     if (pa !== pb) return pa - pb;
@@ -173,7 +181,7 @@ function compareProductionQueueRows(a, b, sortKey) {
     if (ra !== rb) return ra - rb;
     return String(a.id || '').localeCompare(String(b.id || ''));
   }
-  if (sortKey === 'customer') {
+  if (field === 'customer') {
     const c = String(a.customer || '').localeCompare(String(b.customer || ''), undefined, { sensitivity: 'base' });
     if (c !== 0) return c;
     const ra = cuttingListIdNumericRank(a.id);
@@ -181,7 +189,7 @@ function compareProductionQueueRows(a, b, sortKey) {
     if (ra !== rb) return ra - rb;
     return String(a.id || '').localeCompare(String(b.id || ''));
   }
-  if (sortKey === 'status') {
+  if (field === 'status') {
     const s = String(a.status || '').localeCompare(String(b.status || ''));
     if (s !== 0) return s;
     const ra = cuttingListIdNumericRank(a.id);
@@ -189,25 +197,27 @@ function compareProductionQueueRows(a, b, sortKey) {
     if (ra !== rb) return ra - rb;
     return String(a.id || '').localeCompare(String(b.id || ''));
   }
-  if (sortKey === 'registeredDesc') {
+  if (field === 'registered') {
+    /* Asc = oldest first (invert newest-first helper). */
     const tc = compareIsoNewestFirst(a.queueRegisteredAtISO, b.queueRegisteredAtISO);
-    if (tc !== 0) return tc;
+    if (tc !== 0) return -tc;
     const na = cuttingListIdNumericRank(a.id);
     const nb = cuttingListIdNumericRank(b.id);
-    if (na !== nb) return nb - na;
-    return String(b.id || '').localeCompare(String(a.id || ''));
-  }
-  if (sortKey === 'idDesc') {
-    const na = cuttingListIdNumericRank(a.id);
-    const nb = cuttingListIdNumericRank(b.id);
-    if (na !== nb) return nb - na;
-    return String(b.id || '').localeCompare(String(a.id || ''));
+    if (na !== nb) return na - nb;
+    return String(a.id || '').localeCompare(String(b.id || ''));
   }
   /* id — oldest first (lowest trailing # / stable id) */
   const na = cuttingListIdNumericRank(a.id);
   const nb = cuttingListIdNumericRank(b.id);
   if (na !== nb) return na - nb;
   return String(a.id || '').localeCompare(String(b.id || ''));
+}
+
+function sortProductionQueueRows(rows, field, dir) {
+  return [...rows].sort((a, b) => {
+    const c = compareProductionQueueRows(a, b, field);
+    return dir === 'desc' ? -c : c;
+  });
 }
 
 const PANEL_TITLE = {
@@ -217,6 +227,30 @@ const PANEL_TITLE = {
 
 /** Rows per page for production line lists (live jobs, closed queue, manager review). */
 const PRODUCTION_TABLE_PAGE_SIZE = 10;
+
+const PRODUCTION_SORT_FIELDS = [
+  { id: 'registered', label: 'Registered' },
+  { id: 'id', label: 'Cutting list #' },
+  { id: 'attention', label: 'Attention' },
+  { id: 'customer', label: 'Customer' },
+  { id: 'status', label: 'Status' },
+];
+
+/** Compact rows — aligned with Sales quotations / receipts lists */
+const CARD_ROW =
+  'rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm transition-colors hover:bg-white/70';
+
+const CHIP = SALES_STATUS_CHIP;
+
+function productionListItemClass(rowKey, openKey, toneClass = '') {
+  const base = toneClass
+    ? `rounded-lg border py-1.5 px-2.5 shadow-sm backdrop-blur-md transition-colors ${toneClass}`
+    : CARD_ROW;
+  return openKey === rowKey ? `${base} relative z-50` : base;
+}
+
+const FILTER_CHIP =
+  'px-2.5 py-1.5 rounded-md text-ui-xs font-semibold uppercase tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25';
 
 /** Coil / stone metres / stone flatsheet m² / accessory — receive and on-hand panels. */
 const STOCK_RECEIVE_KIND_TABS = [
@@ -602,8 +636,9 @@ const Operations = () => {
   const [productionFilter, setProductionFilter] = useState('all');
   /** In-progress panel: all | coils_allocated | no_coil | running | planned */
   const [productionActiveFilter, setProductionActiveFilter] = useState('all');
-  const [productionActiveSortKey, setProductionActiveSortKey] = useState('registeredDesc');
-  const [productionClosedSortKey, setProductionClosedSortKey] = useState('id');
+  const [productionActiveSort, setProductionActiveSort] = useState({ field: 'registered', dir: 'desc' });
+  const [productionClosedSort, setProductionClosedSort] = useState({ field: 'id', dir: 'asc' });
+  const [actionMenuKey, setActionMenuKey] = useState(null);
   useEffect(() => {
     if (!ws?.hasWorkspaceData) return;
     const onlineFilters = new Set(['all', 'completed', 'cancelled', 'coils_allocated']);
@@ -616,6 +651,15 @@ const Operations = () => {
     if (activeFilters.has(productionActiveFilter)) return;
     setProductionActiveFilter('all');
   }, [ws?.hasWorkspaceData, productionActiveFilter]);
+  useEffect(() => {
+    if (!actionMenuKey) return;
+    const onDown = (e) => {
+      if (e.target.closest?.('[data-production-action-menu]')) return;
+      setActionMenuKey(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [actionMenuKey]);
   const [showStockAdjust, setShowStockAdjust] = useState(false);
   const [showCoilRequest, setShowCoilRequest] = useState(false);
   const [showRegisterCoil, setShowRegisterCoil] = useState(false);
@@ -1026,8 +1070,8 @@ const Operations = () => {
   }, [productionActiveRows, productionActiveFilter]);
 
   const productionActiveSorted = useMemo(
-    () => [...productionActiveFiltered].sort((a, b) => compareProductionQueueRows(a, b, productionActiveSortKey)),
-    [productionActiveFiltered, productionActiveSortKey]
+    () => sortProductionQueueRows(productionActiveFiltered, productionActiveSort.field, productionActiveSort.dir),
+    [productionActiveFiltered, productionActiveSort.field, productionActiveSort.dir]
   );
 
   /** Main table: closed jobs only (completed or cancelled). In-progress appears in the panel above. */
@@ -1055,17 +1099,15 @@ const Operations = () => {
   }, [productionQueueModel, productionFilter]);
 
   const productionQueueRows = useMemo(
-    () =>
-      [...productionClosedFiltered].sort((a, b) =>
-        compareProductionQueueRows(a, b, productionClosedSortKey)
-      ),
-    [productionClosedFiltered, productionClosedSortKey]
+    () => sortProductionQueueRows(productionClosedFiltered, productionClosedSort.field, productionClosedSort.dir),
+    [productionClosedFiltered, productionClosedSort.field, productionClosedSort.dir]
   );
 
   const productionActivePage = useAppTablePaging(
     productionActiveSorted,
     PRODUCTION_TABLE_PAGE_SIZE,
-    productionActiveSortKey,
+    productionActiveSort.field,
+    productionActiveSort.dir,
     productionActiveFilter,
     searchQuery,
     ws?.hasWorkspaceData
@@ -1074,7 +1116,8 @@ const Operations = () => {
   const productionClosedPage = useAppTablePaging(
     productionQueueRows,
     PRODUCTION_TABLE_PAGE_SIZE,
-    productionClosedSortKey,
+    productionClosedSort.field,
+    productionClosedSort.dir,
     productionFilter,
     searchQuery,
     ws?.hasWorkspaceData
@@ -2596,54 +2639,33 @@ const Operations = () => {
 
         {activeTab === 'production' ? (
         <div className="lg:col-span-4 order-1 lg:order-2">
-          <MainPanel>
-            <WorkspacePanelToolbar
-              title={PANEL_TITLE.production}
-              searchValue={searchQuery}
-              onSearchChange={setSearchQuery}
-              searchPlaceholder="Search lists, customers, coil no., status…"
-            />
+          <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !backdrop-blur-none border !border-solid !p-0 overflow-hidden">
+            <div className="h-1 bg-zarewa-teal" aria-hidden />
+            <div className="space-y-4 p-5 sm:p-6 md:p-8">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0 shrink-0">
+                  <h2 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
+                    {PANEL_TITLE.production}
+                  </h2>
+                  <p className="mt-1 text-ui-xs font-semibold tabular-nums text-slate-400">
+                    {productionActiveFiltered.length} live · {productionQueueRows.length} closed
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePrintProductionFollowUp}
+                  disabled={productionFollowUpPrintRows.length === 0}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zarewa-teal/25 bg-white px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-teal-50/80 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
+                  title="Print all waiting or in-production jobs (quotation, cutting list, customer, project, colour, gauge)"
+                >
+                  <Printer size={12} aria-hidden />
+                  Print follow-up
+                </button>
+              </div>
 
-            <div className="space-y-4">
-              {activeTab === 'production' ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-start -mt-1">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-start">
                   {/* Left 1/3 — in progress / need action */}
-                  <section className="space-y-4 lg:col-span-1 order-1 min-w-0 flex flex-col rounded-xl border border-slate-200/80 bg-slate-50/40 p-4">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">
-                          In progress · need action
-                        </h3>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handlePrintProductionFollowUp}
-                          disabled={productionFollowUpPrintRows.length === 0}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-zarewa-teal/25 bg-white px-2.5 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-teal-50/80 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
-                          title="Print all waiting or in-production jobs (quotation, cutting list, customer, project, colour, gauge)"
-                        >
-                          <Printer size={12} aria-hidden />
-                          Print follow-up
-                        </button>
-                        <label className="flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                          Sort
-                          <select
-                            value={productionActiveSortKey}
-                            onChange={(e) => setProductionActiveSortKey(e.target.value)}
-                            className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
-                          >
-                            <option value="registeredDesc">Newest registered</option>
-                            <option value="id">Cutting list # (oldest first)</option>
-                            <option value="idDesc">Cutting list # (newest first)</option>
-                            <option value="attention">Attention</option>
-                            <option value="customer">Customer A–Z</option>
-                            <option value="status">Status A–Z</option>
-                          </select>
-                        </label>
-                      </div>
-                    </div>
-
+                  <section className="space-y-4 lg:col-span-1 order-1 min-w-0 flex flex-col">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       <div className="rounded-lg border border-slate-200 bg-white p-2.5">
                         <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Jobs waiting</p>
@@ -2677,35 +2699,6 @@ const Operations = () => {
                       </div>
                     </div>
 
-                    {ws?.hasWorkspaceData ? (
-                      <div
-                        className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1"
-                        role="group"
-                        aria-label="Filter in-progress production jobs"
-                      >
-                        {[
-                          { id: 'all', label: 'All in progress' },
-                          { id: 'coils_allocated', label: 'Coils reserved' },
-                          { id: 'no_coil', label: 'No coil yet' },
-                          { id: 'running', label: 'Running' },
-                          { id: 'planned', label: 'Planned' },
-                        ].map((f) => (
-                          <button
-                            key={f.id}
-                            type="button"
-                            onClick={() => setProductionActiveFilter(f.id)}
-                            className={`px-2.5 py-1.5 rounded-md text-ui-xs font-semibold uppercase tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 ${
-                              productionActiveFilter === f.id
-                                ? 'bg-zarewa-teal text-white shadow-sm'
-                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                            }`}
-                          >
-                            {f.label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-
                     {ws?.hasWorkspaceData && jobsNeedingManagerReview.length > 0 ? (
                       <div className="rounded-lg border border-red-200 bg-red-50/90 px-3 py-3 text-sm text-red-950 shadow-sm">
                         <p className="text-ui-xs font-black uppercase tracking-widest text-red-800 flex items-center gap-2">
@@ -2735,409 +2728,453 @@ const Operations = () => {
                       </div>
                     ) : null}
 
-                    {ws?.hasWorkspaceData && productionActiveRows.length > 0 ? (
-                      <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 shadow-sm flex flex-col">
-                        <p className="text-ui-xs font-bold uppercase tracking-widest text-sky-900">
-                          Live jobs
-                          {productionActiveFilter !== 'all' ? (
-                            <span className="ml-1.5 font-semibold normal-case text-sky-800/90">
-                              ({productionActiveFiltered.length} of {productionActiveRows.length})
-                            </span>
-                          ) : null}
-                        </p>
-                        <ul className="mt-2 space-y-1.5">
-                          {productionActivePage.slice.map((item) => (
-                            <li
-                              key={item.id}
-                              className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-2 ${
-                                item.liveJobCardClass || 'border-sky-100 bg-white/90'
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <p className="font-mono text-xs font-bold text-zarewa-teal">{item.id}</p>
-                                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 min-w-0">
-                                  <span
-                                    className={`shrink-0 text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border ${
-                                      item.lineStatusChipClass ||
-                                      'border-slate-200 bg-slate-50 text-slate-600'
+                    <div className="min-w-0">
+                      <h3 className="mb-3 text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
+                        In progress · need action
+                      </h3>
+                      <ProductionListTableFrame
+                        toolbar={
+                          <>
+                            <ProductionListSearchInput
+                              value={searchQuery}
+                              onChange={setSearchQuery}
+                              placeholder="Search lists, customers, coil no., status…"
+                            />
+                            <ProductionListSortBar
+                              fields={PRODUCTION_SORT_FIELDS}
+                              field={productionActiveSort.field}
+                              dir={productionActiveSort.dir}
+                              onFieldChange={(field) =>
+                                setProductionActiveSort((s) => ({ ...s, field }))
+                              }
+                              onDirToggle={() =>
+                                setProductionActiveSort((s) => ({
+                                  ...s,
+                                  dir: s.dir === 'asc' ? 'desc' : 'asc',
+                                }))
+                              }
+                            />
+                            {ws?.hasWorkspaceData ? (
+                              <div
+                                className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1"
+                                role="group"
+                                aria-label="Filter in-progress production jobs"
+                              >
+                                {[
+                                  { id: 'all', label: 'All in progress' },
+                                  { id: 'coils_allocated', label: 'Coils reserved' },
+                                  { id: 'no_coil', label: 'No coil yet' },
+                                  { id: 'running', label: 'Running' },
+                                  { id: 'planned', label: 'Planned' },
+                                ].map((f) => (
+                                  <button
+                                    key={f.id}
+                                    type="button"
+                                    onClick={() => setProductionActiveFilter(f.id)}
+                                    className={`${FILTER_CHIP} ${
+                                      productionActiveFilter === f.id
+                                        ? 'bg-zarewa-teal text-white shadow-sm'
+                                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                     }`}
                                   >
-                                    {item.lineStatusLabel || '—'}
-                                  </span>
-                                  {item.liveJobMaterialChipLabel ? (
-                                    <span
-                                      className={`shrink-0 text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border ${
-                                        item.liveJobMaterialChipClass || 'border-slate-200 bg-slate-50 text-slate-600'
-                                      }`}
-                                      title="Job material class"
-                                    >
-                                      {item.liveJobMaterialChipLabel}
-                                    </span>
-                                  ) : null}
-                                  <span className="text-ui-xs text-slate-600 truncate">{item.customer}</span>
-                                </div>
-                                {item.hasCoilsAllocated ? (
-                                  <p
-                                    className="mt-1 text-ui-xs font-mono text-teal-900/90 leading-snug"
-                                    title={
-                                      item.reservedKg > 0
-                                        ? `${item.reservedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg opening reserved on this job`
-                                        : undefined
-                                    }
-                                  >
-                                    {item.reservedCoilNos?.length
-                                      ? item.reservedCoilNos.join(' · ')
-                                      : item.coilLabel || 'Coils allocated'}
-                                    {item.reservedKg > 0 ? (
-                                      <span className="text-teal-800/80">
-                                        {' '}
-                                        · {item.reservedKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg
-                                      </span>
-                                    ) : null}
-                                  </p>
-                                ) : item.coilLabel ? (
-                                  <p className="mt-1 text-ui-xs text-amber-900/90">{item.coilLabel}</p>
-                                ) : null}
-                              </div>
-                              <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openTraceWithHint(
-                                      item,
-                                      'Production register: enter closing kg & metres, Save while running, then Complete.'
-                                    )
-                                  }
-                                  className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-300 bg-white text-sky-900 hover:bg-sky-50"
-                                  title="Open production register (coils, run log, complete)"
-                                >
-                                  Edit register
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openTraceWithHint(
-                                      item,
-                                      item.status === 'Running'
-                                        ? 'Recall entry: confirm return to plan, then re-enter coils and start again.'
-                                        : 'Recall entry: confirm cancel to release the cutting list to Waiting, then fix and re-register if needed.',
-                                      { recallIntent: true }
-                                    )
-                                  }
-                                  className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-violet-300 bg-violet-50 text-violet-950 hover:bg-violet-100"
-                                  title="Recall wrong entry — cancel (Planned) or return to plan (Running)"
-                                >
-                                  Recall
-                                </button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                        {productionActiveFiltered.length === 0 ? (
-                          <p className="mt-2 text-ui-xs text-slate-500 leading-relaxed">
-                            No in-progress jobs match this filter. Try &ldquo;All in progress&rdquo; or search by coil
-                            number (e.g. 1975).
-                          </p>
-                        ) : null}
-                        <AppTablePager
-                          showingFrom={productionActivePage.showingFrom}
-                          showingTo={productionActivePage.showingTo}
-                          total={productionActivePage.total}
-                          hasPrev={productionActivePage.hasPrev}
-                          hasNext={productionActivePage.hasNext}
-                          onPrev={productionActivePage.goPrev}
-                          onNext={productionActivePage.goNext}
-                          pageSize={PRODUCTION_TABLE_PAGE_SIZE}
-                        />
-                      </div>
-                    ) : ws?.hasWorkspaceData ? (
-                      <p className="text-ui-xs text-slate-500 leading-relaxed">
-                        {productionActiveRows.length > 0 && productionActiveFiltered.length === 0
-                          ? 'No in-progress jobs match this filter — switch to All in progress or search by coil number.'
-                          : 'No in-progress jobs in this workspace. Closed and finished records are on the right.'}
-                      </p>
-                    ) : (
-                      <p className="text-ui-xs text-slate-500 leading-relaxed">
-                        Connect to the live workspace to see in-progress production jobs.
-                      </p>
-                    )}
-                  </section>
-
-                  {/* Right 2/3 — closed / finished / complete + reference-check detail (surface matches Sales quotations table) */}
-                  <section className="space-y-0 lg:col-span-2 order-2 min-w-0 flex min-h-0 flex-col">
-                    <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !backdrop-blur-none border !border-solid !p-0 overflow-hidden min-h-[min(480px,72vh)] sm:min-h-[560px]">
-                      <div className="h-1 bg-zarewa-teal" aria-hidden />
-                      <div className="flex min-h-0 flex-col space-y-4 p-5 sm:p-6 md:p-8">
-                        <div className="mb-1 flex flex-col gap-4 sm:mb-0 sm:flex-row sm:items-end sm:justify-between">
-                          <div className="min-w-0 shrink-0">
-                            <h2 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
-                              Closed · finished · complete
-                            </h2>
-                            <p className="mt-1 text-ui-xs font-semibold leading-relaxed text-slate-400">
-                              Cancelled and completed jobs. Use filters or search to narrow the list.
-                            </p>
-                          </div>
-                          <label className="flex shrink-0 items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                            Sort
-                            <select
-                              value={productionClosedSortKey}
-                              onChange={(e) => setProductionClosedSortKey(e.target.value)}
-                              className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
-                            >
-                              <option value="registeredDesc">Newest registered</option>
-                              <option value="id">Cutting list # (oldest first)</option>
-                              <option value="idDesc">Cutting list # (newest first)</option>
-                              <option value="attention">Attention</option>
-                              <option value="customer">Customer A–Z</option>
-                              <option value="status">Status A–Z</option>
-                            </select>
-                          </label>
-                        </div>
-
-                        <div
-                          className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50/90 p-1"
-                          role="group"
-                          aria-label="Filter closed production records"
-                        >
-                      {(ws?.hasWorkspaceData
-                        ? [
-                            { id: 'all', label: 'All closed' },
-                            { id: 'coils_allocated', label: 'Coils on record' },
-                            { id: 'completed', label: 'Completed' },
-                            { id: 'cancelled', label: 'Cancelled' },
-                          ]
-                        : [
-                            { id: 'all', label: 'All' },
-                            { id: 'waiting', label: 'Waiting' },
-                            { id: 'running', label: 'In progress' },
-                            { id: 'needs_review', label: 'Needs review' },
-                            { id: 'done', label: 'Done' },
-                          ]
-                      ).map((f) => (
-                        <button
-                          key={f.id}
-                          type="button"
-                          onClick={() => setProductionFilter(f.id)}
-                          className={`px-2.5 py-1.5 rounded-md text-ui-xs font-semibold uppercase tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 ${
-                            productionFilter === f.id
-                              ? 'bg-zarewa-teal text-white shadow-sm'
-                              : 'text-slate-600 hover:bg-white hover:text-slate-900'
-                          }`}
-                        >
-                          {f.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {productionQueueRows.length === 0 ? (
-                      <div className={WORKSPACE_EMPTY_LIST_CLASS}>
-                        <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest max-w-lg mx-auto">
-                          {productionQueueModel.mode === 'offline'
-                            ? 'No lists in queue yet'
-                            : 'No rows match this search or filter'}
-                        </p>
-                        <p className="text-sm text-slate-600 mt-3 max-w-lg mx-auto leading-relaxed">
-                          {productionQueueModel.mode === 'offline'
-                            ? 'Create a quotation, post a receipt (50%+ paid), then add a cutting list in Sales.'
-                            : productionActiveRows.length > 0
-                              ? 'No cancelled or completed jobs match this filter — try another chip or clear search.'
-                              : 'No cancelled or completed jobs yet.'}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col w-full">
-                        <ul className="space-y-1.5 pr-0.5">
-                          {productionClosedPage.slice.map((item) => {
-                          const meta2 = [
-                            item.spec,
-                            item.quantity,
-                            ws?.hasWorkspaceData && item.coilLabel ? item.coilLabel : null,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ');
-                          const rowTone = item.needsCoil
-                            ? 'border-amber-300/80 bg-amber-50/50'
-                            : item.managerReviewRequired
-                              ? 'border-red-300/80 bg-red-50/45'
-                              : item.overdue
-                                ? 'border-rose-300/80 bg-rose-50/45'
-                                : 'border-slate-200/60 bg-white/40 hover:bg-white/70';
-                          const priorityChip =
-                            item.priority === 'High'
-                              ? 'border-red-200 bg-red-50 text-red-700'
-                              : item.priority === 'Done'
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                : item.priority === 'Cancelled'
-                                  ? 'border-slate-300 bg-slate-100 text-slate-700'
-                                  : item.priority === 'Waiting' || item.priority === 'Wait'
-                                    ? 'border-amber-200 bg-amber-50 text-amber-900'
-                                    : 'border-slate-200 bg-slate-50 text-slate-600';
-                          const clIdForConv = String(item.cuttingListId || item.id || '').trim();
-                          const convChecks =
-                            ws?.hasWorkspaceData && clIdForConv
-                              ? conversionChecksByCuttingListId.get(clIdForConv)
-                              : null;
-                          const convSum =
-                            convChecks?.length
-                              ? summarizeConversionChecksForCuttingList(convChecks, formatVariancePct)
-                              : null;
-                          const convWorstTone = convSum
-                            ? (() => {
-                                const w = String(convSum.worst || 'OK');
-                                if (w === 'High') return 'border-red-200 bg-red-50 text-red-800';
-                                if (w === 'Low') return 'border-amber-200 bg-amber-50 text-amber-900';
-                                if (w === 'Watch') return 'border-sky-200 bg-sky-50 text-sky-900';
-                                return 'border-emerald-200 bg-emerald-50 text-emerald-800';
-                              })()
-                            : null;
-                          return (
-                            <li
-                              key={`${item.queueKind}-${item.id}`}
-                              className={`rounded-lg border py-1.5 px-2.5 shadow-sm backdrop-blur-md transition-colors ${rowTone}`}
-                            >
-                              <div
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => openProductionQueueRow(item)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    openProductionQueueRow(item);
-                                  }
-                                }}
-                                className="min-w-0 leading-tight cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 -m-0.5 p-0.5"
-                              >
-                                <div className="flex items-center justify-between gap-2 min-w-0">
-                                  <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
-                                    <span className="font-mono">{item.id}</span>
-                                    <span className="font-medium text-slate-600"> · {item.customer}</span>
-                                  </p>
-                                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                                    <span
-                                      className={`text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border ${
-                                        item.lineStatusChipClass ||
-                                        'border-slate-200 bg-slate-50 text-slate-600'
-                                      }`}
-                                    >
-                                      {item.lineStatusLabel || '—'}
-                                    </span>
-                                    {item.conversionHighLow ? (
-                                      <span className="text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border border-rose-200 bg-rose-50 text-rose-800">
-                                        Conv
-                                      </span>
-                                    ) : null}
-                                    {item.metreVarianceAttention ? (
-                                      <span className="text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-900">
-                                        Var
-                                      </span>
-                                    ) : null}
-                                    <span
-                                      className={`text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${priorityChip}`}
-                                    >
-                                      {item.priority}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-100/90 pt-1.5">
-                                  <span className="shrink-0 text-ui-xs font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 px-2 py-1 rounded-md">
-                                    Register
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openTraceWithHint(
-                                        item,
-                                        'Production register: coil allocation, run log, and completion.'
-                                      );
-                                    }}
-                                    className="shrink-0 text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-                                    title="Open production register (not cutting list lines)"
-                                  >
-                                    Edit register
+                                    {f.label}
                                   </button>
-                                  <p
-                                    className="min-w-0 flex-1 basis-[min(100%,14rem)] text-ui-xs text-slate-500 leading-snug sm:line-clamp-1 line-clamp-2"
-                                    title={meta2}
+                                ))}
+                              </div>
+                            ) : null}
+                          </>
+                        }
+                      >
+                        {!ws?.hasWorkspaceData ? (
+                          <ListEmptyState
+                            icon={Scissors}
+                            title="Connect to live workspace"
+                            description="Connect to the live workspace to see in-progress production jobs."
+                          />
+                        ) : productionActiveFiltered.length === 0 ? (
+                          <ListEmptyState
+                            icon={Scissors}
+                            kind={productionActiveRows.length > 0 ? 'search' : 'empty'}
+                            title={
+                              productionActiveRows.length > 0
+                                ? 'No in-progress jobs match this filter'
+                                : 'No in-progress jobs'
+                            }
+                            description={
+                              productionActiveRows.length > 0
+                                ? 'Try All in progress or search by coil number.'
+                                : 'Closed and finished records are on the right.'
+                            }
+                          />
+                        ) : (
+                          <>
+                            <ul className="space-y-1.5">
+                              {productionActivePage.slice.map((item) => {
+                                const rowKey = `live-${item.id}`;
+                                const liveTone = item.liveJobCardClass || '';
+                                return (
+                                  <li
+                                    key={item.id}
+                                    className={productionListItemClass(rowKey, actionMenuKey, liveTone)}
                                   >
-                                    {meta2}
-                                  </p>
-                                  {convSum && convWorstTone ? (
-                                    <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                      <span className="text-[7px] font-bold uppercase tracking-wide text-slate-400">
-                                        4-ref
-                                      </span>
-                                      <span
-                                        className={`text-[7px] font-semibold uppercase px-1.5 py-0.5 rounded border ${convWorstTone}`}
-                                      >
-                                        {convSum.worst}
-                                      </span>
-                                      <span className="text-ui-xs text-slate-600 tabular-nums">
-                                        {convSum.deltaLabel}
-                                      </span>
-                                      <span className="text-ui-xs text-slate-500">
-                                        · {convSum.count} coil line{convSum.count === 1 ? '' : 's'}
-                                      </span>
+                                    <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
+                                      <div className="min-w-0 flex-1 leading-tight">
+                                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
+                                          <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
+                                            <span className="tabular-nums font-mono">{item.id}</span>
+                                            <span className="font-medium text-slate-600">
+                                              {' '}
+                                              · {item.customer}
+                                            </span>
+                                          </p>
+                                          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                            <span
+                                              className={`${CHIP} ${
+                                                item.lineStatusChipClass ||
+                                                'border-slate-200 bg-slate-50 text-slate-600'
+                                              }`}
+                                            >
+                                              {item.lineStatusLabel || '—'}
+                                            </span>
+                                            {item.liveJobMaterialChipLabel ? (
+                                              <span
+                                                className={`${CHIP} ${
+                                                  item.liveJobMaterialChipClass ||
+                                                  'border-slate-200 bg-slate-50 text-slate-600'
+                                                }`}
+                                                title="Job material class"
+                                              >
+                                                {item.liveJobMaterialChipLabel}
+                                              </span>
+                                            ) : null}
+                                            <ProductionRowMenu
+                                              rowKey={rowKey}
+                                              openKey={actionMenuKey}
+                                              setOpenKey={setActionMenuKey}
+                                              onView={() => openProductionQueueRow(item)}
+                                              onEditRegister={() =>
+                                                openTraceWithHint(
+                                                  item,
+                                                  'Production register: enter closing kg & metres, Save while running, then Complete.'
+                                                )
+                                              }
+                                              onRecall={() =>
+                                                openTraceWithHint(
+                                                  item,
+                                                  item.status === 'Running'
+                                                    ? 'Recall entry: confirm return to plan, then re-enter coils and start again.'
+                                                    : 'Recall entry: confirm cancel to release the cutting list to Waiting, then fix and re-register if needed.',
+                                                  { recallIntent: true }
+                                                )
+                                              }
+                                            />
+                                          </div>
+                                        </div>
+                                        {item.hasCoilsAllocated ? (
+                                          <p
+                                            className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2 font-mono"
+                                            title={
+                                              item.reservedKg > 0
+                                                ? `${item.reservedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg opening reserved on this job`
+                                                : undefined
+                                            }
+                                          >
+                                            {item.reservedCoilNos?.length
+                                              ? item.reservedCoilNos.join(' · ')
+                                              : item.coilLabel || 'Coils allocated'}
+                                            {item.reservedKg > 0 ? (
+                                              <span>
+                                                {' '}
+                                                ·{' '}
+                                                {item.reservedKg.toLocaleString(undefined, {
+                                                  maximumFractionDigits: 0,
+                                                })}{' '}
+                                                kg
+                                              </span>
+                                            ) : null}
+                                          </p>
+                                        ) : item.coilLabel ? (
+                                          <p className="text-ui-xs text-amber-800/90 mt-0.5 leading-snug">
+                                            {item.coilLabel}
+                                          </p>
+                                        ) : null}
+                                      </div>
                                     </div>
-                                  ) : null}
-                                </div>
-                              </div>
-                              {!item.completed ? (
-                                <div className="flex flex-wrap gap-1.5 pt-1.5 mt-1 border-t border-dashed border-slate-200">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openTraceWithHint(item, 'Opens production register — coil assignment.');
-                                    }}
-                                    className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-                                  >
-                                    Assign coil
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openTraceWithHint(item, 'Opens production register — use Start run in the register after coils are allocated.');
-                                    }}
-                                    className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-                                  >
-                                    Open register
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      requestMarkComplete(item);
-                                    }}
-                                    className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/35"
-                                  >
-                                    Prepare complete
-                                  </button>
-                                </div>
-                              ) : null}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                      <AppTablePager
-                        showingFrom={productionClosedPage.showingFrom}
-                        showingTo={productionClosedPage.showingTo}
-                        total={productionClosedPage.total}
-                        hasPrev={productionClosedPage.hasPrev}
-                        hasNext={productionClosedPage.hasNext}
-                        onPrev={productionClosedPage.goPrev}
-                        onNext={productionClosedPage.goNext}
-                        pageSize={PRODUCTION_TABLE_PAGE_SIZE}
-                      />
-                      </div>
-                    )}
-                      </div>
-                    </MainPanel>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            <AppTablePager
+                              showingFrom={productionActivePage.showingFrom}
+                              showingTo={productionActivePage.showingTo}
+                              total={productionActivePage.total}
+                              hasPrev={productionActivePage.hasPrev}
+                              hasNext={productionActivePage.hasNext}
+                              onPrev={productionActivePage.goPrev}
+                              onNext={productionActivePage.goNext}
+                              pageSize={PRODUCTION_TABLE_PAGE_SIZE}
+                            />
+                          </>
+                        )}
+                      </ProductionListTableFrame>
+                    </div>
                   </section>
-                </div>
-              ) : null}
 
+                  {/* Right 2/3 — closed / finished / complete (Sales quotations parity) */}
+                  <section className="space-y-0 lg:col-span-2 order-2 min-w-0 flex min-h-0 flex-col">
+                    <div className="mb-3 min-w-0">
+                      <h3 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
+                        Closed · finished · complete
+                      </h3>
+                      <p className="mt-1 text-ui-xs font-semibold tabular-nums text-slate-400">
+                        {productionClosedPage.total} showing
+                        {productionFilter !== 'all' ? ` · filtered` : ''}
+                      </p>
+                    </div>
+                    <ProductionListTableFrame
+                      toolbar={
+                        <>
+                          <ProductionListSearchInput
+                            value={searchQuery}
+                            onChange={setSearchQuery}
+                            placeholder="Search lists, customers, coil no., status…"
+                          />
+                          <ProductionListSortBar
+                            fields={PRODUCTION_SORT_FIELDS}
+                            field={productionClosedSort.field}
+                            dir={productionClosedSort.dir}
+                            onFieldChange={(field) =>
+                              setProductionClosedSort((s) => ({ ...s, field }))
+                            }
+                            onDirToggle={() =>
+                              setProductionClosedSort((s) => ({
+                                ...s,
+                                dir: s.dir === 'asc' ? 'desc' : 'asc',
+                              }))
+                            }
+                          />
+                          <div
+                            className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1"
+                            role="group"
+                            aria-label="Filter closed production records"
+                          >
+                            {(ws?.hasWorkspaceData
+                              ? [
+                                  { id: 'all', label: 'All closed' },
+                                  { id: 'coils_allocated', label: 'Coils on record' },
+                                  { id: 'completed', label: 'Completed' },
+                                  { id: 'cancelled', label: 'Cancelled' },
+                                ]
+                              : [
+                                  { id: 'all', label: 'All' },
+                                  { id: 'waiting', label: 'Waiting' },
+                                  { id: 'running', label: 'In progress' },
+                                  { id: 'needs_review', label: 'Needs review' },
+                                  { id: 'done', label: 'Done' },
+                                ]
+                            ).map((f) => (
+                              <button
+                                key={f.id}
+                                type="button"
+                                onClick={() => setProductionFilter(f.id)}
+                                className={`${FILTER_CHIP} ${
+                                  productionFilter === f.id
+                                    ? 'bg-zarewa-teal text-white shadow-sm'
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                }`}
+                              >
+                                {f.label}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      }
+                    >
+                      {productionQueueRows.length === 0 ? (
+                        <ListEmptyState
+                          icon={Scissors}
+                          kind={productionQueueModel.mode === 'offline' ? 'empty' : 'search'}
+                          title={
+                            productionQueueModel.mode === 'offline'
+                              ? 'No lists in queue yet'
+                              : 'No rows match this search or filter'
+                          }
+                          description={
+                            productionQueueModel.mode === 'offline'
+                              ? 'Create a quotation, post a receipt (50%+ paid), then add a cutting list in Sales.'
+                              : productionActiveRows.length > 0
+                                ? 'No cancelled or completed jobs match this filter — try another chip or clear search.'
+                                : 'No cancelled or completed jobs yet.'
+                          }
+                        />
+                      ) : (
+                        <div className="flex flex-col w-full">
+                          <ul className="space-y-1.5">
+                            {productionClosedPage.slice.map((item) => {
+                              const rowKey = `closed-${item.queueKind}-${item.id}`;
+                              const meta2 = [
+                                item.spec,
+                                item.quantity,
+                                ws?.hasWorkspaceData && item.coilLabel ? item.coilLabel : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ');
+                              const rowTone = item.needsCoil
+                                ? 'border-amber-300/80 bg-amber-50/50 hover:bg-amber-50/70'
+                                : item.managerReviewRequired
+                                  ? 'border-red-300/80 bg-red-50/45 hover:bg-red-50/65'
+                                  : item.overdue
+                                    ? 'border-rose-300/80 bg-rose-50/45 hover:bg-rose-50/65'
+                                    : '';
+                              const priorityChip =
+                                item.priority === 'High'
+                                  ? 'border-red-200 bg-red-50 text-red-700'
+                                  : item.priority === 'Done'
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                    : item.priority === 'Cancelled'
+                                      ? 'border-slate-300 bg-slate-100 text-slate-700'
+                                      : item.priority === 'Waiting' || item.priority === 'Wait'
+                                        ? 'border-amber-200 bg-amber-50 text-amber-900'
+                                        : 'border-slate-200 bg-slate-50 text-slate-600';
+                              const clIdForConv = String(item.cuttingListId || item.id || '').trim();
+                              const convChecks =
+                                ws?.hasWorkspaceData && clIdForConv
+                                  ? conversionChecksByCuttingListId.get(clIdForConv)
+                                  : null;
+                              const convSum = convChecks?.length
+                                ? summarizeConversionChecksForCuttingList(convChecks, formatVariancePct)
+                                : null;
+                              const convWorstTone = convSum
+                                ? (() => {
+                                    const w = String(convSum.worst || 'OK');
+                                    if (w === 'High') return 'border-red-200 bg-red-50 text-red-800';
+                                    if (w === 'Low') return 'border-amber-200 bg-amber-50 text-amber-900';
+                                    if (w === 'Watch') return 'border-sky-200 bg-sky-50 text-sky-900';
+                                    return 'border-emerald-200 bg-emerald-50 text-emerald-800';
+                                  })()
+                                : null;
+                              return (
+                                <li
+                                  key={`${item.queueKind}-${item.id}`}
+                                  className={productionListItemClass(rowKey, actionMenuKey, rowTone)}
+                                >
+                                  <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
+                                    <div className="min-w-0 flex-1 leading-tight">
+                                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
+                                        <button
+                                          type="button"
+                                          onClick={() => openProductionQueueRow(item)}
+                                          className="text-xs font-bold text-zarewa-teal truncate min-w-0 text-left rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
+                                        >
+                                          <span className="tabular-nums font-mono">{item.id}</span>
+                                          <span className="font-medium text-slate-600">
+                                            {' '}
+                                            · {item.customer}
+                                          </span>
+                                        </button>
+                                        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                          <span
+                                            className={`${CHIP} ${
+                                              item.lineStatusChipClass ||
+                                              'border-slate-200 bg-slate-50 text-slate-600'
+                                            }`}
+                                          >
+                                            {item.lineStatusLabel || '—'}
+                                          </span>
+                                          {item.conversionHighLow ? (
+                                            <span
+                                              className={`${CHIP} border-rose-200 bg-rose-50 text-rose-800`}
+                                            >
+                                              Conv
+                                            </span>
+                                          ) : null}
+                                          {item.metreVarianceAttention ? (
+                                            <span
+                                              className={`${CHIP} border-amber-200 bg-amber-50 text-amber-900`}
+                                            >
+                                              Var
+                                            </span>
+                                          ) : null}
+                                          <span className={`${CHIP} ${priorityChip}`}>{item.priority}</span>
+                                          <ProductionRowMenu
+                                            rowKey={rowKey}
+                                            openKey={actionMenuKey}
+                                            setOpenKey={setActionMenuKey}
+                                            onView={() => openProductionQueueRow(item)}
+                                            onEditRegister={() =>
+                                              openTraceWithHint(
+                                                item,
+                                                'Production register: coil allocation, run log, and completion.'
+                                              )
+                                            }
+                                            onAssignCoil={
+                                              !item.completed
+                                                ? () =>
+                                                    openTraceWithHint(
+                                                      item,
+                                                      'Opens production register — coil assignment.'
+                                                    )
+                                                : undefined
+                                            }
+                                            onOpenRegister={
+                                              !item.completed
+                                                ? () =>
+                                                    openTraceWithHint(
+                                                      item,
+                                                      'Opens production register — use Start run in the register after coils are allocated.'
+                                                    )
+                                                : undefined
+                                            }
+                                            onPrepareComplete={
+                                              !item.completed
+                                                ? () => requestMarkComplete(item)
+                                                : undefined
+                                            }
+                                          />
+                                        </div>
+                                      </div>
+                                      <p
+                                        className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2 tabular-nums"
+                                        title={meta2}
+                                      >
+                                        {meta2}
+                                        {convSum && convWorstTone ? (
+                                          <>
+                                            {' '}
+                                            ·{' '}
+                                            <span className={`${CHIP} ${convWorstTone} align-middle`}>
+                                              4-ref {convSum.worst}
+                                            </span>{' '}
+                                            <span className="tabular-nums">{convSum.deltaLabel}</span>
+                                            <span>
+                                              {' '}
+                                              · {convSum.count} coil line
+                                              {convSum.count === 1 ? '' : 's'}
+                                            </span>
+                                          </>
+                                        ) : null}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                          <AppTablePager
+                            showingFrom={productionClosedPage.showingFrom}
+                            showingTo={productionClosedPage.showingTo}
+                            total={productionClosedPage.total}
+                            hasPrev={productionClosedPage.hasPrev}
+                            hasNext={productionClosedPage.hasNext}
+                            onPrev={productionClosedPage.goPrev}
+                            onNext={productionClosedPage.goNext}
+                            pageSize={PRODUCTION_TABLE_PAGE_SIZE}
+                          />
+                        </div>
+                      )}
+                    </ProductionListTableFrame>
+                  </section>
+              </div>
             </div>
           </MainPanel>
         </div>
