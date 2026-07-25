@@ -224,7 +224,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
         quotationRef: String(r.quotationRef || '—'),
         amountReceived: formatNgn(cash),
         treasuryAccounts: accounts,
-        registeredBy: receiptRegisteredByLabel(r) || '—',
+        registeredBy: receiptRegisteredByLabel(r, opts.ledgerEntries) || '—',
         colour: material?.colour || '—',
         gauge: material?.gauge || '—',
         totalMeters: cutting?.totalMetersLabel || '—',

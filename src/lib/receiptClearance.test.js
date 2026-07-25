@@ -22,6 +22,14 @@ describe('receiptClearance', () => {
     expect(receiptRegisteredByLabel({ handledBy: '—' })).toBe('');
     expect(receiptRegisteredByLabel({})).toBe('');
   });
+
+  it('falls back to ledger createdByName when receipt handledBy is blank', () => {
+    const ledger = [{ id: 'LE-1', createdByName: 'Zainab Yusuf' }];
+    expect(receiptRegisteredByLabel({ id: 'LE-1', handledBy: '—' }, ledger)).toBe('Zainab Yusuf');
+    expect(
+      receiptRegisteredByLabel({ id: 'RC-9', ledgerEntryId: 'LE-1', handledBy: '' }, ledger)
+    ).toBe('Zainab Yusuf');
+  });
   it('detects pending vs cleared from finance reconciliation timestamp', () => {
     const pending = { amountNgn: 50_000, status: 'Pending clearance' };
     const cleared = {

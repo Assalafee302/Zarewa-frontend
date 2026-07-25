@@ -1,4 +1,14 @@
-const ROW_ID_KEYS = ['id', 'quotationId', 'receiptId', 'poId', 'poID', 'coilNo', 'jobId', 'customerID'];
+const ROW_ID_KEYS = [
+  'id',
+  'refundID',
+  'quotationId',
+  'receiptId',
+  'poId',
+  'poID',
+  'coilNo',
+  'jobId',
+  'customerID',
+];
 
 /** Bootstrap array fields that may arrive trimmed on dashboard poll. */
 export const BOOTSTRAP_POLL_MERGE_ARRAYS = [

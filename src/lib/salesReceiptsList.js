@@ -189,7 +189,11 @@ export function mergeReceiptRowsForSales(importedReceipts, quotations, _ledgerEp
         quotationAllocatedNgn: extra > 0 ? alloc : undefined,
         cashReceivedNgn: cash,
         amount: formatNgn(cash),
-        handledBy: mirror?.handledBy ?? '—',
+        handledBy: (() => {
+          const fromMirror = String(mirror?.handledBy || '').trim();
+          if (fromMirror && fromMirror !== '—') return fromMirror;
+          return String(e.createdByName || '').trim() || '—';
+        })(),
         ...mirrorClearance,
         status: mirrorClearance.status ?? 'Pending clearance',
         _ledgerEntry: e,

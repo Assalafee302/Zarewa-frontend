@@ -167,11 +167,23 @@ export function liquidityClearanceSplit(treasuryAccounts = [], salesReceipts = [
 
 /**
  * Staff who registered / recorded the sales payment (`handledBy` on the receipt).
+ * Falls back to the linked ledger entry's `createdByName` when receipt.handledBy was never stored.
  * @param {object | null | undefined} receipt
+ * @param {object[] | null | undefined} [ledgerEntries]
  * @returns {string} empty when unknown
  */
-export function receiptRegisteredByLabel(receipt) {
-  const name = String(receipt?.handledBy ?? receipt?.handled_by ?? '').trim();
+export function receiptRegisteredByLabel(receipt, ledgerEntries) {
+  let name = String(receipt?.handledBy ?? receipt?.handled_by ?? '').trim();
+  if (!name || name === '—' || name.toLowerCase() === 'unknown') {
+    const rid = String(receipt?.ledgerEntryId || receipt?.ledger_entry_id || receipt?.id || '').trim();
+    if (rid && Array.isArray(ledgerEntries) && ledgerEntries.length) {
+      const le = ledgerEntries.find((e) => {
+        const eid = String(e?.id || '').trim();
+        return eid === rid || eid.toLowerCase() === rid.toLowerCase();
+      });
+      name = String(le?.createdByName || le?.created_by_name || '').trim();
+    }
+  }
   if (!name || name === '—' || name.toLowerCase() === 'unknown') return '';
   return name;
 }

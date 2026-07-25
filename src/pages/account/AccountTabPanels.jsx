@@ -377,7 +377,7 @@ export function AccountTabPanels() {
                             const clearanceLabel = receiptClearanceBadgeLabel(r);
                             const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
                             const hanging = hangingRefundByCustomerId.get(String(r.customerID || '').trim());
-                            const registeredBy = receiptRegisteredByLabel(r);
+                            const registeredBy = receiptRegisteredByLabel(r, liveLedgerEntries);
                             return (
                               <li
                                 key={r.id}
@@ -502,7 +502,7 @@ export function AccountTabPanels() {
                         const cleared = Boolean(r.financeDeliveryClearedAtISO);
                         const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
                         const hanging = hangingRefundByCustomerId.get(String(r.customerID || '').trim());
-                        const registeredBy = receiptRegisteredByLabel(r);
+                        const registeredBy = receiptRegisteredByLabel(r, liveLedgerEntries);
                         return (
                           <li
                             key={r.id}

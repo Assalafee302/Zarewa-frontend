@@ -692,7 +692,7 @@ export function FinanceDeskWorkQueues({
               <ul className="space-y-1.5">
                 {pendingReceipts.map((r) => {
                   const hanging = hangingRefundByCustomerId.get(String(r.customerID || "").trim());
-                  const registeredBy = receiptRegisteredByLabel(r);
+                  const registeredBy = receiptRegisteredByLabel(r, ledgerEntries);
                   const clearanceMeta = receiptClearanceBadgeLabel(r);
                   return (
                   <FinanceDeskColoredQueueRow

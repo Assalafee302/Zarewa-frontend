@@ -4760,7 +4760,7 @@ const Account = () => {
             <form className="space-y-4" onSubmit={saveReceiptFinance}>
               <p className="text-ui-xs text-slate-600 font-mono break-all">{receiptFinanceRow.id}</p>
               {(() => {
-                const registeredBy = receiptRegisteredByLabel(receiptFinanceRow);
+                const registeredBy = receiptRegisteredByLabel(receiptFinanceRow, liveLedgerEntries);
                 return registeredBy ? (
                   <p className="text-ui-xs text-slate-600 -mt-2">
                     Registered by <span className="font-semibold text-slate-800">{registeredBy}</span>

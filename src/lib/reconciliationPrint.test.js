@@ -63,7 +63,10 @@ describe('reconciliationPrint', () => {
             quotationRef: 'QT-88',
           },
         ],
-        ledgerEntries: [{ customerID: 'CUS-001', type: 'OVERPAY_ADVANCE', amountNgn: 8000 }],
+        ledgerEntries: [
+          { customerID: 'CUS-001', type: 'OVERPAY_ADVANCE', amountNgn: 8000 },
+          { id: 'RC-2026-010', createdByName: 'Auwal Idris' },
+        ],
       }
     );
     expect(payload.rows).toHaveLength(1);

@@ -17,6 +17,18 @@ describe('mergeRowsByKey', () => {
     expect(merged[1]).toMatchObject({ id: 'Q2', totalNgn: 200 });
     expect(merged[2]).toMatchObject({ id: 'Q3', totalNgn: 300 });
   });
+
+  it('keys refunds by refundID so same-customer refunds do not collapse', () => {
+    const prev = [
+      { refundID: 'RF-1', customerID: 'CUS-1', status: 'Pending', amountNgn: 10_000 },
+      { refundID: 'RF-2', customerID: 'CUS-1', status: 'Approved', amountNgn: 5_000 },
+    ];
+    const poll = [{ refundID: 'RF-1', customerID: 'CUS-1', status: 'Approved', amountNgn: 10_000 }];
+    const merged = mergeRowsByKey(prev, poll);
+    expect(merged).toHaveLength(2);
+    expect(merged.find((r) => r.refundID === 'RF-1')?.status).toBe('Approved');
+    expect(merged.find((r) => r.refundID === 'RF-2')?.status).toBe('Approved');
+  });
 });
 
 describe('mergeDashboardPollIntoSnapshot', () => {
