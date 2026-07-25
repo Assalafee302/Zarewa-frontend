@@ -164,3 +164,14 @@ export function liquidityClearanceSplit(treasuryAccounts = [], salesReceipts = [
     clearedBookNgn: Math.round(clearedBookNgn),
   };
 }
+
+/**
+ * Staff who registered / recorded the sales payment (`handledBy` on the receipt).
+ * @param {object | null | undefined} receipt
+ * @returns {string} empty when unknown
+ */
+export function receiptRegisteredByLabel(receipt) {
+  const name = String(receipt?.handledBy ?? receipt?.handled_by ?? '').trim();
+  if (!name || name === '—' || name.toLowerCase() === 'unknown') return '';
+  return name;
+}

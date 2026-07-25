@@ -35,6 +35,7 @@ describe('reconciliationPrint', () => {
           dateISO: '2026-06-10',
           cashReceivedNgn: 250000,
           bankReference: 'TRF-88',
+          handledBy: 'Auwal Idris',
         },
       ],
       [
@@ -68,6 +69,7 @@ describe('reconciliationPrint', () => {
     expect(payload.rows).toHaveLength(1);
     expect(payload.rows[0].receiptId).toBe('RC-2026-010');
     expect(payload.rows[0].customer).toBe('Acme Ltd · 08035550142');
+    expect(payload.rows[0].registeredBy).toBe('Auwal Idris');
     expect(payload.rows[0].treasuryAccounts).toContain('GTBank Main');
     expect(payload.rows[0].colour).toBe('Heritage Blue');
     expect(payload.rows[0].gauge).toBe('0.45mm');
@@ -78,7 +80,7 @@ describe('reconciliationPrint', () => {
     expect(payload.rows[0].reference).toBeUndefined();
     expect(payload.columns.some((c) => c.key === 'reference')).toBe(false);
     expect(payload.columns.map((c) => c.key)).toEqual(
-      expect.arrayContaining(['colour', 'gauge', 'totalMeters', 'hangingRefund'])
+      expect.arrayContaining(['colour', 'gauge', 'totalMeters', 'hangingRefund', 'registeredBy'])
     );
     expect(payload.summaryLines[0].value).toBe('1');
     expect(payload.summaryLines.some((l) => /hanging refund/i.test(l.label) && l.value === '1')).toBe(

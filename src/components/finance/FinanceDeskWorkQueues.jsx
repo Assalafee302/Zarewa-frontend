@@ -26,6 +26,7 @@ import {
   liquidityClearanceSplit,
   pendingClearanceTotalNgn,
   receiptClearanceBadgeLabel,
+  receiptRegisteredByLabel,
 } from "../../lib/receiptClearance";
 
 import { approvedRefundsAwaitingPayment, hangingRefundIndicatorsByCustomerId } from "../../lib/refundsStore";
@@ -691,6 +692,8 @@ export function FinanceDeskWorkQueues({
               <ul className="space-y-1.5">
                 {pendingReceipts.map((r) => {
                   const hanging = hangingRefundByCustomerId.get(String(r.customerID || "").trim());
+                  const registeredBy = receiptRegisteredByLabel(r);
+                  const clearanceMeta = receiptClearanceBadgeLabel(r);
                   return (
                   <FinanceDeskColoredQueueRow
                     key={r.id}
@@ -705,7 +708,11 @@ export function FinanceDeskWorkQueues({
                         </span>
                       </>
                     }
-                    meta={receiptClearanceBadgeLabel(r)}
+                    meta={
+                      registeredBy
+                        ? `${clearanceMeta} · Registered by ${registeredBy}`
+                        : clearanceMeta
+                    }
                     extra={
                       hanging ? (
                         <div className="mt-1">

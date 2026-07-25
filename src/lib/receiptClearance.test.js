@@ -5,6 +5,7 @@ import {
   liquidityClearanceSplit,
   pendingClearanceTotalNgn,
   receiptClearanceBadgeLabel,
+  receiptRegisteredByLabel,
   receiptSalesPaymentStatusChipClass,
   receiptSalesPaymentStatusDetail,
   receiptSalesPaymentStatusLabel,
@@ -15,6 +16,12 @@ import {
 } from './receiptClearance.js';
 
 describe('receiptClearance', () => {
+  it('reads staff who registered the payment from handledBy', () => {
+    expect(receiptRegisteredByLabel({ handledBy: 'Auwal Idris' })).toBe('Auwal Idris');
+    expect(receiptRegisteredByLabel({ handled_by: 'Mary Okafor' })).toBe('Mary Okafor');
+    expect(receiptRegisteredByLabel({ handledBy: '—' })).toBe('');
+    expect(receiptRegisteredByLabel({})).toBe('');
+  });
   it('detects pending vs cleared from finance reconciliation timestamp', () => {
     const pending = { amountNgn: 50_000, status: 'Pending clearance' };
     const cleared = {

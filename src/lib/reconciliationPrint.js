@@ -1,6 +1,6 @@
 import { formatNgn } from '../Data/mockData';
 import { escapeHtml, openPrintHtmlDocument } from './officeDeskPrint';
-import { isReceiptPendingClearance, pendingClearanceTotalNgn, receiptEffectiveCashNgn } from './receiptClearance';
+import { isReceiptPendingClearance, pendingClearanceTotalNgn, receiptEffectiveCashNgn, receiptRegisteredByLabel } from './receiptClearance';
 import {
   hangingRefundIndicatorsByCustomerId,
 } from './refundsStore';
@@ -224,6 +224,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
         quotationRef: String(r.quotationRef || '—'),
         amountReceived: formatNgn(cash),
         treasuryAccounts: accounts,
+        registeredBy: receiptRegisteredByLabel(r) || '—',
         colour: material?.colour || '—',
         gauge: material?.gauge || '—',
         totalMeters: cutting?.totalMetersLabel || '—',
@@ -251,6 +252,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       { key: 'quotationRef', label: 'Quotation' },
       { key: 'amountReceived', label: 'Received', align: 'right' },
       { key: 'treasuryAccounts', label: 'Bank / cash account' },
+      { key: 'registeredBy', label: 'Registered by' },
       { key: 'colour', label: 'Colour' },
       { key: 'gauge', label: 'Gauge' },
       { key: 'totalMeters', label: 'Total metres', align: 'right' },

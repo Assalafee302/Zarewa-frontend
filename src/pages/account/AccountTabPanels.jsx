@@ -35,7 +35,7 @@ import { AccountBankReconciliationPanel } from '../../components/account/Account
 import { RegisterBankDepositPanel } from '../../components/finance/RegisterBankDepositPanel.jsx';
 import { BankDepositExceptionPanel } from '../../components/finance/BankDepositExceptionPanel.jsx';
 import { AccountGlManualJournalCard } from '../../components/account/AccountGlManualJournalCard.jsx';
-import { receiptClearanceBadgeLabel } from '../../lib/receiptClearance.js';
+import { receiptClearanceBadgeLabel, receiptRegisteredByLabel } from '../../lib/receiptClearance.js';
 import { hangingRefundIndicatorsByCustomerId } from '../../lib/refundsStore.js';
 import { HangingCustomerRefundChip } from '../../components/finance/HangingCustomerRefundHint.jsx';
 import { useAccountPage } from './AccountPageContext.jsx';
@@ -377,6 +377,7 @@ export function AccountTabPanels() {
                             const clearanceLabel = receiptClearanceBadgeLabel(r);
                             const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
                             const hanging = hangingRefundByCustomerId.get(String(r.customerID || '').trim());
+                            const registeredBy = receiptRegisteredByLabel(r);
                             return (
                               <li
                                 key={r.id}
@@ -386,6 +387,9 @@ export function AccountTabPanels() {
                                   <p className="text-[11px] font-bold text-zarewa-teal font-mono">{r.id}</p>
                                   <p className="text-ui-xs text-slate-500 truncate">
                                     {r.customer || '-'} · {r.quotationRef || '-'} · {r.dateISO || r.date || '-'}
+                                    {registeredBy ? (
+                                      <span className="text-slate-600"> · Registered by {registeredBy}</span>
+                                    ) : null}
                                   </p>
                                   {hanging ? (
                                     <div className="mt-1">
@@ -498,6 +502,7 @@ export function AccountTabPanels() {
                         const cleared = Boolean(r.financeDeliveryClearedAtISO);
                         const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
                         const hanging = hangingRefundByCustomerId.get(String(r.customerID || '').trim());
+                        const registeredBy = receiptRegisteredByLabel(r);
                         return (
                           <li
                             key={r.id}
@@ -507,6 +512,9 @@ export function AccountTabPanels() {
                               <p className="text-[11px] font-bold text-zarewa-teal font-mono">{r.id}</p>
                               <p className="text-ui-xs text-slate-500 truncate">
                                 {r.customer || '—'} · {r.quotationRef || '—'} · {r.dateISO || r.date || '—'}
+                                {registeredBy ? (
+                                  <span className="text-slate-600"> · Registered by {registeredBy}</span>
+                                ) : null}
                               </p>
                               {hanging ? (
                                 <div className="mt-1">

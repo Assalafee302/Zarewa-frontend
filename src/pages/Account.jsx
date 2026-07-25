@@ -130,6 +130,7 @@ import {
   isReceiptCleared,
   isReceiptPendingClearance,
   isReceiptReversed,
+  receiptRegisteredByLabel,
   RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE,
 } from '../lib/receiptClearance.js';
 
@@ -4758,6 +4759,14 @@ const Account = () => {
           {receiptFinanceRow ? (
             <form className="space-y-4" onSubmit={saveReceiptFinance}>
               <p className="text-ui-xs text-slate-600 font-mono break-all">{receiptFinanceRow.id}</p>
+              {(() => {
+                const registeredBy = receiptRegisteredByLabel(receiptFinanceRow);
+                return registeredBy ? (
+                  <p className="text-ui-xs text-slate-600 -mt-2">
+                    Registered by <span className="font-semibold text-slate-800">{registeredBy}</span>
+                  </p>
+                ) : null;
+              })()}
               {(() => {
                 const settleSplits = receiptLedgerReceiptTreasurySplits(
                   receiptFinanceRow,
