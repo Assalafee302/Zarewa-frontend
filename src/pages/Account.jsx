@@ -53,6 +53,7 @@ import {
   refundOutstandingAmount,
   hangingRefundsForCustomer,
 } from '../lib/refundsStore';
+import { overpayCreditBalanceFromEntries } from '../lib/customerLedgerCore.js';
 import { liveReceivablesNgn, openAuditQueue } from '../lib/liveAnalytics';
 import { effectiveOutstandingNgn, isEffectivelyFullyPaid } from '../lib/paymentOutstandingTolerance.js';
 import {
@@ -1849,6 +1850,7 @@ const Account = () => {
       quotations: Array.isArray(snap?.quotations) ? snap.quotations : liveQuotations,
       cuttingLists: Array.isArray(snap?.cuttingLists) ? snap.cuttingLists : liveCuttingLists,
       refunds: customerRefunds,
+      ledgerEntries: liveLedgerEntries,
     });
     if (!payload.rows.length) {
       showToast('No unreconciled receipts to print.', { variant: 'info' });
@@ -1864,6 +1866,7 @@ const Account = () => {
     liveQuotations,
     liveCuttingLists,
     customerRefunds,
+    liveLedgerEntries,
     workspaceBranchLabel,
     ws?.ensureDomainLoaded,
     ws?.snapshot,
@@ -3219,6 +3222,7 @@ const Account = () => {
       handleDeskViewReceipt,
       isAdminRole,
       isCashierRole,
+      liveLedgerEntries,
       liveReceipts,
       liveTreasuryMovements,
       movementRows,
@@ -3337,6 +3341,7 @@ const Account = () => {
       handleDeskViewReceipt,
       isAdminRole,
       isCashierRole,
+      liveLedgerEntries,
       liveReceipts,
       liveTreasuryMovements,
       movementRows,
@@ -4785,6 +4790,10 @@ const Account = () => {
                       hanging={hangingRefundsForCustomer(
                         customerRefunds,
                         receiptFinanceRow.customerID
+                      )}
+                      overpayCreditNgn={overpayCreditBalanceFromEntries(
+                        liveLedgerEntries,
+                        String(receiptFinanceRow.customerID || '').trim()
                       )}
                     />
 

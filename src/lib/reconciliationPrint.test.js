@@ -62,6 +62,7 @@ describe('reconciliationPrint', () => {
             quotationRef: 'QT-88',
           },
         ],
+        ledgerEntries: [{ customerID: 'CUS-001', type: 'OVERPAY_ADVANCE', amountNgn: 8000 }],
       }
     );
     expect(payload.rows).toHaveLength(1);
@@ -73,6 +74,7 @@ describe('reconciliationPrint', () => {
     expect(payload.rows[0].totalMeters).toMatch(/120\.5/);
     expect(payload.rows[0].hangingRefund).toMatch(/Hanging refund/i);
     expect(payload.rows[0].hangingRefund).toContain('RF-77');
+    expect(payload.rows[0].hangingRefund).toMatch(/Unapplied credit/i);
     expect(payload.rows[0].reference).toBeUndefined();
     expect(payload.columns.some((c) => c.key === 'reference')).toBe(false);
     expect(payload.columns.map((c) => c.key)).toEqual(

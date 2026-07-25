@@ -226,9 +226,15 @@ export function FinanceDeskWorkQueues({
     [ws?.snapshot?.refunds],
   );
 
+  const ledgerEntries = useMemo(
+    () => (Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : []),
+
+    [ws?.snapshot?.ledgerEntries],
+  );
+
   const hangingRefundByCustomerId = useMemo(
-    () => hangingRefundIndicatorsByCustomerId(refunds),
-    [refunds],
+    () => hangingRefundIndicatorsByCustomerId(refunds, ledgerEntries),
+    [refunds, ledgerEntries],
   );
 
   const registerSettlements = useMemo(

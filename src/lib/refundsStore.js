@@ -6,6 +6,7 @@
 import { formatPersonName } from './formatPersonName.js';
 import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
 import { refundQuotationRefundsBlocked } from './refundEligibility.js';
+import { overpayCreditNgnByCustomerIdFromEntries } from './customerLedgerCore.js';
 
 const STORAGE_KEY = 'zarewa.sales.refunds';
 
@@ -179,31 +180,45 @@ export function hangingRefundsForCustomer(list, customerId) {
 }
 
 /**
+ * Note: `overpayCreditNgn` is the customer's ledger credit not yet applied or refunded. It is shown
+ * separately from `totalOpenNgn` (never summed) because a Pending/Approved overpayment refund keeps
+ * the credit on the ledger until payout — adding them would double-count.
  * @param {object[]} hanging
- * @returns {{ count: number; totalOpenNgn: number; shortLabel: string; detailLabel: string } | null}
+ * @param {number} [overpayCreditNgn] unapplied overpayment credit on the customer's ledger (₦)
+ * @returns {{ count: number; totalOpenNgn: number; overpayCreditNgn: number; shortLabel: string; detailLabel: string } | null}
  */
-export function hangingRefundIndicator(hanging) {
+export function hangingRefundIndicator(hanging, overpayCreditNgn = 0) {
   const rows = Array.isArray(hanging) ? hanging.filter(isRefundHanging) : [];
-  if (rows.length === 0) return null;
+  const creditNgn = Math.max(0, Math.round(Number(overpayCreditNgn) || 0));
+  if (rows.length === 0 && creditNgn <= 0) return null;
   const totalOpenNgn = rows.reduce((sum, r) => sum + hangingRefundOpenAmountNgn(r), 0);
   const count = rows.length;
   const shortLabel =
-    count === 1 ? 'Hanging refund' : `${count} hanging refunds`;
+    count === 0
+      ? 'Unapplied overpay credit'
+      : count === 1
+        ? 'Hanging refund'
+        : `${count} hanging refunds`;
   const parts = rows.map((r) => {
     const rid = String(r.refundID || '').trim() || '—';
     const status = String(r.status || '').trim() || '—';
     const q = String(r.quotationRef || '').trim();
     return q ? `${rid} ${status} (${q})` : `${rid} ${status}`;
   });
+  if (creditNgn > 0) {
+    parts.push(`Unapplied overpay credit on ledger (no refund requested / not applied yet)`);
+  }
   const detailLabel = parts.join('; ');
-  return { count, totalOpenNgn, shortLabel, detailLabel };
+  return { count, totalOpenNgn, overpayCreditNgn: creditNgn, shortLabel, detailLabel };
 }
 
 /**
- * @param {object[] | null | undefined} list
+ * @param {object[] | null | undefined} list refunds
+ * @param {object[] | null | undefined} [ledgerEntries] customer ledger entries — adds customers whose
+ *   overpayment credit has not been applied or requested as a refund yet
  * @returns {Map<string, ReturnType<typeof hangingRefundIndicator> & { refunds: object[] }>}
  */
-export function hangingRefundIndicatorsByCustomerId(list) {
+export function hangingRefundIndicatorsByCustomerId(list, ledgerEntries) {
   /** @type {Map<string, object[]>} */
   const grouped = new Map();
   for (const r of list ?? []) {
@@ -213,10 +228,13 @@ export function hangingRefundIndicatorsByCustomerId(list) {
     if (!grouped.has(id)) grouped.set(id, []);
     grouped.get(id).push(r);
   }
+  const creditById = overpayCreditNgnByCustomerIdFromEntries(ledgerEntries);
   /** @type {Map<string, ReturnType<typeof hangingRefundIndicator> & { refunds: object[] }>} */
   const out = new Map();
-  for (const [id, refunds] of grouped) {
-    const indicator = hangingRefundIndicator(refunds);
+  const customerIds = new Set([...grouped.keys(), ...creditById.keys()]);
+  for (const id of customerIds) {
+    const refunds = grouped.get(id) || [];
+    const indicator = hangingRefundIndicator(refunds, creditById.get(id) || 0);
     if (indicator) out.set(id, { ...indicator, refunds });
   }
   return out;

@@ -95,6 +95,7 @@ export function AccountTabPanels() {
     handleDeskViewReceipt,
     isAdminRole,
     isCashierRole,
+    liveLedgerEntries,
     liveReceipts,
     liveTreasuryMovements,
     movementRows,
@@ -161,8 +162,8 @@ export function AccountTabPanels() {
   } = useAccountPage();
 
   const hangingRefundByCustomerId = useMemo(
-    () => hangingRefundIndicatorsByCustomerId(Object.values(refundById || {})),
-    [refundById]
+    () => hangingRefundIndicatorsByCustomerId(Object.values(refundById || {}), liveLedgerEntries),
+    [refundById, liveLedgerEntries]
   );
 
   return (

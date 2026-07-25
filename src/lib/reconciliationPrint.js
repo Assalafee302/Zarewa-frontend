@@ -6,12 +6,21 @@ import {
 } from './refundsStore';
 import { normSalesQuotationRefKey, receiptLedgerReceiptTreasurySplits } from './salesReceiptsList';
 
-/** Print cell for same-customer open refunds (indicator only). */
+/** Print cell for same-customer open refunds / unapplied overpay credit (indicator only). */
 export function formatHangingRefundPrintCell(indicator) {
   if (!indicator) return '—';
-  const amount = formatNgn(indicator.totalOpenNgn);
+  const parts = [indicator.shortLabel];
+  if (indicator.count > 0) parts.push(formatNgn(indicator.totalOpenNgn));
+  if ((indicator.overpayCreditNgn || 0) > 0) {
+    parts.push(
+      indicator.count > 0
+        ? `Unapplied credit ${formatNgn(indicator.overpayCreditNgn)}`
+        : formatNgn(indicator.overpayCreditNgn)
+    );
+  }
   const detail = String(indicator.detailLabel || '').trim();
-  return detail ? `${indicator.shortLabel} · ${amount} · ${detail}` : `${indicator.shortLabel} · ${amount}`;
+  if (detail) parts.push(detail);
+  return parts.join(' · ');
 }
 
 function formatPrintMeters(value) {
@@ -176,13 +185,14 @@ export function unreconciledReceiptRows(receipts = []) {
  *   quotations?: object[];
  *   cuttingLists?: object[];
  *   refunds?: object[];
+ *   ledgerEntries?: object[];
  * }} [opts]
  */
 export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [], opts = {}) {
   const phoneByCustomerId = customerPhoneByIdMap(opts.customers);
   const materialByQuote = quotationMaterialByRefMap(opts.quotations);
   const cuttingByQuote = cuttingListSummaryByQuoteRefMap(opts.cuttingLists);
-  const hangingByCustomer = hangingRefundIndicatorsByCustomerId(opts.refunds);
+  const hangingByCustomer = hangingRefundIndicatorsByCustomerId(opts.refunds, opts.ledgerEntries);
 
   let receiptsWithHangingRefund = 0;
 
@@ -252,7 +262,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       { label: 'Receipts pending clearance', value: String(rows.length) },
       { label: 'Total awaiting reconciliation', value: formatNgn(totalNgn) },
       {
-        label: 'Receipts with same-customer hanging refund (indicator only)',
+        label: 'Receipts with same-customer hanging refund / unapplied overpay credit (indicator only)',
         value: String(receiptsWithHangingRefund),
       },
     ],

@@ -72,6 +72,33 @@ export function overpayCreditBalanceFromEntries(entries, customerID) {
 }
 
 /**
+ * Same balance as {@link overpayCreditBalanceFromEntries}, computed for every customer in one pass.
+ * @param {Array<{ customerID: string, type: string, amountNgn?: number }>} entries
+ * @returns {Map<string, number>} customerID → positive unapplied overpay credit (₦); zero/negative omitted
+ */
+export function overpayCreditNgnByCustomerIdFromEntries(entries) {
+  /** @type {Map<string, number>} */
+  const sums = new Map();
+  for (const e of entries || []) {
+    const id = String(e?.customerID || '').trim();
+    if (!id) continue;
+    const n = Number(e.amountNgn) || 0;
+    let delta = 0;
+    if (e.type === 'OVERPAY_ADVANCE') delta = n;
+    else if (e.type === 'OVERPAY_REVERSAL' || e.type === 'REFUND_OVERPAY') delta = -n;
+    else continue;
+    sums.set(id, (sums.get(id) || 0) + delta);
+  }
+  /** @type {Map<string, number>} */
+  const out = new Map();
+  for (const [id, sum] of sums) {
+    const rounded = Math.round(sum);
+    if (rounded > 0) out.set(id, rounded);
+  }
+  return out;
+}
+
+/**
  * Split-till overpayment credit remaining on one quotation (OVERPAY_ADVANCE on that quote minus OVERPAY_REVERSAL on it).
  * @param {Array<{ customerID: string, quotationRef?: string, type: string, amountNgn?: number }>} entries
  */

@@ -3,18 +3,26 @@ import { AlertTriangle } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { hangingRefundIndicator } from '../../lib/refundsStore';
 
+/** Headline amount: refund exposure when refunds exist, otherwise the unapplied ledger credit. */
+function headlineAmountNgn(info) {
+  return info.count > 0 ? info.totalOpenNgn : info.overpayCreditNgn;
+}
+
 /**
  * Compact chip for receipt / desk tables — display only, no auto-apply.
- * @param {{ hanging?: object[] | null; indicator?: ReturnType<typeof hangingRefundIndicator>; className?: string }} props
+ * @param {{ hanging?: object[] | null; overpayCreditNgn?: number; indicator?: ReturnType<typeof hangingRefundIndicator>; className?: string }} props
  */
-export function HangingCustomerRefundChip({ hanging, indicator, className = '' }) {
-  const info = indicator || hangingRefundIndicator(hanging);
+export function HangingCustomerRefundChip({ hanging, overpayCreditNgn = 0, indicator, className = '' }) {
+  const info = indicator || hangingRefundIndicator(hanging, overpayCreditNgn);
   if (!info) return null;
   const title = [
-    'Same customer has an open refund elsewhere.',
+    info.count > 0
+      ? 'Same customer has an open refund elsewhere.'
+      : 'Same customer has an overpayment credit not applied or requested as a refund yet.',
     'Overpayment on this receipt may belong against that refund / another receipt — review only; not auto-applied.',
     info.detailLabel,
-    formatNgn(info.totalOpenNgn),
+    info.count > 0 ? `Refunds open ${formatNgn(info.totalOpenNgn)}` : '',
+    info.overpayCreditNgn > 0 ? `Unapplied credit ${formatNgn(info.overpayCreditNgn)}` : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -27,18 +35,23 @@ export function HangingCustomerRefundChip({ hanging, indicator, className = '' }
       <AlertTriangle size={11} className="shrink-0" aria-hidden />
       {info.shortLabel}
       <span className="normal-case font-semibold tabular-nums tracking-normal">
-        {formatNgn(info.totalOpenNgn)}
+        {formatNgn(headlineAmountNgn(info))}
       </span>
+      {info.count > 0 && info.overpayCreditNgn > 0 ? (
+        <span className="normal-case font-semibold tabular-nums tracking-normal text-rose-800/90">
+          · credit {formatNgn(info.overpayCreditNgn)}
+        </span>
+      ) : null}
     </span>
   );
 }
 
 /**
  * Banner for Confirm payment received modal.
- * @param {{ hanging?: object[] | null; indicator?: ReturnType<typeof hangingRefundIndicator> }} props
+ * @param {{ hanging?: object[] | null; overpayCreditNgn?: number; indicator?: ReturnType<typeof hangingRefundIndicator> }} props
  */
-export function HangingCustomerRefundBanner({ hanging, indicator }) {
-  const info = indicator || hangingRefundIndicator(hanging);
+export function HangingCustomerRefundBanner({ hanging, overpayCreditNgn = 0, indicator }) {
+  const info = indicator || hangingRefundIndicator(hanging, overpayCreditNgn);
   if (!info) return null;
   return (
     <div
@@ -48,11 +61,15 @@ export function HangingCustomerRefundBanner({ hanging, indicator }) {
       <AlertTriangle size={16} className="text-rose-800 shrink-0 mt-0.5" aria-hidden />
       <div className="min-w-0">
         <p className="font-bold">
-          {info.shortLabel} · {formatNgn(info.totalOpenNgn)} open
+          {info.shortLabel} · {formatNgn(headlineAmountNgn(info))} open
+          {info.count > 0 && info.overpayCreditNgn > 0 ? (
+            <span className="font-semibold"> · unapplied credit {formatNgn(info.overpayCreditNgn)}</span>
+          ) : null}
         </p>
         <p className="mt-0.5 font-medium text-rose-900/90">
-          This customer already has a refund in progress. Some of the amount on this receipt may need to
-          cover that liability or another quotation — review only; nothing is auto-deducted.
+          {info.count > 0
+            ? 'This customer already has a refund in progress. Some of the amount on this receipt may need to cover that liability or another quotation — review only; nothing is auto-deducted.'
+            : 'This customer has an overpayment credit on the ledger that has not been applied to a quotation or requested as a refund yet. The money on this receipt may relate to it — review only; nothing is auto-deducted.'}
         </p>
         {info.detailLabel ? (
           <p className="mt-1 font-mono text-[10px] text-rose-800/90 break-words">{info.detailLabel}</p>
