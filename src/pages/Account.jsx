@@ -51,6 +51,7 @@ import {
   normalizeRefund,
   refundApprovedAmount,
   refundOutstandingAmount,
+  hangingRefundsForCustomer,
 } from '../lib/refundsStore';
 import { liveReceivablesNgn, openAuditQueue } from '../lib/liveAnalytics';
 import { effectiveOutstandingNgn, isEffectivelyFullyPaid } from '../lib/paymentOutstandingTolerance.js';
@@ -118,6 +119,7 @@ import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AccountBankReconciliationPanel } from '../components/account/AccountBankReconciliationPanel.jsx';
 import { RegisterBankDepositPanel } from '../components/finance/RegisterBankDepositPanel.jsx';
 import { BankDepositExceptionPanel } from '../components/finance/BankDepositExceptionPanel.jsx';
+import { HangingCustomerRefundBanner } from '../components/finance/HangingCustomerRefundHint.jsx';
 import { AccountGlManualJournalCard } from '../components/account/AccountGlManualJournalCard.jsx';
 import {
   openReconciliationListPrint,
@@ -1846,6 +1848,7 @@ const Account = () => {
       customers: Array.isArray(snap?.customers) ? snap.customers : liveCustomers,
       quotations: Array.isArray(snap?.quotations) ? snap.quotations : liveQuotations,
       cuttingLists: Array.isArray(snap?.cuttingLists) ? snap.cuttingLists : liveCuttingLists,
+      refunds: customerRefunds,
     });
     if (!payload.rows.length) {
       showToast('No unreconciled receipts to print.', { variant: 'info' });
@@ -1860,6 +1863,7 @@ const Account = () => {
     liveCustomers,
     liveQuotations,
     liveCuttingLists,
+    customerRefunds,
     workspaceBranchLabel,
     ws?.ensureDomainLoaded,
     ws?.snapshot,
@@ -4776,6 +4780,13 @@ const Account = () => {
                       updates treasury, receipt, ledger, and quote paid amount, and clears for delivery unless you hold
                       it below. Revisions after the first save may need manager approval.
                     </div>
+
+                    <HangingCustomerRefundBanner
+                      hanging={hangingRefundsForCustomer(
+                        customerRefunds,
+                        receiptFinanceRow.customerID
+                      )}
+                    />
 
                 {settleSplits.length > 0 ? (
                     <div className="space-y-3">

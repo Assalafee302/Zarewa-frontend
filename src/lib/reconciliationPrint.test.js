@@ -53,6 +53,15 @@ describe('reconciliationPrint', () => {
         customers: [{ customerID: 'CUS-001', phoneNumber: '08035550142' }],
         quotations: [{ id: 'QT-100', materialColor: 'Heritage Blue', materialGauge: '0.45mm' }],
         cuttingLists: [{ id: 'CL-1', quotationRef: 'QT-100', totalMeters: 120.5 }],
+        refunds: [
+          {
+            refundID: 'RF-77',
+            customerID: 'CUS-001',
+            status: 'Pending',
+            amountNgn: 15000,
+            quotationRef: 'QT-88',
+          },
+        ],
       }
     );
     expect(payload.rows).toHaveLength(1);
@@ -62,12 +71,17 @@ describe('reconciliationPrint', () => {
     expect(payload.rows[0].colour).toBe('Heritage Blue');
     expect(payload.rows[0].gauge).toBe('0.45mm');
     expect(payload.rows[0].totalMeters).toMatch(/120\.5/);
+    expect(payload.rows[0].hangingRefund).toMatch(/Hanging refund/i);
+    expect(payload.rows[0].hangingRefund).toContain('RF-77');
     expect(payload.rows[0].reference).toBeUndefined();
     expect(payload.columns.some((c) => c.key === 'reference')).toBe(false);
     expect(payload.columns.map((c) => c.key)).toEqual(
-      expect.arrayContaining(['colour', 'gauge', 'totalMeters'])
+      expect.arrayContaining(['colour', 'gauge', 'totalMeters', 'hangingRefund'])
     );
     expect(payload.summaryLines[0].value).toBe('1');
+    expect(payload.summaryLines.some((l) => /hanging refund/i.test(l.label) && l.value === '1')).toBe(
+      true
+    );
   });
 
   it('builds bank line print payload', () => {

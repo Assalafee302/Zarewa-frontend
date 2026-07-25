@@ -28,7 +28,7 @@ import {
   receiptClearanceBadgeLabel,
 } from "../../lib/receiptClearance";
 
-import { approvedRefundsAwaitingPayment } from "../../lib/refundsStore";
+import { approvedRefundsAwaitingPayment, hangingRefundIndicatorsByCustomerId } from "../../lib/refundsStore";
 
 import {
   registerSettlementsAwaitingPayment,
@@ -74,6 +74,8 @@ import { FinanceDeskLiquidityHeader } from "./FinanceDeskLiquidityHeader";
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
 
 import { FinanceDeskTreasurySummary } from "./FinanceDeskTreasurySummary";
+
+import { HangingCustomerRefundChip } from "./HangingCustomerRefundHint";
 
 import {
   FinanceDeskColoredQueuePanel,
@@ -222,6 +224,11 @@ export function FinanceDeskWorkQueues({
     () => (Array.isArray(ws?.snapshot?.refunds) ? ws.snapshot.refunds : []),
 
     [ws?.snapshot?.refunds],
+  );
+
+  const hangingRefundByCustomerId = useMemo(
+    () => hangingRefundIndicatorsByCustomerId(refunds),
+    [refunds],
   );
 
   const registerSettlements = useMemo(
@@ -676,7 +683,9 @@ export function FinanceDeskWorkQueues({
               }
             >
               <ul className="space-y-1.5">
-                {pendingReceipts.map((r) => (
+                {pendingReceipts.map((r) => {
+                  const hanging = hangingRefundByCustomerId.get(String(r.customerID || "").trim());
+                  return (
                   <FinanceDeskColoredQueueRow
                     key={r.id}
                     theme="amber"
@@ -691,6 +700,13 @@ export function FinanceDeskWorkQueues({
                       </>
                     }
                     meta={receiptClearanceBadgeLabel(r)}
+                    extra={
+                      hanging ? (
+                        <div className="mt-1">
+                          <HangingCustomerRefundChip indicator={hanging} />
+                        </div>
+                      ) : null
+                    }
                     amount={formatNgn(r.amountNgn)}
                     actions={
                       <>
@@ -712,7 +728,8 @@ export function FinanceDeskWorkQueues({
                       </>
                     }
                   />
-                ))}
+                  );
+                })}
               </ul>
             </FinanceDeskColoredQueuePanel>
           ) : null}

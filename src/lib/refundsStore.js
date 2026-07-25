@@ -151,6 +151,77 @@ export function isRefundPayable(r) {
   );
 }
 
+/**
+ * Open refund still in flight for the customer — Pending approval, or Approved with unpaid balance.
+ * Display-only signal for finance confirmation / reconciliation (no auto-apply).
+ */
+export function isRefundHanging(r) {
+  if (!r || refundStatusIsWithdrawn(r.status) || r.status === 'Paid') return false;
+  if (r.status === 'Pending') return true;
+  return isRefundPayable(r);
+}
+
+/** Amount still open on a hanging refund (requested for Pending; unpaid approved for payable). */
+export function hangingRefundOpenAmountNgn(r) {
+  if (!isRefundHanging(r)) return 0;
+  if (r.status === 'Pending') return Math.round(Number(r.amountNgn) || 0);
+  return refundOutstandingAmount(r);
+}
+
+/**
+ * @param {object[] | null | undefined} list
+ * @param {string | null | undefined} customerId
+ */
+export function hangingRefundsForCustomer(list, customerId) {
+  const id = String(customerId || '').trim();
+  if (!id) return [];
+  return (list ?? []).filter((r) => String(r?.customerID || '').trim() === id && isRefundHanging(r));
+}
+
+/**
+ * @param {object[]} hanging
+ * @returns {{ count: number; totalOpenNgn: number; shortLabel: string; detailLabel: string } | null}
+ */
+export function hangingRefundIndicator(hanging) {
+  const rows = Array.isArray(hanging) ? hanging.filter(isRefundHanging) : [];
+  if (rows.length === 0) return null;
+  const totalOpenNgn = rows.reduce((sum, r) => sum + hangingRefundOpenAmountNgn(r), 0);
+  const count = rows.length;
+  const shortLabel =
+    count === 1 ? 'Hanging refund' : `${count} hanging refunds`;
+  const parts = rows.map((r) => {
+    const rid = String(r.refundID || '').trim() || '—';
+    const status = String(r.status || '').trim() || '—';
+    const q = String(r.quotationRef || '').trim();
+    return q ? `${rid} ${status} (${q})` : `${rid} ${status}`;
+  });
+  const detailLabel = parts.join('; ');
+  return { count, totalOpenNgn, shortLabel, detailLabel };
+}
+
+/**
+ * @param {object[] | null | undefined} list
+ * @returns {Map<string, ReturnType<typeof hangingRefundIndicator> & { refunds: object[] }>}
+ */
+export function hangingRefundIndicatorsByCustomerId(list) {
+  /** @type {Map<string, object[]>} */
+  const grouped = new Map();
+  for (const r of list ?? []) {
+    if (!isRefundHanging(r)) continue;
+    const id = String(r?.customerID || '').trim();
+    if (!id) continue;
+    if (!grouped.has(id)) grouped.set(id, []);
+    grouped.get(id).push(r);
+  }
+  /** @type {Map<string, ReturnType<typeof hangingRefundIndicator> & { refunds: object[] }>} */
+  const out = new Map();
+  for (const [id, refunds] of grouped) {
+    const indicator = hangingRefundIndicator(refunds);
+    if (indicator) out.set(id, { ...indicator, refunds });
+  }
+  return out;
+}
+
 export function loadRefunds() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

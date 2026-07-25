@@ -1,7 +1,18 @@
 import { formatNgn } from '../Data/mockData';
 import { escapeHtml, openPrintHtmlDocument } from './officeDeskPrint';
 import { isReceiptPendingClearance, pendingClearanceTotalNgn, receiptEffectiveCashNgn } from './receiptClearance';
+import {
+  hangingRefundIndicatorsByCustomerId,
+} from './refundsStore';
 import { normSalesQuotationRefKey, receiptLedgerReceiptTreasurySplits } from './salesReceiptsList';
+
+/** Print cell for same-customer open refunds (indicator only). */
+export function formatHangingRefundPrintCell(indicator) {
+  if (!indicator) return '—';
+  const amount = formatNgn(indicator.totalOpenNgn);
+  const detail = String(indicator.detailLabel || '').trim();
+  return detail ? `${indicator.shortLabel} · ${amount} · ${detail}` : `${indicator.shortLabel} · ${amount}`;
+}
 
 function formatPrintMeters(value) {
   const n = Number(value);
@@ -164,12 +175,16 @@ export function unreconciledReceiptRows(receipts = []) {
  *   customers?: object[];
  *   quotations?: object[];
  *   cuttingLists?: object[];
+ *   refunds?: object[];
  * }} [opts]
  */
 export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [], opts = {}) {
   const phoneByCustomerId = customerPhoneByIdMap(opts.customers);
   const materialByQuote = quotationMaterialByRefMap(opts.quotations);
   const cuttingByQuote = cuttingListSummaryByQuoteRefMap(opts.cuttingLists);
+  const hangingByCustomer = hangingRefundIndicatorsByCustomerId(opts.refunds);
+
+  let receiptsWithHangingRefund = 0;
 
   const rows = unreconciledReceiptRows(receipts)
     .slice()
@@ -189,6 +204,9 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       const qKey = normSalesQuotationRefKey(r.quotationRef);
       const material = qKey ? materialByQuote.get(qKey) : null;
       const cutting = qKey ? cuttingByQuote.get(qKey) : null;
+      const customerId = String(r.customerID || '').trim();
+      const hanging = customerId ? hangingByCustomer.get(customerId) : null;
+      if (hanging) receiptsWithHangingRefund += 1;
       return {
         receiptId: String(r.id || '—'),
         receiptDate: String(r.dateISO || r.date || '—'),
@@ -199,6 +217,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
         colour: material?.colour || '—',
         gauge: material?.gauge || '—',
         totalMeters: cutting?.totalMetersLabel || '—',
+        hangingRefund: formatHangingRefundPrintCell(hanging),
         status: 'Pending clearance',
       };
     });
@@ -225,12 +244,17 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       { key: 'colour', label: 'Colour' },
       { key: 'gauge', label: 'Gauge' },
       { key: 'totalMeters', label: 'Total metres', align: 'right' },
+      { key: 'hangingRefund', label: 'Hanging refund' },
       { key: 'status', label: 'Status' },
     ],
     rows,
     summaryLines: [
       { label: 'Receipts pending clearance', value: String(rows.length) },
       { label: 'Total awaiting reconciliation', value: formatNgn(totalNgn) },
+      {
+        label: 'Receipts with same-customer hanging refund (indicator only)',
+        value: String(receiptsWithHangingRefund),
+      },
     ],
   };
 }

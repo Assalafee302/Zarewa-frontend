@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search,
@@ -36,6 +36,8 @@ import { RegisterBankDepositPanel } from '../../components/finance/RegisterBankD
 import { BankDepositExceptionPanel } from '../../components/finance/BankDepositExceptionPanel.jsx';
 import { AccountGlManualJournalCard } from '../../components/account/AccountGlManualJournalCard.jsx';
 import { receiptClearanceBadgeLabel } from '../../lib/receiptClearance.js';
+import { hangingRefundIndicatorsByCustomerId } from '../../lib/refundsStore.js';
+import { HangingCustomerRefundChip } from '../../components/finance/HangingCustomerRefundHint.jsx';
 import { useAccountPage } from './AccountPageContext.jsx';
 
 export function AccountTabPanels() {
@@ -157,6 +159,11 @@ export function AccountTabPanels() {
     workspaceBranchLabel,
     ws,
   } = useAccountPage();
+
+  const hangingRefundByCustomerId = useMemo(
+    () => hangingRefundIndicatorsByCustomerId(Object.values(refundById || {})),
+    [refundById]
+  );
 
   return (
             <>
@@ -368,6 +375,7 @@ export function AccountTabPanels() {
                               r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : null;
                             const clearanceLabel = receiptClearanceBadgeLabel(r);
                             const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
+                            const hanging = hangingRefundByCustomerId.get(String(r.customerID || '').trim());
                             return (
                               <li
                                 key={r.id}
@@ -378,6 +386,11 @@ export function AccountTabPanels() {
                                   <p className="text-ui-xs text-slate-500 truncate">
                                     {r.customer || '-'} · {r.quotationRef || '-'} · {r.dateISO || r.date || '-'}
                                   </p>
+                                  {hanging ? (
+                                    <div className="mt-1">
+                                      <HangingCustomerRefundChip indicator={hanging} />
+                                    </div>
+                                  ) : null}
                                   {paySplits.length > 0 ? (
                                     <ul className="mt-1.5 space-y-0.5 border-t border-dashed border-slate-200/80 pt-1.5">
                                       {paySplits.map((s) => (
@@ -483,6 +496,7 @@ export function AccountTabPanels() {
                           r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : null;
                         const cleared = Boolean(r.financeDeliveryClearedAtISO);
                         const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
+                        const hanging = hangingRefundByCustomerId.get(String(r.customerID || '').trim());
                         return (
                           <li
                             key={r.id}
@@ -493,6 +507,11 @@ export function AccountTabPanels() {
                               <p className="text-ui-xs text-slate-500 truncate">
                                 {r.customer || '—'} · {r.quotationRef || '—'} · {r.dateISO || r.date || '—'}
                               </p>
+                              {hanging ? (
+                                <div className="mt-1">
+                                  <HangingCustomerRefundChip indicator={hanging} />
+                                </div>
+                              ) : null}
                               {paySplits.length > 0 ? (
                                 <ul className="mt-1.5 space-y-0.5 border-t border-dashed border-slate-200/80 pt-1.5">
                                   {paySplits.map((s) => (
