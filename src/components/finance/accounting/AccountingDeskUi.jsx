@@ -16,7 +16,7 @@ export const ACCOUNTING_REGISTER_SORT_FIELDS = [
 /**
  * @param {{ icon?: React.ReactNode; label: string; value: React.ReactNode; hint?: string; tone?: 'default' | 'teal' | 'amber' }} props
  */
-export function AccountingDeskKpiCard({ icon, label, value, hint, tone = 'default' }) {
+export function AccountingDeskKpiCard({ icon, label, value, hint, tone = 'default', onClick }) {
   const toneClass =
     tone === 'teal'
       ? 'border-teal-200 bg-teal-50/40'
@@ -28,8 +28,9 @@ export function AccountingDeskKpiCard({ icon, label, value, hint, tone = 'defaul
   const valueClass =
     tone === 'amber' ? 'text-amber-900' : 'text-zarewa-teal';
 
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <div className={`rounded-xl border p-3 ${toneClass}`}>
+    <Tag type={onClick ? 'button' : undefined} onClick={onClick} className={`rounded-xl border p-3 text-left ${toneClass} ${onClick ? 'w-full hover:border-zarewa-teal' : ''}`}>
       <p className={`text-ui-xs font-bold uppercase tracking-wide flex items-center gap-1 ${labelClass}`}>
         {icon}
         {label}
@@ -38,7 +39,7 @@ export function AccountingDeskKpiCard({ icon, label, value, hint, tone = 'defaul
       {hint ? (
         <p className="mt-2 text-ui-xs text-slate-500 border-t border-slate-100/80 pt-2 leading-snug">{hint}</p>
       ) : null}
-    </div>
+    </Tag>
   );
 }
 

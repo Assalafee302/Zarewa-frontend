@@ -338,6 +338,24 @@ export function ManagerCustomerIssuesPanel({ available = true }) {
                     onChange={(e) => setResolveNote(e.target.value)}
                     placeholder="What was done for the customer…"
                   />
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {['Rework WO', 'Refund', 'Credit note', 'Apology only'].map((outcome) => (
+                      <button
+                        key={outcome}
+                        type="button"
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
+                        onClick={() =>
+                          setResolveNote((prev) =>
+                            String(prev || '').includes(outcome)
+                              ? prev
+                              : `${prev ? `${prev} · ` : ''}Outcome: ${outcome}`
+                          )
+                        }
+                      >
+                        {outcome}
+                      </button>
+                    ))}
+                  </div>
                 </label>
 
                 <p className="text-ui-xs text-slate-500 leading-relaxed">

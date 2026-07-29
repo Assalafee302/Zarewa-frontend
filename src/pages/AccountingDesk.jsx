@@ -48,6 +48,7 @@ import { Ap3CostingReadinessPanel } from '../components/finance/Ap3CostingReadin
 import { Ap3BranchPlPanel } from '../components/finance/Ap3BranchPlPanel';
 
 import { PricingGovernancePanel } from '../components/finance/PricingGovernancePanel';
+import { OpsHealthAnalyticsPanel } from '../components/finance/OpsHealthAnalyticsPanel';
 
 import { AccountingSupplierPolicyPanel } from '../components/finance/AccountingSupplierPolicyPanel';
 
@@ -528,6 +529,12 @@ export default function AccountingDesk() {
                   deskLayout
                   deskRefresh={deskRefresh}
                 />
+              </AccountingDeskTabPane>
+            ) : null}
+
+            {!accessDenied && hasFinanceView && mountedTabs.has('opsHealth') ? (
+              <AccountingDeskTabPane tabId="opsHealth" activeTab={tab} mountedTabs={mountedTabs}>
+                <OpsHealthAnalyticsPanel branchId={branchId || 'ALL'} deskLayout />
               </AccountingDeskTabPane>
             ) : null}
 

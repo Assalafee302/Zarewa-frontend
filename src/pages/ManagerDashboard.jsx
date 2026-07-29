@@ -17,6 +17,9 @@ import { ManagerOpsStrip } from '../components/branchManager/ManagerOpsStrip';
 import { ManagerPeopleGlancePanel } from '../components/branchManager/ManagerPeopleGlancePanel';
 import { ManagerCustomerIssuesPanel } from '../components/branchManager/ManagerCustomerIssuesPanel';
 import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyChecklist';
+import { ManagerBreakEvenCard } from '../components/branchManager/ManagerBreakEvenCard';
+import { ManagerOtBoardPanel } from '../components/branchManager/ManagerOtBoardPanel';
+import { ManagerOpsHealthPanel } from '../components/branchManager/ManagerOpsHealthPanel';
 import {
   ManagerAnnouncementsPanel,
   ManagerAuditTrailPanel,
@@ -324,6 +327,12 @@ const ManagerDashboard = () => {
               refreshEpoch={bm.ws?.refreshEpoch || 0}
             />
             <ManagerCustomerIssuesPanel available={customerIssuesAvailable} />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <ManagerBreakEvenCard branchId={bm.mgrBranchId} />
+            <ManagerOtBoardPanel branchId={bm.mgrBranchId} />
+            <ManagerOpsHealthPanel branchId={bm.mgrBranchId} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">

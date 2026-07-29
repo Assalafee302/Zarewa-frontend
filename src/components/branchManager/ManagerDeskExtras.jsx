@@ -42,6 +42,15 @@ function Empty({ text }) {
   return <p className="text-ui-xs text-slate-500 py-2">{text}</p>;
 }
 
+function belowFloorSum(quotation) {
+  const snapshot = quotation?.mdPriceException || quotation?.mdPriceExceptionSnapshot || quotation?.md_price_exception_snapshot || {};
+  const direct = Number(snapshot.totalBelowFloorPerMeterNgn ?? quotation?.totalBelowFloorPerMeterNgn);
+  if (Number.isFinite(direct)) return direct;
+  const lines = snapshot.lines || quotation?.lines || [];
+  const total = lines.reduce((sum, line) => sum + (Number(line.belowFloorPerMeterNgn ?? line.belowFloorNgn ?? 0) || 0), 0);
+  return total > 0 ? total : null;
+}
+
 /** Read-only overdue / aging receivables for BM. */
 export function ManagerReceivablesPanel({ available = true }) {
   const [aging, setAging] = useState(null);
@@ -258,6 +267,7 @@ export function ManagerPriceExceptionsPanel({ quotations = [] }) {
         approvedAt: q.mdPriceExceptionApprovedAtISO || q.md_price_exception_approved_at_iso || '',
         pending: Boolean(q.priceExceptionMdReviewRequired) && !q.mdPriceExceptionApprovedAtISO,
         total: q.grandTotalNgn ?? q.totalNgn,
+        belowFloor: belowFloorSum(q),
       }))
       .sort((a, b) => String(b.approvedAt || '').localeCompare(String(a.approvedAt || '')))
       .slice(0, 8);
@@ -279,6 +289,7 @@ export function ManagerPriceExceptionsPanel({ quotations = [] }) {
             <p className="text-ui-xs text-slate-600">
               {r.customer || '—'}
               {r.total != null ? ` · ${formatNgn(r.total)}` : ''}
+              {r.belowFloor != null ? ` · ${formatNgn(r.belowFloor)} below floor` : ''}
               {r.pending ? ' · awaiting MD' : r.approvedAt ? ` · approved ${String(r.approvedAt).slice(0, 10)}` : ''}
             </p>
           </div>

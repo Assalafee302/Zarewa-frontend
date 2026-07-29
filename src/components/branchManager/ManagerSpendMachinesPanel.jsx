@@ -43,6 +43,8 @@ export function ManagerSpendMachinesPanel({
   const [error, setError] = useState('');
   const [history, setHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [vendorSort, setVendorSort] = useState('avgCostPerJobNgn');
+  const [vendorSortDir, setVendorSortDir] = useState('desc');
 
   const effectiveBranchId = viewAllBranches ? String(filterBranchId || '').trim() : String(branchId || '').trim();
 
@@ -92,8 +94,18 @@ export function ManagerSpendMachinesPanel({
   };
 
   const machines = useMemo(() => (Array.isArray(pack?.machines) ? pack.machines : []), [pack]);
-  const vendors = useMemo(() => (Array.isArray(pack?.vendors) ? pack.vendors : []), [pack]);
+  const vendors = useMemo(() => {
+    const list = [...(Array.isArray(pack?.vendors) ? pack.vendors : [])];
+    return list.sort((a, b) => vendorSortDir === 'asc' ? Number(a[vendorSort] || 0) - Number(b[vendorSort] || 0) : Number(b[vendorSort] || 0) - Number(a[vendorSort] || 0));
+  }, [pack, vendorSort, vendorSortDir]);
   const summary = pack?.summary || {};
+  const toggleVendorSort = (field) => {
+    if (field === vendorSort) setVendorSortDir((dir) => dir === 'asc' ? 'desc' : 'asc');
+    else {
+      setVendorSort(field);
+      setVendorSortDir('desc');
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -241,10 +253,10 @@ export function ManagerSpendMachinesPanel({
                   <tr key={m.machineId || m.id || m.name} className="border-t border-slate-100">
                     <td className="px-3 py-2 font-semibold text-slate-900">{m.name || m.machineId}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                      {Number(m.outputMetres ?? m.lifetimeMetres ?? m.meterReading ?? 0).toLocaleString('en-NG')}
+                      {Number(m.outputMetres ?? m.lifetimeMetres ?? m.meterReading ?? 0) > 0 ? Number(m.outputMetres ?? m.lifetimeMetres ?? m.meterReading ?? 0).toLocaleString('en-NG') : 'Not linked from production yet'}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                      {Number(m.downtimeHours ?? m.openDowntimeHours ?? 0).toLocaleString('en-NG')}
+                      {Number(m.downtimeHours ?? m.openDowntimeHours ?? 0) > 0 ? Number(m.downtimeHours ?? m.openDowntimeHours ?? 0).toLocaleString('en-NG') : 'Not linked from production yet'}
                     </td>
                   </tr>
                 ))}
@@ -273,9 +285,9 @@ export function ManagerSpendMachinesPanel({
               <thead className="bg-slate-50 text-ui-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-2 font-bold">Vendor</th>
-                  <th className="px-3 py-2 font-bold text-right">Total spend</th>
+                  <th className="px-3 py-2 font-bold text-right"><button type="button" onClick={() => toggleVendorSort('totalNgn')} className="hover:text-zarewa-teal">Total spend {vendorSort === 'totalNgn' ? (vendorSortDir === 'asc' ? '↑' : '↓') : ''}</button></th>
                   <th className="px-3 py-2 font-bold text-right">Jobs</th>
-                  <th className="px-3 py-2 font-bold text-right">Avg / job</th>
+                  <th className="px-3 py-2 font-bold text-right"><button type="button" onClick={() => toggleVendorSort('avgCostPerJobNgn')} className="hover:text-zarewa-teal">Avg / job {vendorSort === 'avgCostPerJobNgn' ? (vendorSortDir === 'asc' ? '↑' : '↓') : ''}</button></th>
                 </tr>
               </thead>
               <tbody>

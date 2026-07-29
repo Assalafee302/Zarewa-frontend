@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
+import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
 import {
   AccountingDeskKpiCard,
   AccountingDeskNotice,
@@ -32,12 +33,16 @@ export function PricingGovernancePanel({
 }) {
   const [branchId, setBranchId] = useState(initialBranchId || 'ALL');
   const [section, setSection] = useState('cost'); // cost | floor | margin
-  const [flaggedOnly, setFlaggedOnly] = useState(true);
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [materialFilter, setMaterialFilter] = useState('');
   const [pack, setPack] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedFloor, setSelectedFloor] = useState(null);
   const [selectedMargin, setSelectedMargin] = useState(null);
+  const [proposalBusyId, setProposalBusyId] = useState('');
+  const [proposalMessage, setProposalMessage] = useState('');
+  const [lastRefreshedAt, setLastRefreshedAt] = useState('');
 
   const load = useCallback(async () => {
     if (!enabled) return;
@@ -53,6 +58,7 @@ export function PricingGovernancePanel({
       return;
     }
     setPack(res.data);
+    setLastRefreshedAt(res.data?.generatedAtISO || new Date().toISOString());
   }, [branchId, enabled]);
 
   useEffect(() => {
@@ -65,18 +71,32 @@ export function PricingGovernancePanel({
 
   const costRows = useMemo(() => {
     const rows = Array.isArray(pack?.costVariance) ? pack.costVariance : [];
-    return flaggedOnly ? rows.filter((r) => r.flagged) : rows;
-  }, [pack, flaggedOnly]);
+    return rows.filter((r) => (!flaggedOnly || r.flagged) && (!materialFilter || r.materialKey === materialFilter));
+  }, [pack, flaggedOnly, materialFilter]);
 
   const floorRows = useMemo(
-    () => (Array.isArray(pack?.floorExceptions) ? pack.floorExceptions : []),
-    [pack]
+    () => (Array.isArray(pack?.floorExceptions) ? pack.floorExceptions : []).filter((r) => !materialFilter || r.materialKey === materialFilter),
+    [pack, materialFilter]
   );
 
   const marginRows = useMemo(() => {
     const rows = Array.isArray(pack?.marginConsistency) ? pack.marginConsistency : [];
-    return flaggedOnly ? rows.filter((r) => r.flagged) : rows;
-  }, [pack, flaggedOnly]);
+    return rows.filter((r) => (!flaggedOnly || r.flagged) && (!materialFilter || r.materialKey === materialFilter));
+  }, [pack, flaggedOnly, materialFilter]);
+
+  const materialKeys = useMemo(() => [...new Set([...(pack?.costVariance || []), ...(pack?.marginConsistency || [])].map((r) => String(r.materialKey || '').trim()).filter(Boolean))].sort(), [pack]);
+  const exportCsv = () => {
+    const rows = section === 'cost' ? costRows : section === 'floor' ? floorRows : marginRows;
+    if (rows.length) downloadFinanceCsv(`pricing-governance-${section}-${branchId || 'all'}`, Object.keys(rows[0]), rows);
+  };
+  const proposeCostRefresh = async (rowId) => {
+    setProposalBusyId(rowId);
+    setProposalMessage('');
+    const res = await apiFetch('/api/finance/pricing-governance/propose-cost-refresh', { method: 'POST', body: JSON.stringify({ rowId }) }).catch(() => ({ ok: false }));
+    setProposalBusyId('');
+    setProposalMessage(res.ok && res.data?.ok !== false ? 'Cost refresh proposal recorded.' : res.data?.error || 'Could not propose a cost refresh.');
+    if (res.ok && res.data?.ok !== false) void load();
+  };
 
   const filters = (
     <div className="flex flex-wrap items-end gap-3">
@@ -112,6 +132,15 @@ export function PricingGovernancePanel({
         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden />
         Refresh
       </button>
+      <button type="button" onClick={exportCsv} disabled={!pack} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+        Export CSV
+      </button>
+      {materialKeys.length ? (
+        <div className="flex flex-wrap gap-1.5 pb-1">
+          <button type="button" onClick={() => setMaterialFilter('')} className={`rounded-full border px-2 py-1 text-ui-xs font-bold ${!materialFilter ? 'border-zarewa-teal bg-zarewa-teal text-white' : 'border-slate-200 text-slate-600'}`}>All materials</button>
+          {materialKeys.map((key) => <button key={key} type="button" onClick={() => setMaterialFilter(key)} className={`rounded-full border px-2 py-1 text-ui-xs font-bold ${materialFilter === key ? 'border-zarewa-teal bg-zarewa-teal text-white' : 'border-slate-200 text-slate-600'}`}>{key}</button>)}
+        </div>
+      ) : null}
     </div>
   );
 
@@ -147,8 +176,11 @@ export function PricingGovernancePanel({
       <AccountingDeskPageIntro
         title="Pricing governance"
         description={`Workbook cost vs 30-day GRN WAC (flag ≥${thresholds?.costVariancePct ?? 8}%), MD floor-exception log, and Profit/Overhead consistency across material/gauge.`}
+        action={<Link to="/pricing-policy" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-bold uppercase text-zarewa-teal hover:bg-slate-50">Pricing workbook →</Link>}
       />
       {filters}
+      {lastRefreshedAt ? <p className="text-ui-xs text-slate-500">Last refreshed {new Date(lastRefreshedAt).toLocaleString()}</p> : null}
+      {proposalMessage ? <AccountingDeskNotice tone="info">{proposalMessage}</AccountingDeskNotice> : null}
       {error ? (
         <AccountingDeskNotice tone="warn">
           <span className="inline-flex items-start gap-1.5">
@@ -164,23 +196,27 @@ export function PricingGovernancePanel({
           value={summary?.costVarianceFlagged ?? '—'}
           hint={`Threshold ${thresholds?.costVariancePct ?? 8}% vs GRN WAC`}
           tone={(summary?.costVarianceFlagged || 0) > 0 ? 'amber' : 'default'}
+          onClick={() => setSection('cost')}
         />
         <AccountingDeskKpiCard
           label="Missing GRN WAC"
           value={summary?.costVarianceMissingGrn ?? '—'}
           hint="No coil receipts in lookback"
+          onClick={() => setSection('cost')}
         />
         <AccountingDeskKpiCard
           label="Floor exceptions"
           value={summary?.floorExceptionCount ?? '—'}
           hint="MD-approved below-floor quotes"
           tone="teal"
+          onClick={() => setSection('floor')}
         />
         <AccountingDeskKpiCard
           label="Margin inconsistencies"
           value={summary?.marginConsistencyFlagged ?? '—'}
           hint={`≥${thresholds?.marginConsistencyRelPct ?? 15}% and ₦${thresholds?.marginConsistencyAbsNgn ?? 50}/m spread`}
           tone={(summary?.marginConsistencyFlagged || 0) > 0 ? 'amber' : 'default'}
+          onClick={() => setSection('margin')}
         />
       </div>
 
@@ -231,6 +267,11 @@ export function PricingGovernancePanel({
                         ) : (
                           <span className="text-slate-500">OK</span>
                         )}
+                        {r.id ? (
+                          <button type="button" disabled={proposalBusyId === r.id} onClick={() => void proposeCostRefresh(r.id)} className="ml-2 text-ui-xs font-bold text-zarewa-teal hover:underline disabled:opacity-50">
+                            {proposalBusyId === r.id ? 'Proposing…' : 'Propose refresh'}
+                          </button>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
@@ -293,7 +334,8 @@ export function PricingGovernancePanel({
             </div>
           )}
           {selectedFloor ? (
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-2">
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
+            <div className="max-h-[85vh] w-full max-w-2xl overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-xl space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-black text-zarewa-teal">
                   {selectedFloor.quotationId} · line deltas
@@ -333,6 +375,7 @@ export function PricingGovernancePanel({
               >
                 Close
               </button>
+            </div>
             </div>
           ) : null}
         </AccountingDeskTableSection>
@@ -403,7 +446,8 @@ export function PricingGovernancePanel({
             </div>
           )}
           {selectedMargin ? (
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-2">
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
+            <div className="max-h-[85vh] w-full max-w-3xl overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-xl space-y-2">
               <p className="text-xs font-black text-zarewa-teal">
                 {selectedMargin.materialKey} · {selectedMargin.gaugeMm} — row detail
               </p>
@@ -439,6 +483,7 @@ export function PricingGovernancePanel({
               >
                 Close
               </button>
+            </div>
             </div>
           ) : null}
         </AccountingDeskTableSection>

@@ -137,6 +137,9 @@ export function ManagerPeopleGlancePanel({
         };
       });
     setAbsentPeople(absent);
+    const attendanceByUserId = new Map(
+      rollRows.map((r) => [readStaffUserId(r), String(r.status || '').replace(/_/g, ' ')])
+    );
 
     const leaveList = leaveQ.ok && Array.isArray(leaveQ.data?.entries) ? leaveQ.data.entries : [];
     const branchLeave = leaveList.filter((e) => !branchId || String(e.branchId || '') === String(branchId));
@@ -171,7 +174,7 @@ export function ManagerPeopleGlancePanel({
         unassigned += 1;
         continue;
       }
-      const prev = byAssignee.get(uid) || { userId: uid, name: nameById.get(uid) || 'Technician', count: 0 };
+      const prev = byAssignee.get(uid) || { userId: uid, name: nameById.get(uid) || 'Technician', count: 0, attendance: attendanceByUserId.get(uid) || 'not marked' };
       prev.count += 1;
       if (!nameById.has(uid) && wo.assignedToDisplayName) prev.name = wo.assignedToDisplayName;
       byAssignee.set(uid, prev);
@@ -337,7 +340,7 @@ export function ManagerPeopleGlancePanel({
               <ul className="space-y-1">
                 {workload.slice(0, 6).map((w) => (
                   <li key={w.userId || w.name} className="flex justify-between gap-2 text-ui-xs">
-                    <span className="font-semibold text-slate-800 truncate">{w.name}</span>
+                    <span className="font-semibold text-slate-800 truncate">{w.name} <span className="font-normal text-slate-400">· {w.attendance || 'not marked'}</span></span>
                     <span className="tabular-nums font-black text-zarewa-teal">{w.count}</span>
                   </li>
                 ))}

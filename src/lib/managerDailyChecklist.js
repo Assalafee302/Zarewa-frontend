@@ -1,18 +1,74 @@
-/** Branch manager daily opening/closing checklist — local, branch-scoped. */
+/** Checklist items with SOP deep-links for BM daily discipline. */
 
 export const MANAGER_CHECKLIST_ITEMS = [
-  { id: 'open_cash', phase: 'opening', label: 'Cash float confirmed' },
-  { id: 'open_security', phase: 'opening', label: 'Overnight security handover reviewed' },
-  { id: 'open_attendance', phase: 'opening', label: 'Attendance roll started' },
-  { id: 'open_machines', phase: 'opening', label: 'Machines pre-shift checked' },
-  { id: 'close_cash', phase: 'closing', label: 'Cash count reconciled' },
-  { id: 'close_stock', phase: 'closing', label: 'Stock movements posted' },
-  { id: 'close_production', phase: 'closing', label: 'Next-day production plan confirmed' },
-  { id: 'close_incidents', phase: 'closing', label: 'Incident log cleared' },
+  {
+    id: 'open_cash',
+    phase: 'opening',
+    label: 'Cash float confirmed',
+    durable: true,
+    sopPath: '/docs/sop/cashier',
+    sopHint: 'SOP-02 Cashier Desk — opening float',
+  },
+  {
+    id: 'open_security',
+    phase: 'opening',
+    label: 'Overnight security handover reviewed',
+    durable: true,
+    sopPath: '/docs/sop/maintenance',
+    sopHint: 'SOP-09 Maintenance — overnight security',
+  },
+  {
+    id: 'open_attendance',
+    phase: 'opening',
+    label: 'Attendance roll started',
+    sopPath: '/docs/sop/hr',
+    sopHint: 'SOP-07 HR — daily attendance',
+  },
+  {
+    id: 'open_machines',
+    phase: 'opening',
+    label: 'Machines pre-shift checked',
+    sopPath: '/docs/sop/production',
+    sopHint: 'SOP-05 Production — pre-shift',
+  },
+  {
+    id: 'close_cash',
+    phase: 'closing',
+    label: 'Cash count reconciled',
+    durable: true,
+    sopPath: '/docs/sop/cashier',
+    sopHint: 'SOP-02 Cashier Desk — closing count',
+  },
+  {
+    id: 'close_stock',
+    phase: 'closing',
+    label: 'Stock movements posted',
+    sopPath: '/docs/sop/store',
+    sopHint: 'SOP-04 Operations Store',
+  },
+  {
+    id: 'close_production',
+    phase: 'closing',
+    label: 'Next-day production plan confirmed',
+    sopPath: '/docs/sop/production',
+    sopHint: 'SOP-05 Production — plan',
+  },
+  {
+    id: 'close_incidents',
+    phase: 'closing',
+    label: 'Incident log cleared',
+    durable: true,
+    sopPath: '/docs/sop/maintenance',
+    sopHint: 'SOP-09 — incidents',
+  },
 ];
 
 function storageKey(branchId, dayIso) {
   return `zarewa.bm.checklist.${branchId || 'none'}.${dayIso || 'none'}`;
+}
+
+function draftKey(branchId, dayIso) {
+  return `zarewa.bm.handover.draft.${branchId || 'none'}.${dayIso || 'none'}`;
 }
 
 export function ymdLocal(d = new Date()) {
@@ -22,9 +78,6 @@ export function ymdLocal(d = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
-/**
- * @returns {Record<string, { done: boolean; at?: string; by?: string }>}
- */
 export function loadManagerChecklist(branchId, dayIso = ymdLocal()) {
   try {
     const raw = localStorage.getItem(storageKey(branchId, dayIso));
@@ -40,7 +93,23 @@ export function saveManagerChecklist(branchId, dayIso, state) {
   try {
     localStorage.setItem(storageKey(branchId, dayIso), JSON.stringify(state || {}));
   } catch {
-    /* ignore quota */
+    /* ignore */
+  }
+}
+
+export function loadHandoverDraft(branchId, dayIso = ymdLocal()) {
+  try {
+    return String(sessionStorage.getItem(draftKey(branchId, dayIso)) || '');
+  } catch {
+    return '';
+  }
+}
+
+export function saveHandoverDraft(branchId, dayIso, text) {
+  try {
+    sessionStorage.setItem(draftKey(branchId, dayIso), String(text || ''));
+  } catch {
+    /* ignore */
   }
 }
 

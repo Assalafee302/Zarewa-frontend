@@ -163,7 +163,7 @@ export function ManagerIntelligenceTab({
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyNote text="No revenue trend series from the API — not fabricating weekly points." />
+            <EmptyNote text="Not enough history yet." />
           )}
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
             <div className="rounded-lg bg-slate-50 px-2.5 py-2">
@@ -195,7 +195,7 @@ export function ManagerIntelligenceTab({
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyNote text="No production status mix available." />
+            <EmptyNote text="Not enough history yet." />
           )}
           {metresMom.length ? (
             <p className="mt-2 rounded-lg border border-amber-100 bg-amber-50/80 px-2 py-1.5 text-ui-xs text-amber-950">

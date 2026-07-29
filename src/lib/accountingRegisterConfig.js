@@ -5,8 +5,8 @@
  */
 export const ACCOUNTING_REGISTER_CONFIG = {
   creditor: {
-    title: 'Money owed to us',
-    eyebrow: 'Creditors register · receivables & prepayments',
+    title: 'Receivables',
+    eyebrow: 'Receivables register · trade & prepayments',
     description: 'Amounts owed to the company — staff loans, trade receivables, supplier prepayments, and opening balances.',
     helpPoints: [
       'Customer receivables include quotations with completed production only; balances below ₦1,500 are omitted.',
@@ -20,7 +20,7 @@ export const ACCOUNTING_REGISTER_CONFIG = {
       { key: 'supplierPrepaymentsNgn', sectionId: 'supplier_prepayments', label: 'Supplier prepayments', tone: 'teal' },
       { key: 'interBranchReceivableNgn', sectionId: 'inter_branch_receivable', label: 'Inter-branch receivable', tone: 'default' },
       { key: 'externalLoansNgn', sectionId: 'external_loans', label: 'External loans', tone: 'amber' },
-      { key: 'legacyInheritedNgn', sectionId: 'legacy_inherited', label: 'Inherited / manual', tone: 'amber' },
+      { key: 'legacyInheritedNgn', sectionId: 'legacy_inherited', label: 'Opening / manual entries', tone: 'amber' },
     ],
     emptySectionHints: {
       staff_loans: 'No outstanding staff loans in scope. New loans are created in HR → Payroll.',
@@ -37,9 +37,9 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     },
   },
   debtor: {
-    title: 'Money we owe',
-    eyebrow: 'Debtors register · payables & credits',
-    description: 'Amounts the company owes — supplier AP, customer deposits, refund payables, and opening balances.',
+    title: 'Payables',
+    eyebrow: 'Payables register · suppliers & credits',
+    description: 'Amounts the company owes — supplier payables, customer deposits, refund payables, and opening balances.',
     helpPoints: [
       'Register lines below ₦1,500 are omitted from totals (materiality floor).',
       'Deposits on the production line match Operations (registered cutting list + Planned/Running job).',
@@ -51,17 +51,17 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     ],
     kpis: [
       { key: 'supplierPayablesNgn', sectionId: 'supplier_payables', label: 'Supplier payables', tone: 'default' },
-      { key: 'customerDepositsNgn', sectionId: 'customer_deposits', label: 'Voluntary advances', tone: 'teal' },
+      { key: 'customerDepositsNgn', sectionId: 'customer_deposits', label: 'Customer advances', tone: 'teal' },
       {
         key: 'depositOnProductionLineNgn',
         sectionId: 'deposit_on_production_line',
-        label: 'Deposits (on line)',
+        label: 'Deposits in production',
         tone: 'teal',
       },
       {
         key: 'depositPaidBacklogNgn',
         sectionId: 'deposit_paid_backlog',
-        label: 'Deposits (backlog)',
+        label: 'Paid deposits awaiting production',
         tone: 'teal',
       },
       {
@@ -71,20 +71,20 @@ export const ACCOUNTING_REGISTER_CONFIG = {
         tone: 'rose',
       },
       { key: 'unallocatedReceiptsNgn', sectionId: 'unallocated_receipts', label: 'Unallocated receipts', tone: 'default' },
-      { key: 'bankDepositSuspenseNgn', sectionId: 'bank_deposit_suspense', label: 'Bank suspense (2150)', tone: 'teal' },
+      { key: 'bankDepositSuspenseNgn', sectionId: 'bank_deposit_suspense', label: 'Unallocated bank deposits', tone: 'teal' },
       { key: 'interBranchPayableNgn', sectionId: 'inter_branch_payable', label: 'Inter-branch payable', tone: 'default' },
-      { key: 'legacyInheritedNgn', sectionId: 'legacy_inherited', label: 'Inherited / manual', tone: 'amber' },
+      { key: 'legacyInheritedNgn', sectionId: 'legacy_inherited', label: 'Opening / manual entries', tone: 'amber' },
     ],
     emptySectionHints: {
-      supplier_payables: 'No open supplier AP in scope — check Procurement payables for settled items.',
-      customer_deposits: 'No voluntary customer deposits on ledger.',
+      supplier_payables: 'No open supplier payables in scope — check Procurement payables for settled items.',
+      customer_deposits: 'No customer advances on ledger.',
       deposit_on_production_line: 'No cleared deposits on the active production line in scope.',
       deposit_paid_backlog: 'No paid backlog deposits waiting to enter production.',
       customer_refund_commitments: 'No open refund payables — create or approve a refund in Sales/Finance.',
       unallocated_receipts: 'All sales receipts are linked to quotations.',
       bank_deposit_suspense: 'No open unlinked bank deposits — Finance pool is fully allocated.',
       inter_branch_payable: 'No inter-branch payables for this branch scope.',
-      legacy_inherited: 'No inherited payables recorded. Add a line for pre-system overpayments or opening AP.',
+      legacy_inherited: 'No inherited payables recorded. Add a line for pre-system overpayments or opening payables.',
     },
     legacyQuickAdd: {
       category: 'project_overpayment',
