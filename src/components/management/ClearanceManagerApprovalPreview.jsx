@@ -231,13 +231,6 @@ export function ClearanceManagerApprovalPreview({
           {canManagerClearance ? (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <DecisionActionTile
-                variant="approve"
-                icon={CheckCircle2}
-                label="Approve"
-                disabled={decisionBusy}
-                onClick={onApprove}
-              />
-              <DecisionActionTile
                 variant="neutral"
                 icon={RotateCcw}
                 label="Disapprove"
@@ -250,6 +243,13 @@ export function ClearanceManagerApprovalPreview({
                 label="Flag"
                 disabled={decisionBusy}
                 onClick={onFlag}
+              />
+              <DecisionActionTile
+                variant="approve"
+                icon={CheckCircle2}
+                label="Approve"
+                disabled={decisionBusy}
+                onClick={onApprove}
               />
             </div>
           ) : (

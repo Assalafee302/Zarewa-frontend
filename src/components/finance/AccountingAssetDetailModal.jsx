@@ -192,7 +192,7 @@ export function AccountingAssetDetailModal({
                 <input className={INPUT} value={note} onChange={(e) => setNote(e.target.value)} />
               </label>
               <div className="flex gap-2 justify-end">
-                <button type="button" onClick={() => setDisposeOpen(false)} className="text-ui-xs font-semibold uppercase text-slate-600">
+                <button type="button" onClick={() => setDisposeOpen(false)} className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-ui-xs font-semibold uppercase text-slate-600 hover:bg-slate-50">
                   Cancel
                 </button>
                 <button
@@ -208,6 +208,13 @@ export function AccountingAssetDetailModal({
           ) : null}
 
           <div className="flex flex-wrap justify-end gap-2 pt-3 mt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-slate-700 hover:bg-slate-50"
+            >
+              Close
+            </button>
             {canManage && asset.status === 'active' && onDispose && !disposeOpen ? (
               <button
                 type="button"
@@ -217,13 +224,6 @@ export function AccountingAssetDetailModal({
                 <Trash2 size={12} /> Sell / dispose
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex items-center rounded-lg bg-zarewa-teal text-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider"
-            >
-              Close
-            </button>
           </div>
         </div>
       </div>

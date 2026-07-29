@@ -196,18 +196,18 @@ export function ManagementDecisionModal({
         ) : null}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <DecisionActionTile
-            variant="approve"
-            icon={CheckCircle2}
-            label="Approve"
-            disabled={modalBusy || !canApprovePaymentRequests}
-            onClick={() => handlePaymentDecision?.('Approved')}
-          />
-          <DecisionActionTile
             variant="reject"
             icon={Flag}
             label="Reject"
             disabled={modalBusy || !canApprovePaymentRequests}
             onClick={() => handlePaymentDecision?.('Rejected')}
+          />
+          <DecisionActionTile
+            variant="approve"
+            icon={CheckCircle2}
+            label="Approve"
+            disabled={modalBusy || !canApprovePaymentRequests}
+            onClick={() => handlePaymentDecision?.('Approved')}
           />
         </div>
       </DecisionStickyActions>

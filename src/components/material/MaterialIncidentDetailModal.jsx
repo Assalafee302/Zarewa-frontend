@@ -369,6 +369,24 @@ export default function MaterialIncidentDetailModal({
                 <>
                   <button
                     type="button"
+                    className="z-btn-secondary text-xs text-rose-800 border-rose-200 hover:bg-rose-50"
+                    disabled={decisionLocked}
+                    onClick={async () => {
+                      if (!onReject) return;
+                      setActing(true);
+                      try {
+                        await onReject(incident.id);
+                        await load();
+                        onUpdated?.();
+                      } finally {
+                        setActing(false);
+                      }
+                    }}
+                  >
+                    Reject
+                  </button>
+                  <button
+                    type="button"
                     className="z-btn-primary text-xs flex-1 justify-center"
                     disabled={decisionLocked}
                     onClick={async () => {
@@ -384,24 +402,6 @@ export default function MaterialIncidentDetailModal({
                     }}
                   >
                     {decisionLocked ? 'Posting…' : 'Approve & post'}
-                  </button>
-                  <button
-                    type="button"
-                    className="z-btn-secondary text-xs"
-                    disabled={decisionLocked}
-                    onClick={async () => {
-                      if (!onReject) return;
-                      setActing(true);
-                      try {
-                        await onReject(incident.id);
-                        await load();
-                        onUpdated?.();
-                      } finally {
-                        setActing(false);
-                      }
-                    }}
-                  >
-                    Reject
                   </button>
                 </>
               ) : null}

@@ -1313,21 +1313,21 @@ export function RefundManagerApprovalPreview({
           </div>
           <button
             type="button"
-            disabled={decisionBusy || loading || alignmentBlocksApprove || lineArithmeticBlocksApprove}
-            onClick={handleApproveClick}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-emerald-500 disabled:opacity-50"
-          >
-            <CheckCircle2 size={14} />
-            Approve
-          </button>
-          <button
-            type="button"
             disabled={decisionBusy || loading}
             onClick={handleRejectClick}
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-rose-600 px-4 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-rose-500 disabled:opacity-50"
           >
             <RotateCcw size={14} />
             Reject
+          </button>
+          <button
+            type="button"
+            disabled={decisionBusy || loading || alignmentBlocksApprove || lineArithmeticBlocksApprove}
+            onClick={handleApproveClick}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-emerald-500 disabled:opacity-50"
+          >
+            <CheckCircle2 size={14} />
+            Approve
           </button>
         </div>
 
