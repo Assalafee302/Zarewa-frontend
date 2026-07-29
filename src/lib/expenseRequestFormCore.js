@@ -120,3 +120,54 @@ export function buildPaymentRequestBodyFromForm(requestForm) {
   }
   return body;
 }
+
+export function normalizeExpensePayeeKey(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Soft near-duplicate: same payee + amount + request day among open/recent requests.
+ * Does not block submit — callers should warn only.
+ * @param {{
+ *   paymentRequests?: object[];
+ *   payeeName?: string;
+ *   amountNgn?: number;
+ *   requestDate?: string;
+ *   excludeRequestId?: string;
+ * }} opts
+ * @returns {object | null}
+ */
+export function findNearDuplicatePaymentRequest({
+  paymentRequests = [],
+  payeeName = '',
+  amountNgn = 0,
+  requestDate = '',
+  excludeRequestId = '',
+} = {}) {
+  const payee = normalizeExpensePayeeKey(payeeName);
+  const amount = Math.round(Number(amountNgn) || 0);
+  const day = String(requestDate || '').slice(0, 10);
+  if (!payee || amount <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+
+  const exclude = String(excludeRequestId || '').trim();
+  for (const pr of paymentRequests || []) {
+    const status = String(pr?.status || '').trim().toLowerCase();
+    if (status === 'rejected' || status === 'cancelled' || status === 'canceled') continue;
+
+    const id = String(pr?.requestID || pr?.request_id || pr?.id || '').trim();
+    if (exclude && id && id === exclude) continue;
+
+    const prPayee = normalizeExpensePayeeKey(pr?.payeeName || pr?.payee_name);
+    const prAmount = Math.round(
+      Number(pr?.amountRequestedNgn ?? pr?.amount_requested_ngn ?? pr?.amountNgn ?? pr?.amount) || 0
+    );
+    const prDay = String(
+      pr?.requestDate || pr?.request_date || pr?.createdAtISO || pr?.created_at || ''
+    ).slice(0, 10);
+    if (prPayee === payee && prAmount === amount && prDay === day) return pr;
+  }
+  return null;
+}

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Paperclip, Plus, X } from 'lucide-react';
 import { ExpenseCategorySelect } from './ExpenseCategorySelect.jsx';
 import { isExceptionExpenseCategory } from '../../shared/expenseCategorySelectUtils.js';
@@ -10,6 +10,7 @@ import { useWorkspace } from '../../context/WorkspaceContext.jsx';
 import {
   createExpenseRequestLineItem,
   expenseRequestLineTotal,
+  findNearDuplicatePaymentRequest,
 } from '../../lib/expenseRequestFormCore.js';
 import {
   listExpensePayeeSuggestions,
@@ -49,6 +50,7 @@ export function ExpenseRequestFormFields({
   scrollable = false,
 }) {
   const ws = useWorkspace();
+  const [dismissedSuggestionKey, setDismissedSuggestionKey] = useState('');
   const othersMinJustificationLen = resolveExpenseCategoryPolicyLimits(
     ws?.snapshot?.orgGovernanceLimits
   ).othersMinJustificationLen;
@@ -64,6 +66,8 @@ export function ExpenseRequestFormFields({
   const activeRecommendation = useMemo(() => {
     if (categoryRecommendation?.category) return categoryRecommendation;
     if (!memoSuggestion?.category || memoSuggestion.category === form.expenseCategory) return null;
+    const key = `${memoSuggestion.category}:${String(form.description || '').slice(0, 80)}`;
+    if (dismissedSuggestionKey === key) return null;
     return {
       category: memoSuggestion.category,
       reason:
@@ -71,17 +75,35 @@ export function ExpenseRequestFormFields({
           ? `Matched keywords (${memoSuggestion.reasons.join(', ')}).`
           : 'Suggested from description text.',
       onApply: () => setForm((f) => ({ ...f, expenseCategory: memoSuggestion.category })),
+      onDismiss: () => setDismissedSuggestionKey(key),
     };
-  }, [categoryRecommendation, form.expenseCategory, memoSuggestion, setForm]);
+  }, [
+    categoryRecommendation,
+    dismissedSuggestionKey,
+    form.description,
+    form.expenseCategory,
+    memoSuggestion,
+    setForm,
+  ]);
 
   const requestTotalNgn = form.lines.reduce((s, row) => s + expenseRequestLineTotal(row), 0);
 
+  const paymentRequests = Array.isArray(ws?.snapshot?.paymentRequests) ? ws.snapshot.paymentRequests : [];
+
   const payeeSuggestions = useMemo(
+    () => listExpensePayeeSuggestions({ paymentRequests }),
+    [paymentRequests]
+  );
+
+  const nearDuplicate = useMemo(
     () =>
-      listExpensePayeeSuggestions({
-        paymentRequests: Array.isArray(ws?.snapshot?.paymentRequests) ? ws.snapshot.paymentRequests : [],
+      findNearDuplicatePaymentRequest({
+        paymentRequests,
+        payeeName: form.payeeName,
+        amountNgn: requestTotalNgn,
+        requestDate: form.requestDate,
       }),
-    [ws?.snapshot?.paymentRequests]
+    [form.payeeName, form.requestDate, paymentRequests, requestTotalNgn]
   );
 
   const handleSubmit = (e) => {
@@ -136,6 +158,7 @@ export function ExpenseRequestFormFields({
             category={activeRecommendation.category}
             reason={activeRecommendation.reason}
             onApply={activeRecommendation.onApply}
+            onDismiss={activeRecommendation.onDismiss}
           />
         ) : memoSuggestion?.suggestedCategory && !memoSuggestion.actorMaySelect ? (
           <ExpenseCategoryRecommendationCard
@@ -373,6 +396,20 @@ export function ExpenseRequestFormFields({
 
   const footer = (
     <>
+      {nearDuplicate ? (
+        <div
+          className="rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-ui-xs font-medium text-amber-950 leading-snug"
+          role="status"
+        >
+          Possible duplicate: another request for{' '}
+          <span className="font-bold">{String(nearDuplicate.payeeName || nearDuplicate.payee_name || form.payeeName).trim()}</span>{' '}
+          at {formatNgn(requestTotalNgn)} on {String(form.requestDate || '').slice(0, 10)} already exists
+          {nearDuplicate.requestID || nearDuplicate.request_id
+            ? ` (${nearDuplicate.requestID || nearDuplicate.request_id})`
+            : ''}
+          . You can still submit if this is intentional.
+        </div>
+      ) : null}
       {hintBeforeSubmit ? <p className="text-ui-xs text-slate-500 leading-snug">{hintBeforeSubmit}</p> : null}
       <button
         type="submit"

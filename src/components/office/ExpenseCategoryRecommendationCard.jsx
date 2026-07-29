@@ -3,12 +3,13 @@ import { ArrowRight, Lock, Sparkles } from 'lucide-react';
 import { ExpenseCategoryLaneBadge } from './ExpenseCategoryLaneBadge.jsx';
 
 /**
- * Memo-based category suggestion with apply action.
+ * Memo-based category suggestion with apply / dismiss actions.
  */
 export function ExpenseCategoryRecommendationCard({
   category,
   reason = '',
   onApply,
+  onDismiss,
   blocked = false,
   blockedReason = '',
 }) {
@@ -49,15 +50,28 @@ export function ExpenseCategoryRecommendationCard({
             <ExpenseCategoryLaneBadge category={category} />
           </div>
           {reason ? <p className="text-ui-xs text-teal-900/85 mt-1.5 leading-snug">{reason}</p> : null}
-          {onApply ? (
-            <button
-              type="button"
-              onClick={onApply}
-              className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-[#0f3d3a] transition-colors"
-            >
-              Use category
-              <ArrowRight size={12} aria-hidden />
-            </button>
+          {onApply || onDismiss ? (
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              {onApply ? (
+                <button
+                  type="button"
+                  onClick={onApply}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-[#0f3d3a] transition-colors"
+                >
+                  Use category
+                  <ArrowRight size={12} aria-hidden />
+                </button>
+              ) : null}
+              {onDismiss ? (
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="inline-flex items-center rounded-lg border border-teal-200/90 bg-white/80 px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-teal-900/80 hover:bg-white"
+                >
+                  Dismiss
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>
