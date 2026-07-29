@@ -1748,7 +1748,7 @@ export function useBranchManagerWorkstation() {
       }
       showToast(
         status === 'Approved'
-          ? 'Payment request approved — Finance can pay from Desk.'
+          ? 'Waiting on Cashier.'
           : 'Payment request rejected — requester can resubmit from the archive.',
         { variant: 'success' }
       );

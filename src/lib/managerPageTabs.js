@@ -5,6 +5,7 @@ export const MANAGER_PAGE_TABS = [
   { id: 'intelligence', label: 'Business Intelligence' },
   { id: 'operations', label: 'Branch Operations' },
   { id: 'performance', label: 'Performance' },
+  { id: 'spend', label: 'Spend' },
 ];
 
 export const MANAGER_PAGE_TAB_IDS = MANAGER_PAGE_TABS.map((t) => t.id);
@@ -18,7 +19,7 @@ export const MANAGER_PAC_TABS = [
 
 /**
  * @param {string | null | undefined} raw
- * @returns {'today' | 'intelligence' | 'operations' | 'performance'}
+ * @returns {'today' | 'intelligence' | 'operations' | 'performance' | 'spend'}
  */
 export function normalizeManagerPageTab(raw) {
   const k = String(raw || '').trim().toLowerCase();
@@ -26,6 +27,7 @@ export function normalizeManagerPageTab(raw) {
   if (k === 'bi' || k === 'intel') return 'intelligence';
   if (k === 'ops') return 'operations';
   if (k === 'pulse' || k === 'perf') return 'performance';
+  if (k === 'expenses' || k === 'expense') return 'spend';
   return 'today';
 }
 

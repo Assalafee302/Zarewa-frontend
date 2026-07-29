@@ -17,6 +17,7 @@ import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyC
 import { ManagerIntelligenceTab } from '../components/branchManager/ManagerIntelligenceTab';
 import { ManagerOperationsTab } from '../components/branchManager/ManagerOperationsTab';
 import { ManagerPerformanceTab } from '../components/branchManager/ManagerPerformanceTab';
+import { ManagerSpendTab } from '../components/branchManager/ManagerSpendTab';
 import { ManagementDecisionModal } from '../components/branchManager/ManagementDecisionModal';
 import {
   ManagementConfirmDialog,
@@ -40,7 +41,7 @@ import { formatPersonName } from '../lib/formatPersonName';
 import { managerRowAgeHours } from '../lib/managerDashboardCore';
 
 /**
- * Branch manager command center — Sequence shell, four moments, Priority Action Center.
+ * Branch manager command center — Sequence shell, five moments, Priority Action Center.
  */
 const ManagerDashboard = () => {
   const bm = useBranchManagerWorkstation();
@@ -321,6 +322,17 @@ const ManagerDashboard = () => {
             bm.ws?.permissions
           )}
           loading={bm.loading}
+        />
+      ) : null}
+
+      {pageTab === 'spend' ? (
+        <ManagerSpendTab
+          snapshot={bm.ws?.snapshot}
+          branchId={bm.mgrBranchId}
+          branchLabel={branchLabel}
+          viewAllBranches={Boolean(bm.ws?.viewAllBranches)}
+          roleKey={bm.ws?.session?.user?.roleKey || bm.managerRoleKey}
+          permissions={bm.ws?.permissions}
         />
       ) : null}
 

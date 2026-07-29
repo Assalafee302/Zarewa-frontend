@@ -386,7 +386,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
         showToast(data?.error || 'Could not update payment request.', { variant: 'error' });
         return;
       }
-      showToast(status === 'Approved' ? 'Payment request approved.' : 'Payment request rejected.', {
+      showToast(status === 'Approved' ? 'Waiting on Cashier.' : 'Payment request rejected.', {
         variant: 'success',
       });
       await (wsRefresh?.() ?? Promise.resolve());
