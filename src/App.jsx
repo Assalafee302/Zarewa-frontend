@@ -253,7 +253,7 @@ function DegradedWorkspaceLock() {
 function HomeRoute() {
   const ws = useWorkspace();
   const rk = String(ws?.session?.user?.roleKey || '').toLowerCase();
-  if (rk === 'ceo' || rk === 'md') {
+  if (rk === 'ceo' || rk === 'md' || rk === 'chairman') {
     return <Navigate to="/exec" replace />;
   }
   if (rk === 'sales_manager' || rk === 'branch_manager') {
@@ -267,6 +267,9 @@ function HomeRoute() {
   }
   if (rk === 'hr_admin' || rk === 'gmhr') {
     return <Navigate to="/hr" replace />;
+  }
+  if (rk === 'operations_officer' || rk === 'storekeeper' || rk === 'store_keeper') {
+    return <Navigate to="/operations" replace />;
   }
   return <Dashboard />;
 }

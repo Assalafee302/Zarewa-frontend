@@ -80,10 +80,12 @@ const DEFAULT_HOME_BY_ROLE = {
   admin: '/settings',
   md: '/exec',
   ceo: '/exec',
+  chairman: '/exec',
   hr_admin: '/hr',
   gmhr: '/hr',
   finance_manager: '/accounting',
   sales_manager: '/manager',
+  branch_manager: '/manager',
   sales_staff: '/',
   cashier: '/accounts',
   operations_officer: '/operations',
@@ -119,29 +121,27 @@ export function pathToModuleKey(pathname) {
 }
 
 /**
- * After login, send the user to their role home if their permissions allow it.
+ * After login, send the user to their role desk home.
+ * Office Desk is navigated to from Workspace Apps — not a default landing.
  * @param {{ department?: string; roleKey?: string } | null | undefined} user
  * @param {string[]} permissions
  */
 export function resolvePostLoginPath(user, permissions) {
-  const roleKey = String(user?.roleKey || '').trim().toLowerCase();
+  const roleKey = normalizeRoleKey(user?.roleKey || user?.department);
   if (roleKey === 'hr_portal_only') {
     return '/my-profile';
   }
-  if (canAccessModuleWithPermissions(permissions, 'office')) {
-    return '/office';
-  }
-  if (roleKey === 'md' || roleKey === 'ceo') {
+  if (roleKey === 'md' || roleKey === 'ceo' || roleKey === 'chairman') {
     const mod = pathToModuleKey('/exec');
     if (mod && !canAccessModuleWithPermissions(permissions, mod)) return '/';
     return '/exec';
   }
-  if (roleKey === 'sales_manager') {
+  if (roleKey === 'sales_manager' || roleKey === 'branch_manager') {
     const mod = pathToModuleKey('/manager');
     if (mod && !canAccessModuleWithPermissions(permissions, mod)) return '/';
     return '/manager';
   }
-  const target = defaultHomePathForDepartment(user?.roleKey || user?.department);
+  const target = defaultHomePathForDepartment(roleKey || user?.department);
   if (target === '/') return '/';
   const mod = pathToModuleKey(target);
   if (mod && !canAccessModuleWithPermissions(permissions, mod)) return '/';
