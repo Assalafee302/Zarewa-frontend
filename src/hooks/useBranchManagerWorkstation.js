@@ -883,7 +883,7 @@ export function useBranchManagerWorkstation() {
       displayItems.pendingRefunds.find((r) => String(r.refund_id) === rid) || { refund_id: rid };
     setRefundIntelExtras(null);
     setSelectedIntel({ kind: 'refund', refundId: rid, row: { ...row } });
-    setPacRoute('cash');
+    setPacRoute('refunds');
   }, [displayItems.pendingRefunds, loading, searchParams]);
 
   useEffect(() => {
@@ -905,7 +905,7 @@ export function useBranchManagerWorkstation() {
     const row =
       displayItems.pendingExpenses.find((r) => String(r.request_id) === reqId) || { request_id: reqId };
     setSelectedIntel({ kind: 'payment', requestId: reqId, row: { ...row } });
-    setPacRoute('cash');
+    setPacRoute('expenses');
   }, [displayItems.pendingExpenses, loading, searchParams]);
 
   /** Deep link: ?materialIncidentId= from workspace / notifications */
@@ -1263,14 +1263,14 @@ export function useBranchManagerWorkstation() {
       }
       if (kind === 'refunds') {
         setSelectedIntel({ kind: 'refund', refundId: item.refundId || row.refund_id, row: { ...row } });
-        stayOnAttention('cash');
+        stayOnAttention('refunds');
         return;
       }
       if (kind === 'payments') {
         setAuditData(null);
         setRefundIntelExtras(null);
         setSelectedIntel({ kind: 'payment', requestId: item.requestId || row.request_id, row: { ...row } });
-        stayOnAttention('cash');
+        stayOnAttention('expenses');
         return;
       }
       if (kind === 'material') {
@@ -1963,7 +1963,7 @@ export function useBranchManagerWorkstation() {
       refundId: id,
       row: { refund_id: id },
     });
-    setPacRoute('cash');
+    setPacRoute('refunds');
   }, []);
 
   const openGovernanceLinkedQuotation = useCallback(

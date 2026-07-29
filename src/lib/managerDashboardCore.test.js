@@ -67,7 +67,10 @@ describe('managerDashboardCore', () => {
 
   it('normalizes legacy inbox routes onto Needs approval + filter', () => {
     expect(normalizeManagerInboxRoute('clearance')).toEqual({ tab: 'attention', attentionFilter: 'orders' });
-    expect(normalizeManagerInboxRoute('refunds')).toEqual({ tab: 'attention', attentionFilter: 'cash' });
+    expect(normalizeManagerInboxRoute('refunds')).toEqual({ tab: 'attention', attentionFilter: 'refunds' });
+    expect(normalizeManagerInboxRoute('cash')).toEqual({ tab: 'attention', attentionFilter: 'expenses' });
+    expect(normalizeManagerInboxRoute('cash_out')).toEqual({ tab: 'attention', attentionFilter: 'expenses' });
+    expect(normalizeManagerInboxRoute('payments')).toEqual({ tab: 'attention', attentionFilter: 'expenses' });
     expect(normalizeManagerInboxRoute('flagged')).toEqual({ tab: 'attention', attentionFilter: 'flagged' });
     expect(normalizeManagerInboxRoute('material')).toEqual({ tab: 'attention', attentionFilter: 'material' });
     expect(normalizeManagerInboxRoute('governance')).toEqual({ tab: 'attention', attentionFilter: 'governance' });
@@ -80,8 +83,10 @@ describe('managerDashboardCore', () => {
       { id: '1', kind: 'clearance' },
       { id: '2', kind: 'refunds' },
       { id: '3', kind: 'flagged' },
+      { id: '4', kind: 'payments' },
     ];
-    expect(filterAttentionItems(items, 'cash')).toHaveLength(1);
+    expect(filterAttentionItems(items, 'refunds')).toHaveLength(1);
+    expect(filterAttentionItems(items, 'expenses')).toHaveLength(1);
     expect(filterAttentionItems(items, 'orders')).toHaveLength(2);
     expect(filterAttentionItems([{ kind: 'staff_purchase_credit' }], 'staff_credit')).toHaveLength(1);
   });

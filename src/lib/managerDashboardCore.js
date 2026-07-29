@@ -51,7 +51,8 @@ export const MANAGER_INBOX_TABS = [
 export const MANAGER_ATTENTION_FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'orders', label: 'Orders', kinds: ['clearance', 'production', 'flagged'] },
-  { key: 'cash', label: 'Cash', kinds: ['refunds', 'payments'] },
+  { key: 'expenses', label: 'Expenses', kinds: ['payments'] },
+  { key: 'refunds', label: 'Refunds', kinds: ['refunds'] },
   { key: 'qc', label: 'Prod check', kinds: ['conversions'] },
   { key: 'material', label: 'Stock damage', kinds: ['material'] },
   { key: 'procurement', label: 'Procurement', kinds: ['purchase_orders', 'purchase_order'] },
@@ -70,7 +71,9 @@ export function pacAttentionRouteFromTab(tabKey) {
   const k = String(tabKey || '').trim().toLowerCase();
   if (k === 'credit' || k === 'stock' || k === 'issues') return { tab: k, attentionFilter: 'all' };
   if (k === 'orders' || k === 'clearance' || k === 'production') return { tab: 'attention', attentionFilter: 'orders' };
-  if (k === 'cash_out' || k === 'refunds' || k === 'payments' || k === 'cash') return { tab: 'attention', attentionFilter: 'cash' };
+  if (k === 'cash_out' || k === 'cash') return { tab: 'attention', attentionFilter: 'expenses' };
+  if (k === 'payments' || k === 'expenses' || k === 'expense') return { tab: 'attention', attentionFilter: 'expenses' };
+  if (k === 'refunds' || k === 'refund') return { tab: 'attention', attentionFilter: 'refunds' };
   if (k === 'qc' || k === 'conversions') return { tab: 'attention', attentionFilter: 'qc' };
   if (k === 'material') return { tab: 'attention', attentionFilter: 'material' };
   if (k === 'procurement' || k === 'purchase_orders' || k === 'po') return { tab: 'attention', attentionFilter: 'procurement' };

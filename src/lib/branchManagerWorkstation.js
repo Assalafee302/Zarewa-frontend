@@ -74,10 +74,10 @@ export function buildBranchHealthSignals({
     },
     {
       key: 'cash',
-      label: 'Cash',
+      label: 'Cash out',
       tone: healthToneFromCount(cashOutCount),
       count: cashOutCount,
-      hint: 'Refunds and payment requests',
+      hint: 'Refunds and expense requests',
     },
     {
       key: 'production',

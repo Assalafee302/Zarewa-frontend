@@ -159,7 +159,9 @@ const ManagerDashboard = () => {
       const filterMap = {
         governance: 'governance',
         orders: 'orders',
-        cash: 'cash',
+        cash: 'expenses',
+        expenses: 'expenses',
+        refunds: 'refunds',
         qc: 'qc',
         material: 'material',
         procurement: 'procurement',

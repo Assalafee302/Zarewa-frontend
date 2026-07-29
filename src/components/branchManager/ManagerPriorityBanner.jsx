@@ -73,8 +73,8 @@ export function pickManagerPriorityItem({
       severity: 95,
       title: 'Refund SLA breach',
       detail: overdueRefundHint,
-      actionLabel: 'Review cash out',
-      action: 'cash',
+      actionLabel: 'Review refunds',
+      action: 'refunds',
     });
   }
   if (pendingOrderSignOffCount > 0) {
@@ -105,8 +105,8 @@ export function pickManagerPriorityItem({
       detail:
         expenseCoach.message ||
         `${expenseCoach.othersPct ?? '—'}% of recent expenses coded Others. Prefer standard categories.`,
-      actionLabel: 'Review cash out',
-      action: 'cash',
+      actionLabel: 'Review expenses',
+      action: 'expenses',
     });
   }
   candidates.sort((a, b) => b.severity - a.severity);

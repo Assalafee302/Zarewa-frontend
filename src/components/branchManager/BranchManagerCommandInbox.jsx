@@ -459,9 +459,9 @@ export function BranchManagerCommandInbox(props) {
         ? attentionFilter
         : activeTab === 'orders'
           ? 'orders'
-          : activeTab === 'cash_out'
-            ? 'cash'
-            : activeTab === 'qc'
+            : activeTab === 'cash_out'
+              ? 'expenses'
+              : activeTab === 'qc'
               ? 'qc'
               : activeTab === 'material'
                 ? 'material'
@@ -484,10 +484,10 @@ export function BranchManagerCommandInbox(props) {
         detail: 'This filter is clear — switch to All or another chip.',
       };
     }
-    if (!canApprovePaymentRequests && effectiveAttentionFilter === 'cash') {
+    if (!canApprovePaymentRequests && effectiveAttentionFilter === 'expenses') {
       return {
-        title: 'Cash approvals need Finance',
-        detail: 'Payment-request approval needs branch manager, Finance, or MD authority. Refunds may still appear for managers who can approve them.',
+        title: 'Expense approvals need Finance',
+        detail: 'Payment-request approval needs branch manager, Finance, or MD authority. Refunds may still appear under the Refunds chip.',
       };
     }
     return {
