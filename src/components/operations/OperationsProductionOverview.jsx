@@ -20,6 +20,7 @@ import {
 import { MaintenanceVendorsPanel } from './MaintenanceVendorsPanel';
 import { ReportFaultPanel } from './ReportFaultPanel';
 import { RequestSuppliesPanel } from './RequestSuppliesPanel';
+import { DeliveryPodPanel } from './DeliveryPodPanel';
 
 function OverviewCard({ title, hint, icon, children, className = '' }) {
   return (
@@ -213,6 +214,8 @@ export function OperationsProductionOverview({
           <RequestSuppliesPanel branchId={branchId} onGoInventory={onGoInventory} />
         </div>
       </div>
+
+      <DeliveryPodPanel branchId={branchId} />
 
       {onMonthEndStock ? (
         <OverviewCard

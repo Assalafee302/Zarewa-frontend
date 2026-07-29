@@ -1,5 +1,4 @@
-import React, { useMemo } from 'react';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { formatNgn } from '../../lib/formatNgn';
@@ -22,16 +21,6 @@ export function ManagerPerformanceTab({
   mayViewReports = false,
   loading = false,
 }) {
-  const trend = useMemo(() => {
-    const baseSales = Number(displaySnapshots?.producedSalesNgn) || 0;
-    const baseMetres = Number(displaySnapshots?.completedProductionMetres) || 0;
-    return Array.from({ length: 12 }, (_, i) => ({
-      name: `W${i + 1}`,
-      sales: Math.round((baseSales * (0.65 + (i % 6) * 0.05)) / 12),
-      metres: Math.round((baseMetres * (0.65 + ((i + 2) % 6) * 0.05)) / 12),
-    }));
-  }, [displaySnapshots]);
-
   const toneClass =
     healthScore?.tone === 'rose'
       ? 'text-rose-800'
@@ -101,7 +90,7 @@ export function ManagerPerformanceTab({
 
         <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white lg:col-span-2">
           <div className="flex items-center justify-between gap-2 mb-3">
-            <h4 className="text-sm font-black text-zarewa-teal">12-week trend</h4>
+            <h4 className="text-sm font-black text-zarewa-teal">Period actuals</h4>
             <span
               className="text-ui-xs font-bold uppercase tracking-wide text-slate-500"
               title={managerTargetSourceMeta?.title}
@@ -109,18 +98,32 @@ export function ManagerPerformanceTab({
               Targets: {managerTargetSourceMeta?.shortLabel || '—'}
             </span>
           </div>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} width={36} />
-                <Tooltip />
-                <Area type="monotone" dataKey="sales" name="Sales" stroke="#134e4a" fill="#134e4a" fillOpacity={0.12} />
-                <Area type="monotone" dataKey="metres" name="Metres" stroke="#2ECC71" fill="#2ECC71" fillOpacity={0.1} />
-              </AreaChart>
-            </ResponsiveContainer>
+          <p className="mb-3 rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 text-ui-xs text-slate-600">
+            Fabricated 12-week trend removed. Showing real period totals only.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-slate-100 px-3 py-3">
+              <p className="text-ui-xs font-bold uppercase text-slate-500">Produced sales</p>
+              <p className="mt-1 text-xl font-black tabular-nums text-zarewa-teal">
+                {formatNgn(displaySnapshots?.producedSalesNgn)}
+              </p>
+              <p className="text-ui-xs text-slate-500 mt-1">
+                vs target {producedSalesProgress != null ? `${Math.round(producedSalesProgress)}%` : '—'}
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-100 px-3 py-3">
+              <p className="text-ui-xs font-bold uppercase text-slate-500">Production metres</p>
+              <p className="mt-1 text-xl font-black tabular-nums text-zarewa-teal">
+                {Number(displaySnapshots?.completedProductionMetres || 0).toLocaleString('en-NG')}
+              </p>
+              <p className="text-ui-xs text-slate-500 mt-1">
+                vs target {productionMetresProgress != null ? `${Math.round(productionMetresProgress)}%` : '—'}
+              </p>
+            </div>
           </div>
+          {!mayViewReports ? (
+            <p className="mt-3 text-ui-xs text-amber-800">Reports permission limited — snapshot actuals only.</p>
+          ) : null}
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <div className="flex justify-between text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5">

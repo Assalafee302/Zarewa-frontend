@@ -72,8 +72,8 @@ function SectionLabel({ icon: Icon, label, count, href }) {
 }
 
 /**
- * Manager glance — named absentees, leave this week, open incidents/transfers.
- * Workload skipped: Team HR has no per-staff open-work API (maintenance assignments are Ops, not HR).
+ * Manager glance — named absentees, leave this week, open incidents/transfers,
+ * plus open maintenance WO counts per assigned technician.
  */
 export function ManagerPeopleGlancePanel({
   branchId = '',
@@ -87,6 +87,7 @@ export function ManagerPeopleGlancePanel({
   const [leaveNamesRedacted, setLeaveNamesRedacted] = useState(false);
   const [incidents, setIncidents] = useState([]);
   const [transfers, setTransfers] = useState([]);
+  const [workload, setWorkload] = useState([]);
 
   const load = useCallback(async () => {
     if (!available || !branchId) {
@@ -95,6 +96,7 @@ export function ManagerPeopleGlancePanel({
       setLeaveEntries([]);
       setIncidents([]);
       setTransfers([]);
+      setWorkload([]);
       return;
     }
     setLoading(true);
@@ -102,7 +104,7 @@ export function ManagerPeopleGlancePanel({
     const dayIso = ymdLocal(new Date());
     const { from, to } = weekBoundsIso(new Date());
 
-    const [staffQ, rollQ, leaveQ, memoQ, xferQ] = await Promise.all([
+    const [staffQ, rollQ, leaveQ, memoQ, xferQ, woQ] = await Promise.all([
       apiFetch('/api/hr/staff?attendanceEligible=1').catch(() => ({ ok: false })),
       apiFetch(
         `/api/hr/attendance/daily-roll?branchId=${encodeURIComponent(branchId)}&dayIso=${encodeURIComponent(dayIso)}`
@@ -112,6 +114,7 @@ export function ManagerPeopleGlancePanel({
       })),
       apiFetch('/api/hr/incident-memos').catch(() => ({ ok: false })),
       apiFetch('/api/hr/transfer-requests?pending=1').catch(() => ({ ok: false })),
+      apiFetch('/api/maintenance/work-orders?openOnly=1').catch(() => ({ ok: false })),
     ]);
 
     const staff = Array.isArray(staffQ.data?.staff) ? staffQ.data.staff : [];
@@ -158,6 +161,24 @@ export function ManagerPeopleGlancePanel({
       ? xferQ.data.transfers || xferQ.data.items
       : [];
     setTransfers(Array.isArray(xfers) ? xfers : []);
+
+    const wos = woQ.ok && Array.isArray(woQ.data?.workOrders) ? woQ.data.workOrders : [];
+    const byAssignee = new Map();
+    let unassigned = 0;
+    for (const wo of wos) {
+      const uid = String(wo.assignedToUserId || '').trim();
+      if (!uid) {
+        unassigned += 1;
+        continue;
+      }
+      const prev = byAssignee.get(uid) || { userId: uid, name: nameById.get(uid) || 'Technician', count: 0 };
+      prev.count += 1;
+      if (!nameById.has(uid) && wo.assignedToDisplayName) prev.name = wo.assignedToDisplayName;
+      byAssignee.set(uid, prev);
+    }
+    const wl = [...byAssignee.values()].sort((a, b) => b.count - a.count);
+    if (unassigned > 0) wl.push({ userId: '', name: 'Unassigned', count: unassigned });
+    setWorkload(wl);
 
     if (!staffQ.ok && !rollQ.ok && !leaveQ.ok && !memoQ.ok && !xferQ.ok) {
       setError('Could not load Team HR glance data.');
@@ -306,9 +327,22 @@ export function ManagerPeopleGlancePanel({
             </div>
           )}
 
-          <div className="mx-3 mb-3 mt-2 rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 text-ui-xs text-slate-600">
-            <span className="font-bold text-slate-700">Workload:</span> skipped — Team HR has no per-staff open-work
-            count. Technician WO assignments live on Ops / Issues, not as an HR workload signal.
+          <div className="mx-3 mb-3 mt-2 rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2">
+            <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+              Open WO assignments ({workload.reduce((s, w) => s + w.count, 0)})
+            </p>
+            {workload.length === 0 ? (
+              <p className="text-ui-xs text-slate-500">No open maintenance work orders assigned.</p>
+            ) : (
+              <ul className="space-y-1">
+                {workload.slice(0, 6).map((w) => (
+                  <li key={w.userId || w.name} className="flex justify-between gap-2 text-ui-xs">
+                    <span className="font-semibold text-slate-800 truncate">{w.name}</span>
+                    <span className="tabular-nums font-black text-zarewa-teal">{w.count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}

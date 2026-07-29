@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { ACCOUNTING_OPENING_DATE_LABEL } from '../shared/accountingCutover';
 
-/** @typedef {'overview' | 'statements' | 'gl' | 'opening' | 'close' | 'policy' | 'supplierAp' | 'costing' | 'branchPl' | 'creditors' | 'debtors' | 'assets' | 'interBranch' | 'credit' | 'reconciliation' | 'payroll'} AccountingDeskTabId */
+/** @typedef {'overview' | 'statements' | 'gl' | 'opening' | 'close' | 'policy' | 'supplierAp' | 'costing' | 'branchPl' | 'pricingGov' | 'creditors' | 'debtors' | 'assets' | 'interBranch' | 'credit' | 'reconciliation' | 'payroll'} AccountingDeskTabId */
 
 export const TAB_LABELS = {
   overview: 'Overview',
@@ -29,6 +29,7 @@ export const TAB_LABELS = {
   supplierAp: 'Supplier AP',
   costing: 'Production costing',
   branchPl: 'Branch P&L',
+  pricingGov: 'Pricing governance',
   creditors: 'Money owed to us',
   debtors: 'Money we owe',
   assets: 'Fixed assets',
@@ -48,6 +49,7 @@ export const TAB_HINTS = {
   supplierAp: 'AP2 supplier prepayments, GRNI diagnostics, and received-basis cutover.',
   costing: 'Material cost per metre, labour readiness, and data quality for AP3.',
   branchPl: 'Draft branch contribution P&L from production and cost pools.',
+  pricingGov: 'Workbook cost vs GRN, floor-exception log, and margin consistency.',
   creditors: 'Creditors register · trade receivables, prepayments, and opening balances.',
   debtors: 'Debtors register · supplier AP, deposits, refunds, and suspense.',
   assets: 'Plant, property, and equipment register.',
@@ -75,7 +77,7 @@ export const ACCOUNTING_ZONES = [
     id: 'reports',
     label: 'Reports',
     icon: FileBarChart,
-    tabs: ['statements', 'gl', 'branchPl', 'costing'],
+    tabs: ['statements', 'gl', 'branchPl', 'costing', 'pricingGov'],
   },
   {
     id: 'registers',
@@ -107,6 +109,7 @@ const TAB_ICONS = {
   supplierAp: Truck,
   costing: Factory,
   branchPl: FileBarChart,
+  pricingGov: Scale,
   creditors: Users,
   debtors: Wallet,
   assets: Building2,
@@ -155,6 +158,7 @@ function secondaryTabLabel(tabId) {
     supplierAp: 'Supplier AP',
     costing: 'Costing',
     branchPl: 'Branch P&L',
+    pricingGov: 'Pricing gov',
     creditors: 'Receivables',
     debtors: 'Payables',
     assets: 'Fixed assets',
@@ -173,6 +177,7 @@ export function resolveFocusTab(focus, queryTab) {
   if (focus === 'supplier-ap') return 'supplierAp';
   if (focus === 'costing' || focus === 'production-cost') return 'costing';
   if (focus === 'branch-pl' || focus === 'branchPl') return 'branchPl';
+  if (focus === 'pricing-gov' || focus === 'pricingGov' || focus === 'pricing-governance') return 'pricingGov';
   if (focus === 'policy' || focus === 'ap1c') return 'policy';
   if (focus === 'inter-branch' || focus === 'interBranch') return 'interBranch';
   if (focus === 'opening' || focus === 'opening-pack') return 'opening';

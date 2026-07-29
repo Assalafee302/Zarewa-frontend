@@ -47,6 +47,8 @@ import { Ap3CostingReadinessPanel } from '../components/finance/Ap3CostingReadin
 
 import { Ap3BranchPlPanel } from '../components/finance/Ap3BranchPlPanel';
 
+import { PricingGovernancePanel } from '../components/finance/PricingGovernancePanel';
+
 import { AccountingSupplierPolicyPanel } from '../components/finance/AccountingSupplierPolicyPanel';
 
 import { AccountingDeskNav } from '../components/finance/accounting/AccountingDeskNav';
@@ -110,7 +112,10 @@ function tabAccessDenied(
   ) {
     return 'GL and statements require finance view access.';
   }
-  if ((tabId === 'policy' || tabId === 'costing' || tabId === 'supplierAp') && !mayRegisters) {
+  if (
+    (tabId === 'policy' || tabId === 'costing' || tabId === 'supplierAp' || tabId === 'pricingGov') &&
+    !mayRegisters
+  ) {
     return 'Policy and costing reports require Head of Accounts or accounting desk access.';
   }
   if (tabId === 'interBranch' && !mayInterBranch) {
@@ -509,6 +514,18 @@ export default function AccountingDesk() {
                   enabled
                   deskLayout
                   periodKey={periodKey}
+                  deskRefresh={deskRefresh}
+                />
+              </AccountingDeskTabPane>
+            ) : null}
+
+            {!accessDenied && mayRegisters && mountedTabs.has('pricingGov') ? (
+              <AccountingDeskTabPane tabId="pricingGov" activeTab={tab} mountedTabs={mountedTabs}>
+                <PricingGovernancePanel
+                  initialBranchId={branchId || 'ALL'}
+                  autoLoad
+                  enabled
+                  deskLayout
                   deskRefresh={deskRefresh}
                 />
               </AccountingDeskTabPane>

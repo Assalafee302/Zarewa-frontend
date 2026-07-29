@@ -32,6 +32,7 @@ import {
   COMPLAINT_SEVERITY_LABELS,
   complaintLabel,
 } from '../../shared/customerComplaints.js';
+import { formatResolutionHours } from './ManagerDeskExtras.jsx';
 
 /**
  * Manager glance + PAC — open customer complaints for this branch.
@@ -46,6 +47,7 @@ export function ManagerCustomerIssuesPanel({ available = true }) {
   const [resolveNote, setResolveNote] = useState('');
   const [relatedRefundId, setRelatedRefundId] = useState('');
   const [busy, setBusy] = useState(false);
+  const [resolvedStats, setResolvedStats] = useState({ count: 0, avgHours: null });
 
   const load = useCallback(async () => {
     if (!available) {
@@ -55,14 +57,27 @@ export function ManagerCustomerIssuesPanel({ available = true }) {
     }
     setLoading(true);
     setError('');
-    const res = await apiFetch('/api/customer-complaints?openOnly=1').catch(() => ({ ok: false }));
+    const [openRes, allRes] = await Promise.all([
+      apiFetch('/api/customer-complaints?openOnly=1').catch(() => ({ ok: false })),
+      apiFetch('/api/customer-complaints').catch(() => ({ ok: false })),
+    ]);
     setLoading(false);
-    if (!res.ok) {
-      setError(res.data?.error || 'Could not load complaints.');
+    if (!openRes.ok) {
+      setError(openRes.data?.error || 'Could not load complaints.');
       setRows([]);
       return;
     }
-    setRows(Array.isArray(res.data?.complaints) ? res.data.complaints : []);
+    setRows(Array.isArray(openRes.data?.complaints) ? openRes.data.complaints : []);
+    const all = Array.isArray(allRes.data?.complaints) ? allRes.data.complaints : [];
+    const hours = all
+      .map((c) => formatResolutionHours(c.openedAtIso, c.resolvedAtIso))
+      .filter((h) => h != null);
+    setResolvedStats({
+      count: hours.length,
+      avgHours: hours.length
+        ? Math.round((hours.reduce((s, h) => s + h, 0) / hours.length) * 10) / 10
+        : null,
+    });
   }, [available]);
 
   useEffect(() => {
@@ -135,7 +150,12 @@ export function ManagerCustomerIssuesPanel({ available = true }) {
               </span>
             ) : null}
           </h3>
-          <p className="text-xs text-slate-500 mt-0.5">Open complaints for this branch</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Open complaints for this branch
+            {resolvedStats.avgHours != null
+              ? ` · avg resolve ${resolvedStats.avgHours}h (${resolvedStats.count} closed)`
+              : ''}
+          </p>
         </div>
         {available ? (
           <Link
@@ -259,6 +279,14 @@ export function ManagerCustomerIssuesPanel({ available = true }) {
                   {complaintLabel(COMPLAINT_CATEGORY_LABELS, selected.category)}
                 </p>
                 <p className="text-slate-800 whitespace-pre-wrap">{selected.description}</p>
+                {selected.resolvedAtIso ? (
+                  <p className="text-ui-xs font-bold text-emerald-800">
+                    Resolution time:{' '}
+                    {formatResolutionHours(selected.openedAtIso, selected.resolvedAtIso) ?? '—'}h
+                    (opened {String(selected.openedAtIso).slice(0, 16).replace('T', ' ')} → resolved{' '}
+                    {String(selected.resolvedAtIso).slice(0, 16).replace('T', ' ')})
+                  </p>
+                ) : null}
                 {selected.linkedOrderId ? (
                   <p className="text-ui-xs text-slate-500">
                     Linked order: <span className="font-mono font-bold">{selected.linkedOrderId}</span>

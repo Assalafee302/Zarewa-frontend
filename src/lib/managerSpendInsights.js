@@ -3,9 +3,15 @@
  * Maintenance category totals stay on PR/expense; machine attribution is a separate insights feed.
  */
 
-export const SPEND_MOM_PCT_THRESHOLD = 25;
+import {
+  MOM_SPIKE_ABS_FLOOR_NGN,
+  MOM_SPIKE_PCT_THRESHOLD,
+  momSpikeSignals as sharedMomSpikeSignals,
+} from './momSpikeSignals.js';
+
+export const SPEND_MOM_PCT_THRESHOLD = MOM_SPIKE_PCT_THRESHOLD;
 /** Absolute floor so tiny MoM % swings do not raise signals. */
-export const SPEND_MOM_ABS_FLOOR_NGN = 50_000;
+export const SPEND_MOM_ABS_FLOOR_NGN = MOM_SPIKE_ABS_FLOOR_NGN;
 /** Recurring payee signal: same payee appears this many times in the period. */
 export const SPEND_RECURRING_PAYEE_MIN_COUNT = 3;
 export const SPEND_TOP_DRIVERS = 5;
@@ -285,31 +291,15 @@ export function categoryMomDeltas(currentRows, priorRows) {
 }
 
 /**
- * MoM % spikes only when the prior month itself was material.
- * Otherwise a quiet/zero prior turns every normal month into a false “up 100%” alert
- * (common after a one-off spike month followed by a gap, or first spend after silence).
- *
+ * MoM % spikes — shared util (25% + abs floor + prior-period floor).
  * @param {{ category: string, amountNgn: number, priorNgn?: number, deltaPct: number, deltaNgn: number }[]} deltas
  * @param {{ pctThreshold?: number, absFloorNgn?: number }} opts
  */
 export function momSpikeSignals(deltas, opts = {}) {
-  const pctThreshold = opts.pctThreshold ?? SPEND_MOM_PCT_THRESHOLD;
-  const absFloorNgn = opts.absFloorNgn ?? SPEND_MOM_ABS_FLOOR_NGN;
-  return deltas
-    .filter((d) => {
-      const priorNgn = Math.round(Number(d.priorNgn) || 0);
-      if (priorNgn < absFloorNgn) return false;
-      return d.deltaPct >= pctThreshold && d.deltaNgn >= absFloorNgn;
-    })
-    .map((d) => ({
-      id: `mom-${d.category}`,
-      kind: 'mom_spike',
-      severity: d.deltaPct >= 50 ? 'high' : 'medium',
-      title: `${d.category} up ${d.deltaPct}% vs prior month`,
-      detail: `₦${Math.round(d.deltaNgn).toLocaleString('en-NG')} increase (now ₦${Math.round(d.amountNgn).toLocaleString('en-NG')}).`,
-      category: d.category,
-      amountNgn: d.amountNgn,
-    }));
+  return sharedMomSpikeSignals(deltas, {
+    pctThreshold: opts.pctThreshold ?? SPEND_MOM_PCT_THRESHOLD,
+    absFloorNgn: opts.absFloorNgn ?? SPEND_MOM_ABS_FLOOR_NGN,
+  });
 }
 
 /**

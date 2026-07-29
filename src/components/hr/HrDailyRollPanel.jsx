@@ -17,7 +17,7 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-const DEFAULT_ROW = { status: 'present', minutesLate: '', remark: '' };
+const DEFAULT_ROW = { status: 'present', minutesLate: '', remark: '', scheduledMinutes: '480', workedMinutes: '' };
 
 function StatusCheckbox({ checked, label, tone, onChange }) {
   const toneClass =
@@ -40,7 +40,8 @@ function StatusCheckbox({ checked, label, tone, onChange }) {
 }
 
 /**
- * Branch daily roll call — present / late / absent with optional remark and minutes late.
+ * Branch daily roll call — present / late / absent with optional remark, minutes late,
+ * and scheduled/worked minutes (attendance capture only — not payroll OT).
  * @param {{ branchManagerMode?: boolean }} props
  */
 export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
@@ -100,6 +101,9 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
           status: r.status || 'present',
           minutesLate: r.minutesLate != null && r.minutesLate > 0 ? String(r.minutesLate) : '',
           remark: r.remark || '',
+          scheduledMinutes:
+            r.scheduledMinutes != null ? String(r.scheduledMinutes) : r.status === 'absent' ? '' : '480',
+          workedMinutes: r.workedMinutes != null ? String(r.workedMinutes) : '',
         };
       }
       setNotes(rollQ.data.roll.notes || '');
@@ -119,6 +123,12 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
       const cur = prev[userId] || { ...DEFAULT_ROW };
       const next = { ...cur, status };
       if (status !== 'late') next.minutesLate = '';
+      if (status === 'absent') {
+        next.scheduledMinutes = '';
+        next.workedMinutes = '';
+      } else if (!next.scheduledMinutes) {
+        next.scheduledMinutes = '480';
+      }
       return { ...prev, [userId]: next };
     });
   };
@@ -135,11 +145,21 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
     const payloadRows = staff.map((s) => {
       const r = rows[s.userId] || DEFAULT_ROW;
       const minutesLate = r.status === 'late' ? Math.max(0, Math.round(Number(r.minutesLate) || 0)) : 0;
+      const scheduledMinutes =
+        r.status !== 'absent' && Number(r.scheduledMinutes) > 0
+          ? Math.round(Number(r.scheduledMinutes))
+          : undefined;
+      const workedMinutes =
+        r.status !== 'absent' && r.workedMinutes !== '' && Number.isFinite(Number(r.workedMinutes))
+          ? Math.max(0, Math.round(Number(r.workedMinutes)))
+          : undefined;
       return {
         userId: s.userId,
         status: r.status,
         ...(minutesLate > 0 ? { minutesLate } : {}),
         ...(String(r.remark || '').trim() ? { remark: String(r.remark).trim() } : {}),
+        ...(scheduledMinutes != null ? { scheduledMinutes } : {}),
+        ...(workedMinutes != null ? { workedMinutes } : {}),
       };
     });
     const { ok, data } = await apiFetch('/api/hr/attendance/daily-roll', {
@@ -226,11 +246,14 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
               <AppTableTh>Late</AppTableTh>
               <AppTableTh>Absent</AppTableTh>
               <AppTableTh>Minutes late</AppTableTh>
+              <AppTableTh>Scheduled (min)</AppTableTh>
+              <AppTableTh>Worked (min)</AppTableTh>
               <AppTableTh>Remark</AppTableTh>
             </AppTableThead>
             <AppTableBody>
               {staff.map((s) => {
                 const r = rows[s.userId] || DEFAULT_ROW;
+                const onShift = r.status !== 'absent';
                 return (
                   <AppTableTr key={s.userId}>
                     <AppTableTd>{s.displayName || s.username}</AppTableTd>
@@ -278,6 +301,32 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
                     </AppTableTd>
                     <AppTableTd>
                       <input
+                        type="number"
+                        min={0}
+                        max={1440}
+                        disabled={!onShift}
+                        value={r.scheduledMinutes}
+                        onChange={(e) => updateRow(s.userId, { scheduledMinutes: e.target.value })}
+                        placeholder={onShift ? '480' : '—'}
+                        title="Scheduled minutes for this shift (not payroll OT)"
+                        className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs disabled:bg-slate-50 disabled:text-slate-400"
+                      />
+                    </AppTableTd>
+                    <AppTableTd>
+                      <input
+                        type="number"
+                        min={0}
+                        max={1440}
+                        disabled={!onShift}
+                        value={r.workedMinutes}
+                        onChange={(e) => updateRow(s.userId, { workedMinutes: e.target.value })}
+                        placeholder={onShift ? 'e.g. 510' : '—'}
+                        title="Worked minutes captured at roll mark (not payroll OT)"
+                        className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs disabled:bg-slate-50 disabled:text-slate-400"
+                      />
+                    </AppTableTd>
+                    <AppTableTd>
+                      <input
                         type="text"
                         value={r.remark}
                         onChange={(e) => updateRow(s.userId, { remark: e.target.value })}
@@ -296,6 +345,10 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
       {!loading && !staff.length ? (
         <p className="text-sm text-slate-600">No active staff for this branch.</p>
       ) : null}
+
+      <p className="text-ui-xs text-slate-500">
+        Scheduled / worked minutes are stored on the roll for overtime visibility. They are not applied to payroll.
+      </p>
 
       <label className="block text-xs font-semibold text-slate-600">
         Day notes

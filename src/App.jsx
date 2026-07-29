@@ -62,6 +62,7 @@ import {
 } from './hooks/useAppShellSummaries';
 import { AiAskButton } from './components/AiAskButton';
 import { buildWorkspaceNotifications, WORKSPACE_NOTIFICATION_DISPLAY_LIMIT } from './lib/workspaceNotifications';
+import { apiFetch } from './lib/apiBase';
 import {
   dismissNotification,
   filterDismissedNotifications,
@@ -304,6 +305,22 @@ function AppShell() {
   const { data: officeSummary = null } = useOfficeSummaryQuery(canSeeOfficeModule);
   const { data: hrNotifSummary = null } = useHrNotifSummaryQuery(canSeeHrModule);
   const { data: managementAttention = null } = useManagementAttentionQuery(canFetchMgmtAttention);
+  const [officialNotices, setOfficialNotices] = useState([]);
+
+  useEffect(() => {
+    if (!signedInUserId) {
+      setOfficialNotices([]);
+      return undefined;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { ok, data } = await apiFetch('/api/official-notices').catch(() => ({ ok: false }));
+      if (!cancelled && ok) setOfficialNotices(Array.isArray(data?.notices) ? data.notices : []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [signedInUserId, ws?.refreshEpoch]);
 
   useEffect(() => {
     setNotificationDismissals(pruneExpiredDismissals(loadNotificationDismissals(signedInUserId)));
@@ -318,6 +335,7 @@ function AppShell() {
         officeSummary,
         hrNotifSummary,
         managementAttention,
+        officialNotices,
       }),
     [
       wsSnapshot,
@@ -326,6 +344,7 @@ function AppShell() {
       officeSummary,
       hrNotifSummary,
       managementAttention,
+      officialNotices,
     ]
   );
   const notificationItems = useMemo(

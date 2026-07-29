@@ -256,6 +256,7 @@ export function buildWorkspaceNotifications({
   officeSummary = null,
   hrNotifSummary = null,
   managementAttention = null,
+  officialNotices = null,
 }) {
   const items = [];
   const can = (p) => hasPermission('*') || hasPermission(p);
@@ -266,6 +267,25 @@ export function buildWorkspaceNotifications({
   const todayIso = new Date().toISOString().slice(0, 10);
 
   pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, managementAttention });
+
+  const notices = Array.isArray(officialNotices)
+    ? officialNotices
+    : Array.isArray(snapshot?.officialNotices)
+      ? snapshot.officialNotices
+      : [];
+  const unackedNotices = notices.filter((n) => !n.acknowledgedAtIso && !n.acknowledged && !n.readAtIso);
+  if (unackedNotices.length > 0) {
+    items.push({
+      id: 'official-notices-unacked',
+      category: 'workspace',
+      title: 'Company announcements',
+      detail: `${unackedNotices.length} official notice(s) awaiting acknowledgement — open Manager Today or Workspace.`,
+      severity: 'warning',
+      priority: 70,
+      path: '/manager',
+      state: {},
+    });
+  }
 
   const canSalesDesk =
     roleKey !== 'cashier' && canAccessModule('sales') && (can('sales.view') || can('quotations.manage'));

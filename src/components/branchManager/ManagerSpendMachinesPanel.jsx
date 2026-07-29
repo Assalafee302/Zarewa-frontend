@@ -217,6 +217,45 @@ export function ManagerSpendMachinesPanel({
 
       <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white">
         <div className="mb-3">
+          <h3 className="text-sm font-black text-zarewa-teal tracking-tight">Output & downtime proxies</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Not true runtime utilization — metres produced and WO downtime hours only. Do not treat as % uptime.
+          </p>
+        </div>
+        {loading ? (
+          <p className="text-xs text-slate-500 py-4 text-center">Loading…</p>
+        ) : machines.length === 0 ? (
+          <p className="text-xs text-slate-500 py-4 text-center">No machines in insights pack.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="min-w-full text-left text-xs">
+              <thead className="bg-slate-50 text-ui-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 font-bold">Machine</th>
+                  <th className="px-3 py-2 font-bold text-right">Output metres (proxy)</th>
+                  <th className="px-3 py-2 font-bold text-right">Downtime hrs (proxy)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {machines.slice(0, 12).map((m) => (
+                  <tr key={m.machineId || m.id || m.name} className="border-t border-slate-100">
+                    <td className="px-3 py-2 font-semibold text-slate-900">{m.name || m.machineId}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                      {Number(m.outputMetres ?? m.lifetimeMetres ?? m.meterReading ?? 0).toLocaleString('en-NG')}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                      {Number(m.downtimeHours ?? m.openDowntimeHours ?? 0).toLocaleString('en-NG')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </FinanceSequencePanel>
+
+      <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 sm:p-5 bg-white">
+        <div className="mb-3">
           <h3 className="text-sm font-black text-zarewa-teal tracking-tight">Vendor cost comparison</h3>
           <p className="text-xs text-slate-500 mt-0.5">
             Total spend, job count, and average cost per job by vendor (from cost lines on work orders)

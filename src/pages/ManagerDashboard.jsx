@@ -17,6 +17,15 @@ import { ManagerOpsStrip } from '../components/branchManager/ManagerOpsStrip';
 import { ManagerPeopleGlancePanel } from '../components/branchManager/ManagerPeopleGlancePanel';
 import { ManagerCustomerIssuesPanel } from '../components/branchManager/ManagerCustomerIssuesPanel';
 import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyChecklist';
+import {
+  ManagerAnnouncementsPanel,
+  ManagerAuditTrailPanel,
+  ManagerDeliveryComplaintsPanel,
+  ManagerPmDuePanel,
+  ManagerPriceExceptionsPanel,
+  ManagerSopLinksPanel,
+  ManagerVacanciesPanel,
+} from '../components/branchManager/ManagerDeskExtras';
 import { ManagerIntelligenceTab } from '../components/branchManager/ManagerIntelligenceTab';
 import { ManagerOperationsTab } from '../components/branchManager/ManagerOperationsTab';
 import { ManagerPerformanceTab } from '../components/branchManager/ManagerPerformanceTab';
@@ -317,6 +326,16 @@ const ManagerDashboard = () => {
             <ManagerCustomerIssuesPanel available={customerIssuesAvailable} />
           </div>
 
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <ManagerAnnouncementsPanel />
+            <ManagerAuditTrailPanel />
+            <ManagerPriceExceptionsPanel quotations={bm.ws?.snapshot?.quotations || []} />
+            <ManagerVacanciesPanel available={peopleGlanceAvailable} />
+            <ManagerPmDuePanel />
+            <ManagerSopLinksPanel />
+            <ManagerDeliveryComplaintsPanel available={customerIssuesAvailable} />
+          </div>
+
           <BranchManagerCommandInbox bm={bm} showDeliveryCreditTab={bm.showDeliveryCreditTab} />
 
           <ManagerDailyChecklist branchId={bm.mgrBranchId} actorName={actorName} />
@@ -332,6 +351,8 @@ const ManagerDashboard = () => {
             bm.ws?.permissions
           )}
           onJumpFilter={(f) => jumpToQueue(f)}
+          quotations={bm.ws?.snapshot?.quotations || []}
+          salesAvailable={customerIssuesAvailable}
         />
       ) : null}
 
