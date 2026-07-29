@@ -1410,7 +1410,7 @@ const Account = () => {
         return;
       }
       handleAccountTabChange('desk');
-      showToast(id ? `Payment request ${id} — check the payout queues on My desk.` : 'Open My desk to record payout.', {
+      showToast(id ? `Payment request ${id} — check the payout queues on Finance desk.` : 'Open Finance desk to record payout.', {
         variant: 'info',
       });
     },
@@ -1426,7 +1426,7 @@ const Account = () => {
         return;
       }
       handleAccountTabChange('desk');
-      showToast(id ? `Refund ${id} — check refund payouts on My desk.` : 'Open My desk to record refund payout.', {
+      showToast(id ? `Refund ${id} — check refund payouts on Finance desk.` : 'Open Finance desk to record refund payout.', {
         variant: 'info',
       });
     },
