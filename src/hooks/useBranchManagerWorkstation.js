@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import { printExpenseRequestRecord } from '../lib/expenseRequestPrint';
 import { formatNgn } from '../lib/formatNgn';
@@ -99,6 +99,7 @@ function readStaffUserId(row) {
 export function useBranchManagerWorkstation() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const quoteDeepLinked = useRef('');
   const poDeepLinked = useRef('');
   const refundDeepLinked = useRef('');
@@ -106,6 +107,7 @@ export function useBranchManagerWorkstation() {
   const requestDeepLinked = useRef('');
   const materialIncidentDeepLinked = useRef('');
   const editApprovalDeepLinked = useRef('');
+  const workOrderDeepLinked = useRef('');
   const managerQueuesHydratedRef = useRef(false);
   const lastRefundIntelQrefRef = useRef('');
   const remarkResolversRef = useRef(new Map());
@@ -165,6 +167,7 @@ export function useBranchManagerWorkstation() {
   const [machinesDownCount, setMachinesDownCount] = useState(null);
   const [machinesDownAvailable, setMachinesDownAvailable] = useState(false);
   const [maintenanceIssueCount, setMaintenanceIssueCount] = useState(0);
+  const [focusWorkOrderId, setFocusWorkOrderId] = useState('');
   const [remarkDialog, setRemarkDialog] = useState(INITIAL_REMARK_DIALOG);
   const [remarkDraft, setRemarkDraft] = useState('');
   const [confirmDialog, setConfirmDialog] = useState(INITIAL_CONFIRM_DIALOG);
@@ -853,7 +856,8 @@ export function useBranchManagerWorkstation() {
   ]);
 
   useEffect(() => {
-    const inbox = (searchParams.get('inbox') || '').trim();
+    const stateInbox = String(location.state?.inbox || '').trim();
+    const inbox = (searchParams.get('inbox') || stateInbox || '').trim();
     if (!inbox) return;
     const { tab, attentionFilter: af, redirectToTeamHr } = normalizeManagerInboxRoute(inbox);
     if (redirectToTeamHr) {
@@ -862,7 +866,19 @@ export function useBranchManagerWorkstation() {
     }
     setActiveTab(tab);
     setAttentionFilter(af);
-  }, [navigate, searchParams]);
+  }, [location.state, navigate, searchParams]);
+
+  useEffect(() => {
+    const fromQuery = (searchParams.get('workOrderId') || searchParams.get('workOrderID') || '').trim();
+    const fromState = String(location.state?.workOrderId || '').trim();
+    const wid = fromQuery || fromState;
+    if (!wid) return;
+    if (workOrderDeepLinked.current === wid) return;
+    workOrderDeepLinked.current = wid;
+    setActiveTab('issues');
+    setAttentionFilter('all');
+    setFocusWorkOrderId(wid);
+  }, [location.state, searchParams]);
 
   useEffect(() => {
     const po = (searchParams.get('poId') || searchParams.get('poID') || '').trim();
@@ -1910,6 +1926,8 @@ export function useBranchManagerWorkstation() {
     requestDeepLinked.current = '';
     materialIncidentDeepLinked.current = '';
     editApprovalDeepLinked.current = '';
+    workOrderDeepLinked.current = '';
+    setFocusWorkOrderId('');
     const params = new URLSearchParams(searchParams);
     let changed = false;
     for (const key of [
@@ -2104,6 +2122,8 @@ export function useBranchManagerWorkstation() {
     machinesDownAvailable,
     maintenanceIssueCount,
     setMaintenanceIssueCount,
+    focusWorkOrderId,
+    setFocusWorkOrderId,
     agedAttentionCount,
     remarkDialog,
     setRemarkDialog,

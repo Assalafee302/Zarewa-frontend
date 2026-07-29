@@ -31,7 +31,7 @@ import {
  * Manager PAC — open plant fault work orders.
  * Shell matches Needs approval / Cash / Material rows (data-pac-row, KindPill, SLA, empty state, DecisionBand).
  */
-export function MaintenanceIssuesPanel({ search = '', onCountChange }) {
+export function MaintenanceIssuesPanel({ search = '', onCountChange, focusWorkOrderId = '', onFocusWorkOrderHandled }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,6 +43,7 @@ export function MaintenanceIssuesPanel({ search = '', onCountChange }) {
   const [resolveNote, setResolveNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
+  const focusedWorkOrderRef = useRef('');
   const expenseFileInputRef = useRef(null);
   const [expenseForm, setExpenseForm] = useState(() => ({
     ...initialExpenseRequestFormState(),
@@ -91,18 +92,31 @@ export function MaintenanceIssuesPanel({ search = '', onCountChange }) {
     );
   }, [rows, search]);
 
-  const openDetail = async (row) => {
+  const openDetail = useCallback(async (row) => {
     setSelected(row);
     setAssignTechId(row.assignedToUserId || '');
     setAssignVendorId(row.vendorId || '');
     setResolveNote('');
-    const [techRes, vendRes] = await Promise.all([
+    const [detailRes, techRes, vendRes] = await Promise.all([
+      apiFetch(`/api/maintenance/work-orders/${encodeURIComponent(row.id)}`).catch(() => ({ ok: false })),
       apiFetch('/api/maintenance/technicians').catch(() => ({ ok: false })),
       apiFetch('/api/maintenance/vendors?status=active').catch(() => ({ ok: false })),
     ]);
+    if (detailRes.ok && detailRes.data?.workOrder) {
+      setSelected({ ...row, ...detailRes.data.workOrder });
+    }
     if (techRes.ok) setTechnicians(techRes.data?.technicians || []);
     if (vendRes.ok) setVendors(vendRes.data?.vendors || []);
-  };
+  }, []);
+
+  useEffect(() => {
+    const wid = String(focusWorkOrderId || '').trim();
+    if (!wid || loading) return;
+    if (focusedWorkOrderRef.current === wid) return;
+    focusedWorkOrderRef.current = wid;
+    const row = rows.find((r) => String(r.id) === wid) || { id: wid };
+    void openDetail(row).finally(() => onFocusWorkOrderHandled?.());
+  }, [focusWorkOrderId, loading, onFocusWorkOrderHandled, openDetail, rows]);
 
   const run = async (fn) => {
     setBusy(true);
@@ -143,10 +157,22 @@ export function MaintenanceIssuesPanel({ search = '', onCountChange }) {
     }
     const requestId = res.data?.requestID || res.data?.requestId;
     if (requestId && selected?.id) {
-      await apiFetch(`/api/maintenance/work-orders/${encodeURIComponent(selected.id)}/link-payment-request`, {
-        method: 'POST',
-        body: { paymentRequestId: requestId },
-      }).catch(() => null);
+      const linkRes = await apiFetch(
+        `/api/maintenance/work-orders/${encodeURIComponent(selected.id)}/link-payment-request`,
+        {
+          method: 'POST',
+          body: { paymentRequestId: requestId },
+        }
+      ).catch(() => ({ ok: false }));
+      if (!linkRes.ok || linkRes.data?.ok === false) {
+        setBusy(false);
+        setError(
+          linkRes.data?.error ||
+            `Expense ${requestId} was created but could not be linked to this work order.`
+        );
+        await load();
+        return;
+      }
     }
     setBusy(false);
     setExpenseOpen(false);
@@ -250,6 +276,24 @@ export function MaintenanceIssuesPanel({ search = '', onCountChange }) {
               />
               <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-xs">
                 <p className="text-slate-800">{selected.symptom || selected.summary}</p>
+                {selected.data?.attachment?.dataBase64 ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2">
+                    <p className="mb-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+                      Photo
+                    </p>
+                    {String(selected.data.attachment.mime || '').startsWith('image/') ? (
+                      <img
+                        src={`data:${selected.data.attachment.mime};base64,${selected.data.attachment.dataBase64}`}
+                        alt={selected.data.attachment.name || 'Fault photo'}
+                        className="max-h-48 w-full rounded-md object-contain bg-white"
+                      />
+                    ) : (
+                      <p className="text-xs font-semibold text-slate-700">
+                        {selected.data.attachment.name || 'Attachment on file'}
+                      </p>
+                    )}
+                  </div>
+                ) : null}
                 <label className="block text-ui-xs font-bold uppercase text-slate-500">
                   Assign technician
                   <select

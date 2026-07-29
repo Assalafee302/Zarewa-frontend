@@ -87,6 +87,8 @@ export function BranchManagerCommandInbox(props) {
     showDeliveryCreditTab = true,
     maintenanceIssueCount = 0,
     setMaintenanceIssueCount,
+    focusWorkOrderId = '',
+    setFocusWorkOrderId,
   } = merged;
 
   const asMoney = typeof formatNgn === 'function' ? formatNgn : fallbackMoney;
@@ -686,6 +688,8 @@ export function BranchManagerCommandInbox(props) {
         ) : pacView === 'issues' ? (
           <MaintenanceIssuesPanel
             search={inboxSearch}
+            focusWorkOrderId={focusWorkOrderId}
+            onFocusWorkOrderHandled={() => setFocusWorkOrderId?.('')}
             onCountChange={(n) => {
               const next = Math.max(0, Number(n) || 0);
               setIssuesCount(next);
