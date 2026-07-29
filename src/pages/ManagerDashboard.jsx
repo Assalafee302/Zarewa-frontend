@@ -13,6 +13,9 @@ import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFor
 import { BranchManagerCommandInbox } from '../components/branchManager/BranchManagerCommandInbox';
 import { ManagerPriorityBanner, pickManagerPriorityItem } from '../components/branchManager/ManagerPriorityBanner';
 import { ManagerTodayPulse } from '../components/branchManager/ManagerTodayPulse';
+import { ManagerOpsStrip } from '../components/branchManager/ManagerOpsStrip';
+import { ManagerPeopleGlancePanel } from '../components/branchManager/ManagerPeopleGlancePanel';
+import { ManagerCustomerIssuesPanel } from '../components/branchManager/ManagerCustomerIssuesPanel';
 import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyChecklist';
 import { ManagerIntelligenceTab } from '../components/branchManager/ManagerIntelligenceTab';
 import { ManagerOperationsTab } from '../components/branchManager/ManagerOperationsTab';
@@ -37,6 +40,7 @@ import {
   TEAM_HR_ATTENDANCE_PATH,
   normalizeManagerPageTab,
 } from '../lib/managerPageTabs';
+import { canMarkHrAttendance, hrHasPermission } from '../lib/hrAccess';
 import { formatPersonName } from '../lib/formatPersonName';
 import { managerRowAgeHours } from '../lib/managerDashboardCore';
 
@@ -69,6 +73,13 @@ const ManagerDashboard = () => {
   );
 
   const showDeliveryBanner = ['md', 'admin', 'sales_manager'].includes(bm.managerRoleKey);
+
+  const peopleGlanceAvailable =
+    canMarkHrAttendance(bm.ws?.permissions) || hrHasPermission(bm.ws?.permissions, 'hr.team.view');
+  const customerIssuesAvailable =
+    hrHasPermission(bm.ws?.permissions, 'sales.view') ||
+    hrHasPermission(bm.ws?.permissions, 'customers.manage') ||
+    hrHasPermission(bm.ws?.permissions, 'sales.manage');
 
   const checklistPct = useMemo(() => {
     const state = loadManagerChecklist(bm.mgrBranchId, ymdLocal());
@@ -137,6 +148,11 @@ const ManagerDashboard = () => {
       }
       if (action === 'credit') {
         bm.setActiveTab('credit');
+        bm.setAttentionFilter('all');
+        return;
+      }
+      if (action === 'issues') {
+        bm.setActiveTab('issues');
         bm.setAttentionFilter('all');
         return;
       }
@@ -265,6 +281,18 @@ const ManagerDashboard = () => {
 
       {pageTab === 'today' ? (
         <div className="space-y-5">
+          <ManagerOpsStrip
+            machinesDown={bm.machinesDownCount}
+            machinesDownAvailable={bm.machinesDownAvailable}
+            lowStockCount={bm.liveLowStockCount ?? bm.displaySnapshots?.lowStockCount ?? 0}
+            absentToday={bm.absentTodayCount}
+            absentAvailable={bm.absentAvailable}
+            agedApprovals={bm.agedAttentionCount}
+            loading={bm.loading}
+            onOpenIssues={() => jumpToQueue('issues')}
+            onOpenAgedQueue={() => jumpToQueue('all')}
+          />
+
           <ManagerTodayPulse
             salesProduced={bm.displaySnapshots?.producedSalesNgn}
             cashCleared={bm.displaySnapshots?.paidOnQuotesNgn}
@@ -277,6 +305,15 @@ const ManagerDashboard = () => {
             periodLabel={bm.displaySnapshots?.periodLabel ?? 'This period'}
             loading={bm.loading}
           />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ManagerPeopleGlancePanel
+              branchId={bm.mgrBranchId}
+              available={peopleGlanceAvailable}
+              refreshEpoch={bm.ws?.refreshEpoch || 0}
+            />
+            <ManagerCustomerIssuesPanel available={customerIssuesAvailable} />
+          </div>
 
           <BranchManagerCommandInbox bm={bm} showDeliveryCreditTab={bm.showDeliveryCreditTab} />
 

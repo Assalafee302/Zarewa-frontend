@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -18,17 +18,17 @@ import { CreditExceptionPanel } from '../finance/CreditExceptionPanel';
 import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx';
 import { FinanceSequencePanel } from '../layout';
 import {
-  MANAGER_STATUS_TONES,
   managerKindShortLabel,
   managerKindTone,
-  managerRowAgeHours,
-  managerSlaMeta,
 } from '../../lib/managerDashboardCore';
 import { MANAGER_PAC_TABS } from '../../lib/managerPageTabs';
 import { MaintenanceIssuesPanel } from './MaintenanceIssuesPanel';
-
-const inboxRowBase =
-  'group w-full text-left flex items-center gap-2 sm:gap-3 px-3 py-2.5 border-b border-slate-100 last:border-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/25';
+import {
+  PAC_INBOX_ROW_CLASS as inboxRowBase,
+  PacEmptyState,
+  PacKindPill as KindPill,
+  PacSlaChip as SlaChip,
+} from './PacInboxChrome';
 
 function fallbackMoney(value) {
   const num = Number(value) || 0;
@@ -38,34 +38,6 @@ function fallbackMoney(value) {
 function fallbackPersonName(value) {
   const v = String(value || '').trim();
   return v || '—';
-}
-
-function KindPill({ label, tone = 'pending' }) {
-  return (
-    <span
-      className={`shrink-0 rounded-md border px-1.5 py-0.5 text-ui-xs font-black uppercase ${
-        MANAGER_STATUS_TONES[tone] || MANAGER_STATUS_TONES.pending
-      }`}
-    >
-      {label}
-    </span>
-  );
-}
-
-function SlaChip({ kind, row }) {
-  const age = managerRowAgeHours(row);
-  const meta = managerSlaMeta(kind, age, { compact: true });
-  if (!meta) return null;
-  return (
-    <span
-      className={`shrink-0 rounded-md border px-1.5 py-0.5 text-ui-xs font-bold tabular-nums ${
-        MANAGER_STATUS_TONES[meta.tone] || MANAGER_STATUS_TONES.info
-      }`}
-      title={managerSlaMeta(kind, age)?.label}
-    >
-      {meta.label}
-    </span>
-  );
 }
 
 function pacViewFromActiveTab(activeTab) {
@@ -97,7 +69,6 @@ export function BranchManagerCommandInbox(props) {
     filterAttentionItems = (items) => items,
     selectedIntel,
     decisionBusy = false,
-    canManagerClearance = false,
     canAdminBulkClearPaid = false,
     handleClearAllClearance,
     openQuotationIntel,
@@ -114,6 +85,8 @@ export function BranchManagerCommandInbox(props) {
     stockRegisterInbox = [],
     setStockRegisterMgrOpen,
     showDeliveryCreditTab = true,
+    maintenanceIssueCount = 0,
+    setMaintenanceIssueCount,
   } = merged;
 
   const asMoney = typeof formatNgn === 'function' ? formatNgn : fallbackMoney;
@@ -125,6 +98,11 @@ export function BranchManagerCommandInbox(props) {
 
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
+  const [issuesCount, setIssuesCount] = useState(() => Math.max(0, Number(maintenanceIssueCount) || 0));
+
+  useEffect(() => {
+    setIssuesCount(Math.max(0, Number(maintenanceIssueCount) || 0));
+  }, [maintenanceIssueCount]);
 
   const emptyIcon = () => {
     if (activeTab === 'orders') return <CheckCircle2 size={36} className="opacity-25 mb-3 text-teal-600" />;
@@ -565,7 +543,9 @@ export function BranchManagerCommandInbox(props) {
                 ? tabCounts.attention ?? 0
                 : t.key === 'credit'
                   ? tabCounts.credit ?? 0
-                  : stockRegisterInbox.length;
+                  : t.key === 'stock'
+                    ? stockRegisterInbox.length
+                    : issuesCount;
             return (
               <button
                 key={t.key}
@@ -658,13 +638,12 @@ export function BranchManagerCommandInbox(props) {
 
       <div
         className={
-          pacView === 'credit' || pacView === 'stock' || pacView === 'issues'
+          pacView === 'credit' || pacView === 'stock'
             ? 'p-4 sm:p-5'
             : 'min-h-[320px] max-h-[min(56vh,560px)] overflow-y-auto custom-scrollbar'
         }
         onKeyDown={(e) => {
-          if (pacView !== 'attention' && pacView !== 'credit' && pacView !== 'stock') return;
-          if (pacView !== 'attention') return;
+          if (pacView !== 'attention' && pacView !== 'issues') return;
           const rows = Array.from(e.currentTarget.querySelectorAll('[data-pac-row="1"]'));
           if (!rows.length) return;
           const activeEl = document.activeElement;
@@ -706,7 +685,12 @@ export function BranchManagerCommandInbox(props) {
           </div>
         ) : pacView === 'issues' ? (
           <MaintenanceIssuesPanel
-            branchId={ws?.workspaceBranchId || ws?.session?.branchId || ws?.branchScope || ''}
+            search={inboxSearch}
+            onCountChange={(n) => {
+              const next = Math.max(0, Number(n) || 0);
+              setIssuesCount(next);
+              setMaintenanceIssueCount?.(next);
+            }}
           />
         ) : pacView === 'credit' ? (
           <div className="rounded-xl border border-slate-100 bg-white">
@@ -722,11 +706,7 @@ export function BranchManagerCommandInbox(props) {
             ))}
           </div>
         ) : filteredInboxRows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-6 text-center text-slate-400">
-            {emptyIcon()}
-            <p className="text-sm font-bold text-slate-600">{emptyCopy().title}</p>
-            <p className="text-xs text-slate-500 mt-1 max-w-xs">{emptyCopy().detail}</p>
-          </div>
+          <PacEmptyState icon={emptyIcon()} title={emptyCopy().title} detail={emptyCopy().detail} />
         ) : (
           <div>
             {(showAllRows || filteredInboxRows.length <= 50

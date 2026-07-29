@@ -15,6 +15,7 @@ export const MANAGER_PAC_TABS = [
   { key: 'attention', label: 'Needs approval', description: 'Unified queue — filter by kind' },
   { key: 'credit', label: 'Credit exceptions', description: 'Delivery on credit awaiting approval' },
   { key: 'stock', label: 'Stock register', description: 'Month-end count alignment' },
+  { key: 'issues', label: 'Issues', description: 'Open plant fault work orders' },
 ];
 
 /**

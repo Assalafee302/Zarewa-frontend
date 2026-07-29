@@ -68,7 +68,7 @@ const ATTENTION_FILTER_KINDS = Object.fromEntries(
 /** Map any legacy category tab to PAC attention + filter (credit/stock stay as PAC tabs). */
 export function pacAttentionRouteFromTab(tabKey) {
   const k = String(tabKey || '').trim().toLowerCase();
-  if (k === 'credit' || k === 'stock') return { tab: k, attentionFilter: 'all' };
+  if (k === 'credit' || k === 'stock' || k === 'issues') return { tab: k, attentionFilter: 'all' };
   if (k === 'orders' || k === 'clearance' || k === 'production') return { tab: 'attention', attentionFilter: 'orders' };
   if (k === 'cash_out' || k === 'refunds' || k === 'payments' || k === 'cash') return { tab: 'attention', attentionFilter: 'cash' };
   if (k === 'qc' || k === 'conversions') return { tab: 'attention', attentionFilter: 'qc' };
@@ -152,6 +152,9 @@ export function managerKindTone(kind, opts = {}) {
  */
 export function managerRowAgeHours(row) {
   const raw =
+    row?.atIso ||
+    row?.openedAtIso ||
+    row?.opened_at_iso ||
     row?.created_at ||
     row?.createdAt ||
     row?.requested_at ||
@@ -168,6 +171,60 @@ export function managerRowAgeHours(row) {
   const t = new Date(raw).getTime();
   if (!Number.isFinite(t)) return null;
   return Math.max(0, (Date.now() - t) / 36e5);
+}
+
+/** Needs-approval items older than this (hours) count as aged on the Manager ops strip. */
+export const MANAGER_AGED_QUEUE_HOURS = 24;
+
+/** Open work orders older than this (hours) count toward “machines down / aged open”. */
+export const MANAGER_OPEN_WO_SLA_HOURS = 24;
+
+/**
+ * Count attention-inbox items with a known timestamp older than `hours`.
+ * Items with no usable timestamp are skipped (not approximated).
+ * @param {object[]} items
+ * @param {number} [hours]
+ */
+export function countAgedAttentionItems(items, hours = MANAGER_AGED_QUEUE_HOURS) {
+  const list = Array.isArray(items) ? items : [];
+  const threshold = Number(hours) || MANAGER_AGED_QUEUE_HOURS;
+  return list.reduce((n, it) => {
+    const age = managerRowAgeHours(it);
+    if (age == null || !Number.isFinite(age)) return n;
+    return age >= threshold ? n + 1 : n;
+  }, 0);
+}
+
+/**
+ * Machines down: priority machine_down, or still open past open-WO SLA.
+ * @param {object[]} workOrders
+ * @param {number} [slaHours]
+ */
+export function countMachinesDown(workOrders, slaHours = MANAGER_OPEN_WO_SLA_HOURS) {
+  const list = Array.isArray(workOrders) ? workOrders : [];
+  const threshold = Number(slaHours) || MANAGER_OPEN_WO_SLA_HOURS;
+  return list.reduce((n, wo) => {
+    const priority = String(wo?.priority || '')
+      .trim()
+      .toLowerCase()
+      .replace(/-/g, '_');
+    if (priority === 'machine_down') return n + 1;
+    const age = managerRowAgeHours(wo);
+    if (age != null && Number.isFinite(age) && age >= threshold) return n + 1;
+    return n;
+  }, 0);
+}
+
+/**
+ * Absent today from daily-roll rows (status === 'absent'). Unmarked ≠ absent.
+ * @param {object[]} rollRows
+ */
+export function countAbsentFromRoll(rollRows) {
+  const list = Array.isArray(rollRows) ? rollRows : [];
+  return list.reduce((n, row) => {
+    const st = String(row?.status || '').trim().toLowerCase();
+    return st === 'absent' ? n + 1 : n;
+  }, 0);
 }
 
 /** Refund SLA: warn 24h / breach 48h. Other queues: warn 24h / breach 48h. */

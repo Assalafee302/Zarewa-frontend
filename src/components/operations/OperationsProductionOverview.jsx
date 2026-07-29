@@ -17,6 +17,9 @@ import {
   buildPendingProductionsOverview,
   buildSkuStockOverview,
 } from '../../lib/operationsProductionOverviewCore';
+import { MaintenanceVendorsPanel } from './MaintenanceVendorsPanel';
+import { ReportFaultPanel } from './ReportFaultPanel';
+import { RequestSuppliesPanel } from './RequestSuppliesPanel';
 
 function OverviewCard({ title, hint, icon, children, className = '' }) {
   return (
@@ -141,6 +144,9 @@ export function OperationsProductionOverview({
   onGoInventory,
   onRequestCoils,
   onMonthEndStock,
+  roleKey = '',
+  branchId = '',
+  branches = [],
 }) {
   const coilStock = useMemo(() => buildCoilStockOverview(coilLots, masterData), [coilLots, masterData]);
   const stoneStock = useMemo(() => buildSkuStockOverview(inventoryRows, 'stone'), [inventoryRows]);
@@ -200,6 +206,11 @@ export function OperationsProductionOverview({
           >
             3. Request coils
           </button>
+          <span className="text-slate-300 hidden sm:inline" aria-hidden>
+            ·
+          </span>
+          <ReportFaultPanel branchId={branchId} />
+          <RequestSuppliesPanel branchId={branchId} onGoInventory={onGoInventory} />
         </div>
       </div>
 
@@ -421,6 +432,12 @@ export function OperationsProductionOverview({
           </div>
         </OverviewCard>
       </div>
+
+      <MaintenanceVendorsPanel
+        roleKey={roleKey}
+        branchId={branchId}
+        branches={branches}
+      />
     </div>
   );
 }

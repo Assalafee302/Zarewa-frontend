@@ -1,42 +1,9 @@
 import React, { useMemo } from 'react';
-import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import { formatNgn } from '../../lib/formatNgn';
 
-function Spark({ data, stroke = '#134e4a' }) {
-  if (!data?.length) {
-    return <div className="h-10 w-full rounded bg-slate-50" aria-hidden />;
-  }
-  return (
-    <div className="h-10 w-full bg-transparent">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-          <Area
-            type="monotone"
-            dataKey="v"
-            stroke={stroke}
-            fill={stroke}
-            fillOpacity={0.12}
-            strokeWidth={1.5}
-            isAnimationActive={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-function syntheticSpark(seed = 1, points = 7) {
-  const out = [];
-  let v = 40 + (seed % 20);
-  for (let i = 0; i < points; i += 1) {
-    v = Math.max(8, Math.min(100, v + ((i * seed) % 7) - 3));
-    out.push({ i, v });
-  }
-  return out;
-}
-
 /**
- * Today pulse — KPIs including metres produced and cutting-list metres for the period.
+ * Today pulse — period KPIs (sales, collections, open actions, health, metres).
+ * Synthetic sparklines removed; live ops posture lives on ManagerOpsStrip above.
  */
 export function ManagerTodayPulse({
   salesProduced = 0,
@@ -62,7 +29,6 @@ export function ManagerTodayPulse({
         label: 'Sales produced',
         value: formatNgn(salesProduced),
         meta: salesPct != null ? `${salesPct}% of target` : periodLabel,
-        spark: syntheticSpark(3),
         tone: 'teal',
       },
       {
@@ -70,7 +36,6 @@ export function ManagerTodayPulse({
         label: 'Collected on quotes',
         value: formatNgn(cashCleared),
         meta: periodLabel,
-        spark: syntheticSpark(5),
         tone: 'teal',
       },
       {
@@ -78,15 +43,13 @@ export function ManagerTodayPulse({
         label: 'Open actions',
         value: String(openActions),
         meta: openActions > 0 ? 'Needs your decision' : 'Queue clear',
-        spark: syntheticSpark(2),
         tone: openActions > 0 ? 'amber' : 'emerald',
       },
       {
         key: 'health',
         label: 'Branch health',
         value: health != null ? String(health) : '—',
-        meta: healthScore?.status || 'Indicator',
-        spark: syntheticSpark(11),
+        meta: healthScore?.status || 'Working indicator (not SOP policy)',
         tone: healthTone,
       },
     ],
@@ -125,48 +88,40 @@ export function ManagerTodayPulse({
               {loading ? '…' : t.value}
             </p>
             <p className="mt-0.5 text-ui-xs text-slate-500">{t.meta}</p>
-            <div className="mt-2">
-              <Spark data={t.spark} />
-            </div>
           </div>
         ))}
       </div>
 
       <div className="rounded-zarewa border border-slate-200/75 bg-white p-4 sm:p-5 shadow-[var(--shadow-sequence)]">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-ui-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-              Metres · {periodLabel}
-            </p>
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                  Metres produced (completed jobs)
+        <div className="min-w-0">
+          <p className="text-ui-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+            Metres · {periodLabel}
+          </p>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+                Metres produced (completed jobs)
+              </p>
+              <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-zarewa-teal">
+                {loading ? '…' : `${Number(metresProduced || 0).toLocaleString()} m`}
+              </p>
+              {metresPct != null ? (
+                <p className="mt-1 text-ui-xs font-semibold text-slate-500 tabular-nums">
+                  {metresPct}% of target
                 </p>
-                <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-zarewa-teal">
-                  {loading ? '…' : `${Number(metresProduced || 0).toLocaleString()} m`}
-                </p>
-                {metresPct != null ? (
-                  <p className="mt-1 text-ui-xs font-semibold text-slate-500 tabular-nums">
-                    {metresPct}% of target
-                  </p>
-                ) : null}
-              </div>
-              <div>
-                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                  Cutting lists (dated in period)
-                </p>
-                <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-zarewa-teal">
-                  {loading ? '…' : `${Number(metresCuttingLists || 0).toLocaleString()} m`}
-                </p>
-                <p className="mt-1 text-ui-xs font-semibold text-slate-500">
-                  Metres on cutting lists in this period
-                </p>
-              </div>
+              ) : null}
             </div>
-          </div>
-          <div className="w-full sm:w-40 shrink-0">
-            <Spark data={syntheticSpark(7)} />
+            <div>
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+                Cutting lists (dated in period)
+              </p>
+              <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-zarewa-teal">
+                {loading ? '…' : `${Number(metresCuttingLists || 0).toLocaleString()} m`}
+              </p>
+              <p className="mt-1 text-ui-xs font-semibold text-slate-500">
+                Metres on cutting lists in this period
+              </p>
+            </div>
           </div>
         </div>
         {metresTarget > 0 ? (

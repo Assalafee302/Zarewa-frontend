@@ -1,6 +1,6 @@
 /**
  * Branch Manager Spend tab — client-side aggregation from payment requests (+ orphan expenses).
- * Maintenance (GL 5020) is a normal category here; machine attribution is a future stub.
+ * Maintenance category totals stay on PR/expense; machine attribution is a separate insights feed.
  */
 
 export const SPEND_MOM_PCT_THRESHOLD = 25;

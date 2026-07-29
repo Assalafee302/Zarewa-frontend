@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link } from 'react-router-dom';
 import { formatNgn } from '../../lib/formatNgn';
@@ -9,6 +9,7 @@ import {
   monthKeyFromDate,
 } from '../../lib/managerSpendInsights';
 import { FinanceSequencePanel, ModalFrame } from '../layout';
+import { ManagerSpendMachinesPanel } from './ManagerSpendMachinesPanel';
 
 function PanelShell({ title, subtitle, children, disclaimer }) {
   return (
@@ -38,11 +39,11 @@ function statusLabel(status) {
     case 'approved_awaiting':
       return 'Waiting on Desk';
     case 'partial':
-      return 'Part paid · Waiting on Desk';
+      return 'Part paid Â· Waiting on Desk';
     case 'paid':
       return 'Paid';
     default:
-      return status || '—';
+      return status || 'â€”';
   }
 }
 
@@ -53,7 +54,8 @@ function statusSubtitle(status) {
 }
 
 /**
- * Manager Spend tab — committed + paid expense insights (branch-scoped for BM).
+ * Branch Manager Spend tab â€” committed + paid expense insights (branch-scoped for BM).
+ * Machine repair-vs-replace is additive via ManagerSpendMachinesPanel (maintenance insights API).
  */
 export function ManagerSpendTab({
   snapshot,
@@ -116,7 +118,7 @@ export function ManagerSpendTab({
     }
     setDrill({
       title: opts.title || 'Spend detail',
-      subtitle: opts.subtitle || `${monthKey}${opts.category ? ` · ${opts.category}` : ''}`,
+      subtitle: opts.subtitle || `${monthKey}${opts.category ? ` Â· ${opts.category}` : ''}`,
       rows,
     });
   };
@@ -127,9 +129,9 @@ export function ManagerSpendTab({
   return (
     <div className="space-y-4">
       <p className="text-xs text-slate-600">
-        Spend for {viewAllBranches && !effectiveBranchId ? 'all branches' : branchLabel || 'your branch'} — paid cash
+        Spend for {viewAllBranches && !effectiveBranchId ? 'all branches' : branchLabel || 'your branch'} â€” paid cash
         plus committed requests (awaiting approval or payout). Maintenance is included as a category (GL 5020);
-        machine-level attribution arrives with the Maintenance desk.
+        machine repair-vs-replace below is additive and does not change these category totals.
       </p>
 
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3">
@@ -219,7 +221,7 @@ export function ManagerSpendTab({
         >
           <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Top category</p>
           <p className="mt-1 text-sm font-black text-zarewa-teal truncate">
-            {insights.topCategory?.category || '—'}
+            {insights.topCategory?.category || 'â€”'}
           </p>
           <p className="mt-0.5 text-ui-xs text-slate-500 tabular-nums">
             {insights.topCategory ? formatNgn(insights.topCategory.amountNgn) : 'No spend'}
@@ -305,7 +307,7 @@ export function ManagerSpendTab({
                   <p className="mt-1 text-sm font-bold tabular-nums text-slate-800">{formatNgn(d.amountNgn)}</p>
                   <p className="text-ui-xs text-slate-500">
                     {d.pct}% of total
-                    {d.deltaPct != null ? ` · ${d.deltaPct > 0 ? '+' : ''}${d.deltaPct}% MoM` : ''}
+                    {d.deltaPct != null ? ` Â· ${d.deltaPct > 0 ? '+' : ''}${d.deltaPct}% MoM` : ''}
                   </p>
                 </button>
               ))}
@@ -318,7 +320,7 @@ export function ManagerSpendTab({
                     <th className="px-3 py-2 font-bold">Category</th>
                     <th className="px-3 py-2 font-bold text-right">Amount</th>
                     <th className="px-3 py-2 font-bold text-right">% total</th>
-                    <th className="px-3 py-2 font-bold text-right">Δ vs prior</th>
+                    <th className="px-3 py-2 font-bold text-right">Î” vs prior</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -377,7 +379,7 @@ export function ManagerSpendTab({
       <PanelShell
         title="How do I reduce it?"
         subtitle="Anomalies and actionable signals"
-        disclaimer="MoM alerts need ≥25% rise, ≥₦50,000 absolute increase, and a material prior month (also ≥₦50,000) — so one-off spikes do not keep alerting after spend returns to normal."
+        disclaimer="MoM alerts need â‰¥25% rise, â‰¥â‚¦50,000 absolute increase, and a material prior month (also â‰¥â‚¦50,000) â€” so one-off spikes do not keep alerting after spend returns to normal."
       >
         {insights.signals.length ? (
           <ul className="space-y-2">
@@ -411,13 +413,12 @@ export function ManagerSpendTab({
         )}
       </PanelShell>
 
-      <PanelShell
-        title="Machines"
-        subtitle="Repair cost per machine"
-        disclaimer="Stub — machine registry and maintenance cost lines are not in the UI yet. Category Maintenance still appears in the rankings above."
-      >
-        <EmptyNote text="Available when the Maintenance desk ships. Lifetime repair vs asset value will surface here." />
-      </PanelShell>
+      <ManagerSpendMachinesPanel
+        branchId={branchId}
+        filterBranchId={filterBranchId}
+        viewAllBranches={viewAllBranches}
+        branchNameById={branchNameById}
+      />
 
       <ModalFrame
         isOpen={Boolean(drill)}
@@ -468,7 +469,7 @@ export function ManagerSpendTab({
                         ) : null}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-semibold">{formatNgn(r.amountNgn)}</td>
-                      <td className="px-3 py-2 text-slate-500">{r.requestId || r.expenseId || r.reference || '—'}</td>
+                      <td className="px-3 py-2 text-slate-500">{r.requestId || r.expenseId || r.reference || 'â€”'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -486,7 +487,7 @@ export function ManagerSpendTab({
                 to="/accounts?tab=disbursements"
                 className="text-ui-xs font-bold uppercase text-zarewa-teal hover:underline"
               >
-                Full Payment register →
+                Full Payment register â†’
               </Link>
             ) : (
               <p className="text-ui-xs text-slate-500">Payment register stays on the Finance desk.</p>

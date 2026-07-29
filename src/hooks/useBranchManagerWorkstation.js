@@ -32,6 +32,9 @@ import {
   buildGovernanceInboxRows,
   buildProcurementInboxRows,
   buildOrdersInboxRows,
+  countAbsentFromRoll,
+  countAgedAttentionItems,
+  countMachinesDown,
   filterAttentionItems,
   formatRefundReasonCategory,
   matchesInboxSearch,
@@ -157,6 +160,11 @@ export function useBranchManagerWorkstation() {
   const [editingPaymentRequestId, setEditingPaymentRequestId] = useState('');
   const [expenseCorrectionForm, setExpenseCorrectionForm] = useState(() => initialExpenseRequestFormState());
   const [attendancePendingCount, setAttendancePendingCount] = useState(0);
+  const [absentTodayCount, setAbsentTodayCount] = useState(null);
+  const [absentAvailable, setAbsentAvailable] = useState(false);
+  const [machinesDownCount, setMachinesDownCount] = useState(null);
+  const [machinesDownAvailable, setMachinesDownAvailable] = useState(false);
+  const [maintenanceIssueCount, setMaintenanceIssueCount] = useState(0);
   const [remarkDialog, setRemarkDialog] = useState(INITIAL_REMARK_DIALOG);
   const [remarkDraft, setRemarkDraft] = useState('');
   const [confirmDialog, setConfirmDialog] = useState(INITIAL_CONFIRM_DIALOG);
@@ -708,6 +716,8 @@ export function useBranchManagerWorkstation() {
   useEffect(() => {
     if (!showAttendanceTab || !mgrBranchId) {
       setAttendancePendingCount(0);
+      setAbsentTodayCount(null);
+      setAbsentAvailable(false);
       return;
     }
     let cancelled = false;
@@ -722,6 +732,8 @@ export function useBranchManagerWorkstation() {
       if (cancelled) return;
       if (!staffQ.ok || !staffQ.data?.ok) {
         setAttendancePendingCount(0);
+        setAbsentTodayCount(null);
+        setAbsentAvailable(false);
         return;
       }
       const staff = Array.isArray(staffQ.data.staff) ? staffQ.data.staff : [];
@@ -731,8 +743,8 @@ export function useBranchManagerWorkstation() {
           String(s.status || '').toLowerCase() === 'active' &&
           String(s.payrollGroup || 'branch_ops') === 'branch_ops'
       );
-      const rollRows =
-        rollQ.ok && rollQ.data?.ok && Array.isArray(rollQ.data.roll?.rows) ? rollQ.data.roll.rows : [];
+      const rollOk = rollQ.ok && rollQ.data?.ok;
+      const rollRows = rollOk && Array.isArray(rollQ.data.roll?.rows) ? rollQ.data.roll.rows : [];
       const markedUserIds = new Set(rollRows.map(readStaffUserId).filter(Boolean));
       const pending = branchStaff.reduce((count, s) => {
         const userId = readStaffUserId(s);
@@ -740,11 +752,44 @@ export function useBranchManagerWorkstation() {
         return markedUserIds.has(userId) ? count : count + 1;
       }, 0);
       setAttendancePendingCount(pending);
+      if (rollOk) {
+        setAbsentTodayCount(countAbsentFromRoll(rollRows));
+        setAbsentAvailable(true);
+      } else {
+        setAbsentTodayCount(null);
+        setAbsentAvailable(false);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [mgrBranchId, showAttendanceTab, ws?.refreshEpoch]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await apiFetch('/api/maintenance/work-orders?openOnly=1').catch(() => ({ ok: false }));
+      if (cancelled) return;
+      if (!res.ok || res.data?.ok === false) {
+        setMachinesDownCount(null);
+        setMachinesDownAvailable(false);
+        setMaintenanceIssueCount(0);
+        return;
+      }
+      const list = Array.isArray(res.data?.workOrders) ? res.data.workOrders : [];
+      setMachinesDownCount(countMachinesDown(list));
+      setMachinesDownAvailable(true);
+      setMaintenanceIssueCount(list.length);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mgrBranchId, ws?.refreshEpoch]);
+
+  const agedAttentionCount = useMemo(
+    () => countAgedAttentionItems(attentionItems),
+    [attentionItems]
+  );
 
   const fetchAudit = useCallback(async (quoteId) => {
     if (!quoteId) return;
@@ -2053,6 +2098,13 @@ export function useBranchManagerWorkstation() {
     setExpenseCorrectionForm,
     attendancePendingCount,
     setAttendancePendingCount,
+    absentTodayCount,
+    absentAvailable,
+    machinesDownCount,
+    machinesDownAvailable,
+    maintenanceIssueCount,
+    setMaintenanceIssueCount,
+    agedAttentionCount,
     remarkDialog,
     setRemarkDialog,
     remarkDraft,

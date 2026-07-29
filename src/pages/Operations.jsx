@@ -1880,6 +1880,9 @@ const Operations = () => {
                 onGoInventory={goOverviewInventory}
                 onRequestCoils={() => setShowCoilRequest(true)}
                 onMonthEndStock={() => setMonthEndStockOpen(true)}
+                roleKey={ws?.session?.user?.roleKey || ''}
+                branchId={ws?.branchScope || ws?.session?.currentBranchId || ''}
+                branches={ws?.snapshot?.branches || []}
               />
             </MainPanel>
           </div>
