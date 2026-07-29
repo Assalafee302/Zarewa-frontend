@@ -81,7 +81,7 @@ export function SettingsIntegrationApiPanel({ showToast, onRefresh }) {
           <input className="z-input w-full" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
         </div>
         <button type="button" className="z-btn-primary !text-xs" disabled={busy} onClick={() => void createKey()}>
-          {busy ? 'Working…' : 'Create key'}
+          {busy ? 'Creating…' : 'Create key'}
         </button>
       </div>
       <div className="overflow-x-auto rounded-xl border border-slate-100">

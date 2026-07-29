@@ -7,7 +7,7 @@ const STEPS = [
   { id: 'draft', label: 'Draft' },
   { id: 'approved', label: 'Approved' },
   { id: 'payment', label: 'Payment' },
-  { id: 'fulfilment', label: 'Ready' },
+  { id: 'fulfilment', label: 'Ready for production' },
 ];
 
 function resolveActiveIndex(status, payStatus, hasId) {

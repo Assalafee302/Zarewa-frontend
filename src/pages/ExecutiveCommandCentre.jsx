@@ -57,11 +57,11 @@ import {
 
 const EXEC_TABS = [
   { id: 'today', label: 'Today', mdOnly: true },
-  { id: 'decide', label: 'Decide', mdOnly: true },
+  { id: 'decide', label: 'Approvals', mdOnly: true },
   { id: 'customers', label: 'Customers', mdOnly: true },
-  { id: 'trace', label: 'Trace', mdOnly: true },
+  { id: 'trace', label: 'Audit trail', mdOnly: true },
   { id: 'overview', label: 'Review' },
-  { id: 'intelligence', label: 'Intelligence' },
+  { id: 'intelligence', label: 'Insights' },
   { id: 'finance', label: 'Finance' },
 ];
 
@@ -695,14 +695,14 @@ export default function ExecutiveCommandCentre() {
       <PageShell>
         <PageHeader
           eyebrow="Zarewa Aluminium & Plastics"
-          title={roleKey === 'md' ? 'MD Office' : 'Command Centre'}
+          title="Executive Office"
           subtitle={pageSubtitle}
           tabs={
             <PageTabs
               tabs={pageTabs}
               value={activeTab}
               onChange={setActiveTab}
-              ariaLabel="Command centre sections"
+              ariaLabel="Executive Office sections"
             />
           }
           toolbar={

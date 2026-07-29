@@ -178,7 +178,7 @@ export function LiveProductionMonitor({
   /** Business date for start / completion (YYYY-MM-DD). */
   const [productionDateIso, setProductionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
   const [completionDateIso, setCompletionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
-  /** Until workspace refresh catches up after Save & start. */
+  /** Until workspace refresh catches up after Save and start production. */
   const [optimisticJobStatus, setOptimisticJobStatus] = useState(null);
   const [correctionModalKind, setCorrectionModalKind] = useState(null);
   const [correctionReason, setCorrectionReason] = useState('');
@@ -2119,7 +2119,7 @@ export function LiveProductionMonitor({
       await refreshProductionWorkspace();
       showToast(
         wasRecall
-          ? 'Run recalled to Planned — fix coils / opening kg, then Save & start and Complete again.'
+          ? 'Run recalled to Planned — fix coils / opening kg, then Save and start production and Complete again.'
           : 'Job returned to plan — you can fix coils and save allocation again.'
       );
     } catch (e) {
@@ -2495,8 +2495,8 @@ export function LiveProductionMonitor({
             .join('\n');
           const go = await askProductionConfirm({
             title: 'Coil spec mismatch',
-            message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`,
-            confirmLabel: 'Save anyway',
+            message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave with exception and flag the branch manager for review?`,
+            confirmLabel: 'Save with exception',
             tone: 'amber',
           });
           if (go) {
@@ -2687,8 +2687,8 @@ export function LiveProductionMonitor({
               .join('\n');
             const go = await askProductionConfirm({
               title: 'Coil spec mismatch',
-              message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`,
-              confirmLabel: 'Save anyway',
+              message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave with exception and flag the branch manager for review?`,
+              confirmLabel: 'Save with exception',
             });
             if (go) {
               resRl = await apiFetch(`${jobApi}/coil-run-log`, {
@@ -2731,8 +2731,8 @@ export function LiveProductionMonitor({
                 .join('\n');
               const go = await askProductionConfirm({
                 title: 'Coil spec mismatch',
-                message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`,
-                confirmLabel: 'Save anyway',
+                message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave with exception and flag the branch manager for review?`,
+                confirmLabel: 'Save with exception',
               });
               if (go) {
                 const second = buildRunAppend(true);
@@ -2783,7 +2783,7 @@ export function LiveProductionMonitor({
               formatProductionPriceBlockMessage(
                 startRes.data,
                 startRes.data?.error ||
-                  'Stone step saved, but production could not be started (e.g. below-floor price approval). Use the pricing banner above, then Save & start again.'
+                  'Stone step saved, but production could not be started (e.g. below-floor price approval). Use the pricing banner above, then Save and start production again.'
               ),
               { variant: 'error' }
             );
@@ -2871,10 +2871,10 @@ export function LiveProductionMonitor({
           .join('\n');
         const go = await askProductionConfirm({
           title: 'Coil spec mismatch',
-          message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review${
+          message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave with exception and flag the branch manager for review${
             alsoStartAfterAlloc ? ', then start production' : ''
           }?`,
-          confirmLabel: alsoStartAfterAlloc ? 'Save & start anyway' : 'Save anyway',
+          confirmLabel: alsoStartAfterAlloc ? 'Save and start production with exception' : 'Save with exception',
         });
         if (go) {
           const second = buildAllocBody(true);
@@ -2905,7 +2905,7 @@ export function LiveProductionMonitor({
             formatProductionPriceBlockMessage(
               startRes.data,
               startRes.data?.error ||
-                'Coils saved, but production could not be started. Approve below-floor pricing in the banner above, then use Save & start again.'
+                'Coils saved, but production could not be started. Approve below-floor pricing in the banner above, then use Save and start production again.'
             ),
             { variant: 'error' }
           );
@@ -3024,7 +3024,7 @@ export function LiveProductionMonitor({
           title: 'Manager review required',
           message:
             'This completion will flag manager review (conversion outside expected bands versus multiple references). Post anyway?',
-          confirmLabel: 'Complete anyway',
+          confirmLabel: 'Complete with exception',
           tone: 'amber',
         });
         if (!proceed) {
@@ -3043,7 +3043,7 @@ export function LiveProductionMonitor({
         const proceedAcc = await askProductionConfirm({
           title: 'Accessory stock warning',
           message: `On-hand accessory stock is less than the quantities entered. Balances can go negative.\n\n${w}\n\nComplete production anyway?`,
-          confirmLabel: 'Complete anyway',
+          confirmLabel: 'Complete with exception',
           tone: 'amber',
         });
         if (!proceedAcc) {
@@ -3322,7 +3322,7 @@ export function LiveProductionMonitor({
                     >
                       <Save size={14} />
                       <Play size={13} />
-                      {savingAction === 'allocationsAndStart' ? 'Saving & starting…' : 'Save & start'}
+                      {savingAction === 'allocationsAndStart' ? 'Saving and starting…' : 'Save and start production'}
                     </button>
                   ) : null}
                   {jobSt === 'Running' && !stonePureNoCoil && !completionUsesOffcutMode ? (
@@ -3416,7 +3416,7 @@ export function LiveProductionMonitor({
                       className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
                     >
                       <AlertTriangle size={13} />
-                      Stock damage report
+                      Material exception
                     </button>
                   ) : null}
                   <button
@@ -4142,7 +4142,7 @@ export function LiveProductionMonitor({
                 Sold stone flatsheet is issued in m². Ridge and bargeboard consume extra SF sheets by yield (length chosen
                 here); offcut finished metres are recorded and kept.
                 {jobSt === 'Planned'
-                  ? ' You can enter usage while Planned; use Save & start before completing the job.'
+                  ? ' You can enter usage while Planned; use Save and start production before completing the job.'
                   : null}
               </p>
               <div className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white">
@@ -4654,11 +4654,11 @@ export function LiveProductionMonitor({
                         : stoneCoilHybrid
                           ? 'Allocate coil or use offcut for normal flatsheet; enter stone metres for roofing → Complete.'
                         : isStoneMeterQuote
-                        ? 'Metres only → Save & start → Complete.'
+                        ? 'Metres only → Save and start production → Complete.'
                         : completionUsesOffcutMode
                           ? 'No coil selection required. Enter output metres (optional) and complete.'
                         : canEditPlannedAllocations
-                          ? 'Pick coil + opening kg → Save & start.'
+                          ? 'Pick coil + opening kg → Save and start production.'
                           : canAddSupplementalCoil
                             ? 'Next roll: Add coil, then Save.'
                             : canEditCompletedCoilCorrections
@@ -4678,7 +4678,7 @@ export function LiveProductionMonitor({
                         {completionUsesOffcutMode
                           ? 'Use when output came from offcuts or this job only supplies accessories. Coil allocation is skipped and completion posts accessories plus optional finished-goods metres.'
                           : !stonePureNoCoil && canEditPlannedAllocations
-                          ? 'While Planned you can change the whole set and Save & start again. After start, use Return to plan to swap primary coils (audit reason).'
+                          ? 'While Planned you can change the whole set and Save and start production again. After start, use Return to plan to swap primary coils (audit reason).'
                           : !stonePureNoCoil && canAddSupplementalCoil
                             ? 'Running: only new blank rows attach as extra coils when you Save. Finished rolls stay on the list for the full job.'
                             : !stonePureNoCoil && canEditCompletedCoilCorrections
@@ -4799,7 +4799,7 @@ export function LiveProductionMonitor({
                     <strong className="text-zarewa-teal">Stone-coated roofing</strong>{' '}
                     {stoneCoilHybrid
                       ? 'stock is tracked in metres. Use coil or offcut below for normal flatsheet / gutter.'
-                      : 'stock is tracked in metres (no coil numbers). Use Save & start once to begin the run.'}
+                      : 'stock is tracked in metres (no coil numbers). Use Save and start production once to begin the run.'}
                   </p>
                   {jobSt === 'Running' || canEditCompletedStoneMetresCorrections ? (
                     <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
@@ -5298,7 +5298,7 @@ export function LiveProductionMonitor({
                 >
                   <Save size={12} />
                   <Play size={11} />
-                  {savingAction === 'allocationsAndStart' ? 'Saving…' : 'Save & start'}
+                  {savingAction === 'allocationsAndStart' ? 'Saving…' : 'Save and start production'}
                 </button>
               ) : null}
               {jobSt === 'Running' && !stonePureNoCoil && !completionUsesOffcutMode ? (
@@ -5392,7 +5392,7 @@ export function LiveProductionMonitor({
                   className="inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-ui-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
                 >
                   <AlertTriangle size={12} />
-                  Stock damage report
+                  Material exception
                 </button>
               ) : null}
               <button

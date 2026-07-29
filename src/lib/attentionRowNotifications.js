@@ -8,7 +8,7 @@ const ATTENTION_KIND_LABELS = {
   conversions: 'Production QC',
   refunds: 'Refund approval',
   payments: 'Expense approval',
-  material: 'Material exception',
+  material: 'Material exceptions',
   edit_approvals: 'Edit approval',
   governance: 'Governance',
 };
@@ -82,7 +82,7 @@ export function managementAttentionItemToNotification(item) {
     id: `attention-row:${item.id}`,
     category: 'manager',
     title: titleRef ? `${label}: ${titleRef}` : label,
-    detail: subtitle || reasons || 'Tap to open on the manager desk.',
+    detail: subtitle || reasons || 'Open on the manager desk.',
     severity,
     priority: Number(item.priority) || (severity === 'critical' ? 96 : 80),
     path: managementAttentionItemPath(item),

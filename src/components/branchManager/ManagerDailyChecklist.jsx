@@ -107,7 +107,7 @@ export function ManagerDailyChecklist({ branchId, actorName = 'Manager' }) {
   const submitSecurityHandover = async () => {
     const note = String(handoverDraft || '').trim();
     if (note.length < 3) {
-      setHandoverError('Enter a handover note (min 3 characters) before marking this tick.');
+      setHandoverError('Enter a handover note (min 3 characters) before completing this checklist item.');
       return;
     }
     setHandoverBusy(true);
@@ -141,7 +141,7 @@ export function ManagerDailyChecklist({ branchId, actorName = 'Manager' }) {
   const submitDurableEvent = async (itemId) => {
     const note = String(durableDraft || '').trim();
     if (note.length < 3) {
-      setHandoverError('Enter a short note (min 3 characters) to complete this durable tick.');
+      setHandoverError('Enter a short note (min 3 characters) to complete this checklist item.');
       return;
     }
     setHandoverBusy(true);
@@ -167,7 +167,7 @@ export function ManagerDailyChecklist({ branchId, actorName = 'Manager' }) {
           {!done ? (
             <div className="pl-6 space-y-2">
               <p className="text-ui-xs text-slate-500 leading-snug">
-                Save a durable shift note first — the checkbox alone cannot complete this tick.
+                Save a durable shift note first — the checkbox alone cannot complete this checklist item.
               </p>
               <div className="flex flex-wrap gap-2">
                 {['night', 'day'].map((k) => (
@@ -222,7 +222,7 @@ export function ManagerDailyChecklist({ branchId, actorName = 'Manager' }) {
                   onClick={() => void submitSecurityHandover()}
                   className="z-btn-primary text-ui-xs disabled:opacity-50"
                 >
-                  {handoverBusy ? 'Saving…' : 'Save handover & mark done'}
+                  {handoverBusy ? 'Saving…' : 'Save handover and complete'}
                 </button>
                 {shiftNotes.length > 0 ? (
                   <button

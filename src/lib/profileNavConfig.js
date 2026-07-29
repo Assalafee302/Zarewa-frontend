@@ -38,7 +38,7 @@ const EMPLOYEE_PAGE_META = {
   'id-card': { title: 'ID card', subtitle: 'Request or replace your company ID card' },
   benefits: { title: 'Benefits', subtitle: 'Allowances and benefits on your staff record' },
   policies: { title: 'Policies', subtitle: 'Read and sign required company policies' },
-  grievance: { title: 'Feedback', subtitle: 'Raise concerns or suggest improvements' },
+  grievance: { title: 'Grievances & feedback', subtitle: 'Raise concerns or suggest improvements' },
   surveys: { title: 'Surveys', subtitle: 'HR and engagement surveys' },
   discipline: { title: 'Conduct', subtitle: 'Conduct records and acknowledgements' },
 };
@@ -71,7 +71,7 @@ export const EMPLOYEE_PROFILE_NAV = [
     items: [
       { to: '/my-profile/benefits', label: 'Benefits', icon: Gift },
       { to: '/my-profile/policies', label: 'Policies', icon: ScrollText },
-      { to: '/my-profile/grievance', label: 'Feedback', icon: MessageSquare },
+      { to: '/my-profile/grievance', label: 'Grievances & feedback', icon: MessageSquare },
       { to: '/my-profile/surveys', label: 'Surveys', icon: ClipboardList },
       { to: '/my-profile/discipline', label: 'Conduct', icon: Scale },
     ],

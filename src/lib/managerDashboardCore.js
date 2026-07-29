@@ -1,8 +1,10 @@
+import { refundCategoryDisplayLabel } from '../shared/refundConstants.js';
+
 /** Primary branch manager dashboard inbox: one “everything” queue plus category tabs. */
 export const MANAGER_INBOX_TABS = [
   {
     key: 'attention',
-    label: 'Everything',
+    label: 'All items',
     description: 'All priority items — orders, cash, QC, flags, material, and governance',
   },
   {
@@ -12,7 +14,7 @@ export const MANAGER_INBOX_TABS = [
   },
   {
     key: 'cash_out',
-    label: 'Cash out',
+    label: 'Refunds & expenses',
     description: 'Customer refunds and expense payment requests awaiting approval',
   },
   {
@@ -27,7 +29,7 @@ export const MANAGER_INBOX_TABS = [
   },
   {
     key: 'procurement',
-    label: 'PO lifecycle',
+    label: 'Purchase orders',
     description: 'Purchase orders awaiting approval — review commitment before procurement proceeds',
   },
   {
@@ -37,24 +39,24 @@ export const MANAGER_INBOX_TABS = [
   },
   {
     key: 'governance',
-    label: 'Risk & governance',
+    label: 'Compliance alerts',
     description: 'Dual-control segregation warnings and payment-gate breaches on completed jobs',
   },
   {
     key: 'edits',
-    label: 'Edit approvals',
+    label: 'Change authorisations',
     description: 'Second-party approval required before sensitive records are saved',
   },
 ];
 
-/** Filter chips on the Everything tab for quick sorting. */
+/** Filter chips on the All items tab for quick sorting. */
 export const MANAGER_ATTENTION_FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'orders', label: 'Orders', kinds: ['clearance', 'production', 'flagged'] },
   { key: 'expenses', label: 'Expenses', kinds: ['payments'] },
   { key: 'refunds', label: 'Refunds', kinds: ['refunds'] },
-  { key: 'qc', label: 'Prod check', kinds: ['conversions'] },
-  { key: 'material', label: 'Stock damage', kinds: ['material'] },
+  { key: 'qc', label: 'Production check', kinds: ['conversions'] },
+  { key: 'material', label: 'Material exceptions', kinds: ['material'] },
   { key: 'procurement', label: 'Procurement', kinds: ['purchase_orders', 'purchase_order'] },
   { key: 'flagged', label: 'Flagged', kinds: ['flagged'] },
   { key: 'governance', label: 'Governance', kinds: ['governance'] },
@@ -330,11 +332,13 @@ export function formatRefundReasonCategory(raw) {
   if (raw == null || raw === '') return '—';
   try {
     const arr = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (Array.isArray(arr)) return arr.filter(Boolean).join(', ') || '—';
+    if (Array.isArray(arr)) {
+      return arr.filter(Boolean).map(refundCategoryDisplayLabel).join(', ') || '—';
+    }
   } catch {
     /* stored as plain text */
   }
-  return String(raw).trim() || '—';
+  return refundCategoryDisplayLabel(String(raw).trim()) || '—';
 }
 
 export function flattenQuotationLineItems(quotation) {

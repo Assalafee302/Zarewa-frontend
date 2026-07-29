@@ -9,8 +9,8 @@ export function FinanceOperationalLinks({ className = '' }) {
   const links = [
     { to: '/accounts?tab=desk', label: 'Finance desk', icon: Landmark },
     { to: '/accounts?tab=receipts', label: 'Receipts', icon: Banknote },
-    { to: '/accounts?tab=disbursements', label: 'Payment register', icon: ClipboardList },
-    { to: '/accounts?tab=movements', label: 'Movements', icon: ArrowRightLeft },
+    { to: '/accounts?tab=disbursements', label: 'Payouts & expenses', icon: ClipboardList },
+    { to: '/accounts?tab=movements', label: 'Internal transfers', icon: ArrowRightLeft },
     { to: '/accounts?tab=audit', label: 'Audit & GL', icon: Scale },
   ];
   return (

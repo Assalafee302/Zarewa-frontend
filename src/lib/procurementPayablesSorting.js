@@ -1,4 +1,4 @@
-/** Sort options for Procurement → Payments lists (open + settled). */
+/** Sort options for Procurement → Supplier payables lists (open + settled). */
 export const PAYABLES_SORT_FIELDS = [
   { id: 'due', label: 'Due date' },
   { id: 'supplier', label: 'Supplier' },

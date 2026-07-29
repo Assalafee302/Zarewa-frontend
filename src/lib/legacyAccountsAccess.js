@@ -157,7 +157,7 @@ export function legacyAccountTabLabelForRole(tabId, roleKey) {
   if (isCashierRole(roleKey)) {
     const labels = {
       receipts: 'Receipts',
-      movements: 'Movements',
+      movements: 'Internal transfers',
     };
     return labels[tab] || null;
   }

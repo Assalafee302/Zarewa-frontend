@@ -353,7 +353,7 @@ export function useBranchManagerWorkstation() {
             : selectedIntel?.kind === 'conversion'
               ? 'Conversion QC sign-off'
               : selectedIntel?.kind === 'material'
-                ? 'Stock damage report review'
+                ? 'Material exception review'
                 : selectedIntel?.kind === 'governance'
                   ? 'Governance & risk review'
                   : selectedIntel?.kind === 'staff_purchase_credit'
@@ -1866,10 +1866,10 @@ export function useBranchManagerWorkstation() {
   const handleDisapproveSelectedQuotation = useCallback(async () => {
     if (selectedIntel?.kind !== 'quotation') return;
     const prompted = await requestRemark({
-      title: 'Disapprove quotation',
+      title: 'Reject quotation',
       description:
-        'Disapproval sends this quotation to the flagged audit queue and blocks clearance until reviewed. Explain why it should not proceed.',
-      confirmLabel: 'Disapprove',
+        'Rejection sends this quotation to the flagged audit queue and blocks clearance until reviewed. Explain why it should not proceed.',
+      confirmLabel: 'Reject',
       minLength: 5,
       optional: false,
       variant: 'warning',
@@ -1883,7 +1883,7 @@ export function useBranchManagerWorkstation() {
     if (selectedIntel?.kind !== 'quotation') return;
     const prompted = await requestRemark({
       title: 'Flag for audit',
-      description: 'Flag keeps the quotation visible for follow-up audit without treating it as a hard disapproval.',
+      description: 'Flag keeps the quotation visible for follow-up audit without treating it as a hard rejection.',
       confirmLabel: 'Flag quotation',
       minLength: 3,
       optional: false,

@@ -158,7 +158,7 @@ const Account = () => {
   const [activeTab, setActiveTab] = useState('desk');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
-  /** In-tab filter for Payment register tab (also falls back to header search). */
+  /** In-tab filter for Payouts & expenses tab (also falls back to header search). */
   const [disbursementsSearch, setDisbursementsSearch] = useState('');
   const [disbursementsPayRequestQueue, setDisbursementsPayRequestQueue] = useState('all');
   const [reclassifyTarget, setReclassifyTarget] = useState(null);
@@ -1376,8 +1376,8 @@ const Account = () => {
   const accountTabs = useMemo(() => {
     const all = [
       { id: 'desk', icon: <LayoutDashboard size={16} />, label: FINANCE_DESK_TAB_LABEL },
-      { id: 'receipts', icon: <Banknote size={16} />, label: 'Receipts & recon' },
-      { id: 'movements', icon: <ArrowRightLeft size={16} />, label: 'Movements' },
+      { id: 'receipts', icon: <Banknote size={16} />, label: TAB_LABELS.receipts },
+      { id: 'movements', icon: <ArrowRightLeft size={16} />, label: TAB_LABELS.movements },
       { id: 'disbursements', icon: <ClipboardList size={16} />, label: TAB_LABELS.disbursements },
       { id: 'audit', icon: <ShieldCheck size={16} />, label: 'Audit' },
     ];
@@ -3147,7 +3147,7 @@ const Account = () => {
   const isCashierRole = userIsCashierRole(ws?.session?.user?.roleKey);
   const financePageTitle = (() => {
     if (activeTab === 'desk') return FINANCE_DESK_TAB_LABEL;
-    return 'Finance & accounts';
+    return 'Finance';
   })();
   const financePageSubtitle = (() => {
     if (activeTab === 'desk') {
@@ -3536,7 +3536,7 @@ const Account = () => {
             </h3>
             <p className="text-ui-xs text-gray-600 mt-2 leading-relaxed">
               Pay suppliers against purchase orders on Procurement →{' '}
-              <span className="font-bold text-zarewa-teal">Payments</span> (not the finance payment register).
+              <span className="font-bold text-zarewa-teal">Payments</span> (not Finance → Payouts & expenses).
             </p>
           </Link>
 

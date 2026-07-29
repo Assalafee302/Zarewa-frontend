@@ -35,7 +35,7 @@ export default function MaterialIncidentPrintView({ payload }) {
       <header className="border-b-2 border-zarewa-teal pb-4 mb-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Material exception register</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Material exceptions register</p>
             <h1 className="text-xl font-black text-zarewa-teal">{ZAREWA_COMPANY_ACCOUNT_NAME}</h1>
             <p className="text-sm font-semibold text-slate-700">{payload.branchName || payload.branchId}</p>
           </div>

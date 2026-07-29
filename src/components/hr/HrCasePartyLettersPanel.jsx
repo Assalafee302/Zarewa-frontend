@@ -66,7 +66,7 @@ function LetterRow({ letter, canManage, canApprove, busyId, onRun }) {
             className="text-xs font-semibold text-sky-800 hover:underline disabled:opacity-50"
             onClick={() => onRun(id, 'submit')}
           >
-            {busy ? 'Working…' : 'Submit for review'}
+            {busy ? 'Submitting…' : 'Submit for review'}
           </button>
         ) : null}
         {canHrApprove ? (
@@ -76,7 +76,7 @@ function LetterRow({ letter, canManage, canApprove, busyId, onRun }) {
             className="text-xs font-semibold text-indigo-800 hover:underline disabled:opacity-50"
             onClick={() => onRun(id, 'hr_approve')}
           >
-            {busy ? 'Working…' : 'HR approve'}
+            {busy ? 'Approving…' : 'HR approve'}
           </button>
         ) : null}
         {canGmApprove ? (
@@ -86,7 +86,7 @@ function LetterRow({ letter, canManage, canApprove, busyId, onRun }) {
             className="text-xs font-semibold text-violet-800 hover:underline disabled:opacity-50"
             onClick={() => onRun(id, 'gm_approve')}
           >
-            {busy ? 'Working…' : 'GM approve'}
+            {busy ? 'Approving…' : 'GM approve'}
           </button>
         ) : null}
         {canMdApprove ? (
@@ -96,7 +96,7 @@ function LetterRow({ letter, canManage, canApprove, busyId, onRun }) {
             className="text-xs font-semibold text-purple-800 hover:underline disabled:opacity-50"
             onClick={() => onRun(id, 'md_approve')}
           >
-            {busy ? 'Working…' : 'MD approve'}
+            {busy ? 'Approving…' : 'MD approve'}
           </button>
         ) : null}
         {canIssue ? (
@@ -106,7 +106,7 @@ function LetterRow({ letter, canManage, canApprove, busyId, onRun }) {
             className="text-xs font-semibold text-teal-800 hover:underline disabled:opacity-50"
             onClick={() => onRun(id, 'issue')}
           >
-            {busy ? 'Working…' : 'Issue letter'}
+            {busy ? 'Issuing…' : 'Issue letter'}
           </button>
         ) : null}
         {canPdf ? (
@@ -116,7 +116,7 @@ function LetterRow({ letter, canManage, canApprove, busyId, onRun }) {
             className="text-xs font-semibold text-teal-800 hover:underline disabled:opacity-50"
             onClick={() => onRun(id, 'pdf')}
           >
-            {busy ? 'Working…' : 'Download PDF'}
+            {busy ? 'Downloading…' : 'Download PDF'}
           </button>
         ) : null}
         <Link

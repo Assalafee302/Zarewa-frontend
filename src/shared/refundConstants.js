@@ -48,6 +48,23 @@ export const REFUND_REASON_CATEGORY_VALUES = [
   'Other',
 ];
 
+/**
+ * UI-only labels for refund reason categories.
+ * Canonical `REFUND_REASON_CATEGORY_VALUES` stay unchanged for API / persistence.
+ */
+export const REFUND_CATEGORY_DISPLAY_LABELS = {
+  'Unproduced meterage': 'Unproduced metres',
+  'Stone flatsheet shortfall': 'Stone flat-sheet shortfall',
+  'Customer commission': 'Agent commission',
+};
+
+/** @param {unknown} canonical */
+export function refundCategoryDisplayLabel(canonical) {
+  const s = String(canonical ?? '').trim();
+  if (!s) return '';
+  return REFUND_CATEGORY_DISPLAY_LABELS[s] || s;
+}
+
 /** Map legacy / test strings to canonical categories (duplicate detection + preview). */
 export const REFUND_CATEGORY_LEGACY_ALIASES = {
   'unproduced metres': 'Unproduced meterage',

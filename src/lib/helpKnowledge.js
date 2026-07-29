@@ -38,7 +38,7 @@ const CORE_HELP_ARTICLES = [
       'Bank/cash **clearance** is a separate step — confirm on **Finance → Finance desk** or Receipts tab (see receipt clearance guide).',
     ],
     links: [
-      { label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } },
+      { label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } },
       { label: 'Finance desk', to: '/accounts?tab=desk' },
       { label: 'Dashboard quick actions', to: '/' },
     ],
@@ -65,8 +65,8 @@ const CORE_HELP_ARTICLES = [
       'For a closed accounting month, you may need the period unlocked in Settings → Governance before any new posting.',
     ],
     links: [
-      { label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } },
-      { label: 'Edit approvals', to: '/edit-approvals' },
+      { label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } },
+      { label: 'Change authorisations', to: '/edit-approvals' },
       { label: 'Settings — governance', to: '/settings/governance' },
       { label: 'Finance', to: '/accounts' },
     ],
@@ -139,17 +139,17 @@ const CORE_HELP_ARTICLES = [
   },
   {
     id: 'edit-approval',
-    title: 'Edit approvals (second approval)',
+    title: 'Change authorisations (second approval)',
     keywords: ['edit approval', 'second approval', 'locked edit', 'change approved', 'pending edit'],
     answer:
       'Sensitive edits after posting may require a second approver before the change applies.',
     steps: [
-      'If you see a second-approval banner on a row, wait for an approver or open Edit approvals from the sidebar.',
+      'If you see a second-approval banner on a row, wait for an approver or open Change authorisations from the sidebar.',
       'Approvers review pending changes and approve or reject.',
       'After approval, refresh the Sales or Finance screen and confirm the row updated.',
     ],
     links: [
-      { label: 'Edit approvals', to: '/edit-approvals' },
+      { label: 'Change authorisations', to: '/edit-approvals' },
       { label: 'Manager dashboard', to: '/manager' },
     ],
   },
@@ -171,7 +171,7 @@ const CORE_HELP_ARTICLES = [
       'Open Procurement → Purchases to create or approve a PO.',
       'Assign transport and post in transit when material leaves the supplier.',
       'Operations / store completes GRN against the PO when material arrives.',
-      'Pay supplier from Procurement → Payments when AP is due.',
+      'Pay supplier from Procurement → Supplier payables when AP is due.',
     ],
     links: [{ label: 'Procurement', to: '/procurement' }],
   },
@@ -310,7 +310,7 @@ const CORE_HELP_ARTICLES = [
     ],
     links: [
       { label: 'Sales — Quotations', to: '/sales', state: { focusSalesTab: 'quotations' } },
-      { label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } },
+      { label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } },
       { label: 'Operations', to: '/operations' },
       { label: 'Finance', to: '/accounts' },
     ],
@@ -334,7 +334,7 @@ const CORE_HELP_ARTICLES = [
       'Route the PO through approval if your branch requires it; watch for transport fee lines that Finance may post separately.',
       'Mark material in transit when it leaves the supplier; Operations sees incoming loads by destination branch.',
       'Complete GRN at the store when material arrives — this updates stock and closes the quantity gap on the PO.',
-      'Review open AP in Procurement → Payments (or Finance) and pay the supplier from the correct treasury account.',
+      'Review open AP in Procurement → Supplier payables (or Finance) and pay the supplier from the correct treasury account.',
       'If GRN quantities differ from the PO, note the variance on the GRN and align with Finance before paying.',
     ],
     links: [
@@ -420,7 +420,7 @@ const CORE_HELP_ARTICLES = [
     ],
     links: [
       { label: 'Finance', to: '/accounts' },
-      { label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } },
+      { label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } },
     ],
   },
   {
@@ -575,7 +575,7 @@ const CORE_HELP_ARTICLES = [
       'Check branch settings / manager targets for the configured fraction.',
     ],
     links: [
-      { label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } },
+      { label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } },
       { label: 'Manager dashboard', to: '/manager' },
     ],
   },
@@ -675,7 +675,7 @@ const CORE_HELP_ARTICLES = [
       'If paid amount looks wrong, use Finance reconcile tools or correct-receipt flows before starting a refund.',
     ],
     links: [
-      { label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } },
+      { label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } },
       { label: 'Sales — Quotations', to: '/sales', state: { focusSalesTab: 'quotations' } },
       { label: 'Finance', to: '/accounts' },
     ],
@@ -704,7 +704,7 @@ const CORE_HELP_ARTICLES = [
     links: [
       { label: 'Finance desk', to: '/accounts?tab=desk' },
       { label: 'Finance & accounts', to: '/accounts' },
-      { label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } },
+      { label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } },
       { label: 'Manager dashboard', to: '/manager' },
     ],
   },
@@ -910,7 +910,7 @@ const CORE_HELP_ARTICLES = [
       'Re-post from the correct branch treasury account.',
       'Verify treasury balance and AP status after correction.',
     ],
-    links: [{ label: 'Finance — Payment register', to: '/accounts?tab=disbursements' }],
+    links: [{ label: 'Finance — Payouts & expenses', to: '/accounts?tab=disbursements' }],
   },
   {
     id: 'manager-payment-hold-clearance',
@@ -934,7 +934,7 @@ const CORE_HELP_ARTICLES = [
     ],
     links: [
       { label: 'Manager dashboard', to: '/manager' },
-      { label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } },
+      { label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } },
     ],
   },
   {
@@ -1001,7 +1001,7 @@ const CORE_HELP_ARTICLES = [
       'Use **Recall entry** on the production register (or **Recall** on the in-progress queue) when production was saved wrongly. The action depends on job status — completed jobs cannot be fully reopened.',
     steps: [
       '**Planned:** Recall entry cancels the job (reason required). Cutting list returns to **Waiting** — fix lengths in Sales if needed, then register again. If only coils were wrong, edit coils on the Planned job instead of recalling.',
-      '**Running:** Recall entry returns the job to **Planned** (reason required). Fix coils / opening kg, then Save & start and Complete again.',
+      '**Running:** Recall entry returns the job to **Planned** (reason required). Fix coils / opening kg, then Save and start production and Complete again.',
       '**Completed:** Use **Fix wrong entry** — edit coil lines and **Save correction**, or a manager posts **Post stock correction** for warehouse metres. The completed record is not fully recalled (avoids double GL).',
       '**Cancelled:** Job already released — register a new production job from Sales if work must continue.',
     ],
@@ -1107,7 +1107,7 @@ const CORE_HELP_ARTICLES = [
       'Manager dashboard may show duplicate-payment intel for review.',
     ],
     links: [
-      { label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } },
+      { label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } },
       { label: 'Manager dashboard', to: '/manager' },
     ],
   },
@@ -1173,7 +1173,7 @@ const CORE_HELP_ARTICLES = [
       'Attach supporting documents before approval.',
     ],
     links: [
-      { label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } },
+      { label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } },
       { label: 'Finance', to: '/accounts' },
     ],
   },
@@ -1197,7 +1197,7 @@ const CORE_HELP_ARTICLES = [
     ],
     links: [
       { label: 'Finance', to: '/accounts', state: { accountsTab: 'receipts' } },
-      { label: 'Edit approvals', to: '/edit-approvals' },
+      { label: 'Change authorisations', to: '/edit-approvals' },
     ],
   },
   {
@@ -1222,7 +1222,7 @@ const CORE_HELP_ARTICLES = [
     ],
     links: [
       { label: 'Manager dashboard', to: '/manager' },
-      { label: 'Edit approvals', to: '/edit-approvals' },
+      { label: 'Change authorisations', to: '/edit-approvals' },
       { label: 'Settings — governance', to: '/settings/governance' },
     ],
   },
@@ -1944,7 +1944,7 @@ export function quickQuestionsForPath(pathname) {
       { label: 'Payment hold', query: 'Manager payment hold and clearance' },
       { label: 'Refund headroom', query: 'Refund categories and quotation cap' },
       { label: 'GRN variance', query: 'GRN below ordered weight alert' },
-      { label: 'Edit approvals', query: 'How do second approvals work?' },
+      { label: 'Change authorisations', query: 'How do second approvals work?' },
     ];
   }
   if (p.startsWith('/settings')) {

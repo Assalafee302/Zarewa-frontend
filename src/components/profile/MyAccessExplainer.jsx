@@ -6,9 +6,9 @@ import { canAccessModuleWithPermissions } from '../../lib/moduleAccess';
 
 const MODULE_HINTS = [
   { key: 'sales', label: 'Sales', path: '/sales', perm: 'sales.view' },
-  { key: 'operations', label: 'Store & production', path: '/operations', perm: 'operations.view' },
+  { key: 'operations', label: 'Operations', path: '/operations', perm: 'operations.view' },
   { key: 'procurement', label: 'Procurement', path: '/procurement', perm: 'procurement.view' },
-  { key: 'accounts', label: 'Finance & accounts', path: '/accounts', perm: 'accounts.view' },
+  { key: 'accounts', label: 'Finance', path: '/accounts', perm: 'accounts.view' },
   { key: 'hr', label: 'Human resources', path: '/hr', perm: 'hr.directory.view' },
   { key: 'team_hr', label: 'Team HR', path: '/team-hr', perm: 'hr.team.view' },
   { key: 'executive_hr', label: 'Executive HR', path: '/executive-hr', perm: 'hr.executive.view' },

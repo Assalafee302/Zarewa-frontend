@@ -49,7 +49,7 @@ const defaultForm = (defaultDate, incidentType = 'coil_stain') => ({
 });
 
 function incidentTypeLabel(type) {
-  return INCIDENT_TYPES.find((t) => t.id === type)?.label || 'Stock damage report';
+  return INCIDENT_TYPES.find((t) => t.id === type)?.label || 'Material exception';
 }
 
 function dispositionOptions(incidentType) {

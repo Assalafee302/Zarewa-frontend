@@ -25,7 +25,7 @@ export function AccountingDebtorsPanel({
       <div className="flex flex-wrap gap-2">
         {[
           { id: 'register', label: 'Payables register' },
-          { id: 'supplierAp', label: 'Supplier AP (AP2)' },
+          { id: 'supplierAp', label: 'Supplier payables' },
         ].map((t) => (
           <button
             key={t.id}

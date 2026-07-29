@@ -9,7 +9,7 @@ describe('enrichProductionFollowUpRows', () => {
         cuttingListId: 'CL-100',
         quotationRef: 'Q-42',
         customer: 'Acme Ltd',
-        lineStatusLabel: 'Pushed',
+        lineStatusLabel: 'Released to production',
         status: 'Planned',
         needsCoil: true,
         coilLabel: 'Coils: none (allocate before start)',
@@ -32,7 +32,7 @@ describe('enrichProductionFollowUpRows', () => {
       projectName: 'Warehouse roof',
       colour: 'Heritage Blue',
       gauge: '0.45mm',
-      lineStatus: 'Pushed',
+      lineStatus: 'Released to production',
       jobStatus: 'Planned',
     });
     expect(out[0].followUp).toContain('No coil allocated');

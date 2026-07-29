@@ -59,7 +59,7 @@ export function ProductionRegisterConfirmModal({
             onClick={onConfirm}
             className={`min-h-11 rounded-md px-4 py-2 text-sm font-bold text-white disabled:opacity-45 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs ${btn}`}
           >
-            {saving ? 'Working…' : confirmLabel}
+            {saving ? 'Saving…' : confirmLabel}
           </button>
         </div>
       </div>

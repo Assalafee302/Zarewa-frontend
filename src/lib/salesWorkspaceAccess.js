@@ -3,12 +3,12 @@ import { editMutationNeedsSecondApprovalRole } from './editApprovalUi.js';
 
 export const SALES_ROLE_LABELS = {
   admin: 'Administrator',
-  finance_manager: 'Finance manager',
-  sales_manager: 'Branch manager',
+  finance_manager: 'Head of Accounts',
+  sales_manager: 'Branch Manager',
   sales_staff: 'Sales officer',
   procurement_officer: 'Procurement officer',
-  operations_officer: 'Operations officer / Store keeper',
-  viewer: 'Read only',
+  operations_officer: 'Operations Officer (Store)',
+  viewer: 'Read-only viewer',
 };
 
 export function loadSalesWorkspaceRole(roleKey) {

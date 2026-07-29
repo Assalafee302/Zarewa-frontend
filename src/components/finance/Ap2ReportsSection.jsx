@@ -12,7 +12,7 @@ export function Ap2ReportsSection({ mayView }) {
   const cards = [
     {
       id: 'ap2-main',
-      title: 'Supplier AP diagnostics',
+      title: 'Supplier payables diagnostics',
       desc: 'Ordered vs received vs paid vs current AP. Management diagnostic — not AP rebuild.',
     },
     {

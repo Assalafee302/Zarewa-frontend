@@ -36,6 +36,7 @@ import {
   REFUND_PREVIEW_VERSION,
   MIN_REFUND_QUOTATION_REMAINING_NGN,
   quotationMeetsRefundPickerFloor,
+  refundCategoryDisplayLabel,
 } from '../shared/refundConstants.js';
 import { userMayOverrideProductionAlignment, userMayBlockQuotationRefunds, isExecutiveRoleKey } from '../lib/workspaceGovernanceClient';
 import { quotationRefundsBlocked } from '../lib/refundEligibility';
@@ -1598,7 +1599,7 @@ const RefundModal = ({
         const cap = Math.round(Number(categorySuggestedMaxNgn[cat]) || 0);
         if (cap > 0 && sum > cap + AMOUNT_LINE_TOL) {
           setPreviewError(
-            `${cat} refund (₦${sum.toLocaleString('en-NG')}) cannot exceed the system-calculated amount (₦${cap.toLocaleString('en-NG')}). Manual adjustment may reduce, not increase, the preview figure.`
+            `${refundCategoryDisplayLabel(cat)} refund (₦${sum.toLocaleString('en-NG')}) cannot exceed the system-calculated amount (₦${cap.toLocaleString('en-NG')}). Manual adjustment may reduce, not increase, the preview figure.`
           );
           return;
         }
@@ -1889,7 +1890,7 @@ const RefundModal = ({
                 </span>
               </div>
               <p className="text-xs font-medium text-slate-500">
-                {record?.refundID ? `${record.refundID} · ${record.status}` : 'All refunds must be linked to a Finished Quotation'}
+                {record?.refundID ? `${record.refundID} · ${record.status}` : 'All refunds must be linked to a Completed quotation'}
               </p>
             </div>
           </div>
@@ -1954,7 +1955,7 @@ const RefundModal = ({
                 </div>
                 <ul className="text-xs leading-relaxed text-teal-900/90 font-medium space-y-1.5 list-disc pl-4 border-t border-teal-200/60 pt-3">
                   <li>Choose a quotation with payment recorded; the preview fills a breakdown — uncheck lines you do not want.</li>
-                  <li>Customer commission is optional: use “Add commission to preview” if it applies (capped by minimum selling ₦/m).</li>
+                  <li>Agent commission is optional: use “Add commission to preview” if it applies (capped by minimum selling ₦/m).</li>
                   <li>
                     Enter Pay to details in the Transaction intelligence column so finance can transfer the refund.
                   </li>
@@ -2477,7 +2478,7 @@ const RefundModal = ({
                           className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-ui-xs font-bold text-slate-700"
                           title={REFUND_CATEGORY_HINTS[c] || ''}
                         >
-                          {c}
+                          {refundCategoryDisplayLabel(c)}
                         </span>
                       ))
                     ) : (
@@ -2490,8 +2491,8 @@ const RefundModal = ({
                       {excludedRefundHints
                         .map(({ cat, reason }) =>
                           reason === 'blocked'
-                            ? `${cat} (e.g. delivered or blocked)`
-                            : `${cat} (already refunded)`
+                            ? `${refundCategoryDisplayLabel(cat)} (e.g. delivered or blocked)`
+                            : `${refundCategoryDisplayLabel(cat)} (already refunded)`
                         )
                         .join(' · ')}
                     </p>
@@ -2624,7 +2625,7 @@ const RefundModal = ({
                                   >
                                     {REFUND_REASON_CATEGORIES.map((c) => (
                                       <option key={c} value={c}>
-                                        {c}
+                                        {refundCategoryDisplayLabel(c)}
                                       </option>
                                     ))}
                                   </select>
@@ -2633,7 +2634,7 @@ const RefundModal = ({
                                     className="text-ui-xs font-bold uppercase text-slate-400"
                                     title={REFUND_CATEGORY_HINTS[line.category] || ''}
                                   >
-                                    {line.category || '—'}
+                                    {refundCategoryDisplayLabel(line.category) || '—'}
                                   </p>
                                 )}
                               </div>
@@ -2683,7 +2684,7 @@ const RefundModal = ({
                         {exceedsRefundableHeadroom ? (
                           <p className="text-xs font-semibold text-rose-700 mt-2 leading-snug">
                             {categoryCapViolation
-                              ? `${categoryCapViolation.cat} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
+                              ? `${refundCategoryDisplayLabel(categoryCapViolation.cat)} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
                               : lineArithmeticIssues[0]
                                 ? `Line description does not match amount — implied ₦${lineArithmeticIssues[0].expectedAmountNgn.toLocaleString('en-NG')}.`
                                 : exceedsOverpayLine
@@ -2708,7 +2709,7 @@ const RefundModal = ({
                         {exceedsRefundableHeadroom ? (
                           <p className="text-xs font-semibold text-rose-700 mt-1 leading-snug">
                             {categoryCapViolation
-                              ? `${categoryCapViolation.cat} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
+                              ? `${refundCategoryDisplayLabel(categoryCapViolation.cat)} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
                               : lineArithmeticIssues[0]
                                 ? `Line description does not match amount — implied ₦${lineArithmeticIssues[0].expectedAmountNgn.toLocaleString('en-NG')}.`
                                 : exceedsOverpayLine
@@ -3581,10 +3582,10 @@ const RefundModal = ({
                 {multiCategoryOverlapContext.sameRequestOverpayAndCancel
                   ? 'This request combines Overpayment with Order cancellation — these double-count cash received. Remove one category before submitting.'
                   : multiCategoryOverlapContext.priorLabels.length
-                    ? `Prior refund(s) on this quote: ${multiCategoryOverlapContext.priorLabels.join(', ')}. `
+                    ? `Prior refund(s) on this quote: ${multiCategoryOverlapContext.priorLabels.map(refundCategoryDisplayLabel).join(', ')}. `
                     : ''}
                 {!multiCategoryOverlapContext.sameRequestOverpayAndCancel
-                  ? `This request: ${multiCategoryOverlapContext.currentLabels.join(', ') || '—'}. Overpayment must not be double-counted with Order cancellation on the same quotation — resolve or reject the prior refund first.`
+                  ? `This request: ${multiCategoryOverlapContext.currentLabels.map(refundCategoryDisplayLabel).join(', ') || '—'}. Overpayment must not be double-counted with Order cancellation on the same quotation — resolve or reject the prior refund first.`
                   : null}
               </p>
             </div>

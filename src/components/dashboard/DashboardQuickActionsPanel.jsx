@@ -47,7 +47,7 @@ export function DashboardQuickActionsPanel({ onSalesAction, onOpenProcurement, o
           className="flex items-center gap-3 bg-gray-50 text-zarewa-teal p-4 rounded-xl border border-gray-100 hover:bg-white hover:shadow-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 focus-visible:ring-offset-2"
         >
           <Wallet size={18} className="text-slate-500 shrink-0" />
-          <span className="font-bold text-xs uppercase text-left">Stock / WIP review</span>
+          <span className="font-bold text-xs uppercase text-left">Material exceptions</span>
         </button>
         <button
           type="button"

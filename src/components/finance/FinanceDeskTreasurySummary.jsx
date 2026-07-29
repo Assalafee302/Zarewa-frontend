@@ -33,7 +33,7 @@ export function FinanceDeskTreasurySummary({
             onClick={onGoToReceipts}
             className="text-ui-xs font-black uppercase text-amber-900 mt-1 underline-offset-2 hover:underline"
           >
-            Receipts &amp; recon tab
+            Receipts &amp; bank reconciliation
           </button>
         ) : null}
       </div>

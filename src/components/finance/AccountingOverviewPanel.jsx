@@ -73,7 +73,7 @@ export function AccountingOverviewPanel({
   const exceptionTotal = Number(overview?.exceptionTotal) || blockers.reduce((sum, b) => sum + Number(b.count), 0);
 
   const quickLinks = [
-    { id: 'opening', label: 'Opening Pack', hint: 'June cutover', icon: Flag },
+    { id: 'opening', label: 'Opening balances', hint: 'June cutover', icon: Flag },
     { id: 'close', label: 'Month-end close', hint: 'Checklist & lock', icon: Lock },
     { id: 'statements', label: 'Statements', hint: 'P&L & balance sheet', icon: FileBarChart },
     { id: 'creditors', label: 'Registers', hint: 'Receivables & payables', icon: BookOpen },
@@ -87,10 +87,10 @@ export function AccountingOverviewPanel({
   const glFlags = overview?.flags || {};
   const ap1cLive =
     glFlags.accountingPolicyV1ReceiptGl || glFlags.accountingPolicyV1ProductionRelease;
-  const glAutoPostLabel = ap1cLive ? 'AP1c on' : 'Core hooks';
+  const glAutoPostLabel = ap1cLive ? 'Deposit policy on' : 'Standard posting';
   const glAutoPostHint = ap1cLive
     ? 'Deposit policy GL posting enabled'
-    : 'Supplier pay, expenses, production, receipts — AP1c flags off';
+    : 'Supplier pay, expenses, production, receipts — deposit policy flags off';
 
   const refreshAction = (
     <button

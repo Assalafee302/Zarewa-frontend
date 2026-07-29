@@ -117,7 +117,7 @@ export function ManagerSpendTab({
       rows = rows.filter((r) => (Number(r.paidNgn) || 0) > 0);
     }
     setDrill({
-      title: opts.title || 'Spend detail',
+      title: opts.title || 'Expenses detail',
       subtitle: opts.subtitle || `${monthKey}${opts.category ? ` Â· ${opts.category}` : ''}`,
       rows,
     });
@@ -129,7 +129,7 @@ export function ManagerSpendTab({
   return (
     <div className="space-y-4">
       <p className="text-xs text-slate-600">
-        Spend for {viewAllBranches && !effectiveBranchId ? 'all branches' : branchLabel || 'your branch'} â€” paid cash
+        Expenses for {viewAllBranches && !effectiveBranchId ? 'all branches' : branchLabel || 'your branch'} â€” paid cash
         plus committed requests (awaiting approval or payout). Maintenance is included as a category (GL 5020);
         machine repair-vs-replace below is additive and does not change these category totals.
       </p>
@@ -190,16 +190,16 @@ export function ManagerSpendTab({
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <button
           type="button"
-          onClick={() => openDrill({ title: 'All spend this period' })}
+          onClick={() => openDrill({ title: 'All expenses this period' })}
           className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left hover:border-zarewa-teal/40 focus:outline-none focus:ring-2 focus:ring-zarewa-teal/20"
         >
-          <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Total spend</p>
+          <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Total expenses</p>
           <p className="mt-1 text-xl font-black tabular-nums text-zarewa-teal">{formatNgn(insights.totalNgn)}</p>
           <p className="mt-0.5 text-ui-xs text-slate-500">{paidOnly ? 'Paid cash' : 'Committed + paid'}</p>
         </button>
         <button
           type="button"
-          onClick={() => openDrill({ title: 'Spend vs prior month' })}
+          onClick={() => openDrill({ title: 'Expenses vs prior month' })}
           className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left hover:border-zarewa-teal/40 focus:outline-none focus:ring-2 focus:ring-zarewa-teal/20"
         >
           <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Vs prior month</p>
@@ -224,7 +224,7 @@ export function ManagerSpendTab({
             {insights.topCategory?.category || 'â€”'}
           </p>
           <p className="mt-0.5 text-ui-xs text-slate-500 tabular-nums">
-            {insights.topCategory ? formatNgn(insights.topCategory.amountNgn) : 'No spend'}
+            {insights.topCategory ? formatNgn(insights.topCategory.amountNgn) : 'No expenses'}
           </p>
         </button>
         <button
@@ -245,7 +245,7 @@ export function ManagerSpendTab({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <PanelShell title="How is spend performing?" subtitle="Weekly trend this month">
+        <PanelShell title="How are expenses performing?" subtitle="Weekly trend this month">
           {insights.trend.length ? (
             <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">
@@ -259,7 +259,7 @@ export function ManagerSpendTab({
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyNote text="No spend in this period yet." />
+            <EmptyNote text="No expenses in this period yet." />
           )}
         </PanelShell>
 
@@ -379,7 +379,7 @@ export function ManagerSpendTab({
       <PanelShell
         title="How do I reduce it?"
         subtitle="Anomalies and actionable signals"
-        disclaimer="MoM alerts need â‰¥25% rise, â‰¥â‚¦50,000 absolute increase, and a material prior month (also â‰¥â‚¦50,000) â€” so one-off spikes do not keep alerting after spend returns to normal."
+        disclaimer="MoM alerts need â‰¥25% rise, â‰¥â‚¦50,000 absolute increase, and a material prior month (also â‰¥â‚¦50,000) â€” so one-off spikes do not keep alerting after expenses return to normal."
       >
         {insights.signals.length ? (
           <ul className="space-y-2">
@@ -423,7 +423,7 @@ export function ManagerSpendTab({
       <ModalFrame
         isOpen={Boolean(drill)}
         onClose={() => setDrill(null)}
-        title={drill?.title || 'Spend detail'}
+        title={drill?.title || 'Expenses detail'}
         description={drill?.subtitle}
         surface="plain"
       >
@@ -487,10 +487,10 @@ export function ManagerSpendTab({
                 to="/accounts?tab=disbursements"
                 className="text-ui-xs font-bold uppercase text-zarewa-teal hover:underline"
               >
-                Full Payment register â†’
+                Full Payouts & expenses →
               </Link>
             ) : (
-              <p className="text-ui-xs text-slate-500">Payment register stays on the Finance desk.</p>
+              <p className="text-ui-xs text-slate-500">Payouts & expenses stay on the Finance desk.</p>
             )}
           </div>
         </div>

@@ -96,7 +96,7 @@ export function EditSecondApprovalInline({
         setHintTone('good');
         setWaitingOnApprover(false);
       } else if (st === 'pending') {
-        setSaveHint('Still pending — ask an approver to grant it in Edit approvals.');
+        setSaveHint('Still pending — ask an approver to grant it in Change authorisations.');
         setHintTone('neutral');
       } else if (st === 'used') {
         setSaveHint('This code was already used. Request a new approval.');
@@ -188,7 +188,7 @@ export function EditSecondApprovalInline({
       <p className="font-bold text-amber-900 mb-1">Second approval for this change</p>
       <p className="text-amber-800/95 mb-2 leading-snug">
         Use <strong className="font-semibold">Request approval</strong>, then ask an approver to open{' '}
-        <strong className="font-semibold">Edit approvals</strong> in the sidebar (badge when something is waiting) or{' '}
+        <strong className="font-semibold">Change authorisations</strong> in the sidebar (badge when something is waiting) or{' '}
         <strong className="font-semibold">Management → Edit OKs</strong>. You can stay on this screen — the 6-digit code
         fills in when ready. Each token works for one successful save only.
       </p>

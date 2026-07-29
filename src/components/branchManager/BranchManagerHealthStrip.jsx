@@ -29,7 +29,7 @@ export function BranchManagerHealthStrip({ signals = [], onSelect, compact = fal
       <div className={`flex items-center gap-2 ${compact ? 'mb-2 sm:mb-3' : 'mb-3'}`}>
         <Activity size={compact ? 14 : 16} className="text-zarewa-teal shrink-0" aria-hidden />
         <h2 className="text-ui-xs sm:text-xs font-black uppercase tracking-[0.18em] text-zarewa-teal">
-          Branch pulse
+          Branch status
         </h2>
         <p className="text-ui-xs text-slate-500 ml-auto hidden sm:block">
           Green = clear · Amber = attention · Red = urgent

@@ -248,7 +248,7 @@ export function OperationsProductionOverview({
               tone={coilStock.lowCoilsTotal > 0 ? 'danger' : 'ok'}
             />
             <StatPill
-              label="Jobs w/o coil"
+              label="Jobs without coil"
               value={productionQueueStats.noCoil}
               tone={productionQueueStats.noCoil > 0 ? 'warn' : 'ok'}
             />
@@ -357,7 +357,7 @@ export function OperationsProductionOverview({
               value={conversionStats.efficiencyPct != null ? `${conversionStats.efficiencyPct}%` : '—'}
             />
             <StatPill label="Waiting" value={productionQueueStats.waiting} />
-            <StatPill label="Mgr review" value={productionQueueStats.needsReview} tone="warn" />
+            <StatPill label="Manager review" value={productionQueueStats.needsReview} tone="warn" />
             <StatPill label="Overdue" value={productionQueueStats.overdue} tone="danger" />
           </div>
           <div

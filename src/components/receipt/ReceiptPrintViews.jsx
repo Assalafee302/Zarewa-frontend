@@ -69,7 +69,7 @@ function CashierConfirmationBlock({ statusLabel = '', statusDetail = '' }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 print:border-slate-300">
       <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500 print:text-[8pt]">
-        Cashier confirmation
+        Confirm receipts
       </p>
       <p className="mt-0.5 text-[11px] font-semibold text-slate-900 print:text-[10pt]">{statusLabel}</p>
       {statusDetail ? <p className="mt-0.5 text-[10px] text-slate-600 print:text-[9pt]">{statusDetail}</p> : null}

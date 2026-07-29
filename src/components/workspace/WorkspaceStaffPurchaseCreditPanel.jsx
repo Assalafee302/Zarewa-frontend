@@ -197,7 +197,7 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
               disabled={busy}
               onClick={() => void act('reject', rejectNote)}
             >
-              {busy ? 'Working…' : 'Confirm reject'}
+              {busy ? 'Rejecting…' : 'Confirm reject'}
             </HrButton>
           </div>
         </div>
@@ -210,7 +210,7 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
           ) : null}
           {mayApprove ? (
             <HrButton type="button" disabled={busy} onClick={() => void act('approve')}>
-              {busy ? 'Working…' : 'Approve'}
+              {busy ? 'Approving…' : 'Approve'}
             </HrButton>
           ) : null}
           <Link

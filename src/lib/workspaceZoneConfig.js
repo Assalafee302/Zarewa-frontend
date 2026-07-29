@@ -69,9 +69,9 @@ const ACTION_CHIPS_BY_PROFILE = {
   ],
   [DESK_PROFILES.executive]: [
     ...CATEGORY_CHIPS,
-    { id: 'high_value', label: 'High value' },
+    { id: 'high_value', label: 'High-value approvals' },
     { id: 'overdue', label: 'Overdue' },
-    { id: 'branch_pulse', label: 'Branch pulse' },
+    { id: 'branch_pulse', label: 'Branch status' },
   ],
 };
 
@@ -95,7 +95,7 @@ const APPS_BY_PROFILE = {
     },
   ],
   [DESK_PROFILES.branch]: [
-    { id: 'manager', label: 'Branch Command', path: '/manager' },
+    { id: 'manager', label: 'Branch management', path: '/manager' },
     { id: 'sales', label: 'Sales', path: '/sales' },
     { id: 'cashier', label: 'Cashier', path: '/cashier' },
     { id: 'operations', label: 'Operations', path: '/operations' },
@@ -105,11 +105,11 @@ const APPS_BY_PROFILE = {
     { id: 'accounts', label: 'Accounts', path: '/accounts' },
     { id: 'accounting', label: 'Accounting', path: '/accounting' },
     { id: 'hr', label: 'HR', path: '/hr' },
-    { id: 'edit_approvals', label: 'Edit Approvals', path: '/edit-approvals' },
+    { id: 'edit_approvals', label: 'Change authorisations', path: '/edit-approvals' },
     { id: 'procurement', label: 'Procurement', path: '/procurement' },
   ],
   [DESK_PROFILES.executive]: [
-    { id: 'exec', label: 'Executive Centre', path: '/exec' },
+    { id: 'exec', label: 'Executive Office', path: '/exec' },
     { id: 'manager', label: 'Branch view', path: '/manager' },
     { id: 'monitoring', label: 'Monitoring', path: '/workspace/monitoring' },
     { id: 'reports', label: 'Reports', path: '/reports' },

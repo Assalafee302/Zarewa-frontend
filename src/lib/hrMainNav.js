@@ -44,7 +44,7 @@ const HR_NAV_DEFINITION = [
   },
   {
     to: '/hr/payroll',
-    label: 'Payroll & credit',
+    label: 'Payroll & loans',
     visible: (p) =>
       canPreparePayroll(p) ||
       canGmApprovePayroll(p) ||
@@ -54,7 +54,7 @@ const HR_NAV_DEFINITION = [
   },
   {
     to: '/hr/discipline-exit',
-    label: 'Cases & exit',
+    label: 'Discipline & exit',
     visible: (p) =>
       canManageHrDiscipline(p) ||
       canApproveHrLetters(p) ||

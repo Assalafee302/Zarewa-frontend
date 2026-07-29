@@ -241,7 +241,7 @@ export function buildUserProfileActions(ctx = {}) {
     });
     actions.push({
       id: 'grievance',
-      label: 'Feedback & grievance',
+      label: 'Grievances & feedback',
       description: 'Raise feedback or a grievance',
       to: HR_SELF_SERVICE_PATH.grievance,
       category: 'self_service',

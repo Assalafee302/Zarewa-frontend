@@ -503,11 +503,11 @@ const Procurement = () => {
   const procurementTabs = useMemo(() => {
     return [
       { id: 'purchases', icon: <DollarSign size={16} />, label: 'Purchases' },
-      { id: 'payables', icon: <Banknote size={16} />, label: 'Payments' },
+      { id: 'payables', icon: <Banknote size={16} />, label: TAB_LABELS.payables },
       {
         id: 'transport',
         icon: <Truck size={16} />,
-        label: transportCatchUpCount > 0 ? `Transport (${transportCatchUpCount})` : 'Transport catch-up',
+        label: transportCatchUpCount > 0 ? `Transport (${transportCatchUpCount})` : TAB_LABELS.transport,
       },
       { id: 'suppliers', icon: <Anchor size={16} />, label: 'Suppliers' },
       { id: 'conversion', icon: <Ruler size={16} />, label: TAB_LABELS.conversion },
@@ -1284,7 +1284,7 @@ const Procurement = () => {
     <ProcurementPageContext.Provider value={pageContextValue}>
     <PageShell blurred={isAnyModalOpen}>
       <PageHeader
-        title="Purchases"
+        title="Procurement"
         tabs={<PageTabs tabs={procurementTabs} value={activeTab} onChange={setActiveTab} />}
         toolbar={
           (activeTab === 'purchases' && canManagePo) ||
@@ -1424,7 +1424,7 @@ const Procurement = () => {
               </div>
               <p className="mt-1 text-xl font-black text-amber-900 tabular-nums">{formatNgn(approvedAndPaidTotalNgn)}</p>
               <p className="mt-2 text-ui-xs text-amber-800/85 border-t border-amber-100 pt-2">
-                Combined total for selected period: <span className="font-semibold">Approved PO value</span> plus{' '}
+                Combined total for selected period: <span className="font-semibold">Approved purchase order value</span> plus{' '}
                 <span className="font-semibold">supplier payments posted</span>.
               </p>
             </div>

@@ -98,7 +98,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
       id: 'mgr-more-attention',
       category: 'manager',
       title: 'More on manager desk',
-      detail: `${attentionTotal - attentionRowsShown} additional prioritized item(s) on Everything — open the full queue.`,
+      detail: `${attentionTotal - attentionRowsShown} additional prioritized item(s) on All items — open the full queue.`,
       severity: 'info',
       priority: 44,
       path: '/manager?tab=today&inbox=attention',
@@ -155,7 +155,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
     items.push({
       id: 'mgr-cash-out',
       category: 'manager',
-      title: 'Cash out',
+      title: 'Refunds & expenses',
       detail: cashPreview ? `${parts.join(' · ')} — e.g. ${cashPreview}` : parts.join(' · '),
       severity: 'warning',
       priority: 88,
@@ -219,7 +219,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
       items.push({
         id: 'mgr-edit-approvals',
         category: 'manager',
-        title: 'Edit approvals',
+        title: 'Change authorisations',
         detail: `${editPending.length} sensitive edit(s) waiting for second-party OK.`,
         severity: 'warning',
         priority: 80,

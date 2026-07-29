@@ -74,7 +74,7 @@ export function ProcurementTransportAgentsAside({ agents, onEdit, onRemove, onRe
       {transitRows && transitRows.length > 0 ? (
         <div className="border-t border-slate-200/90 bg-slate-50/50 shrink-0">
           <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500 px-3 pt-2.5 pb-1">
-            On loading / in transit
+            Loading confirmed / in transit
           </p>
           <ul className="max-h-36 overflow-y-auto custom-scrollbar px-3 pb-2 space-y-1">
             {transitRows.map((p) => {

@@ -81,7 +81,7 @@ export default function WorkspaceEditApprovalPanel({ item, onDone }) {
           onClick={() => void approve()}
           className="inline-flex items-center gap-2 rounded-xl bg-zarewa-teal px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3d3a] disabled:opacity-50"
         >
-          {busy ? 'Working…' : 'Approve edit'}
+          {busy ? 'Approving…' : 'Approve edit'}
         </button>
       </div>
     </div>

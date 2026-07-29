@@ -69,6 +69,7 @@ import {
   recordRefundAdvance,
 } from '../lib/customerLedgerStore';
 import { mergeReceiptRowsForSales, receiptCashReceivedNgn } from '../lib/salesReceiptsList';
+import { formatRefundReasonCategory } from '../lib/managerDashboardCore';
 import {
   SALES_TABLE_SORT_FIELD_OPTIONS,
   sortQuotationsList,
@@ -783,7 +784,10 @@ const CustomerDashboard = () => {
       sort: (r.requestedAtISO || '').slice(0, 10) || '1970-01-01',
       kind: 'refund',
       title: `Refund ${r.refundID} (${r.status})`,
-      detail: `${formatNgn(r.amountNgn)} · ${r.reasonCategory || r.reason} · Requested by: ${r.requestedBy || '—'}`,
+      detail: `${formatNgn(r.amountNgn)} · ${(() => {
+        const catLabel = formatRefundReasonCategory(r.reasonCategory);
+        return catLabel !== '—' ? catLabel : r.reason || '—';
+      })()} · Requested by: ${r.requestedBy || '—'}`,
       source: 'tx',
       txType: 'refund',
       txId: r.refundID,
@@ -1788,7 +1792,12 @@ const CustomerDashboard = () => {
                       >
                         <div>
                           <p className="text-xs font-mono font-bold text-zarewa-teal">{r.refundID}</p>
-                          <p className="text-ui-xs text-gray-500">{r.reasonCategory || r.reason}</p>
+                          <p className="text-ui-xs text-gray-500">
+                            {(() => {
+                              const catLabel = formatRefundReasonCategory(r.reasonCategory);
+                              return catLabel !== '—' ? catLabel : r.reason;
+                            })()}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-black text-zarewa-teal tabular-nums">

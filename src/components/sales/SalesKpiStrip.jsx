@@ -40,7 +40,7 @@ export default function SalesKpiStrip({ salesTab, listStats, followUpCount = 0 }
       case 'receipts':
         return [
           {
-            label: 'Matching',
+            label: 'In view',
             value: listStats.receipts.matching,
             hint:
               listStats.receipts.matching > listStats.receipts.shown
@@ -48,13 +48,13 @@ export default function SalesKpiStrip({ salesTab, listStats, followUpCount = 0 }
                 : undefined,
           },
           {
-            label: 'Awaiting cashier',
+            label: 'Awaiting confirmation',
             value: listStats.receipts.awaitingCashier,
             tone: listStats.receipts.awaitingCashier > 0 ? 'warn' : 'default',
           },
         ];
       case 'cuttinglist':
-        return [{ label: 'Lists', value: listStats.cuttinglist.shown }];
+        return [{ label: 'Cutting lists', value: listStats.cuttinglist.shown }];
       case 'refund':
         return [
           { label: 'Records', value: listStats.refund.shown },
@@ -64,7 +64,7 @@ export default function SalesKpiStrip({ salesTab, listStats, followUpCount = 0 }
             tone: listStats.refund.pending > 0 ? 'warn' : 'default',
           },
           {
-            label: 'Awaiting pay',
+            label: 'Awaiting payout',
             value: listStats.refund.awaitingPay,
             tone: listStats.refund.awaitingPay > 0 ? 'action' : 'default',
             hint: listStats.refund.awaitingPay > 0 ? 'Approved · Finance' : undefined,

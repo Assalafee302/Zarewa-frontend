@@ -375,7 +375,7 @@ export function BranchManagerCommandInbox(props) {
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
             <span className="font-mono font-bold text-zarewa-teal">{row.id}</span>
             {' · '}
-            {row.summary || row.incident_type || 'Stock damage report'}
+            {row.summary || row.incident_type || 'Material exception'}
           </span>
           <SlaChip kind="material" row={row} />
           <ChevronRight size={14} className="shrink-0 text-slate-300" />
@@ -505,7 +505,7 @@ export function BranchManagerCommandInbox(props) {
           <div>
             <h2 className="text-sm font-black text-zarewa-teal tracking-tight flex items-center gap-2">
               <ShieldCheck size={18} className="text-teal-600 shrink-0" />
-              Priority Action Center
+              Approvals
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               Decide what needs approval now — j/k to move, Enter to open.
@@ -521,7 +521,7 @@ export function BranchManagerCommandInbox(props) {
                 className="shrink-0 w-full sm:w-auto"
               >
                 <CheckCircle2 size={14} />
-                Clear all paid & gaps
+                Clear paid clearance items
               </Button>
             ) : null}
             <div className="relative w-full sm:w-64">

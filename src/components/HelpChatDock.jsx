@@ -42,8 +42,8 @@ function pageLabel(pathname) {
   const p = String(pathname || '');
   if (p.startsWith('/cashier')) return 'Finance';
   if (p.startsWith('/accounting')) return 'Accounting desk';
-  if (p.startsWith('/exec')) return 'Command Centre';
-  if (p.startsWith('/analytics')) return 'Command Centre — Intelligence';
+  if (p.startsWith('/exec')) return 'Executive Office';
+  if (p.startsWith('/analytics')) return 'Insights';
   if (p.startsWith('/sales')) return 'Sales';
   if (p.startsWith('/accounts')) return 'Finance';
   if (p.startsWith('/operations')) return 'Operations';

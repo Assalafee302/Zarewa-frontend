@@ -132,8 +132,8 @@ export function Ap2SupplierDiagnosticsPanel({
       ),
       flags: [
         r.flags?.overpaid ? 'Advance risk' : null,
-        r.flags?.payableWithoutGrn ? 'AP w/o GRN' : null,
-        r.flags?.grnWithoutPayable ? 'GRN w/o AP' : null,
+        r.flags?.payableWithoutGrn ? 'Payable without GRN' : null,
+        r.flags?.grnWithoutPayable ? 'GRN without payable' : null,
         r.flags?.missingCost ? 'Missing cost' : null,
       ]
         .filter(Boolean)

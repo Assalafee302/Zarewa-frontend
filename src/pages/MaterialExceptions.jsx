@@ -262,8 +262,8 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
                 documentType: 'material_incident',
                 status: 'submitted',
                 canApprove: false,
-                missingPermission: 'Stock damage report approval requires branch manager or operations authority.',
-                zareQuery: 'Why can’t I approve stock damage reports?',
+                missingPermission: 'Material exception approval requires branch manager or operations authority.',
+                zareQuery: 'Why can’t I approve material exceptions?',
               }}
             />
           ) : null}

@@ -108,7 +108,7 @@ export function buildTransportStatementPrintPayload({
   }
   rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
   return {
-    title: 'Transport / haulage statement',
+    title: 'Haulage payment statement',
     periodLabel: `${startIso} → ${endIso}`,
     columns: [
       { key: 'date', label: 'Date' },

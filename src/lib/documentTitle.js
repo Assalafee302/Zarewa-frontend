@@ -1,5 +1,5 @@
 /** Base product name for browser tab titles (keep in sync with index.html branding). */
-export const DOCUMENT_TITLE_BASE = 'Zarewa Industrial System';
+export const DOCUMENT_TITLE_BASE = 'Zarewa ERP';
 
 /** Map current pathname to a concise document title. Used for tabs, bookmarks, and screen readers. */
 export function documentTitleForPath(pathname) {
@@ -14,16 +14,16 @@ export function documentTitleForPath(pathname) {
   if (p === '/procurement') return `Procurement | ${DOCUMENT_TITLE_BASE}`;
   if (p.startsWith('/procurement/suppliers/')) return `Supplier | ${DOCUMENT_TITLE_BASE}`;
 
-  if (p === '/operations') return `Store & production | ${DOCUMENT_TITLE_BASE}`;
+  if (p === '/operations') return `Operations | ${DOCUMENT_TITLE_BASE}`;
   if (p.startsWith('/operations/coils/')) return `Coil profile | ${DOCUMENT_TITLE_BASE}`;
 
-  if (p === '/deliveries') return `Store & production | ${DOCUMENT_TITLE_BASE}`;
-  if (p === '/accounts') return `Finance & accounts | ${DOCUMENT_TITLE_BASE}`;
+  if (p === '/deliveries') return `Operations | ${DOCUMENT_TITLE_BASE}`;
+  if (p === '/accounts') return `Finance | ${DOCUMENT_TITLE_BASE}`;
   if (p === '/accounting') return `Accounting Desk | ${DOCUMENT_TITLE_BASE}`;
 
   if (p === '/reports') return `Reports | ${DOCUMENT_TITLE_BASE}`;
-  if (p === '/edit-approvals') return `Edit approvals | ${DOCUMENT_TITLE_BASE}`;
-  if (p === '/manager') return `Branch manager workstation | ${DOCUMENT_TITLE_BASE}`;
+  if (p === '/edit-approvals') return `Change authorisations | ${DOCUMENT_TITLE_BASE}`;
+  if (p === '/manager') return `Branch manager | ${DOCUMENT_TITLE_BASE}`;
 
   if (p === '/me' || p.startsWith('/me/')) {
     const sec = p.split('/')[2] || 'overview';
@@ -39,7 +39,7 @@ export function documentTitleForPath(pathname) {
       payslips: 'Payslips',
       employment: 'Employment',
       policies: 'Policies',
-      grievance: 'Feedback',
+      grievance: 'Grievances & feedback',
       'id-card': 'ID card',
     };
     return `Account – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
@@ -61,7 +61,7 @@ export function documentTitleForPath(pathname) {
       documents: 'Documents',
       benefits: 'Benefits',
       policies: 'Policies',
-      grievance: 'Feedback',
+      grievance: 'Grievances & feedback',
       'id-card': 'ID card',
       discipline: 'Conduct',
       surveys: 'Surveys',

@@ -117,7 +117,7 @@ export function ManagerSpendMachinesPanel({
             <p className="mt-2 rounded-lg border border-amber-100 bg-amber-50/80 px-2.5 py-1.5 text-ui-xs text-amber-900">
               Watch at ≥{REPAIR_WATCH_PCT_OF_COST}% of asset cost · Replace review at ≥{REPAIR_REPLACE_PCT_OF_COST}% of
               cost or ≥{REPAIR_REPLACE_PCT_OF_NBV}% of NBV. Cost lines only when linked to a payment request / expense —
-              consumables stay out. Does not change category Spend totals above.
+              consumables stay out. Does not change category expense totals above.
             </p>
           </div>
           <button
@@ -270,7 +270,7 @@ export function ManagerSpendMachinesPanel({
         <div className="mb-3">
           <h3 className="text-sm font-black text-zarewa-teal tracking-tight">Vendor cost comparison</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Total spend, job count, and average cost per job by vendor (from cost lines on work orders)
+            Total expenses, job count, and average cost per job by vendor (from cost lines on work orders)
           </p>
         </div>
         {loading ? (
@@ -285,7 +285,7 @@ export function ManagerSpendMachinesPanel({
               <thead className="bg-slate-50 text-ui-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-2 font-bold">Vendor</th>
-                  <th className="px-3 py-2 font-bold text-right"><button type="button" onClick={() => toggleVendorSort('totalNgn')} className="hover:text-zarewa-teal">Total spend {vendorSort === 'totalNgn' ? (vendorSortDir === 'asc' ? '↑' : '↓') : ''}</button></th>
+                  <th className="px-3 py-2 font-bold text-right"><button type="button" onClick={() => toggleVendorSort('totalNgn')} className="hover:text-zarewa-teal">Total expenses {vendorSort === 'totalNgn' ? (vendorSortDir === 'asc' ? '↑' : '↓') : ''}</button></th>
                   <th className="px-3 py-2 font-bold text-right">Jobs</th>
                   <th className="px-3 py-2 font-bold text-right"><button type="button" onClick={() => toggleVendorSort('avgCostPerJobNgn')} className="hover:text-zarewa-teal">Avg / job {vendorSort === 'avgCostPerJobNgn' ? (vendorSortDir === 'asc' ? '↑' : '↓') : ''}</button></th>
                 </tr>

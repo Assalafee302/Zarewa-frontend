@@ -23,7 +23,7 @@ const OPERATIONAL_TOPICS = [
       'Enter amount, date, and treasury account split.',
       'Save — you post the receipt; Zare does not.',
     ],
-    links: [{ label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } }],
+    links: [{ label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } }],
     extraKeywords: ['receipt', 'payment', 'customer paid'],
   },
   {
@@ -58,11 +58,11 @@ const OPERATIONAL_TOPICS = [
     title: 'Add a cutting list',
     answer: 'Cutting lists link production metres to a quotation after payment thresholds.',
     steps: [
-      'Open **Sales** → **Cutting list** tab.',
+      'Open **Sales** → **Cutting lists** tab.',
       'Select quotation and enter line metres.',
       'Save — production may start when policy is met.',
     ],
-    links: [{ label: 'Sales — Cutting list', to: '/sales', state: { focusSalesTab: 'cuttinglist' } }],
+    links: [{ label: 'Sales — Cutting lists', to: '/sales', state: { focusSalesTab: 'cuttinglist' } }],
     extraKeywords: ['cutting', 'metres', 'production prep'],
   },
   {
@@ -153,7 +153,7 @@ const OPERATIONAL_TOPICS = [
       'If posted to ledger, do not silently change — use reversal/correction workflow.',
       'Raise **Payment correction memo** for manager/Finance.',
     ],
-    links: [{ label: 'Sales — Payments', to: '/sales', state: { focusSalesTab: 'receipts' } }],
+    links: [{ label: 'Sales — Receipts', to: '/sales', state: { focusSalesTab: 'receipts' } }],
     extraKeywords: ['wrong amount', 'mistake receipt', 'correct receipt'],
   },
   {
@@ -419,7 +419,7 @@ const OPERATIONAL_TOPICS = [
     title: 'PO approval rules (guide)',
     answer: 'purchase_orders.manage or branch policy — approver clicks in Zarewa.',
     steps: [
-      'Pending PO shows in approver queue.',
+      'Pending purchase orders shows in approver queue.',
       'Approver reviews lines and supplier.',
       'Approve/Reject in UI — Zare explains rules only.',
     ],
@@ -763,7 +763,7 @@ const OPERATIONAL_TOPICS = [
       'Manager → edit approvals → approve.',
       'Staff enters token to complete save.',
     ],
-    links: [{ label: 'Edit approvals', to: '/edit-approvals' }],
+    links: [{ label: 'Change authorisations', to: '/edit-approvals' }],
     extraKeywords: ['edit approval', 'second approval', 'KPI code'],
   },
   {
@@ -827,7 +827,7 @@ const OPERATIONAL_TOPICS = [
       'Manager issues via edit approval workflow.',
       'Enter code on Finance/action screen.',
     ],
-    links: [{ label: 'Edit approvals', to: '/edit-approvals' }],
+    links: [{ label: 'Change authorisations', to: '/edit-approvals' }],
     extraKeywords: ['KPI code', 'approval code', 'second signoff'],
   },
   {

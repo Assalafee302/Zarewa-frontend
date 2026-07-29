@@ -1,5 +1,6 @@
 import { formatPersonName } from './formatPersonName.js';
 import { openPrintHtmlDocument } from './officeDeskPrint.js';
+import { refundCategoryDisplayLabel } from '../shared/refundConstants.js';
 
 /**
  * Print-friendly refund request / record (filing copy).
@@ -45,7 +46,7 @@ export function printRefundRecord(record, formatNgn) {
     ? lines
         .map((l) => {
           const label = String(l.label || '—');
-          const cat = String(l.category || '').trim();
+          const cat = refundCategoryDisplayLabel(String(l.category || '').trim());
           const amt = Number(l.amountNgn ?? l.amount_ngn ?? 0) || 0;
           return `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(cat || '—')}</td><td class="right">${formatNgn(amt)}</td></tr>`;
         })
@@ -61,6 +62,8 @@ export function printRefundRecord(record, formatNgn) {
           )
           .join('')
       : '';
+
+  const reasonCatsDisplay = reasonCats.map(refundCategoryDisplayLabel).filter(Boolean);
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Refund ${escapeHtml(refundID)}</title>
 <style>
@@ -79,7 +82,7 @@ export function printRefundRecord(record, formatNgn) {
   <p class="sub">Refund ID: <strong>${escapeHtml(refundID)}</strong> · Status: <strong>${escapeHtml(status)}</strong></p>
   <p class="sub">Customer: <strong>${escapeHtml(customerName)}</strong> · Quotation: <strong>${escapeHtml(quotationRef)}</strong></p>
   <p class="sub">Requested: <strong>${escapeHtml(requestedAt)}</strong>${requestedBy ? ` · <strong>${escapeHtml(requestedBy)}</strong>` : ''}</p>
-  ${reasonCats.length ? `<p class="block"><strong>Reason categories</strong><br/>${escapeHtml(reasonCats.join(', '))}</p>` : ''}
+  ${reasonCatsDisplay.length ? `<p class="block"><strong>Reason categories</strong><br/>${escapeHtml(reasonCatsDisplay.join(', '))}</p>` : ''}
   ${reasonText ? `<p class="block"><strong>Notes</strong><br/>${escapeHtml(reasonText)}</p>` : ''}
   ${
     payeeName || payeeAccountNo || payeeBankName

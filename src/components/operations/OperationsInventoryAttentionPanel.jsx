@@ -108,7 +108,7 @@ export function OperationsInventoryAttentionPanel({
                   Stale running {sp.runningStale?.count ?? 0}
                 </span>
                 <span className="rounded bg-slate-100 px-1.5 py-0.5 text-ui-xs font-bold text-slate-600">
-                  Mgr review {sp.managerReviewOpen?.count ?? 0}
+                  Manager review {sp.managerReviewOpen?.count ?? 0}
                 </span>
                 <span className="rounded bg-slate-100 px-1.5 py-0.5 text-ui-xs font-bold text-slate-600">
                   Spec hold {sp.coilSpecMismatchPending?.count ?? 0}

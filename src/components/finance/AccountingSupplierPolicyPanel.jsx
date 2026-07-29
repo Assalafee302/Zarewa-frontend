@@ -73,8 +73,8 @@ export function AccountingSupplierPolicyPanel({ branchId = null, enabled = true,
         <AccountingRegisterHeader compact actions={refreshAction} />
       ) : (
         <AccountingDeskPageIntro
-          title="Supplier AP policy (AP2)"
-          description="Align supplier payables with GRN receipt, prepayments (1400), and GRNI diagnostics before cutover."
+          title="Supplier payables policy"
+          description="Align supplier payables with GRN receipt, prepayments (1400), and goods-received-not-invoiced diagnostics before cutover."
           action={refreshAction}
         />
       )}

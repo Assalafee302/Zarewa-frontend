@@ -135,7 +135,7 @@ export default function ContextRail({
                 aria-label="Approve or endorse work item"
                 className="rounded-lg bg-teal-800 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-50"
               >
-                {railBusy ? 'Working…' : 'Approve'}
+          {busy ? 'Approving…' : 'Approve'}
               </button>
             ) : null}
             {onReject ? (

@@ -121,7 +121,7 @@ export function StockRegisterLineDetailModal({
       }
       const differs = sys != null && (isCoil ? roundKg(counted) !== roundKg(sys) : roundM(counted) !== roundM(sys));
       if (differs && isCoil && !String(entry.materialExceptionId || '').trim()) {
-        showToast?.('Material exception (MEX) ID required when count differs from system.', { variant: 'error' });
+        showToast?.('Material exceptions (MEX) ID required when count differs from system.', { variant: 'error' });
         return;
       }
     }
@@ -270,7 +270,7 @@ export function StockRegisterLineDetailModal({
               {(entry?.status === LINE_STATUS.ADJUSTED ||
                 (isFinished && entry?.finishedConfirm === FINISHED_CONFIRM.DISPUTED)) ? (
                 <label className="block text-sm">
-                  <span className="font-medium text-slate-700">Material exception (MEX) ID</span>
+                  <span className="font-medium text-slate-700">Material exceptions (MEX) ID</span>
                   <input
                     type="text"
                     className="z-input w-full mt-1 font-mono text-sm"

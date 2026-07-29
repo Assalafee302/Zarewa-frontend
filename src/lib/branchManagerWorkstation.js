@@ -67,14 +67,14 @@ export function buildBranchHealthSignals({
     },
     {
       key: 'procurement',
-      label: 'POs',
+      label: 'Purchase orders',
       tone: healthToneFromCount(procurementCount),
       count: procurementCount,
       hint: 'Purchase orders awaiting approval',
     },
     {
       key: 'cash',
-      label: 'Cash out',
+      label: 'Refunds & expenses',
       tone: healthToneFromCount(cashOutCount),
       count: cashOutCount,
       hint: 'Refunds and expense requests',

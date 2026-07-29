@@ -229,7 +229,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
 
       {variant === 'cashier' && flags.accountingPolicyV1Diagnostics && ap1c?.available ? (
         <AccountingDeskNotice tone="warn">
-          AP1c dry-run: {ap1c.receiptsBeforeProductionCredited1200Count ?? 0} receipt(s) pre-production posted to GL
+          Deposit policy preview: {ap1c.receiptsBeforeProductionCredited1200Count ?? 0} receipt(s) pre-production posted to GL
           1200 (should be 2500). Accounting Desk has full detail. No GL changed.
         </AccountingDeskNotice>
       ) : null}
@@ -237,14 +237,14 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
       {flags.accountingPolicyV1Diagnostics && ap1c?.available ? (
         <AccountingDeskNotice tone="info">
           <p>
-            <span className="font-bold uppercase tracking-wide">AP1c dry-run: </span>
+            <span className="font-bold uppercase tracking-wide">Deposit policy preview: </span>
             Pre-prod GL 1200 {ap1c.receiptsBeforeProductionCredited1200Count ?? 0} · Release gap ₦
             {Number(ap1c.releaseGapNgn || 0).toLocaleString()} · AR risk ₦
             {Number(ap1c.potentialArOverstatementNgn || 0).toLocaleString()}
           </p>
           {(ap1c.receiptReversalsMissingResolvableMetaCount > 0 || ap1c.refundPayoutsRevenueReviewCount > 0) && (
             <p className="mt-1 text-amber-900">
-              AP1c-4: reversals unresolved {ap1c.receiptReversalsMissingResolvableMetaCount ?? 0} · refunds needing
+              Reversals unresolved {ap1c.receiptReversalsMissingResolvableMetaCount ?? 0} · refunds needing
               revenue review {ap1c.refundPayoutsRevenueReviewCount ?? 0}
             </p>
           )}
@@ -254,7 +254,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
       {flags.accountingPolicyV1Diagnostics && ap1 ? (
         <ProcurementFormSection letter="A" title="Accounting Policy v1 diagnostics (AP1a)" compact>
           <p className="text-xs font-medium text-violet-950 leading-relaxed mb-3">
-            {data?.accountingPolicyV1Note || 'Read-only indicators; GL timing unchanged until AP1c.'}
+            {data?.accountingPolicyV1Note || 'Read-only indicators; GL timing unchanged until deposit policy cutover.'}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <CountCard
@@ -281,7 +281,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
                   ? 'Blocked on confirm API'
                   : flags.deliveryPaymentGateMode === 'warn'
                     ? 'Warn + audit on confirm'
-                    : 'Dry-run only — set DELIVERY_PAYMENT_GATE=1'
+                    : 'Preview only — set DELIVERY_PAYMENT_GATE=1'
               }
             />
           </div>
@@ -318,7 +318,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
           Finance receipts queue →
         </Link>
         <Link to="/exec" className="text-zarewa-teal hover:underline">
-          Command Centre →
+          Executive Office →
         </Link>
       </div>
     </section>

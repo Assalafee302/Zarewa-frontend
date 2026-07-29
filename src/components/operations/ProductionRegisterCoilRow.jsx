@@ -116,8 +116,8 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
         <p className="mb-1.5 flex items-start gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-ui-xs font-semibold leading-snug text-amber-950">
           <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
           <span>
-            Not saved to server — only visible on this device until you tap{' '}
-            <strong className="font-bold">{jobSt === 'Planned' ? 'Save & start' : 'Save while running'}</strong>.
+            Not saved to server — only visible on this device until you select{' '}
+            <strong className="font-bold">{jobSt === 'Planned' ? 'Save and start production' : 'Save while running'}</strong>.
           </span>
         </p>
       ) : null}

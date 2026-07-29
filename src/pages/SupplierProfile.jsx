@@ -26,6 +26,7 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { PROCUREMENT_COIL_CATALOG, CONVERSION_FLAG_RATIO, formatNgn } from '../Data/mockData';
 import { apiUrl } from '../lib/apiBase';
 import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
+import { poStatusDisplayLabel } from '../lib/procurementStatusUi';
 import {
   poLineBenchmarkPriceNgn,
   poLinePriceSuffix,
@@ -595,7 +596,7 @@ const SupplierProfile = () => {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
               {Object.entries(insights.byStatus).map(([k, v]) => (
                 <div key={k} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-center">
-                  <p className="text-ui-xs uppercase font-bold text-gray-400">{k}</p>
+                  <p className="text-ui-xs uppercase font-bold text-gray-400">{poStatusDisplayLabel(k)}</p>
                   <p className="text-sm font-black text-zarewa-teal">{v}</p>
                 </div>
               ))}
@@ -625,7 +626,7 @@ const SupplierProfile = () => {
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-mono font-bold text-zarewa-teal">{po.poID}</span>
-                        <span className="text-ui-xs font-bold uppercase text-slate-500">{po.status}</span>
+                        <span className="text-ui-xs font-bold uppercase text-slate-500">{poStatusDisplayLabel(po.status)}</span>
                       </div>
                       <p className="text-ui-xs text-slate-500 mt-1">
                         {po.orderDateISO || '—'} · {procurementKindFromPo(po)} · Invoice {po.invoiceNo || '—'} ·{' '}

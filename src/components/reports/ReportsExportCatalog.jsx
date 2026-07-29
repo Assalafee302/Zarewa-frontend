@@ -267,7 +267,7 @@ function ExportRow({
             title={`Export ${item.title}`}
           >
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-            {busy ? 'Working…' : 'Export'}
+            {busy ? 'Exporting…' : 'Export'}
           </button>
           {showPrintPrimary ? (
             <button

@@ -752,7 +752,7 @@ export function AccountTabPanels() {
               <div className="space-y-4 animate-in slide-in-from-right-5">
                 <FinanceTabContextBanner
                   tone="slate"
-                  title="Payment register — posted outflows"
+                  title="Payouts & expenses — posted outflows"
                   body="Read-only audit trail of money that already left treasury. To pay new approved items, use Treasury payout queues or Desk (cashiers). Edit rows here only to correct the debited account."
                 />
                 <div className="rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-2 space-y-2">
@@ -1590,7 +1590,7 @@ export function AccountTabPanels() {
                       onClick={() => handleAccountTabChange('receipts')}
                       className="text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal underline-offset-2 hover:underline"
                     >
-                      Receipts & recon
+                      Receipts & bank reconciliation
                     </button>
                   }
                 />
@@ -1659,7 +1659,7 @@ export function AccountTabPanels() {
                     className="font-bold text-teal-800 underline-offset-2 hover:underline"
                     onClick={() => handleAccountTabChange('receipts')}
                   >
-                    Receipts &amp; recon
+                    Receipts &amp; bank reconciliation
                   </button>{' '}
                   tab.
                 </p>
@@ -1669,7 +1669,7 @@ export function AccountTabPanels() {
                     Exception queue (misc receipts)
                   </h3>
                   <p className="text-ui-xs text-slate-500 mb-2 leading-relaxed">
-                    Review-only — open Receipts & recon to attach evidence and post clearance. Nothing is auto-cleared
+                    Review-only — open Receipts & bank reconciliation to attach evidence and post clearance. Nothing is auto-cleared
                     from this list.
                   </p>
                   <ul className="space-y-1.5">
@@ -1695,7 +1695,7 @@ export function AccountTabPanels() {
                               type="button"
                               onClick={() => {
                                 handleAccountTabChange('receipts');
-                                showToast('Review on Receipts & recon — attach evidence there.', {
+                                showToast('Review on Receipts & bank reconciliation — attach evidence there.', {
                                   variant: 'info',
                                 });
                               }}

@@ -31,7 +31,7 @@ export function GovernanceDetailPanel({
     <div className="space-y-4">
       <DecisionBand
         tone="risk"
-        eyebrow="Risk & governance"
+        eyebrow="Compliance alerts"
         title={item.title || item.id}
         subtitle={item.subtitle || 'Management review required.'}
         meta={

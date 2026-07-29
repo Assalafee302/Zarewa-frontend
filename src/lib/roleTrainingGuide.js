@@ -32,7 +32,7 @@ const ROLE_TRAINING = {
       },
       {
         heading: 'When something looks wrong',
-        body: 'Check Edit approvals and **Zare** (life-ring, bottom-right) for step-by-step SOPs. Use Manager dashboard or **Command Centre** (`/exec`) for cross-branch attention.',
+        body: 'Check Change authorisations and **Zare** (life-ring, bottom-right) for step-by-step SOPs. Use Manager dashboard or **Command Centre** (`/exec`) for cross-branch attention.',
       },
     ],
     quickLinks: [

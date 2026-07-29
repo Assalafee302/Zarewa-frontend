@@ -103,7 +103,7 @@ export function ExecMdReviewTab({
         <div className="px-4 sm:px-5 py-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-100">
           <div>
             <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-              <FileText size={14} strokeWidth={2} /> Chairman pack
+              <FileText size={14} strokeWidth={2} /> Chairman briefing pack
             </p>
             <h2 className="text-base font-bold text-zarewa-teal mt-1">{monthKey || '—'}</h2>
             <p className="text-xs text-slate-500 mt-1 max-w-xl leading-snug">

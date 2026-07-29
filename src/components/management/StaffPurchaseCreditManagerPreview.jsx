@@ -135,7 +135,7 @@ export function StaffPurchaseCreditManagerPreview({
             <DecisionActionTile
               variant="compactReject"
               icon={Flag}
-              label={busy ? 'Working…' : 'Confirm reject'}
+              label={busy ? 'Rejecting…' : 'Confirm reject'}
               disabled={busy || rejectNote.trim().length < 3}
               onClick={confirmReject}
             />
@@ -157,7 +157,7 @@ export function StaffPurchaseCreditManagerPreview({
               <DecisionActionTile
                 variant="compactApprove"
                 icon={CheckCircle2}
-                label={busy ? 'Working…' : 'Approve'}
+                label={busy ? 'Approving…' : 'Approve'}
                 disabled={busy}
                 onClick={() => onApprove?.()}
               />

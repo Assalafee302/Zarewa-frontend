@@ -51,7 +51,7 @@ export default function EditApprovalsPage() {
   return (
     <PageShell>
       <PageHeader
-        title="Edit approvals"
+        title="Change authorisations"
         subtitle="Approve one-time 6-digit codes so staff can complete sensitive saves (each code is consumed on the next successful PATCH)."
       />
       <MainPanel>

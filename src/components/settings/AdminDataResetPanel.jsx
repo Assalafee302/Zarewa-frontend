@@ -208,7 +208,7 @@ export default function AdminDataResetPanel() {
           className="z-btn-secondary border-red-200 text-red-800 hover:bg-red-50 disabled:opacity-50"
         >
           {busy
-            ? 'Working…'
+            ? 'Deleting…'
             : selectedPresets.length
               ? `Delete ${selectedPresets.length} selected categor${selectedPresets.length === 1 ? 'y' : 'ies'} (${branchName || 'branch'})`
               : 'Select categories to delete'}

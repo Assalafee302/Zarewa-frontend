@@ -6,10 +6,10 @@ describe('documentTitleForPath', () => {
     expect(documentTitleForPath('/')).toContain('Operations dashboard');
     expect(documentTitleForPath('/sales')).toContain('Sales');
     expect(documentTitleForPath('/procurement')).toContain('Procurement');
-    expect(documentTitleForPath('/operations')).toContain('Store & production');
-    expect(documentTitleForPath('/accounts')).toContain('Finance & accounts');
+    expect(documentTitleForPath('/operations')).toContain('Operations');
+    expect(documentTitleForPath('/accounts')).toContain('Finance');
     expect(documentTitleForPath('/reports')).toContain('Reports');
-    expect(documentTitleForPath('/edit-approvals')).toContain('Edit approvals');
+    expect(documentTitleForPath('/edit-approvals')).toContain('Change authorisations');
     expect(documentTitleForPath('/manager')).toContain('Branch manager');
   });
 
@@ -18,7 +18,7 @@ describe('documentTitleForPath', () => {
   });
 
   it('treats legacy /deliveries like production workspace', () => {
-    expect(documentTitleForPath('/deliveries')).toContain('Store & production');
+    expect(documentTitleForPath('/deliveries')).toContain('Operations');
   });
 
   it('maps HR module paths', () => {

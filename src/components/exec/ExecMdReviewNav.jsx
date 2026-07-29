@@ -7,7 +7,7 @@ import { PageTabs } from '../layout/PageTabs';
  */
 export function ExecMdReviewNav({ value = 'pack', onChange, mayViewBi = false }) {
   const tabs = [
-    { id: 'pack', label: 'Chairman pack', icon: <FileText size={14} strokeWidth={2} /> },
+    { id: 'pack', label: 'Chairman briefing pack', icon: <FileText size={14} strokeWidth={2} /> },
     ...(mayViewBi
       ? [{ id: 'intelligence', label: 'Intelligence', icon: <BarChart3 size={14} strokeWidth={2} /> }]
       : []),

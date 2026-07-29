@@ -1829,7 +1829,7 @@ const Operations = () => {
   return (
     <PageShell blurred={isAnyModalOpen}>
       <PageHeader
-        title="Store & production"
+        title="Operations"
         tabs={<PageTabs tabs={opsTabs} value={activeTab} onChange={handleOpsTab} />}
         actions={
           <>
@@ -2707,7 +2707,7 @@ const Operations = () => {
                         </p>
                       </div>
                       <div className="rounded-lg border border-red-200 bg-red-50/50 p-2.5">
-                        <p className="text-ui-xs font-bold uppercase tracking-wide text-red-800">Mgr review</p>
+                        <p className="text-ui-xs font-bold uppercase tracking-wide text-red-800">Manager review</p>
                         <p className="mt-0.5 text-lg font-black text-red-800 tabular-nums">
                           {productionQueueStats.needsReview}
                         </p>

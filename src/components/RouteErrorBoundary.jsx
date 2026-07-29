@@ -72,6 +72,6 @@ export function createRouteErrorBoundary(defaults = {}) {
 export const AccountRouteErrorBoundary = createRouteErrorBoundary({ moduleName: 'Finance desk' });
 export const OperationsRouteErrorBoundary = createRouteErrorBoundary({ moduleName: 'Operations' });
 export const HrRouteErrorBoundary = createRouteErrorBoundary({ moduleName: 'HR' });
-export const ExecutiveRouteErrorBoundary = createRouteErrorBoundary({ moduleName: 'Executive Command Centre' });
+export const ExecutiveRouteErrorBoundary = createRouteErrorBoundary({ moduleName: 'Executive Office' });
 export const ReportsRouteErrorBoundary = createRouteErrorBoundary({ moduleName: 'Reports' });
 export const SettingsRouteErrorBoundary = createRouteErrorBoundary({ moduleName: 'Settings' });

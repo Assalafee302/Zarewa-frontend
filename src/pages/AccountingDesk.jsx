@@ -355,7 +355,7 @@ export default function AccountingDesk() {
 
               >
 
-                Cashier desk
+                Finance desk
 
               </Link>
 

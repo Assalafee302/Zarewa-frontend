@@ -59,7 +59,7 @@ export function ReportsConfirmExportDialog({
             Cancel
           </button>
           <button type="button" className="z-btn-primary" onClick={onConfirm} disabled={busy}>
-            {busy ? 'Working…' : confirmLabel}
+            {busy ? 'Exporting…' : confirmLabel}
           </button>
         </div>
       </div>

@@ -389,7 +389,7 @@ function AppShell() {
   });
   const signedInUser = ws?.session?.user;
   const userName = formatPersonName(signedInUser?.displayName ?? 'Zarewa Admin');
-  const userRole = signedInUser?.roleLabel ?? 'Superuser';
+  const userRole = signedInUser?.roleLabel ?? 'Administrator';
   const userInitials = useMemo(() => {
     const raw = String(userName || '')
       .trim()

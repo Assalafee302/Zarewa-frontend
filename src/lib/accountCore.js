@@ -1,10 +1,10 @@
 export const ACCOUNT_TAB_LABELS = {
-  desk: 'Desk',
+  desk: 'Finance desk',
   treasury: 'Treasury',
-  receipts: 'Receipts & bank recon',
-  cashier: 'Cashier confirmation',
-  movements: 'Fund movements',
-  disbursements: 'Payment register',
+  receipts: 'Receipts & bank reconciliation',
+  cashier: 'Confirm receipts',
+  movements: 'Internal transfers',
+  disbursements: 'Payouts & expenses',
   audit: 'Audit & reconciliation',
 };
 
@@ -22,7 +22,7 @@ export const TREASURY_STATEMENT_TYPE_LABEL = {
   REFUND_PAYOUT_REVERSAL_IN: 'Customer refund payout (reversal)',
   ADVANCE_REFUND_OUT: 'Advance refund',
   PAYMENT_REQUEST_OUT: 'Payment request payout',
-  TRANSPORT_PAYMENT: 'Transport / haulage',
+  TRANSPORT_PAYMENT: 'Haulage payment',
 };
 
 export const TREASURY_SOURCE_KIND_LABEL = {
@@ -136,7 +136,7 @@ export function payFromCorrectionHeadlineForMovementType(type) {
   if (t === 'PAYMENT_REQUEST_OUT') return 'Payment request — bank/cash paid from';
   if (t === 'REFUND_PAYOUT') return 'Customer refund — bank/cash paid from';
   if (t === 'SUPPLIER_PAYMENT') return 'Supplier payment — bank/cash paid from';
-  if (t === 'TRANSPORT_PAYMENT') return 'Transport payment — bank/cash paid from';
+  if (t === 'TRANSPORT_PAYMENT') return 'Haulage payment — bank/cash paid from';
   if (t === 'AP_PAYMENT') return 'Purchase (AP) payment — bank/cash paid from';
   return 'Payment — bank/cash paid from';
 }
@@ -156,7 +156,7 @@ export function isPayFromCorrectionTreasuryRow(row) {
   );
 }
 
-/** Treasury movement types shown on Finance → Payment register (money leaving the business). */
+/** Treasury movement types shown on Finance → Payouts & expenses (money leaving the business). */
 export const TREASURY_PAYMENTS_TABLE_OUTFLOW_TYPES = new Set([
   'EXPENSE',
   'AP_PAYMENT',

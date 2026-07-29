@@ -19,7 +19,7 @@ const FLAG_STEPS = [
     id: 'diagnostics',
     env: 'ACCOUNTING_POLICY_V1_DIAGNOSTICS',
     label: 'Enable diagnostics',
-    detail: 'Turn on trial-exception AP1c counts and this dry-run report (no GL change).',
+    detail: 'Turn on trial-exception counts and this policy preview report (no GL change).',
   },
   {
     id: 'receipt_gl',
@@ -45,7 +45,7 @@ const FLAG_STEPS = [
   {
     id: 'reclass',
     env: 'RECLASS_PRE_PRODUCTION_RECEIPTS',
-    label: 'One-off reclass (AP1c-5)',
+    label: 'One-time reclassification (legacy receipts)',
     detail: 'Optional Dr 1200 / Cr 2500 journals for legacy pre-production receipts — post from preview below.',
     requires: ['legacy_bridge'],
   },
@@ -129,8 +129,8 @@ export function AccountingPolicyPanel({ branchId = null, enabled = true, deskLay
         <AccountingRegisterHeader compact actions={refreshAction} />
       ) : (
         <AccountingDeskPageIntro
-          title="Receipt & deposit policy (AP1c)"
-          description="Align customer receipts with your signed rule: deposits until production, revenue when produced. Review dry-run, then enable posting flags at cutover."
+          title="Customer deposit policy"
+          description="Align customer receipts with your signed rule: deposits until production, revenue when produced. Review the preview, then enable posting flags at cutover."
           action={refreshAction}
         />
       )}
@@ -150,7 +150,7 @@ export function AccountingPolicyPanel({ branchId = null, enabled = true, deskLay
           tone={opening?.posted ? 'teal' : 'amber'}
         />
         <AccountingDeskKpiCard
-          label="Dry-run blockers"
+          label="Policy preview blockers"
           value={dryRunReady ? 'Clear' : 'Review'}
           hint="Pre-prod 1200, reversals, refund review"
           tone={dryRunReady ? 'teal' : 'amber'}
@@ -163,7 +163,7 @@ export function AccountingPolicyPanel({ branchId = null, enabled = true, deskLay
         </AccountingDeskNotice>
       ) : (
         <AccountingDeskNotice tone="ok">
-          One or more AP1c posting flags are <strong>on</strong>. Monitor trial exceptions after each change.
+          One or more deposit policy posting flags are <strong>on</strong>. Monitor trial exceptions after each change.
         </AccountingDeskNotice>
       )}
 
@@ -200,7 +200,7 @@ export function AccountingPolicyPanel({ branchId = null, enabled = true, deskLay
       </ProcurementFormSection>
 
       {reclass.data ? (
-        <ProcurementFormSection letter="2" title="AP1c-5 reclass preview" compact>
+        <ProcurementFormSection letter="2" title="Reclassification preview" compact>
           <p className="text-ui-xs text-slate-600 mb-2">{reclass.data.disclaimer}</p>
           <p className="text-xs font-semibold text-slate-800 mb-2">
             Pending: {reclass.data.summary?.pendingCount ?? 0} receipt(s) ·{' '}

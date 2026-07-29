@@ -13,10 +13,10 @@ export const PAYABLES_TABLE_PAGE_SIZE = 10;
 
 export const TAB_LABELS = {
   purchases: 'Purchases',
-  payables: 'Payments',
-  transport: 'Transport catch-up',
+  payables: 'Supplier payables',
+  transport: 'Transport reconciliation',
   suppliers: 'Suppliers',
-  conversion: 'Pricing',
+  conversion: 'Cost & pricing workbook',
 };
 
 /** Kg coil SKUs below this on-hand level count as low stock on the Procurement KPI row. */

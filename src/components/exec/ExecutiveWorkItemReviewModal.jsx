@@ -910,7 +910,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
             <div className="space-y-3">
               <DecisionBand
                 tone="material"
-                eyebrow="Material exception"
+                eyebrow="Material exceptions"
                 title={review.incidentId}
                 subtitle={
                   [review.row?.incident_type || 'Incident', review.row?.gauge_label, review.row?.colour]

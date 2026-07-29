@@ -8,7 +8,7 @@ export function getPageTourForPath(pathname) {
 
   if (p.startsWith('/cashier')) {
     return {
-      label: 'Cashier desk',
+      label: 'Finance desk',
       query: 'Walk me through the cashier desk step by step — confirm receipts and pay approved refunds',
       articleHint: 'cashier-desk-workflow',
     };
@@ -22,14 +22,14 @@ export function getPageTourForPath(pathname) {
   }
   if (p.startsWith('/exec')) {
     return {
-      label: 'Command Centre',
+      label: 'Executive Office',
       query:
         'Walk me through the command centre — Overview for alerts and approvals, Intelligence for forecasts and coil actions, Finance for cash and working capital',
     };
   }
   if (p.startsWith('/analytics')) {
     return {
-      label: 'Intelligence tab',
+      label: 'Insights',
       query: 'Walk me through business intelligence — production forecast, expense analysis, and coil SKU actions',
     };
   }
@@ -68,7 +68,7 @@ export function getPageTourForPath(pathname) {
   }
   if (p.startsWith('/accounts')) {
     return {
-      label: 'Finance & accounts',
+      label: 'Finance',
       query: 'Walk me through customer receipt clearance and treasury step by step',
       articleHint: 'finance-receipt-clearance',
     };
@@ -99,7 +99,7 @@ export function getPageTourForPath(pathname) {
   }
   if (p.startsWith('/edit-approvals')) {
     return {
-      label: 'Edit approvals',
+      label: 'Change authorisations',
       query: 'Walk me through second approval for sensitive edits step by step',
       articleHint: 'edit-approval',
     };

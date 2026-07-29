@@ -310,7 +310,7 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
 
       {Array.isArray(auditData.editApprovals) && auditData.editApprovals.length > 0 ? (
         <section>
-          <p className={u.sec}>Edit approvals</p>
+          <p className={u.sec}>Change authorisations</p>
           <div className={u.divide}>
             {auditData.editApprovals.map((ea) => (
               <div key={ea.id} className={u.lineRow}>

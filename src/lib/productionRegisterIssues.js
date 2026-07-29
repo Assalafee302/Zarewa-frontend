@@ -47,7 +47,7 @@ export function buildProductionRegisterIssues(ctx) {
   const skipCoilNag = Boolean(stonePureNoCoil) || (isStoneMeterQuote && !stoneCoilHybrid);
 
   const saveActionLabel =
-    jobStatus === 'Planned' ? 'Save & start' : jobStatus === 'Running' ? 'Save while running' : 'Save';
+    jobStatus === 'Planned' ? 'Save and start production' : jobStatus === 'Running' ? 'Save while running' : 'Save';
 
   if (!canMutate) {
     issues.push({
@@ -72,8 +72,8 @@ export function buildProductionRegisterIssues(ctx) {
           : `${localCoilLines} coil line(s) only on this device`,
       detail:
         savedCoilCount > 0
-          ? `This screen shows ${savedCoilCount + localCoilLines} coil(s) but admin and manager only see ${savedCoilCount} on the server. Tap "${saveActionLabel}" to sync.`
-          : `Other computers cannot see these coils until you tap "${saveActionLabel}".`,
+          ? `This screen shows ${savedCoilCount + localCoilLines} coil(s) but admin and manager only see ${savedCoilCount} on the server. Select "${saveActionLabel}" to sync.`
+          : `Other computers cannot see these coils until you select "${saveActionLabel}".`,
       actionLabel: saveActionLabel,
     });
   }
@@ -91,7 +91,7 @@ export function buildProductionRegisterIssues(ctx) {
         severity: 'error',
         title: 'Cannot complete yet',
         detail: message,
-        actionLabel: 'Fix the coil run log below',
+        actionLabel: 'Correct the coil entries below',
       });
     }
   }
@@ -102,9 +102,9 @@ export function buildProductionRegisterIssues(ctx) {
       severity: 'warning',
       title: 'No coils saved to server',
       detail: stoneCoilHybrid
-        ? 'Pick a coil with opening kg for normal flatsheet (or switch to offcut), then tap Save & start.'
-        : 'Pick at least one coil with opening kg, then tap Save & start so the run is visible to admin and manager.',
-      actionLabel: 'Save & start',
+        ? 'Pick a coil with opening kg for normal flatsheet (or switch to offcut), then select Save and start production.'
+        : 'Pick at least one coil with opening kg, then select Save and start production so the run is visible to admin and manager.',
+      actionLabel: 'Save and start production',
     });
   }
 
@@ -143,12 +143,12 @@ export function buildProductionRegisterIssues(ctx) {
       title: stoneCoilHybrid ? 'Hybrid stone job not started' : 'Stone-coated job not started',
       detail: stoneCoilHybrid
         ? quotedStoneFlatsheetLinesCount > 0
-          ? 'Tap Save & start. Allocate coil or offcut for normal flatsheet; enter stone flatsheet m² before completing.'
-          : 'Tap Save & start, then allocate coil or offcut for normal flatsheet / gutter.'
+          ? 'Select Save and start production. Allocate coil or offcut for normal flatsheet; enter stone flatsheet m² before completing.'
+          : 'Select Save and start production, then allocate coil or offcut for normal flatsheet / gutter.'
         : quotedStoneFlatsheetLinesCount > 0
-          ? 'Tap Save & start (no coils). Enter stone flatsheet m² before completing.'
-          : 'Tap Save & start to begin the stone-coated run (no coil allocation).',
-      actionLabel: 'Save & start',
+          ? 'Select Save and start production (no coils). Enter stone flatsheet m² before completing.'
+          : 'Select Save and start production to begin the stone-coated run (no coil allocation).',
+      actionLabel: 'Save and start production',
     });
   }
 

@@ -24,7 +24,7 @@ function isoMonthStart() {
 function buildAlerts(model) {
   const out = [];
   if (model.kpis.stockOutIncidents > 0) {
-    out.push({ severity: 'high', type: 'Stock-out', message: `${model.kpis.stockOutIncidents} item(s) at zero stock.` });
+    out.push({ severity: 'high', type: 'Stockouts', message: `${model.kpis.stockOutIncidents} item(s) at zero stock.` });
   }
   if (model.kpis.outstandingSupplierPaymentsNgn > 0) {
     out.push({

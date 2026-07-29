@@ -528,18 +528,18 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
           {sku || skuForecast ? (
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
               <h2 className="text-xs font-black uppercase tracking-wider text-zarewa-teal mb-4">
-                Coil SKU actions — buy, watch & liquidate
+                Coil stock recommendations
               </h2>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div className="space-y-3">
                   <p className="text-ui-xs font-black uppercase text-sky-800">Aluminium</p>
                   <SkuActionList
-                    title="Buy next"
+                    title="Recommended purchases"
                     rows={skuForecast?.aluminium?.buyNext || sku?.aluminium?.buyNext}
                     tone="buy"
                   />
                   <SkuActionList
-                    title="Reduce / free cash"
+                    title="Reduce stock"
                     rows={skuForecast?.aluminium?.reduceStock || sku?.aluminium?.reduceStock}
                     tone="liquidate"
                   />
@@ -547,12 +547,12 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
                 <div className="space-y-3">
                   <p className="text-ui-xs font-black uppercase text-zarewa-teal">Aluzinc</p>
                   <SkuActionList
-                    title="Buy next"
+                    title="Recommended purchases"
                     rows={skuForecast?.aluzinc?.buyNext || sku?.aluzinc?.buyNext}
                     tone="buy"
                   />
                   <SkuActionList
-                    title="Reduce / free cash"
+                    title="Reduce stock"
                     rows={skuForecast?.aluzinc?.reduceStock || sku?.aluzinc?.reduceStock}
                     tone="liquidate"
                   />

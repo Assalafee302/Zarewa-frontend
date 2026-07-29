@@ -187,7 +187,7 @@ export function ClearanceManagerApprovalPreview({
       )}
 
       {!loading ? (
-        <DecisionActionBar hint="Approve records clearance. Disapprove blocks with a reason; Flag keeps it in the audit queue.">
+        <DecisionActionBar hint="Approve clears the quotation. Reject blocks it with a reason; Flag keeps it in the audit queue.">
           {showReleasePayments && canReleasePaymentHolds ? (
             <button
               type="button"
@@ -233,7 +233,7 @@ export function ClearanceManagerApprovalPreview({
               <DecisionActionTile
                 variant="neutral"
                 icon={RotateCcw}
-                label="Disapprove"
+                label="Reject"
                 disabled={decisionBusy}
                 onClick={onDisapprove}
               />

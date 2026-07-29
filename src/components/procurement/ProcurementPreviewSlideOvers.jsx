@@ -719,7 +719,7 @@ export function ProcurementPoPreviewSlideOver({
 }
 
 /**
- * Accounts payable row detail (Procurement → Payments lists).
+ * Accounts payable row detail (Procurement → Supplier payables lists).
  */
 export function ProcurementPayablePreviewSlideOver({
   payable: p,

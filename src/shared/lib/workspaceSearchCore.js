@@ -272,7 +272,7 @@ export const WORKSPACE_NAV_SEARCH_COMMANDS = [
   {
     kind: 'nav',
     id: 'nav-procurement',
-    label: 'Purchase',
+    label: 'Procurement',
     sublabel: 'Procurement & suppliers',
     path: '/procurement',
     keywords: ['procurement', 'purchase', 'supplier', 'po', 'buy'],
@@ -354,10 +354,10 @@ export const WORKSPACE_NAV_SEARCH_COMMANDS = [
   {
     kind: 'nav',
     id: 'nav-exec',
-    label: 'Command Centre',
+    label: 'Executive Office',
     sublabel: 'Executive overview',
     path: '/exec',
-    keywords: ['exec', 'executive', 'command', 'md', 'ceo'],
+    keywords: ['exec', 'executive', 'command', 'md', 'ceo', 'office'],
     permissions: ['exec.dashboard.view'],
   },
 ];

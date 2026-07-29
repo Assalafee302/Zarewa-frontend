@@ -641,7 +641,7 @@ describe('authenticated startup TDZ', () => {
     );
     await waitFor(
       () => {
-        expect(screen.getByRole('heading', { name: /Command Centre/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Executive Office/i })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Cash & Treasury/i })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Working Capital Snapshot/i })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Reserve Policy/i })).toBeInTheDocument();

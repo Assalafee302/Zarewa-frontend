@@ -819,7 +819,7 @@ const ReceiptModal = ({
           }
           setPostingHint(null);
           showToast(
-            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting cashier confirmation.`
+            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.`
           );
           await onLedgerChange?.();
           abandonUnsavedAndRun(() => onClose());
@@ -857,7 +857,7 @@ const ReceiptModal = ({
           }
           setPostingHint(null);
           showToast(
-            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting cashier confirmation.`
+            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.`
           );
           await onLedgerChange?.();
           abandonUnsavedAndRun(() => onClose());
@@ -871,7 +871,7 @@ const ReceiptModal = ({
         setPostingHint(null);
         const linkNote = activeBankDepositId ? ` Linked to ${activeBankDepositId}.` : '';
         showToast(
-          `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting cashier confirmation.${linkNote}`
+          `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.${linkNote}`
         );
         if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !activeBankDepositId) {
           showToast(

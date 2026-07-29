@@ -6,7 +6,7 @@ import { MODULE_ACCESS_POLICY } from '../lib/moduleAccess';
 const MODULE_LABELS = {
   sales: 'Sales',
   procurement: 'Procurement',
-  operations: 'Operations & Production',
+  operations: 'Operations',
   finance: 'Finance & Treasury',
   cashier_desk: 'Cashier Desk',
   accounting_desk: 'Accounting Desk',
@@ -17,7 +17,7 @@ const MODULE_LABELS = {
   team_hr: 'Team HR',
   my_profile_hr: 'My Profile',
   executive_hr: 'Executive HR',
-  edit_approvals: 'Edit Approvals',
+  edit_approvals: 'Change authorisations',
 };
 
 const PERMISSION_HINTS = {
@@ -34,7 +34,7 @@ const PERMISSION_HINTS = {
   team_hr: 'Team HR access',
   my_profile_hr: 'Self-service HR access',
   executive_hr: 'Executive HR access',
-  edit_approvals: 'Edit approvals access',
+  edit_approvals: 'Change authorisations access',
 };
 
 export default function AccessDenied() {

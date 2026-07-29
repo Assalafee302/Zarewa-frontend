@@ -58,7 +58,7 @@ export function ExecMdKpiRow({
         </p>
         <p className="mt-2 text-2xl font-black text-zarewa-teal tabular-nums">{pendingActions ?? 0}</p>
         <p className="mt-2 text-ui-xs text-slate-500 border-t border-slate-100 pt-2">
-          Approve without leaving MD Office
+          Approve without leaving the Executive Office
         </p>
       </button>
     </div>

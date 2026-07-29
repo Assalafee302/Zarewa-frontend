@@ -840,13 +840,13 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                 type="button"
                 disabled={decisionBusy}
                 onClick={() => {
-                  const reason = window.prompt('Why are you disapproving this clearance? (required)');
+                  const reason = window.prompt('Why are you rejecting this clearance? (required)');
                   if (reason && reason.trim()) void handleQuotationReview('flag', reason.trim());
                 }}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 sm:flex-none"
               >
                 <RotateCcw size={15} strokeWidth={2.25} />
-                Disapprove
+                Reject
               </button>
               <button
                 type="button"

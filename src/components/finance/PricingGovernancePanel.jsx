@@ -199,7 +199,7 @@ export function PricingGovernancePanel({
           onClick={() => setSection('cost')}
         />
         <AccountingDeskKpiCard
-          label="Missing GRN WAC"
+          label="Missing GRN weighted average cost"
           value={summary?.costVarianceMissingGrn ?? '—'}
           hint="No coil receipts in lookback"
           onClick={() => setSection('cost')}

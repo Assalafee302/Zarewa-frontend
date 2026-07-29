@@ -20,6 +20,7 @@ import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { formatNgn } from '../Data/mockData';
 import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
+import { poStatusDisplayLabel } from '../lib/procurementStatusUi';
 import {
   poLineBenchmarkPriceNgn,
   poLinePriceSuffix,
@@ -299,7 +300,7 @@ const TransportAgentProfile = () => {
                             <span className="font-medium text-slate-600"> · {h.supplierName}</span>
                           </p>
                           <p className="text-ui-xs text-slate-500 mt-0.5">
-                            {h.orderDateISO || '—'} · {h.status}
+                            {h.orderDateISO || '—'} · {poStatusDisplayLabel(h.status)}
                             {h.procurementKind !== 'coil' ? ` · ${h.procurementKind}` : ''}
                           </p>
                         </div>

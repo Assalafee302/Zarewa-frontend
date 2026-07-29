@@ -21,9 +21,12 @@ export function ReportsFinanceToolsPanel({
 
   if (!visible || !hasFinanceView) return null;
 
-  const toolLabels = ['Cash confirmation pack', 'GL pilot', mayViewAp2 ? 'AP2 diagnostics' : null, mayViewAp3 ? 'AP3 costing' : null].filter(
-    Boolean
-  );
+  const toolLabels = [
+    'Cash confirmation pack',
+    'GL pilot',
+    mayViewAp2 ? 'Supplier payables diagnostics' : null,
+    mayViewAp3 ? 'Production costing' : null,
+  ].filter(Boolean);
 
   return (
     <section className="z-panel-section border border-slate-200/90 bg-white/90 p-5 sm:p-6 rounded-2xl shadow-sm">

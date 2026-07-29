@@ -30,6 +30,7 @@ import { purchaseOrderTransportGapLabel } from '../../lib/purchaseOrderWorkflow'
 import { PAYABLES_SORT_FIELDS } from '../../lib/procurementPayablesSorting';
 import { AppTablePager } from '../../components/ui/AppDataTable';
 import { PoStatusChip } from '../../components/procurement/PoStatusChip';
+import { poStatusDisplayLabel } from '../../lib/procurementStatusUi';
 import { ProcurementFormSection } from '../../components/procurement/ProcurementFormSection';
 import { PriceListPanel } from '../../components/procurement/PriceListPanel';
 import { useProcurementPage } from './ProcurementPageContext.jsx';
@@ -404,7 +405,7 @@ export function ProcurementTabPanels() {
                               <p className="text-ui-xs font-bold text-amber-950">
                                 <span className="font-mono">{row.poID}</span>
                                 <span className="font-medium text-amber-900/90"> · {row.supplierName}</span>
-                                <span className="font-normal text-amber-900/75"> · {row.status}</span>
+                                <span className="font-normal text-amber-900/75"> · {poStatusDisplayLabel(row.status)}</span>
                               </p>
                               <p className="text-ui-xs text-amber-900/70 mt-0.5">
                                 {row.gapKind === 'fee'

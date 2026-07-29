@@ -15,7 +15,7 @@ export function SalesReceiptPaymentStatusFilter({ value = 'all', onChange, count
   return (
     <div className="flex flex-wrap items-center gap-2 text-ui-xs">
       <span className="font-bold text-slate-400 uppercase tracking-widest shrink-0">Payment status</span>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter payments by cashier confirmation">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter receipts by confirmation status">
         {FILTER_OPTIONS.map((opt) => {
           const active = value === opt.id;
           const count = counts[opt.id];
@@ -43,7 +43,7 @@ export function SalesReceiptPaymentStatusFilter({ value = 'all', onChange, count
 export function SalesReceiptPaymentStatusLegend() {
   return (
     <p className="text-ui-xs text-slate-500 leading-snug">
-      <span className="font-bold text-amber-800">Amber</span> — awaiting cashier confirmation ·{' '}
+      <span className="font-bold text-amber-800">Amber</span> — awaiting confirmation ·{' '}
       <span className="font-bold text-teal-800">Teal</span> — cashier confirmed ·{' '}
       <span className="font-bold text-rose-800">Rose</span> — reversed
     </p>
@@ -52,7 +52,7 @@ export function SalesReceiptPaymentStatusLegend() {
 
 export function SalesReceiptAwaitingAlert({ count = 0, onFilterAwaiting }) {
   if (count <= 0) return null;
-  const label = `${count} payment${count !== 1 ? 's' : ''} awaiting cashier confirmation`;
+  const label = `${count} receipt${count !== 1 ? 's' : ''} awaiting confirmation`;
   return (
     <div
       className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2.5 sm:px-4"

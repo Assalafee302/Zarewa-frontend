@@ -91,25 +91,19 @@ const Sidebar = ({
   const hasAccountingDesk = userMayViewAccountingDeskClient(roleKey, permissions);
   const hasLegacyFinanceNav = userMaySeeLegacyAccountsNav(roleKey, permissions);
   const financeNavLabel =
-    hasAccountingDesk && hasLegacyFinanceNav
-      ? String(roleKey || '').trim().toLowerCase() === 'cashier'
-        ? 'Cashier desk'
-        : 'Treasury & payouts'
-      : String(roleKey || '').trim().toLowerCase() === 'cashier'
-        ? 'Finance desk'
-        : 'Finance';
+    String(roleKey || '').trim().toLowerCase() === 'cashier' ? 'Finance desk' : 'Finance';
 
   const fullMenuItems = [
     {
       icon: <ShieldCheck size={18} />,
-      label: 'Management',
+      label: 'Branch manager',
       path: '/manager',
       visible: ['sales_manager', 'branch_manager', 'admin'].includes(ws?.session?.user?.roleKey),
       badgeCount: managementPending,
     },
     {
       icon: <LayoutDashboard size={18} />,
-      label: roleKey === 'md' ? 'MD Office' : 'Command Centre',
+      label: 'Executive Office',
       path: hasBranchCommandCentre && !hasExecNav ? '/exec?tab=intelligence' : '/exec',
       active: pathMatches(p, '/exec'),
       visible: showCommandCentreNav && roleKey !== 'ceo' && (hasExecNav ? ['md', 'admin'].includes(roleKey) : hasBranchCommandCentre),
@@ -117,7 +111,7 @@ const Sidebar = ({
     { icon: <Home size={18} />, label: 'Workspace', path: '/', badgeCount: staffCreditPending },
     {
       icon: <Truck size={18} />,
-      label: 'Purchase',
+      label: 'Procurement',
       path: '/procurement',
       visible: Boolean(ws?.canAccessModule?.('procurement')),
     },
@@ -130,7 +124,7 @@ const Sidebar = ({
     },
     {
       icon: <LayoutGrid size={18} />,
-      label: 'Store & inventory',
+      label: 'Operations',
       path: '/operations',
       to: { pathname: '/operations', state: { focusOpsTab: 'inventory' } },
       active: pathMatches(p, '/operations'),
@@ -164,13 +158,13 @@ const Sidebar = ({
     },
     {
       icon: <Sparkles size={18} />,
-      label: 'Business intelligence',
+      label: 'Insights',
       path: '/analytics',
       visible: mayViewBi && !showCommandCentreNav,
     },
     {
       icon: <Users size={18} />,
-      label: 'HR operations',
+      label: 'Human Resources',
       path: '/hr',
       active: pathMatches(p, '/hr') && !pathMatches(p, '/hr/executive'),
       visible: ws?.canAccessModule?.('hr') ?? false,
@@ -192,7 +186,7 @@ const Sidebar = ({
     },
     {
       icon: <UserCircle size={18} />,
-      label: canAccessMyProfileHr(permissions) ? 'Account & HR' : 'Account',
+      label: 'My profile',
       path: canAccessMyProfileHr(permissions) ? HR_SELF_SERVICE_BASE : '/me',
       active:
         pathMatches(p, '/me') ||
@@ -201,7 +195,7 @@ const Sidebar = ({
     },
     {
       icon: <ClipboardCheck size={18} />,
-      label: 'Edit approvals',
+      label: 'Change authorisations',
       path: '/edit-approvals',
       // Edit approvals is embedded on the workspace home (not a standalone page).
       visible: (ws?.editApprovalsPendingCount ?? 0) > 0 || Boolean(ws?.canAccessModule?.('edit_approvals')),
@@ -220,7 +214,7 @@ const Sidebar = ({
       ? [
           {
             icon: <LayoutDashboard size={18} />,
-            label: 'Command Centre',
+            label: 'Executive Office',
             path: '/exec',
             active: pathMatches(p, '/exec'),
             visible: true,

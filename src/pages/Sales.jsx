@@ -157,8 +157,8 @@ import {
 } from '../lib/stockCheckMasterOptions';
 const TAB_LABELS = {
   quotations: 'Quotations',
-  receipts: 'Payments',
-  cuttinglist: 'Cutting list',
+  receipts: 'Receipts',
+  cuttinglist: 'Cutting lists',
   refund: 'Refunds',
   customers: 'Customers',
 };
@@ -1337,8 +1337,8 @@ const Sales = () => {
   const salesTabs = useMemo(
     () => [
       { id: 'quotations', icon: <FileText size={16} />, label: 'Quotations' },
-      { id: 'receipts', icon: <ReceiptIcon size={16} />, label: 'Payments' },
-      { id: 'cuttinglist', icon: <Scissors size={16} />, label: 'Cutting list' },
+      { id: 'receipts', icon: <ReceiptIcon size={16} />, label: 'Receipts' },
+      { id: 'cuttinglist', icon: <Scissors size={16} />, label: 'Cutting lists' },
       { id: 'refund', icon: <RotateCcw size={16} />, label: 'Refunds' },
       { id: 'customers', icon: <UserCircle size={16} />, label: 'Customers' },
     ],

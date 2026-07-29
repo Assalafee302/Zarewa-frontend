@@ -131,7 +131,7 @@ export default function WorkspaceCoilMaterialPanel({ item, onDone }) {
             onClick={() => void acknowledgeCoil()}
             className="inline-flex items-center gap-2 rounded-xl bg-zarewa-teal px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3d3a] disabled:opacity-50"
           >
-            {busy ? 'Working…' : 'Acknowledge & route to procurement'}
+            {busy ? 'Saving…' : 'Acknowledge & route to procurement'}
           </button>
           <p className="mt-2 text-xs text-slate-500">Confirms operations has seen the coil need and opens the procurement workflow.</p>
         </div>

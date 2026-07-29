@@ -7,8 +7,8 @@ export const RECEIPT_STATUS_PENDING_CLEARANCE = 'Pending clearance';
 export const RECEIPT_STATUS_CLEARED = 'Cleared';
 export const RECEIPT_STATUS_REVERSED = 'Reversed';
 
-/** Sales → Payments list: cashier-facing payment confirmation labels. */
-export const SALES_RECEIPT_PAYMENT_STATUS_AWAITING_CASHIER = 'Awaiting cashier';
+/** Sales → Receipts list: cashier-facing payment confirmation labels (display only). */
+export const SALES_RECEIPT_PAYMENT_STATUS_AWAITING_CASHIER = 'Awaiting confirmation';
 export const SALES_RECEIPT_PAYMENT_STATUS_CASHIER_CONFIRMED = 'Cashier confirmed';
 
 function normStatus(status) {

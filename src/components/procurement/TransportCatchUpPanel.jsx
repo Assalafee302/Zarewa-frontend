@@ -65,7 +65,7 @@ export function TransportCatchUpPanel({
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-widest text-zarewa-teal flex items-center gap-2">
                 <Truck className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />
-                PO transport catch-up
+                PO transport reconciliation
               </p>
               <p className="text-xs text-slate-600 mt-1 leading-relaxed max-w-2xl">
                 Work through open and received POs where haulage is missing or unpaid. Assign transport in
@@ -104,7 +104,7 @@ export function TransportCatchUpPanel({
         {filteredCatchUp.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-12 px-4">
             {catchUpRows.length === 0
-              ? 'No PO transport catch-up items in this workspace scope.'
+              ? 'No PO transport reconciliation items in this workspace scope.'
               : 'No rows match your filter.'}
           </p>
         ) : (
@@ -193,7 +193,7 @@ export function TransportCatchUpPanel({
           <div className="px-4 sm:px-5 py-4 border-b border-rose-100/80">
             <p className="text-xs font-bold uppercase tracking-widest text-rose-950 flex items-center gap-2">
               <AlertTriangle className="size-4 shrink-0" strokeWidth={2.25} aria-hidden />
-              Orphan haulage payments
+              Unlinked haulage payments
             </p>
             <p className="text-xs text-rose-950/80 mt-1 leading-relaxed max-w-2xl">
               Treasury outflows that look like haulage but are not linked to a PO transport payment. Match each

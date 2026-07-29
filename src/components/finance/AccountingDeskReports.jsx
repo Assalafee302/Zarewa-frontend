@@ -69,7 +69,7 @@ export function AccountingDeskReports({
       },
       {
         id: 'ap2',
-        title: 'Supplier AP diagnostics (AP2a)',
+        title: 'Supplier payables diagnostics (AP2a)',
         description: 'Ordered vs received vs paid — Procurement payables.',
         to: '/procurement',
         state: { focusTab: 'payables' },
@@ -158,7 +158,7 @@ export function AccountingDeskReports({
               onClick={() => onReloadAp1c?.()}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal hover:bg-slate-50"
             >
-              Load AP1c dry-run
+              Load deposit policy preview
             </button>
           </>
         }
@@ -218,7 +218,7 @@ export function AccountingDeskReports({
       </AccountingDeskTableSection>
 
       <AccountingDeskTableSection
-        title="Deposit vs receivable (AP1c dry-run)"
+        title="Deposit vs receivable (policy preview)"
         description="Policy v1 readiness — management draft only."
         onReload={() => onReloadAp1c?.()}
         onExport={() => downloadFinanceCsv('ap1c-dry-run-summary', ['risk', 'count'], ap1cRows)}
@@ -227,7 +227,7 @@ export function AccountingDeskReports({
           !ap1cRows.length ? (
             <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-10 px-6 text-center">
               <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest">
-                Enable diagnostics and load AP1c dry-run
+                Enable diagnostics and load deposit policy preview
               </p>
             </div>
           ) : null

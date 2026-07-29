@@ -49,16 +49,16 @@ function renderSpend(roleKey, permissions) {
 describe('ManagerSpendTab drill-down access', () => {
   it('BM drill modal shows Finance-desk copy and no /accounts link', () => {
     renderSpend('sales_manager', ['expenses.create', 'reports.view', 'finance.approve']);
-    fireEvent.click(screen.getByRole('button', { name: /Total spend/i }));
-    expect(screen.getByText(/Payment register stays on the Finance desk/i)).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Full Payment register/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Total expenses/i }));
+    expect(screen.getByText(/Payouts & expenses stay on the Finance desk/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Full Payouts & expenses/i })).toBeNull();
     expect(screen.queryByRole('link', { name: /accounts/i })).toBeNull();
   });
 
-  it('MD drill modal can link to Payment register', () => {
+  it('MD drill modal can link to Payouts & expenses', () => {
     renderSpend('md', ['finance.view', 'reports.view']);
-    fireEvent.click(screen.getByRole('button', { name: /Total spend/i }));
-    const link = screen.getByRole('link', { name: /Full Payment register/i });
+    fireEvent.click(screen.getByRole('button', { name: /Total expenses/i }));
+    const link = screen.getByRole('link', { name: /Full Payouts & expenses/i });
     expect(link).toHaveAttribute('href', '/accounts?tab=disbursements');
   });
 });

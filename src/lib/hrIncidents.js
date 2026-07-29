@@ -132,7 +132,7 @@ export function recordGatePassEvent(body) {
 export const INCIDENT_CATEGORIES = [
   { value: 'hr', label: 'HR discipline case' },
   { value: 'operational', label: 'Operational / asset incident' },
-  { value: 'material', label: 'Material exception (coil/offcut)' },
+  { value: 'material', label: 'Material exceptions (coil/offcut)' },
   { value: 'performance', label: 'Performance recognition (not discipline)' },
 ];
 

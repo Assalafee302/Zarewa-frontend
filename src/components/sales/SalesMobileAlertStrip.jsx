@@ -27,7 +27,7 @@ export default function SalesMobileAlertStrip({
   }
   if (salesTab === 'receipts' && awaitingCashierReceipts > 0) {
     items.push({
-      label: `${awaitingCashierReceipts} payment${awaitingCashierReceipts !== 1 ? 's' : ''} awaiting cashier`,
+      label: `${awaitingCashierReceipts} receipt${awaitingCashierReceipts !== 1 ? 's' : ''} awaiting confirmation`,
       tone: 'amber',
     });
   }

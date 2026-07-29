@@ -10,3 +10,10 @@ export function poStatusChipClass(status) {
   if (st === 'Pending') return 'border-amber-200 bg-amber-50 text-amber-900';
   return 'border-slate-200 bg-slate-50 text-slate-600';
 }
+
+/** User-facing PO status label. Stored value 'On loading' is unchanged in DB/API. */
+export function poStatusDisplayLabel(status) {
+  const st = String(status || '').trim();
+  if (st === 'On loading') return 'Loading confirmed';
+  return st || '—';
+}

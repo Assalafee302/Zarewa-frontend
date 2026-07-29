@@ -2,7 +2,7 @@ import { normalizeJobStatus } from './productionJobPick.js';
 
 /**
  * Five distinct chip palettes for production-line queue status (Sales cutting list + Operations queue).
- * Waiting = not sent to production; Pushed = registered (planned or job still syncing); In production; Produced; Cancelled.
+ * Waiting = not sent to production; Released to production = registered (planned or job still syncing); In production; Produced; Cancelled.
  *
  * @param {Record<string, unknown>} cl cutting list snapshot row
  * @param {Record<string, unknown> | null | undefined} job production job from pickProductionJobForCuttingList
@@ -21,7 +21,7 @@ export function productionQueueLineStatusPresentation(cl, job) {
     return { label: 'In production', chipClass: 'border-cyan-500 bg-cyan-50 text-cyan-950' };
   }
   if (cl?.productionRegistered && (job == null || jobSt === 'Planned')) {
-    return { label: 'Pushed', chipClass: 'border-violet-500 bg-violet-50 text-violet-950' };
+    return { label: 'Released to production', chipClass: 'border-violet-500 bg-violet-50 text-violet-950' };
   }
   if (clSt === 'Draft') {
     return { label: 'Draft', chipClass: 'border-slate-400 bg-slate-100 text-slate-800' };

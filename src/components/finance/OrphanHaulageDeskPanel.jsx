@@ -12,10 +12,10 @@ export function OrphanHaulageDeskPanel({ orphanRows = [], canAccessProcurement =
   return (
     <FinanceDeskColoredQueuePanel
       theme="rose"
-      title="Orphan haulage — not linked to PO transport"
+      title="Unlinked haulage payments — not linked to PO transport"
       icon={<AlertTriangle size={16} strokeWidth={2} />}
       count={orphanRows.length}
-      description="These treasury outflows look like haulage but are outside the PO transport payment flow. Reconcile in Procurement transport catch-up or confirm as general expense."
+      description="These treasury outflows look like haulage but are outside the PO transport payment flow. Reconcile in Procurement transport reconciliation or confirm as general expense."
       testId="finance-orphan-haulage-panel"
       action={
         canAccessProcurement ? (
@@ -24,7 +24,7 @@ export function OrphanHaulageDeskPanel({ orphanRows = [], canAccessProcurement =
             state={{ focusTab: 'transport' }}
             className="text-ui-xs font-bold uppercase text-rose-900 underline-offset-2 hover:underline"
           >
-            Transport catch-up
+            Transport reconciliation
           </Link>
         ) : null
       }
@@ -59,7 +59,7 @@ export function OrphanHaulageDeskPanel({ orphanRows = [], canAccessProcurement =
       </ul>
       {orphanRows.length > 8 ? (
         <p className="text-ui-xs text-rose-900/70 mt-2 px-1">
-          +{orphanRows.length - 8} more in Procurement → Transport catch-up
+          +{orphanRows.length - 8} more in Procurement → Transport reconciliation
         </p>
       ) : null}
     </FinanceDeskColoredQueuePanel>

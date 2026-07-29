@@ -45,7 +45,7 @@ export function Ap1cDryRunPanel({ data, loading, error, onReload, embedded = fal
           />
 
           <AccountingDeskNotice tone="warn">
-            Policy v1 dry-run only — Head of Accounts must sign off before enabling live GL posting flags.
+            Policy v1 preview only — Head of Accounts must sign off before enabling live GL posting flags.
           </AccountingDeskNotice>
         </>
       ) : null}
@@ -57,7 +57,7 @@ export function Ap1cDryRunPanel({ data, loading, error, onReload, embedded = fal
         </p>
       ) : null}
 
-      {loading && !data ? <p className="text-xs font-medium text-violet-800">Loading AP1c dry-run…</p> : null}
+      {loading && !data ? <p className="text-xs font-medium text-violet-800">Loading deposit policy preview…</p> : null}
 
       {data?.status === 'dry_run_only' ? (
         <>

@@ -40,9 +40,9 @@ function liveCoilWeightKg(lot) {
 const KIND_LABELS = {
   scrap_offcut: 'Scrap / offcut',
   finish_roll: 'Roll finished (tail cleared)',
-  adjust_add_kg: 'Coil adjust +kg',
-  adjust_remove_kg: 'Coil adjust −kg',
-  return_inward_pool: 'Return inward (offcut pool)',
+  adjust_add_kg: 'Increase weight',
+  adjust_remove_kg: 'Decrease weight',
+  return_inward_pool: 'Offcut return pool',
   pool_issue_production: 'Pool issue (production)',
   return_outward: 'Return outward',
   coil_open_trim: 'Coil open — head trim',
@@ -358,7 +358,7 @@ export default function OperationsCoilControlTab() {
         }),
       });
       if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not save return inward.', { variant: 'error' });
+        showToast(data?.error || 'Could not save offcut return pool entry.', { variant: 'error' });
         return;
       }
       await ws.refresh();
@@ -568,7 +568,7 @@ export default function OperationsCoilControlTab() {
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-100 disabled:opacity-40"
             >
               <ArrowDownToLine size={14} aria-hidden />
-              Return inward
+              Offcut return pool
             </button>
             <button
               type="button"
@@ -643,9 +643,9 @@ export default function OperationsCoilControlTab() {
           {[
             { id: 'all', label: 'All' },
             { id: 'scrap', label: 'Scrap & head' },
-            { id: 'pool', label: 'Return inward pool' },
-            { id: 'adjust_add_kg', label: '+kg adjust' },
-            { id: 'adjust_remove_kg', label: '−kg adjust' },
+            { id: 'pool', label: 'Offcut return pool' },
+            { id: 'adjust_add_kg', label: 'Increase weight' },
+            { id: 'adjust_remove_kg', label: 'Decrease weight' },
             { id: 'return_outward', label: 'Outward' },
             { id: 'supplier_defect', label: 'Supplier' },
           ].map((t) => (
@@ -939,8 +939,8 @@ export default function OperationsCoilControlTab() {
         </ModalPanel>
       </ModalFrame>
 
-      <ModalFrame isOpen={modal === 'returnIn'} onClose={() => !saving && setModal(null)} title="Return inward">
-        <ModalPanel title="Return inward (offcut pool)" onClose={() => !saving && setModal(null)}>
+      <ModalFrame isOpen={modal === 'returnIn'} onClose={() => !saving && setModal(null)} title="Offcut return pool">
+        <ModalPanel title="Offcut return pool" onClose={() => !saving && setModal(null)}>
           <form className="space-y-3" onSubmit={submitReturnIn}>
             <p className="text-ui-xs text-slate-600 leading-snug">
               Gauge and colour must match your quotation rules exactly. Optional source coil is for traceability only.

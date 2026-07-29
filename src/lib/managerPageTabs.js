@@ -2,10 +2,10 @@
 
 export const MANAGER_PAGE_TABS = [
   { id: 'today', label: 'Today' },
-  { id: 'intelligence', label: 'Business Intelligence' },
+  { id: 'intelligence', label: 'Insights' },
   { id: 'operations', label: 'Branch Operations' },
   { id: 'performance', label: 'Performance' },
-  { id: 'spend', label: 'Spend' },
+  { id: 'spend', label: 'Expenses' },
 ];
 
 export const MANAGER_PAGE_TAB_IDS = MANAGER_PAGE_TABS.map((t) => t.id);

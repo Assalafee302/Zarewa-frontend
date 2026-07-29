@@ -1007,7 +1007,7 @@ export function RefundManagerApprovalPreview({
                     <li key={w.refundId}>
                       <span className="font-mono">{w.refundId}</span> ? {w.status} ? requested{' '}
                       {formatNgn(w.amountNgn)} ? cap {formatNgn(w.maxDefensibleRefundNgn)}
-                      {w.reasonCategory ? ` · ${w.reasonCategory}` : ''}
+                      {w.reasonCategory ? ` · ${formatRefundReasonCategory(w.reasonCategory)}` : ''}
                     </li>
                   ))}
                 </ul>
