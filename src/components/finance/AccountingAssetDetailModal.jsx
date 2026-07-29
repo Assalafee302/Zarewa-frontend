@@ -4,15 +4,7 @@ import { formatNgn } from '../../Data/mockData';
 import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import { treasuryAccountDisplayName } from '../../lib/treasuryAccountsStore';
-
-const CATEGORY_LABELS = {
-  plant: 'Plant & machinery',
-  vehicle: 'Vehicles',
-  it: 'IT equipment',
-  building: 'Buildings',
-  land: 'Land',
-  other: 'Other',
-};
+import { ACCOUNTING_ASSET_CATEGORY_LABELS as CATEGORY_LABELS } from '../../lib/accountingAssetCategories';
 
 const INPUT =
   'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10';

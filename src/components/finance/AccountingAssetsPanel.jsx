@@ -28,27 +28,12 @@ import { useAccountingDesk } from './accounting/AccountingDeskContext';
 import { useAccountingRegisterTieOut } from '../../hooks/useAccountingRegisterTieOut';
 import { AccountingAssetRow } from './accounting/AccountingAssetRow';
 import { AccountingAssetDetailModal } from './AccountingAssetDetailModal';
+import {
+  ACCOUNTING_ASSET_CATEGORY_LABELS as CATEGORY_LABELS,
+  ACCOUNTING_ASSET_CATEGORY_OPTIONS as CATEGORY_OPTIONS,
+} from '../../lib/accountingAssetCategories';
 
 const ASSETS_PAGE_SIZE = 15;
-
-const CATEGORY_LABELS = {
-  plant: 'Plant & machinery',
-  vehicle: 'Vehicles',
-  it: 'IT equipment',
-  building: 'Buildings',
-  land: 'Land',
-  other: 'Other',
-};
-
-const CATEGORY_OPTIONS = [
-  { id: 'all', label: 'All categories' },
-  { id: 'plant', label: 'Machinery' },
-  { id: 'building', label: 'Buildings' },
-  { id: 'land', label: 'Land' },
-  { id: 'vehicle', label: 'Vehicles' },
-  { id: 'it', label: 'IT & furniture' },
-  { id: 'other', label: 'Other' },
-];
 
 const ASSET_SORT_FIELDS = [
   { id: 'amount', label: 'NBV' },
