@@ -26,6 +26,7 @@ import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import RegisterCoilModal from '../components/operations/RegisterCoilModal';
 import { OperationsProductionOverview } from '../components/operations/OperationsProductionOverview';
+import OperationsMobileAlertStrip from '../components/operations/OperationsMobileAlertStrip';
 import {
   ProductionListTableFrame,
   ProductionListSearchInput,
@@ -613,6 +614,7 @@ const Operations = () => {
     confirmStoreReceipt,
     adjustStock,
     coilLots,
+    materialIncidents,
   } = useInventory();
   const ws = useWorkspace();
   const wsRefresh = ws?.refresh;
@@ -1274,6 +1276,14 @@ const Operations = () => {
     [purchaseOrders]
   );
 
+  const pendingMexCount = useMemo(
+    () =>
+      (Array.isArray(materialIncidents) ? materialIncidents : []).filter(
+        (row) => String(row?.status || '').trim().toLowerCase() === 'submitted'
+      ).length,
+    [materialIncidents]
+  );
+
   const transitSearchNorm = transitSearch.trim().toLowerCase();
   const transitOrdersSortedFiltered = useMemo(() => {
     const sorted = sortTransitPurchaseOrders(transitOrdersAll, transitSort);
@@ -1843,6 +1853,14 @@ const Operations = () => {
             </AiAskButton>
           </>
         }
+      />
+
+      <OperationsMobileAlertStrip
+        inTransitCount={transitOrdersAll.length}
+        lowStockCount={inventoryStats.lowStock}
+        pendingMexCount={pendingMexCount}
+        onGoInventory={() => setActiveTab('inventory')}
+        onGoMaterialExceptions={() => setActiveTab('materialExceptions')}
       />
 
       {activeTab === 'inventory' && (!canReceiveInventory || !canAdjustInventory) ? (
@@ -2576,7 +2594,7 @@ const Operations = () => {
         ) : null}
 
         {activeTab === 'inventory' ? (
-        <div className="col-span-full mb-2 order-1">
+        <div className="col-span-full mb-2 order-1 hidden lg:block">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-3">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
