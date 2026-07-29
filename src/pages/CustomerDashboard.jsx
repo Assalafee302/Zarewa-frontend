@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Clock,
   MessageSquarePlus,
+  MessageSquareWarning,
   BarChart3,
   Printer,
   ChevronRight,
@@ -51,6 +52,14 @@ import { apiFetch } from '../lib/apiBase';
 import { appConfirm } from '../lib/appConfirm';
 import { setCustomerStaffLink } from '../lib/customerStaffLink';
 import { formatNgn } from '../Data/mockData';
+import {
+  COMPLAINT_CATEGORIES,
+  COMPLAINT_CATEGORY_LABELS,
+  COMPLAINT_CHANNELS,
+  COMPLAINT_CHANNEL_LABELS,
+  COMPLAINT_SEVERITIES,
+  COMPLAINT_SEVERITY_LABELS,
+} from '../shared/customerComplaints.js';
 import { refundApprovedAmount, refundOutstandingAmount } from '../lib/refundsStore';
 import {
   advanceBalanceNgn,
@@ -346,6 +355,14 @@ const CustomerDashboard = () => {
   const [reportPreview, setReportPreview] = useState(null);
   const [noteDraft, setNoteDraft] = useState('');
   const [staffNotes, setStaffNotes] = useState([]);
+  const [complaintForm, setComplaintForm] = useState({
+    channel: 'phone',
+    category: 'service',
+    severity: 'low',
+    description: '',
+    linkedOrderId: '',
+  });
+  const [complaintBusy, setComplaintBusy] = useState(false);
   const [refundAdvanceOpen, setRefundAdvanceOpen] = useState(false);
   const [refundAdvanceAmt, setRefundAdvanceAmt] = useState('');
   const [refundAdvanceBusy, setRefundAdvanceBusy] = useState(false);
@@ -454,6 +471,48 @@ const CustomerDashboard = () => {
     setStaffNotes((prev) => [row, ...prev]);
     setNoteDraft('');
     showToast('Note saved to customer CRM.');
+  };
+
+  const submitComplaint = async (e) => {
+    e.preventDefault();
+    const description = complaintForm.description.trim();
+    if (!description) {
+      showToast('Describe the complaint.', { variant: 'error' });
+      return;
+    }
+    if (!ws?.canMutate) {
+      showToast('Reconnect to log complaints — workspace is read-only.', { variant: 'info' });
+      return;
+    }
+    setComplaintBusy(true);
+    const { ok, data } = await apiFetch(
+      `/api/customers/${encodeURIComponent(customerKey)}/complaints`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: complaintForm.channel,
+          category: complaintForm.category,
+          severity: complaintForm.severity,
+          description,
+          linkedOrderId: complaintForm.linkedOrderId.trim() || undefined,
+        }),
+      }
+    );
+    setComplaintBusy(false);
+    if (!ok || !data?.ok) {
+      showToast(data?.error || 'Could not log complaint.', { variant: 'error' });
+      return;
+    }
+    setComplaintForm((prev) => ({ ...prev, description: '', linkedOrderId: '' }));
+    if (data.missingBranchManager || data.assignmentFallback) {
+      showToast(
+        `Complaint ${data.complaint?.id || ''} logged — no Branch Manager on this branch; assigned to you. MD/admin alert raised.`,
+        { variant: 'info' }
+      );
+    } else {
+      showToast(`Complaint ${data.complaint?.id || ''} logged and assigned to Branch Manager.`);
+    }
   };
 
   const submitRefundAdvance = async (e) => {
@@ -1799,27 +1858,120 @@ const CustomerDashboard = () => {
                   )}
                 </ul>
               </div>
-              <div className="lg:col-span-2 rounded-zarewa border border-gray-100 bg-gray-50/50 p-5 shadow-sm">
-                <p className="text-ui-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <MessageSquarePlus size={14} />
-                  Add staff note
-                </p>
-                <p className="text-ui-xs text-gray-500 mb-3 leading-snug">
-                  When signed in, notes are stored on the server for the whole sales team. Offline entries stay
-                  on this browser only.
-                </p>
-                <form onSubmit={addNote} className="space-y-3">
-                  <textarea
-                    value={noteDraft}
-                    onChange={(e) => setNoteDraft(e.target.value)}
-                    rows={4}
-                    placeholder="Preferences, complaints, follow-up reminders…"
-                    className="w-full rounded-xl border border-gray-100 bg-white py-2.5 px-3 text-sm outline-none focus:ring-2 focus:ring-zarewa-teal/15 resize-none"
-                  />
-                  <button type="submit" className="z-btn-primary w-full justify-center py-2.5 text-xs">
-                    Save note
-                  </button>
-                </form>
+              <div className="lg:col-span-2 space-y-6">
+                <div className="rounded-zarewa border border-gray-100 bg-gray-50/50 p-5 shadow-sm">
+                  <p className="text-ui-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <MessageSquarePlus size={14} />
+                    Add staff note
+                  </p>
+                  <p className="text-ui-xs text-gray-500 mb-3 leading-snug">
+                    When signed in, notes are stored on the server for the whole sales team. Offline entries stay
+                    on this browser only.
+                  </p>
+                  <form onSubmit={addNote} className="space-y-3">
+                    <textarea
+                      value={noteDraft}
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                      rows={4}
+                      placeholder="Preferences, follow-up reminders, general CRM notes…"
+                      className="w-full rounded-xl border border-gray-100 bg-white py-2.5 px-3 text-sm outline-none focus:ring-2 focus:ring-zarewa-teal/15 resize-none"
+                    />
+                    <button type="submit" className="z-btn-primary w-full justify-center py-2.5 text-xs">
+                      Save note
+                    </button>
+                  </form>
+                </div>
+
+                <div className="rounded-zarewa border border-amber-100 bg-amber-50/40 p-5 shadow-sm">
+                  <p className="text-ui-xs font-bold text-amber-900/70 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <MessageSquareWarning size={14} />
+                    Log complaint
+                  </p>
+                  <p className="text-ui-xs text-amber-950/70 mb-3 leading-snug">
+                    Opens a tracked case for the Branch Manager. Separate from freeform notes — refunds still go
+                    through Needs approval.
+                  </p>
+                  <form onSubmit={submitComplaint} className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <label className="block text-ui-xs font-bold uppercase text-slate-500">
+                        Channel
+                        <select
+                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold"
+                          value={complaintForm.channel}
+                          onChange={(e) =>
+                            setComplaintForm((prev) => ({ ...prev, channel: e.target.value }))
+                          }
+                        >
+                          {COMPLAINT_CHANNELS.map((c) => (
+                            <option key={c} value={c}>
+                              {COMPLAINT_CHANNEL_LABELS[c] || c}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-ui-xs font-bold uppercase text-slate-500">
+                        Category
+                        <select
+                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold"
+                          value={complaintForm.category}
+                          onChange={(e) =>
+                            setComplaintForm((prev) => ({ ...prev, category: e.target.value }))
+                          }
+                        >
+                          {COMPLAINT_CATEGORIES.map((c) => (
+                            <option key={c} value={c}>
+                              {COMPLAINT_CATEGORY_LABELS[c] || c}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-ui-xs font-bold uppercase text-slate-500">
+                        Severity
+                        <select
+                          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold"
+                          value={complaintForm.severity}
+                          onChange={(e) =>
+                            setComplaintForm((prev) => ({ ...prev, severity: e.target.value }))
+                          }
+                        >
+                          {COMPLAINT_SEVERITIES.map((c) => (
+                            <option key={c} value={c}>
+                              {COMPLAINT_SEVERITY_LABELS[c] || c}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <label className="block text-ui-xs font-bold uppercase text-slate-500">
+                      Linked order (optional)
+                      <input
+                        className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs font-mono font-semibold"
+                        value={complaintForm.linkedOrderId}
+                        onChange={(e) =>
+                          setComplaintForm((prev) => ({ ...prev, linkedOrderId: e.target.value }))
+                        }
+                        placeholder="QTN-… / order ref"
+                      />
+                    </label>
+                    <textarea
+                      value={complaintForm.description}
+                      onChange={(e) =>
+                        setComplaintForm((prev) => ({ ...prev, description: e.target.value }))
+                      }
+                      rows={3}
+                      required
+                      placeholder="What went wrong — facts the Branch Manager needs…"
+                      className="w-full rounded-xl border border-gray-200 bg-white py-2.5 px-3 text-sm outline-none focus:ring-2 focus:ring-zarewa-teal/15 resize-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={complaintBusy}
+                      className="z-btn-primary w-full justify-center py-2.5 text-xs disabled:opacity-60"
+                    >
+                      {complaintBusy ? 'Logging…' : 'Log complaint'}
+                    </button>
+                  </form>
+                </div>
               </div>
             </div>
           </section>

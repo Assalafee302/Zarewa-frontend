@@ -49,6 +49,9 @@ export function managementAttentionItemPath(item) {
   }
   if (kind === 'edit_approvals') return '/manager?inbox=edits';
   if (kind === 'governance') {
+    if (item.integrityKind === 'missing_branch_manager' || item.row?.integrityKind === 'missing_branch_manager') {
+      return '/settings';
+    }
     if (item.refundId) {
       return `/manager?inbox=cash_out&refundId=${encodeURIComponent(String(item.refundId))}`;
     }
