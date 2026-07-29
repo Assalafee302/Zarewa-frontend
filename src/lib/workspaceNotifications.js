@@ -170,7 +170,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
       id: 'mgr-production-qc',
       category: 'manager',
       title: 'Production QC',
-      detail: `${qc} completed job(s) need conversion sign-off — separate from order sign-off.`,
+      detail: `${qc} completed job(s) need a close production check — separate from order sign-off.`,
       severity: 'warning',
       priority: 72,
       path: '/manager?tab=today&inbox=qc',

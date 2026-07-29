@@ -131,7 +131,7 @@ export function ManagerOperationsTab({
             </div>
             <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-bold text-slate-800">Material incidents</p>
+                <p className="text-xs font-bold text-slate-800">Stock damage reports</p>
                 <p className="text-ui-xs text-slate-500 mt-0.5">
                   {materialCount > 0 ? `${materialCount} awaiting approval` : 'No open material exceptions'}
                 </p>

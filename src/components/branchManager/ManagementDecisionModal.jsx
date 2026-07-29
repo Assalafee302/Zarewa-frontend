@@ -97,14 +97,14 @@ export function ManagementDecisionModal({
   const handleMaterialApprove = useCallback(
     async (incidentId) => {
       if (!canApproveMaterialIncidents) {
-        showToast('You do not have permission to approve material incidents.', { variant: 'error' });
+        showToast('You do not have permission to approve stock damage reports.', { variant: 'error' });
         return;
       }
       const id = String(incidentId || '').trim();
       if (!id) return;
       setMaterialDecisionBusy(true);
       try {
-        const remark = String(materialDecisionRemark || '').trim() || 'Approved — material incident posted.';
+        const remark = String(materialDecisionRemark || '').trim() || 'Approved — stock damage report posted.';
         const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/approve`, {
           method: 'POST',
           body: JSON.stringify({ managerRemark: remark }),
@@ -126,7 +126,7 @@ export function ManagementDecisionModal({
   const handleMaterialReject = useCallback(
     async (incidentId) => {
       if (!canApproveMaterialIncidents) {
-        showToast('You do not have permission to reject material incidents.', { variant: 'error' });
+        showToast('You do not have permission to reject stock damage reports.', { variant: 'error' });
         return;
       }
       const id = String(incidentId || '').trim();
@@ -212,7 +212,7 @@ export function ManagementDecisionModal({
         </div>
       </DecisionStickyActions>
     ) : selectedIntel?.kind === 'conversion' ? (
-      <DecisionStickyActions hint="Confirms you have reviewed High/Low conversion or the open manager review for this completed job.">
+      <DecisionStickyActions hint="Confirms you have reviewed High/Low production variance or the open manager review for this completed job.">
         <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
           Remark
           <textarea
@@ -237,7 +237,7 @@ export function ManagementDecisionModal({
         <DecisionActionTile
           variant="brand"
           icon={Factory}
-          label="Sign off review"
+          label="Close production check"
           disabled={modalBusy}
           onClick={() => void handleConversionSignoff?.()}
         />
@@ -548,7 +548,7 @@ export function ManagementDecisionModal({
               <div className="animate-in fade-in space-y-3 duration-200 text-slate-700">
                 <DecisionBand
                   tone="convert"
-                  eyebrow="Conversion review"
+                  eyebrow="Close production check"
                   title={selectedIntel.jobId}
                   subtitle={asPersonName(selectedIntel.row?.customer_name)}
                   meta={

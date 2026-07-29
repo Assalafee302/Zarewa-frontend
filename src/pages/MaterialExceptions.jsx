@@ -207,7 +207,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
                         <div className="space-y-3">
                           <p className="text-xs text-slate-500">No incidents yet.</p>
                           <button type="button" className="z-btn-primary text-xs" onClick={() => openRecordModal()}>
-                            Record material incident
+                            Record stock damage report
                           </button>
                         </div>
                       )}
@@ -262,8 +262,8 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
                 documentType: 'material_incident',
                 status: 'submitted',
                 canApprove: false,
-                missingPermission: 'Material incident approval requires branch manager or operations authority.',
-                zareQuery: 'Why can’t I approve material incidents?',
+                missingPermission: 'Stock damage report approval requires branch manager or operations authority.',
+                zareQuery: 'Why can’t I approve stock damage reports?',
               }}
             />
           ) : null}

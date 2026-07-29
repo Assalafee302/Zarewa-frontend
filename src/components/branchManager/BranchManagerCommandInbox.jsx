@@ -25,6 +25,7 @@ import {
   managerSlaMeta,
 } from '../../lib/managerDashboardCore';
 import { MANAGER_PAC_TABS } from '../../lib/managerPageTabs';
+import { MaintenanceIssuesPanel } from './MaintenanceIssuesPanel';
 
 const inboxRowBase =
   'group w-full text-left flex items-center gap-2 sm:gap-3 px-3 py-2.5 border-b border-slate-100 last:border-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/25';
@@ -70,6 +71,7 @@ function SlaChip({ kind, row }) {
 function pacViewFromActiveTab(activeTab) {
   if (activeTab === 'credit') return 'credit';
   if (activeTab === 'stock') return 'stock';
+  if (activeTab === 'issues') return 'issues';
   return 'attention';
 }
 
@@ -368,11 +370,11 @@ export function BranchManagerCommandInbox(props) {
             selectedIntel?.kind === 'conversion' && selectedIntel.jobId === row.job_id ? 'bg-amber-50/50' : ''
           }`}
         >
-          <KindPill label="QC" tone="pending" />
+          <KindPill label="prod check" tone="pending" />
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
             <span className="font-mono font-bold text-zarewa-teal">{row.job_id}</span>
             {' · '}
-            {row.quotation_ref || row.customer_name || 'Conversion review'}
+            {row.quotation_ref || row.customer_name || 'Close production check'}
           </span>
           <SlaChip kind="conversions" row={row} />
           <ChevronRight size={14} className="shrink-0 text-slate-300" />
@@ -393,7 +395,7 @@ export function BranchManagerCommandInbox(props) {
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
             <span className="font-mono font-bold text-zarewa-teal">{row.id}</span>
             {' · '}
-            {row.summary || row.incident_type || 'Material incident'}
+            {row.summary || row.incident_type || 'Stock damage report'}
           </span>
           <SlaChip kind="material" row={row} />
           <ChevronRight size={14} className="shrink-0 text-slate-300" />
@@ -656,7 +658,7 @@ export function BranchManagerCommandInbox(props) {
 
       <div
         className={
-          pacView === 'credit' || pacView === 'stock'
+          pacView === 'credit' || pacView === 'stock' || pacView === 'issues'
             ? 'p-4 sm:p-5'
             : 'min-h-[320px] max-h-[min(56vh,560px)] overflow-y-auto custom-scrollbar'
         }
@@ -702,6 +704,10 @@ export function BranchManagerCommandInbox(props) {
               Review stock register
             </button>
           </div>
+        ) : pacView === 'issues' ? (
+          <MaintenanceIssuesPanel
+            branchId={ws?.workspaceBranchId || ws?.session?.branchId || ws?.branchScope || ''}
+          />
         ) : pacView === 'credit' ? (
           <div className="rounded-xl border border-slate-100 bg-white">
             <CreditExceptionPanel

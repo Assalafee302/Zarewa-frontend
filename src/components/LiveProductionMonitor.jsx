@@ -3416,7 +3416,7 @@ export function LiveProductionMonitor({
                       className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
                     >
                       <AlertTriangle size={13} />
-                      Material incident
+                      Stock damage report
                     </button>
                   ) : null}
                   <button
@@ -3813,7 +3813,7 @@ export function LiveProductionMonitor({
                         </div>
                         <div
                           className="min-w-0 flex-1"
-                          title="Production consumed kg (opening − closing). Incident scrap is not included — coil book drops after BM approves the material incident."
+                          title="Production consumed kg (opening − closing). Incident scrap is not included — coil book drops after BM approves the stock damage report."
                         >
                           <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Used</p>
                           <p className="text-xs font-black tabular-nums leading-tight text-slate-900">
@@ -5392,7 +5392,7 @@ export function LiveProductionMonitor({
                   className="inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-ui-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
                 >
                   <AlertTriangle size={12} />
-                  Material incident
+                  Stock damage report
                 </button>
               ) : null}
               <button

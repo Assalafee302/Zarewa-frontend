@@ -541,7 +541,7 @@ export default function OperationsCoilControlTab() {
                 openMaterialIncident('supplier_defect', coil);
               }}
               className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-amber-950 hover:bg-amber-100/60 disabled:opacity-40"
-              title="Record supplier defect as a material incident (manager approval)"
+              title="Record supplier defect as a stock damage report (manager approval)"
             >
               <Truck size={14} aria-hidden />
               Supplier defect

@@ -88,12 +88,12 @@ export default function CoilDamageApprovalPanel() {
   );
 
   const approve = async (id) => {
-    if (!canApprove) return showToast('You do not have permission to approve material incidents.', { variant: 'error' });
+    if (!canApprove) return showToast('You do not have permission to approve stock damage reports.', { variant: 'error' });
     setActingId(id);
     try {
       const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/approve`, {
         method: 'POST',
-        body: JSON.stringify({ managerRemark: String(remarks[id] || '').trim() || 'Approved — material incident posted.' }),
+        body: JSON.stringify({ managerRemark: String(remarks[id] || '').trim() || 'Approved — stock damage report posted.' }),
       });
       if (!ok || !data?.ok) {
         showToast(data?.error || 'Approval failed.', { variant: 'error' });
@@ -114,7 +114,7 @@ export default function CoilDamageApprovalPanel() {
   };
 
   const reject = async (id) => {
-    if (!canApprove) return showToast('You do not have permission to reject material incidents.', { variant: 'error' });
+    if (!canApprove) return showToast('You do not have permission to reject stock damage reports.', { variant: 'error' });
     const remark = String(remarks[id] || '').trim();
     if (remark.length < 3) {
       return showToast('Enter a rejection reason in the remark field (at least 3 characters).', { variant: 'error' });
@@ -164,7 +164,7 @@ export default function CoilDamageApprovalPanel() {
           <ShieldCheck size={18} className="text-amber-900" aria-hidden />
           <div>
             <h2 className="text-sm font-black uppercase tracking-wide text-amber-950">
-              Pending material incident approval
+              Pending stock damage report approval
             </h2>
             <p className="text-xs text-amber-900/80 mt-0.5">
               {enrichedRows.length} coil-linked incident{enrichedRows.length === 1 ? '' : 's'} awaiting branch manager

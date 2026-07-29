@@ -342,7 +342,7 @@ export function useBranchManagerWorkstation() {
             : selectedIntel?.kind === 'conversion'
               ? 'Conversion QC sign-off'
               : selectedIntel?.kind === 'material'
-                ? 'Material incident review'
+                ? 'Stock damage report review'
                 : selectedIntel?.kind === 'governance'
                   ? 'Governance & risk review'
                   : selectedIntel?.kind === 'staff_purchase_credit'
@@ -1785,7 +1785,7 @@ export function useBranchManagerWorkstation() {
       showToast(data?.error || 'Could not sign off this job.', { variant: 'error' });
       return;
     }
-    showToast('Conversion review signed off.', { variant: 'success' });
+    showToast('Close production check recorded.', { variant: 'success' });
     setConversionSignoffRemark('');
     setConversionSignoffEditApprovalId('');
     const nextItem = findNextAttentionItemAfterDecision();

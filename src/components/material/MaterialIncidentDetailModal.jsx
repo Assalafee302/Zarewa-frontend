@@ -133,7 +133,7 @@ export default function MaterialIncidentDetailModal({
     <ModalFrame
       isOpen={isOpen}
       onClose={() => !decisionLocked && onClose?.()}
-      title={`Material incident ${incidentId || ''}`}
+      title={`Stock damage report ${incidentId || ''}`}
       surface="plain"
       showCloseButton={false}
       closeDisabled={decisionLocked}
@@ -142,7 +142,7 @@ export default function MaterialIncidentDetailModal({
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
           <DecisionBand
             tone="material"
-            eyebrow="Material incident"
+            eyebrow="Stock damage report"
             title={incident?.id || incidentId || '—'}
             className="min-w-0 flex-1 border-0 shadow-none"
             meta={

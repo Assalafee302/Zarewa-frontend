@@ -18,7 +18,7 @@ export const MANAGER_INBOX_TABS = [
   {
     key: 'qc',
     label: 'Production QC',
-    description: 'Completed jobs with conversion alerts — separate from order sign-off',
+    description: 'Completed jobs needing a close production check — separate from order sign-off',
   },
   {
     key: 'material',
@@ -52,8 +52,8 @@ export const MANAGER_ATTENTION_FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'orders', label: 'Orders', kinds: ['clearance', 'production', 'flagged'] },
   { key: 'cash', label: 'Cash', kinds: ['refunds', 'payments'] },
-  { key: 'qc', label: 'QC', kinds: ['conversions'] },
-  { key: 'material', label: 'Material', kinds: ['material'] },
+  { key: 'qc', label: 'Prod check', kinds: ['conversions'] },
+  { key: 'material', label: 'Stock damage', kinds: ['material'] },
   { key: 'procurement', label: 'Procurement', kinds: ['purchase_orders', 'purchase_order'] },
   { key: 'flagged', label: 'Flagged', kinds: ['flagged'] },
   { key: 'governance', label: 'Governance', kinds: ['governance'] },
@@ -92,6 +92,7 @@ export function normalizeManagerInboxRoute(rawInbox) {
   if (k === 'attendance' || k === 'staff') return { tab: 'attention', attentionFilter: 'all', redirectToTeamHr: true };
   if (k === 'stock' || k === 'stock_register') return { tab: 'stock', attentionFilter: 'all' };
   if (k === 'credit') return { tab: 'credit', attentionFilter: 'all' };
+  if (k === 'issues' || k === 'maintenance' || k === 'faults') return { tab: 'issues', attentionFilter: 'all' };
   return pacAttentionRouteFromTab(k);
 }
 
@@ -104,8 +105,8 @@ export function managerKindShortLabel(kind) {
     flagged: 'flagged',
     refunds: 'refund',
     payments: 'expense',
-    conversions: 'QC',
-    material: 'material',
+    conversions: 'prod check',
+    material: 'stock damage',
     governance: 'risk',
     staff_purchase_credit: 'staff credit',
     edit_approvals: 'edit',
