@@ -556,6 +556,10 @@ function AppShell() {
         onCloseMobile={() => setMobileNavOpen(false)}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
+        managementAttentionPendingCount={
+          Number(managementAttention?.summary?.total) ||
+          (Array.isArray(managementAttention?.items) ? managementAttention.items.length : 0)
+        }
       />
 
       <div

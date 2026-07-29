@@ -39,7 +39,14 @@ function pathMatches(locationPath, basePath) {
   return locationPath === basePath || locationPath.startsWith(`${basePath}/`);
 }
 
-const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggleCollapsed }) => {
+const Sidebar = ({
+  mobileOpen = false,
+  onCloseMobile,
+  collapsed = false,
+  onToggleCollapsed,
+  /** PAC "Needs approval" total (orders, cash, material, procurement, governance, edits, …). */
+  managementAttentionPendingCount = 0,
+}) => {
   const location = useLocation();
   const ws = useWorkspace();
   const p = location.pathname;
@@ -75,6 +82,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
   const roleKey = ws?.session?.user?.roleKey;
   const permissions = ws?.permissions;
   const staffCreditPending = ws?.staffPurchaseCreditPendingCount ?? 0;
+  const managementPending = Math.max(0, Number(managementAttentionPendingCount) || 0);
   const mayViewBi = userMayViewManagementReportsClient(roleKey, permissions);
   const hasExecNav = userMayAccessExecutiveCommandCentreClient(permissions);
   const hasBranchCommandCentre = userMayAccessBranchCommandCentreClient(roleKey, permissions);
@@ -97,7 +105,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       label: 'Management',
       path: '/manager',
       visible: ['sales_manager', 'branch_manager', 'admin'].includes(ws?.session?.user?.roleKey),
-      badgeCount: staffCreditPending,
+      badgeCount: managementPending,
     },
     {
       icon: <LayoutDashboard size={18} />,
