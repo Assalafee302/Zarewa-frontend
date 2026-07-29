@@ -142,3 +142,34 @@ export function listRefundPayeeSuggestions({ customerID, refunds = [] }) {
   ];
   return merged.slice(0, MAX_SUGGESTIONS);
 }
+
+/**
+ * Recent payees for expense forms — device memory + past payment-request bank details.
+ *
+ * @param {{ paymentRequests?: object[] }} opts
+ * @returns {Array<{ payeeName: string; payeeAccountNo: string; payeeBankName: string; source: 'recent' | 'history' }>}
+ */
+export function listExpensePayeeSuggestions({ paymentRequests = [] } = {}) {
+  const recent = listRefundPayeeSuggestions({ customerID: '', refunds: [] });
+  const seen = new Set(recent.map((x) => refundPayeeDedupeKey(x)));
+  const history = [];
+
+  for (const pr of paymentRequests) {
+    const name = String(pr?.payeeName ?? pr?.payee_name ?? '').trim();
+    const acct = String(pr?.payeeAccountNo ?? pr?.payee_account_no ?? '').trim();
+    const bank = String(pr?.payeeBankName ?? pr?.payee_bank_name ?? '').trim();
+    if (!name || !acct || !bank || !digitsOnly(acct)) continue;
+    const k = refundPayeeDedupeKey({ payeeAccountNo: acct, payeeBankName: bank });
+    if (seen.has(k)) continue;
+    seen.add(k);
+    history.push({
+      payeeName: name,
+      payeeAccountNo: acct,
+      payeeBankName: bank,
+      source: /** @type {'history'} */ ('history'),
+    });
+    if (recent.length + history.length >= MAX_SUGGESTIONS) break;
+  }
+
+  return [...recent, ...history].slice(0, MAX_SUGGESTIONS);
+}

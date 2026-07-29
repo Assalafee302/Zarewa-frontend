@@ -11,6 +11,11 @@ import {
   createExpenseRequestLineItem,
   expenseRequestLineTotal,
 } from '../../lib/expenseRequestFormCore.js';
+import {
+  listExpensePayeeSuggestions,
+  touchRefundPayeeAccount,
+} from '../../lib/refundPayeeRecentAccounts.js';
+import { RecentPayeeSuggestionChips } from './RecentPayeeSuggestionChips.jsx';
 
 /**
  * @param {object} props
@@ -70,6 +75,24 @@ export function ExpenseRequestFormFields({
   }, [categoryRecommendation, form.expenseCategory, memoSuggestion, setForm]);
 
   const requestTotalNgn = form.lines.reduce((s, row) => s + expenseRequestLineTotal(row), 0);
+
+  const payeeSuggestions = useMemo(
+    () =>
+      listExpensePayeeSuggestions({
+        paymentRequests: Array.isArray(ws?.snapshot?.paymentRequests) ? ws.snapshot.paymentRequests : [],
+      }),
+    [ws?.snapshot?.paymentRequests]
+  );
+
+  const handleSubmit = (e) => {
+    touchRefundPayeeAccount({
+      payeeName: form.payeeName,
+      payeeAccountNo: form.payeeAccountNo,
+      payeeBankName: form.payeeBankName,
+      customerID: '',
+    });
+    onSubmit?.(e);
+  };
 
   const fields = (
     <>
@@ -146,6 +169,18 @@ export function ExpenseRequestFormFields({
         <p className="text-ui-xs text-slate-500 -mt-1">
           Optional. Account details for treasury to transfer payment when the request is approved.
         </p>
+        <RecentPayeeSuggestionChips
+          suggestions={payeeSuggestions}
+          heading="Frequent accounts (this device + past expense requests)"
+          onSelect={(s) =>
+            setForm((f) => ({
+              ...f,
+              payeeName: s.payeeName,
+              payeeAccountNo: s.payeeAccountNo,
+              payeeBankName: s.payeeBankName,
+            }))
+          }
+        />
         <div>
           <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
             Beneficiary name
@@ -351,7 +386,7 @@ export function ExpenseRequestFormFields({
 
   if (scrollable) {
     return (
-      <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
+      <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 -mr-1">{fields}</div>
         <div className="mt-4 shrink-0 space-y-3 border-t border-slate-200/80 bg-white/95 pt-4 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-3 rounded-lg bg-teal-50/80 px-3 py-2">
@@ -365,7 +400,7 @@ export function ExpenseRequestFormFields({
   }
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
+    <form className="space-y-4" onSubmit={handleSubmit}>
       {fields}
       {footer}
     </form>

@@ -45,6 +45,7 @@ import {
   resolveStoneFlatsheetLengthM,
 } from '../lib/stoneCoatedQuotationPolicy';
 import { listRefundPayeeSuggestions, touchRefundPayeeAccount, refundPayeeDedupeKey } from '../lib/refundPayeeRecentAccounts';
+import { RecentPayeeSuggestionChips } from './office/RecentPayeeSuggestionChips.jsx';
 import {
   auditRefundCalculationLineArithmetic,
   expectedAmountFromRefundLineLabel,
@@ -3382,40 +3383,19 @@ const RefundModal = ({
 
                     <div className="rounded-xl border border-slate-600 bg-slate-800/40 p-4 space-y-3 pt-4 border-t border-slate-700/80 mt-2">
                       <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">Pay to (for finance)</p>
-                      {payeeSuggestions.length > 0 ? (
-                        <div className="space-y-1.5">
-                          <p className="text-ui-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Frequent accounts (this device + past refunds for this customer)
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {payeeSuggestions.map((s, idx) => (
-                              <button
-                                key={`payee-sug-${idx}-${refundPayeeDedupeKey(s)}`}
-                                type="button"
-                                onClick={() =>
-                                  setForm((f) => ({
-                                    ...f,
-                                    payeeName: s.payeeName,
-                                    payeeAccountNo: s.payeeAccountNo,
-                                    payeeBankName: s.payeeBankName,
-                                  }))
-                                }
-                                className="max-w-full rounded-lg border border-slate-600/90 bg-slate-900/50 px-2 py-1 text-left text-ui-xs font-medium text-slate-200 hover:border-sky-500/50 hover:bg-slate-900 transition-colors"
-                                title={`${s.payeeName} · ${s.payeeBankName} · ${s.payeeAccountNo}`}
-                              >
-                                <span className="font-bold text-slate-100">{s.payeeName}</span>
-                                <span className="text-slate-500"> · </span>
-                                <span className="text-slate-400">{s.payeeBankName}</span>
-                                <span className="text-slate-500"> · </span>
-                                <span className="font-mono text-sky-300/95 tabular-nums">{s.payeeAccountNo}</span>
-                                {s.source === 'recent' ? (
-                                  <span className="ml-1 text-ui-xs font-bold uppercase text-emerald-400/90">saved</span>
-                                ) : null}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
+                      <RecentPayeeSuggestionChips
+                        variant="dark"
+                        suggestions={payeeSuggestions}
+                        heading="Frequent accounts (this device + past refunds for this customer)"
+                        onSelect={(s) =>
+                          setForm((f) => ({
+                            ...f,
+                            payeeName: s.payeeName,
+                            payeeAccountNo: s.payeeAccountNo,
+                            payeeBankName: s.payeeBankName,
+                          }))
+                        }
+                      />
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="sm:col-span-2">
                           <label className={`${label} text-slate-500`} htmlFor="refund-payee-name">
