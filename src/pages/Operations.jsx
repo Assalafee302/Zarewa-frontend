@@ -1792,7 +1792,12 @@ const Operations = () => {
 
   const openTraceWithHint = (item, hint, { recallIntent = false } = {}) => {
     if (!ws?.canMutate) {
-      showToast('Connect API to manage production actions.', { variant: 'info' });
+      showToast(
+        ws?.usingCachedData
+          ? 'Reconnect to edit the production register — this workspace is on a read-only cached snapshot.'
+          : 'Connect to the API to manage production actions.',
+        { variant: 'error' }
+      );
       return;
     }
     openProductionQueueRow(item, { recallIntent });

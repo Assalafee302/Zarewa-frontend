@@ -84,8 +84,11 @@ import {
   countUnsavedCoilDraftRows,
   createDraftLine,
   draftRowConversionPreviewReady,
+  incompleteNewCoilRows,
+  incompleteNewCoilRowsMessage,
   isDraftAllocationRow,
   isEmptyCoilDraftRow,
+  newCoilRowIsSendable,
   parseWholeKgInput,
   seedDraftAllocationsFromServer,
 } from '../lib/productionRegisterCoilDraft';
@@ -1762,10 +1765,7 @@ export function LiveProductionMonitor({
   ]);
 
   const appendSaveReady = useMemo(
-    () =>
-      draftAllocations.some(
-        (r) => isDraftAllocationRow(r) && r.coilNo?.trim() && Number(r.openingWeightKg) > 0
-      ),
+    () => draftAllocations.some((r) => isDraftAllocationRow(r) && newCoilRowIsSendable(r)),
     [draftAllocations]
   );
   const unsavedCoilDraftCount = useMemo(
@@ -2648,6 +2648,7 @@ export function LiveProductionMonitor({
         showToast('Nothing to save — add a new coil line or edit a saved coil first.', { variant: 'info' });
         return;
       }
+      const skippedCoilRows = incompleteNewCoilRows(draftAllocations);
       try {
         let lastStockRecalc = null;
         if (runLogSaveReady && !stonePureNoCoil) {
@@ -2709,7 +2710,7 @@ export function LiveProductionMonitor({
           const pathAlloc = `${jobApi}/allocations`;
           const buildRunAppend = (withAck) => {
             const toAppend = draftAllocations.filter(
-              (row) => isDraftAllocationRow(row) && row.coilNo?.trim() && Number(row.openingWeightKg) > 0
+              (row) => isDraftAllocationRow(row) && newCoilRowIsSendable(row)
             );
             if (!toAppend.length) return null;
             return {
@@ -2749,9 +2750,12 @@ export function LiveProductionMonitor({
           }
         }
         await refreshProductionWorkspace();
-        clearProdCoilDraftStorage(selectedJob.jobID);
         setSavingAction('');
+        if (!skippedCoilRows.length) clearProdCoilDraftStorage(selectedJob.jobID);
         showToast(`Saved.${stockRecalcSuffix(lastStockRecalc)}`);
+        if (skippedCoilRows.length) {
+          showToast(incompleteNewCoilRowsMessage(skippedCoilRows), { variant: 'error' });
+        }
       } catch (e) {
         setSavingAction('');
         showToast(e?.message || 'Save failed.', { variant: 'error' });
@@ -2825,10 +2829,11 @@ export function LiveProductionMonitor({
         showToast(`Offcut/accessories run started for ${listLabel}.`);
         return;
       }
+      const skippedCoilRows = incompleteNewCoilRows(draftAllocations);
       const buildAllocBody = (withAck) => {
         if (isRunningForSave) {
           const toAppend = draftAllocations.filter(
-            (row) => isDraftAllocationRow(row) && row.coilNo?.trim() && Number(row.openingWeightKg) > 0
+            (row) => isDraftAllocationRow(row) && newCoilRowIsSendable(row)
           );
           if (!toAppend.length) return null;
           return {
@@ -2892,7 +2897,7 @@ export function LiveProductionMonitor({
       const willStartAfterAlloc = alsoStartAfterAlloc && isPlannedForSave;
       if (!willStartAfterAlloc) {
         await refreshProductionWorkspace();
-        clearProdCoilDraftStorage(selectedJob.jobID);
+        if (!skippedCoilRows.length) clearProdCoilDraftStorage(selectedJob.jobID);
       }
       if (willStartAfterAlloc) {
         const startRes = await apiFetch(`${jobApi}/start`, {
@@ -2914,7 +2919,7 @@ export function LiveProductionMonitor({
         }
         markProductionStarted();
         await refreshProductionWorkspace();
-        clearProdCoilDraftStorage(selectedJob.jobID);
+        if (!skippedCoilRows.length) clearProdCoilDraftStorage(selectedJob.jobID);
         showToast(
           coilAllocSavedToastMessage({
             body: savedAllocBody,
@@ -2925,10 +2930,13 @@ export function LiveProductionMonitor({
             started: true,
           })
         );
+        if (skippedCoilRows.length) {
+          showToast(incompleteNewCoilRowsMessage(skippedCoilRows), { variant: 'error' });
+        }
         return;
       }
       setSavingAction('');
-      clearProdCoilDraftStorage(selectedJob.jobID);
+      if (!skippedCoilRows.length) clearProdCoilDraftStorage(selectedJob.jobID);
       showToast(
         coilAllocSavedToastMessage({
           body: savedAllocBody,
@@ -2938,6 +2946,9 @@ export function LiveProductionMonitor({
           stockRecalc: res.data?.stockRecalc,
         })
       );
+      if (skippedCoilRows.length) {
+        showToast(incompleteNewCoilRowsMessage(skippedCoilRows), { variant: 'error' });
+      }
       return;
     } else if (type === 'start') {
       path = `${jobApi}/start`;

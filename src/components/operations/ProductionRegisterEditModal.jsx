@@ -37,7 +37,7 @@ export function ProductionRegisterEditModal({
   initialRecallIntent = false,
 }) {
   const id = cuttingListId != null ? String(cuttingListId).trim() : '';
-  const open = Boolean(isOpen && id);
+  const open = Boolean(isOpen);
   const [registerHeaderMeta, setRegisterHeaderMeta] = useState(null);
 
   useEffect(() => {
@@ -104,17 +104,24 @@ export function ProductionRegisterEditModal({
           </button>
         </header>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
-          <LiveProductionMonitor
-            focusCuttingListId={id}
-            hideJobSidebar
-            inModal
-            operationsRegisterEdit
-            viewOnly={false}
-            initialRecallIntent={Boolean(initialRecallIntent)}
-            onModalClose={onClose}
-            showModalCloseButton={false}
-            onRegisterHeaderMeta={setRegisterHeaderMeta}
-          />
+          {!id ? (
+            <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/70 px-3 py-4 text-xs font-semibold leading-snug text-amber-950">
+              This queue row has no cutting list reference, so the register cannot be loaded. Refresh the workspace and
+              try again — if it persists, open the job from the Coil profile or report the row to support.
+            </div>
+          ) : (
+            <LiveProductionMonitor
+              focusCuttingListId={id}
+              hideJobSidebar
+              inModal
+              operationsRegisterEdit
+              viewOnly={false}
+              initialRecallIntent={Boolean(initialRecallIntent)}
+              onModalClose={onClose}
+              showModalCloseButton={false}
+              onRegisterHeaderMeta={setRegisterHeaderMeta}
+            />
+          )}
         </div>
       </div>
     </ModalFrame>

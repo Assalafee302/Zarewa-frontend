@@ -224,6 +224,26 @@ export function unsavedCoilDraftRows(rows) {
   return coilDraftRowsWithData(rows).filter((row) => isDraftAllocationRow(row));
 }
 
+/** The allocations API only accepts a new coil line that carries both a coil number and opening kg. */
+export function newCoilRowIsSendable(row) {
+  return Boolean(String(row?.coilNo ?? '').trim()) && Number(row?.openingWeightKg) > 0;
+}
+
+/** Typed-in coil lines that a save would drop — used to warn instead of reporting a clean save. */
+export function incompleteNewCoilRows(rows) {
+  return unsavedCoilDraftRows(rows).filter((row) => !newCoilRowIsSendable(row));
+}
+
+export function incompleteNewCoilRowsMessage(rows) {
+  const named = (Array.isArray(rows) ? rows : [])
+    .map((row) => String(row?.coilNo ?? '').trim())
+    .filter(Boolean);
+  const which = named.length ? ` (${named.join(', ')})` : '';
+  return `Saved the rest, but ${rows.length} new coil line${
+    rows.length === 1 ? '' : 's'
+  }${which} did not reach the server. Every new coil needs both a coil number and Open kg. Enter them and save again — the line is still held on this device only.`;
+}
+
 export function countUnsavedCoilDraftRows(rows) {
   return unsavedCoilDraftRows(rows).length;
 }
