@@ -25,6 +25,80 @@ function fieldClass(row, key) {
   return missing ? FIELD_WARN : FIELD;
 }
 
+/** Immediate local recognition of preview edits (before server re-validate). */
+function assessRowLocally(row, requireTreasury) {
+  if (row.include === false) {
+    return {
+      ...row,
+      missingFields: [],
+      needsUpdate: false,
+      status: 'skipped',
+      errors: [],
+    };
+  }
+  const missingFields = [];
+  const errors = [];
+  const date = String(row.date || '').trim();
+  const amountNgn = Math.round(Number(row.amountNgn) || 0);
+  const category = String(row.category || '').trim();
+  const treasuryAccountId = String(row.treasuryAccountId || '').trim();
+  const accountKey = String(row.accountKey || '').trim();
+  const description = String(row.description || '').trim();
+
+  if (!date) {
+    missingFields.push('date');
+    errors.push('Update date in the preview (YYYY-MM-DD).');
+  }
+  if (!(amountNgn > 0)) {
+    missingFields.push('amount');
+    errors.push('Update amount in the preview (must be greater than zero).');
+  }
+  if (!category) {
+    missingFields.push('category');
+    errors.push('Update category in the preview — pick from the category list.');
+  }
+  if (requireTreasury && !treasuryAccountId && !accountKey) {
+    missingFields.push('treasury');
+    errors.push('Update treasury account in the preview (required for this import).');
+  }
+  if (/^others$/i.test(category) && description.length < 40) {
+    missingFields.push('description');
+    errors.push('Others needs a clear explanation (at least 40 characters) — update description.');
+  }
+
+  const needsUpdate = missingFields.length > 0;
+  return {
+    ...row,
+    date,
+    amountNgn,
+    category,
+    missingFields,
+    errors,
+    needsUpdate,
+    status: needsUpdate ? 'incomplete' : 'ok',
+    errorCount: errors.length,
+  };
+}
+
+function toPayloadRows(list) {
+  return list.map((r) => ({
+    row: r.row,
+    include: r.include !== false,
+    date: r.date,
+    amountNgn: r.amountNgn,
+    category: r.category,
+    accountKey: r.accountKey || '',
+    treasuryAccountId:
+      r.treasuryAccountId != null && String(r.treasuryAccountId).trim() !== ''
+        ? Number(r.treasuryAccountId) || String(r.treasuryAccountId).trim()
+        : null,
+    reference: r.reference,
+    paymentMethod: r.paymentMethod,
+    description: r.description,
+    expenseID: r.expenseID,
+  }));
+}
+
 /**
  * Account → Payouts & expenses → Import expenses
  * Branch-scoped template → upload → editable preview (incomplete rows highlighted) → commit.
@@ -39,6 +113,8 @@ export function ExpenseBulkImportModal({
   branchLabel = '',
 }) {
   const fileInputRef = useRef(null);
+  const rowsRef = useRef([]);
+  const skipNextFilePreviewRef = useRef(false);
   const [file, setFile] = useState(null);
   const [rows, setRows] = useState([]);
   const [previewMeta, setPreviewMeta] = useState(null);
@@ -48,6 +124,7 @@ export function ExpenseBulkImportModal({
   const [confirmed, setConfirmed] = useState(false);
   const [requireTreasury, setRequireTreasury] = useState(true);
   const [showCategories, setShowCategories] = useState(false);
+  const [rowsDirty, setRowsDirty] = useState(0);
 
   const categories = useMemo(() => {
     if (Array.isArray(categoriesProp) && categoriesProp.length) return categoriesProp;
@@ -68,15 +145,22 @@ export function ExpenseBulkImportModal({
 
   const branchTitle = branchLabel || branchId || 'current workspace branch';
 
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+
   const reset = () => {
     setFile(null);
     setRows([]);
+    rowsRef.current = [];
     setPreviewMeta(null);
     setBusy('');
     setError('');
     setResult(null);
     setConfirmed(false);
     setRequireTreasury(true);
+    setRowsDirty(0);
+    skipNextFilePreviewRef.current = false;
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -109,15 +193,16 @@ export function ExpenseBulkImportModal({
 
   const applyPreviewResponse = (data) => {
     setPreviewMeta(data);
-    setRows(
-      (data.previewTable || []).map((r) => ({
-        ...r,
-        include: r.include !== false,
-        treasuryAccountId: r.treasuryAccountId != null ? String(r.treasuryAccountId) : '',
-        accountKey: r.accountKey || '',
-        missingFields: Array.isArray(r.missingFields) ? r.missingFields : [],
-      }))
-    );
+    const next = (data.previewTable || []).map((r) => ({
+      ...r,
+      include: r.include !== false,
+      treasuryAccountId: r.treasuryAccountId != null ? String(r.treasuryAccountId) : '',
+      accountKey: r.accountKey || '',
+      missingFields: Array.isArray(r.missingFields) ? r.missingFields : [],
+      expenseID: r.expenseID || '',
+    }));
+    setRows(next);
+    rowsRef.current = next;
     if (data?.message && data.needsUpdateCount > 0) {
       setError(data.message);
     } else if (!data?.needsUpdateCount) {
@@ -140,6 +225,7 @@ export function ExpenseBulkImportModal({
       if (!ok || !data?.ok) {
         setError(data?.error || 'Preview failed.');
         setRows([]);
+        rowsRef.current = [];
         setPreviewMeta(null);
         return;
       }
@@ -149,28 +235,16 @@ export function ExpenseBulkImportModal({
     }
   };
 
-  const runPreviewFromRows = async (nextRows = rows) => {
-    if (!nextRows.length) return;
+  const runPreviewFromRows = async (nextRows) => {
+    const list = Array.isArray(nextRows) ? nextRows : rowsRef.current;
+    if (!list.length) return;
     setBusy('preview');
     setError('');
     setConfirmed(false);
     try {
-      const payloadRows = nextRows.map((r) => ({
-        row: r.row,
-        include: r.include !== false,
-        date: r.date,
-        amountNgn: r.amountNgn,
-        category: r.category,
-        accountKey: r.accountKey,
-        treasuryAccountId: r.treasuryAccountId || null,
-        reference: r.reference,
-        paymentMethod: r.paymentMethod,
-        description: r.description,
-        expenseID: r.expenseID,
-      }));
       const { ok, data } = await apiFetch('/api/expenses/import/preview', {
         method: 'POST',
-        body: JSON.stringify({ rows: payloadRows, requireTreasury }),
+        body: JSON.stringify({ rows: toPayloadRows(list), requireTreasury }),
       });
       if (!ok || !data?.ok) {
         setError(data?.error || 'Preview refresh failed.');
@@ -182,23 +256,52 @@ export function ExpenseBulkImportModal({
     }
   };
 
+  // Initial / file / requireTreasury change → parse from workbook (unless user already edited rows).
   useEffect(() => {
     if (!open || !file || result) return;
+    if (skipNextFilePreviewRef.current) {
+      skipNextFilePreviewRef.current = false;
+      void runPreviewFromRows(rowsRef.current);
+      return;
+    }
     const t = setTimeout(() => {
       void runPreviewFromFile(file);
     }, 350);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-preview when file or treasury rule changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, file, requireTreasury]);
 
+  // After preview edits, re-validate on the server so corrections are recognized.
+  useEffect(() => {
+    if (!open || !rowsDirty || result || !rowsRef.current.length) return;
+    const t = setTimeout(() => {
+      void runPreviewFromRows(rowsRef.current);
+    }, 450);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowsDirty, requireTreasury, open]);
+
   const patchRow = (idx, patch) => {
-    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+    setRows((prev) => {
+      const next = prev.map((r, i) => {
+        if (i !== idx) return r;
+        return assessRowLocally({ ...r, ...patch }, requireTreasury);
+      });
+      rowsRef.current = next;
+      return next;
+    });
     setConfirmed(false);
+    setRowsDirty((n) => n + 1);
   };
 
   const removeRow = (idx) => {
-    setRows((prev) => prev.filter((_, i) => i !== idx));
+    setRows((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      rowsRef.current = next;
+      return next;
+    });
     setConfirmed(false);
+    setRowsDirty((n) => n + 1);
   };
 
   const validCount = rows.filter((r) => r.include !== false && r.status === 'ok').length;
@@ -211,15 +314,25 @@ export function ExpenseBulkImportModal({
   const canPost = validCount > 0 && needsUpdateCount === 0 && incompleteCount === 0 && invalidCount === 0;
 
   const runCommit = async () => {
-    if (!rows.length || !confirmed || !canPost) return;
-    if (needsUpdateCount > 0 || incompleteCount > 0 || invalidCount > 0) {
+    const list = rowsRef.current;
+    if (!list.length || !confirmed) return;
+    const localReady = list.every(
+      (r) => r.include === false || (r.status === 'ok' && !r.needsUpdate)
+    );
+    const localValid = list.filter((r) => r.include !== false && r.status === 'ok').length;
+    if (!localReady || !localValid) {
       setError(
-        `${needsUpdateCount || incompleteCount + invalidCount} row(s) still need updates in the preview. Fix highlighted fields or uncheck those rows.`
+        'Some rows still need updates in the preview. Fix highlighted fields or uncheck those rows, then wait for re-validate.'
       );
+      setRowsDirty((n) => n + 1);
       return;
     }
     const okConfirm = await appConfirm({
-      message: `Post ${validCount} expense(s) totaling ${formatNgn(totalAmount)} to ${branchTitle}?\n\nExpenses and treasury outflows are recorded for this workspace branch only. Incomplete rows must be fixed in the preview first.`,
+      message: `Post ${localValid} expense(s) totaling ${formatNgn(
+        list
+          .filter((r) => r.include !== false && r.status === 'ok')
+          .reduce((s, r) => s + (Number(r.amountNgn) || 0), 0)
+      )} to ${branchTitle}?\n\nExpenses and treasury outflows are recorded for this workspace branch only.`,
     });
     if (!okConfirm) return;
 
@@ -227,22 +340,9 @@ export function ExpenseBulkImportModal({
     setError('');
     setResult(null);
     try {
-      const payloadRows = rows.map((r) => ({
-        row: r.row,
-        include: r.include !== false,
-        date: r.date,
-        amountNgn: r.amountNgn,
-        category: r.category,
-        accountKey: r.accountKey,
-        treasuryAccountId: r.treasuryAccountId || null,
-        reference: r.reference,
-        paymentMethod: r.paymentMethod,
-        description: r.description,
-        expenseID: r.expenseID,
-      }));
       const { ok, data } = await apiFetch('/api/expenses/import/commit', {
         method: 'POST',
-        body: JSON.stringify({ rows: payloadRows, requireTreasury }),
+        body: JSON.stringify({ rows: toPayloadRows(list), requireTreasury }),
       });
       if (!ok || !data?.ok) {
         setError(data?.error || 'Import failed.');
@@ -268,8 +368,8 @@ export function ExpenseBulkImportModal({
             <h3 className="text-lg font-bold text-zarewa-teal">Import expenses</h3>
             <p className="mt-0.5 text-xs text-slate-600">
               Posts only to <strong>{branchTitle}</strong>
-              {branchId ? <span className="font-mono text-slate-500"> ({branchId})</span> : null}. Incomplete rows stay
-              in preview until you update them.
+              {branchId ? <span className="font-mono text-slate-500"> ({branchId})</span> : null}. Edit any cell — fixes
+              are recognized immediately and re-checked automatically.
             </p>
           </div>
           <button
@@ -308,9 +408,11 @@ export function ExpenseBulkImportModal({
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0] || null;
+                skipNextFilePreviewRef.current = false;
                 setFile(f);
                 setResult(null);
                 setConfirmed(false);
+                setRowsDirty(0);
               }}
             />
             {file ? (
@@ -325,8 +427,15 @@ export function ExpenseBulkImportModal({
               checked={requireTreasury}
               disabled={!!busy || !!result}
               onChange={(e) => {
+                if (rowsRef.current.length) skipNextFilePreviewRef.current = true;
                 setRequireTreasury(e.target.checked);
                 setConfirmed(false);
+                setRows((prev) => {
+                  const next = prev.map((r) => assessRowLocally(r, e.target.checked));
+                  rowsRef.current = next;
+                  return next;
+                });
+                setRowsDirty((n) => n + 1);
               }}
             />
             <span>
@@ -359,7 +468,7 @@ export function ExpenseBulkImportModal({
               {error}
               {needsUpdateCount > 0 ? (
                 <span className="mt-1 block font-medium text-amber-800">
-                  Highlighted cells need an update in the preview table below, then click Re-validate edits.
+                  Edit the amber fields below — your changes are applied as you type.
                 </span>
               ) : null}
             </div>
@@ -385,21 +494,22 @@ export function ExpenseBulkImportModal({
                   type="button"
                   className="text-zarewa-teal underline-offset-2 hover:underline"
                   disabled={!!busy}
-                  onClick={() => void runPreviewFromRows()}
+                  onClick={() => void runPreviewFromRows(rowsRef.current)}
                 >
-                  Re-validate edits
+                  Re-check now
                 </button>
+                {busy === 'preview' ? <span className="text-zarewa-teal">Checking edits…</span> : null}
               </div>
 
               {needsUpdateCount > 0 ? (
                 <div className="rounded-lg border border-amber-300 bg-amber-50/90 px-3 py-2 text-xs text-amber-950">
-                  <strong>Update required:</strong> {needsUpdateCount} row(s) have missing or invalid data. Edit the
-                  amber fields in the preview (or uncheck the row), then re-validate before posting.
+                  <strong>Update required:</strong> {needsUpdateCount} row(s) still need data. Fix amber cells (or
+                  uncheck the row). Status updates as soon as you edit.
                 </div>
               ) : null}
 
               <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="min-w-[960px] w-full border-collapse text-left">
+                <table className="min-w-[1080px] w-full border-collapse text-left">
                   <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="px-2 py-2">Use</th>
@@ -410,6 +520,7 @@ export function ExpenseBulkImportModal({
                       <th className="px-2 py-2">Reference</th>
                       <th className="px-2 py-2">Method</th>
                       <th className="px-2 py-2">Description</th>
+                      <th className="px-2 py-2">Expense ID</th>
                       <th className="px-2 py-2">Status</th>
                       <th className="px-2 py-2" />
                     </tr>
@@ -430,7 +541,7 @@ export function ExpenseBulkImportModal({
                           <input
                             type="checkbox"
                             checked={r.include !== false}
-                            disabled={!!busy}
+                            disabled={!!busy && busy !== 'preview'}
                             onChange={(e) => patchRow(idx, { include: e.target.checked })}
                           />
                         </td>
@@ -439,7 +550,7 @@ export function ExpenseBulkImportModal({
                             type="date"
                             className={fieldClass(r, 'date')}
                             value={r.date || ''}
-                            disabled={!!busy}
+                            disabled={!!busy && busy !== 'preview'}
                             onChange={(e) => patchRow(idx, { date: e.target.value })}
                           />
                         </td>
@@ -448,7 +559,7 @@ export function ExpenseBulkImportModal({
                             type="number"
                             className={fieldClass(r, 'amount')}
                             value={r.amountNgn ?? ''}
-                            disabled={!!busy}
+                            disabled={!!busy && busy !== 'preview'}
                             onChange={(e) =>
                               patchRow(idx, { amountNgn: Math.round(Number(e.target.value) || 0) })
                             }
@@ -458,8 +569,8 @@ export function ExpenseBulkImportModal({
                           <select
                             className={fieldClass(r, 'category')}
                             value={r.category || ''}
-                            disabled={!!busy}
-                            onChange={(e) => patchRow(idx, { category: e.target.value })}
+                            disabled={!!busy && busy !== 'preview'}
+                            onChange={(e) => patchRow(idx, { category: e.target.value, categoryRaw: e.target.value })}
                           >
                             <option value="">Select…</option>
                             {categories.map((c) => (
@@ -473,12 +584,12 @@ export function ExpenseBulkImportModal({
                           <select
                             className={fieldClass(r, 'treasury')}
                             value={r.treasuryAccountId || ''}
-                            disabled={!!busy}
+                            disabled={!!busy && busy !== 'preview'}
                             onChange={(e) => {
                               const id = e.target.value;
                               patchRow(idx, {
                                 treasuryAccountId: id,
-                                accountKey: id || r.accountKey,
+                                accountKey: id,
                               });
                             }}
                           >
@@ -498,7 +609,7 @@ export function ExpenseBulkImportModal({
                           <input
                             className={FIELD}
                             value={r.reference || ''}
-                            disabled={!!busy}
+                            disabled={!!busy && busy !== 'preview'}
                             onChange={(e) => patchRow(idx, { reference: e.target.value })}
                           />
                         </td>
@@ -506,7 +617,7 @@ export function ExpenseBulkImportModal({
                           <input
                             className={FIELD}
                             value={r.paymentMethod || ''}
-                            disabled={!!busy}
+                            disabled={!!busy && busy !== 'preview'}
                             onChange={(e) => patchRow(idx, { paymentMethod: e.target.value })}
                           />
                         </td>
@@ -514,8 +625,18 @@ export function ExpenseBulkImportModal({
                           <input
                             className={fieldClass(r, 'description')}
                             value={r.description || ''}
-                            disabled={!!busy}
+                            disabled={!!busy && busy !== 'preview'}
                             onChange={(e) => patchRow(idx, { description: e.target.value })}
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 min-w-[8rem]">
+                          <input
+                            className={FIELD}
+                            value={r.expenseID || ''}
+                            placeholder="optional"
+                            disabled={!!busy && busy !== 'preview'}
+                            onChange={(e) => patchRow(idx, { expenseID: e.target.value })}
+                            title="Clear sample IDs if they already exist in the system"
                           />
                         </td>
                         <td className="px-2 py-1.5 text-[10px] font-semibold">
@@ -532,7 +653,7 @@ export function ExpenseBulkImportModal({
                               {(r.errors || [])[0] || 'Error'}
                             </span>
                           )}
-                          {(r.errors || []).length && r.status === 'incomplete' ? (
+                          {(r.errors || []).length && r.status !== 'ok' ? (
                             <div className="mt-0.5 font-medium text-amber-800">{r.errors[0]}</div>
                           ) : null}
                           {(r.warnings || []).length ? (
@@ -543,7 +664,7 @@ export function ExpenseBulkImportModal({
                           <button
                             type="button"
                             className="rounded p-1 text-slate-400 hover:text-red-600"
-                            disabled={!!busy}
+                            disabled={!!busy && busy !== 'preview'}
                             onClick={() => removeRow(idx)}
                             aria-label="Remove row"
                           >
@@ -579,22 +700,20 @@ export function ExpenseBulkImportModal({
             </p>
           ) : null}
 
-          {busy === 'preview' || busy === 'commit' ? (
-            <p className="text-xs font-semibold text-zarewa-teal">
-              {busy === 'preview' ? 'Building preview…' : 'Posting expenses…'}
-            </p>
+          {busy === 'commit' ? (
+            <p className="text-xs font-semibold text-zarewa-teal">Posting expenses…</p>
           ) : null}
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-100 px-4 py-3 sm:px-6">
-          <button type="button" className="z-btn-secondary text-xs" onClick={close} disabled={!!busy}>
+          <button type="button" className="z-btn-secondary text-xs" onClick={close} disabled={busy === 'commit'}>
             {result?.ok ? 'Close' : 'Cancel'}
           </button>
           {!result?.ok ? (
             <button
               type="button"
               className="z-btn-primary text-xs"
-              disabled={!!busy || !confirmed || !canPost}
+              disabled={busy === 'commit' || !confirmed || !canPost}
               onClick={() => void runCommit()}
             >
               Post {validCount || ''} expense{validCount === 1 ? '' : 's'}
