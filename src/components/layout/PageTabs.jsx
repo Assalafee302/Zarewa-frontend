@@ -5,7 +5,7 @@ const tabBtn =
 
 /**
  * Segmented control used across module pages for consistent UX.
- * tabs: [{ id: string, label: string, icon?: ReactNode }]
+ * tabs: [{ id: string, label: string, icon?: ReactNode, badge?: number | string }]
  */
 export function PageTabs({ tabs, value, onChange, ariaLabel = 'Section', className = '' }) {
   return (
@@ -16,6 +16,8 @@ export function PageTabs({ tabs, value, onChange, ariaLabel = 'Section', classNa
     >
       {tabs.map((tab) => {
         const active = value === tab.id;
+        const badgeNum = Number(tab.badge);
+        const showBadge = Number.isFinite(badgeNum) && badgeNum > 0;
         return (
           <button
             key={tab.id}
@@ -31,6 +33,15 @@ export function PageTabs({ tabs, value, onChange, ariaLabel = 'Section', classNa
           >
             {tab.icon ?? null}
             {tab.label}
+            {showBadge ? (
+              <span
+                className={`ml-0.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-md px-1 py-0.5 text-[10px] font-black tabular-nums ${
+                  active ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-950'
+                }`}
+              >
+                {badgeNum > 99 ? '99+' : badgeNum}
+              </span>
+            ) : null}
           </button>
         );
       })}

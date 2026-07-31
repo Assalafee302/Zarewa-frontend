@@ -2,21 +2,22 @@ import React from 'react';
 import { Bell } from 'lucide-react';
 
 /**
- * Mobile-only Ops alerts — in-transit, thin coils, pending stock-damage reports.
- * Desktop KPI / stock panels stay unchanged (lg+).
+ * Ops alerts — in-transit, thin coils, pending stock-damage reports.
+ * Shown on all breakpoints (Clear now also has its own pulse; strip remains a compact backup).
  */
 export default function OperationsMobileAlertStrip({
   inTransitCount = 0,
   lowStockCount = 0,
   pendingMexCount = 0,
   onGoInventory,
+  onGoThinCoils,
   onGoMaterialExceptions,
 }) {
   const items = [];
   if (inTransitCount > 0) {
     items.push({
       key: 'in-transit',
-      label: `${inTransitCount} in transit`,
+      label: `${inTransitCount} to receive`,
       tone: 'sky',
       onClick: onGoInventory,
     });
@@ -26,13 +27,13 @@ export default function OperationsMobileAlertStrip({
       key: 'low-stock',
       label: `${lowStockCount} thin coil${lowStockCount !== 1 ? 's' : ''}`,
       tone: 'amber',
-      onClick: onGoInventory,
+      onClick: onGoThinCoils || onGoInventory,
     });
   }
   if (pendingMexCount > 0) {
     items.push({
       key: 'mex',
-      label: `${pendingMexCount} stock damage report${pendingMexCount !== 1 ? 's' : ''}`,
+      label: `${pendingMexCount} exception${pendingMexCount !== 1 ? 's' : ''}`,
       tone: 'rose',
       onClick: onGoMaterialExceptions,
     });
@@ -47,8 +48,8 @@ export default function OperationsMobileAlertStrip({
   };
 
   return (
-    <div className="lg:hidden flex flex-wrap gap-2 mb-4" role="status" aria-label="Operations alerts">
-      <span className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wider text-slate-500 w-full">
+    <div className="flex flex-wrap gap-2 mb-4" role="status" aria-label="Operations alerts">
+      <span className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wider text-slate-500 w-full sm:w-auto">
         <Bell size={12} aria-hidden /> Alerts
       </span>
       {items.map((item) => {

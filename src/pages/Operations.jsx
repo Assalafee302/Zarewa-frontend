@@ -25,8 +25,27 @@ import { WorkspacePanelToolbar } from '../components/workspace';
 import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import RegisterCoilModal from '../components/operations/RegisterCoilModal';
-import { OperationsProductionOverview } from '../components/operations/OperationsProductionOverview';
+import { StoreClearNow } from '../components/operations/StoreClearNow';
+import SpecBoardPanel from '../components/operations/SpecBoardPanel';
+import StoneSpecBoardPanel from '../components/operations/StoneSpecBoardPanel';
 import OperationsMobileAlertStrip from '../components/operations/OperationsMobileAlertStrip';
+import { normalizeOpsFocusTab } from '../lib/storeClearanceRank';
+import {
+  buildCoilSpecBoardRows,
+  buildTransitKgBySpec,
+} from '../lib/storeSpecAggregate';
+import {
+  buildStoneSpecBoardRows,
+  buildTransitMByStoneSpec,
+} from '../lib/storeStoneSpecAggregate';
+import { normalizeOrgStoreRestock } from '../lib/orgStoreRestock';
+import { STORE_STOCK_BUY_PATH } from '../lib/coilRequestStatus';
+import {
+  buildMetresBySpec,
+  pickStoreHeroes,
+  buildRestockClearanceRows,
+  buildStoneRestockClearanceRows,
+} from '../lib/storeHeroEngine';
 import {
   ProductionListTableFrame,
   ProductionListSearchInput,
@@ -222,8 +241,8 @@ function sortProductionQueueRows(rows, field, dir) {
 }
 
 const PANEL_TITLE = {
-  overview: 'Production overview',
-  production: 'Production queue',
+  overview: 'Store desk',
+  production: 'Register',
 };
 
 /** Rows per page for production line lists (live jobs, closed queue, manager review). */
@@ -632,6 +651,10 @@ const Operations = () => {
   );
 
   const [activeTab, setActiveTab] = useState('overview');
+  const [specBoardFilter, setSpecBoardFilter] = useState(
+    /** @type {'all'|'below_min'|'thin'|'idle'|'heroes'} */ ('all')
+  );
+  const [focusDeliveries, setFocusDeliveries] = useState(false);
   const [materialIncidentFocusId, setMaterialIncidentFocusId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   /** Closed-record list: all | completed | cancelled | coils_allocated (in-progress jobs are above). */
@@ -692,9 +715,11 @@ const Operations = () => {
   const grnReceivePoIdRef = useRef('');
 
   const [coilRequestForm, setCoilRequestForm] = useState({
-    rows: [{ gauge: '', colour: '', materialType: '', requestedKg: '' }],
+    unit: 'kg',
+    rows: [{ gauge: '', colour: '', materialType: '', requestedKg: '', unit: 'kg' }],
     note: '',
   });
+  const [coilRequestSubmitting, setCoilRequestSubmitting] = useState(false);
 
   const [stockAdjust, setStockAdjust] = useState({
     productID: '',
@@ -782,7 +807,9 @@ const Operations = () => {
 
   const inventoryStats = useMemo(() => {
     const masterData = setupMasterData;
-    const activeCoils = coilLots.filter((c) => c.currentStatus !== 'Consumed');
+    const activeCoils = coilLots.filter(
+      (c) => c.currentStatus !== 'Consumed' && c.currentStatus !== 'Finished'
+    );
     let aluzincKg = 0;
     let aluminiumKg = 0;
     let lowStock = 0;
@@ -1154,7 +1181,7 @@ const Operations = () => {
 
   const handlePrintProductionFollowUp = useCallback(() => {
     if (!productionFollowUpPrintRows.length) {
-      showToast('No waiting or in-production jobs to print.', 'info');
+      showToast('No waiting or in-production jobs to print.', { variant: 'info' });
       return;
     }
     const ok = printProductionFollowUpList({
@@ -1163,13 +1190,50 @@ const Operations = () => {
       title: 'Production follow-up — waiting & in progress',
     });
     if (!ok) {
-      showToast('Allow pop-ups to print the follow-up list.', 'warning');
+      showToast('Allow pop-ups to print the follow-up list.', { variant: 'warning' });
     }
   }, [productionFollowUpPrintRows, showToast, workspaceQuotations]);
 
-  const goOverviewInventory = useCallback((kind) => {
+  const goOverviewInventory = useCallback((kindOrOpts) => {
     setActiveTab('inventory');
-    setStockReceiveKind(normalizeStockReceiveKind(kind));
+    if (kindOrOpts && typeof kindOrOpts === 'object') {
+      const kind = kindOrOpts.kind || kindOrOpts.stockReceiveKind || 'coil';
+      setStockReceiveKind(normalizeStockReceiveKind(kind));
+      const boardFilter = String(kindOrOpts.specBoardFilter || '').trim().toLowerCase();
+      if (['all', 'below_min', 'thin', 'idle', 'heroes'].includes(boardFilter)) {
+        setSpecBoardFilter(/** @type {any} */ (boardFilter));
+      }
+      return;
+    }
+    setStockReceiveKind(normalizeStockReceiveKind(kindOrOpts));
+  }, []);
+
+  const openRequestStock = useCallback((prefill) => {
+    if (prefill && typeof prefill === 'object') {
+      const qty = Math.max(1, Number(prefill.requestedKg) || 0);
+      const unit = prefill.unit === 'm' || prefill.family === 'stone' ? 'm' : 'kg';
+      const label = [prefill.design, prefill.colour, prefill.gauge].filter(Boolean).join(' ');
+      setCoilRequestForm({
+        unit,
+        note: `Restock ${label} — shortfall ${qty} ${unit}. ${STORE_STOCK_BUY_PATH}.`,
+        rows: [
+          {
+            gauge: String(prefill.gauge || ''),
+            colour: String(prefill.colour || ''),
+            materialType: String(prefill.materialType || ''),
+            requestedKg: String(qty),
+            unit,
+          },
+        ],
+      });
+    } else {
+      setCoilRequestForm({
+        unit: 'kg',
+        note: '',
+        rows: [{ gauge: '', colour: '', materialType: '', requestedKg: '', unit: 'kg' }],
+      });
+    }
+    setShowCoilRequest(true);
   }, []);
 
   const toggleCoilReceiptSort = useCallback((key) => {
@@ -1189,18 +1253,9 @@ const Operations = () => {
     return `${sign}${n.toFixed(1)}%`;
   };
 
-  const opsTabs = useMemo(
-    () => [
-      { id: 'overview', icon: <LayoutDashboard size={16} />, label: 'Overview' },
-      { id: 'inventory', icon: <Box size={16} />, label: 'Stock management' },
-      { id: 'materialExceptions', icon: <Package size={16} />, label: 'Material exceptions' },
-      { id: 'production', icon: <Scissors size={16} />, label: 'Production line' },
-    ],
-    []
-  );
-
   const handleOpsTab = (id) => {
     setActiveTab(id);
+    setFocusDeliveries(false);
     setSearchQuery('');
     setProductionFilter('all');
   };
@@ -1208,20 +1263,28 @@ const Operations = () => {
   useEffect(() => {
     const st = location.state || {};
     const t = st.focusOpsTab;
+    if (t == null || t === '') return;
+
     const invSku = String(st.opsInventorySkuQuery || '').trim();
     const notice = String(st.opsNotice || '').trim();
     if (notice) {
       showToast(notice, { variant: 'info' });
     }
 
-    if (t === 'overview') {
-      setActiveTab('overview');
+    const normalized = normalizeOpsFocusTab(t);
+    if (!normalized) {
       navigate(location.pathname, { replace: true, state: {} });
       return;
     }
 
-    if (t === 'inventory') {
-      setActiveTab('inventory');
+    if (normalized.notice) {
+      showToast(normalized.notice, { variant: 'info' });
+    }
+
+    setActiveTab(normalized.tab);
+    setFocusDeliveries(Boolean(normalized.deliveriesFocus));
+
+    if (normalized.tab === 'inventory') {
       if (invSku) {
         const p = invSku.toUpperCase();
         if (isStoneFlatsheetSku(p)) setStockReceiveKind('stone_flatsheet');
@@ -1230,44 +1293,45 @@ const Operations = () => {
         else setStockReceiveKind('coil');
         setCoilLiveSearch(invSku);
       }
+      const boardFilter = String(st.specBoardFilter || '').trim().toLowerCase();
+      const kindHint = String(st.stockReceiveKind || st.opsStockKind || '').trim();
+      if (kindHint) {
+        setStockReceiveKind(normalizeStockReceiveKind(kindHint));
+      } else if (!invSku && ['idle', 'thin', 'heroes'].includes(boardFilter)) {
+        // Coil Spec board filters — force coil kind when deep-linking from notifications.
+        setStockReceiveKind('coil');
+      } else if (!invSku && boardFilter === 'below_min' && st.opsFamily === 'stone') {
+        setStockReceiveKind('stone_meter');
+      }
+      if (['all', 'below_min', 'thin', 'idle', 'heroes'].includes(boardFilter)) {
+        setSpecBoardFilter(/** @type {any} */ (boardFilter));
+      }
       if (st.openStockAdjust && canAdjustInventory) {
         setStockAdjustMaterialFamily(null);
         setShowStockAdjust(true);
       }
-      navigate(location.pathname, { replace: true, state: {} });
-      return;
     }
 
-    if (t === 'coilControl' || t === 'materialExceptions') {
-      setActiveTab('materialExceptions');
+    if (normalized.tab === 'materialExceptions') {
       const mexId = String(st.materialIncidentId || '').trim();
       setMaterialIncidentFocusId(mexId);
-      if (t === 'coilControl') {
-        showToast('Coil control is under Material exceptions for now.', { variant: 'info' });
-      }
-      navigate(location.pathname, { replace: true, state: {} });
-      return;
     }
 
-    if (t === 'maintenance' || t === 'deliveries') {
-      setActiveTab('production');
-      if (t === 'maintenance') {
-        showToast('Maintenance shortcuts open the Production line.', { variant: 'info' });
+    if (normalized.tab === 'production') {
+      const highlightId = String(st.highlightCuttingListId || st.openProductionTraceCuttingListId || '').trim();
+      if (highlightId) setSearchQuery(highlightId);
+      if (st.openProductionTraceCuttingListId && ws?.canMutate) {
+        setProductionTraceModal({
+          type: 'trace',
+          cuttingListId: String(st.openProductionTraceCuttingListId).trim(),
+          subtitle: String(st.openProductionTraceSubtitle || '').trim() || undefined,
+        });
       }
-      navigate(location.pathname, { replace: true, state: {} });
-      return;
+      if (st.productionActiveFilter) {
+        setProductionActiveFilter(String(st.productionActiveFilter));
+      }
     }
-    if (t !== 'production') return;
-    setActiveTab(t);
-    const highlightId = String(st.highlightCuttingListId || st.openProductionTraceCuttingListId || '').trim();
-    if (highlightId) setSearchQuery(highlightId);
-    if (st.openProductionTraceCuttingListId && ws?.canMutate) {
-      setProductionTraceModal({
-        type: 'trace',
-        cuttingListId: String(st.openProductionTraceCuttingListId).trim(),
-        subtitle: String(st.openProductionTraceSubtitle || '').trim() || undefined,
-      });
-    }
+
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate, canAdjustInventory, ws?.canMutate]);
 
@@ -1283,6 +1347,105 @@ const Operations = () => {
       ).length,
     [materialIncidents]
   );
+
+  const opsTabs = useMemo(() => {
+    const registerBadge =
+      (Number(productionQueueStats.noCoil) || 0) + (Number(productionQueueStats.overdue) || 0);
+    return [
+      { id: 'overview', icon: <LayoutDashboard size={16} />, label: 'Clear now' },
+      {
+        id: 'inventory',
+        icon: <Box size={16} />,
+        label: 'On hand',
+        badge: transitOrdersAll.length,
+      },
+      {
+        id: 'materialExceptions',
+        icon: <Package size={16} />,
+        label: 'Exceptions',
+        badge: pendingMexCount,
+      },
+      {
+        id: 'production',
+        icon: <Scissors size={16} />,
+        label: 'Register',
+        badge: registerBadge,
+      },
+    ];
+  }, [transitOrdersAll.length, pendingMexCount, productionQueueStats.noCoil, productionQueueStats.overdue]);
+
+  const storeRestockSettings = useMemo(
+    () => normalizeOrgStoreRestock(ws?.snapshot?.orgStoreRestock),
+    [ws?.snapshot?.orgStoreRestock]
+  );
+
+  const coilRestockMinKg = storeRestockSettings.coilRestockMinKg;
+  const stoneRestockMinM = storeRestockSettings.stoneRestockMinM;
+  const specMinOverrides = storeRestockSettings.specMinOverrides;
+
+  const coilSpecBelowMinCount = useMemo(() => {
+    const transitBySpec = buildTransitKgBySpec(transitOrdersAll, setupMasterData, shouldShowPoInTransit);
+    return buildCoilSpecBoardRows(coilLots, setupMasterData, {
+      restockMinKg: coilRestockMinKg,
+      specMinOverrides,
+      transitBySpec,
+    }).filter((r) => r.belowMin).length;
+  }, [coilLots, setupMasterData, transitOrdersAll, coilRestockMinKg, specMinOverrides]);
+
+  const stoneSpecBelowMinCount = useMemo(() => {
+    const stoneTransit = buildTransitMByStoneSpec(transitOrdersAll, setupMasterData, shouldShowPoInTransit);
+    return buildStoneSpecBoardRows(inventoryRows, setupMasterData, {
+      restockMinM: stoneRestockMinM,
+      transitBySpec: stoneTransit,
+    }).filter((r) => r.belowMin).length;
+  }, [inventoryRows, setupMasterData, transitOrdersAll, stoneRestockMinM]);
+
+  const storeRestockClearanceRows = useMemo(() => {
+    const transitBySpec = buildTransitKgBySpec(transitOrdersAll, setupMasterData, shouldShowPoInTransit);
+    const coilSpecs = buildCoilSpecBoardRows(coilLots, setupMasterData, {
+      restockMinKg: coilRestockMinKg,
+      specMinOverrides,
+      transitBySpec,
+    });
+    const coilMetres = buildMetresBySpec({
+      productionJobs,
+      quotations: ws?.snapshot?.quotations || [],
+      period: 'quarter',
+      masterData: setupMasterData,
+      familyScope: 'coil',
+    });
+    const { heroKeys: coilHeroKeys } = pickStoreHeroes(coilMetres);
+    const coilRows = buildRestockClearanceRows(coilSpecs, coilHeroKeys, { max: 3 });
+
+    const stoneTransit = buildTransitMByStoneSpec(transitOrdersAll, setupMasterData, shouldShowPoInTransit);
+    const stoneSpecs = buildStoneSpecBoardRows(inventoryRows, setupMasterData, {
+      restockMinM: stoneRestockMinM,
+      transitBySpec: stoneTransit,
+    });
+    const stoneMetres = buildMetresBySpec({
+      productionJobs,
+      quotations: ws?.snapshot?.quotations || [],
+      period: 'quarter',
+      masterData: setupMasterData,
+      familyScope: 'stone',
+    });
+    const { heroKeys: stoneHeroKeys } = pickStoreHeroes(stoneMetres, undefined, { families: ['stone'] });
+    const stoneRows = buildStoneRestockClearanceRows(stoneSpecs, stoneHeroKeys, { max: 3 });
+
+    return [...coilRows, ...stoneRows]
+      .sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+      .slice(0, 3);
+  }, [
+    coilLots,
+    inventoryRows,
+    setupMasterData,
+    transitOrdersAll,
+    coilRestockMinKg,
+    stoneRestockMinM,
+    specMinOverrides,
+    productionJobs,
+    ws?.snapshot?.quotations,
+  ]);
 
   const transitSearchNorm = transitSearch.trim().toLowerCase();
   const transitOrdersSortedFiltered = useMemo(() => {
@@ -1689,12 +1852,14 @@ const Operations = () => {
 
   const submitCoilRequest = async (e) => {
     e.preventDefault();
+    const formUnit = coilRequestForm.unit === 'm' ? 'm' : 'kg';
     const rows = (coilRequestForm.rows || [])
       .map((r) => ({
         gauge: String(r.gauge || '').trim(),
         colour: String(r.colour || '').trim(),
         materialType: String(r.materialType || '').trim(),
         requestedKg: String(r.requestedKg || '').trim(),
+        unit: r.unit === 'm' || formUnit === 'm' ? 'm' : 'kg',
       }))
       .filter((r) => r.gauge || r.colour || r.materialType || r.requestedKg);
     if (!rows.length) {
@@ -1702,9 +1867,9 @@ const Operations = () => {
       return;
     }
     for (const r of rows) {
-      const kg = Number(r.requestedKg);
-      if (!Number.isFinite(kg) || kg <= 0) {
-        showToast('Each request line needs a positive approx kg.', { variant: 'error' });
+      const qty = Number(r.requestedKg);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        showToast(`Each request line needs a positive approx ${r.unit}.`, { variant: 'error' });
         return;
       }
       if (!r.gauge && !r.colour && !r.materialType) {
@@ -1715,40 +1880,52 @@ const Operations = () => {
     if (!ws?.canMutate) {
       showToast(
         ws?.usingCachedData
-          ? 'Reconnect to submit coil requests — read-only cached workspace.'
-          : 'Sign in with a live server connection to submit coil requests.',
+          ? 'Reconnect to submit stock requests — read-only cached workspace.'
+          : 'Sign in with a live server connection to submit stock requests.',
         { variant: 'info' }
       );
       return;
     }
-    for (const row of rows) {
-      if (!row.gauge && !row.colour && !row.materialType) {
-        showToast('Each request line needs at least gauge, colour, or material.', { variant: 'error' });
-        return;
+    setCoilRequestSubmitting(true);
+    let saved = 0;
+    try {
+      for (const row of rows) {
+        const body = {
+          gauge: row.gauge,
+          colour: row.colour,
+          materialType: row.materialType,
+          requestedKg: row.requestedKg ? Number(row.requestedKg) || 0 : 0,
+          unit: row.unit === 'm' ? 'm' : 'kg',
+          note: coilRequestForm.note.trim(),
+        };
+        const { ok, data } = await apiFetch('/api/coil-requests', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        if (!ok || !data?.ok) {
+          const base = data?.error || 'Could not save this request line.';
+          showToast(
+            saved > 0
+              ? `${base} ${saved} of ${rows.length} line(s) already saved — refresh and check pending requests.`
+              : base,
+            { variant: 'error' }
+          );
+          if (saved > 0) await ws.refresh();
+          return;
+        }
+        saved += 1;
       }
-      const body = {
-        gauge: row.gauge,
-        colour: row.colour,
-        materialType: row.materialType,
-        requestedKg: row.requestedKg ? Number(row.requestedKg) || 0 : 0,
-        note: coilRequestForm.note.trim(),
-      };
-      const { ok, data } = await apiFetch('/api/coil-requests', {
-        method: 'POST',
-        body: JSON.stringify(body),
+      await ws.refresh();
+      setCoilRequestForm({
+        unit: 'kg',
+        rows: [{ gauge: '', colour: '', materialType: '', requestedKg: '', unit: 'kg' }],
+        note: '',
       });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not save one of the request lines.', { variant: 'error' });
-        return;
-      }
+      setShowCoilRequest(false);
+      showToast(`${rows.length} stock request line(s) sent — awaiting branch manager approval.`);
+    } finally {
+      setCoilRequestSubmitting(false);
     }
-    await ws.refresh();
-    setCoilRequestForm({
-      rows: [{ gauge: '', colour: '', materialType: '', requestedKg: '' }],
-      note: '',
-    });
-    setShowCoilRequest(false);
-    showToast(`${rows.length} coil request line(s) sent — visible on MD operations dashboard.`);
   };
 
   const isAnyModalOpen =
@@ -1864,7 +2041,8 @@ const Operations = () => {
         inTransitCount={transitOrdersAll.length}
         lowStockCount={inventoryStats.lowStock}
         pendingMexCount={pendingMexCount}
-        onGoInventory={() => setActiveTab('inventory')}
+        onGoInventory={() => goOverviewInventory({ kind: 'coil' })}
+        onGoThinCoils={() => goOverviewInventory({ kind: 'coil', specBoardFilter: 'thin' })}
         onGoMaterialExceptions={() => setActiveTab('materialExceptions')}
       />
 
@@ -1890,22 +2068,33 @@ const Operations = () => {
           <div className="col-span-full order-1">
             <MainPanel>
               <WorkspacePanelToolbar title={PANEL_TITLE.overview} />
-              <OperationsProductionOverview
+              <StoreClearNow
                 coilLots={coilLots}
-                inventoryRows={inventoryRows}
                 cuttingLists={cuttingLists}
                 productionQueueModel={productionQueueModel}
-                conversionStats={conversionStats}
                 productionQueueStats={productionQueueStats}
                 hasWorkspaceData={Boolean(ws?.hasWorkspaceData)}
-                masterData={ws?.snapshot?.masterData ?? null}
-                onGoProduction={() => setActiveTab('production')}
-                onGoInventory={goOverviewInventory}
-                onRequestCoils={() => setShowCoilRequest(true)}
+                receiveCount={transitOrdersAll.length}
+                pendingMexCount={pendingMexCount}
+                focusDeliveries={focusDeliveries}
+                onGoRegister={({ highlightId, filter } = {}) => {
+                  setActiveTab('production');
+                  if (highlightId) setSearchQuery(String(highlightId));
+                  if (filter) setProductionActiveFilter(String(filter));
+                }}
+                onGoReceive={() => {
+                  setActiveTab('inventory');
+                  setStockReceiveKind('coil');
+                }}
+                onGoExceptions={() => setActiveTab('materialExceptions')}
+                onGoOnHand={(kind) => goOverviewInventory(kind)}
+                onRequestStock={() => openRequestStock()}
                 onMonthEndStock={() => setMonthEndStockOpen(true)}
-                roleKey={ws?.session?.user?.roleKey || ''}
+                onOpenCoil={(coilNo) => navigate(`/operations/coils/${encodeURIComponent(coilNo)}`)}
+                onRequestRestock={openRequestStock}
+                restockRows={storeRestockClearanceRows}
+                movements={ws?.snapshot?.movements || []}
                 branchId={ws?.branchScope || ws?.session?.currentBranchId || ''}
-                branches={ws?.snapshot?.branches || []}
               />
             </MainPanel>
           </div>
@@ -1942,7 +2131,7 @@ const Operations = () => {
             <div className="p-3 sm:p-4 flex flex-col">
               <h3 className="text-ui-xs font-bold text-slate-700 uppercase tracking-widest mb-2 flex items-center gap-2">
                 <Truck size={14} className="text-sky-700" />
-                Goods in transit — receive
+                Receive
               </h3>
               {!anyReceivablePo && inTransitLoads.length === 0 ? (
                 <p className="text-ui-xs font-medium text-slate-400">Nothing on road or loading.</p>
@@ -2274,6 +2463,24 @@ const Operations = () => {
                 </h3>
                 {stockReceiveKind === 'coil' ? (
                   <>
+                    <SpecBoardPanel
+                      key={`spec-board-${specBoardFilter}`}
+                      coilLots={coilLots}
+                      masterData={setupMasterData}
+                      movements={ws?.snapshot?.movements || []}
+                      productionJobs={productionJobs}
+                      quotations={ws?.snapshot?.quotations || []}
+                      transitPurchaseOrders={transitOrdersAll}
+                      isReceivablePo={shouldShowPoInTransit}
+                      restockMinKg={coilRestockMinKg}
+                      specMinOverrides={specMinOverrides}
+                      initialFilter={specBoardFilter}
+                      onOpenCoil={(coilNo) => navigate(`/operations/coils/${encodeURIComponent(coilNo)}`)}
+                      onRequestRestock={openRequestStock}
+                    />
+                    <h4 className="text-ui-xs font-bold text-slate-600 uppercase tracking-widest mb-2">
+                      Coil lots (detail)
+                    </h4>
                     <div className="flex flex-col gap-1.5 mb-2 shrink-0">
                       <label className="relative min-w-0 w-full">
                         <Search
@@ -2436,90 +2643,121 @@ const Operations = () => {
                     </>
                     )}
                   </>
-                ) : skuProductsLiveSorted.length === 0 ? (
-                  <p className="text-xs font-medium text-slate-400">
-                    No{' '}
-                    {stockReceiveKind === 'stone_meter'
-                      ? 'stone-coated metre'
-                      : stockReceiveKind === 'stone_flatsheet'
-                        ? 'stone flatsheet'
-                        : 'accessory'}{' '}
-                    SKUs in catalog yet — create a PO or receipt in Procurement.
-                  </p>
-                ) : skuProductsReceiptFiltered.length === 0 ? (
-                  <p className="text-xs font-medium text-slate-400">No rows match your search.</p>
                 ) : (
                   <>
-                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 mb-2 shrink-0">
-                      <label className="relative min-w-0 w-full flex-1 sm:min-w-[140px]">
-                        <Search
-                          size={14}
-                          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                          aria-hidden
-                        />
-                        <input
-                          type="search"
-                          value={coilLiveSearch}
-                          onChange={(e) => setCoilLiveSearch(e.target.value)}
-                          placeholder="Search SKU or name…"
-                          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
-                        />
-                      </label>
-                    </div>
-                    {skuReceiptTruncated ? (
-                      <p className="text-ui-xs text-slate-500 mb-1.5">
-                        Showing {STOCK_SIDE_LIST_LIMIT} of {skuProductsReceiptFiltered.length}. Search for more SKUs.
-                      </p>
+                    {stockReceiveKind === 'stone_meter' ? (
+                      <StoneSpecBoardPanel
+                        key={`stone-spec-${specBoardFilter}`}
+                        products={inventoryRows}
+                        masterData={setupMasterData}
+                        productionJobs={productionJobs}
+                        quotations={ws?.snapshot?.quotations || []}
+                        transitPurchaseOrders={transitOrdersAll}
+                        isReceivablePo={shouldShowPoInTransit}
+                        restockMinM={stoneRestockMinM}
+                        initialFilter={
+                          ['all', 'below_min', 'heroes'].includes(specBoardFilter) ? specBoardFilter : 'all'
+                        }
+                        onRequestRestock={openRequestStock}
+                        onOpenSku={(sku) =>
+                          setProductMovementModal({
+                            productID: sku.productID,
+                            name: sku.name || sku.productID,
+                            unit: 'm',
+                          })
+                        }
+                      />
                     ) : null}
-                    <ul className="space-y-1.5">
-                      {skuProductsByReceipt.map((p) => {
-                        const live = Number(p.stockLevel) || 0;
-                        const u =
-                          String(p.unit || '').trim() ||
-                          (stockReceiveKind === 'stone_meter'
-                            ? 'm'
-                            : stockReceiveKind === 'stone_flatsheet'
-                              ? 'm²'
-                              : 'u');
-                        const label = String(p.name || p.productID || '—').trim();
-                        const meta2 = `${p.productID} · tap for movements`;
-                        return (
-                          <li key={p.productID}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setProductMovementModal({
-                                  productID: p.productID,
-                                  name: label,
-                                  unit: u,
-                                })
-                              }
-                              className="w-full text-left rounded-lg border border-slate-200/60 bg-white/40 py-1.5 px-2.5 shadow-sm backdrop-blur-md hover:bg-white/70 transition-colors group"
-                            >
-                              <div className="min-w-0 leading-tight">
-                                <div className="flex items-center justify-between gap-2 min-w-0">
-                                  <p
-                                    className="text-xs font-bold text-zarewa-teal truncate min-w-0"
-                                    title={label}
-                                  >
-                                    {label}
-                                  </p>
-                                  <span className="text-xs font-black text-zarewa-teal tabular-nums shrink-0">
-                                    {live.toLocaleString()} {u}
-                                  </span>
-                                </div>
-                                <p
-                                  className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-1 font-mono"
-                                  title={meta2}
+                    {skuProductsLiveSorted.length === 0 ? (
+                      <p className="text-xs font-medium text-slate-400">
+                        No{' '}
+                        {stockReceiveKind === 'stone_meter'
+                          ? 'stone-coated metre'
+                          : stockReceiveKind === 'stone_flatsheet'
+                            ? 'stone flatsheet'
+                            : 'accessory'}{' '}
+                        SKUs in catalog yet — create a PO or receipt in Procurement.
+                      </p>
+                    ) : skuProductsReceiptFiltered.length === 0 ? (
+                      <p className="text-xs font-medium text-slate-400">No rows match your search.</p>
+                    ) : (
+                      <>
+                        <h4 className="text-ui-xs font-bold text-slate-600 uppercase tracking-widest mb-2">
+                          {stockReceiveKind === 'stone_meter' ? 'Stone SKUs (detail)' : 'SKU lots (detail)'}
+                        </h4>
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 mb-2 shrink-0">
+                          <label className="relative min-w-0 w-full flex-1 sm:min-w-[140px]">
+                            <Search
+                              size={14}
+                              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                              aria-hidden
+                            />
+                            <input
+                              type="search"
+                              value={coilLiveSearch}
+                              onChange={(e) => setCoilLiveSearch(e.target.value)}
+                              placeholder="Search SKU or name…"
+                              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
+                            />
+                          </label>
+                        </div>
+                        {skuReceiptTruncated ? (
+                          <p className="text-ui-xs text-slate-500 mb-1.5">
+                            Showing {STOCK_SIDE_LIST_LIMIT} of {skuProductsReceiptFiltered.length}. Search for more
+                            SKUs.
+                          </p>
+                        ) : null}
+                        <ul className="space-y-1.5">
+                          {skuProductsByReceipt.map((p) => {
+                            const live = Number(p.stockLevel) || 0;
+                            const u =
+                              String(p.unit || '').trim() ||
+                              (stockReceiveKind === 'stone_meter'
+                                ? 'm'
+                                : stockReceiveKind === 'stone_flatsheet'
+                                  ? 'm²'
+                                  : 'u');
+                            const label = String(p.name || p.productID || '—').trim();
+                            const meta2 = `${p.productID} · tap for movements`;
+                            return (
+                              <li key={p.productID}>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setProductMovementModal({
+                                      productID: p.productID,
+                                      name: label,
+                                      unit: u,
+                                    })
+                                  }
+                                  className="w-full text-left rounded-lg border border-slate-200/60 bg-white/40 py-1.5 px-2.5 shadow-sm backdrop-blur-md hover:bg-white/70 transition-colors group"
                                 >
-                                  {meta2}
-                                </p>
-                              </div>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                                  <div className="min-w-0 leading-tight">
+                                    <div className="flex items-center justify-between gap-2 min-w-0">
+                                      <p
+                                        className="text-xs font-bold text-zarewa-teal truncate min-w-0"
+                                        title={label}
+                                      >
+                                        {label}
+                                      </p>
+                                      <span className="text-xs font-black text-zarewa-teal tabular-nums shrink-0">
+                                        {live.toLocaleString()} {u}
+                                      </span>
+                                    </div>
+                                    <p
+                                      className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-1 font-mono"
+                                      title={meta2}
+                                    >
+                                      {meta2}
+                                    </p>
+                                  </div>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -2532,11 +2770,11 @@ const Operations = () => {
         <div className="col-span-full mb-3 order-1 space-y-2">
           <div className="rounded-xl border border-slate-200/90 bg-gradient-to-r from-slate-50/90 to-white px-3 py-2.5 sm:px-4">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
-              Stock desk · today
+              On hand · today
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center rounded-lg border border-teal-200 bg-teal-50/80 px-2.5 py-1.5 text-ui-xs font-bold text-teal-900">
-                1. Receive GRN below
+                1. Receive GRN
               </span>
               <span className="text-slate-300 hidden sm:inline" aria-hidden>
                 →
@@ -2546,7 +2784,7 @@ const Operations = () => {
                 onClick={() => setActiveTab('production')}
                 className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
               >
-                2. Production line
+                2. Register
               </button>
               <span className="text-slate-300 hidden sm:inline" aria-hidden>
                 →
@@ -2556,7 +2794,7 @@ const Operations = () => {
                 onClick={() => setActiveTab('materialExceptions')}
                 className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
               >
-                3. Exceptions / coil control
+                3. Exceptions
               </button>
             </div>
           </div>
@@ -2564,10 +2802,10 @@ const Operations = () => {
             {ws?.canMutate ? (
               <button
                 type="button"
-                onClick={() => setShowCoilRequest(true)}
+                onClick={() => openRequestStock()}
                 className="z-btn-primary"
               >
-                <Plus size={16} /> Request coils
+                <Plus size={16} /> Request stock
               </button>
             ) : null}
             {canRegisterCoil && stockReceiveKind === 'coil' ? (
@@ -2599,59 +2837,34 @@ const Operations = () => {
         ) : null}
 
         {activeTab === 'inventory' ? (
-        <div className="col-span-full mb-2 order-1 hidden lg:block">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
-                <Package size={12} /> Coil stock on hand
+        <div className="col-span-full mb-2 order-1">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-2.5 sm:p-3">
+              <p className="text-[10px] sm:text-ui-xs font-bold uppercase tracking-wide text-amber-900">Below min</p>
+              <p className="mt-0.5 sm:mt-1 text-base sm:text-xl font-black text-amber-950 tabular-nums">
+                {coilSpecBelowMinCount + stoneSpecBelowMinCount}
               </p>
-              <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">
-                {inventoryStats.totalKg.toLocaleString()} <span className="text-ui-xs font-semibold">kg</span>
+              <p className="mt-0.5 text-[9px] sm:text-[10px] text-amber-900/70 leading-snug hidden sm:block">
+                Coils &lt; {coilRestockMinKg.toLocaleString()} kg · Stone &lt; {stoneRestockMinM.toLocaleString()} m
               </p>
-              <p className="mt-0.5 text-[10px] text-slate-400">Aluminium + aluzinc coils (not accessories/stone)</p>
-              <div className="mt-2 border-t border-slate-100 pt-2 space-y-1 text-ui-xs">
-                <p className="flex items-center justify-between text-slate-600">
-                  <span>Aluminium</span>
-                  <span className="font-bold tabular-nums">{inventoryStats.aluminiumKg.toLocaleString()} kg</span>
-                </p>
-                <p className="flex items-center justify-between text-slate-600">
-                  <span>Aluzinc</span>
-                  <span className="font-bold tabular-nums">{inventoryStats.aluzincKg.toLocaleString()} kg</span>
-                </p>
-              </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Conversion efficiency</p>
-              <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">
+            <div className="rounded-xl border border-red-200 bg-red-50/40 p-2.5 sm:p-3">
+              <p className="text-[10px] sm:text-ui-xs font-bold uppercase tracking-wide text-red-700 flex items-center gap-1">
+                <AlertTriangle size={11} className="hidden sm:inline" /> Thin
+              </p>
+              <p className="mt-0.5 sm:mt-1 text-base sm:text-xl font-black text-red-700 tabular-nums">
+                {inventoryStats.lowStock}
+              </p>
+              <p className="mt-0.5 text-[9px] sm:text-[10px] text-red-800/70 hidden sm:block">
+                Coils under 85 kg
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3">
+              <p className="text-[10px] sm:text-ui-xs font-bold uppercase tracking-wide text-slate-500">Conversion</p>
+              <p className="mt-0.5 sm:mt-1 text-base sm:text-xl font-black text-zarewa-teal tabular-nums">
                 {conversionStats.efficiencyPct != null ? `${conversionStats.efficiencyPct}%` : '—'}
               </p>
-              <p className="mt-0.5 text-[10px] text-slate-400">From recent production conversion checks</p>
-            </div>
-            <div className="rounded-xl border border-red-200 bg-red-50/40 p-3">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-red-700 flex items-center gap-1">
-                <AlertTriangle size={12} /> Thin coils (&lt;85 kg · finish-roll)
-              </p>
-              <p className="mt-1 text-xl font-black text-red-700 tabular-nums">{inventoryStats.lowStock}</p>
-              <p className="mt-0.5 text-[10px] text-red-800/70">
-                Not the same as SKU “below reorder level” on the home dashboard
-              </p>
-            </div>
-            <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-700 flex items-center gap-1">
-                <Award size={12} /> Top coil mixes
-              </p>
-              <div className="mt-1 space-y-1">
-                {inventoryStats.topMaterials.length === 0 ? (
-                  <p className="text-ui-xs text-teal-700">No active coils</p>
-                ) : (
-                  inventoryStats.topMaterials.map((row, idx) => (
-                    <p key={`${row.gauge}-${row.colour}-${row.material}-${idx}`} className="text-ui-xs text-teal-700 tabular-nums truncate">
-                      <span className="font-bold text-zarewa-teal">{idx + 1}.</span> {row.gauge} mm · {row.colour} ·{' '}
-                      <span className="font-semibold">{row.kg.toLocaleString()} kg</span>
-                    </p>
-                  ))
-                )}
-              </div>
+              <p className="mt-0.5 text-[9px] sm:text-[10px] text-slate-400 hidden sm:block">Recent checks</p>
             </div>
           </div>
         </div>
@@ -3420,98 +3633,114 @@ const Operations = () => {
         coilLots={coilLots}
       />
 
-      <ModalFrame isOpen={showCoilRequest} onClose={() => setShowCoilRequest(false)}>
-        <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-zarewa-teal">Request coils</h3>
+      <ModalFrame isOpen={showCoilRequest} onClose={() => !coilRequestSubmitting && setShowCoilRequest(false)}>
+        <div className="z-modal-panel max-w-lg p-6 sm:p-8 overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-zarewa-teal">Request stock</h3>
             <button
               type="button"
               onClick={() => setShowCoilRequest(false)}
-              className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
+              disabled={coilRequestSubmitting}
+              className="p-2 text-slate-400 hover:text-rose-600 rounded-xl disabled:opacity-50"
+              aria-label="Close"
             >
               <X size={22} />
             </button>
           </div>
-          <p className="text-xs text-gray-500 mb-4">
-            Submit one or more coil lines. Requests appear on the operations dashboard for MD/procurement follow-up.
+          <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+            {STORE_STOCK_BUY_PATH}. Prefill from Spec board shortfall when available.
           </p>
           <form className="space-y-4" onSubmit={submitCoilRequest}>
             <div className="space-y-3">
-              {coilRequestForm.rows.map((row, idx) => (
-                <div key={`rq-${idx}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
-                  <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wide">Request line {idx + 1}</p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <input
-                      value={row.gauge}
-                      onChange={(e) =>
-                        setCoilRequestForm((f) => ({
-                          ...f,
-                          rows: f.rows.map((x, i) => (i === idx ? { ...x, gauge: e.target.value } : x)),
-                        }))
-                      }
-                      placeholder="Gauge (mm)"
-                      className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-bold outline-none"
-                    />
-                    <input
-                      value={row.colour}
-                      onChange={(e) =>
-                        setCoilRequestForm((f) => ({
-                          ...f,
-                          rows: f.rows.map((x, i) => (i === idx ? { ...x, colour: e.target.value } : x)),
-                        }))
-                      }
-                      placeholder="Colour / finish"
-                      className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-bold outline-none"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <input
-                      value={row.materialType}
-                      onChange={(e) =>
-                        setCoilRequestForm((f) => ({
-                          ...f,
-                          rows: f.rows.map((x, i) => (i === idx ? { ...x, materialType: e.target.value } : x)),
-                        }))
-                      }
-                      placeholder="Material type"
-                      className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-bold outline-none"
-                    />
-                    <input
-                      value={row.requestedKg}
-                      onChange={(e) =>
-                        setCoilRequestForm((f) => ({
-                          ...f,
-                          rows: f.rows.map((x, i) => (i === idx ? { ...x, requestedKg: e.target.value } : x)),
-                        }))
-                      }
-                      placeholder="Approx kg (required)"
-                      className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-bold outline-none"
-                      inputMode="decimal"
-                      required
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    {coilRequestForm.rows.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCoilRequestForm((f) => ({ ...f, rows: f.rows.filter((_, i) => i !== idx) }))
+              {coilRequestForm.rows.map((row, idx) => {
+                const lineUnit = row.unit === 'm' || coilRequestForm.unit === 'm' ? 'm' : 'kg';
+                return (
+                  <div key={`rq-${idx}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+                    <p className="text-ui-xs font-bold text-slate-500 uppercase tracking-wide">
+                      Request line {idx + 1}
+                    </p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <input
+                        value={row.gauge}
+                        onChange={(e) =>
+                          setCoilRequestForm((f) => ({
+                            ...f,
+                            rows: f.rows.map((x, i) => (i === idx ? { ...x, gauge: e.target.value } : x)),
+                          }))
                         }
-                        className="text-ui-xs font-semibold text-rose-700 hover:text-rose-900"
-                      >
-                        Remove line
-                      </button>
-                    ) : null}
+                        placeholder="Gauge (mm)"
+                        className="z-input w-full"
+                      />
+                      <input
+                        value={row.colour}
+                        onChange={(e) =>
+                          setCoilRequestForm((f) => ({
+                            ...f,
+                            rows: f.rows.map((x, i) => (i === idx ? { ...x, colour: e.target.value } : x)),
+                          }))
+                        }
+                        placeholder="Colour / finish"
+                        className="z-input w-full"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <input
+                        value={row.materialType}
+                        onChange={(e) =>
+                          setCoilRequestForm((f) => ({
+                            ...f,
+                            rows: f.rows.map((x, i) => (i === idx ? { ...x, materialType: e.target.value } : x)),
+                          }))
+                        }
+                        placeholder={lineUnit === 'm' ? 'Stone · Design' : 'Material type'}
+                        className="z-input w-full"
+                      />
+                      <input
+                        value={row.requestedKg}
+                        onChange={(e) =>
+                          setCoilRequestForm((f) => ({
+                            ...f,
+                            rows: f.rows.map((x, i) => (i === idx ? { ...x, requestedKg: e.target.value } : x)),
+                          }))
+                        }
+                        placeholder={lineUnit === 'm' ? 'Approx m (required)' : 'Approx kg (required)'}
+                        className="z-input w-full tabular-nums"
+                        inputMode="decimal"
+                        required
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      {coilRequestForm.rows.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCoilRequestForm((f) => ({ ...f, rows: f.rows.filter((_, i) => i !== idx) }))
+                          }
+                          className="text-ui-xs font-semibold text-rose-700 hover:text-rose-900"
+                        >
+                          Remove line
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <button
               type="button"
               onClick={() =>
                 setCoilRequestForm((f) => ({
                   ...f,
-                  rows: [...f.rows, { gauge: '', colour: '', materialType: '', requestedKg: '' }],
+                  rows: [
+                    ...f.rows,
+                    {
+                      gauge: '',
+                      colour: '',
+                      materialType: '',
+                      requestedKg: '',
+                      unit: f.unit === 'm' ? 'm' : 'kg',
+                    },
+                  ],
                 }))
               }
               className="z-btn-secondary w-full justify-center"
@@ -3519,20 +3748,22 @@ const Operations = () => {
               <Plus size={14} /> Add another line
             </button>
             <div>
-              <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
+              <label className="text-ui-xs font-bold text-slate-500 uppercase tracking-wide ml-0.5 block mb-1">
                 Note (optional)
               </label>
               <textarea
                 rows={2}
                 value={coilRequestForm.note}
-                onChange={(e) =>
-                  setCoilRequestForm((f) => ({ ...f, note: e.target.value }))
-                }
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-medium outline-none resize-none"
+                onChange={(e) => setCoilRequestForm((f) => ({ ...f, note: e.target.value }))}
+                className="z-input w-full resize-none"
               />
             </div>
-            <button type="submit" className="z-btn-primary w-full justify-center py-3">
-              Submit requests
+            <button
+              type="submit"
+              disabled={coilRequestSubmitting}
+              className="z-btn-primary w-full justify-center py-3 disabled:opacity-50"
+            >
+              {coilRequestSubmitting ? 'Submitting…' : 'Submit for BM approval'}
             </button>
           </form>
         </div>

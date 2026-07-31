@@ -94,6 +94,12 @@ const Settings = () => {
   const [orgMtNaira, setOrgMtNaira] = useState('');
   const [orgMtMeters, setOrgMtMeters] = useState('');
   const [orgMtBusy, setOrgMtBusy] = useState(false);
+  const [storeCoilMinKg, setStoreCoilMinKg] = useState('700');
+  const [storeStoneMinM, setStoreStoneMinM] = useState('400');
+  const [storeSpecOverrides, setStoreSpecOverrides] = useState(
+    /** @type {{ family: string, colour: string, gauge: string, minKg: string }[]} */ ([])
+  );
+  const [storeRestockBusy, setStoreRestockBusy] = useState(false);
   const currentUser = ws?.session?.user;
   const permissions = ws?.permissions ?? [];
   const periodLocks = ws?.snapshot?.periodLocks ?? [];
@@ -156,6 +162,21 @@ const Settings = () => {
     setOrgMtNaira(o?.nairaTargetPerMonth != null ? String(o.nairaTargetPerMonth) : '');
     setOrgMtMeters(o?.meterTargetPerMonth != null ? String(o.meterTargetPerMonth) : '');
   }, [ws?.snapshot?.orgManagerTargets, ws?.refreshEpoch]);
+
+  useEffect(() => {
+    const s = ws?.snapshot?.orgStoreRestock;
+    setStoreCoilMinKg(s?.coilRestockMinKg != null ? String(s.coilRestockMinKg) : '700');
+    setStoreStoneMinM(s?.stoneRestockMinM != null ? String(s.stoneRestockMinM) : '400');
+    const overrides = Array.isArray(s?.specMinOverrides) ? s.specMinOverrides : [];
+    setStoreSpecOverrides(
+      overrides.map((r) => ({
+        family: r.family === 'aluminium' ? 'aluminium' : 'aluzinc',
+        colour: String(r.colour || ''),
+        gauge: String(r.gauge || ''),
+        minKg: String(r.minKg ?? ''),
+      }))
+    );
+  }, [ws?.snapshot?.orgStoreRestock, ws?.refreshEpoch]);
 
   /** If URL is /settings/foo and foo is not a valid section (e.g. team without permission), normalize. */
   useEffect(() => {
@@ -232,6 +253,40 @@ const Settings = () => {
       showToast(String(e.message || e), { variant: 'error' });
     } finally {
       setOrgMtBusy(false);
+    }
+  };
+
+  const persistOrgStoreRestock = async () => {
+    setStoreRestockBusy(true);
+    try {
+      const coil = Number(String(storeCoilMinKg).replace(/,/g, ''));
+      const stone = Number(String(storeStoneMinM).replace(/,/g, ''));
+      const specMinOverrides = storeSpecOverrides
+        .map((r) => ({
+          family: r.family === 'aluminium' ? 'aluminium' : 'aluzinc',
+          colour: String(r.colour || '').trim(),
+          gauge: String(r.gauge || '').trim(),
+          minKg: Number(String(r.minKg).replace(/,/g, '')),
+        }))
+        .filter((r) => r.colour && r.gauge && Number.isFinite(r.minKg) && r.minKg > 0);
+      const { ok, data } = await apiFetch('/api/setup/org-store-restock', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          coilRestockMinKg: coil,
+          stoneRestockMinM: stone,
+          specMinOverrides,
+        }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not save store restock mins.', { variant: 'error' });
+        return;
+      }
+      showToast('Store restock mins saved.');
+      await ws?.refresh?.();
+    } catch (e) {
+      showToast(String(e.message || e), { variant: 'error' });
+    } finally {
+      setStoreRestockBusy(false);
     }
   };
 
@@ -600,6 +655,170 @@ const Settings = () => {
                           className="z-btn-secondary disabled:opacity-50"
                         >
                           Clear company targets
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {canEditOrgTargets ? (
+                    <div className="border-t border-slate-100 pt-6">
+                      <h3 className="z-section-title mb-1">Store restock mins</h3>
+                      <p className="text-xs text-slate-500 mb-4 max-w-xl leading-relaxed">
+                        Spec board and Clear now alert when free + in-transit stock falls below these mins.
+                        Admin / MD with settings.manage can save. Defaults: 700 kg coils · 400 m stone.
+                        Optional per-spec overrides win over the coil default.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label className="block space-y-1.5">
+                          <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+                            Coil restock min (kg)
+                          </span>
+                          <input
+                            type="number"
+                            min={1}
+                            step={50}
+                            value={storeCoilMinKg}
+                            onChange={(e) => setStoreCoilMinKg(e.target.value)}
+                            className="z-input w-full tabular-nums"
+                          />
+                        </label>
+                        <label className="block space-y-1.5">
+                          <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+                            Stone restock min (m)
+                          </span>
+                          <input
+                            type="number"
+                            min={1}
+                            step={10}
+                            value={storeStoneMinM}
+                            onChange={(e) => setStoreStoneMinM(e.target.value)}
+                            className="z-input w-full tabular-nums"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="mt-5">
+                        <h4 className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+                          Per-spec coil mins (optional)
+                        </h4>
+                        {storeSpecOverrides.length === 0 ? (
+                          <p className="text-xs text-slate-500 mb-2 leading-relaxed">
+                            No per-spec overrides — Spec board uses the coil default above.
+                          </p>
+                        ) : null}
+                        <div className="space-y-2">
+                          {storeSpecOverrides.map((row, idx) => (
+                            <div
+                              key={`ovr-${idx}`}
+                              className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
+                            >
+                              <label className="sm:col-span-3 block space-y-1">
+                                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                  Family
+                                </span>
+                                <select
+                                  value={row.family}
+                                  onChange={(e) => {
+                                    const v = e.target.value === 'aluminium' ? 'aluminium' : 'aluzinc';
+                                    setStoreSpecOverrides((prev) =>
+                                      prev.map((r, i) => (i === idx ? { ...r, family: v } : r))
+                                    );
+                                  }}
+                                  className="z-input w-full"
+                                >
+                                  <option value="aluzinc">Aluzinc</option>
+                                  <option value="aluminium">Aluminium</option>
+                                </select>
+                              </label>
+                              <label className="sm:col-span-3 block space-y-1">
+                                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                  Colour
+                                </span>
+                                <input
+                                  type="text"
+                                  value={row.colour}
+                                  placeholder="e.g. Gray Beige"
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setStoreSpecOverrides((prev) =>
+                                      prev.map((r, i) => (i === idx ? { ...r, colour: v } : r))
+                                    );
+                                  }}
+                                  className="z-input w-full"
+                                />
+                              </label>
+                              <label className="sm:col-span-2 block space-y-1">
+                                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                  Gauge
+                                </span>
+                                <input
+                                  type="text"
+                                  value={row.gauge}
+                                  placeholder="0.28"
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setStoreSpecOverrides((prev) =>
+                                      prev.map((r, i) => (i === idx ? { ...r, gauge: v } : r))
+                                    );
+                                  }}
+                                  className="z-input w-full tabular-nums"
+                                />
+                              </label>
+                              <label className="sm:col-span-2 block space-y-1">
+                                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                                  Min kg
+                                </span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  step={50}
+                                  value={row.minKg}
+                                  placeholder="Min kg"
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setStoreSpecOverrides((prev) =>
+                                      prev.map((r, i) => (i === idx ? { ...r, minKg: v } : r))
+                                    );
+                                  }}
+                                  className="z-input w-full tabular-nums"
+                                />
+                              </label>
+                              <div className="sm:col-span-2">
+                                <button
+                                  type="button"
+                                  className="z-btn-secondary w-full text-xs"
+                                  onClick={() =>
+                                    setStoreSpecOverrides((prev) => prev.filter((_, i) => i !== idx))
+                                  }
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          className="mt-2 z-btn-secondary text-xs"
+                          onClick={() =>
+                            setStoreSpecOverrides((prev) => [
+                              ...prev,
+                              { family: 'aluzinc', colour: '', gauge: '', minKg: '' },
+                            ])
+                          }
+                        >
+                          Add spec override
+                        </button>
+                      </div>
+
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          disabled={storeRestockBusy}
+                          onClick={() => void persistOrgStoreRestock()}
+                          className="z-btn-primary gap-2 disabled:opacity-50"
+                        >
+                          <Save size={16} /> Save store restock mins
                         </button>
                       </div>
                     </div>

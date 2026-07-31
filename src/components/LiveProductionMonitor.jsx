@@ -125,6 +125,7 @@ import {
   suggestedOpeningKgFromFree,
   supplierNominalMetres,
 } from '../lib/liveProductionMonitorUi';
+import { compareCoilsFifo } from '../lib/storeIdle';
 
 /**
  * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean; operationsRegisterEdit?: boolean; initialRecallIntent?: boolean; onRegisterHeaderMeta?: (meta: { status?: string; quotationRef?: string; machineName?: string; materialLabel?: string } | null) => void }} [props]
@@ -733,7 +734,7 @@ export function LiveProductionMonitor({
         if (empty && !selectedCoils.has(coil.coilNo)) return false;
         return coil.currentStatus !== 'Consumed' || selectedCoils.has(coil.coilNo);
       })
-      .sort((a, b) => String(a.coilNo || '').localeCompare(String(b.coilNo || '')));
+      .sort(compareCoilsFifo);
   }, [coilLotsMerged, selectedJobAllocations]);
   const masterDataForCoilSpec = ws?.snapshot?.masterData ?? null;
 
@@ -743,7 +744,7 @@ export function LiveProductionMonitor({
     );
     const planOk = Number.isFinite(plannedMetersValue) && plannedMetersValue > 0;
     if (!planOk) {
-      return filtered.slice().sort((a, b) => String(a.coilNo || '').localeCompare(String(b.coilNo || '')));
+      return filtered.slice().sort(compareCoilsFifo);
     }
     return filtered.slice().sort((a, b) => {
       const addA = savedOpeningKgByCoil.get(a.coilNo) ?? 0;
@@ -755,7 +756,7 @@ export function LiveProductionMonitor({
       const skA = coilMetresPickSortKey(estA, plannedMetersValue);
       const skB = coilMetresPickSortKey(estB, plannedMetersValue);
       if (skA !== skB) return skA - skB;
-      return String(a.coilNo || '').localeCompare(String(b.coilNo || ''));
+      return compareCoilsFifo(a, b);
     });
   }, [
     availableCoils,
@@ -770,7 +771,7 @@ export function LiveProductionMonitor({
     [recommendedCoils]
   );
   const otherCoilsForSelect = useMemo(
-    () => availableCoils.filter((c) => !recommendedCoilNoSet.has(c.coilNo)),
+    () => availableCoils.filter((c) => !recommendedCoilNoSet.has(c.coilNo)).slice().sort(compareCoilsFifo),
     [availableCoils, recommendedCoilNoSet]
   );
 

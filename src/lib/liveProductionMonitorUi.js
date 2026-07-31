@@ -122,7 +122,9 @@ export function coilPickerOptionText(coil, freeKg, plannedJobM) {
   } else {
     metresPart = 'm est n/a';
   }
-  return `${coil.coilNo} — ${matPrefix}${colour} ${gauge} · ${metresPart} · free ${freeKg.toFixed(1)} kg`;
+  const rcvd = String(coil?.receivedAtISO || '').slice(0, 10);
+  const fifoHint = rcvd ? ` · rcvd ${rcvd}` : '';
+  return `${coil.coilNo} — ${matPrefix}${colour} ${gauge} · ${metresPart} · free ${freeKg.toFixed(1)} kg${fifoHint}`;
 }
 
 export function formatPct(value) {

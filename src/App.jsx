@@ -113,7 +113,6 @@ const SupplierProfile = lazyWithRetry(() => import('./pages/SupplierProfile'), {
 const TransportAgentProfile = lazyWithRetry(() => import('./pages/TransportAgentProfile'), { id: 'TransportAgentProfile' });
 const CoilProfile = lazyWithRetry(() => import('./pages/CoilProfile'), { id: 'CoilProfile' });
 const Operations = lazyWithRetry(() => import('./pages/Operations'), { id: 'Operations' });
-const MaterialExceptions = lazyWithRetry(() => import('./pages/MaterialExceptions'), { id: 'MaterialExceptions' });
 const Account = lazyWithRetry(() => import('./pages/Account'), { id: 'Account' });
 const CashierDesk = lazyWithRetry(() => import('./pages/CashierDesk'), { id: 'CashierDesk' });
 const AccountingDesk = lazyWithRetry(() => import('./pages/AccountingDesk'), { id: 'AccountingDesk' });
@@ -1054,9 +1053,13 @@ function AppShell() {
             <Route
               path="/operations/material-exceptions"
               element={
-                <ModuleRouteGuard moduleKey="operations">
-                  <MaterialExceptions />
-                </ModuleRouteGuard>
+                <Navigate
+                  to="/operations"
+                  replace
+                  state={{
+                    focusOpsTab: 'exceptions',
+                  }}
+                />
               }
             />
             <Route
@@ -1066,9 +1069,7 @@ function AppShell() {
                   to="/operations"
                   replace
                   state={{
-                    focusOpsTab: 'production',
-                    opsNotice:
-                      'Customer deliveries desk is not available on Operations yet. Use Production line for job completion; delivery confirm will land here when shipped.',
+                    focusOpsTab: 'deliveries',
                   }}
                 />
               }

@@ -19,6 +19,10 @@ import {
 } from './workItemPersonalInbox.js';
 import { userCanApproveEditMutationsClient } from './editApprovalUi.js';
 import { workItemNeedsActionForUser } from './workspaceInboxBuckets.js';
+import {
+  buildLastUsedByCoilNo,
+  summarizeCriticalIdleForPromotion,
+} from './storeIdle.js';
 
 /** Max alerts shown in the bell dropdown (sorted by priority). */
 export const WORKSPACE_NOTIFICATION_DISPLAY_LIMIT = 10;
@@ -474,18 +478,80 @@ export function buildWorkspaceNotifications({
   }
 
   const coilReq = Array.isArray(snapshot?.coilRequests) ? snapshot.coilRequests : [];
-  const pendingCoils = coilReq.filter((r) => r.status === 'pending');
+  const pendingCoils = coilReq.filter((r) => String(r.status || '').toLowerCase() === 'pending');
+  const approvedCoils = coilReq.filter((r) => {
+    const s = String(r.status || '').toLowerCase();
+    return s === 'approved' || s === 'acknowledged';
+  });
+  if (userMaySeeManagementApprovalQueues(roleKey, permissions) && pendingCoils.length > 0) {
+    items.push({
+      id: 'coil-requests-bm',
+      category: 'manager',
+      title: 'Stock requests to approve',
+      detail: `${pendingCoils.length} store stock request(s) awaiting branch manager approval before buy.`,
+      severity: 'warning',
+      priority: 73,
+      path: '/manager',
+      state: {},
+    });
+  }
+  if (
+    canAccessModule('procurement') &&
+    (can('purchase_orders.manage') || can('procurement.manage')) &&
+    approvedCoils.length > 0
+  ) {
+    items.push({
+      id: 'coil-requests-buy',
+      category: 'procurement',
+      title: 'Approved stock to buy',
+      detail: `${approvedCoils.length} BM-approved stock request(s) ready for MD/Procurement PO.`,
+      severity: 'info',
+      priority: 52,
+      path: '/procurement',
+      state: { focusTab: 'suppliers' },
+    });
+  }
   if (canAccessModule('operations') && can('operations.manage') && pendingCoils.length > 0) {
     items.push({
       id: 'coil-requests',
       category: 'operations',
-      title: 'Coil requests',
-      detail: `${pendingCoils.length} store coil request(s) pending acknowledgement.`,
+      title: 'Stock requests pending BM',
+      detail: `${pendingCoils.length} request(s) raised — waiting on branch manager approval.`,
       severity: 'info',
       priority: 50,
       path: '/operations',
       state: { focusOpsTab: 'inventory' },
     });
+  }
+
+  const canSeeIdlePromote =
+    userMaySeeManagementApprovalQueues(roleKey, permissions) ||
+    (canAccessModule('sales') && (can('sales.view') || can('quotations.manage')));
+  if (canSeeIdlePromote) {
+    const lastUsed = buildLastUsedByCoilNo(snapshot?.movements || []);
+    const promo = summarizeCriticalIdleForPromotion(snapshot?.coilLots || [], lastUsed, {
+      asOfISO: todayIso,
+      maxSamples: 3,
+    });
+    if (promo.count > 0) {
+      const hints = formatNotificationPreview(
+        promo.samples.map((s) =>
+          [s.coilNo, s.colour, s.gauge].filter(Boolean).join(' ')
+        )
+      );
+      items.push({
+        id: 'idle-stock-promote',
+        category: 'sales',
+        title: 'Promote idle coil stock',
+        detail: hints
+          ? `${promo.count} coil(s) idle ≥${promo.thresholdDays}d (${Math.round(promo.totalFreeKg).toLocaleString()} kg free) — ${hints}. Prefer these on quotes / production.`
+          : `${promo.count} coil(s) idle ≥${promo.thresholdDays}d — prefer on quotes and production.`,
+        severity: 'warning',
+        priority: 62,
+        path: '/operations',
+        state: { focusOpsTab: 'inventory', specBoardFilter: 'idle' },
+      });
+    }
   }
 
   const checks = Array.isArray(snapshot?.productionConversionChecks) ? snapshot.productionConversionChecks : [];

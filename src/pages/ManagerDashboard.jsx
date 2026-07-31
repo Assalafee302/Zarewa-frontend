@@ -27,6 +27,7 @@ import {
   ManagerPmDuePanel,
   ManagerPriceExceptionsPanel,
   ManagerSopLinksPanel,
+  ManagerStockRequestsPanel,
   ManagerVacanciesPanel,
 } from '../components/branchManager/ManagerDeskExtras';
 import { ManagerIntelligenceTab } from '../components/branchManager/ManagerIntelligenceTab';
@@ -336,6 +337,10 @@ const ManagerDashboard = () => {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <ManagerStockRequestsPanel
+              coilRequests={bm.ws?.snapshot?.coilRequests || []}
+              onApproved={() => void bm.ws?.refresh?.()}
+            />
             <ManagerAnnouncementsPanel />
             <ManagerAuditTrailPanel />
             <ManagerPriceExceptionsPanel quotations={bm.ws?.snapshot?.quotations || []} />

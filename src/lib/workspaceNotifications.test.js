@@ -99,4 +99,46 @@ describe('workspaceNotifications', () => {
     expect(items.find((n) => n.id === 'payment-requests-payout')?.state?.accountsTab).toBe('desk');
     expect(items.find((n) => n.id === 'po-transport-payouts')?.state?.accountsTab).toBe('desk');
   });
+
+  it('nudges BM/Sales to promote critical idle coils', () => {
+    const items = buildWorkspaceNotifications({
+      snapshot: {
+        ...baseSnapshot,
+        coilLots: [
+          {
+            coilNo: 'OLD-1',
+            colour: 'Soft Brown',
+            gaugeLabel: '0.40',
+            currentWeightKg: 900,
+            qtyReserved: 0,
+            currentStatus: 'Available',
+            receivedAtISO: '2026-01-01',
+          },
+        ],
+        movements: [],
+      },
+      hasPermission: (p) => p === '*' || ['sales.manage', 'refunds.approve', 'finance.approve'].includes(p),
+      canAccessModule: () => true,
+    });
+    const nudge = items.find((n) => n.id === 'idle-stock-promote');
+    expect(nudge).toBeTruthy();
+    expect(nudge.state?.specBoardFilter).toBe('idle');
+    expect(nudge.detail).toMatch(/idle/i);
+  });
+
+  it('alerts BM for pending stock requests and procurement for approved', () => {
+    const items = buildWorkspaceNotifications({
+      snapshot: {
+        ...baseSnapshot,
+        coilRequests: [
+          { id: 'CR-1', status: 'pending', colour: 'Gray Beige', gauge: '0.28', requestedKg: 700 },
+          { id: 'CR-2', status: 'approved', colour: 'Ivory', gauge: '0.24', requestedKg: 500 },
+        ],
+      },
+      hasPermission: (p) => p === '*' || ['sales.manage', 'purchase_orders.manage'].includes(p),
+      canAccessModule: () => true,
+    });
+    expect(items.find((n) => n.id === 'coil-requests-bm')?.detail).toMatch(/awaiting branch manager/i);
+    expect(items.find((n) => n.id === 'coil-requests-buy')?.detail).toMatch(/BM-approved/i);
+  });
 });

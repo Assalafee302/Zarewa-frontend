@@ -12,8 +12,14 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../lib/formatNgn';
+import { useToast } from '../../context/ToastContext';
 import { FinanceSequencePanel } from '../layout';
 import { quotationPipelineStage } from '../../lib/salesStatusUi';
+import {
+  coilRequestQtyUnit,
+  formatCoilRequestQty,
+  STORE_STOCK_BUY_PATH,
+} from '../../lib/coilRequestStatus';
 import { COMPLAINT_CATEGORY_LABELS, complaintLabel } from '../../shared/customerComplaints.js';
 
 function Panel({ title, subtitle, icon: Icon, children, linkTo, linkLabel }) {
@@ -481,6 +487,87 @@ export function ManagerFulfillmentPipelinePanel({ quotations = [] }) {
   );
 }
 
+/** Store stock requests awaiting BM approve (buy path). */
+export function ManagerStockRequestsPanel({ coilRequests = [], onApproved }) {
+  const { show: showToast } = useToast();
+  const [busyId, setBusyId] = useState('');
+  const pending = useMemo(
+    () =>
+      (Array.isArray(coilRequests) ? coilRequests : []).filter(
+        (r) => String(r.status || '').toLowerCase() === 'pending'
+      ),
+    [coilRequests]
+  );
+  const shown = pending.slice(0, 8);
+  const overflow = pending.length - shown.length;
+
+  const approve = useCallback(
+    async (id) => {
+      setBusyId(id);
+      try {
+        const { ok, data } = await apiFetch(`/api/coil-requests/${encodeURIComponent(id)}/approve`, {
+          method: 'PATCH',
+          body: JSON.stringify({}),
+        });
+        if (!ok || data?.ok === false) {
+          showToast(data?.error || 'Could not approve stock request.', { variant: 'error' });
+          return;
+        }
+        showToast('Approved — MD/Procurement can buy.');
+        onApproved?.();
+      } finally {
+        setBusyId('');
+      }
+    },
+    [onApproved, showToast]
+  );
+
+  return (
+    <Panel
+      title="Stock requests"
+      subtitle={STORE_STOCK_BUY_PATH}
+      icon={ClipboardList}
+      linkTo="/operations"
+      linkLabel="Clear now"
+    >
+      {pending.length === 0 ? <Empty text="No pending stock requests." /> : null}
+      {shown.map((r) => {
+        const unit = coilRequestQtyUnit(r);
+        return (
+          <div
+            key={r.id}
+            className="flex items-start justify-between gap-2 border-b border-slate-50 py-2 last:border-0"
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-mono font-bold text-zarewa-teal">{r.id}</p>
+              <p className="text-ui-xs text-slate-600 truncate">
+                {[r.materialType, r.colour, r.gauge].filter(Boolean).join(' · ') || '—'}
+                {r.requestedKg != null ? ` · ${formatCoilRequestQty(r.requestedKg, unit)}` : ''}
+              </p>
+              {r.note ? (
+                <p className="text-[10px] text-slate-400 truncate mt-0.5" title={r.note}>
+                  {r.note}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              disabled={busyId === r.id}
+              onClick={() => void approve(r.id)}
+              className="shrink-0 rounded-lg bg-zarewa-teal px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-white disabled:opacity-50"
+            >
+              {busyId === r.id ? 'Saving…' : 'Approve'}
+            </button>
+          </div>
+        );
+      })}
+      {overflow > 0 ? (
+        <p className="pt-1.5 text-ui-xs font-semibold text-slate-500">+{overflow} more awaiting approval</p>
+      ) : null}
+    </Panel>
+  );
+}
+
 /** Delivery complaints = category filter on customer_complaints. */
 export function ManagerDeliveryComplaintsPanel({ available = true }) {
   const [rows, setRows] = useState([]);
@@ -525,7 +612,7 @@ export function ManagerDeliveryComplaintsPanel({ available = true }) {
   );
 }
 
-export function formatResolutionHours(openedAtIso, resolvedAtIso) {
+export function formatResolutionHours(openedAtIso, resolvedAtIso) { // eslint-disable-line react-refresh/only-export-components
   if (!openedAtIso || !resolvedAtIso) return null;
   const a = new Date(openedAtIso).getTime();
   const b = new Date(resolvedAtIso).getTime();
