@@ -1116,6 +1116,9 @@ const Account = () => {
       total: Number(req.amountRequestedNgn) || 0,
       paid: paidAmountNgn,
       date: req.requestDate,
+      requestDate: req.requestDate || '',
+      approvedAtISO: req.approvedAtISO || '',
+      approvedBy: req.approvedBy || '',
       desc: req.expenseID,
       payeeName: req.payeeName || '',
       payeeAccountNo: req.payeeAccountNo || '',
@@ -2154,21 +2157,6 @@ const Account = () => {
       showToast,
     ]
   );
-
-  const saveExpense = async (e) => {
-    e.preventDefault();
-    setShowExpenseModal(false);
-    setRequestForm({
-      ...initialExpenseRequestFormState(),
-      requestDate: todayIso,
-    });
-    if (payRequestFileRef.current) payRequestFileRef.current.value = '';
-    setShowPayRequestModal(true);
-    showToast(
-      'All expenses need Branch Manager approval. Submit a request — treasury pays only after approval.',
-      { variant: 'info' }
-    );
-  };
 
   const mapTreasuryMovementToPayFromRow = useCallback(
     (m) => ({
@@ -4150,6 +4138,23 @@ const Account = () => {
               <p className="text-ui-xs text-gray-400 mt-1">
                 {selectedPayment?.desc} · {selectedPayment?.category}
               </p>
+              {selectedPayment?.type === 'payment_request' &&
+              (selectedPayment.requestDate || selectedPayment.approvedAtISO) ? (
+                <p className="text-ui-xs text-slate-500 mt-1.5 leading-snug">
+                  {[
+                    selectedPayment.requestDate
+                      ? `Requested ${String(selectedPayment.requestDate).slice(0, 10)}`
+                      : null,
+                    selectedPayment.approvedAtISO
+                      ? `Approved ${String(selectedPayment.approvedAtISO).slice(0, 10)}${
+                          selectedPayment.approvedBy ? ` by ${selectedPayment.approvedBy}` : ''
+                        }`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              ) : null}
             </div>
             <span className="text-ui-xs font-bold px-3 py-1 bg-white rounded-full border border-gray-100 shrink-0">
               {selectedPayment?.type === 'po_transport' ? `PO ${selectedPayment?.id}` : selectedPayment?.id}

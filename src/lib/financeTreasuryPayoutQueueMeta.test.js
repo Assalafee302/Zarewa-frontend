@@ -34,4 +34,32 @@ describe('financeTreasuryPayoutQueueMeta', () => {
     expect(meta).toContain('Linked E-1');
     expect(meta).toContain('Yola');
   });
+
+  it('includes request and approval dates on payment request meta', () => {
+    const meta = paymentRequestPayoutMetaLine(
+      {
+        expenseID: 'E-2',
+        requestDate: '2026-07-10',
+        approvedAtISO: '2026-07-12T09:30:00.000Z',
+      },
+      {}
+    );
+    expect(meta).toContain('Requested 2026-07-10');
+    expect(meta).toContain('Approved 2026-07-12');
+  });
+
+  it('includes request and approval dates on refund meta', () => {
+    const meta = refundPayoutMetaLine(
+      {
+        quotationRef: 'Q-2',
+        requestedAtISO: '2026-07-08T12:00:00.000Z',
+        approvalDate: '2026-07-09',
+        approvedAmountNgn: 2000,
+        paidAmountNgn: 0,
+      },
+      {}
+    );
+    expect(meta).toContain('Requested 2026-07-08');
+    expect(meta).toContain('Approved 2026-07-09');
+  });
 });

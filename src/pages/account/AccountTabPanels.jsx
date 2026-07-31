@@ -151,7 +151,6 @@ export function AccountTabPanels() {
     showToast,
     sortedFilteredSalesReceipts,
     togglePaymentsSort,
-    todayIso,
     treasuryBookDisplayNgn,
     treasuryInflowsNgn,
     treasuryOutflowsNgn,
@@ -1289,7 +1288,11 @@ export function AccountTabPanels() {
                           req.requestID,
                           liveTreasuryMovements
                         );
+                        const requestDate = String(req.requestDate || '').trim().slice(0, 10);
+                        const approvedAt = String(req.approvedAtISO || '').trim().slice(0, 10);
                         const meta2 = [
+                          requestDate ? `Requested ${requestDate}` : null,
+                          approvedAt ? `Approved ${approvedAt}` : null,
                           req.expenseCategory || null,
                           req.expenseID ? `Expense ${req.expenseID}` : null,
                           req.requestReference ? `Ref ${req.requestReference}` : null,
@@ -1478,11 +1481,14 @@ export function AccountTabPanels() {
                           req.requestID,
                           liveTreasuryMovements
                         );
+                        const requestDate = String(req.requestDate || '').trim().slice(0, 10);
+                        const approvedAt = String(req.approvedAtISO || '').trim().slice(0, 10);
                         const meta2 = [
+                          requestDate ? `Requested ${requestDate}` : null,
+                          approvedAt ? `Approved ${approvedAt}` : null,
                           req.expenseCategory ? req.expenseCategory : null,
                           req.requestReference ? `Ref ${req.requestReference}` : null,
                           req.branchId ? branchNameById[req.branchId] || req.branchId : null,
-                          req.requestDate,
                         ]
                           .filter(Boolean)
                           .join(' · ');

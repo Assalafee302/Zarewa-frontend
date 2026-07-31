@@ -3,6 +3,14 @@ import { refundApprovedAmount, refundOutstandingAmount } from './refundsStore';
 import { registerSettlementOutstandingNgn } from './registerSettlementPay';
 import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
 
+/** @param {unknown} value @returns {string} */
+export function formatPayoutQueueDate(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const day = raw.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}/.test(day) ? day : raw;
+}
+
 /** @param {object} req */
 export function paymentRequestOutstandingNgn(req) {
   const paid = Number(req?.paidAmountNgn) || 0;
@@ -12,8 +20,12 @@ export function paymentRequestOutstandingNgn(req) {
 /** @param {object} r @param {Record<string, string>} [branchNameById] */
 export function refundPayoutMetaLine(r, branchNameById = {}) {
   const branchId = String(r?.branchId || '').trim();
+  const requested = formatPayoutQueueDate(r?.requestedAtISO || r?.requested_at_iso);
+  const approved = formatPayoutQueueDate(r?.approvalDate || r?.approvedAtISO);
   return [
     r?.quotationRef ? `Quote ${r.quotationRef}` : 'No quote ref',
+    requested ? `Requested ${requested}` : null,
+    approved ? `Approved ${approved}` : null,
     r?.approvedBy ? `Approved by ${r.approvedBy}` : null,
     `Aprv ${formatNgn(refundApprovedAmount(r))} · Paid ${formatNgn(Number(r?.paidAmountNgn) || 0)}`,
     branchId ? branchNameById[branchId] || branchId : null,
@@ -26,7 +38,11 @@ export function refundPayoutMetaLine(r, branchNameById = {}) {
 export function paymentRequestPayoutMetaLine(req, branchNameById = {}) {
   const paidAmountNgn = Number(req?.paidAmountNgn) || 0;
   const branchId = String(req?.branchId || '').trim();
+  const requested = formatPayoutQueueDate(req?.requestDate);
+  const approved = formatPayoutQueueDate(req?.approvedAtISO);
   return [
+    requested ? `Requested ${requested}` : null,
+    approved ? `Approved ${approved}` : null,
     req?.expenseID ? `Linked ${req.expenseID}` : null,
     req?.expenseCategory || null,
     req?.requestReference ? `Ref ${req.requestReference}` : null,
