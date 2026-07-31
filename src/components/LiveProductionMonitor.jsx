@@ -1205,16 +1205,24 @@ export function LiveProductionMonitor({
 
         const old = prevByKey.get(stableKey);
         let suppliedThisJob = remaining;
+        /** Re-seed from server only on job switch or when posted qty actually changes (after save). */
+        const postedChanged =
+          hasPostedForLine &&
+          old &&
+          old.postedQtySeed !== undefined &&
+          Number(old.postedQtySeed) !== Number(postedQty);
 
-        if (hasPostedForLine) {
+        if (hasPostedForLine && (jobSwitch || !old || postedChanged)) {
           suppliedThisJob = postedQty ?? 0;
         } else if (old && !jobSwitch) {
           const raw = old.suppliedThisJob;
           const n = Number(String(raw).replace(/,/g, ''));
           if (Number.isFinite(n)) {
-            suppliedThisJob = Math.min(Math.max(0, n), remaining);
+            suppliedThisJob = hasPostedForLine ? Math.max(0, n) : Math.min(Math.max(0, n), remaining);
           } else if (raw != null && String(raw).trim() !== '') {
             suppliedThisJob = raw;
+          } else if (hasPostedForLine) {
+            suppliedThisJob = postedQty ?? 0;
           }
         } else {
           const storedRaw = storedMap[stableKey];
@@ -1235,6 +1243,7 @@ export function LiveProductionMonitor({
           ordered: line.ordered,
           priorSupplied: prior,
           suppliedThisJob,
+          ...(hasPostedForLine ? { postedQtySeed: postedQty ?? 0 } : {}),
         };
       });
     });
@@ -1293,8 +1302,14 @@ export function LiveProductionMonitor({
         const old = prevByKey.get(stableKey);
         let suppliedThisJobM2 = remaining;
         let deductionThisJobM2 = 0;
+        const postedChanged =
+          hasPostedForLine &&
+          old &&
+          old.postedSuppliedSeed !== undefined &&
+          (Number(old.postedSuppliedSeed) !== Number(postedSupplied) ||
+            Number(old.postedDeductionSeed) !== Number(postedDeduction));
 
-        if (hasPostedForLine) {
+        if (hasPostedForLine && (jobSwitch || !old || postedChanged)) {
           suppliedThisJobM2 = postedSupplied ?? 0;
           deductionThisJobM2 = postedDeduction ?? 0;
         } else if (old && !jobSwitch) {
@@ -1303,14 +1318,18 @@ export function LiveProductionMonitor({
           const ns = Number(String(rawS).replace(/,/g, ''));
           const nd = Number(String(rawD).replace(/,/g, ''));
           if (Number.isFinite(ns)) {
-            suppliedThisJobM2 = Math.min(Math.max(0, ns), remaining);
+            suppliedThisJobM2 = hasPostedForLine ? Math.max(0, ns) : Math.min(Math.max(0, ns), remaining);
           } else if (rawS != null && String(rawS).trim() !== '') {
             suppliedThisJobM2 = rawS;
+          } else if (hasPostedForLine) {
+            suppliedThisJobM2 = postedSupplied ?? 0;
           }
           if (Number.isFinite(nd) && nd >= 0) {
             deductionThisJobM2 = nd;
           } else if (rawD != null && String(rawD).trim() !== '') {
             deductionThisJobM2 = rawD;
+          } else if (hasPostedForLine) {
+            deductionThisJobM2 = postedDeduction ?? 0;
           }
         } else {
           const stored = storedMap[stableKey];
@@ -1336,6 +1355,9 @@ export function LiveProductionMonitor({
           suppliedThisJobM2,
           deductionThisJobM2,
           demandKind: 'sold_sf',
+          ...(hasPostedForLine
+            ? { postedSuppliedSeed: postedSupplied ?? 0, postedDeductionSeed: postedDeduction ?? 0 }
+            : {}),
         };
       });
 
