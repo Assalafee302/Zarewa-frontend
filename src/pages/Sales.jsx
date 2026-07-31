@@ -573,7 +573,8 @@ const Sales = () => {
       setEligibleRefundQuotations((prev) => (prev.length ? [] : prev));
       return;
     }
-    const rows = await fetchEligibleRefundQuotationsCached(apiFetch, opts);
+    // Same bounded list as RefundModal so Sales + modal share one cache entry.
+    const rows = await fetchEligibleRefundQuotationsCached(apiFetch, { limit: 50, ...opts });
     setEligibleRefundQuotations((prev) => (prev === rows ? prev : rows));
   }, []);
 

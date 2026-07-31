@@ -9,20 +9,32 @@ describe('refund eligible quotations cache', () => {
     invalidateEligibleRefundQuotationsCache();
   });
 
-  it('requests and caches a bounded modal list separately from the full list', async () => {
+  it('requests and caches the bounded Sales/modal list (limit=50)', async () => {
     const apiFetch = vi.fn(async (url) => ({
       ok: true,
       data: { ok: true, quotations: [{ id: url }] },
     }));
 
-    const limitedFirst = await fetchEligibleRefundQuotationsCached(apiFetch, { limit: 20 });
-    const limitedCached = await fetchEligibleRefundQuotationsCached(apiFetch, { limit: 20 });
-    const full = await fetchEligibleRefundQuotationsCached(apiFetch);
+    const first = await fetchEligibleRefundQuotationsCached(apiFetch, { limit: 50 });
+    const cached = await fetchEligibleRefundQuotationsCached(apiFetch, { limit: 50 });
+
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+    expect(apiFetch).toHaveBeenNthCalledWith(1, '/api/refunds/eligible-quotations?limit=50');
+    expect(cached).toBe(first);
+  });
+
+  it('keeps a different cache entry for another limit', async () => {
+    const apiFetch = vi.fn(async (url) => ({
+      ok: true,
+      data: { ok: true, quotations: [{ id: url }] },
+    }));
+
+    const limited = await fetchEligibleRefundQuotationsCached(apiFetch, { limit: 20 });
+    const defaulted = await fetchEligibleRefundQuotationsCached(apiFetch, { limit: 50 });
 
     expect(apiFetch).toHaveBeenCalledTimes(2);
     expect(apiFetch).toHaveBeenNthCalledWith(1, '/api/refunds/eligible-quotations?limit=20');
-    expect(apiFetch).toHaveBeenNthCalledWith(2, '/api/refunds/eligible-quotations');
-    expect(limitedCached).toBe(limitedFirst);
-    expect(full).not.toBe(limitedFirst);
+    expect(apiFetch).toHaveBeenNthCalledWith(2, '/api/refunds/eligible-quotations?limit=50');
+    expect(defaulted).not.toBe(limited);
   });
 });
