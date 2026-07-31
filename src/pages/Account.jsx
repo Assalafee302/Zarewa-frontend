@@ -4573,8 +4573,9 @@ const Account = () => {
         treasuryAccounts={bankAccountsForPayout}
         branchId={ws?.workspaceBranchId || workspaceBranchId || ''}
         branchLabel={workspaceBranchLabel || ''}
-        onImported={async () => {
-          showToast('Expenses imported.');
+        onImported={async (data) => {
+          const n = Number(data?.createdCount) || 0;
+          showToast(n ? `Imported ${n} expense(s).` : 'Expenses imported.');
           await ws?.refresh?.();
         }}
       />

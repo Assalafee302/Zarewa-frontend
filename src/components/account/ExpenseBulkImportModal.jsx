@@ -349,8 +349,45 @@ export function ExpenseBulkImportModal({
         if (data?.preview) applyPreviewResponse(data.preview);
         return;
       }
-      setResult(data);
-      await onImported?.(data);
+      const postedSource = list.filter((r) => r.include !== false && r.status === 'ok');
+      const createdFromServer = Array.isArray(data.created) ? data.created : [];
+      const created =
+        createdFromServer.length > 0
+          ? createdFromServer.map((c, i) => {
+              const src = postedSource.find((r) => Number(r.row) === Number(c.row)) || postedSource[i] || {};
+              return {
+                ...src,
+                ...c,
+                expenseID: c.expenseID || src.expenseID || '',
+                date: c.date || src.date || '',
+                amountNgn: c.amountNgn ?? src.amountNgn ?? 0,
+                category: c.category || src.category || '',
+                reference: c.reference ?? src.reference ?? '',
+                description: c.description ?? src.description ?? '',
+                paymentMethod: c.paymentMethod || src.paymentMethod || '',
+                treasuryAccountId: c.treasuryAccountId ?? src.treasuryAccountId ?? null,
+              };
+            })
+          : postedSource.map((r) => ({
+              row: r.row,
+              expenseID: r.expenseID || '',
+              date: r.date,
+              amountNgn: r.amountNgn,
+              category: r.category,
+              reference: r.reference,
+              description: r.description,
+              paymentMethod: r.paymentMethod,
+              treasuryAccountId: r.treasuryAccountId,
+            }));
+      setResult({
+        ...data,
+        created,
+        createdCount: data.createdCount ?? created.length,
+        totalAmountNgn:
+          data.totalAmountNgn ?? created.reduce((s, r) => s + (Number(r.amountNgn) || 0), 0),
+      });
+      // Keep success list visible; refresh workspace in background without blocking the list.
+      void onImported?.(data);
     } catch (e) {
       setError(String(e?.message || e || 'Import failed.'));
     } finally {
@@ -475,10 +512,70 @@ export function ExpenseBulkImportModal({
           ) : null}
 
           {result?.ok ? (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
-              Posted {result.createdCount} expense(s) to {branchTitle}
-              {result.totalAmountNgn != null ? ` · ${formatNgn(result.totalAmountNgn)}` : ''}.
-              They appear under Payouts &amp; expenses for this branch.
+            <div className="space-y-3">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+                Import successful — posted {result.createdCount} expense(s) to {branchTitle}
+                {result.totalAmountNgn != null ? ` · ${formatNgn(result.totalAmountNgn)}` : ''}.
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-emerald-200">
+                <table className="min-w-[720px] w-full border-collapse text-left">
+                  <thead className="bg-emerald-50 text-[10px] uppercase tracking-wide text-emerald-900/70">
+                    <tr>
+                      <th className="px-2 py-2">#</th>
+                      <th className="px-2 py-2">Expense ID</th>
+                      <th className="px-2 py-2">Date</th>
+                      <th className="px-2 py-2">Amount</th>
+                      <th className="px-2 py-2">Category</th>
+                      <th className="px-2 py-2">Treasury</th>
+                      <th className="px-2 py-2">Reference</th>
+                      <th className="px-2 py-2">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(Array.isArray(result.created) ? result.created : []).map((item, i) => {
+                      const treasuryLabel =
+                        treasuryOptions.find((t) => Number(t.id) === Number(item.treasuryAccountId))?.label ||
+                        (item.treasuryAccountId != null ? `#${item.treasuryAccountId}` : '—');
+                      return (
+                        <tr key={item.expenseID || i} className="border-t border-emerald-100 text-[11px] text-slate-800">
+                          <td className="px-2 py-1.5 font-semibold text-slate-500">{i + 1}</td>
+                          <td className="px-2 py-1.5 font-mono font-bold text-zarewa-teal">
+                            {item.expenseID || '—'}
+                          </td>
+                          <td className="px-2 py-1.5">{item.date || '—'}</td>
+                          <td className="px-2 py-1.5 font-semibold">{formatNgn(item.amountNgn || 0)}</td>
+                          <td className="px-2 py-1.5">{item.category || '—'}</td>
+                          <td className="px-2 py-1.5">{treasuryLabel}</td>
+                          <td className="px-2 py-1.5">{item.reference || '—'}</td>
+                          <td className="px-2 py-1.5 max-w-[14rem] truncate" title={item.description || ''}>
+                            {item.description || '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {!result.created?.length ? (
+                      <tr>
+                        <td colSpan={8} className="px-2 py-3 text-center text-[11px] text-slate-500">
+                          Posted successfully, but the detail list was empty. Check Payouts &amp; expenses for new rows.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[11px] text-slate-600">
+                These expenses are on <strong>{branchTitle}</strong>. You can also find them under{' '}
+                <strong>Payouts &amp; expenses</strong>.
+              </p>
+              <button
+                type="button"
+                className="z-btn-secondary text-xs"
+                onClick={() => {
+                  reset();
+                }}
+              >
+                Import another file
+              </button>
             </div>
           ) : null}
 
