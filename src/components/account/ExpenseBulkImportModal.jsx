@@ -4,7 +4,6 @@ import { ModalFrame } from '../layout/ModalFrame';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { EXPENSE_CATEGORY_OPTIONS } from '../../shared/expenseCategories.js';
-import { appConfirm } from '../../lib/appConfirm';
 
 async function fileToBase64(file) {
   const buf = await file.arrayBuffer();
@@ -114,6 +113,7 @@ export function ExpenseBulkImportModal({
 }) {
   const fileInputRef = useRef(null);
   const rowsRef = useRef([]);
+  const confirmedRef = useRef(false);
   const skipNextFilePreviewRef = useRef(false);
   const [file, setFile] = useState(null);
   const [rows, setRows] = useState([]);
@@ -125,6 +125,10 @@ export function ExpenseBulkImportModal({
   const [requireTreasury, setRequireTreasury] = useState(true);
   const [showCategories, setShowCategories] = useState(false);
   const [rowsDirty, setRowsDirty] = useState(0);
+
+  useEffect(() => {
+    confirmedRef.current = confirmed;
+  }, [confirmed]);
 
   const categories = useMemo(() => {
     if (Array.isArray(categoriesProp) && categoriesProp.length) return categoriesProp;
@@ -158,6 +162,7 @@ export function ExpenseBulkImportModal({
     setError('');
     setResult(null);
     setConfirmed(false);
+    confirmedRef.current = false;
     setRequireTreasury(true);
     setRowsDirty(0);
     skipNextFilePreviewRef.current = false;
@@ -240,7 +245,6 @@ export function ExpenseBulkImportModal({
     if (!list.length) return;
     setBusy('preview');
     setError('');
-    setConfirmed(false);
     try {
       const { ok, data } = await apiFetch('/api/expenses/import/preview', {
         method: 'POST',
@@ -251,6 +255,11 @@ export function ExpenseBulkImportModal({
         return;
       }
       applyPreviewResponse(data);
+      // Only clear confirmation if rows still need fixes — do not wipe it on every auto-check.
+      if (Number(data.needsUpdateCount) > 0 || Number(data.incompleteCount) > 0 || Number(data.invalidCount) > 0) {
+        setConfirmed(false);
+        confirmedRef.current = false;
+      }
     } finally {
       setBusy('');
     }
@@ -291,6 +300,7 @@ export function ExpenseBulkImportModal({
       return next;
     });
     setConfirmed(false);
+    confirmedRef.current = false;
     setRowsDirty((n) => n + 1);
   };
 
@@ -301,6 +311,7 @@ export function ExpenseBulkImportModal({
       return next;
     });
     setConfirmed(false);
+    confirmedRef.current = false;
     setRowsDirty((n) => n + 1);
   };
 
@@ -315,26 +326,29 @@ export function ExpenseBulkImportModal({
 
   const runCommit = async () => {
     const list = rowsRef.current;
-    if (!list.length || !confirmed) return;
+    if (busy === 'commit') return;
+
+    if (!list.length) {
+      setError('No rows to post. Upload a workbook first.');
+      return;
+    }
+
     const localReady = list.every(
       (r) => r.include === false || (r.status === 'ok' && !r.needsUpdate)
     );
-    const localValid = list.filter((r) => r.include !== false && r.status === 'ok').length;
-    if (!localReady || !localValid) {
+    const readyRows = list.filter((r) => r.include !== false && r.status === 'ok' && !r.needsUpdate);
+    if (!localReady || !readyRows.length) {
       setError(
-        'Some rows still need updates in the preview. Fix highlighted fields or uncheck those rows, then wait for re-validate.'
+        'Some rows still need updates in the preview. Fix highlighted fields or uncheck those rows, then try Post again.'
       );
       setRowsDirty((n) => n + 1);
       return;
     }
-    const okConfirm = await appConfirm({
-      message: `Post ${localValid} expense(s) totaling ${formatNgn(
-        list
-          .filter((r) => r.include !== false && r.status === 'ok')
-          .reduce((s, r) => s + (Number(r.amountNgn) || 0), 0)
-      )} to ${branchTitle}?\n\nExpenses and treasury outflows are recorded for this workspace branch only.`,
-    });
-    if (!okConfirm) return;
+
+    if (!confirmedRef.current) {
+      setError('Tick the confirmation checkbox under the preview table, then click Post.');
+      return;
+    }
 
     setBusy('commit');
     setError('');
@@ -349,7 +363,7 @@ export function ExpenseBulkImportModal({
         if (data?.preview) applyPreviewResponse(data.preview);
         return;
       }
-      const postedSource = list.filter((r) => r.include !== false && r.status === 'ok');
+      const postedSource = readyRows;
       const createdFromServer = Array.isArray(data.created) ? data.created : [];
       const created =
         createdFromServer.length > 0
@@ -386,7 +400,6 @@ export function ExpenseBulkImportModal({
         totalAmountNgn:
           data.totalAmountNgn ?? created.reduce((s, r) => s + (Number(r.amountNgn) || 0), 0),
       });
-      // Keep success list visible; refresh workspace in background without blocking the list.
       void onImported?.(data);
     } catch (e) {
       setError(String(e?.message || e || 'Import failed.'));
@@ -779,12 +792,16 @@ export function ExpenseBulkImportModal({
                   type="checkbox"
                   className="mt-0.5"
                   checked={confirmed}
-                  disabled={!!busy || !canPost}
-                  onChange={(e) => setConfirmed(e.target.checked)}
+                  disabled={busy === 'commit' || !canPost}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setConfirmed(on);
+                    confirmedRef.current = on;
+                    if (on) setError('');
+                  }}
                 />
                 <span>
-                  I updated incomplete rows in the preview. Post {validCount} ready row(s) to{' '}
-                  <strong>{branchTitle}</strong> only.
+                  I confirm these {validCount} ready row(s) should be posted to <strong>{branchTitle}</strong> only.
                 </span>
               </label>
             </>
@@ -802,20 +819,31 @@ export function ExpenseBulkImportModal({
           ) : null}
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-100 px-4 py-3 sm:px-6">
-          <button type="button" className="z-btn-secondary text-xs" onClick={close} disabled={busy === 'commit'}>
-            {result?.ok ? 'Close' : 'Cancel'}
-          </button>
-          {!result?.ok ? (
-            <button
-              type="button"
-              className="z-btn-primary text-xs"
-              disabled={busy === 'commit' || !confirmed || !canPost}
-              onClick={() => void runCommit()}
-            >
-              Post {validCount || ''} expense{validCount === 1 ? '' : 's'}
-            </button>
+        <div className="flex shrink-0 flex-col gap-2 border-t border-slate-100 px-4 py-3 sm:px-6">
+          {!result?.ok && rows.length > 0 ? (
+            <p className="text-[11px] text-slate-500">
+              {!canPost
+                ? 'Post stays available after every row is Ready. Fix amber/red rows or uncheck them.'
+                : !confirmed
+                  ? 'Tick the confirmation checkbox above, then click Post.'
+                  : `Ready to post ${validCount} expense(s) · ${formatNgn(totalAmount)}.`}
+            </p>
           ) : null}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button type="button" className="z-btn-secondary text-xs" onClick={close} disabled={busy === 'commit'}>
+              {result?.ok ? 'Close' : 'Cancel'}
+            </button>
+            {!result?.ok ? (
+              <button
+                type="button"
+                className="z-btn-primary text-xs"
+                disabled={busy === 'commit' || !canPost}
+                onClick={() => void runCommit()}
+              >
+                {busy === 'commit' ? 'Posting…' : `Post ${validCount || ''} expense${validCount === 1 ? '' : 's'}`}
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     </ModalFrame>
