@@ -8,11 +8,13 @@ import {
   Factory,
   History,
   Pencil,
+  Printer,
   ScrollText,
 } from 'lucide-react';
 import { MainPanel, ModalFrame, PageHeader, PageShell, Breadcrumbs } from '../components/layout';
 import CoilDamageRecordModal from '../components/operations/CoilDamageRecordModal';
 import CoilEditMasterModal from '../components/operations/CoilEditMasterModal';
+import { CoilStatementPrintModal } from '../components/reports/CoilStatementPrintModal';
 import { INCIDENT_TYPES } from '../lib/materialIncidentConstants';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import { pickProductionJobForFocusId } from '../lib/productionJobPick';
@@ -24,6 +26,7 @@ import { apiFetch } from '../lib/apiBase';
 import { fmtConv2 } from '../lib/conversionKgPerM.js';
 import { coilFreeKg, coilKgUsed, coilOnHandKg, coilReceivedKg } from '../lib/coilStockKg.js';
 import { buildCoilProfileJobRows, coilProfileProductionTotals } from '../lib/coilProfileJobRows.js';
+import { buildCoilStatementPayload } from '../lib/coilStatementPrint.js';
 
 function asNum(v) {
   const n = Number(v);
@@ -96,6 +99,7 @@ export default function CoilProfile() {
   const [reconcilingReservation, setReconcilingReservation] = useState(false);
   const [recalculatingStock, setRecalculatingStock] = useState(false);
   const [productionTraceModal, setProductionTraceModal] = useState(null);
+  const [printStatementOpen, setPrintStatementOpen] = useState(false);
 
   const actionModalOpen = Boolean(actionModal);
   const { captureEdited, wrapClose } = useTrackedUnsavedForm('page-coil-profile', {
@@ -326,6 +330,27 @@ export default function CoilProfile() {
   const avgStandardConversion = avg(
     linkedChecks.map((c) => Number(c.standardConversionKgPerM)).filter((n) => Number.isFinite(n))
   );
+  const coilStatement = buildCoilStatementPayload({
+    coil,
+    balances: {
+      receivedKg,
+      kgUsed,
+      productionUsedKg,
+      incidentScrapKg,
+      onHandKg: currentKg,
+      reservedKg,
+      freeKg,
+    },
+    jobRows,
+    conversionChecks: linkedChecks,
+    movements: movementRows,
+    productionTotals,
+    purchaseConversion,
+    avgActualConversion,
+    avgStandardConversion,
+  });
+  const branchLabel =
+    ws?.branchLabel || ws?.branchScope || ws?.session?.currentBranchId || coil?.branchId || '';
   const actionDateISO = new Date().toISOString().slice(0, 10);
 
   const submitScrap = async (e) => {
@@ -563,6 +588,14 @@ export default function CoilProfile() {
               <Link to="/operations" state={{ focusOpsTab: 'inventory' }} className="z-btn-secondary inline-flex">
                 <ArrowLeft size={16} /> Inventory
               </Link>
+              <button
+                type="button"
+                className="z-btn-secondary inline-flex items-center gap-1.5"
+                onClick={() => setPrintStatementOpen(true)}
+                title="Print coil statement with balances and production detail"
+              >
+                <Printer size={16} aria-hidden /> Print statement
+              </button>
               <Link
                 to="/operations"
                 state={{ focusOpsTab: 'coilControl' }}
@@ -1004,6 +1037,13 @@ export default function CoilProfile() {
         onClose={() => setProductionTraceModal(null)}
         cuttingListId={productionTraceModal?.cuttingListId}
         subtitle={productionTraceModal?.subtitle}
+      />
+
+      <CoilStatementPrintModal
+        open={printStatementOpen}
+        onClose={() => setPrintStatementOpen(false)}
+        statement={coilStatement}
+        branchLabel={branchLabel}
       />
     </PageShell>
   );

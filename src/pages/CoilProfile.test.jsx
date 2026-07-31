@@ -57,6 +57,7 @@ describe('CoilProfile', () => {
     expect(screen.getAllByText(/Coil COIL-001/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Conversion history/i).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: /coil control/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /print statement/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /scrap/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /return/i })).toBeInTheDocument();
   });
