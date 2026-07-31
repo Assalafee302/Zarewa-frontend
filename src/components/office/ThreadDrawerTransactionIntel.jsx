@@ -93,20 +93,6 @@ function EmailSectionTitle({ children }) {
   );
 }
 
-function statusPillClass(statusText) {
-  const s = String(statusText || '').toLowerCase();
-  if (s.includes('approv') && !s.includes('reject')) {
-    return 'border-emerald-200/90 bg-emerald-50 text-emerald-900';
-  }
-  if (s.includes('reject') || s.includes('flag')) {
-    return 'border-rose-200/90 bg-rose-50 text-rose-900';
-  }
-  if (s.includes('pending') || s.includes('await') || s.includes('submitted') || s === '') {
-    return 'border-amber-200/90 bg-amber-50 text-amber-950';
-  }
-  return 'border-slate-200/90 bg-slate-50 text-slate-700';
-}
-
 function hasNonEmpty(s) {
   return Boolean(String(s ?? '').trim());
 }

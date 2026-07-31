@@ -148,6 +148,11 @@ export function useBranchManagerWorkstation() {
   const [inboxSearch, setInboxSearch] = useState('');
   const [activeTab, setActiveTab] = useState('attention');
   const [attentionFilter, setAttentionFilter] = useState('all');
+  const setPacRoute = useCallback((tabOrFilter) => {
+    const route = pacAttentionRouteFromTab(tabOrFilter);
+    setActiveTab(route.tab);
+    setAttentionFilter(route.attentionFilter);
+  }, []);
   const [attentionItems, setAttentionItems] = useState([]);
   const [attentionSummary, setAttentionSummary] = useState(null);
   const [poAuditData, setPoAuditData] = useState(null);
@@ -1165,12 +1170,6 @@ export function useBranchManagerWorkstation() {
           Math.round((displaySnapshots.completedProductionMetres / displaySnapshots.targets.meterTarget) * 100)
         )
       : 0;
-
-  const setPacRoute = useCallback((tabOrFilter) => {
-    const route = pacAttentionRouteFromTab(tabOrFilter);
-    setActiveTab(route.tab);
-    setAttentionFilter(route.attentionFilter);
-  }, []);
 
   const openQuotationIntel = useCallback(
     (quotationId, row, extra = {}) => {

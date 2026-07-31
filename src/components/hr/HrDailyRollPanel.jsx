@@ -63,9 +63,11 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
   const [message, setMessage] = useState('');
   const dirtyRef = useRef(false);
   const rowsRef = useRef(rows);
-  rowsRef.current = rows;
   const notesRef = useRef(notes);
-  notesRef.current = notes;
+  useEffect(() => {
+    rowsRef.current = rows;
+    notesRef.current = notes;
+  }, [rows, notes]);
 
   const effectiveBranchId = branchManagerMode ? sessionBranch : branchId;
 

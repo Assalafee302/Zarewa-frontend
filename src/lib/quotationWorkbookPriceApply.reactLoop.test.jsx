@@ -3,6 +3,7 @@
  * effect → setProductRows(apply…) → re-render → effect again.
  * apply must return the same array ref when nothing changed, or React blows up.
  */
+/* eslint-disable react-hooks/refs -- probe intentionally tracks render count via ref */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, waitFor, act, cleanup } from '@testing-library/react';

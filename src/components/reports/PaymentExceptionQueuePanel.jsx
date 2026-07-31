@@ -49,17 +49,16 @@ export function PaymentExceptionQueuePanel({
   onOpenCashBankExport,
 }) {
   const [refreshedAt] = useState(() => new Date());
-  const [tick, setTick] = useState(0);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    const t = window.setInterval(() => setTick((n) => n + 1), 30000);
+    const t = window.setInterval(() => setNowMs(Date.now()), 30000);
     return () => window.clearInterval(t);
   }, []);
 
   const ageLabel = (() => {
-    void tick;
-    const sec = Math.floor((Date.now() - refreshedAt.getTime()) / 1000);
+    const sec = Math.floor((nowMs - refreshedAt.getTime()) / 1000);
     if (sec < 60) return 'just now';
     return `${Math.floor(sec / 60)}m ago`;
   })();

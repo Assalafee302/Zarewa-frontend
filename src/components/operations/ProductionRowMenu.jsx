@@ -46,7 +46,7 @@ function useMenuPosition(open, anchorRef) {
   return pos;
 }
 
-function MenuItem({ icon: Icon, label, onClick, tone = 'default' }) {
+function MenuItem({ icon, label, onClick, tone = 'default' }) {
   const toneClass =
     tone === 'violet'
       ? 'text-violet-800 hover:bg-violet-50'
@@ -67,7 +67,9 @@ function MenuItem({ icon: Icon, label, onClick, tone = 'default' }) {
       className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium ${toneClass}`}
       onClick={onClick}
     >
-      <Icon size={14} className={`${iconTone} shrink-0`} />
+      {icon
+        ? React.createElement(icon, { size: 14, className: `${iconTone} shrink-0`, 'aria-hidden': true })
+        : null}
       {label}
     </button>
   );

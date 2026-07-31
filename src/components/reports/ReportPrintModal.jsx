@@ -26,7 +26,6 @@ export function ManagementReportSheet({
   summaryLines = [],
   documentTypeLabel = 'Management report',
   layout = 'landscape',
-  denseSingleLine = true,
   grouping = null,
   extraMetaLines = [],
 }) {

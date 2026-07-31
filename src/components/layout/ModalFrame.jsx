@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -38,7 +38,9 @@ export function ModalFrame({
 }) {
   const reduceMotion = useReducedMotion();
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   const handleOpenChange = useCallback((open) => {
     if (!open) onCloseRef.current?.();
   }, []);

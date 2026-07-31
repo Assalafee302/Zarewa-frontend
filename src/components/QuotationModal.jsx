@@ -66,7 +66,6 @@ import {
 import { apiFetch } from '../lib/apiBase';
 import { appConfirm } from '../lib/appConfirm';
 import {
-  isMeterSheetProductLine,
   materialKeyFromMaterialTypeRow,
   resolveMaterialWorkbookPriceFromRows,
 } from '../lib/materialWorkbookQuotationPrice';
@@ -74,7 +73,6 @@ import { selectPriceListRowsAsOf, localCalendarDateIso } from '../lib/pricingAsO
 import {
   defaultGirthMmForTrimProduct,
   isQuotationTrimProductLine,
-  normQuoteProductLineName,
   quotationLineKindForProductName,
   TRIM_GIRTH_OPTIONS_MM,
 } from '../lib/cuttingListBlankConsumption';
@@ -1682,9 +1680,11 @@ const QuotationModal = ({
   const productOptionsRef = useRef(productOptions);
   const resolveUnitPriceRef = useRef(resolveUnitPrice);
   const resolveWorkbookLineMetaRef = useRef(resolveWorkbookLineMeta);
-  productOptionsRef.current = productOptions;
-  resolveUnitPriceRef.current = resolveUnitPrice;
-  resolveWorkbookLineMetaRef.current = resolveWorkbookLineMeta;
+  useEffect(() => {
+    productOptionsRef.current = productOptions;
+    resolveUnitPriceRef.current = resolveUnitPrice;
+    resolveWorkbookLineMetaRef.current = resolveWorkbookLineMeta;
+  }, [productOptions, resolveUnitPrice, resolveWorkbookLineMeta]);
 
   /** Stable — must not recreate when productOptions changes after a line select (that was #185). */
   const refreshWorkbookProductPrices = useCallback(() => {
@@ -1822,8 +1822,10 @@ const QuotationModal = ({
   /** Stone-coated: strip incompatible lines / reset header when material type changes. */
   const productRowsRef = useRef(productRows);
   const accessoryRowsRef = useRef(accessoryRows);
-  productRowsRef.current = productRows;
-  accessoryRowsRef.current = accessoryRows;
+  useEffect(() => {
+    productRowsRef.current = productRows;
+    accessoryRowsRef.current = accessoryRows;
+  }, [productRows, accessoryRows]);
 
   useEffect(() => {
     if (!isOpen || readOnly) return;

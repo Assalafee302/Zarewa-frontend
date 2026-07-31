@@ -49,7 +49,7 @@ export function ManagerPriorityBanner({ item, onDismiss, onAction }) {
  * Rank competing banners into one priority item.
  * @returns {null | { key: string; title: string; detail: string; actionLabel: string; severity: number; action: string }}
  */
-export function pickManagerPriorityItem({
+export function pickManagerPriorityItem({ // eslint-disable-line react-refresh/only-export-components
   pendingOrderSignOffCount = 0,
   stockRegisterCount = 0,
   governanceCount = 0,

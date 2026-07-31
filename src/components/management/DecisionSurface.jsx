@@ -17,7 +17,7 @@ import React from 'react';
  * - po → slate rail
  */
 
-export const DECISION_TONES = {
+export const DECISION_TONES = { // eslint-disable-line react-refresh/only-export-components
   decide: {
     band: 'border-slate-200 border-l-zarewa-teal',
     eyebrow: 'text-zarewa-teal',

@@ -16,3 +16,7 @@ scripts/scan-*.mjs
 
 eslint-report.txt
 hr-eslint.txt
+
+# LibreOffice / Office lock files
+.~lock.*
+**/.~lock.*

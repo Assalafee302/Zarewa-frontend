@@ -62,7 +62,7 @@ function GaugePriceTable({ title, rows, prices, onPriceChange, readOnly }) {
 }
 
 /** Returns missing price labels for validation (empty = ok). */
-export function getProcurementPricingGaps(procurementSummary, pricing, accessoryBalance = 0) {
+export function getProcurementPricingGaps(procurementSummary, pricing, accessoryBalance = 0) { // eslint-disable-line react-refresh/only-export-components
   const summary = procurementSummary || {};
   const p = pricing || {};
   const gaps = [];
@@ -115,7 +115,9 @@ export function StockRegisterProcurementCosting({
   );
 
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
   useEffect(() => {
     onChangeRef.current?.(pricingPayload);
   }, [pricingPayload]);

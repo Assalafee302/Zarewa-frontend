@@ -86,10 +86,6 @@ function normalizePurchaseOrder(po, catalog = []) {
   };
 }
 
-function poLineFullyReceived(line) {
-  return Number(line.qtyReceived) >= Number(line.qtyOrdered);
-}
-
 function findPoLine(po, entry) {
   if (entry.lineKey) return po.lines.find((l) => l.lineKey === entry.lineKey);
   return po.lines.find((l) => l.productID === entry.productID);
