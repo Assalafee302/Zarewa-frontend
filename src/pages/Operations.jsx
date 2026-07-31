@@ -639,7 +639,7 @@ const Operations = () => {
   /** In-progress panel: all | coils_allocated | no_coil | running | planned */
   const [productionActiveFilter, setProductionActiveFilter] = useState('all');
   const [productionActiveSort, setProductionActiveSort] = useState({ field: 'registered', dir: 'desc' });
-  const [productionClosedSort, setProductionClosedSort] = useState({ field: 'id', dir: 'asc' });
+  const [productionClosedSort, setProductionClosedSort] = useState({ field: 'registered', dir: 'desc' });
   const [actionMenuKey, setActionMenuKey] = useState(null);
   useEffect(() => {
     if (!ws?.hasWorkspaceData) return;
