@@ -12,6 +12,7 @@ import {
   Pencil,
   Trash2,
   CheckCircle2,
+  Upload,
 } from 'lucide-react';
 
 import { ZareApprovalHint } from '../../components/ZareApprovalHint';
@@ -58,6 +59,8 @@ export function AccountTabPanels() {
     canManageTreasury,
     canPayRequests,
     canPostExpenseReclass,
+    canImportExpenses,
+    openExpenseBulkImport,
     canReversePaymentRequestTreasury,
     deleteRolloutExpense,
     deleteRolloutPaymentRequest,
@@ -754,6 +757,26 @@ export function AccountTabPanels() {
                   title="Payouts & expenses — posted outflows"
                   body="Read-only audit trail of money that already left treasury. To pay new approved items, use Treasury payout queues or Desk (cashiers). Edit rows here only to correct the debited account."
                 />
+                {canImportExpenses && ws?.canMutate ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-teal-200/80 bg-teal-50/50 px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal">
+                        Bulk expense import
+                      </p>
+                      <p className="text-[11px] text-slate-600 leading-snug">
+                        Download the Excel template (includes all categories), upload your file, edit the preview, then
+                        post.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="z-btn-primary inline-flex shrink-0 items-center gap-1.5 text-xs"
+                      onClick={() => openExpenseBulkImport?.()}
+                    >
+                      <Upload size={14} /> Import expenses
+                    </button>
+                  </div>
+                ) : null}
                 <div className="rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-2 space-y-2">
                   <label className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 block mb-1">
                     Search payment register (this tab)

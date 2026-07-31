@@ -136,6 +136,7 @@ import {
 
 import { AccountPageContext } from './account/AccountPageContext.jsx';
 import { AccountTabPanels } from './account/AccountTabPanels.jsx';
+import { ExpenseBulkImportModal } from '../components/account/ExpenseBulkImportModal.jsx';
 
 function parseNgnInput(raw) {
   return Math.round(Number(String(raw ?? '').replace(/,/g, '')) || 0);
@@ -183,6 +184,7 @@ const Account = () => {
   const [showAddBank, setShowAddBank] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
+  const [showExpenseImportModal, setShowExpenseImportModal] = useState(false);
   const [savingPayRequest, setSavingPayRequest] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [editingTransferBatchId, setEditingTransferBatchId] = useState('');
@@ -349,6 +351,11 @@ const Account = () => {
     Boolean(ws?.hasPermission?.('finance.approve')) || Boolean(ws?.hasPermission?.('*'));
   const canPostExpenseReclass =
     Boolean(ws?.hasPermission?.('finance.post')) || Boolean(ws?.hasPermission?.('*'));
+  const canImportExpenses =
+    Boolean(ws?.hasPermission?.('finance.post')) ||
+    Boolean(ws?.hasPermission?.('expenses.create')) ||
+    Boolean(ws?.hasPermission?.('*'));
+  const openExpenseBulkImport = useCallback(() => setShowExpenseImportModal(true), []);
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const branchOptions = useMemo(
     () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
@@ -3174,6 +3181,8 @@ const Account = () => {
       canManageTreasury,
       canPayRequests,
       canPostExpenseReclass,
+      canImportExpenses,
+      openExpenseBulkImport,
       canReversePaymentRequestTreasury,
       deleteRolloutExpense,
       deleteRolloutPaymentRequest,
@@ -3293,6 +3302,8 @@ const Account = () => {
       canManageTreasury,
       canPayRequests,
       canPostExpenseReclass,
+      canImportExpenses,
+      openExpenseBulkImport,
       canReversePaymentRequestTreasury,
       deleteRolloutExpense,
       deleteRolloutPaymentRequest,
@@ -4555,6 +4566,18 @@ const Account = () => {
           </div>
         </div>
       </ModalFrame>
+
+      <ExpenseBulkImportModal
+        open={showExpenseImportModal}
+        onClose={() => setShowExpenseImportModal(false)}
+        treasuryAccounts={bankAccountsForPayout}
+        branchId={ws?.workspaceBranchId || workspaceBranchId || ''}
+        branchLabel={workspaceBranchLabel || ''}
+        onImported={async () => {
+          showToast('Expenses imported.');
+          await ws?.refresh?.();
+        }}
+      />
 
       <ModalFrame isOpen={showExpenseModal} onClose={() => setShowExpenseModal(false)}>
         <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
