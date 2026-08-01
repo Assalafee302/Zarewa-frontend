@@ -354,14 +354,28 @@ export function ExpenseBulkImportModal({
     setError('');
     setResult(null);
     try {
-      const { ok, data } = await apiFetch('/api/expenses/import/commit', {
+      const { ok, status, data } = await apiFetch('/api/expenses/import/commit', {
         method: 'POST',
         body: JSON.stringify({ rows: toPayloadRows(list), requireTreasury }),
       });
       if (!ok || !data?.ok) {
-        setError(data?.error || 'Import failed.');
+        const detail =
+          data?.error ||
+          (status === 403
+            ? 'Not allowed to post. Turn off “All branches”, pick one branch, then try again.'
+            : status === 0
+              ? 'Network error — is the API server running?'
+              : 'Import failed.');
+        const failedHint =
+          Array.isArray(data?.failed) && data.failed.length
+            ? ` First failure (row ${data.failed[0].row}): ${data.failed[0].error}`
+            : '';
+        setError(detail + failedHint);
         if (data?.preview) applyPreviewResponse(data.preview);
         return;
+      }
+      if (data.warning) {
+        setError(data.warning);
       }
       const postedSource = readyRows;
       const createdFromServer = Array.isArray(data.created) ? data.created : [];
@@ -418,8 +432,9 @@ export function ExpenseBulkImportModal({
             <h3 className="text-lg font-bold text-zarewa-teal">Import expenses</h3>
             <p className="mt-0.5 text-xs text-slate-600">
               Posts only to <strong>{branchTitle}</strong>
-              {branchId ? <span className="font-mono text-slate-500"> ({branchId})</span> : null}. Edit any cell — fixes
-              are recognized immediately and re-checked automatically.
+              {branchId ? <span className="font-mono text-slate-500"> ({branchId})</span> : null}. Turn off{' '}
+              <strong>All branches</strong> in the workspace bar before posting. Edit any cell — fixes are recognized
+              immediately.
             </p>
           </div>
           <button
