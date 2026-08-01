@@ -385,6 +385,13 @@ summary {
   min-width: 297mm;
 }
 
+/* Month-end physical count sheet — A4 portrait preview width */
+.report-print-root.report-print-a4-portrait .quotation-print-a4,
+.report-print-root.report-print-a4-portrait .statement-style-report {
+  max-width: 210mm;
+  min-width: min(100%, 210mm);
+}
+
 @media screen {
   .report-print-table.report-print-table--single-line,
   .statement-dense-table {
@@ -2502,6 +2509,11 @@ summary {
     size: A4 landscape;
   }
 
+  @page report-a4-portrait {
+    margin: 8mm 10mm;
+    size: A4 portrait;
+  }
+
   /* Quotation / invoice / official receipt — slightly tighter margins so typical quotes fit one page */
   @page quotation-a4 {
     margin: 9mm 11mm;
@@ -2547,7 +2559,7 @@ summary {
    * and can add trailing blank pages. Keep any subtree that hosts a print root.
    */
   body
-    > *:not(:has(.quotation-print-root)):not(:has(.receipt-print-root)):not(:has(.report-print-root)):not(:has(.report-print-a4-landscape)):not(:has(.cutting-list-print-root)):not(:has(.cutting-list-a5-report-root)):not(:has(.cutting-list-a4-landscape-report-root)):not(:has(#workbook-print-root)) {
+    > *:not(:has(.quotation-print-root)):not(:has(.receipt-print-root)):not(:has(.report-print-root)):not(:has(.report-print-a4-landscape)):not(:has(.report-print-a4-portrait)):not(:has(.cutting-list-print-root)):not(:has(.cutting-list-a5-report-root)):not(:has(.cutting-list-a4-landscape-report-root)):not(:has(#workbook-print-root)) {
     display: none !important;
   }
 
@@ -2587,6 +2599,8 @@ summary {
   .report-print-root *,
   .report-print-a4-landscape,
   .report-print-a4-landscape *,
+  .report-print-a4-portrait,
+  .report-print-a4-portrait *,
   .cutting-list-print-root,
   .cutting-list-print-root *,
   .cutting-list-a5-report-root,
@@ -2693,8 +2707,24 @@ summary {
     page-break-after: avoid;
   }
 
+  .report-print-root.report-print-a4-portrait {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    page: report-a4-portrait;
+    overflow: visible !important;
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
   .print-portal-scroll:has(.report-print-a4-landscape) {
     page: report-a4-landscape;
+  }
+
+  .print-portal-scroll:has(.report-print-a4-portrait) {
+    page: report-a4-portrait;
   }
 
   .quotation-print-root,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { FinanceSequencePanel, ModalFrame } from '../layout';
 import { StockRegisterPanel } from './StockRegisterPanel';
@@ -23,6 +23,14 @@ const SUBTITLES = {
   reports: 'Finance view of month-end stock — monitor stage and reopen if needed.',
 };
 
+function resolveMonthKey(periodEnd) {
+  const fromPeriod = monthKeyFromPeriodEnd(periodEnd);
+  if (/^\d{4}-\d{2}$/.test(fromPeriod) && periodEndIsoFromMonthKey(fromPeriod)) {
+    return fromPeriod;
+  }
+  return defaultStockRegisterMonthKey();
+}
+
 /**
  * Month-end stock desk — full ceremony workspace (Sequence / Accounting Close language).
  * Period is month + year only; closes on last calendar day.
@@ -38,27 +46,41 @@ export function StockRegisterMonthEndModal({
   roleKey,
   initialPeriodEnd,
 }) {
-  const [monthKey, setMonthKey] = useState(() =>
-    monthKeyFromPeriodEnd(initialPeriodEnd) || defaultStockRegisterMonthKey()
-  );
+  const [monthKey, setMonthKey] = useState(() => resolveMonthKey(initialPeriodEnd));
+  /** Remount month input after cancel so the native control stays in sync with React state. */
+  const [monthInputEpoch, setMonthInputEpoch] = useState(0);
+  const wasOpenRef = useRef(false);
 
+  // Apply initial period only when the modal opens — do not reset while the user is browsing months.
   useEffect(() => {
-    if (isOpen) {
-      setMonthKey(monthKeyFromPeriodEnd(initialPeriodEnd) || defaultStockRegisterMonthKey());
+    if (isOpen && !wasOpenRef.current) {
+      setMonthKey(resolveMonthKey(initialPeriodEnd));
+      setMonthInputEpoch((n) => n + 1);
     }
-  }, [initialPeriodEnd, isOpen]);
+    wasOpenRef.current = isOpen;
+  }, [isOpen, initialPeriodEnd]);
 
   const periodEnd = periodEndIsoFromMonthKey(monthKey);
   const monthLabel = formatStockRegisterMonth(monthKey);
   const title = TITLES[roleMode] || 'Stock register';
   const subtitle = SUBTITLES[roleMode] || '';
 
-  const onMonthChange = (next) => {
-    if (String(next) === String(monthKey)) return;
+  const onMonthChange = (rawNext) => {
+    const next = String(rawNext || '').trim();
+    if (!/^\d{4}-\d{2}$/.test(next) || !periodEndIsoFromMonthKey(next)) {
+      setMonthInputEpoch((n) => n + 1);
+      return;
+    }
+    if (next === monthKey) return;
+
     const ok = window.confirm(
       `Switch to ${formatStockRegisterMonth(next)}?\n\nIf a count is already in progress for ${monthLabel}, you will be looking at a different month’s register.`
     );
-    if (!ok) return;
+    if (!ok) {
+      // Native <input type="month"> may already show `next`; remount to restore controlled value.
+      setMonthInputEpoch((n) => n + 1);
+      return;
+    }
     setMonthKey(next);
   };
 
@@ -94,6 +116,7 @@ export function StockRegisterMonthEndModal({
               <label className="block text-sm min-w-[9.5rem]">
                 <span className="sr-only">Month</span>
                 <input
+                  key={`stock-reg-month-${monthInputEpoch}-${monthKey}`}
                   type="month"
                   className="z-input w-full"
                   value={monthKey}
@@ -112,17 +135,28 @@ export function StockRegisterMonthEndModal({
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 py-4 sm:px-6">
-          <FinanceSequencePanel className="!min-h-0 sm:!min-h-0">
-            <StockRegisterPanel
-              roleMode={roleMode}
-              embedded
-              endDate={periodEnd}
-              branchId={branchId}
-              branchLabel={branchLabel}
-              showToast={showToast}
-              roleKey={roleKey}
-            />
-          </FinanceSequencePanel>
+          {!branchId ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              Select a branch before loading the month-end stock register.
+            </div>
+          ) : !periodEnd ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              Choose a valid month to load the register.
+            </div>
+          ) : (
+            <FinanceSequencePanel className="!min-h-0 sm:!min-h-0">
+              <StockRegisterPanel
+                key={`${branchId}-${periodEnd}-${roleMode}`}
+                roleMode={roleMode}
+                embedded
+                endDate={periodEnd}
+                branchId={branchId}
+                branchLabel={branchLabel}
+                showToast={showToast}
+                roleKey={roleKey}
+              />
+            </FinanceSequencePanel>
+          )}
         </div>
       </div>
     </ModalFrame>

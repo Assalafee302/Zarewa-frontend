@@ -81,13 +81,20 @@ export function StockRegisterPanel({
   const periodKey = register?.periodKey || endDate?.slice(0, 7);
 
   const load = useCallback(async () => {
-    if (!endDate || !branchId) return;
+    if (!endDate || !branchId) {
+      setRegister(null);
+      setWorkflow(null);
+      setProcurementPricing(null);
+      return;
+    }
     setLoading(true);
     try {
       const { ok, data } = await fetchStockRegister(endDate, viewMode);
       if (!ok || !data?.ok) {
         showToast?.(data?.error || 'Could not load stock register.', { variant: 'error' });
         setRegister(null);
+        setWorkflow(null);
+        setProcurementPricing(null);
         return;
       }
       setRegister(data.register);
@@ -99,8 +106,39 @@ export function StockRegisterPanel({
   }, [endDate, branchId, showToast, viewMode]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    (async () => {
+      if (!endDate || !branchId) {
+        setRegister(null);
+        setWorkflow(null);
+        setProcurementPricing(null);
+        return;
+      }
+      setLoading(true);
+      setRegister(null);
+      setWorkflow(null);
+      setProcurementPricing(null);
+      try {
+        const { ok, data } = await fetchStockRegister(endDate, viewMode);
+        if (cancelled) return;
+        if (!ok || !data?.ok) {
+          showToast?.(data?.error || 'Could not load stock register.', { variant: 'error' });
+          setRegister(null);
+          setWorkflow(null);
+          setProcurementPricing(null);
+          return;
+        }
+        setRegister(data.register);
+        setWorkflow(data.workflow);
+        setProcurementPricing(data.workflow?.procurementPricing || null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [endDate, branchId, viewMode, showToast]);
 
   const handleWorkflowSaved = (data) => {
     if (data?.workflow) setWorkflow(data.workflow);

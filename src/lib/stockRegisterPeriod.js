@@ -24,16 +24,20 @@ export function defaultStockRegisterMonthKey() {
 
 /** @param {string} monthKey YYYY-MM */
 export function periodEndIsoFromMonthKey(monthKey) {
-  const [ys, ms] = String(monthKey || '').split('-');
-  const y = Number(ys);
-  const m = Number(ms);
-  if (!y || !m || m < 1 || m > 12) return '';
+  const match = /^(\d{4})-(\d{2})$/.exec(String(monthKey || '').trim());
+  if (!match) return '';
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  if (!y || m < 1 || m > 12) return '';
   const lastDay = new Date(y, m, 0).getDate();
-  return `${ys}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return `${match[1]}-${match[2]}-${String(lastDay).padStart(2, '0')}`;
 }
 
 export function monthKeyFromPeriodEnd(periodEnd) {
-  return String(periodEnd || '').slice(0, 7);
+  const s = String(periodEnd || '').trim();
+  if (/^\d{4}-\d{2}$/.test(s)) return s;
+  const sliced = s.slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(sliced) ? sliced : '';
 }
 
 /** "July 2026" */

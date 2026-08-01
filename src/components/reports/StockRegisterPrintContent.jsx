@@ -163,7 +163,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
     <div className="space-y-5 text-slate-800">
       {blankSystemClose ? (
         <p className="no-print text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          Count sheet: system closing kg is blank — write yard counts in <strong>Counted</strong>. Use landscape A4.
+          Count sheet: system closing kg is blank — write yard counts in <strong>Counted</strong>. Use portrait A4.
         </p>
       ) : null}
       <CoilSection
