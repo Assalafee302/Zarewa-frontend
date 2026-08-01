@@ -88,9 +88,10 @@ function paidExpensesInRange(expenses = [], paymentRequests = [], startDate, end
     .filter((ex) => {
       const expenseID = String(ex?.expenseID || '').trim();
       const req = expenseID ? requestsByExpense.get(expenseID) : null;
+      // Include all period expenses except rejected payment requests.
+      // (Previously required approved+paid, which hid most operating expenses and left refunds looking like the only lines.)
       if (!req) return true;
-      if (req.rejected) return false;
-      return req.approved && req.hasAnyPayout;
+      return !req.rejected;
     })
     .map((ex) => {
       const expenseID = String(ex?.expenseID || '').trim();
@@ -98,11 +99,19 @@ function paidExpensesInRange(expenses = [], paymentRequests = [], startDate, end
       const totalAmount = Number(ex.amountNgn) || 0;
       const paidAmountNgn = req ? Math.max(0, Math.min(Number(req.paidAmountNgn) || 0, totalAmount)) : totalAmount;
       const remainingAmountNgn = Math.max(0, totalAmount - paidAmountNgn);
+      let paymentStatus = 'Posted';
+      if (req) {
+        if (paidAmountNgn >= totalAmount && totalAmount > 0) paymentStatus = 'Paid';
+        else if (paidAmountNgn > 0) paymentStatus = 'Part-paid';
+        else if (req.approved) paymentStatus = 'Approved unpaid';
+        else paymentStatus = 'Pending';
+      }
       return {
         ...ex,
-        expenseType: normalizeExpenseTypeLabel(ex.expenseType, req?.fullyPaid ? 'paid' : ''),
+        expenseType: normalizeExpenseTypeLabel(ex.expenseType, paymentStatus === 'Paid' ? 'paid' : ''),
         paidAmountNgn,
         remainingAmountNgn,
+        paymentStatus,
       };
     });
 }
@@ -141,6 +150,8 @@ function buildPaidExpensePrintRows(expenses = [], paymentRequests = [], startDat
       amount: (Number(e.amountNgn) || 0).toLocaleString('en-NG'),
       paidAmount: (Number(e.paidAmountNgn) || 0).toLocaleString('en-NG'),
       remainingAmount: formatNgn(e.remainingAmountNgn),
+      paymentStatus: e.paymentStatus || 'Posted',
+      _amountNgn: Number(e.amountNgn) || 0,
       _paidAmountNgn: Number(e.paidAmountNgn) || 0,
       _remainingAmountNgn: Number(e.remainingAmountNgn) || 0,
     }))

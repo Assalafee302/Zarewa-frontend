@@ -188,11 +188,11 @@ export function useReportsExport({
             totalLabel: 'Total',
           },
           summaryLines: [
-            { label: 'Print shows paid and part-paid expenses', value: String(exRows.length) },
+            { label: 'Print shows all non-rejected expenses in the period', value: String(exRows.length) },
             {
               label: 'Expenses total',
               value: formatNgn(
-                exRows.reduce((s, e) => s + (Number(String(e._paidAmountNgn || 0)) + Number(String(e._remainingAmountNgn || 0))), 0)
+                exRows.reduce((s, e) => s + (Number(e._amountNgn) || 0), 0)
               ),
             },
             { label: 'Paid total', value: formatNgn(exRows.reduce((s, e) => s + (Number(e._paidAmountNgn) || 0), 0)) },
@@ -223,9 +223,9 @@ export function useReportsExport({
             ref: e.expenseID || '—',
             party: category,
             detail: e.type || '—',
-            amount: e.paidAmount || formatNgn(e._paidAmountNgn || 0),
-            status: Number(e._remainingAmountNgn) > 0 ? 'Part-paid' : 'Paid',
-            _amountNgn: Number(e._paidAmountNgn) || 0,
+            amount: e.amount || formatNgn(e._amountNgn || 0),
+            status: e.paymentStatus || (Number(e._remainingAmountNgn) > 0 ? 'Part-paid' : 'Paid'),
+            _amountNgn: Number(e._amountNgn) || 0,
           };
         });
         const refundPrintRows = refundPaid.map((r) => ({
@@ -251,17 +251,17 @@ export function useReportsExport({
           if (d !== 0) return d;
           return String(a.ref || '').localeCompare(String(b.ref || ''));
         });
-        const expensePaidTotal = expensePrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
+        const expenseTotal = expensePrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
         const refundPaidTotal = refundPrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
         return {
           title: PACK_EXPENSES_REFUNDS,
           columns: [
-            { key: 'groupKey', label: 'Category' },
+            { key: 'groupKey', label: 'Group' },
             { key: 'date', label: 'Date' },
             { key: 'ref', label: 'Ref' },
             { key: 'party', label: 'Category / Customer' },
             { key: 'detail', label: 'Type / Quotation' },
-            { key: 'amount', label: 'Paid (NGN)', align: 'right' },
+            { key: 'amount', label: 'Amount (NGN)', align: 'right' },
             { key: 'status', label: 'Status' },
           ],
           rows,
@@ -269,16 +269,16 @@ export function useReportsExport({
             groupBy: 'groupKey',
             subtotalKey: '_amountNgn',
             subtotalColumnKey: 'amount',
-            groupLabel: 'Category',
+            groupLabel: 'Group',
             subtotalLabel: 'Subtotal',
-            totalLabel: 'Overall paid',
+            totalLabel: 'Overall amount',
           },
           summaryLines: [
             { label: 'Expense lines', value: String(expensePrintRows.length) },
-            { label: 'Expenses paid', value: formatNgn(expensePaidTotal) },
+            { label: 'Expenses total', value: formatNgn(expenseTotal) },
             { label: 'Refund payout lines', value: String(refundPrintRows.length) },
             { label: 'Refunds paid', value: formatNgn(refundPaidTotal) },
-            { label: 'Combined paid', value: formatNgn(expensePaidTotal + refundPaidTotal) },
+            { label: 'Combined amount', value: formatNgn(expenseTotal + refundPaidTotal) },
           ],
         };
       }

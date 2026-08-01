@@ -7,6 +7,25 @@ import {
 } from './reportsPackRows';
 
 describe('reportsPackRows', () => {
+  it('paidExpensesInRange includes approved unpaid expenses (not only paid)', () => {
+    const expenses = [
+      { expenseID: 'EX-4', date: '2026-03-14', amountNgn: 25_000, category: 'Fuel & lubricant', expenseType: 'Diesel' },
+    ];
+    const paymentRequests = [
+      {
+        expenseID: 'EX-4',
+        amountRequestedNgn: 25_000,
+        paidAmountNgn: 0,
+        approvalStatus: 'Approved',
+      },
+    ];
+    const rows = paidExpensesInRange(expenses, paymentRequests, '2026-03-01', '2026-03-31');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].paymentStatus).toBe('Approved unpaid');
+    expect(rows[0].paidAmountNgn).toBe(0);
+    expect(rows[0].remainingAmountNgn).toBe(25_000);
+  });
+
   it('paidExpensesInRange excludes rejected payment requests', () => {
     const expenses = [
       { expenseID: 'EX-1', date: '2026-03-10', amountNgn: 50_000, category: 'Ops', expenseType: 'Fuel' },

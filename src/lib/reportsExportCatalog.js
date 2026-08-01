@@ -77,9 +77,9 @@ export const EXPORT_PAIRS = [
   {
     id: 'pair-finance',
     title: 'Expenses & refunds',
-    desc: 'Official expenses/refunds workbook, plus refund overview working paper.',
+    desc: 'Official expenses/refunds workbook, plus period costs working paper (all expense categories, accruals, valuation, COGS).',
     officialId: 'std-finance',
-    workingId: 'refund-period-report',
+    workingId: 'period-costs-inventory',
   },
 ];
 
@@ -118,11 +118,12 @@ export function groupCatalogRows(items) {
   return rows;
 }
 
-/** Prefer full-coverage working paper for pair print. */
+/** Prefer full-coverage working paper for pair print; otherwise prefer Official print pack. */
 export function printItemForPair(official, working) {
   if (resolvePrintCoverage(working) === 'full') return working;
-  if (catalogItemSupportsPrint(working)) return working;
+  if (resolvePrintCoverage(official) === 'full') return official;
   if (catalogItemSupportsPrint(official)) return official;
+  if (catalogItemSupportsPrint(working)) return working;
   return null;
 }
 

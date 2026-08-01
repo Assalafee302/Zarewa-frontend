@@ -93,6 +93,10 @@ describe('reportsExportCatalog', () => {
     expect(rows.filter((r) => r.type === 'single').length).toBe(8);
     const sales = pairs.find((p) => p.pairId === 'pair-sales');
     expect(printItemForPair(sales.official, sales.working)?.id).toBe('sales-customer-pack');
+    const finance = pairs.find((p) => p.pairId === 'pair-finance');
+    expect(finance.working.id).toBe('period-costs-inventory');
+    // Official expenses/refunds print pack wins over summary-only working paper.
+    expect(printItemForPair(finance.official, finance.working)?.id).toBe('std-finance');
   });
 
   it('does not collapse when only one side of a pair is filtered in', () => {
