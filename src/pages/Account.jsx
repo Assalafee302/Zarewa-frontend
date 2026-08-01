@@ -21,6 +21,7 @@ import {
   RotateCcw,
   RefreshCw,
   Printer,
+  Download,
   Banknote,
   Pencil,
   Trash2,
@@ -92,6 +93,10 @@ import {
   payFromCorrectionHeadlineForMovementType,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
+import {
+  buildTreasuryAccountStatementPeriod,
+  downloadTreasuryAccountStatementXlsx,
+} from '../lib/treasuryAccountStatementExcel.js';
 import { findTreasuryPayoutShortAccount } from '../lib/financeDeskTreasury';
 import {
   getAllowedLegacyAccountTabs,
@@ -690,85 +695,32 @@ const Account = () => {
 
   const openStatementForDateRange = useCallback((autoPrint = true) => {
     if (!statementAccount) return;
-    const fromDate = String(statementPrintFromDate || '').trim();
-    const toDate = String(statementPrintToDate || '').trim();
-    if (!fromDate || !toDate) {
-      showToast('Select both start and end dates before printing.', { variant: 'warning' });
-      return;
-    }
-    if (fromDate > toDate) {
-      showToast('Start date cannot be after end date.', { variant: 'warning' });
-      return;
-    }
-    const lines = accountStatementLines.filter((line) => {
-      const date = String(line.postedAtISO || '').slice(0, 10);
-      return date >= fromDate && date <= toDate;
+    const period = buildTreasuryAccountStatementPeriod({
+      account: statementAccount,
+      movements: liveTreasuryMovements,
+      fromDate: statementPrintFromDate,
+      toDate: statementPrintToDate,
     });
-    if (lines.length === 0) {
-      showToast('No statement lines found for the selected date range.', { variant: 'warning' });
+    if (!period.ok) {
+      showToast(period.error, { variant: 'warning' });
       return;
     }
-    const chronologicalAllLines = accountStatementLines
-      .slice()
-      .sort((a, b) => {
-        const ta = String(a.postedAtISO || '');
-        const tb = String(b.postedAtISO || '');
-        if (ta !== tb) return ta.localeCompare(tb);
-        return String(a.id || '').localeCompare(String(b.id || ''));
-      });
-    const totalMovementsNgn = chronologicalAllLines.reduce((sum, line) => sum + (Number(line.amountNgn) || 0), 0);
-    const currentBookBalanceNgn = Number(statementAccount.balance) || 0;
-    const impliedOpeningFromPostingsNgn = currentBookBalanceNgn - totalMovementsNgn;
-    const regOpeningRaw = statementAccount.openingBalanceNgn;
-    const openingBookBalanceNgn = Math.round(
-      Number(
-        regOpeningRaw !== undefined && regOpeningRaw !== null
-          ? regOpeningRaw
-          : impliedOpeningFromPostingsNgn
-      ) || 0
-    );
-    const fromBoundaryBalanceNgn = chronologicalAllLines.reduce((sum, line) => {
-      const date = String(line.postedAtISO || '').slice(0, 10);
-      return date < fromDate ? sum + (Number(line.amountNgn) || 0) : sum;
-    }, openingBookBalanceNgn);
-    let runningBalanceNgn = fromBoundaryBalanceNgn;
-    const rangeLines = lines
-      .slice()
-      .sort((a, b) => {
-        const ta = String(a.postedAtISO || '');
-        const tb = String(b.postedAtISO || '');
-        if (ta !== tb) return ta.localeCompare(tb);
-        return String(a.id || '').localeCompare(String(b.id || ''));
-      });
-    const totals = rangeLines.reduce(
-      (acc, line) => {
-        const amount = Number(line.amountNgn) || 0;
-        if (amount > 0) acc.in += amount;
-        if (amount < 0) acc.out += Math.abs(amount);
-        return acc;
-      },
-      { in: 0, out: 0 }
-    );
-    const rowsHtml = rangeLines
-      .map((line, index) => {
-        const amount = Number(line.amountNgn) || 0;
-        const inNgn = amount > 0 ? formatNgn(amount) : '—';
-        const outNgn = amount < 0 ? formatNgn(Math.abs(amount)) : '—';
-        runningBalanceNgn += amount;
+    const { accountTitle, fromDate, toDate, openingBalanceNgn, closingBalanceNgn, totals, rows } = period;
+    const rowsHtml = rows
+      .map((line) => {
+        const inNgn = line.inNgn != null ? formatNgn(line.inNgn) : '—';
+        const outNgn = line.outNgn != null ? formatNgn(line.outNgn) : '—';
         return `<tr>
-          <td>${index + 1}</td>
-          <td>${escapeHtml(formatStatementShortDate(line.postedAtISO))}</td>
-          <td>${escapeHtml(treasuryMovementSourceBadge(line).label)}</td>
-          <td>${escapeHtml(treasuryMovementStatementLabel(line))}</td>
+          <td>${line.lineNo}</td>
+          <td>${escapeHtml(formatStatementShortDate(line.date))}</td>
+          <td>${escapeHtml(line.source)}</td>
+          <td>${escapeHtml(line.description)}</td>
           <td class="num">${escapeHtml(inNgn)}</td>
           <td class="num">${escapeHtml(outNgn)}</td>
-          <td class="num">${escapeHtml(formatNgn(runningBalanceNgn))}</td>
+          <td class="num">${escapeHtml(formatNgn(line.balanceNgn))}</td>
         </tr>`;
       })
       .join('');
-    const accountTitle = `${statementAccount.name || 'Treasury account'}${
-      statementAccount.bankName ? ` · ${statementAccount.bankName}` : ''
-    }`;
     const html = `<!doctype html>
 <html>
 <head>
@@ -793,11 +745,11 @@ const Account = () => {
   <p class="meta"><strong>Printed:</strong> ${escapeHtml(
       new Date().toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
     )}</p>
-  <p class="meta"><strong>Opening balance:</strong> ${escapeHtml(formatNgn(fromBoundaryBalanceNgn))}</p>
+  <p class="meta"><strong>Opening balance:</strong> ${escapeHtml(formatNgn(openingBalanceNgn))}</p>
   <p class="meta"><strong>Total inflow:</strong> ${escapeHtml(formatNgn(totals.in))} &nbsp;|&nbsp; <strong>Total outflow:</strong> ${escapeHtml(
       formatNgn(totals.out)
     )}</p>
-  <p class="meta"><strong>Closing balance:</strong> ${escapeHtml(formatNgn(fromBoundaryBalanceNgn + totals.in - totals.out))}</p>
+  <p class="meta"><strong>Closing balance:</strong> ${escapeHtml(formatNgn(closingBalanceNgn))}</p>
   <table>
     <thead>
       <tr>
@@ -834,9 +786,36 @@ const Account = () => {
     statementAccount,
     statementPrintFromDate,
     statementPrintToDate,
-    accountStatementLines,
+    liveTreasuryMovements,
     escapeHtml,
     formatStatementShortDate,
+    showToast,
+  ]);
+
+  const downloadStatementExcel = useCallback(() => {
+    if (!statementAccount) return;
+    const period = buildTreasuryAccountStatementPeriod({
+      account: statementAccount,
+      movements: liveTreasuryMovements,
+      fromDate: statementPrintFromDate,
+      toDate: statementPrintToDate,
+    });
+    if (!period.ok) {
+      showToast(period.error, { variant: 'warning' });
+      return;
+    }
+    try {
+      const filename = downloadTreasuryAccountStatementXlsx(period);
+      showToast(`Downloaded ${filename}`);
+      setShowStatementPrintModal(false);
+    } catch (e) {
+      showToast(e?.message || 'Could not download Excel statement.', { variant: 'error' });
+    }
+  }, [
+    statementAccount,
+    statementPrintFromDate,
+    statementPrintToDate,
+    liveTreasuryMovements,
     showToast,
   ]);
 
@@ -3731,7 +3710,9 @@ const Account = () => {
           ) : (
             <>
               <div className="mb-3 rounded-lg border border-slate-200/80 bg-slate-50/90 px-3 py-2 flex items-center justify-between gap-2">
-                <p className="text-ui-xs text-slate-600 leading-snug">Choose a date range and print this statement.</p>
+                <p className="text-ui-xs text-slate-600 leading-snug">
+                  Choose a date range to print or download Excel for this statement.
+                </p>
                 <button
                   type="button"
                   onClick={() => {
@@ -3742,7 +3723,7 @@ const Account = () => {
                   className="z-btn-primary py-1.5 px-3 text-xs shrink-0"
                 >
                   <Printer size={14} />
-                  Print statement
+                  Print / Excel
                 </button>
               </div>
               {accountStatementLines.length === 0 ? (
@@ -3853,12 +3834,12 @@ const Account = () => {
       <ModalFrame isOpen={showStatementPrintModal} onClose={() => setShowStatementPrintModal(false)}>
         <div className="z-modal-panel z-modal-scroll-y max-w-md w-full p-4 sm:p-8">
           <div className="flex justify-between items-center gap-3 mb-4">
-            <h3 className="text-lg font-bold text-zarewa-teal">Print statement</h3>
+            <h3 className="text-lg font-bold text-zarewa-teal">Export statement</h3>
             <button
               type="button"
               onClick={() => setShowStatementPrintModal(false)}
               className="p-2 text-gray-400 hover:text-red-500 rounded-xl shrink-0"
-              aria-label="Close print statement modal"
+              aria-label="Close export statement modal"
             >
               <X size={20} />
             </button>
@@ -3892,6 +3873,14 @@ const Account = () => {
               className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-zarewa-teal/20 bg-white px-4 py-3 text-sm font-bold text-zarewa-teal transition-colors hover:bg-zarewa-teal/5"
             >
               Open preview
+            </button>
+            <button
+              type="button"
+              onClick={downloadStatementExcel}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 transition-colors hover:bg-emerald-100"
+            >
+              <Download size={16} />
+              Download Excel
             </button>
             <button
               type="button"
