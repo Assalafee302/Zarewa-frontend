@@ -46,7 +46,7 @@ function assessRowLocally(row, requireTreasury) {
 
   if (!date) {
     missingFields.push('date');
-    errors.push('Update date in the preview (YYYY-MM-DD).');
+    errors.push('Set the expense date (YYYY-MM-DD). It is never filled with today automatically.');
   }
   if (!(amountNgn > 0)) {
     missingFields.push('amount');
@@ -125,6 +125,7 @@ export function ExpenseBulkImportModal({
   const [requireTreasury, setRequireTreasury] = useState(true);
   const [showCategories, setShowCategories] = useState(false);
   const [rowsDirty, setRowsDirty] = useState(0);
+  const [bulkDate, setBulkDate] = useState('');
 
   useEffect(() => {
     confirmedRef.current = confirmed;
@@ -165,6 +166,7 @@ export function ExpenseBulkImportModal({
     confirmedRef.current = false;
     setRequireTreasury(true);
     setRowsDirty(0);
+    setBulkDate('');
     skipNextFilePreviewRef.current = false;
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -315,6 +317,27 @@ export function ExpenseBulkImportModal({
     setRowsDirty((n) => n + 1);
   };
 
+  const applyBulkDate = (mode) => {
+    const d = String(bulkDate || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      setError('Pick a date first (example: 2026-07-15 for July expenses).');
+      return;
+    }
+    setRows((prev) => {
+      const next = prev.map((r) => {
+        if (r.include === false) return r;
+        if (mode === 'blank' && String(r.date || '').trim()) return r;
+        return assessRowLocally({ ...r, date: d }, requireTreasury);
+      });
+      rowsRef.current = next;
+      return next;
+    });
+    setConfirmed(false);
+    confirmedRef.current = false;
+    setError('');
+    setRowsDirty((n) => n + 1);
+  };
+
   const validCount = rows.filter((r) => r.include !== false && r.status === 'ok').length;
   const incompleteCount = rows.filter((r) => r.include !== false && r.status === 'incomplete').length;
   const invalidCount = rows.filter((r) => r.include !== false && r.status === 'error').length;
@@ -433,8 +456,8 @@ export function ExpenseBulkImportModal({
             <p className="mt-0.5 text-xs text-slate-600">
               Posts only to <strong>{branchTitle}</strong>
               {branchId ? <span className="font-mono text-slate-500"> ({branchId})</span> : null}. Turn off{' '}
-              <strong>All branches</strong> in the workspace bar before posting. Edit any cell — fixes are recognized
-              immediately.
+              <strong>All branches</strong> before posting. Set each row’s <strong>Date</strong> yourself (e.g. July
+              2026) — never auto-filled to today — so last-month expense packs stay complete.
             </p>
           </div>
           <button
@@ -632,6 +655,41 @@ export function ExpenseBulkImportModal({
                   uncheck the row). Status updates as soon as you edit.
                 </div>
               ) : null}
+
+              <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2">
+                <div className="min-w-[10rem]">
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    Expense date (not today)
+                  </label>
+                  <input
+                    type="date"
+                    className={FIELD}
+                    value={bulkDate}
+                    disabled={!!busy && busy !== 'preview'}
+                    onChange={(e) => setBulkDate(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="z-btn-secondary text-xs"
+                  disabled={!!busy && busy !== 'preview'}
+                  onClick={() => applyBulkDate('blank')}
+                >
+                  Fill blank dates
+                </button>
+                <button
+                  type="button"
+                  className="z-btn-secondary text-xs"
+                  disabled={!!busy && busy !== 'preview'}
+                  onClick={() => applyBulkDate('all')}
+                >
+                  Set all row dates
+                </button>
+                <p className="basis-full text-[11px] text-slate-600">
+                  For July expenses use a July date (e.g. <strong>2026-07-15</strong>). Dates are never auto-filled to
+                  today — that keeps last-month reports complete.
+                </p>
+              </div>
 
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="min-w-[1080px] w-full border-collapse text-left">
