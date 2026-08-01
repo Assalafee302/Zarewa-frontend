@@ -467,6 +467,12 @@ export function RefundManagerApprovalPreview({
     if (st === 'rejected' || st === 'cancelled') return s;
     return s + (Number(r.amount_ngn ?? r.amountNgn) || 0);
   }, 0);
+  const paidRefundsOnQuoteNgn = otherRefunds.reduce((s, r) => {
+    const st = String(r.status || '').trim().toLowerCase();
+    const paidAmt = Number(r.paid_amount_ngn ?? r.paidAmountNgn) || 0;
+    if (st !== 'paid' && paidAmt <= 0) return s;
+    return s + (paidAmt > 0 ? paidAmt : Number(r.amount_ngn ?? r.amountNgn) || 0);
+  }, 0);
   const maxApprovableNgn = Math.max(0, paidOnQuoteNgn - reservedOtherRefundsNgn);
   const requiresMdApproval = requestedAmountNgn > Number(refundExecutiveThresholdNgn) || 0;
   const orderTotalNgn = Number(sum?.orderTotalNgn) || 0;
@@ -935,6 +941,15 @@ export function RefundManagerApprovalPreview({
                 />
               </div>
             ) : null}
+            {paidRefundsOnQuoteNgn > 0 ? (
+              <p className="mb-2 rounded-md border border-emerald-200 bg-emerald-50/80 px-2 py-1.5 text-ui-xs font-medium leading-snug text-emerald-950">
+                Refunds already paid on this quotation:{' '}
+                <span className="font-bold tabular-nums">{formatNgn(paidRefundsOnQuoteNgn)}</span>
+                {reservedOtherRefundsNgn > paidRefundsOnQuoteNgn
+                  ? ` · Other open refunds reserved ${formatNgn(reservedOtherRefundsNgn - paidRefundsOnQuoteNgn)}`
+                  : ''}
+              </p>
+            ) : null}
             {deliveryGateActive && paymentPct != null ? (
               <p
                 className={`mb-2 rounded-md px-2 py-1 text-ui-xs font-medium leading-snug ${
@@ -1219,6 +1234,11 @@ export function RefundManagerApprovalPreview({
             {otherRefunds.length > 0 ? (
               <div className="space-y-1">
                 <p className="text-ui-xs font-bold uppercase text-slate-400">Other on quote ({otherRefunds.length})</p>
+                {paidRefundsOnQuoteNgn > 0 ? (
+                  <p className="text-ui-xs font-semibold text-emerald-800">
+                    Already paid total {formatNgn(paidRefundsOnQuoteNgn)} — accessory shortfall claims only the unpaid delta.
+                  </p>
+                ) : null}
                 {otherRefunds.map((r) => (
                   <div
                     key={r.refund_id}
@@ -1226,7 +1246,13 @@ export function RefundManagerApprovalPreview({
                   >
                     <span className="font-mono text-ui-xs font-bold text-amber-950">{r.refund_id}</span>
                     <span className="text-ui-xs text-slate-600">{r.status}</span>
-                    <span className="text-ui-xs font-bold tabular-nums">{formatNgn(r.amount_ngn)}</span>
+                    <span className="text-ui-xs font-bold tabular-nums">
+                      {formatNgn(
+                        Number(r.paid_amount_ngn ?? r.paidAmountNgn) > 0
+                          ? r.paid_amount_ngn ?? r.paidAmountNgn
+                          : r.amount_ngn
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>

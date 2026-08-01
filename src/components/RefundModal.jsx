@@ -865,6 +865,8 @@ const RefundModal = ({
           preview.refundHardCapNgn != null
             ? Math.round(Number(preview.refundHardCapNgn))
             : Math.round(Number(preview.quotationCashInNgn) || 0),
+        paidRefundsOnQuotationNgn: Math.round(Number(preview.paidRefundsOnQuotationNgn) || 0),
+        priorRefundsOnQuotationNgn: Math.round(Number(preview.priorRefundsOnQuotationNgn) || 0),
       });
       setCategorySuggestedMaxNgn(
         preview.categorySuggestedMaxNgn && typeof preview.categorySuggestedMaxNgn === 'object'
@@ -1300,15 +1302,22 @@ const RefundModal = ({
       quotationPickMerged.find((x) => x.id === ref);
     const paidNgn = Math.round(Number(q?.paid_ngn ?? q?.paidNgn ?? 0)) || 0;
     let sumOthers = 0;
+    let paidRefundsNgn = 0;
     for (const r of refunds || []) {
       if (String(r.quotationRef || '').trim() !== ref) continue;
       if (String(r.refundID || '') === String(record?.refundID || '')) continue;
       if (refundStatusIsWithdrawn(r.status)) continue;
-      sumOthers += Math.round(Number(r.amountNgn) || 0);
+      const amt = Math.round(Number(r.amountNgn) || 0);
+      sumOthers += amt;
+      const st = String(r.status || '').trim().toLowerCase();
+      const paidAmt = Math.round(Number(r.paidAmountNgn ?? r.paid_amount_ngn) || 0);
+      if (st === 'paid' || paidAmt > 0) {
+        paidRefundsNgn += paidAmt > 0 ? paidAmt : amt;
+      }
     }
     const maxApprovable = Math.max(0, paidNgn - sumOthers);
     const requested = Math.round(Number(record?.amountNgn) || 0);
-    return { paidNgn, sumOthers, maxApprovable, requested };
+    return { paidNgn, sumOthers, paidRefundsNgn, maxApprovable, requested };
   }, [showApproval, record, quotations, quotationPickMerged, refunds]);
 
   const recordApprovedAmount = refundApprovedAmount(record) || Number(record?.approved_amount_ngn) || 0;
@@ -1429,6 +1438,19 @@ const RefundModal = ({
       return !refundStatusIsWithdrawn(r.status);
     });
   }, [form.quotationRef, refunds]);
+
+  const quotationRefundsPaidAlreadyNgn = useMemo(() => {
+    if (moneyContext?.paidRefundsOnQuotationNgn != null && Number(moneyContext.paidRefundsOnQuotationNgn) >= 0) {
+      return Math.round(Number(moneyContext.paidRefundsOnQuotationNgn) || 0);
+    }
+    return priorRefundsOnQuote.reduce((sum, r) => {
+      const st = String(r.status || '').trim().toLowerCase();
+      const paidAmt = Math.round(Number(r.paidAmountNgn ?? r.paid_amount_ngn) || 0);
+      if (st !== 'paid' && paidAmt <= 0) return sum;
+      const amt = paidAmt > 0 ? paidAmt : Math.round(Number(r.amountNgn) || 0);
+      return sum + amt;
+    }, 0);
+  }, [moneyContext?.paidRefundsOnQuotationNgn, priorRefundsOnQuote]);
 
   const multiCategoryOverlapContext = useMemo(() => {
     const currentLabels = derivedReasonCategories;
@@ -1595,11 +1617,18 @@ const RefundModal = ({
 
     const lineSumsByCategory = sumLinesByCategory(form.calculationLines);
     if (categorySuggestedMaxNgn && typeof categorySuggestedMaxNgn === 'object') {
+      const quantityNettedCats = new Set(['Accessory shortfall', 'Stone flatsheet shortfall']);
       for (const [cat, sum] of Object.entries(lineSumsByCategory)) {
         const cap = Math.round(Number(categorySuggestedMaxNgn[cat]) || 0);
         if (cap > 0 && sum > cap + AMOUNT_LINE_TOL) {
           setPreviewError(
             `${refundCategoryDisplayLabel(cat)} refund (₦${sum.toLocaleString('en-NG')}) cannot exceed the system-calculated amount (₦${cap.toLocaleString('en-NG')}). Manual adjustment may reduce, not increase, the preview figure.`
+          );
+          return;
+        }
+        if (quantityNettedCats.has(cat) && cap <= 0 && sum > AMOUNT_LINE_TOL) {
+          setPreviewError(
+            `${refundCategoryDisplayLabel(cat)} has already been refunded for the current shortfall on this quotation (or there is no unpaid shortfall left). Only the unpaid accessory/stone delta can be requested.`
           );
           return;
         }
@@ -3038,6 +3067,50 @@ const RefundModal = ({
                           </p>
                         </div>
                       ) : null}
+                      {form.quotationRef && (quotationRefundsPaidAlreadyNgn > 0 || priorRefundsOnQuote.length > 0) ? (
+                        <div className="pt-2 border-t border-slate-700/80 space-y-1">
+                          <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">
+                            Refunds already on this quotation
+                          </p>
+                          {quotationRefundsPaidAlreadyNgn > 0 ? (
+                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                              <p className="text-ui-xs text-slate-400">Already paid / cashed</p>
+                              <p className="text-sm font-black text-emerald-300 tabular-nums">
+                                ₦{quotationRefundsPaidAlreadyNgn.toLocaleString('en-NG')}
+                              </p>
+                            </div>
+                          ) : null}
+                          {priorRefundsOnQuote.length > 0 ? (
+                            <ul className="space-y-1 mt-1">
+                              {priorRefundsOnQuote.map((r) => {
+                                const st = String(r.status || '').trim();
+                                const amt = Math.round(
+                                  Number(r.paidAmountNgn ?? r.paid_amount_ngn) > 0
+                                    ? Number(r.paidAmountNgn ?? r.paid_amount_ngn)
+                                    : Number(r.amountNgn) || 0
+                                );
+                                return (
+                                  <li
+                                    key={r.refundID || r.refund_id}
+                                    className="flex flex-wrap items-baseline justify-between gap-2 text-ui-xs"
+                                  >
+                                    <span className="font-mono text-slate-400">
+                                      {r.refundID || r.refund_id}
+                                      <span className="ml-1.5 text-slate-500 normal-case font-sans">{st}</span>
+                                    </span>
+                                    <span className="tabular-nums text-slate-200">
+                                      ₦{amt.toLocaleString('en-NG')}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : null}
+                          <p className="text-ui-xs text-slate-500 leading-snug mt-0.5">
+                            Accessory shortfall refunds only cover quantities not already refunded.
+                          </p>
+                        </div>
+                      ) : null}
                       {(intelligence.dataQualityIssues || []).length > 0 ? (
                         <div className="pt-2 border-t border-amber-900/40 rounded-lg bg-amber-950/25 p-2.5 space-y-1.5">
                           <p className="text-ui-xs font-bold text-amber-200 uppercase">System alerts</p>
@@ -3537,7 +3610,11 @@ const RefundModal = ({
                           {approvalMoneyContext ? (
                             <p className="mt-2 text-ui-xs font-medium text-slate-600 leading-snug">
                               Requested: ₦{approvalMoneyContext.requested.toLocaleString('en-NG')} · Paid on quotation:
-                              ₦{approvalMoneyContext.paidNgn.toLocaleString('en-NG')} · Other open refunds (reserved): ₦
+                              ₦{approvalMoneyContext.paidNgn.toLocaleString('en-NG')}
+                              {approvalMoneyContext.paidRefundsNgn > 0
+                                ? ` · Refunds already paid: ₦${approvalMoneyContext.paidRefundsNgn.toLocaleString('en-NG')}`
+                                : ''}{' '}
+                              · Other open refunds (reserved): ₦
                               {approvalMoneyContext.sumOthers.toLocaleString('en-NG')} · Approvable cap: ₦
                               {approvalMoneyContext.maxApprovable.toLocaleString('en-NG')}
                             </p>
