@@ -76,7 +76,8 @@ function CoilTable({ groups, showCountedBlank = true, blankSystemClose = false }
               <td className={TDR}>{fmtNum(r.usedKg, 0)}</td>
               <td className={TDR}>{r.kgPerM != null ? fmtNum(r.kgPerM) : '—'}</td>
               <td className={TDR}>
-                {blankSystemClose || r.closingBlank ? '—' : fmtNum(r.closingKg, 0)}
+                {/* Blind count sheet hides system balance; finished coils still show EOM Close (usually 0). */}
+                {blankSystemClose ? '—' : fmtNum(r.closingKg, 0)}
               </td>
               {showCountedBlank ? (
                 <td className={`${TD} text-center text-slate-400 border-dashed`} aria-label="Counted (write-in)">

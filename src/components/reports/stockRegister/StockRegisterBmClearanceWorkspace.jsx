@@ -50,7 +50,10 @@ function lineLabel(item) {
 function lineQty(item) {
   const r = item.row;
   if (item.kind === 'coil') return r.closingKg != null ? `${r.closingKg} kg` : '—';
-  if (item.kind === 'finished') return `Used ${r.usedKg ?? 0} kg`;
+  if (item.kind === 'finished') {
+    const bal = r.closingKg != null ? r.closingKg : 0;
+    return `Used ${r.usedKg ?? 0} kg · bal ${bal} kg`;
+  }
   if (item.kind === 'stone') return `${r.remainingM ?? 0} m`;
   if (item.kind === 'accessory') return `${r.balance ?? 0} ${r.unit || ''}`;
   return `${r.qtyExpected ?? 0} ${r.unit || ''}`;
