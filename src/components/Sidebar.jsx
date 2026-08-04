@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   ClipboardCheck,
   Users,
+  Clock,
   UserCircle,
   Calculator,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ import { userMaySeeLegacyAccountsNav } from '../lib/legacyAccountsAccess';
 import { canAccessExecutiveHr, canAccessMyProfileHr } from '../lib/hrAccess';
 import { HR_SELF_SERVICE_BASE } from '../lib/hrSelfServiceRoutes';
 import { ZAREWA_LOGO_SRC } from '../Data/companyQuotation';
+import { userMayAccessOtWorkspace } from '../lib/otWorkspaceAccess';
 
 function pathMatches(locationPath, basePath) {
   if (basePath === '/') return locationPath === '/';
@@ -130,8 +132,16 @@ const Sidebar = ({
       to: pathMatches(p, '/operations')
         ? '/operations'
         : { pathname: '/operations', state: { focusOpsTab: 'clear' } },
-      active: pathMatches(p, '/operations'),
+      active: pathMatches(p, '/operations') && !pathMatches(p, '/overtime'),
       visible: Boolean(ws?.canAccessModule?.('operations')),
+    },
+    {
+      icon: <Clock size={18} />,
+      label: 'Overtime',
+      path: '/overtime',
+      active: pathMatches(p, '/overtime'),
+      visible: userMayAccessOtWorkspace((perm) => Boolean(ws?.hasPermission?.(perm))),
+      title: 'OT pay — raise, approve, mark paid, track intel',
     },
     {
       icon: <Calculator size={18} />,

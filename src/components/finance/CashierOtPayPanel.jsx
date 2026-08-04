@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Banknote, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Banknote, CheckCircle2, RefreshCw, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { formatNgn } from '../../Data/mockData';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -120,6 +121,12 @@ export function CashierOtPayPanel() {
         >
           <RefreshCw size={12} aria-hidden /> Refresh
         </button>
+        <Link
+          to="/overtime?tab=pay"
+          className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase text-teal-900 no-underline hover:underline"
+        >
+          Full hub <ExternalLink size={11} aria-hidden />
+        </Link>
       </div>
       <p className="px-3 py-2 text-ui-xs leading-relaxed text-teal-950/80 border-b border-teal-100/60">
         Payable amounts are locked by the branch manager at approval. Confirm cash/transfer and mark paid only —

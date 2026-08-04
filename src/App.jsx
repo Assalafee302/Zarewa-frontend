@@ -113,6 +113,7 @@ const SupplierProfile = lazyWithRetry(() => import('./pages/SupplierProfile'), {
 const TransportAgentProfile = lazyWithRetry(() => import('./pages/TransportAgentProfile'), { id: 'TransportAgentProfile' });
 const CoilProfile = lazyWithRetry(() => import('./pages/CoilProfile'), { id: 'CoilProfile' });
 const Operations = lazyWithRetry(() => import('./pages/Operations'), { id: 'Operations' });
+const OvertimeHub = lazyWithRetry(() => import('./pages/OvertimeHub'), { id: 'OvertimeHub' });
 const Account = lazyWithRetry(() => import('./pages/Account'), { id: 'Account' });
 const CashierDesk = lazyWithRetry(() => import('./pages/CashierDesk'), { id: 'CashierDesk' });
 const AccountingDesk = lazyWithRetry(() => import('./pages/AccountingDesk'), { id: 'AccountingDesk' });
@@ -1040,6 +1041,18 @@ function AppShell() {
                     <Operations />
                   </OperationsRouteErrorBoundary>
                 </ModuleRouteGuard>
+              }
+            />
+            <Route
+              path="/operations/overtime"
+              element={<Navigate to="/overtime" replace />}
+            />
+            <Route
+              path="/overtime"
+              element={
+                <OperationsRouteErrorBoundary>
+                  <OvertimeHub />
+                </OperationsRouteErrorBoundary>
               }
             />
             <Route

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banknote, Check, RefreshCw, X } from 'lucide-react';
+import { Banknote, Check, RefreshCw, X, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { formatNgn } from '../../Data/mockData';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -147,13 +148,21 @@ export function ManagerOtApprovalsPanel({ branchId = '' }) {
             Pending store requests · set rate (variance reason if changed) · approve or reject
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase text-amber-900 hover:underline"
-        >
-          <RefreshCw size={12} aria-hidden /> Refresh
-        </button>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase text-amber-900 hover:underline"
+          >
+            <RefreshCw size={12} aria-hidden /> Refresh
+          </button>
+          <Link
+            to="/overtime?tab=approvals"
+            className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase text-amber-900 no-underline hover:underline"
+          >
+            Full hub <ExternalLink size={11} aria-hidden />
+          </Link>
+        </div>
       </div>
 
       {error ? (

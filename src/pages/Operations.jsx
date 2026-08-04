@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   Box,
   Scissors,
@@ -55,7 +55,6 @@ import {
 import { ProductionRowMenu } from '../components/operations/ProductionRowMenu';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import MaterialExceptions from './MaterialExceptions';
-import { OpsOtRequestPanel } from '../components/operations/OpsOtRequestPanel';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -1280,6 +1279,11 @@ const Operations = () => {
       return;
     }
 
+    if (normalized.navigateTo) {
+      navigate(normalized.navigateTo, { replace: true });
+      return;
+    }
+
     if (normalized.notice) {
       showToast(normalized.notice, { variant: 'info' });
     }
@@ -1354,7 +1358,7 @@ const Operations = () => {
   const opsTabs = useMemo(() => {
     const registerBadge =
       (Number(productionQueueStats.noCoil) || 0) + (Number(productionQueueStats.overdue) || 0);
-    const tabs = [
+    return [
       { id: 'overview', icon: <LayoutDashboard size={16} />, label: 'Clear now' },
       {
         id: 'inventory',
@@ -1375,17 +1379,7 @@ const Operations = () => {
         badge: registerBadge,
       },
     ];
-    if (canOtRequest) {
-      tabs.push({ id: 'overtime', icon: <Clock size={16} />, label: 'Overtime pay' });
-    }
-    return tabs;
-  }, [
-    transitOrdersAll.length,
-    pendingMexCount,
-    productionQueueStats.noCoil,
-    productionQueueStats.overdue,
-    canOtRequest,
-  ]);
+  }, [transitOrdersAll.length, pendingMexCount, productionQueueStats.noCoil, productionQueueStats.overdue]);
 
   const storeRestockSettings = useMemo(
     () => normalizeOrgStoreRestock(ws?.snapshot?.orgStoreRestock),
@@ -2109,6 +2103,30 @@ const Operations = () => {
                 movements={ws?.snapshot?.movements || []}
                 branchId={ws?.branchScope || ws?.session?.currentBranchId || ''}
               />
+              {canOtRequest ? (
+                <Link
+                  to="/overtime"
+                  className="mt-4 flex flex-col gap-2 rounded-2xl border border-teal-200/80 bg-gradient-to-br from-teal-50/90 via-white to-slate-50 px-5 py-5 no-underline shadow-sm transition hover:border-teal-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:px-6"
+                  data-testid="ops-open-overtime-hub"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zarewa-teal">
+                      Dedicated space
+                    </p>
+                    <p className="mt-1 flex items-center gap-2 text-base font-black tracking-tight text-slate-900">
+                      <Clock size={18} className="shrink-0 text-zarewa-teal" aria-hidden />
+                      Overtime pay hub
+                    </p>
+                    <p className="mt-1 max-w-xl text-xs text-slate-600">
+                      Raise OT pay requests, track pending BM approvals and paid history — open workspace, not
+                      a cramped tab.
+                    </p>
+                  </div>
+                  <span className="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl bg-zarewa-teal px-4 py-2.5 text-ui-xs font-bold uppercase tracking-wide text-white">
+                    Open overtime <ChevronRight size={14} aria-hidden />
+                  </span>
+                </Link>
+              ) : null}
             </MainPanel>
           </div>
         ) : null}
@@ -2886,14 +2904,6 @@ const Operations = () => {
         {activeTab === 'materialExceptions' ? (
           <div className="col-span-full order-2">
             <MaterialExceptions embedded initialView="register" focusIncidentId={materialIncidentFocusId} />
-          </div>
-        ) : null}
-
-        {activeTab === 'overtime' && canOtRequest ? (
-          <div className="col-span-full order-2">
-            <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !backdrop-blur-none border !border-solid !p-4 sm:!p-5 md:!p-6 overflow-hidden">
-              <OpsOtRequestPanel />
-            </MainPanel>
           </div>
         ) : null}
 
