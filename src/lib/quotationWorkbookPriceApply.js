@@ -6,7 +6,8 @@
  * Default unit price = published/suggested list. Sales may edit above list freely.
  * Below-floor quotes stay editable (MD approval gates cutting list / production).
  * Auto-refresh only fills empty lines or lines still on the previous list default;
- * it must not overwrite a custom unit price.
+ * it must not overwrite a custom unit price. recommendedPricePerMeter tracks the
+ * resolved list unit (published preferred), so re-publish can roll list-tracking lines forward.
  */
 
 import { isMeterSheetProductLine } from './materialWorkbookQuotationPrice.js';
@@ -51,8 +52,9 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
       isQuotationTrimProductLine(name) && !row.girthMm && girthMm ? girthMm : row.girthMm;
     const listUnit = String(price);
     const nextFloorStr = wbMeta?.floorPerMeter != null ? String(wbMeta.floorPerMeter) : '';
-    const nextRecStr =
-      wbMeta?.suggestedListPerMeter != null ? String(wbMeta.suggestedListPerMeter) : '';
+    // Track the resolved list default (published list preferred over draft workbook).
+    // Storing workbook-only suggested when unit is published breaks roll-forward after re-publish.
+    const nextRecStr = listUnit;
     const prevFloorStr =
       row.floorPricePerMeter != null && row.floorPricePerMeter !== ''
         ? String(row.floorPricePerMeter)
@@ -69,7 +71,7 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
     const shouldApplyListDefault = emptyUnit || trackingListDefault;
     const nextUnit = shouldApplyListDefault ? listUnit : prevUnit;
     const floorSame = nextFloorStr === '' || prevFloorStr === nextFloorStr;
-    const recSame = nextRecStr === '' || prevRecStr === nextRecStr;
+    const recSame = prevRecStr === nextRecStr;
     if (
       prevUnit === nextUnit &&
       String(row.girthMm ?? '') === String(nextGirthMm ?? '') &&
@@ -84,9 +86,7 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
       unitPrice: nextUnit,
       ...(nextGirthMm && nextGirthMm !== row.girthMm ? { girthMm: nextGirthMm } : {}),
       ...(wbMeta?.floorPerMeter ? { floorPricePerMeter: wbMeta.floorPerMeter } : {}),
-      ...(wbMeta?.suggestedListPerMeter
-        ? { recommendedPricePerMeter: wbMeta.suggestedListPerMeter }
-        : {}),
+      recommendedPricePerMeter: price,
     };
   });
   return anyChange ? next : prev;

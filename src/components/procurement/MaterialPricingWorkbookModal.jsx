@@ -907,11 +907,16 @@ export function MaterialPricingWorkbook({
       `Published ${n} row(s) to the price list. Review Material Exceptions for quotes below floor.`
     );
     setPublishPreviewOpen(false);
-    // Prefer skipping ws.refresh — quote screens pick up floors on next navigation/load.
-    // If live quote screens must update immediately without leaving the page, re-enable:
-    // if (typeof ws?.refresh === 'function') { try { await ws.refresh(); } catch { /* non-fatal */ } }
+    // Refresh workspace so quotations immediately resolve from updated price_list_items.
+    if (typeof ws?.refresh === 'function') {
+      try {
+        await ws.refresh();
+      } catch {
+        /* non-fatal — next navigation still reloads prices */
+      }
+    }
     void loadSheet();
-  }, [branchId, publishing, materialKey, showToast, loadSheet]);
+  }, [branchId, publishing, materialKey, showToast, loadSheet, ws]);
 
   const addRidgeRow = () => {
     setRidgeCalcRows((prev) => [...prev, { id: newCalcRowId(), gaugeMm: '', materialKey: 'alu' }]);

@@ -13,9 +13,24 @@ describe('quotation workbook price refresh', () => {
   });
 
   it('returns the same array reference when prices are already applied', () => {
-    const rows = [{ id: '1', name: 'Roofing Sheet', unitPrice: '4500' }];
+    const rows = [
+      {
+        id: '1',
+        name: 'Roofing Sheet',
+        unitPrice: '4500',
+        recommendedPricePerMeter: 4500,
+      },
+    ];
     const out = applyWorkbookPricesToProductRows(rows, ctx(4500));
     expect(out).toBe(rows);
+  });
+
+  it('stamps recommended from resolved list so re-publish can roll list defaults forward', () => {
+    const rows = [{ id: '1', name: 'Roofing Sheet', unitPrice: '4500' }];
+    const once = applyWorkbookPricesToProductRows(rows, ctx(4500));
+    expect(once[0].recommendedPricePerMeter).toBe(4500);
+    // Second pass must not thrash (React #185).
+    expect(applyWorkbookPricesToProductRows(once, ctx(4500))).toBe(once);
   });
 
   it('updates when the workbook price differs', () => {

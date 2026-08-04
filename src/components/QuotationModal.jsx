@@ -66,6 +66,7 @@ import {
 import { apiFetch } from '../lib/apiBase';
 import { appConfirm } from '../lib/appConfirm';
 import {
+  designKeysToTry,
   materialKeyFromMaterialTypeRow,
   resolveMaterialWorkbookPriceFromRows,
 } from '../lib/materialWorkbookQuotationPrice';
@@ -1584,7 +1585,8 @@ const QuotationModal = ({
       let publishedListN = 0;
       if (usesWorkbook && priceListItems.length > 0) {
         const gaugeK = gaugeMmKeyFromQuotationGauge(gaugeForLine);
-        const designK = stoneFlatSheet ? '' : pricingNormKey(materialDesign);
+        // Match publish keys (e.g. "longspan") and UI labels (e.g. "Long Span").
+        const designKeys = stoneFlatSheet ? [] : designKeysToTry(materialDesign);
 
         let bestScore = -1;
         let bestN = 0;
@@ -1596,7 +1598,10 @@ const QuotationModal = ({
 
           if (rb && branchId && rb !== branchId) continue;
           if (gaugeK && rg && rg !== gaugeK) continue;
-          if (designK && rd && rd !== designK) continue;
+          const designHit = designKeys.length
+            ? Boolean(rd && designKeys.some((dk) => dk === rd || dk.replace(/ /g, '') === rd.replace(/ /g, '')))
+            : !rd;
+          if (designKeys.length && rd && !designHit) continue;
           if (rmt && materialKey) {
             if (rmt !== materialKey && !materialKey.includes(rmt) && !rmt.includes(materialKey)) continue;
           } else if (rmt && !materialKey) {
@@ -1608,7 +1613,7 @@ const QuotationModal = ({
 
           let score = 0;
           if (gaugeK && rg === gaugeK) score += 4;
-          if (designK && rd === designK) score += 4;
+          if (designHit && rd) score += 4;
           if (rmt && materialKey) score += 2;
           if (rb && branchId) score += 1;
           if (score > bestScore) {
