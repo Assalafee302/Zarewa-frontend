@@ -17,6 +17,7 @@ import {
   Scale,
   Search,
   Printer,
+  Clock,
 } from 'lucide-react';
 
 import { metreVarianceExceedsThreshold } from '../lib/productionMetreVariance';
@@ -54,6 +55,7 @@ import {
 import { ProductionRowMenu } from '../components/operations/ProductionRowMenu';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import MaterialExceptions from './MaterialExceptions';
+import { OpsOtRequestPanel } from '../components/operations/OpsOtRequestPanel';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -649,6 +651,7 @@ const Operations = () => {
       ws?.hasPermission?.('operations.manage') ||
       ws?.hasPermission?.('production.manage')
   );
+  const canOtRequest = Boolean(ws?.hasPermission?.('ot.request') || ws?.hasPermission?.('*'));
 
   const [activeTab, setActiveTab] = useState('overview');
   const [specBoardFilter, setSpecBoardFilter] = useState(
@@ -1351,7 +1354,7 @@ const Operations = () => {
   const opsTabs = useMemo(() => {
     const registerBadge =
       (Number(productionQueueStats.noCoil) || 0) + (Number(productionQueueStats.overdue) || 0);
-    return [
+    const tabs = [
       { id: 'overview', icon: <LayoutDashboard size={16} />, label: 'Clear now' },
       {
         id: 'inventory',
@@ -1372,7 +1375,17 @@ const Operations = () => {
         badge: registerBadge,
       },
     ];
-  }, [transitOrdersAll.length, pendingMexCount, productionQueueStats.noCoil, productionQueueStats.overdue]);
+    if (canOtRequest) {
+      tabs.push({ id: 'overtime', icon: <Clock size={16} />, label: 'Overtime pay' });
+    }
+    return tabs;
+  }, [
+    transitOrdersAll.length,
+    pendingMexCount,
+    productionQueueStats.noCoil,
+    productionQueueStats.overdue,
+    canOtRequest,
+  ]);
 
   const storeRestockSettings = useMemo(
     () => normalizeOrgStoreRestock(ws?.snapshot?.orgStoreRestock),
@@ -2873,6 +2886,14 @@ const Operations = () => {
         {activeTab === 'materialExceptions' ? (
           <div className="col-span-full order-2">
             <MaterialExceptions embedded initialView="register" focusIncidentId={materialIncidentFocusId} />
+          </div>
+        ) : null}
+
+        {activeTab === 'overtime' && canOtRequest ? (
+          <div className="col-span-full order-2">
+            <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !backdrop-blur-none border !border-solid !p-4 sm:!p-5 md:!p-6 overflow-hidden">
+              <OpsOtRequestPanel />
+            </MainPanel>
           </div>
         ) : null}
 

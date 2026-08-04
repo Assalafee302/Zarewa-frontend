@@ -69,6 +69,7 @@ import { FinanceMobileAlertStrip } from "./FinanceMobileAlertStrip";
 import { CashierDeskReports } from "./CashierDeskReports";
 
 import { StaffPaymentsCashierPanel } from "./StaffPaymentsCashierPanel";
+import { CashierOtPayPanel } from "./CashierOtPayPanel";
 
 import { FinanceDeskLiquidityHeader } from "./FinanceDeskLiquidityHeader";
 
@@ -838,6 +839,8 @@ export function FinanceDeskWorkQueues({
               onExpandedChange={setStaffPaymentsExpanded}
             />
           ) : null}
+
+          <CashierOtPayPanel />
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-800 mb-1">

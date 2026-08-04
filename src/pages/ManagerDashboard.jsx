@@ -19,6 +19,7 @@ import { ManagerCustomerIssuesPanel } from '../components/branchManager/ManagerC
 import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyChecklist';
 import { ManagerBreakEvenCard } from '../components/branchManager/ManagerBreakEvenCard';
 import { ManagerOtBoardPanel } from '../components/branchManager/ManagerOtBoardPanel';
+import { ManagerOtApprovalsPanel } from '../components/branchManager/ManagerOtApprovalsPanel';
 import { ManagerOpsHealthPanel } from '../components/branchManager/ManagerOpsHealthPanel';
 import {
   ManagerAnnouncementsPanel,
@@ -335,6 +336,9 @@ const ManagerDashboard = () => {
             <ManagerOtBoardPanel branchId={bm.mgrBranchId} />
             <ManagerOpsHealthPanel branchId={bm.mgrBranchId} />
           </div>
+
+          {/* OT pay approvals — distinct from attendance OT board above */}
+          <ManagerOtApprovalsPanel branchId={bm.mgrBranchId} />
 
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             <ManagerStockRequestsPanel

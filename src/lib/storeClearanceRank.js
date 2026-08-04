@@ -210,6 +210,9 @@ export function normalizeOpsFocusTab(raw) {
   if (t === 'materialexceptions' || t === 'exceptions' || t === 'mex') {
     return { tab: 'materialExceptions' };
   }
+  if (t === 'overtime' || t === 'ot' || t === 'otpay' || t === 'overtime_pay') {
+    return { tab: 'overtime' };
+  }
   if (t === 'coilcontrol') {
     return { tab: 'materialExceptions', notice: 'Coil control is under Exceptions.' };
   }

@@ -42,8 +42,15 @@ export function ManagerOtBoardPanel({ branchId = '' }) {
     <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 overflow-hidden bg-white p-0">
       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
         <div>
-          <h3 className="text-sm font-black tracking-tight text-zarewa-teal">Overtime board</h3>
-          <p className="mt-0.5 text-xs text-slate-500">Worked vs scheduled · {dayIso}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            Attendance · hours only
+          </p>
+          <h3 className="text-sm font-black tracking-tight text-zarewa-teal">
+            Attendance OT board
+          </h3>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Worked vs scheduled · {dayIso} · not OT pay approvals
+          </p>
         </div>
         <button type="button" onClick={() => void load()} className="text-ui-xs font-bold uppercase text-zarewa-teal hover:underline">
           Refresh

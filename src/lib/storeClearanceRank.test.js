@@ -101,5 +101,7 @@ describe('storeClearanceRank', () => {
     expect(normalizeOpsFocusTab('register')).toEqual({ tab: 'production' });
     expect(normalizeOpsFocusTab('deliveries')).toEqual({ tab: 'overview', deliveriesFocus: true });
     expect(normalizeOpsFocusTab('exceptions')?.tab).toBe('materialExceptions');
+    expect(normalizeOpsFocusTab('overtime')?.tab).toBe('overtime');
+    expect(normalizeOpsFocusTab('ot')?.tab).toBe('overtime');
   });
 });
