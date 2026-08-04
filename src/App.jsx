@@ -1045,15 +1045,19 @@ function AppShell() {
             />
             <Route
               path="/operations/overtime"
-              element={<Navigate to="/overtime" replace />}
-            />
-            <Route
-              path="/overtime"
               element={
                 <OperationsRouteErrorBoundary>
                   <OvertimeHub />
                 </OperationsRouteErrorBoundary>
               }
+            />
+            <Route
+              path="/overtime"
+              element={<Navigate to="/operations/overtime" replace />}
+            />
+            <Route
+              path="/overtime/*"
+              element={<Navigate to="/operations/overtime" replace />}
             />
             <Route
               path="/operations/coils/:coilNo"

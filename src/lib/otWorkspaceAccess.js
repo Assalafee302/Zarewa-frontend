@@ -9,7 +9,7 @@ export function userMayAccessOtWorkspace(hasPermission) {
   return OT_PERMS.some((p) => hasPermission(p));
 }
 
-/** Sub-views on /overtime */
+/** Sub-views on /operations/overtime */
 export const OT_HUB_TABS = [
   { id: 'overview', label: 'Overview', perms: OT_PERMS },
   { id: 'requests', label: 'Raise request', perms: ['ot.request'] },

@@ -122,7 +122,7 @@ export function CashierOtPayPanel() {
           <RefreshCw size={12} aria-hidden /> Refresh
         </button>
         <Link
-          to="/overtime?tab=pay"
+          to="/operations/overtime?tab=pay"
           className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase text-teal-900 no-underline hover:underline"
         >
           Full hub <ExternalLink size={11} aria-hidden />

@@ -44,8 +44,8 @@ function KpiCard({ label, value, hint, tone = 'slate' }) {
 }
 
 /**
- * Dedicated Overtime command hub — raise, approve, pay, and track all branch OT intel.
- * Route: /overtime  (?tab=overview|requests|approvals|pay|track)
+ * Operations → Overtime hub — raise, approve, pay, and track branch OT pay.
+ * Route: /operations/overtime  (?tab=overview|requests|approvals|pay|track)
  */
 export default function OvertimeHub() {
   const ws = useWorkspace();
@@ -159,6 +159,7 @@ export default function OvertimeHub() {
   return (
     <PageShell>
       <PageHeader
+        eyebrow="Operations"
         title="Overtime"
         subtitle="Raise · approve · mark paid · track every branch OT pay request"
         tabs={<PageTabs tabs={tabIds} value={activeTab} onChange={setTab} />}
@@ -171,14 +172,12 @@ export default function OvertimeHub() {
             >
               <RefreshCw size={12} aria-hidden /> Refresh
             </button>
-            {ws?.canAccessModule?.('operations') ? (
-              <Link
-                to="/operations"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-bold uppercase text-slate-600 no-underline hover:bg-slate-50"
-              >
-                <ArrowLeft size={12} aria-hidden /> Operations floor
-              </Link>
-            ) : null}
+            <Link
+              to="/operations"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-bold uppercase text-slate-600 no-underline hover:bg-slate-50"
+            >
+              <ArrowLeft size={12} aria-hidden /> Operations floor
+            </Link>
           </div>
         }
       />

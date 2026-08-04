@@ -106,7 +106,7 @@ export function pathToModuleKey(pathname) {
   if (p === '/edit-approvals') return 'edit_approvals';
   if (p === '/sales' || p.startsWith('/customers')) return 'sales';
   if (p === '/procurement' || p.startsWith('/procurement/')) return 'procurement';
-  if (p === '/operations') return 'operations';
+  if (p.startsWith('/operations')) return 'operations';
   if (p === '/cashier' || p.startsWith('/cashier/')) return 'finance';
   if (p === '/accounts' || p.startsWith('/accounts/')) return 'finance';
   if (p === '/accounting' || p.startsWith('/accounting/')) return 'accounting_desk';

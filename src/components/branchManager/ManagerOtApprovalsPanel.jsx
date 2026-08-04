@@ -157,7 +157,7 @@ export function ManagerOtApprovalsPanel({ branchId = '' }) {
             <RefreshCw size={12} aria-hidden /> Refresh
           </button>
           <Link
-            to="/overtime?tab=approvals"
+            to="/operations/overtime?tab=approvals"
             className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase text-amber-900 no-underline hover:underline"
           >
             Full hub <ExternalLink size={11} aria-hidden />
