@@ -18,6 +18,7 @@ import { refundWorkspaceSnapshotFingerprint } from '../../lib/refundWorkspaceSna
 import { isStoneFlatsheetQuotationLine } from '../../lib/stoneCoatedQuotationPolicy';
 import { ConversionRecordPanel } from './ConversionRecordPanel';
 import { DecisionActionBar, DecisionBand } from './DecisionSurface';
+import { refundRequestIsEconomicFloorExempt } from '../../shared/refundConstants.js';
 
 function refundCategoryTokens(value) {
   if (Array.isArray(value)) return value.map((x) => String(x ?? '').trim()).filter(Boolean);
@@ -309,13 +310,18 @@ export function RefundManagerApprovalPreview({
   );
 
   const exceedsEconomicFloorCap = useMemo(() => {
-    const cats = Array.isArray(refund?.reasonCategory)
-      ? refund.reasonCategory
-      : String(refund?.reasonCategory || refund?.reason_category || '')
-          .split(/[,;|]/)
-          .map((x) => x.trim())
-          .filter(Boolean);
-    if (cats.length > 0 && cats.every((c) => String(c).toLowerCase().includes('overpay'))) {
+    const cats = refundCategoryTokens(refund?.reasonCategory ?? refund?.reason_category);
+    const lines = Array.isArray(refund?.calculationLines)
+      ? refund.calculationLines
+      : Array.isArray(refund?.calculation_lines)
+        ? refund.calculation_lines
+        : [];
+    if (
+      refundRequestIsEconomicFloorExempt({
+        categories: cats,
+        calculationLines: lines,
+      })
+    ) {
       return false;
     }
     const ackRaw = refund?.productionAlignmentAckJson ?? refund?.production_alignment_ack_json;
@@ -341,20 +347,27 @@ export function RefundManagerApprovalPreview({
     refundAmountNgn,
     refund?.reasonCategory,
     refund?.reason_category,
+    refund?.calculationLines,
+    refund?.calculation_lines,
     refund?.productionAlignmentAckJson,
     refund?.production_alignment_ack_json,
   ]);
 
   const incompleteFloorBlocksApprove = useMemo(() => {
-    const cats = Array.isArray(refund?.reasonCategory)
-      ? refund.reasonCategory
-      : String(refund?.reasonCategory || refund?.reason_category || '')
-          .split(/[,;|]/)
-          .map((x) => x.trim())
-          .filter(Boolean);
-    const overpaymentOnly =
-      cats.length > 0 && cats.every((c) => String(c).toLowerCase().includes('overpay'));
-    if (overpaymentOnly) return false;
+    const cats = refundCategoryTokens(refund?.reasonCategory ?? refund?.reason_category);
+    const lines = Array.isArray(refund?.calculationLines)
+      ? refund.calculationLines
+      : Array.isArray(refund?.calculation_lines)
+        ? refund.calculation_lines
+        : [];
+    if (
+      refundRequestIsEconomicFloorExempt({
+        categories: cats,
+        calculationLines: lines,
+      })
+    ) {
+      return false;
+    }
     if (!economicFloor?.incompleteFloorPricing) return false;
     if (Number(economicFloor.producedOutputMeters || 0) <= 0) return false;
     const ackRaw = refund?.productionAlignmentAckJson ?? refund?.production_alignment_ack_json;
@@ -370,6 +383,8 @@ export function RefundManagerApprovalPreview({
     canBypassIncompleteFloor,
     refund?.reasonCategory,
     refund?.reason_category,
+    refund?.calculationLines,
+    refund?.calculation_lines,
     refund?.productionAlignmentAckJson,
     refund?.production_alignment_ack_json,
   ]);

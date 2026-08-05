@@ -37,6 +37,7 @@ import {
   MIN_REFUND_QUOTATION_REMAINING_NGN,
   quotationMeetsRefundPickerFloor,
   refundCategoryDisplayLabel,
+  refundRequestIsEconomicFloorExempt,
 } from '../shared/refundConstants.js';
 import { userMayOverrideProductionAlignment, userMayBlockQuotationRefunds, isExecutiveRoleKey } from '../lib/workspaceGovernanceClient';
 import { quotationRefundsBlocked } from '../lib/refundEligibility';
@@ -1566,11 +1567,12 @@ const RefundModal = ({
         .trim()
         .toLowerCase() === 'admin' || isExecutiveRoleKey(ws?.session?.user?.roleKey);
     const floorOverrideNoteOk = productionAlignmentOverrideNote.trim().length >= 10;
-    const overpaymentOnlySubmit =
-      reasonCategory.length > 0 &&
-      reasonCategory.every((c) => String(c || '').trim().toLowerCase().includes('overpay'));
+    const floorExemptSubmit = refundRequestIsEconomicFloorExempt({
+      categories: reasonCategory,
+      calculationLines: form.calculationLines,
+    });
     if (
-      !overpaymentOnlySubmit &&
+      !floorExemptSubmit &&
       maxDefensible != null &&
       Number.isFinite(maxDefensible) &&
       amountNgn > maxDefensible + AMOUNT_LINE_TOL &&
@@ -1590,7 +1592,7 @@ const RefundModal = ({
       return;
     }
     if (
-      !overpaymentOnlySubmit &&
+      !floorExemptSubmit &&
       economicFloor?.incompleteFloorPricing &&
       Number(economicFloor.producedOutputMeters || 0) > 0.001
     ) {
@@ -3062,7 +3064,8 @@ const RefundModal = ({
                             ₦{previewRemainingNgn.toLocaleString('en-NG')}
                           </p>
                           <p className="text-ui-xs text-slate-500 leading-snug mt-0.5">
-                            Cash received on this quote minus refunds already on file.
+                            Live preview reasons still available on this quote, capped by cash after prior
+                            refunds.
                             {exceedsRefundableHeadroom ? ' Lower breakdown lines to continue.' : ''}
                           </p>
                         </div>
@@ -3704,15 +3707,19 @@ const RefundModal = ({
                   </li>
                 ))}
               </ul>
-              {(productionAlignmentIssues.some((i) => i.submitAction === 'block') &&
-                canOverrideProductionAlignment) ||
-              (lastPreviewSnapshot?.economicFloor?.maxDefensibleRefundNgn != null &&
+              {!refundRequestIsEconomicFloorExempt({
+                categories: deriveReasonCategoriesFromLines(form.calculationLines),
+                calculationLines: form.calculationLines,
+              }) &&
+                lastPreviewSnapshot?.economicFloor?.maxDefensibleRefundNgn != null &&
                 Math.round(Number(form.amountNgn) || 0) >
                   Math.round(Number(lastPreviewSnapshot.economicFloor.maxDefensibleRefundNgn)) + 1 &&
                 (String(ws?.session?.user?.roleKey || '')
                   .trim()
                   .toLowerCase() === 'admin' ||
-                  isExecutiveRoleKey(ws?.session?.user?.roleKey))) ? (
+                  isExecutiveRoleKey(ws?.session?.user?.roleKey))) ||
+              (productionAlignmentIssues.some((i) => i.submitAction === 'block') &&
+                canOverrideProductionAlignment) ? (
                 <label className="block">
                   <span className="text-ui-xs font-bold uppercase text-amber-900">
                     Branch manager / MD override note (min 10 characters)
