@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { AlertTriangle, CircleAlert, Info } from 'lucide-react';
 
 const SEVERITY_STYLES = {
@@ -19,8 +19,10 @@ const SEVERITY_STYLES = {
   },
 };
 
+const SEVERITY_RANK = { error: 0, warning: 1, info: 2 };
+
 /**
- * Consolidated, prioritized production issues — clearer than scattered chips.
+ * Consolidated production issues — shows the top blocker first; rest on demand.
  * @param {{
  *   issues: Array<{ id: string; severity: 'error'|'warning'|'info'; title: string; detail: string; actionLabel?: string }>;
  *   compact?: boolean;
@@ -28,8 +30,18 @@ const SEVERITY_STYLES = {
  * }} props
  */
 export function ProductionRegisterIssuesPanel({ issues = [], compact = false, onDiscardUnsavedCoils }) {
-  if (!issues.length) return null;
+  const [showAll, setShowAll] = useState(false);
+  const sorted = useMemo(
+    () =>
+      [...issues].sort(
+        (a, b) => (SEVERITY_RANK[a.severity] ?? 9) - (SEVERITY_RANK[b.severity] ?? 9)
+      ),
+    [issues]
+  );
 
+  if (!sorted.length) return null;
+
+  const visible = showAll ? sorted : sorted.slice(0, 1);
   const textClass = compact ? 'text-xs leading-snug' : 'text-xs leading-snug';
   const padClass = compact ? 'px-2.5 py-2' : 'px-3 py-2.5';
 
@@ -40,9 +52,20 @@ export function ProductionRegisterIssuesPanel({ issues = [], compact = false, on
       aria-live="polite"
       data-testid="production-register-issues-panel"
     >
-      <p className="text-ui-xs font-bold uppercase tracking-wider text-slate-600">Needs attention</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-ui-xs font-bold uppercase tracking-wider text-slate-600">Next step</p>
+        {sorted.length > 1 ? (
+          <button
+            type="button"
+            className="text-ui-xs font-semibold text-slate-500 hover:text-slate-800"
+            onClick={() => setShowAll((v) => !v)}
+          >
+            {showAll ? 'Show less' : `+${sorted.length - 1} more`}
+          </button>
+        ) : null}
+      </div>
       <div className="space-y-1.5">
-        {issues.map((issue) => {
+        {visible.map((issue) => {
           const style = SEVERITY_STYLES[issue.severity] || SEVERITY_STYLES.info;
           const Icon = style.icon;
           return (
@@ -53,9 +76,13 @@ export function ProductionRegisterIssuesPanel({ issues = [], compact = false, on
               <Icon className={`mt-0.5 size-4 shrink-0 ${style.iconClass}`} aria-hidden />
               <div className={`min-w-0 ${textClass}`}>
                 <p className="font-bold">{issue.title}</p>
-                <p className="mt-0.5 opacity-95">{issue.detail}</p>
                 {issue.actionLabel ? (
-                  <p className="mt-1 font-semibold text-inherit">Next: {issue.actionLabel}</p>
+                  <p className="mt-0.5 font-semibold text-inherit">{issue.actionLabel}</p>
+                ) : (
+                  <p className="mt-0.5 opacity-95">{issue.detail}</p>
+                )}
+                {showAll && issue.actionLabel && issue.detail ? (
+                  <p className="mt-0.5 opacity-80">{issue.detail}</p>
                 ) : null}
                 {issue.id === 'unsaved-coils' && typeof onDiscardUnsavedCoils === 'function' ? (
                   <button
@@ -63,7 +90,7 @@ export function ProductionRegisterIssuesPanel({ issues = [], compact = false, on
                     onClick={onDiscardUnsavedCoils}
                     className="mt-2 rounded-md border border-current/25 bg-white/80 px-2 py-1 text-ui-xs font-semibold hover:bg-white"
                   >
-                    Remove unsaved lines from this device
+                    Discard unsaved lines
                   </button>
                 ) : null}
               </div>

@@ -113,12 +113,16 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
       } ${draftRowConversionPreviewReady(row) ? 'ring-1 ring-teal-400/35' : ''}`}
     >
       {hasUnsavedCoilData ? (
-        <p className="mb-1.5 flex items-start gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-ui-xs font-semibold leading-snug text-amber-950">
-          <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
-          <span>
-            Not saved to server — only visible on this device until you select{' '}
-            <strong className="font-bold">{jobSt === 'Planned' ? 'Save and start production' : 'Save while running'}</strong>.
-          </span>
+        <p
+          className="mb-1.5 flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-ui-xs font-semibold text-amber-950"
+          title={
+            jobSt === 'Planned'
+              ? 'Not saved yet — use Save and start production.'
+              : 'Not saved yet — use Save while running.'
+          }
+        >
+          <AlertTriangle size={12} className="shrink-0" aria-hidden />
+          <span>Unsaved</span>
         </p>
       ) : null}
       <div
@@ -226,14 +230,14 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
 
         <div className="flex min-w-0 flex-1 flex-col gap-px">
           <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-            Note
+            Note <span className="font-medium normal-case tracking-normal text-slate-400">(opt.)</span>
           </label>
           <input
             type="text"
             value={row.note}
             onChange={(e) => onFieldChange(row.id, { note: e.target.value })}
             disabled={(readOnly && !canEditCompletedCoilCorrections) || (jobSt === 'Running' && !draftRow && !canCaptureRun)}
-            placeholder="Trim, splice…"
+            placeholder="Optional"
             className="min-h-10 min-w-0 w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-xs font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-1 focus:ring-slate-200/80 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
           />
         </div>
@@ -285,14 +289,14 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
             className="h-[1.125rem] w-[1.125rem] shrink-0 rounded border-amber-400 text-zarewa-teal focus:ring-2 focus:ring-zarewa-teal/30"
           />
           <span className="min-w-0 flex-1 leading-snug">
-            <strong className="font-semibold">Roll finished</strong>
-            <span className="text-amber-900/90"> (tail under {coilTailFinishMaxKg} kg)</span>
+            <strong className="font-semibold">Finish roll</strong>
+            <span className="text-amber-900/90"> (&lt;{coilTailFinishMaxKg} kg)</span>
           </span>
           <button
             type="button"
             className="shrink-0 rounded-full p-1 text-amber-800/80 hover:bg-amber-100"
-            title="Tick only when this coil’s tail under the threshold is unusable spool/core and should be cleared from coil stock. Leave unchecked if usable steel remains on the roll — you can complete without finishing the roll."
-            aria-label="About roll finished"
+            title="Tick only when the tail is unusable and should leave coil stock. Leave unchecked if usable steel remains."
+            aria-label="About finish roll"
           >
             <CircleHelp className="size-4" strokeWidth={2} />
           </button>

@@ -4,7 +4,6 @@ import {
   BarChart3,
   CheckCircle2,
   CircleHelp,
-  ClipboardList,
   FileWarning,
   Gauge,
   Info,
@@ -3212,41 +3211,20 @@ export function LiveProductionMonitor({
                   </summary>
                   <div
                     role="note"
-                    className="absolute left-0 top-full z-30 mt-1.5 w-[min(calc(100vw-2rem),22rem)] rounded-lg border border-slate-200 bg-white p-2.5 text-ui-xs leading-snug text-slate-700 shadow-lg ring-1 ring-black/5 sm:left-auto sm:right-0"
+                    className="absolute left-0 top-full z-30 mt-1.5 w-[min(calc(100vw-2rem),18rem)] rounded-lg border border-slate-200 bg-white p-2.5 text-ui-xs leading-snug text-slate-700 shadow-lg ring-1 ring-black/5 sm:left-auto sm:right-0"
                   >
-                    <p>
-                      Wrong entry before start: edit coils on the Planned job, or use{' '}
-                      <strong className="font-semibold">Recall entry</strong> to cancel and release the cutting list
-                      back to Waiting. Wrong coil after start: <strong className="font-semibold">Recall entry</strong>{' '}
-                      (or Return to plan). Order cancelled: Cancel job. After completion: use{' '}
-                      <strong className="font-semibold">Fix wrong entry</strong> / Save correction — the completed
-                      record cannot be fully reopened.
-                    </p>
-                    <p className="mt-2 border-t border-slate-100 pt-2">
-                      <strong className="font-semibold text-slate-800">Changing coils:</strong> while{' '}
-                      <strong className="font-semibold">Planned</strong>, pick coils and opening kg, then{' '}
-                      <strong className="font-semibold">Save &amp; start</strong> — the server stores the plan and moves
-                      the job to <strong className="font-semibold">Running</strong> in one step (each save replaces the
-                      whole allocation set). After the job is running, use <strong className="font-semibold">Return to plan</strong>{' '}
-                      (reason) to edit primary coils, or <strong className="font-semibold">Save</strong> to add another roll
-                      or persist closing kg / metres between visits. Completed run logs are locked; wrong metres on the FG SKU use{' '}
-                      <strong className="font-semibold">Post stock correction</strong> (manager). High conversion: review
-                      checks, then <strong className="font-semibold">Record manager sign-off</strong> — that does not
-                      rewrite coil readings; contact support for rare posted-coil corrections.
-                    </p>
-                    <p className="mt-2 border-t border-slate-100 pt-2">
-                      {selectedJob.status === 'Cancelled' ? (
-                        <>
-                          <strong className="font-semibold text-slate-800">Cancelled:</strong> reservations were released
-                          when the job was cancelled; no output was posted from this run.
-                        </>
-                      ) : (
-                        <>
-                          <strong className="font-semibold text-slate-800">Stock logic:</strong> reserved kg stays on
-                          the coil until you complete; only consumed kg is deducted. One coil can back several jobs.
-                        </>
-                      )}
-                    </p>
+                    <ul className="list-disc space-y-1 pl-3.5">
+                      <li>
+                        <strong className="font-semibold">Planned:</strong> pick coils → Save &amp; start.
+                      </li>
+                      <li>
+                        <strong className="font-semibold">Wrong entry:</strong> Recall (or Return to plan).
+                      </li>
+                      <li>
+                        <strong className="font-semibold">After complete:</strong> Fix wrong entry / Save correction.
+                      </li>
+                      <li>Reserved kg stays until Complete; only used kg is deducted.</li>
+                    </ul>
                   </div>
                 </details>
               </div>
@@ -3283,7 +3261,7 @@ export function LiveProductionMonitor({
                   {(jobSt === 'Planned' || jobSt === 'Running') &&
                   !selectedJob.startDateISO ? (
                     <label className="text-ui-xs font-semibold text-slate-600">
-                      Production date
+                      Date
                       <input
                         type="date"
                         className="z-input block mt-0.5 py-1 text-xs"
@@ -3293,13 +3271,13 @@ export function LiveProductionMonitor({
                     </label>
                   ) : selectedJob.startDateISO ? (
                     <p className="text-ui-xs text-slate-600">
-                      Started: <strong>{String(selectedJob.startDateISO).slice(0, 10)}</strong>
+                      Started <strong>{String(selectedJob.startDateISO).slice(0, 10)}</strong>
                     </p>
                   ) : null}
                   {jobSt === 'Running' ? (
                     <>
                       <label className="text-ui-xs font-semibold text-slate-600">
-                        Production business date
+                        Business date
                         <input
                           type="date"
                           className="z-input block mt-0.5 py-1 text-xs"
@@ -3308,7 +3286,7 @@ export function LiveProductionMonitor({
                         />
                       </label>
                       <label className="text-ui-xs font-semibold text-slate-600">
-                        Completion date
+                        Complete date
                         <input
                           type="date"
                           className="z-input block mt-0.5 py-1 text-xs"
@@ -3356,7 +3334,7 @@ export function LiveProductionMonitor({
                     >
                       <Save size={14} />
                       <Play size={13} />
-                      {savingAction === 'allocationsAndStart' ? 'Saving and starting…' : 'Save and start production'}
+                      {savingAction === 'allocationsAndStart' ? 'Saving and starting…' : 'Start'}
                     </button>
                   ) : null}
                   {jobSt === 'Running' && !stonePureNoCoil && !completionUsesOffcutMode ? (
@@ -3374,7 +3352,7 @@ export function LiveProductionMonitor({
                       }`}
                     >
                       <Save size={15} />
-                      {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save while running'}
+                      {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save'}
                     </button>
                   ) : null}
                   {jobSt === 'Completed' && canEditCompletedCoilCorrections ? (
@@ -3599,28 +3577,8 @@ export function LiveProductionMonitor({
         >
           <p className="text-ui-xs font-black uppercase tracking-widest text-violet-900/90">Fix wrong entry</p>
           <p className="mt-1 text-xs leading-snug text-violet-950/95">
-            Completed jobs cannot be fully recalled. To correct what was saved:
+            Edit the fields above, then use the matching Save correction action (reason required).
           </p>
-          <ol className="mt-1.5 list-decimal space-y-1 pl-4 text-xs leading-snug text-violet-950/95">
-            {stonePureNoCoil || stoneCoilHybrid ? (
-              <li>
-                For stone-coated roofing, edit <strong className="font-semibold">metres consumed</strong> above,
-                then <strong className="font-semibold">Save stone metres</strong> (reason required; Edit OKs when
-                gated). Enter the correct <em>total</em>, not just the missing amount.
-              </li>
-            ) : null}
-            {!stonePureNoCoil ? (
-              <li>
-                Edit coil lines (coil #, opening/closing kg, metres) above, then{' '}
-                <strong className="font-semibold">Save correction</strong> (reason required; Edit OKs when gated).
-              </li>
-            ) : null}
-            <li>
-              If warehouse finished-goods metres are still wrong, a manager uses{' '}
-              <strong className="font-semibold">Post stock correction</strong> below.
-            </li>
-            <li>Cutting list lengths stay locked after Finished — only production corrections apply.</li>
-          </ol>
           <button
             type="button"
             className="mt-2 text-ui-xs font-semibold text-violet-800 underline-offset-2 hover:underline"
@@ -3649,43 +3607,32 @@ export function LiveProductionMonitor({
         <div className={`border-b border-slate-100 bg-slate-50/70 ${inModal ? 'px-2 py-0.5 sm:px-2.5' : 'px-2 py-1 sm:px-3'}`}>
           <div className={`flex flex-wrap ${inModal ? 'gap-1' : 'gap-1.5'}`}>
             {readOnly && jobSt === 'Cancelled' ? (
-              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs text-slate-600">
-                <Ban size={14} className="mt-0.5 shrink-0 text-slate-600" />
-                Job cancelled — no further production actions; record kept for refunds / audit.
+              <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs text-slate-600">
+                <Ban size={14} className="shrink-0 text-slate-600" />
+                Cancelled
               </span>
             ) : null}
             {readOnly && jobSt !== 'Cancelled' ? (
-              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs text-slate-600">
-                <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-600" />
-                Finished run — review conversion below; actions are off.
+              <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs text-slate-600">
+                <CheckCircle2 size={14} className="shrink-0 text-emerald-600" />
+                Finished
                 {Math.abs(fgAdjTotalM) > 1e-6 ? (
-                  <span className="block w-full pt-0.5 text-slate-500">
-                    Effective output {formatMeters(effectiveOutputM)} (posted {formatMeters(postedOutputM)} + adjustments{' '}
-                    {fgAdjTotalM >= 0 ? '+' : ''}
-                    {formatMeters(fgAdjTotalM)}).
+                  <span className="text-slate-500">
+                    · {formatMeters(effectiveOutputM)} m
                   </span>
                 ) : null}
-              </span>
-            ) : null}
-            {!readOnly && !inModal && productionRegisterIssues.length === 0 ? (
-              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-ui-xs text-slate-600">
-                <ClipboardList size={14} className="mt-0.5 shrink-0 text-slate-500" />
-                <span>
-                  <strong className="text-slate-700">Designed for real teams:</strong> easy steps, spec hints, and
-                  guarded corrections (reasons + permissions) so honest errors are fixable without hiding audit history.
-                </span>
               </span>
             ) : null}
             {canAddSupplementalCoil && !productionRegisterIssues.some((i) => i.id === 'running-next-step') ? (
               <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-ui-xs text-sky-950">
                 <Plus size={14} className="shrink-0" />
-                Mid-run: <strong className="font-semibold">Add coil</strong> if one roll is not enough.
+                Add coil if needed
               </span>
             ) : null}
             {canEditCompletedCoilCorrections ? (
               <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-ui-xs text-teal-950">
                 <Plus size={14} className="shrink-0" />
-                Completed correction: <strong className="font-semibold">Add coil</strong> if a roll was omitted.
+                Add omitted coil
               </span>
             ) : null}
             {!readOnly &&
@@ -3695,9 +3642,7 @@ export function LiveProductionMonitor({
             hasPlannedMeters ? (
               <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-ui-xs font-medium text-emerald-900">
                 <Sparkles size={14} className="shrink-0" />
-                {planProgressPct != null
-                  ? `${planProgressPct}% of planned metres logged — preview updates as you type.`
-                  : 'Ready to preview conversion when all fields are valid.'}
+                {planProgressPct != null ? `${planProgressPct}% of plan` : 'Ready to complete'}
               </span>
             ) : null}
           </div>
@@ -5332,7 +5277,7 @@ export function LiveProductionMonitor({
                 >
                   <Save size={12} />
                   <Play size={11} />
-                  {savingAction === 'allocationsAndStart' ? 'Saving…' : 'Save and start production'}
+                  {savingAction === 'allocationsAndStart' ? 'Saving…' : 'Start'}
                 </button>
               ) : null}
               {jobSt === 'Running' && !stonePureNoCoil && !completionUsesOffcutMode ? (
@@ -5350,7 +5295,7 @@ export function LiveProductionMonitor({
                   }`}
                 >
                   <Save size={12} />
-                  {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save while running'}
+                  {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save'}
                 </button>
               ) : null}
               {jobSt === 'Completed' && canEditCompletedCoilCorrections ? (
@@ -5417,18 +5362,6 @@ export function LiveProductionMonitor({
                   {savingAction === 'completedStoneMetresCorrection' ? 'Saving…' : 'Stone metres'}
                 </button>
               ) : null}
-              {canReportMaterialIncident ? (
-                <button
-                  type="button"
-                  onClick={openProductionMaterialIncident}
-                  disabled={savingAction !== ''}
-                  title="Record coil damage or production scrap — submits for manager approval."
-                  className="inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-ui-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
-                >
-                  <AlertTriangle size={12} />
-                  Material exception
-                </button>
-              ) : null}
               <button
                 type="button"
                 onClick={() => void persist('complete')}
@@ -5450,66 +5383,74 @@ export function LiveProductionMonitor({
                 <CheckCircle2 size={12} />
                 {savingAction === 'complete' ? 'Completing…' : 'Complete'}
               </button>
-              {jobSt === 'Running' && canReturnJobToPlanned ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRecallModalIntent(false);
-                    setReturnModalOpen(true);
-                  }}
-                  disabled={savingAction !== '' || returnSaving}
-                  title="Undo Start: go back to Planned (audit reason required)."
-                  className="inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-ui-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
-                >
-                  <Undo2 size={12} />
-                  Return to plan
-                </button>
-              ) : null}
-              {jobSt === 'Planned' || jobSt === 'Running' || jobSt === 'Completed' ? (
-                <button
-                  type="button"
-                  onClick={() => openRecallEntry()}
-                  disabled={savingAction !== '' || cancelSaving || returnSaving}
-                  title={
-                    jobSt === 'Completed'
-                      ? 'Guide to correct a wrong completed entry.'
-                      : jobSt === 'Running'
-                        ? 'Recall run: return to Planned to re-enter.'
-                        : 'Recall from queue: cancel so cutting list returns to Waiting.'
-                  }
-                  className="inline-flex items-center gap-0.5 rounded-md border border-violet-300 bg-violet-50 px-2 py-0.5 text-ui-xs font-semibold text-violet-950 hover:bg-violet-100 disabled:opacity-45"
-                >
-                  <Undo2 size={12} />
-                  {jobSt === 'Completed' ? 'Fix wrong entry' : 'Recall entry'}
-                </button>
-              ) : null}
-              {canRecalculateJobStock ? (
-                <button
-                  type="button"
-                  onClick={() => void recalculateJobStock()}
-                  disabled={stockRecalcBusy || savingAction !== ''}
-                  title="Reconcile coil on-hand, reserved kg, and raw product stock from this job’s coils."
-                  className="inline-flex items-center gap-0.5 rounded-md border border-teal-300 bg-teal-50 px-2 py-0.5 text-ui-xs font-semibold text-teal-950 hover:bg-teal-100 disabled:opacity-45"
-                >
-                  <RefreshCw size={12} />
-                  {stockRecalcBusy ? 'Recalculating…' : 'Recalc stock'}
-                </button>
-              ) : null}
-              {jobSt === 'Planned' || jobSt === 'Running' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRecallModalIntent(false);
-                    setCancelModalOpen(true);
-                  }}
-                  disabled={savingAction !== '' || cancelSaving || returnSaving}
-                  title="Cancel this job: releases reservations and marks production cancelled."
-                  className="inline-flex items-center gap-0.5 rounded-md border border-rose-300 bg-rose-50 px-2 py-0.5 text-ui-xs font-semibold text-rose-950 hover:bg-rose-100 disabled:opacity-45"
-                >
-                  <Ban size={12} />
-                  Cancel job
-                </button>
-              ) : null}
+              <details className="relative">
+                <summary className="list-none cursor-pointer inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-ui-xs font-semibold text-slate-700 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                  More
+                </summary>
+                <div className="absolute bottom-full right-0 z-40 mb-1 flex min-w-[11rem] flex-col gap-0.5 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                  {canReportMaterialIncident ? (
+                    <button
+                      type="button"
+                      onClick={openProductionMaterialIncident}
+                      disabled={savingAction !== ''}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-left text-ui-xs font-semibold text-amber-950 hover:bg-amber-50 disabled:opacity-45"
+                    >
+                      <AlertTriangle size={12} />
+                      Material exception
+                    </button>
+                  ) : null}
+                  {jobSt === 'Running' && canReturnJobToPlanned ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRecallModalIntent(false);
+                        setReturnModalOpen(true);
+                      }}
+                      disabled={savingAction !== '' || returnSaving}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-left text-ui-xs font-semibold text-amber-950 hover:bg-amber-50 disabled:opacity-45"
+                    >
+                      <Undo2 size={12} />
+                      Return to plan
+                    </button>
+                  ) : null}
+                  {jobSt === 'Planned' || jobSt === 'Running' || jobSt === 'Completed' ? (
+                    <button
+                      type="button"
+                      onClick={() => openRecallEntry()}
+                      disabled={savingAction !== '' || cancelSaving || returnSaving}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-left text-ui-xs font-semibold text-violet-950 hover:bg-violet-50 disabled:opacity-45"
+                    >
+                      <Undo2 size={12} />
+                      {jobSt === 'Completed' ? 'Fix wrong entry' : 'Recall entry'}
+                    </button>
+                  ) : null}
+                  {canRecalculateJobStock ? (
+                    <button
+                      type="button"
+                      onClick={() => void recalculateJobStock()}
+                      disabled={stockRecalcBusy || savingAction !== ''}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-left text-ui-xs font-semibold text-teal-950 hover:bg-teal-50 disabled:opacity-45"
+                    >
+                      <RefreshCw size={12} />
+                      {stockRecalcBusy ? 'Recalculating…' : 'Recalc stock'}
+                    </button>
+                  ) : null}
+                  {jobSt === 'Planned' || jobSt === 'Running' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRecallModalIntent(false);
+                        setCancelModalOpen(true);
+                      }}
+                      disabled={savingAction !== '' || cancelSaving || returnSaving}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-left text-ui-xs font-semibold text-rose-950 hover:bg-rose-50 disabled:opacity-45"
+                    >
+                      <Ban size={12} />
+                      Cancel job
+                    </button>
+                  ) : null}
+                </div>
+              </details>
             </div>
           )}
         </div>

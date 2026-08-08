@@ -50,14 +50,13 @@ export function ProductionRegisterEditModal({
       onClose={onClose}
       showCloseButton={false}
       surface="plain"
-      title="Edit production register"
-      description="Coil allocation, run log, completion, and conversion tools for this cutting list."
+      title="Production register"
+      description="Coil allocation and run completion."
     >
       <div className="z-modal-panel flex h-[min(92dvh,920px)] w-full min-w-0 max-w-[min(56rem,calc(100dvw-1rem))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:h-[min(90dvh,940px)] sm:max-w-[min(64rem,calc(100dvw-1.5rem))] sm:rounded-[28px]">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-teal-100/90 bg-gradient-to-r from-teal-50/50 via-white to-white px-3 py-2.5 sm:px-4">
           <div className="min-w-0 pr-2">
-            <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal/75">Store &amp; production</p>
-            <h2 className="text-[15px] font-bold tracking-tight text-zarewa-teal">Edit production register</h2>
+            <h2 className="text-[15px] font-bold tracking-tight text-zarewa-teal">Production register</h2>
             <p className="mt-0.5 truncate font-mono text-xs font-semibold text-slate-800" title={id}>
               {id || '—'}
             </p>
@@ -106,8 +105,7 @@ export function ProductionRegisterEditModal({
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
           {!id ? (
             <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/70 px-3 py-4 text-xs font-semibold leading-snug text-amber-950">
-              This queue row has no cutting list reference, so the register cannot be loaded. Refresh the workspace and
-              try again — if it persists, open the job from the Coil profile or report the row to support.
+              Missing cutting list id — refresh the workspace and try again.
             </div>
           ) : (
             <LiveProductionMonitor
