@@ -211,7 +211,7 @@ export function normalizeOpsFocusTab(raw) {
     return { tab: 'materialExceptions' };
   }
   if (t === 'overtime' || t === 'ot' || t === 'otpay' || t === 'overtime_pay') {
-    return { tab: 'overview', navigateTo: '/operations/overtime' };
+    return { tab: 'overview', navigateTo: '/manager?inbox=overtime' };
   }
   if (t === 'coilcontrol') {
     return { tab: 'materialExceptions', notice: 'Coil control is under Exceptions.' };

@@ -36,6 +36,7 @@ import { ManagerOperationsTab } from '../components/branchManager/ManagerOperati
 import { ManagerPerformanceTab } from '../components/branchManager/ManagerPerformanceTab';
 import { ManagerSpendTab } from '../components/branchManager/ManagerSpendTab';
 import { ManagementDecisionModal } from '../components/branchManager/ManagementDecisionModal';
+import { OtApprovalDecisionModal } from '../components/branchManager/OtApprovalDecisionModal';
 import {
   ManagementConfirmDialog,
   ManagementRemarkDialog,
@@ -482,6 +483,15 @@ const ManagerDashboard = () => {
         onDecisionComplete={async () => {
           await bm.fetchData?.({ background: true });
           await (bm.ws.refreshEditApprovalsPending?.() ?? Promise.resolve());
+        }}
+      />
+
+      <OtApprovalDecisionModal
+        isOpen={bm.otApprovalModal?.open}
+        requestId={bm.otApprovalModal?.id || ''}
+        onClose={bm.closeOtApprovalModal}
+        onDecisionComplete={async () => {
+          await bm.fetchData?.({ background: true });
         }}
       />
 

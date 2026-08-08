@@ -159,6 +159,7 @@ export function useBranchManagerWorkstation() {
   const [loadingPoAudit, setLoadingPoAudit] = useState(false);
   const [deliveryGateMode, setDeliveryGateMode] = useState('off');
   const [editApprovalModal, setEditApprovalModal] = useState({ open: false, id: '', row: null });
+  const [otApprovalModal, setOtApprovalModal] = useState({ open: false, id: '' });
   const [editApprovalPending, setEditApprovalPending] = useState([]);
   const [conversionSignoffRemark, setConversionSignoffRemark] = useState('');
   const [conversionSignoffEditApprovalId, setConversionSignoffEditApprovalId] = useState('');
@@ -1242,6 +1243,22 @@ export function useBranchManagerWorkstation() {
     setEditApprovalModal({ open: false, id: '', row: null });
   }, []);
 
+  const closeOtApprovalModal = useCallback(() => {
+    setOtApprovalModal({ open: false, id: '' });
+  }, []);
+
+  const openOtApprovalIntel = useCallback((itemOrId) => {
+    const id =
+      typeof itemOrId === 'string'
+        ? itemOrId
+        : itemOrId?.otRequestId || itemOrId?.id || itemOrId?.row?.id || '';
+    const cleaned = String(id || '').replace(/^ot:/, '').trim();
+    if (!cleaned) return;
+    setOtApprovalModal({ open: true, id: cleaned });
+    setActiveTab('attention');
+    setAttentionFilter('overtime');
+  }, []);
+
   const openAttentionItem = useCallback(
     (item) => {
       if (!item) return;
@@ -1279,6 +1296,10 @@ export function useBranchManagerWorkstation() {
       if (kind === 'refunds') {
         setSelectedIntel({ kind: 'refund', refundId: item.refundId || row.refund_id, row: { ...row } });
         stayOnAttention('refunds');
+        return;
+      }
+      if (kind === 'overtime') {
+        openOtApprovalIntel(item);
         return;
       }
       if (kind === 'payments') {
@@ -1321,7 +1342,14 @@ export function useBranchManagerWorkstation() {
         stayOnAttention('procurement');
       }
     },
-    [openEditApprovalIntel, openGovernanceIntel, openMaterialIncidentIntel, openPurchaseOrderIntel, openQuotationIntel]
+    [
+      openEditApprovalIntel,
+      openGovernanceIntel,
+      openMaterialIncidentIntel,
+      openOtApprovalIntel,
+      openPurchaseOrderIntel,
+      openQuotationIntel,
+    ]
   );
 
   /** Snapshot next queue item before refresh so batch decisions can advance. */
@@ -2191,6 +2219,9 @@ export function useBranchManagerWorkstation() {
     openEditApprovalIntel,
     closeEditApprovalModal,
     editApprovalModal,
+    otApprovalModal,
+    openOtApprovalIntel,
+    closeOtApprovalModal,
     canApproveEdits,
     openAttentionItem,
     handleReview,

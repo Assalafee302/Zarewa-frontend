@@ -55,6 +55,7 @@ export const MANAGER_ATTENTION_FILTERS = [
   { key: 'orders', label: 'Orders', kinds: ['clearance', 'production', 'flagged'] },
   { key: 'expenses', label: 'Expenses', kinds: ['payments'] },
   { key: 'refunds', label: 'Refunds', kinds: ['refunds'] },
+  { key: 'overtime', label: 'Overtime', kinds: ['overtime'] },
   { key: 'qc', label: 'Production check', kinds: ['conversions'] },
   { key: 'material', label: 'Material exceptions', kinds: ['material'] },
   { key: 'procurement', label: 'Procurement', kinds: ['purchase_orders', 'purchase_order'] },
@@ -76,6 +77,9 @@ export function pacAttentionRouteFromTab(tabKey) {
   if (k === 'cash_out' || k === 'cash') return { tab: 'attention', attentionFilter: 'expenses' };
   if (k === 'payments' || k === 'expenses' || k === 'expense') return { tab: 'attention', attentionFilter: 'expenses' };
   if (k === 'refunds' || k === 'refund') return { tab: 'attention', attentionFilter: 'refunds' };
+  if (k === 'overtime' || k === 'ot' || k === 'ot_pay' || k === 'otpay') {
+    return { tab: 'attention', attentionFilter: 'overtime' };
+  }
   if (k === 'qc' || k === 'conversions') return { tab: 'attention', attentionFilter: 'qc' };
   if (k === 'material') return { tab: 'attention', attentionFilter: 'material' };
   if (k === 'procurement' || k === 'purchase_orders' || k === 'po') return { tab: 'attention', attentionFilter: 'procurement' };
@@ -110,6 +114,7 @@ export function managerKindShortLabel(kind) {
     flagged: 'flagged',
     refunds: 'refund',
     payments: 'expense',
+    overtime: 'OT pay',
     conversions: 'prod check',
     material: 'stock damage',
     governance: 'risk',
@@ -140,6 +145,7 @@ export function managerKindTone(kind, opts = {}) {
     kind === 'clearance' ||
     kind === 'refunds' ||
     kind === 'payments' ||
+    kind === 'overtime' ||
     kind === 'edit_approvals' ||
     kind === 'edit_approval' ||
     kind === 'purchase_orders' ||

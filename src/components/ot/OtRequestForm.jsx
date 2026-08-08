@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { OT_WORK_TYPES } from '../../lib/otConstants';
 import { OtStaffLinesEditor } from './OtStaffLinesEditor';
-import { OtWorkDetailsFields } from './OtWorkDetailsFields';
 import { OtPaymentCalcFields } from './OtPaymentCalcFields';
 import { OtQuotationPicker, OtPurchaseOrderPicker } from './OtLookups';
 
 /**
- * Ops draft form — create/edit before submit.
+ * Ops draft form — create/edit before submit (modal body).
  */
 export function OtRequestForm({
   form,
@@ -15,6 +14,7 @@ export function OtRequestForm({
   submitError = '',
   onSaveDraft,
   onSubmit,
+  onCancel,
   saving = false,
   mode = 'create',
 }) {
@@ -58,7 +58,7 @@ export function OtRequestForm({
   const err = localErr || submitError;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="min-w-0">
           <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">Work date</span>
@@ -92,14 +92,16 @@ export function OtRequestForm({
           </select>
         </label>
         <label className="min-w-0 sm:col-span-2">
-          <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">Reason</span>
+          <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">
+            Reason / work done
+          </span>
           <textarea
             disabled={disabled}
             rows={2}
             className="z-input mt-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-semibold"
             value={form.reason || ''}
             onChange={(e) => set({ reason: e.target.value })}
-            placeholder="Why OT was required"
+            placeholder="Why OT was needed and what was done"
           />
         </label>
         <label className="flex items-center gap-2 sm:col-span-2 text-sm font-semibold text-slate-700">
@@ -110,7 +112,7 @@ export function OtRequestForm({
             onChange={(e) => set({ approvalBeforeStart: e.target.checked })}
             className="rounded border-slate-300 text-zarewa-teal focus:ring-zarewa-teal"
           />
-          Approval obtained before work start
+          Pre-approved before work started
         </label>
       </div>
 
@@ -132,7 +134,7 @@ export function OtRequestForm({
           />
           <label className="block min-w-0">
             <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">
-              Coil lot ref (optional)
+              Coil lot (optional)
             </span>
             <input
               type="text"
@@ -151,15 +153,11 @@ export function OtRequestForm({
         disabled={disabled}
         onChange={(staffLines) => set({ staffLines })}
       />
-      <OtWorkDetailsFields
-        value={form.workDetails}
-        disabled={disabled}
-        onChange={(workDetails) => set({ workDetails })}
-      />
       <OtPaymentCalcFields
         value={form.paymentLine}
         disabled={disabled}
         onChange={(paymentLine) => set({ paymentLine })}
+        compact
       />
 
       {err ? (
@@ -170,6 +168,16 @@ export function OtRequestForm({
 
       {!disabled ? (
         <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+          {onCancel ? (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={onCancel}
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={saving}
@@ -182,9 +190,9 @@ export function OtRequestForm({
             type="button"
             disabled={saving}
             onClick={() => void handleSubmit()}
-            className="rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-white shadow-sm hover:bg-teal-800 disabled:opacity-50"
+            className="ml-auto rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-white shadow-sm hover:bg-teal-800 disabled:opacity-50"
           >
-            Submit for BM approval
+            {saving ? 'Working…' : 'Submit for BM approval'}
           </button>
         </div>
       ) : null}

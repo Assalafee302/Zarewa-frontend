@@ -28,6 +28,18 @@ export const OT_PAYMENT_CATEGORIES = [
   { id: 'other', label: 'Other' },
 ];
 
+/** Map work type → payment category (avoids asking twice on the form). */
+export function paymentCategoryForWorkType(workType) {
+  switch (String(workType || '')) {
+    case 'production':
+      return 'production_ot';
+    case 'offload':
+      return 'stone_coated_offload';
+    default:
+      return 'other';
+  }
+}
+
 export function otStatusChipClass(status) {
   switch (String(status || '')) {
     case OT_STATUS.DRAFT:
@@ -87,12 +99,13 @@ export function buildOtRequestBody(form) {
       endTime: String(s.endTime || '').trim() || undefined,
     }));
   const paymentLine = {
-    category: String(form.paymentLine?.category || 'other'),
+    category: paymentCategoryForWorkType(form.workType),
     quantity: Number(form.paymentLine?.quantity) || 0,
     rateRequested: Math.round(Number(form.paymentLine?.rateRequested) || 0),
     remarks: String(form.paymentLine?.remarks || '').trim() || undefined,
   };
   const wd = form.workDetails || {};
+  const workDone = String(wd.workDone || form.reason || '').trim() || null;
   return {
     dayIso: form.dayIso,
     workType: form.workType,
@@ -106,7 +119,7 @@ export function buildOtRequestBody(form) {
     staffLines,
     workDetails: {
       materialType: String(wd.materialType || '').trim() || null,
-      workDone: String(wd.workDone || '').trim() || null,
+      workDone,
       quantity: wd.quantity === '' || wd.quantity == null ? null : Number(wd.quantity),
       quantityUnit: String(wd.quantityUnit || '').trim() || null,
       machineArea: String(wd.machineArea || '').trim() || null,

@@ -76,6 +76,8 @@ describe('managerDashboardCore', () => {
     expect(normalizeManagerInboxRoute('governance')).toEqual({ tab: 'attention', attentionFilter: 'governance' });
     expect(normalizeManagerInboxRoute('procurement')).toEqual({ tab: 'attention', attentionFilter: 'procurement' });
     expect(normalizeManagerInboxRoute('edits')).toEqual({ tab: 'attention', attentionFilter: 'edits' });
+    expect(normalizeManagerInboxRoute('overtime')).toEqual({ tab: 'attention', attentionFilter: 'overtime' });
+    expect(normalizeManagerInboxRoute('ot')).toEqual({ tab: 'attention', attentionFilter: 'overtime' });
   });
 
   it('filters attention items by chip', () => {
@@ -84,10 +86,12 @@ describe('managerDashboardCore', () => {
       { id: '2', kind: 'refunds' },
       { id: '3', kind: 'flagged' },
       { id: '4', kind: 'payments' },
+      { id: '5', kind: 'overtime' },
     ];
     expect(filterAttentionItems(items, 'refunds')).toHaveLength(1);
     expect(filterAttentionItems(items, 'expenses')).toHaveLength(1);
     expect(filterAttentionItems(items, 'orders')).toHaveLength(2);
+    expect(filterAttentionItems(items, 'overtime')).toHaveLength(1);
     expect(filterAttentionItems([{ kind: 'staff_purchase_credit' }], 'staff_credit')).toHaveLength(1);
   });
 

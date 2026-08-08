@@ -5,7 +5,13 @@ import { OT_PAYMENT_CATEGORIES } from '../../lib/otConstants';
 /**
  * Requested payment calc only (ops). Approved rate / payable set by BM — cashier never sees editable rates.
  */
-export function OtPaymentCalcFields({ value = {}, onChange, disabled = false, mode = 'request' }) {
+export function OtPaymentCalcFields({
+  value = {},
+  onChange,
+  disabled = false,
+  mode = 'request',
+  compact = false,
+}) {
   const v = value || {};
   const set = (key, raw) => onChange({ ...v, [key]: raw });
 
@@ -37,28 +43,15 @@ export function OtPaymentCalcFields({ value = {}, onChange, disabled = false, mo
 
   return (
     <div className="space-y-3">
-      <h4 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">Payment calculation</h4>
-      <p className="text-ui-xs text-slate-500">
-        Requested rate only — branch manager may change rate at approval; cashier marks paid on locked total.
-      </p>
+      <h4 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">Payment</h4>
+      {!compact ? (
+        <p className="text-ui-xs text-slate-500">
+          Requested rate only — BM may adjust at approval; cashier pays the locked total.
+        </p>
+      ) : null}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <label className="min-w-0 sm:col-span-3">
-          <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">Category</span>
-          <select
-            disabled={disabled}
-            className="z-input mt-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-semibold"
-            value={v.category || 'production_ot'}
-            onChange={(e) => set('category', e.target.value)}
-          >
-            {OT_PAYMENT_CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
         <label className="min-w-0">
-          <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">Quantity (units)</span>
+          <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">Qty (units)</span>
           <input
             type="number"
             min="0"
@@ -70,7 +63,7 @@ export function OtPaymentCalcFields({ value = {}, onChange, disabled = false, mo
           />
         </label>
         <label className="min-w-0">
-          <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">Rate requested (₦)</span>
+          <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">Rate (₦)</span>
           <input
             type="number"
             min="0"
@@ -86,14 +79,16 @@ export function OtPaymentCalcFields({ value = {}, onChange, disabled = false, mo
           <p className="text-lg font-black tabular-nums text-zarewa-teal">{formatNgn(estimated)}</p>
         </div>
         <label className="min-w-0 sm:col-span-3">
-          <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">Remarks</span>
+          <span className="z-field-label text-ui-xs font-bold uppercase text-slate-500">
+            Remarks (optional)
+          </span>
           <input
             type="text"
             disabled={disabled}
             className="z-input mt-1 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-semibold"
             value={v.remarks || ''}
             onChange={(e) => set('remarks', e.target.value)}
-            placeholder="Units explanation (e.g. 4 staff-hours)"
+            placeholder="e.g. 4 staff-hours"
           />
         </label>
       </div>

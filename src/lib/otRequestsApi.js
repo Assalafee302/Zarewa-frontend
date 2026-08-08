@@ -36,6 +36,10 @@ export async function updateOtRequest(id, body) {
   });
 }
 
+export async function deleteOtRequest(id) {
+  return apiFetch(`/api/ot/requests/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 export async function submitOtRequest(id) {
   return apiFetch(`/api/ot/requests/${encodeURIComponent(id)}/submit`, {
     method: 'POST',
