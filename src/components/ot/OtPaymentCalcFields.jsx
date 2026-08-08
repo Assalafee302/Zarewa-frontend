@@ -23,7 +23,7 @@ export function OtPaymentCalcFields({ value = {}, onChange, disabled = false, mo
           {OT_PAYMENT_CATEGORIES.find((c) => c.id === v.category)?.label || v.category || '—'}
         </p>
         <p className="text-xs text-slate-600 tabular-nums">
-          Qty {v.quantity ?? '—'} × ₦{Number(v.rateApproved ?? v.rateRequested || 0).toLocaleString()}
+          Qty {v.quantity ?? '—'} × ₦{Number(v.rateApproved ?? v.rateRequested ?? 0).toLocaleString()}
         </p>
         {v.amountNgn != null ? (
           <p className="text-base font-black text-zarewa-teal tabular-nums">{formatNgn(v.amountNgn)}</p>
