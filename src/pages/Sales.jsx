@@ -131,6 +131,7 @@ import {
   refundOutstandingAmount,
   approvedRefundsAwaitingPayment,
   userMayApproveRefundRequests,
+  refundHasCreditConfirmation,
 } from '../lib/refundsStore';
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
@@ -2223,6 +2224,11 @@ const Sales = () => {
                             r.status === 'Approved' && outstandingAmountNgn > 0
                               ? `Bal ${formatNgn(outstandingAmountNgn)}`
                               : null,
+                            refundHasCreditConfirmation(r)
+                              ? `Credit confirmation ${formatNgn(r.creditAppliedNgn || 0)}${
+                                  r.creditAppliedToQuotationRef ? ` → ${r.creditAppliedToQuotationRef}` : ''
+                                }`
+                              : null,
                           ]
                             .filter(Boolean)
                             .join(' · ');
@@ -2246,6 +2252,11 @@ const Sales = () => {
                                       <span className={`${CHIP} ${refundStatusChipClass(r.status)}`}>
                                         {r.status}
                                       </span>
+                                      {refundHasCreditConfirmation(r) ? (
+                                        <span className={`${CHIP} bg-sky-100 text-sky-800`} title="Applied to another quotation">
+                                          Credit confirmation
+                                        </span>
+                                      ) : null}
                                       <SalesRowMenu
                                         rowKey={`rf-${r.refundID}`}
                                         openKey={actionMenuKey}

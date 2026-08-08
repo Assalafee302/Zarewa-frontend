@@ -172,6 +172,9 @@ const ReceiptModal = ({
   const modeBadgeLabel = readOnly ? 'View only' : 'Post new money';
 
   const [quotationRef, setQuotationRef] = useState('');
+  const [applyRefundCredit, setApplyRefundCredit] = useState(false);
+  const [refundCreditInfo, setRefundCreditInfo] = useState(null);
+  const [refundCreditLoading, setRefundCreditLoading] = useState(false);
   const [receiptEditApprovalId, setReceiptEditApprovalId] = useState('');
   const [voucherDate, setVoucherDate] = useState('');
   const [remarks, setRemarks] = useState('');
@@ -461,6 +464,55 @@ const ReceiptModal = ({
     return amountDueOnQuotation(quotationRowForPayments);
   }, [quotationRowForPayments]);
 
+  useEffect(() => {
+    if (!isOpen || readOnly || !useLedgerApi || !isAddPayment || isExistingPayment) {
+      setRefundCreditInfo(null);
+      setApplyRefundCredit(false);
+      return;
+    }
+    const cid = String(customerID || '').trim();
+    const qid = String(quotationRef || '').trim();
+    if (!cid || !qid) {
+      setRefundCreditInfo(null);
+      setApplyRefundCredit(false);
+      return;
+    }
+    let cancelled = false;
+    setRefundCreditLoading(true);
+    (async () => {
+      const { ok, data } = await apiFetch(
+        `/api/ledger/refund-credit-eligible?customerID=${encodeURIComponent(cid)}&targetQuotationRef=${encodeURIComponent(qid)}`
+      );
+      if (cancelled) return;
+      setRefundCreditLoading(false);
+      if (!ok || !data?.ok || !(Number(data.recommendedApplyNgn) > 0)) {
+        setRefundCreditInfo(null);
+        setApplyRefundCredit(false);
+        return;
+      }
+      setRefundCreditInfo(data);
+    })().catch(() => {
+      if (!cancelled) {
+        setRefundCreditLoading(false);
+        setRefundCreditInfo(null);
+        setApplyRefundCredit(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, readOnly, useLedgerApi, isAddPayment, isExistingPayment, customerID, quotationRef, ledgerNonce]);
+
+  const recommendedCreditApplyNgn = useMemo(() => {
+    if (!applyRefundCredit || !refundCreditInfo) return 0;
+    return Math.max(0, Math.round(Number(refundCreditInfo.recommendedApplyNgn) || 0));
+  }, [applyRefundCredit, refundCreditInfo]);
+
+  const cashDueAfterCreditNgn = useMemo(() => {
+    if (dueNgn == null) return null;
+    return Math.max(0, Math.round(Number(dueNgn) || 0) - recommendedCreditApplyNgn);
+  }, [dueNgn, recommendedCreditApplyNgn]);
+
   const lineTotalNgn = useMemo(
     () => paymentLines.reduce((s, l) => s + parseNum(l.amount), 0),
     [paymentLines]
@@ -640,7 +692,7 @@ const ReceiptModal = ({
   const saveReceipt = async (e) => {
     e.preventDefault();
     if (readOnly) return;
-    if (!bankDepositId && treasuryList.length === 0) {
+    if (!bankDepositId && treasuryList.length === 0 && recommendedCreditApplyNgn <= 0) {
       showToast('Configure treasury accounts first.', { variant: 'error' });
       return;
     }
@@ -657,18 +709,25 @@ const ReceiptModal = ({
       showToast('This quotation has no customer on file.', { variant: 'error' });
       return;
     }
+    const creditApplyNgn = recommendedCreditApplyNgn;
     const validLines = paymentLines.filter((l) => parseNum(l.amount) > 0);
-    if (validLines.length === 0) {
+    if (validLines.length === 0 && creditApplyNgn <= 0) {
       showToast('Enter at least one payment amount.', { variant: 'error' });
       return;
     }
     const total = validLines.reduce((s, l) => s + parseNum(l.amount), 0);
-    if (total <= 0) {
+    if (total <= 0 && creditApplyNgn <= 0) {
       showToast('Total must be greater than zero.', { variant: 'error' });
       return;
     }
+    if (creditApplyNgn > 0 && cashDueAfterCreditNgn != null && total > cashDueAfterCreditNgn + 1) {
+      const proceedOver = await appConfirm({
+        message: `Transferable credit will cover ${formatNgn(creditApplyNgn)}. Cash still needed is about ${formatNgn(cashDueAfterCreditNgn)}, but payment lines total ${formatNgn(total)}.\n\nPost the cash lines anyway?`,
+      });
+      if (!proceedOver) return;
+    }
     if (postingRef.current) return;
-    if (receiptGuardSignals.length > 0 && !readOnly) {
+    if (receiptGuardSignals.length > 0 && !readOnly && total > 0) {
       const proceed = await appConfirm({
         message: `Potential duplicate or risky posting detected:\n\n- ${receiptGuardSignals.join('\n- ')}\n\nContinue posting anyway?`,
       });
@@ -688,11 +747,18 @@ const ReceiptModal = ({
       `Customer: ${customerName || '—'}`,
       `Quotation: ${selectedQuotation?.id || quotationRef || '—'}`,
       `Voucher date: ${formatDisplayDate(voucherDate)}`,
-      `Total: ${formatNgn(total)}`,
-      '',
-      'Payment breakdown:',
-      ...paymentBreakdownLines,
     ];
+    if (creditApplyNgn > 0) {
+      summaryParts.push(
+        `Transferable credit apply (optional): ${formatNgn(creditApplyNgn)} → Credit confirmation (no bank clearance)`
+      );
+    }
+    summaryParts.push(`Cash receipt total: ${formatNgn(total)}`, '');
+    if (paymentBreakdownLines.length > 0) {
+      summaryParts.push('Payment breakdown:', ...paymentBreakdownLines);
+    } else if (creditApplyNgn > 0) {
+      summaryParts.push('No new cash lines — credit covers the quotation balance.');
+    }
     if (
       postingHeadroomNgn != null &&
       total > Math.round(Number(postingHeadroomNgn) || 0) + 0.5
@@ -716,16 +782,58 @@ const ReceiptModal = ({
       return `${(l.payeeName || 'Payee').trim()} ${formatNgn(parseNum(l.amount))} ${accBit}`.trim();
     });
     const bankReference = [refParts.join(' | '), remarks.trim()].filter(Boolean).join(' — ');
-    const firstAcc = treasuryAccountForLine(validLines[0], treasuryByIdStr, treasuryList);
+    const firstAcc = validLines.length
+      ? treasuryAccountForLine(validLines[0], treasuryByIdStr, treasuryList)
+      : null;
     const paymentMethod =
-      validLines.length === 1 && firstAcc
-        ? `${firstAcc.type} — ${firstAcc.name}`
-        : `Split (${validLines.length} lines)`;
+      validLines.length === 0
+        ? 'Credit apply'
+        : validLines.length === 1 && firstAcc
+          ? `${firstAcc.type} — ${firstAcc.name}`
+          : `Split (${validLines.length} lines)`;
 
     postingRef.current = true;
     setIsPosting(true);
     try {
       if (useLedgerApi) {
+        if (creditApplyNgn > 0) {
+          const creditKey =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `rca-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+          const creditRes = await apiFetch('/api/ledger/apply-refund-credit', {
+            method: 'POST',
+            body: JSON.stringify({
+              customerID,
+              targetQuotationRef: selectedQuotation.id,
+              quotationRef: selectedQuotation.id,
+              amountNgn: creditApplyNgn,
+              dateISO: voucherDate,
+              sourceIds: Array.isArray(refundCreditInfo?.sources)
+                ? refundCreditInfo.sources.map((s) => s.id).filter(Boolean)
+                : undefined,
+            }),
+            headers: { 'Idempotency-Key': creditKey },
+          });
+          if (!creditRes.ok || !creditRes.data?.ok) {
+            setPostingHint(guidanceForLedgerPostFailure(creditRes.data) || null);
+            showToast(
+              formatLedgerApiError(creditRes.data, creditRes.status, 'Could not apply transferable credit.'),
+              { variant: 'error' }
+            );
+            return;
+          }
+          showToast(
+            `${formatNgn(creditRes.data.appliedNgn || creditApplyNgn)} credit applied — Credit confirmation (not for bank clearance).`
+          );
+          if (total <= 0) {
+            setPostingHint(null);
+            await onLedgerChange?.();
+            abandonUnsavedAndRun(() => onClose());
+            return;
+          }
+        }
+
         let linesForTreasury = validLines;
         const cashNeeded = Math.max(0, total - depositCoverNgn);
         if (activeBankDepositId && cashNeeded <= 0) {
@@ -914,7 +1022,12 @@ const ReceiptModal = ({
 
   const displayTotal = selectedQuotation?.totalNgn ?? 0;
   const displayPaid = quotationRowForPayments?.paidNgn ?? selectedQuotation?.paidNgn ?? 0;
-  const displayBalance = dueNgn != null ? dueNgn : Math.max(0, displayTotal - displayPaid);
+  const displayBalance =
+    cashDueAfterCreditNgn != null
+      ? cashDueAfterCreditNgn
+      : dueNgn != null
+        ? dueNgn
+        : Math.max(0, displayTotal - displayPaid);
 
   const receiptIdPreview = isExistingPayment
     ? editData.id
@@ -1191,6 +1304,46 @@ const ReceiptModal = ({
                     <span className="xl:hidden font-bold text-emerald-700 tabular-nums">
                       {formatNgn(displayBalance)} due
                     </span>
+                  </div>
+                ) : null}
+                {!readOnly && useLedgerApi && isAddPayment && !isExistingPayment && refundCreditLoading ? (
+                  <p className="sm:col-span-2 text-ui-xs text-slate-500">Checking transferable credit…</p>
+                ) : null}
+                {!readOnly &&
+                useLedgerApi &&
+                isAddPayment &&
+                !isExistingPayment &&
+                refundCreditInfo &&
+                Number(refundCreditInfo.recommendedApplyNgn) > 0 ? (
+                  <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2.5 text-ui-xs text-slate-800 space-y-2">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={applyRefundCredit}
+                        onChange={(e) => setApplyRefundCredit(e.target.checked)}
+                      />
+                      <span>
+                        <span className="font-bold text-amber-900">Recommendation (optional): </span>
+                        Apply {formatNgn(refundCreditInfo.recommendedApplyNgn)} transferable credit to this
+                        quotation. Leftover stays refundable on the older job. Applied amount is{' '}
+                        <span className="font-semibold">Credit confirmation</span> — not bank clearance, not
+                        refundable again.
+                      </span>
+                    </label>
+                    <ul className="pl-6 list-disc text-slate-600 space-y-0.5">
+                      {(refundCreditInfo.sources || []).slice(0, 4).map((s) => (
+                        <li key={s.id}>
+                          {s.label}: {formatNgn(s.availableNgn)}
+                          {s.overpaymentOnly ? ' · overpayment (no approval)' : ' · approved refund'}
+                        </li>
+                      ))}
+                    </ul>
+                    {applyRefundCredit ? (
+                      <p className="pl-6 font-semibold text-emerald-800">
+                        Cash still needed after credit: {formatNgn(cashDueAfterCreditNgn ?? 0)}
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

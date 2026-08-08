@@ -1921,7 +1921,17 @@ const RefundModal = ({
                 </span>
               </div>
               <p className="text-xs font-medium text-slate-500">
-                {record?.refundID ? `${record.refundID} · ${record.status}` : 'All refunds must be linked to a Completed quotation'}
+                {record?.refundID
+                  ? `${record.refundID} · ${record.status}${
+                      record.creditConfirmationStatus || Number(record.creditAppliedNgn) > 0
+                        ? ` · Credit confirmation${
+                            record.creditAppliedToQuotationRef
+                              ? ` → ${record.creditAppliedToQuotationRef}`
+                              : ''
+                          }`
+                        : ''
+                    }`
+                  : 'All refunds must be linked to a Completed quotation'}
               </p>
             </div>
           </div>

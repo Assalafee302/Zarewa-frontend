@@ -137,6 +137,13 @@ export function normalizeRefund(r) {
     payeeBankName: String(r.payeeBankName ?? r.payee_bank_name ?? '').trim(),
     payoutHistory: Array.isArray(r.payoutHistory) ? r.payoutHistory.map(normalizePayoutLine) : [],
     outstandingAmountNgn: effectiveOutstandingNgn(approvedAmountNgn, paidAmountNgn),
+    creditAppliedNgn: Math.round(Number(r.creditAppliedNgn ?? r.credit_applied_ngn) || 0),
+    creditAppliedToQuotationRef: String(
+      r.creditAppliedToQuotationRef ?? r.credit_applied_to_quotation_ref ?? ''
+    ).trim(),
+    creditConfirmationStatus: String(
+      r.creditConfirmationStatus ?? r.credit_confirmation_status ?? ''
+    ).trim(),
     quotationRefundsBlockedAtISO:
       r.quotationRefundsBlockedAtISO ?? r.quotation_refunds_blocked_at_iso ?? null,
     quotationRefundsBlockedReason:
@@ -165,8 +172,17 @@ export function isRefundHanging(r) {
 /** Amount still open on a hanging refund (requested for Pending; unpaid approved for payable). */
 export function hangingRefundOpenAmountNgn(r) {
   if (!isRefundHanging(r)) return 0;
-  if (r.status === 'Pending') return Math.round(Number(r.amountNgn) || 0);
+  if (r.status === 'Pending') {
+    const requested = Math.round(Number(r.amountNgn) || 0);
+    const paid = Math.round(Number(r.paidAmountNgn) || 0);
+    return Math.max(0, requested - paid);
+  }
   return refundOutstandingAmount(r);
+}
+
+/** True when refund was settled (fully or partly) by credit apply onto another quotation. */
+export function refundHasCreditConfirmation(r) {
+  return Boolean(String(r?.creditConfirmationStatus || '').trim()) || Math.round(Number(r?.creditAppliedNgn) || 0) > 0;
 }
 
 /**
