@@ -273,11 +273,11 @@ describe('RefundModal', () => {
     await waitFor(() => expect(quoteInput).not.toBeDisabled());
     await user.click(quoteInput);
     await user.type(quoteInput, 'QT-SEED');
-    await user.click(await screen.findByRole('button', { name: /QT-SEED · Co · Mary Sales/i }));
+    await user.click(await screen.findByRole('button', { name: /QT-SEED · Co/i }));
     await screen.findByDisplayValue(/Overpayment hint/i);
 
     await user.click(screen.getByTitle('How refunds work'));
-    expect(await screen.findByText(/Suggested amounts are not final/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Pick a quotation/i)).toBeInTheDocument();
 
     expect((await screen.findAllByText(/Test audit flag: verify receipts/i)).length).toBeGreaterThanOrEqual(1);
   });
@@ -346,12 +346,12 @@ describe('RefundModal', () => {
     await waitFor(() => expect(quoteInput).not.toBeDisabled());
     await user.click(quoteInput);
     await user.type(quoteInput, 'QT-SEED');
-    await user.click(await screen.findByRole('button', { name: /QT-SEED · Co · Mary Sales/i }));
+    await user.click(await screen.findByRole('button', { name: /QT-SEED · Co/i }));
 
     await screen.findByDisplayValue(/Line A/i);
 
     await waitFor(() => {
-      expect(screen.getByText(/Refund request total/i)).toBeInTheDocument();
+      expect(screen.getByText(/Refund total/i)).toBeInTheDocument();
       expect(screen.getByText(/₦100/)).toBeInTheDocument();
     });
     expect(

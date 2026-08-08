@@ -441,6 +441,13 @@ const RefundModal = ({
   const [refundsBlockLocal, setRefundsBlockLocal] = useState(null);
   /** `quick` — overpayment-only path; `full` — standard breakdown wizard. */
   const [createPath, setCreatePath] = useState('full');
+  const [quoteDetailsOpen, setQuoteDetailsOpen] = useState(false);
+  const [pasteQuoteIdOpen, setPasteQuoteIdOpen] = useState(false);
+  const [excludedCatsOpen, setExcludedCatsOpen] = useState(false);
+  const [activityTimelineOpen, setActivityTimelineOpen] = useState(false);
+  const [substLineCalcOpen, setSubstLineCalcOpen] = useState(false);
+  const [advancedPricingOpen, setAdvancedPricingOpen] = useState(false);
+  const createPathUserTouchedRef = useRef(false);
 
   const canBlockQuotationRefunds = userMayBlockQuotationRefunds(ws?.session?.user);
   const isAdminRole = String(ws?.session?.user?.roleKey || '').trim().toLowerCase() === 'admin';
@@ -458,7 +465,15 @@ const RefundModal = ({
   }, [createPath]);
 
   useEffect(() => {
-    if (!isOpen) setRefundGuideOpen(false);
+    if (!isOpen) {
+      setRefundGuideOpen(false);
+      setQuoteDetailsOpen(false);
+      setPasteQuoteIdOpen(false);
+      setExcludedCatsOpen(false);
+      setActivityTimelineOpen(false);
+      setSubstLineCalcOpen(false);
+      setAdvancedPricingOpen(false);
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -543,6 +558,13 @@ const RefundModal = ({
     setProductionAlignmentOverrideNote('');
     setApprovalEditMode(false);
     setCreatePath('full');
+    createPathUserTouchedRef.current = false;
+    setQuoteDetailsOpen(false);
+    setPasteQuoteIdOpen(false);
+    setExcludedCatsOpen(false);
+    setActivityTimelineOpen(false);
+    setSubstLineCalcOpen(false);
+    setAdvancedPricingOpen(false);
 
     if (mode === 'create') {
       void fetchEligibleQuotes();
@@ -896,6 +918,13 @@ const RefundModal = ({
         appliesToCategories: s.appliesToCategories,
       }));
 
+      const overpayAmtForPath = Math.round(Number(preview.overpaymentExcessNgn) || 0);
+      if (!createPathUserTouchedRef.current) {
+        const nextPath = overpayAmtForPath > 0 ? 'quick' : 'full';
+        createPathRef.current = nextPath;
+        setCreatePath(nextPath);
+      }
+
       if (createPathRef.current === 'quick') {
         const overpayRows = breakdownRows.filter((r) => String(r.category || '').trim() === 'Overpayment');
         const overpayAmt = Math.round(Number(preview.overpaymentExcessNgn) || 0);
@@ -949,6 +978,7 @@ const RefundModal = ({
   const resetPreviewStateForQuoteChange = useCallback(() => {
     productionFingerprintRef.current = '';
     previewLoadedForQuoteRef.current = '';
+    createPathUserTouchedRef.current = false;
     setMoneyContext(null);
     setCategorySuggestedMaxNgn(null);
     setPreviewRemainingNgn(null);
@@ -1931,7 +1961,7 @@ const RefundModal = ({
                           }`
                         : ''
                     }`
-                  : 'All refunds must be linked to a Completed quotation'}
+                  : form.quotationRef || 'Select a quotation'}
               </p>
             </div>
           </div>
@@ -1985,32 +2015,19 @@ const RefundModal = ({
                 <Link2 size={18} aria-hidden />
               </div>
               <div className="space-y-3 min-w-0">
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-teal-900">Quotation-linked workflow</p>
-                  <p className="text-xs leading-relaxed text-teal-800/80 font-medium">
-                    Quotation is the mother of all transactions. Selecting a quotation resolves the customer and loads
-                    preview hints (overpayment, metres, services, accessories).{' '}
-                    <span className="font-bold text-teal-900">Suggested amounts are not final</span>—always reconcile with
-                    receipts, production, and delivery before submitting or approving.
-                  </p>
-                </div>
-                <ul className="text-xs leading-relaxed text-teal-900/90 font-medium space-y-1.5 list-disc pl-4 border-t border-teal-200/60 pt-3">
-                  <li>Choose a quotation with payment recorded; the preview fills a breakdown — uncheck lines you do not want.</li>
-                  <li>Agent commission is optional: use “Add commission to preview” if it applies (capped by minimum selling ₦/m).</li>
-                  <li>
-                    Enter Pay to details in the Transaction intelligence column so finance can transfer the refund.
-                  </li>
-                  <li>Submit for approval; after approval, finance records the payout against the refund.</li>
+                <ul className="text-xs leading-relaxed text-teal-900/90 font-medium space-y-1.5 list-disc pl-4">
+                  <li>Pick a quotation — preview fills suggested lines; uncheck any you do not want.</li>
+                  <li>Optional: add agent commission, then enter Pay to details for finance.</li>
+                  <li>Submit for approval; finance records payout after approval.</li>
                 </ul>
                 <div className="border-t border-teal-200/60 pt-3 space-y-1.5">
-                  <p className="text-xs font-bold text-teal-900">Which quotations appear in the list?</p>
                   <RefundEligibilitySummary />
                 </div>
               </div>
             </div>
           ) : null}
 
-          {mode === 'create' && !showApprovalReview ? (
+          {mode === 'create' && !showApprovalReview && form.quotationRef ? (
             <div className="space-y-3">
               <div
                 className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
@@ -2022,6 +2039,7 @@ const RefundModal = ({
                   <button
                     type="button"
                     onClick={() => {
+                      createPathUserTouchedRef.current = true;
                       setCreatePath('quick');
                       const r = String(form.quotationRef || '').trim();
                       if (r) void generatePreview(r, false);
@@ -2038,11 +2056,12 @@ const RefundModal = ({
                         : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-40'
                     }`}
                   >
-                    Quick overpayment
+                    Quick overpay
                   </button>
                   <button
                     type="button"
                     onClick={() => {
+                      createPathUserTouchedRef.current = true;
                       setCreatePath('full');
                       const r = String(form.quotationRef || '').trim();
                       if (r) void generatePreview(r, includeCommissionInPreview);
@@ -2059,8 +2078,7 @@ const RefundModal = ({
               </div>
               {createPath === 'quick' && form.quotationRef && !quickOverpayAvailable ? (
                 <p className="text-xs font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2" role="status">
-                  No overpayment detected on this quotation — switch to <strong>Full refund</strong> for production or
-                  service credits.
+                  No overpayment — switch to Full refund.
                 </p>
               ) : null}
               <RefundCreatePolicyWarnings
@@ -2074,7 +2092,18 @@ const RefundModal = ({
 
           {record?.refundID && !showApprovalReview ? (
             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Activity timeline</p>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 text-left"
+                aria-expanded={activityTimelineOpen}
+                onClick={() => setActivityTimelineOpen((o) => !o)}
+              >
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Activity timeline</p>
+                <span className="text-ui-xs font-semibold text-slate-400">
+                  {activityTimelineOpen ? 'Hide' : 'Show'}
+                </span>
+              </button>
+              {activityTimelineOpen ? (
               <ul className="text-xs text-slate-700 space-y-1.5 font-medium">
                 <li>
                   <span className="text-slate-500">Requested</span>{' '}
@@ -2134,6 +2163,7 @@ const RefundModal = ({
                   </li>
                 ) : null}
               </ul>
+              ) : null}
             </div>
           ) : null}
 
@@ -2228,7 +2258,7 @@ const RefundModal = ({
               <div className="p-5 rounded-2xl bg-white border border-slate-200/60 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-2 h-5 bg-rose-500 rounded-full" />
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Step 1: Link Quotation</h3>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Quotation</h3>
                 </div>
 
                 <div className="space-y-4">
@@ -2288,7 +2318,6 @@ const RefundModal = ({
                                 {quotationSearchFiltered.map((q) => {
                                   const ymd = quotationYmdForPickRow(q, quotations);
                                   const dateBit = ymd ? ` · ${ymd}` : '';
-                                  const preparedBy = String(q.handled_by || '').trim();
                                   const remNgn = Math.max(0, Math.round(q.remaining_ngn ?? 0));
                                   const previewHint =
                                     Number(q.suggested_preview_amount_ngn) >= MIN_REFUND_QUOTATION_REMAINING_NGN
@@ -2304,15 +2333,9 @@ const RefundModal = ({
                                     >
                                       <span className="block truncate">
                                         {q.id} · {q.customer_name}
-                                        {preparedBy ? ` · ${preparedBy}` : ''}
                                       </span>
                                       <span className="block text-ui-xs font-medium text-slate-500 truncate">
-                                        ₦{(q.cash_in_ngn ?? q.paid_ngn).toLocaleString()} received
-                                        {q.cash_in_ngn != null && q.cash_in_ngn !== q.paid_ngn
-                                          ? ` (booked ₦${q.paid_ngn.toLocaleString()})`
-                                          : ''}
-                                        {q.total_ngn > 0 ? ` / ₦${q.total_ngn.toLocaleString()} total` : ''}
-                                        {` · ₦${remNgn.toLocaleString()} refundable`}
+                                        ₦{remNgn.toLocaleString()} refundable
                                         {previewHint}
                                         {dateBit}
                                       </span>
@@ -2326,14 +2349,24 @@ const RefundModal = ({
                     </div>
                     {mode === 'create' && !identityLocked ? (
                       <div className="mt-2">
-                        <button
-                          type="button"
-                          disabled={loadingQuotes || manualQuotationVerifyBusy}
-                          onClick={() => void verifyAndApplyQuotationId()}
-                          className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-teal-900 hover:bg-teal-100 disabled:opacity-50"
-                        >
-                          {manualQuotationVerifyBusy ? 'Verifying…' : 'Use quotation id'}
-                        </button>
+                        {!pasteQuoteIdOpen ? (
+                          <button
+                            type="button"
+                            onClick={() => setPasteQuoteIdOpen(true)}
+                            className="text-ui-xs font-bold uppercase tracking-wide text-teal-800 hover:text-teal-950 underline-offset-2 hover:underline"
+                          >
+                            Paste quotation id…
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={loadingQuotes || manualQuotationVerifyBusy}
+                            onClick={() => void verifyAndApplyQuotationId()}
+                            className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-teal-900 hover:bg-teal-100 disabled:opacity-50"
+                          >
+                            {manualQuotationVerifyBusy ? 'Verifying…' : 'Use quotation id'}
+                          </button>
+                        )}
                       </div>
                     ) : null}
                     {manualQuotationVerifyError ? (
@@ -2510,7 +2543,6 @@ const RefundModal = ({
                 </div>
 
                 <div>
-                  <p className={label}>Reason categories (from included lines)</p>
                   <div className="flex flex-wrap gap-1.5 mt-1">
                     {derivedReasonCategories.length ? (
                       derivedReasonCategories.map((c) => (
@@ -2527,16 +2559,28 @@ const RefundModal = ({
                     )}
                   </div>
                   {excludedRefundHints.length > 0 ? (
-                    <p className="mt-2 text-ui-xs leading-snug text-slate-500">
-                      <span className="font-semibold text-slate-600">Unavailable for this quote:</span>{' '}
-                      {excludedRefundHints
-                        .map(({ cat, reason }) =>
-                          reason === 'blocked'
-                            ? `${refundCategoryDisplayLabel(cat)} (e.g. delivered or blocked)`
-                            : `${refundCategoryDisplayLabel(cat)} (already refunded)`
-                        )
-                        .join(' · ')}
-                    </p>
+                    <div className="mt-2">
+                      {!excludedCatsOpen ? (
+                        <button
+                          type="button"
+                          onClick={() => setExcludedCatsOpen(true)}
+                          className="text-ui-xs font-semibold text-slate-500 hover:text-slate-700 underline-offset-2 hover:underline"
+                        >
+                          Unavailable categories…
+                        </button>
+                      ) : (
+                        <p className="text-ui-xs leading-snug text-slate-500">
+                          <span className="font-semibold text-slate-600">Unavailable for this quote:</span>{' '}
+                          {excludedRefundHints
+                            .map(({ cat, reason }) =>
+                              reason === 'blocked'
+                                ? `${refundCategoryDisplayLabel(cat)} (e.g. delivered or blocked)`
+                                : `${refundCategoryDisplayLabel(cat)} (already refunded)`
+                            )
+                            .join(' · ')}
+                        </p>
+                      )}
+                    </div>
                   ) : null}
                 </div>
 
@@ -2587,8 +2631,8 @@ const RefundModal = ({
                                   checked={line.include !== false}
                                   onChange={(e) => setLine(idx, { include: e.target.checked })}
                                   className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                                  aria-label="Include line"
                                 />
-                                <span className="text-ui-xs font-bold uppercase text-slate-500">Include</span>
                               </label>
                             ) : null}
                             <div className="min-w-0 flex-1 space-y-1.5">
@@ -2612,9 +2656,16 @@ const RefundModal = ({
                                 (substitutionBreakdownLineKey &&
                                   line.lineKey === substitutionBreakdownLineKey)) ? (
                                 <div className="rounded-lg border border-sky-100 bg-sky-50/90 px-2.5 py-2 text-ui-xs leading-snug text-slate-700 space-y-1.5">
-                                  <p className="font-bold uppercase tracking-wide text-sky-800/90">
-                                    How this amount is calculated
-                                  </p>
+                                  <button
+                                    type="button"
+                                    className="font-bold uppercase tracking-wide text-sky-800/90 hover:text-sky-950"
+                                    onClick={() => setSubstLineCalcOpen((o) => !o)}
+                                    aria-expanded={substLineCalcOpen}
+                                  >
+                                    {substLineCalcOpen ? 'Hide calculation' : 'Show calculation'}
+                                  </button>
+                                  {substLineCalcOpen ? (
+                                    <>
                                   {substitutionPerMeterBreakdown.map((row, subIdx) => {
                                     const qPpm = Number(row.quotedPricePerMeterNgn || 0);
                                     const coilPpm = Number(row.producedListPricePerMeterNgn || 0);
@@ -2650,11 +2701,8 @@ const RefundModal = ({
                                       </div>
                                     );
                                   })}
-                                  <p className="text-ui-xs text-slate-500 pt-0.5 border-t border-sky-100/80">
-                                    Quoted ₦/m comes from the quotation roofing lines. Coil ₦/m uses the material pricing
-                                    workbook minimum (floor) for the allocated roll when available; otherwise the
-                                    published price list row for that gauge and design.
-                                  </p>
+                                    </>
+                                  ) : null}
                                 </div>
                               ) : null}
                               <div className="flex flex-wrap items-center gap-2">
@@ -2710,7 +2758,7 @@ const RefundModal = ({
                     {mode === 'create' && createAmountDerivedFromLines ? (
                       <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
                         <p className="text-xs font-bold uppercase tracking-wide text-rose-800/80">
-                          Refund request total
+                          Refund total
                         </p>
                         <p
                           className={`mt-1 text-2xl font-black tabular-nums tracking-tighter ${
@@ -2719,18 +2767,15 @@ const RefundModal = ({
                         >
                           ₦{lineSum.toLocaleString('en-NG')}
                         </p>
-                        <p className="mt-1 text-xs font-medium text-rose-900/70">
-                          From included breakdown lines — adjust lines above to change this total.
-                        </p>
                         {exceedsRefundableHeadroom ? (
                           <p className="text-xs font-semibold text-rose-700 mt-2 leading-snug">
                             {categoryCapViolation
-                              ? `${refundCategoryDisplayLabel(categoryCapViolation.cat)} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
+                              ? `${refundCategoryDisplayLabel(categoryCapViolation.cat)} exceeds ₦${categoryCapViolation.cap.toLocaleString('en-NG')}.`
                               : lineArithmeticIssues[0]
                                 ? `Line description does not match amount — implied ₦${lineArithmeticIssues[0].expectedAmountNgn.toLocaleString('en-NG')}.`
                                 : exceedsOverpayLine
-                                  ? `Overpayment line cannot exceed ₦${overpayMaxNgn.toLocaleString('en-NG')} (payment minus quote total on this quotation).`
-                                  : `Included lines exceed cash received on this quotation (max ₦${(refundHardCapNgn ?? 0).toLocaleString('en-NG')} after prior refunds).`}
+                                  ? `Overpayment cannot exceed ₦${overpayMaxNgn.toLocaleString('en-NG')}.`
+                                  : `Exceeds refundable cash (max ₦${(refundHardCapNgn ?? 0).toLocaleString('en-NG')}).`}
                           </p>
                         ) : null}
                         <input type="hidden" name="amountNgn" value={form.amountNgn} readOnly />
@@ -2750,12 +2795,12 @@ const RefundModal = ({
                         {exceedsRefundableHeadroom ? (
                           <p className="text-xs font-semibold text-rose-700 mt-1 leading-snug">
                             {categoryCapViolation
-                              ? `${refundCategoryDisplayLabel(categoryCapViolation.cat)} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
+                              ? `${refundCategoryDisplayLabel(categoryCapViolation.cat)} exceeds ₦${categoryCapViolation.cap.toLocaleString('en-NG')}.`
                               : lineArithmeticIssues[0]
                                 ? `Line description does not match amount — implied ₦${lineArithmeticIssues[0].expectedAmountNgn.toLocaleString('en-NG')}.`
                                 : exceedsOverpayLine
-                              ? `Overpayment line cannot exceed ₦${overpayMaxNgn.toLocaleString('en-NG')} (payment minus quote total on this quotation).`
-                              : `Included lines exceed cash received on this quotation (max ₦${(refundHardCapNgn ?? 0).toLocaleString('en-NG')} after prior refunds).`}
+                              ? `Overpayment cannot exceed ₦${overpayMaxNgn.toLocaleString('en-NG')}.`
+                              : `Exceeds refundable cash (max ₦${(refundHardCapNgn ?? 0).toLocaleString('en-NG')}).`}
                           </p>
                         ) : null}
                       </div>
@@ -2796,7 +2841,7 @@ const RefundModal = ({
                     )}
 
                     <div>
-                      <label className={label}>Situation context (reason notes)</label>
+                      <label className={label}>Notes (optional)</label>
                       <textarea
                         rows={2}
                         disabled={readOnly}
@@ -2825,7 +2870,7 @@ const RefundModal = ({
                   <div className="flex items-center gap-2">
                     <Hash className="text-rose-400 shrink-0" size={18} aria-hidden />
                     <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                      Transaction intelligence
+                      Quote summary
                     </h3>
                   </div>
                   {loadingIntelligence ? (
@@ -2837,9 +2882,7 @@ const RefundModal = ({
                   <div className="py-10 flex flex-col items-center justify-center text-center px-4">
                     <Link2 size={32} className="text-slate-700 mb-2 opacity-20" aria-hidden />
                     <p className="text-ui-xs font-bold text-slate-500 uppercase">
-                      Select a quotation to load
-                      <br />
-                      customer and audit context
+                      Select a quotation
                     </p>
                   </div>
                 ) : (
@@ -2879,7 +2922,15 @@ const RefundModal = ({
                       </div>
                       {selectedQuotationSnapshot ? (
                         <div className="border-t border-slate-700/50 pt-3 space-y-2">
-                          <p className="text-ui-xs font-bold text-slate-500 uppercase">Quotation details</p>
+                          <button
+                            type="button"
+                            className="text-ui-xs font-bold text-slate-500 uppercase hover:text-slate-300"
+                            aria-expanded={quoteDetailsOpen}
+                            onClick={() => setQuoteDetailsOpen((o) => !o)}
+                          >
+                            {quoteDetailsOpen ? 'Hide quote details' : 'More quote details'}
+                          </button>
+                          {quoteDetailsOpen ? (
                           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 text-ui-xs text-slate-200">
                             <div className="flex justify-between gap-2 sm:col-span-2">
                               <dt className="text-slate-500 shrink-0">Quotation</dt>
@@ -2963,6 +3014,7 @@ const RefundModal = ({
                               </dd>
                             </div>
                           </dl>
+                          ) : null}
                         </div>
                       ) : null}
                       {refundProductionConversionSummary ? (
@@ -2975,75 +3027,24 @@ const RefundModal = ({
                               {refundProductionConversionSummary.emptyMessage}
                             </p>
                           ) : (
-                            <ul className="space-y-2">
+                            <ul className="space-y-1.5">
                               {refundProductionConversionSummary.jobs.map((j) => (
                                 <li
                                   key={j.jobID}
-                                  className="rounded-lg border border-slate-700/80 bg-slate-900/40 px-2.5 py-2 text-ui-xs leading-snug"
+                                  className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-ui-xs leading-snug"
                                 >
-                                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                    <span className="font-mono text-slate-300">{j.jobID}</span>
-                                    <span className="text-ui-xs font-bold uppercase text-slate-500">{j.status}</span>
-                                  </div>
-                                  <p className="text-slate-400 mt-0.5 truncate" title={j.productName}>
-                                    {j.productName}
-                                  </p>
-                                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-ui-xs">
-                                    <span>
-                                      <span className="text-slate-500">Conversion: </span>
-                                      <span
-                                        className={
-                                          ['HIGH', 'LOW'].includes(String(j.conversionAlertState).toUpperCase())
-                                            ? 'font-bold text-amber-300'
-                                            : 'text-slate-200'
-                                        }
-                                      >
-                                        {j.conversionAlertState}
-                                      </span>
-                                    </span>
-                                    {j.managerReviewRequired ? (
-                                      <span className="text-rose-300 font-semibold">Manager review</span>
-                                    ) : null}
-                                  </div>
-                                  {Array.isArray(j.coilRows) && j.coilRows.length > 0 ? (
-                                    <ul className="mt-1.5 space-y-1 border-t border-slate-700/40 pt-1.5 text-ui-xs text-slate-400">
-                                      {j.coilRows.map((c) => {
-                                        const open = Number(c.openingWeightKg);
-                                        const close = Number(c.closingWeightKg);
-                                        const used = Number(c.consumedWeightKg);
-                                        const m = Number(c.metersProduced);
-                                        const conv = c.actualConversionKgPerM;
-                                        const kgPair =
-                                          Number.isFinite(open) && Number.isFinite(close)
-                                            ? `${open.toFixed(1)}→${close.toFixed(1)} kg`
-                                            : null;
-                                        return (
-                                          <li key={c.id || `${j.jobID}-${c.coilNo}`} className="leading-snug">
-                                            <span className="font-mono text-slate-300">{c.coilNo || '—'}</span>
-                                            {c.gaugeLabel ? (
-                                              <span className="text-slate-500"> · {c.gaugeLabel}</span>
-                                            ) : null}
-                                            {kgPair ? <span className="text-slate-500"> · {kgPair}</span> : null}
-                                            {Number.isFinite(used) && used > 0 ? (
-                                              <span>
-                                                {' '}
-                                                · used <span className="text-slate-200">{used.toFixed(1)} kg</span>
-                                              </span>
-                                            ) : null}
-                                            {Number.isFinite(m) && m > 0 ? (
-                                              <span className="text-slate-500"> · {m.toFixed(2)} m</span>
-                                            ) : null}
-                                            {conv != null && Number(conv) > 0 ? (
-                                              <span className="text-slate-500">
-                                                {' '}
-                                                · conv {Number(conv).toFixed(2)} kg/m
-                                              </span>
-                                            ) : null}
-                                          </li>
-                                        );
-                                      })}
-                                    </ul>
-                                  ) : null}
+                                  <span className="font-mono text-slate-300">{j.jobID}</span>
+                                  <span className="text-slate-500 uppercase">{j.status}</span>
+                                  <span
+                                    className={
+                                      ['HIGH', 'LOW'].includes(String(j.conversionAlertState).toUpperCase())
+                                        ? 'font-bold text-amber-300'
+                                        : 'text-slate-400'
+                                    }
+                                  >
+                                    {j.conversionAlertState}
+                                    {j.managerReviewRequired ? ' · review' : ''}
+                                  </span>
                                 </li>
                               ))}
                             </ul>
@@ -3051,43 +3052,33 @@ const RefundModal = ({
                         </div>
                       ) : null}
                       {refundMoneyBreakdown.overpay > 0 ? (
-                        <div className="pt-2 border-t border-slate-700/80 space-y-1">
+                        <div className="pt-2 border-t border-slate-700/80">
                           <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <p className="text-ui-xs font-bold text-slate-500 uppercase">Paid above quote total</p>
+                            <p className="text-ui-xs font-bold text-slate-500 uppercase">Overpayment</p>
                             <p className="text-sm font-black text-amber-300 tabular-nums">
                               ₦{refundMoneyBreakdown.overpay.toLocaleString()}
                             </p>
                           </div>
-                          <p className="text-ui-xs text-slate-400 leading-snug">
-                            Total received on this quotation ₦{refundMoneyBreakdown.cashIn.toLocaleString()} minus quote
-                            total — refund as <strong className="text-slate-300">Overpayment</strong> (this quotation
-                            only, not other customer balance).
-                          </p>
                         </div>
                       ) : null}
                       {previewRemainingNgn != null && mode === 'create' ? (
                         <div className="pt-2 border-t border-slate-700/80">
                           <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">
-                            Remaining refundable (this quotation)
+                            Remaining refundable
                           </p>
                           <p className="text-sm font-black text-amber-200 tabular-nums">
                             ₦{previewRemainingNgn.toLocaleString('en-NG')}
-                          </p>
-                          <p className="text-ui-xs text-slate-500 leading-snug mt-0.5">
-                            Live preview reasons still available on this quote, capped by cash after prior
-                            refunds.
-                            {exceedsRefundableHeadroom ? ' Lower breakdown lines to continue.' : ''}
                           </p>
                         </div>
                       ) : null}
                       {form.quotationRef && (quotationRefundsPaidAlreadyNgn > 0 || priorRefundsOnQuote.length > 0) ? (
                         <div className="pt-2 border-t border-slate-700/80 space-y-1">
                           <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">
-                            Refunds already on this quotation
+                            Prior refunds
                           </p>
                           {quotationRefundsPaidAlreadyNgn > 0 ? (
                             <div className="flex flex-wrap items-baseline justify-between gap-2">
-                              <p className="text-ui-xs text-slate-400">Already paid / cashed</p>
+                              <p className="text-ui-xs text-slate-400">Already paid</p>
                               <p className="text-sm font-black text-emerald-300 tabular-nums">
                                 ₦{quotationRefundsPaidAlreadyNgn.toLocaleString('en-NG')}
                               </p>
@@ -3119,9 +3110,6 @@ const RefundModal = ({
                               })}
                             </ul>
                           ) : null}
-                          <p className="text-ui-xs text-slate-500 leading-snug mt-0.5">
-                            Accessory shortfall refunds only cover quantities not already refunded.
-                          </p>
                         </div>
                       ) : null}
                       {(intelligence.dataQualityIssues || []).length > 0 ? (
@@ -3141,19 +3129,25 @@ const RefundModal = ({
                           </ul>
                           {mode === 'create' && String(form.quotationRef || '').trim() ? (
                             <div className="pt-2 border-t border-amber-800/40 space-y-1.5">
+                              {!advancedPricingOpen ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setAdvancedPricingOpen(true)}
+                                  className="text-ui-xs font-bold uppercase tracking-wide text-amber-100/90 hover:text-amber-50 underline-offset-2 hover:underline"
+                                >
+                                  Workbook override…
+                                </button>
+                              ) : (
+                                <>
                               <label className="block text-ui-xs font-bold text-amber-100/90 uppercase tracking-wide">
-                                Workbook ₦/m override (produced coil)
+                                Workbook ₦/m override
                               </label>
-                              <p className="text-ui-xs text-amber-100/70 leading-snug">
-                                Use when list price is missing for the <strong className="text-amber-50">allocated coil</strong>{' '}
-                                gauge + design. Leave blank to use only master data.
-                              </p>
                               <div className="flex flex-wrap items-end gap-2">
                                 <input
                                   type="text"
                                   inputMode="numeric"
                                   autoComplete="off"
-                                  placeholder="e.g. 5200"
+                                  placeholder="₦/m"
                                   value={substitutionWorkbookPpmOverride}
                                   onChange={(e) => setSubstitutionWorkbookPpmOverride(e.target.value)}
                                   className="w-[7.5rem] rounded-md border border-amber-800/60 bg-amber-950/40 px-2 py-1.5 text-xs font-mono text-amber-50 placeholder:text-amber-200/40"
@@ -3169,6 +3163,8 @@ const RefundModal = ({
                                   Apply to preview
                                 </button>
                               </div>
+                                </>
+                              )}
                             </div>
                           ) : null}
                         </div>
@@ -3183,7 +3179,7 @@ const RefundModal = ({
                             className="w-full rounded-xl border border-slate-600 bg-slate-800/80 py-2.5 px-3 text-center text-ui-xs font-bold uppercase tracking-wide text-slate-200 hover:bg-slate-800 hover:border-slate-500 transition-colors"
                             onClick={() => setRefundIntelExpanded(true)}
                           >
-                            Show detailed lines, production &amp; substitution
+                            Show details
                           </button>
                         ) : (
                           <button
@@ -3191,7 +3187,7 @@ const RefundModal = ({
                             className="w-full rounded-xl border border-transparent py-1.5 text-center text-ui-xs font-bold uppercase tracking-wide text-slate-500 hover:text-slate-300 transition-colors"
                             onClick={() => setRefundIntelExpanded(false)}
                           >
-                            Hide detailed analysis
+                            Hide details
                           </button>
                         )}
                       </div>
@@ -3275,13 +3271,6 @@ const RefundModal = ({
                               ))}
                             </tbody>
                           </table>
-                          <p className="text-ui-xs text-slate-600 px-2.5 py-2 border-t border-slate-800/80 leading-relaxed">
-                            Supplied / Short for <strong className="text-slate-500">accessories</strong> come from
-                            completed production (line id or name). <strong className="text-slate-500">Stone flatsheet</strong>{' '}
-                            product rows show m² supplied / short from the same production usage when the line matches.
-                            Coil roofing output is under <strong className="text-slate-500">Produced metres</strong>; a
-                            per-line stone summary also appears under <strong className="text-slate-500">Stone flatsheet (m²)</strong>.
-                          </p>
                         </div>
                       )}
                     </div>
@@ -3294,38 +3283,13 @@ const RefundModal = ({
                           <p className="text-xs font-black">{intelligence.cuttingLists.length}</p>
                         </div>
                         <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
-                          <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">Coil-produced metres</p>
+                          <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">Produced metres</p>
                           <p className="text-xs font-black text-sky-400">
                             {(lastPreviewSnapshot?.coilProducedMeters != null
                               ? Number(lastPreviewSnapshot.coilProducedMeters)
                               : intelligence.summary?.producedMeters
                             )?.toLocaleString() || 0}{' '}
                             m
-                          </p>
-                          <p className="text-ui-xs text-slate-500 mt-1 leading-snug">
-                            Metres from coil allocations.
-                            {lastPreviewSnapshot?.producedMetersForUnproduced != null ? (
-                              <span className="block text-emerald-400/90 mt-0.5">
-                                Eligible produced (unproduced refund):{' '}
-                                {Number(lastPreviewSnapshot.producedMetersForUnproduced).toLocaleString()} m
-                                {Number(lastPreviewSnapshot.producedMetersForUnproduced) >
-                                Number(lastPreviewSnapshot.coilProducedMeters || 0) + 0.001
-                                  ? ' — includes offcut/accessory FG when coil metres are lower.'
-                                  : '.'}
-                              </span>
-                            ) : null}
-                            {lastPreviewSnapshot?.actualMeters != null &&
-                            lastPreviewSnapshot?.coilProducedMeters != null &&
-                            Number(lastPreviewSnapshot.actualMeters) >
-                              Number(lastPreviewSnapshot.coilProducedMeters) + 0.001 &&
-                            (lastPreviewSnapshot?.producedMetersForUnproduced == null ||
-                              Number(lastPreviewSnapshot.producedMetersForUnproduced) <=
-                                Number(lastPreviewSnapshot.coilProducedMeters || 0) + 0.001) ? (
-                              <span className="block text-amber-400/90 mt-0.5">
-                                Total FG output: {Number(lastPreviewSnapshot.actualMeters).toLocaleString()} m (includes
-                                offcut/accessories).
-                              </span>
-                            ) : null}
                           </p>
                         </div>
                         {lastPreviewSnapshot?.economicFloor &&
@@ -3469,11 +3433,11 @@ const RefundModal = ({
                     )}
 
                     <div className="rounded-xl border border-slate-600 bg-slate-800/40 p-4 space-y-3 pt-4 border-t border-slate-700/80 mt-2">
-                      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">Pay to (for finance)</p>
+                      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">Pay to</p>
                       <RecentPayeeSuggestionChips
                         variant="dark"
                         suggestions={payeeSuggestions}
-                        heading="Frequent accounts (this device + past refunds for this customer)"
+                        heading="Recent accounts"
                         onSelect={(s) =>
                           setForm((f) => ({
                             ...f,
@@ -3578,17 +3542,10 @@ const RefundModal = ({
                         aria-label="Approver verification checklist"
                       >
                         <p className="text-ui-xs font-bold text-amber-900 uppercase tracking-wide">Before you approve</p>
-                        <p className="text-ui-xs font-medium text-slate-700 leading-snug rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">
-                          This refund is tied to quotation{' '}
-                          <span className="font-bold">{approvalQuoteRef || '—'}</span> only. Other outstanding
-                          balances on the customer do not automatically block approval — review them before payout.
-                        </p>
                         <ul className="text-ui-xs text-amber-950/90 font-medium space-y-1.5 list-disc list-inside leading-snug">
-                          <li>Quote total and paid amount (including customer advance) match the real money in.</li>
-                          <li>Production metres, cutting lists, and delivery status fit the refund story.</li>
-                          <li>You read system warnings; bundled transport/install may need a manual line split.</li>
-                          <li>Line-item total matches the approved amount you are about to enter.</li>
-                          <li>Required evidence (notes, photos, sign-off) is on file per branch policy.</li>
+                          <li>Quote total and paid amount match money in.</li>
+                          <li>Production and delivery fit the refund story.</li>
+                          <li>Line total matches the approved amount.</li>
                         </ul>
                       </div>
                       <div>
@@ -3717,7 +3674,7 @@ const RefundModal = ({
                   </li>
                 ))}
               </ul>
-              {!refundRequestIsEconomicFloorExempt({
+              {(!refundRequestIsEconomicFloorExempt({
                 categories: deriveReasonCategoriesFromLines(form.calculationLines),
                 calculationLines: form.calculationLines,
               }) &&
@@ -3732,19 +3689,15 @@ const RefundModal = ({
                 canOverrideProductionAlignment) ? (
                 <label className="block">
                   <span className="text-ui-xs font-bold uppercase text-amber-900">
-                    Branch manager / MD override note (min 10 characters)
+                    Override note (min 10 characters)
                   </span>
                   <textarea
                     rows={2}
                     value={productionAlignmentOverrideNote}
                     onChange={(e) => setProductionAlignmentOverrideNote(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-slate-800 resize-none"
-                    placeholder="Explain production alignment and/or why this amount is correct above the economic floor…"
+                    placeholder="Why this amount is correct…"
                   />
-                  <p className="mt-1 text-ui-xs text-amber-800/90 leading-snug">
-                    MD/admin floor overrides are stored on the request — approval and payout will not ask again for the
-                    same amount.
-                  </p>
                 </label>
               ) : null}
               {alignmentBlocksAction ? (
@@ -3762,7 +3715,7 @@ const RefundModal = ({
                 <AlertTriangle size={18} />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-orange-900">Logic & Integrity Warnings</p>
+                <p className="text-sm font-bold text-orange-900">Warnings</p>
                 <ul className="list-disc list-inside text-xs font-medium text-orange-800/80">
                   {warnings.map((w, i) => <li key={i}>{w}</li>)}
                 </ul>
@@ -3803,7 +3756,7 @@ const RefundModal = ({
                 ) : (
                   <Save size={16} className="group-hover:scale-110 transition-transform" />
                 )}
-                {showApproval ? 'Save Decision' : 'Submit Refund Request'}
+                {showApproval ? 'Save Decision' : 'Submit refund'}
               </button>
             )}
           </div>
