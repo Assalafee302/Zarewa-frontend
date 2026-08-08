@@ -1951,17 +1951,16 @@ const RefundModal = ({
                 </span>
               </div>
               <p className="text-xs font-medium text-slate-500">
-                {record?.refundID
-                  ? `${record.refundID} · ${record.status}${
-                      record.creditConfirmationStatus || Number(record.creditAppliedNgn) > 0
-                        ? ` · Credit confirmation${
-                            record.creditAppliedToQuotationRef
-                              ? ` → ${record.creditAppliedToQuotationRef}`
-                              : ''
-                          }`
-                        : ''
-                    }`
-                  : form.quotationRef || 'Select a quotation'}
+                {(() => {
+                  if (!record?.refundID) return form.quotationRef || 'Select a quotation';
+                  const base = `${record.refundID} · ${record.status}`;
+                  const creditApplied = Math.round(Number(record.creditAppliedNgn) || 0) > 0;
+                  if (!record.creditConfirmationStatus && !creditApplied) return base;
+                  const dest = String(record.creditAppliedToQuotationRef || '').trim();
+                  return dest
+                    ? `${base} · Credit confirmation → ${dest}`
+                    : `${base} · Credit confirmation`;
+                })()}
               </p>
             </div>
           </div>
@@ -3674,7 +3673,7 @@ const RefundModal = ({
                   </li>
                 ))}
               </ul>
-              {(!refundRequestIsEconomicFloorExempt({
+              {((!refundRequestIsEconomicFloorExempt({
                 categories: deriveReasonCategoriesFromLines(form.calculationLines),
                 calculationLines: form.calculationLines,
               }) &&
@@ -3685,8 +3684,8 @@ const RefundModal = ({
                   .trim()
                   .toLowerCase() === 'admin' ||
                   isExecutiveRoleKey(ws?.session?.user?.roleKey))) ||
-              (productionAlignmentIssues.some((i) => i.submitAction === 'block') &&
-                canOverrideProductionAlignment) ? (
+                (productionAlignmentIssues.some((i) => i.submitAction === 'block') &&
+                  canOverrideProductionAlignment)) ? (
                 <label className="block">
                   <span className="text-ui-xs font-bold uppercase text-amber-900">
                     Override note (min 10 characters)
