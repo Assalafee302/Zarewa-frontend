@@ -1631,6 +1631,7 @@ const Operations = () => {
     }
 
     const yy = String(new Date().getFullYear()).slice(-2);
+    const todayISO = new Date().toISOString().slice(0, 10);
     setGrnLines((prev) => {
       const openLines = po.lines.filter((l) => poLineIsOpenForReceiving(l));
       const prevByKey = new Map(prev.map((r) => [r.lineKey, r]));
@@ -1642,6 +1643,7 @@ const Operations = () => {
         const old = prevByKey.get(l.lineKey);
         const grnKind = grnKindForPoLine(l);
         const meterBasis = grnKind === 'coil' && isCoilMeterBasisLine(l);
+        const receivedAtISO = String(old?.receivedAtISO || '').slice(0, 10) || todayISO;
         if (grnKind === 'coil') {
           if (old) {
             return {
@@ -1654,6 +1656,7 @@ const Operations = () => {
               qtyReceived: old.qtyReceived,
               coilNo: old.coilNo,
               weightKg: old.weightKg ?? '',
+              receivedAtISO,
               meterBasis,
               grnKind,
             };
@@ -1669,6 +1672,7 @@ const Operations = () => {
             qtyReceived: '',
             coilNo: `CL-${yy}-${String(nextSeq).padStart(4, '0')}`,
             weightKg: '',
+            receivedAtISO: todayISO,
             meterBasis,
             grnKind,
           };
@@ -1683,6 +1687,7 @@ const Operations = () => {
           qtyReceived: old?.qtyReceived ?? '',
           coilNo: '',
           weightKg: '',
+          receivedAtISO,
           meterBasis: false,
           grnKind,
         };
@@ -1702,9 +1707,15 @@ const Operations = () => {
       return;
     }
     const entries = [];
+    const todayISO = new Date().toISOString().slice(0, 10);
     for (const row of grnLines) {
       const qtyReceived = Number(row.qtyReceived);
       if (!(qtyReceived > 0) || Number.isNaN(qtyReceived)) continue;
+      const receivedAtISO = String(row.receivedAtISO || '').slice(0, 10) || todayISO;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(receivedAtISO)) {
+        showToast('Enter a valid date of receival for each line you are receiving.', { variant: 'error' });
+        return;
+      }
       if (row.grnKind === 'coil') {
         const coilNo = String(row.coilNo || '').trim();
         const weightKg = Number(row.weightKg);
@@ -1723,6 +1734,7 @@ const Operations = () => {
           coilNo,
           weightKg,
           location: receiveDraft.location,
+          receivedAtISO,
         });
       } else {
         entries.push({
@@ -1731,6 +1743,7 @@ const Operations = () => {
           qtyReceived,
           coilNo: '',
           location: receiveDraft.location,
+          receivedAtISO,
         });
       }
     }
@@ -2346,39 +2359,58 @@ const Operations = () => {
                                 {row.grnKind === 'stone' ||
                                 row.grnKind === 'accessory' ||
                                 row.grnKind === 'stone_flatsheet' ? (
-                                  <div>
-                                    <label className="sr-only">
-                                      {row.grnKind === 'stone'
-                                        ? 'Metres received'
-                                        : row.grnKind === 'stone_flatsheet'
-                                          ? 'Sheets received'
-                                          : 'Units received'}
-                                    </label>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step={row.grnKind === 'stone' ? '0.01' : '1'}
-                                      value={row.qtyReceived}
-                                      onChange={(e) => {
-                                        const v = e.target.value;
-                                        setGrnLines((prev) =>
-                                          prev.map((r, i) => (i === idx ? { ...r, qtyReceived: v } : r))
-                                        );
-                                      }}
-                                      placeholder={
-                                        row.grnKind === 'stone'
-                                          ? 'Metres'
+                                  <div className="space-y-1.5">
+                                    <div>
+                                      <label className="sr-only">
+                                        {row.grnKind === 'stone'
+                                          ? 'Metres received'
                                           : row.grnKind === 'stone_flatsheet'
-                                            ? 'Sheets'
-                                            : 'Units'
-                                      }
-                                      className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
-                                    />
-                                    {row.grnKind === 'stone_flatsheet' ? (
-                                      <p className="mt-1 text-ui-xs font-semibold text-slate-600">
-                                        Posted to stock as m² (sheets × length × 1.2 m width).
-                                      </p>
-                                    ) : null}
+                                            ? 'Sheets received'
+                                            : 'Units received'}
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step={row.grnKind === 'stone' ? '0.01' : '1'}
+                                        value={row.qtyReceived}
+                                        onChange={(e) => {
+                                          const v = e.target.value;
+                                          setGrnLines((prev) =>
+                                            prev.map((r, i) => (i === idx ? { ...r, qtyReceived: v } : r))
+                                          );
+                                        }}
+                                        placeholder={
+                                          row.grnKind === 'stone'
+                                            ? 'Metres'
+                                            : row.grnKind === 'stone_flatsheet'
+                                              ? 'Sheets'
+                                              : 'Units'
+                                        }
+                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
+                                      />
+                                      {row.grnKind === 'stone_flatsheet' ? (
+                                        <p className="mt-1 text-ui-xs font-semibold text-slate-600">
+                                          Posted to stock as m² (sheets × length × 1.2 m width).
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                    <div>
+                                      <label className="block text-ui-xs font-bold text-slate-500 uppercase mb-0.5">
+                                        Date of receival
+                                      </label>
+                                      <input
+                                        type="date"
+                                        value={row.receivedAtISO || ''}
+                                        onChange={(e) => {
+                                          const v = e.target.value;
+                                          setGrnLines((prev) =>
+                                            prev.map((r, i) => (i === idx ? { ...r, receivedAtISO: v } : r))
+                                          );
+                                        }}
+                                        required
+                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
+                                      />
+                                    </div>
                                   </div>
                                 ) : (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -2432,6 +2464,23 @@ const Operations = () => {
                                         placeholder="Coil #"
                                         title="Suggested from register; edit if tag differs."
                                         className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black font-mono text-slate-900"
+                                      />
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                      <label className="block text-ui-xs font-bold text-slate-500 uppercase mb-0.5">
+                                        Date of receival
+                                      </label>
+                                      <input
+                                        type="date"
+                                        value={row.receivedAtISO || ''}
+                                        onChange={(e) => {
+                                          const v = e.target.value;
+                                          setGrnLines((prev) =>
+                                            prev.map((r, i) => (i === idx ? { ...r, receivedAtISO: v } : r))
+                                          );
+                                        }}
+                                        required
+                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
                                       />
                                     </div>
                                     {row.meterBasis ? (
