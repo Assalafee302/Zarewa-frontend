@@ -22,6 +22,7 @@ export const TREASURY_STATEMENT_TYPE_LABEL = {
   REFUND_PAYOUT_REVERSAL_IN: 'Customer refund payout (reversal)',
   ADVANCE_REFUND_OUT: 'Advance refund',
   PAYMENT_REQUEST_OUT: 'Payment request payout',
+  OT_PAYOUT: 'Overtime pay payout',
   TRANSPORT_PAYMENT: 'Haulage payment',
 };
 
@@ -36,6 +37,7 @@ export const TREASURY_SOURCE_KIND_LABEL = {
   BANK_RECON_LINE: 'Bank reconciliation settlement',
   EXPENSE: 'Posted expense (direct debit)',
   PAYMENT_REQUEST: 'Expense payment request (payout)',
+  OT_REQUEST: 'Overtime pay request (payout)',
 };
 
 /**
