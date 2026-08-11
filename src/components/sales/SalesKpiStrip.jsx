@@ -48,7 +48,7 @@ export default function SalesKpiStrip({ salesTab, listStats, followUpCount = 0 }
                 : undefined,
           },
           {
-            label: 'Awaiting confirmation',
+            label: 'Draft',
             value: listStats.receipts.awaitingCashier,
             tone: listStats.receipts.awaitingCashier > 0 ? 'warn' : 'default',
           },

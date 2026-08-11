@@ -8,7 +8,7 @@ export const RECEIPT_STATUS_CLEARED = 'Cleared';
 export const RECEIPT_STATUS_REVERSED = 'Reversed';
 
 /** Sales → Receipts list: cashier-facing payment confirmation labels (display only). */
-export const SALES_RECEIPT_PAYMENT_STATUS_AWAITING_CASHIER = 'Awaiting confirmation';
+export const SALES_RECEIPT_PAYMENT_STATUS_AWAITING_CASHIER = 'Draft';
 export const SALES_RECEIPT_PAYMENT_STATUS_CASHIER_CONFIRMED = 'Cashier confirmed';
 
 function normStatus(status) {
@@ -29,6 +29,11 @@ export function isReceiptCleared(row) {
   // Legacy "Confirmed" predates Pending clearance / Cleared and means finance already signed off.
   const s = normStatus(row?.status);
   return s === 'cleared' || s === 'confirmed';
+}
+
+/** Official customer receipt print is allowed only after cashier/finance clearance. */
+export function receiptMayPrint(row) {
+  return isReceiptCleared(row);
 }
 
 export function isReceiptFinanceReconciled(row) {
@@ -107,7 +112,7 @@ export function receiptSalesPaymentStatusTitle(row) {
     if (at) return `Cashier confirmed · ${at.slice(0, 10)}`;
     return 'Cashier confirmed this payment against bank or cash.';
   }
-  return 'Posted in Sales — cashier has not confirmed this payment yet.';
+  return 'Draft — posted but not cleared. Printing unlocks after cashier confirmation.';
 }
 
 function formatConfirmDateIso(iso) {
@@ -127,7 +132,7 @@ export function receiptSalesPaymentStatusDetail(row) {
     if (dateStr) return `Cashier confirmed · ${dateStr}`;
     return 'Cashier confirmed this payment.';
   }
-  return 'Not yet confirmed by cashier.';
+  return 'Draft — awaiting cashier clearance before print.';
 }
 
 /** Filter bucket for Sales → Payments status tabs. */
@@ -141,6 +146,11 @@ export function receiptMatchesSalesPaymentFilter(row, filter = 'all') {
   const bucket = receiptSalesPaymentFilterBucket(row);
   if (filter === 'awaiting') return bucket === 'awaiting';
   if (filter === 'confirmed') return bucket === 'confirmed';
+  if (filter === 'no_cutting') {
+    if (bucket === 'reversed') return false;
+    const kind = String(row?._cuttingListLinkKind || '').trim();
+    return kind !== 'linked';
+  }
   return true;
 }
 

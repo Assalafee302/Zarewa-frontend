@@ -77,6 +77,7 @@ describe('reconciliationPrint', () => {
     expect(payload.rows[0].colour).toBe('Heritage Blue');
     expect(payload.rows[0].gauge).toBe('0.45mm');
     expect(payload.rows[0].totalMeters).toMatch(/120\.5/);
+    expect(payload.rows[0].cuttingList).toBe('CL-1');
     expect(payload.rows[0].hangingRefund).toMatch(/Hanging refund/i);
     expect(payload.rows[0].hangingRefund).toContain('RF-77');
     expect(payload.rows[0].hangingRefund).toMatch(/Unapplied credit/i);

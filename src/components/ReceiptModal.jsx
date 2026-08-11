@@ -49,6 +49,8 @@ import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { ZareHelpButton } from './ZareHelpButton';
 import { buildZareTransactionContext } from '../lib/zareTransactionContext';
 import {
+  isReceiptCleared,
+  receiptMayPrint,
   receiptSalesPaymentStatusChipClass,
   receiptSalesPaymentStatusDetail,
   receiptSalesPaymentStatusLabel,
@@ -1042,6 +1044,12 @@ const ReceiptModal = ({
       showToast('Post and save this receipt first before printing.', { variant: 'error' });
       return;
     }
+    if (!receiptMayPrint(editData)) {
+      showToast('Payment is still draft — cashier must clear it before you can print the receipt.', {
+        variant: 'error',
+      });
+      return;
+    }
     if (!quotationRef) {
       showToast('Select a quotation before printing.', { variant: 'error' });
       return;
@@ -1094,7 +1102,7 @@ const ReceiptModal = ({
                 >
                   {modeBadgeLabel}
                 </span>
-                {readOnly && isExistingPayment ? (
+                {isExistingPayment ? (
                   <span
                     className={`shrink-0 rounded-md border px-2 py-0.5 text-ui-xs font-semibold uppercase tracking-wide ${receiptSalesPaymentStatusChipClass(editData)}`}
                     title={receiptSalesPaymentStatusTitle(editData)}
@@ -1117,7 +1125,7 @@ const ReceiptModal = ({
                 pathname: '/sales',
                 transactionType: 'receipt',
                 referenceNo: editData?.id,
-                status: readOnly ? 'posted' : 'draft',
+                status: isExistingPayment && isReceiptCleared(editData) ? 'cleared' : 'draft',
                 readOnly,
                 canEdit: !readOnly && Boolean(ws?.canMutate),
                 canReverse: readOnly,
@@ -1139,7 +1147,9 @@ const ReceiptModal = ({
           <div className="px-5 py-2 bg-slate-50 border-b border-slate-200 text-ui-xs font-medium text-slate-600 space-y-1">
             <p>
               {editData?.source === 'ledger'
-                ? 'Posted payment — view and print only. To fix a mistake, Finance reverses this entry and you post the correct amount again.'
+                ? isReceiptCleared(editData)
+                  ? 'Posted payment — cleared and print-ready. To fix a mistake, Finance reverses this entry and you post the correct amount again.'
+                  : 'Posted payment — still draft until cashier clears it. Print unlocks after clearance. To fix a mistake, Finance reverses this entry and you post the correct amount again.'
                 : 'View only. Imported history rows are not the live ledger; new money is always a separate post.'}
             </p>
             {isExistingPayment ? (
@@ -1558,7 +1568,12 @@ const ReceiptModal = ({
             type="button"
             variant="success"
             onClick={() => openPrint('quick')}
-            disabled={!ws?.canMutate || !quotationRef}
+            disabled={!ws?.canMutate || !quotationRef || !receiptMayPrint(editData)}
+            title={
+              isExistingPayment && !receiptMayPrint(editData)
+                ? 'Draft until cashier clears payment — printing locked'
+                : undefined
+            }
           >
             <Printer size={14} /> Summary (A4)
           </DeskFooterButton>
@@ -1566,7 +1581,12 @@ const ReceiptModal = ({
             type="button"
             variant="primary"
             onClick={() => openPrint('full')}
-            disabled={!ws?.canMutate || !quotationRef}
+            disabled={!ws?.canMutate || !quotationRef || !receiptMayPrint(editData)}
+            title={
+              isExistingPayment && !receiptMayPrint(editData)
+                ? 'Draft until cashier clears payment — printing locked'
+                : undefined
+            }
           >
             <Printer size={14} /> Full detail (A4)
           </DeskFooterButton>

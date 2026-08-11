@@ -61,8 +61,11 @@ function cuttingListSummaryByQuoteRefMap(cuttingLists = []) {
     const key = normSalesQuotationRefKey(cl?.quotationRef);
     if (!key || map.has(key)) continue;
     const metres = Number(cl?.totalMeters);
+    const id = String(cl?.id || '').trim();
     map.set(key, {
+      id,
       totalMetersLabel: formatPrintMeters(metres),
+      cuttingListLabel: id || 'Cutting list',
     });
   }
   return map;
@@ -195,6 +198,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
   const hangingByCustomer = hangingRefundIndicatorsByCustomerId(opts.refunds, opts.ledgerEntries);
 
   let receiptsWithHangingRefund = 0;
+  let receiptsWithoutCuttingList = 0;
 
   const rows = unreconciledReceiptRows(receipts)
     .slice()
@@ -217,6 +221,12 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       const customerId = String(r.customerID || '').trim();
       const hanging = customerId ? hangingByCustomer.get(customerId) : null;
       if (hanging) receiptsWithHangingRefund += 1;
+      const cuttingListLabel = cutting?.cuttingListLabel
+        ? cutting.cuttingListLabel
+        : qKey
+          ? 'No cutting list'
+          : 'No quotation';
+      if (!cutting?.id) receiptsWithoutCuttingList += 1;
       return {
         receiptId: String(r.id || '—'),
         receiptDate: String(r.dateISO || r.date || '—'),
@@ -227,6 +237,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
         registeredBy: receiptRegisteredByLabel(r, opts.ledgerEntries) || '—',
         colour: material?.colour || '—',
         gauge: material?.gauge || '—',
+        cuttingList: cuttingListLabel,
         totalMeters: cutting?.totalMetersLabel || '—',
         hangingRefund: formatHangingRefundPrintCell(hanging),
         status: 'Pending clearance',
@@ -255,6 +266,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       { key: 'registeredBy', label: 'Registered by' },
       { key: 'colour', label: 'Colour' },
       { key: 'gauge', label: 'Gauge' },
+      { key: 'cuttingList', label: 'Cutting list' },
       { key: 'totalMeters', label: 'Total metres', align: 'right' },
       { key: 'hangingRefund', label: 'Hanging refund' },
       { key: 'status', label: 'Status' },
@@ -263,6 +275,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
     summaryLines: [
       { label: 'Receipts pending clearance', value: String(rows.length) },
       { label: 'Total awaiting reconciliation', value: formatNgn(totalNgn) },
+      { label: 'Pending receipts without cutting list', value: String(receiptsWithoutCuttingList) },
       {
         label: 'Receipts with same-customer hanging refund / unapplied overpay credit (indicator only)',
         value: String(receiptsWithHangingRefund),

@@ -100,6 +100,7 @@ import {
   filterCustomersForPicker,
   isStaffLinkedCustomer,
 } from '../lib/customerPickerSearch';
+import { isReceiptCleared, receiptEffectiveCashNgn } from '../lib/receiptClearance';
 
 /** Master material types used on roofing quotes: coil stock + stone meter stock (not finished-good SKUs / consumables). */
 const QUOTATION_MATERIAL_INVENTORY_MODELS = new Set(['coil_kg', 'stone_meter']);
@@ -2149,6 +2150,17 @@ const QuotationModal = ({
     return policyBalanceLabelText(quotePaymentPolicy.balanceLabel);
   }, [quotePaymentPolicy]);
 
+  const quotationHasClearedPayment = useMemo(() => {
+    const id = String(editData?.id || '').trim();
+    if (!id) return false;
+    const receipts = Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : [];
+    return receipts.some((r) => {
+      const ref = String(r.quotationRef || r.quotation_ref || '').trim();
+      if (ref !== id) return false;
+      return isReceiptCleared(r) && receiptEffectiveCashNgn(r) > 0;
+    });
+  }, [editData?.id, ws?.snapshot?.receipts]);
+
   const maxApplyAdvance = useMemo(
     () => Math.max(0, Math.min(advanceBal, quoteDueNgn)),
     [advanceBal, quoteDueNgn]
@@ -2161,6 +2173,12 @@ const QuotationModal = ({
     }
     if (!editData?.id) {
       showToast('Save quotation successfully before printing.', { variant: 'error' });
+      return;
+    }
+    if (kind === 'receipt' && !quotationHasClearedPayment) {
+      showToast('Receipt stays draft until payment is cleared by cashier — printing is locked.', {
+        variant: 'error',
+      });
       return;
     }
     setPrintDocumentKind(kind);
@@ -3169,7 +3187,17 @@ const QuotationModal = ({
           <DeskFooterButton type="button" variant="primary" onClick={() => openPrintPreview('invoice')}>
             <Printer size={14} /> Invoice
           </DeskFooterButton>
-          <DeskFooterButton type="button" variant="primary" onClick={() => openPrintPreview('receipt')}>
+          <DeskFooterButton
+            type="button"
+            variant="primary"
+            onClick={() => openPrintPreview('receipt')}
+            disabled={!quotationHasClearedPayment}
+            title={
+              quotationHasClearedPayment
+                ? undefined
+                : 'Draft until cashier clears payment — receipt print locked'
+            }
+          >
             <Printer size={14} /> Receipt
           </DeskFooterButton>
         </ModalDeskFooter>

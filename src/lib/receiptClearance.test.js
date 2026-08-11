@@ -5,6 +5,7 @@ import {
   liquidityClearanceSplit,
   pendingClearanceTotalNgn,
   receiptClearanceBadgeLabel,
+  receiptMayPrint,
   receiptRegisteredByLabel,
   receiptSalesPaymentStatusChipClass,
   receiptSalesPaymentStatusDetail,
@@ -84,10 +85,25 @@ describe('receiptClearance', () => {
     expect(receiptSalesPaymentStatusChipClass(pending)).toContain('amber');
     expect(receiptSalesPaymentStatusChipClass(cleared)).toContain('teal');
     expect(receiptSalesPaymentStatusDetail(cleared)).toBe('Confirmed by Cashier Hauwa · 20/05/2026');
-    expect(receiptSalesPaymentStatusDetail(pending)).toBe('Not yet confirmed by cashier.');
+    expect(receiptSalesPaymentStatusDetail(pending)).toBe('Draft — awaiting cashier clearance before print.');
     expect(receiptMatchesSalesPaymentFilter(pending, 'awaiting')).toBe(true);
     expect(receiptMatchesSalesPaymentFilter(cleared, 'awaiting')).toBe(false);
     expect(receiptMatchesSalesPaymentFilter(cleared, 'confirmed')).toBe(true);
+    expect(receiptMatchesSalesPaymentFilter({ ...pending, _cuttingListLinkKind: 'none' }, 'no_cutting')).toBe(true);
+    expect(receiptMatchesSalesPaymentFilter({ ...cleared, _cuttingListLinkKind: 'linked' }, 'no_cutting')).toBe(
+      false
+    );
+  });
+
+  it('allows official receipt print only when cleared', () => {
+    expect(receiptMayPrint({ amountNgn: 50_000, status: 'Pending clearance' })).toBe(false);
+    expect(
+      receiptMayPrint({
+        amountNgn: 50_000,
+        status: 'Cleared',
+        financeReconciliationSavedAtISO: '2026-05-20T10:00:00.000Z',
+      })
+    ).toBe(true);
   });
 
   it('uses finance bank-received as effective cash when reconciled', () => {

@@ -20,6 +20,7 @@ import { EditSecondApprovalInline } from '../../components/EditSecondApprovalInl
 import { formatNgn } from '../../Data/mockData';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance.js';
 import { receiptCashReceivedNgn, receiptLedgerReceiptTreasurySplits } from '../../lib/salesReceiptsList';
+import { SALES_STATUS_CHIP, receiptCuttingListChipClass } from '../../lib/salesStatusUi';
 import { ExpenseCategoryLaneBadge } from '../../components/office/ExpenseCategoryLaneBadge.jsx';
 import { ExpenseCategoryExceptionBanner } from '../../components/office/ExpenseCategoryExceptionBanner.jsx';
 import {
@@ -124,6 +125,8 @@ export function AccountTabPanels() {
     prPayoutPrimaryMovementId,
     receiptsListWindow,
     receiptsPendingClearanceNgn,
+    receiptsNoCuttingListOnly,
+    receiptsWithoutCuttingListCount,
     receiptsSortDir,
     receiptsSortKey,
     receiptsTableSearch,
@@ -142,6 +145,7 @@ export function AccountTabPanels() {
     setEditingTransferBatchId,
     setPaymentsMutateApprovalId,
     setPaymentsTablePage,
+    setReceiptsNoCuttingListOnly,
     setReceiptsSortDir,
     setReceiptsSortKey,
     setReceiptsTableSearch,
@@ -299,6 +303,20 @@ export function AccountTabPanels() {
                           </button>
                           <button
                             type="button"
+                            onClick={() => setReceiptsNoCuttingListOnly((v) => !v)}
+                            className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-ui-xs font-black uppercase tracking-wide transition-colors ${
+                              receiptsNoCuttingListOnly
+                                ? 'border-amber-400 bg-amber-100 text-amber-950'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-900'
+                            }`}
+                            title="Show only payments whose quotation has no cutting list yet"
+                            aria-pressed={receiptsNoCuttingListOnly}
+                          >
+                            No cutting list
+                            <span className="tabular-nums opacity-80">({receiptsWithoutCuttingListCount})</span>
+                          </button>
+                          <button
+                            type="button"
                             onClick={openUnreconciledReceiptsPrint}
                             className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-ui-xs font-black uppercase tracking-wide text-amber-900 hover:bg-amber-100"
                             title="Print full list of receipts pending finance clearance"
@@ -366,7 +384,9 @@ export function AccountTabPanels() {
                         </div>
                         {waitingReceiptsListWindow.total === 0 ? (
                           <p className="text-ui-xs text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
-                            No waiting receipts.
+                            {receiptsNoCuttingListOnly
+                              ? 'No waiting receipts without a cutting list.'
+                              : 'No waiting receipts.'}
                           </p>
                         ) : null}
                         <ul className="space-y-1.5">
@@ -380,6 +400,10 @@ export function AccountTabPanels() {
                             const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
                             const hanging = hangingRefundByCustomerId.get(String(r.customerID || '').trim());
                             const registeredBy = receiptRegisteredByLabel(r, liveLedgerEntries);
+                            const cuttingChipLabel =
+                              r._cuttingListLinkKind === 'linked' && r._cuttingListId
+                                ? `CL ${r._cuttingListId}`
+                                : r._cuttingListLabel || 'No cutting list';
                             return (
                               <li
                                 key={r.id}
@@ -393,11 +417,15 @@ export function AccountTabPanels() {
                                       <span className="text-slate-600"> · Registered by {registeredBy}</span>
                                     ) : null}
                                   </p>
-                                  {hanging ? (
-                                    <div className="mt-1">
-                                      <HangingCustomerRefundChip indicator={hanging} />
-                                    </div>
-                                  ) : null}
+                                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                    <span
+                                      className={`${SALES_STATUS_CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
+                                      title={r._cuttingListTitle || cuttingChipLabel}
+                                    >
+                                      {cuttingChipLabel}
+                                    </span>
+                                    {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
+                                  </div>
                                   {paySplits.length > 0 ? (
                                     <ul className="mt-1.5 space-y-0.5 border-t border-dashed border-slate-200/80 pt-1.5">
                                       {paySplits.map((s) => (
@@ -491,7 +519,9 @@ export function AccountTabPanels() {
                         </div>
                         {receiptsListWindow.total === 0 ? (
                           <p className="text-ui-xs text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
-                            No confirmed receipts yet.
+                            {receiptsNoCuttingListOnly
+                              ? 'No confirmed receipts without a cutting list.'
+                              : 'No confirmed receipts yet.'}
                           </p>
                         ) : null}
                         <ul className="space-y-1.5">
@@ -505,6 +535,10 @@ export function AccountTabPanels() {
                         const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
                         const hanging = hangingRefundByCustomerId.get(String(r.customerID || '').trim());
                         const registeredBy = receiptRegisteredByLabel(r, liveLedgerEntries);
+                        const cuttingChipLabel =
+                          r._cuttingListLinkKind === 'linked' && r._cuttingListId
+                            ? `CL ${r._cuttingListId}`
+                            : r._cuttingListLabel || 'No cutting list';
                         return (
                           <li
                             key={r.id}
@@ -518,11 +552,15 @@ export function AccountTabPanels() {
                                   <span className="text-slate-600"> · Registered by {registeredBy}</span>
                                 ) : null}
                               </p>
-                              {hanging ? (
-                                <div className="mt-1">
-                                  <HangingCustomerRefundChip indicator={hanging} />
-                                </div>
-                              ) : null}
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={`${SALES_STATUS_CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
+                                  title={r._cuttingListTitle || cuttingChipLabel}
+                                >
+                                  {cuttingChipLabel}
+                                </span>
+                                {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
+                              </div>
                               {paySplits.length > 0 ? (
                                 <ul className="mt-1.5 space-y-0.5 border-t border-dashed border-slate-200/80 pt-1.5">
                                   {paySplits.map((s) => (

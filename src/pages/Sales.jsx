@@ -689,13 +689,15 @@ const Sales = () => {
     let awaiting = 0;
     let confirmed = 0;
     let reversed = 0;
+    let no_cutting = 0;
     for (const row of rows) {
       const bucket = receiptSalesPaymentFilterBucket(row);
       if (bucket === 'awaiting') awaiting += 1;
       if (bucket === 'confirmed') confirmed += 1;
       if (bucket === 'reversed') reversed += 1;
+      if (bucket !== 'reversed' && row._cuttingListLinkKind !== 'linked') no_cutting += 1;
     }
-    return { all: rows.length - reversed, awaiting, confirmed, reversed };
+    return { all: rows.length - reversed, awaiting, confirmed, reversed, no_cutting };
   }, [searchFilteredReceiptRows]);
 
   const awaitingCashierReceiptCount = receiptPaymentStatusCounts.awaiting;
@@ -1962,7 +1964,9 @@ const Sales = () => {
                         title={
                           receiptPaymentStatusFilter === 'all'
                             ? 'No payments match your search'
-                            : 'No payments match this filter'
+                            : receiptPaymentStatusFilter === 'no_cutting'
+                              ? 'No payments without a cutting list'
+                              : 'No payments match this filter'
                         }
                         description="Adjust the status filter or search terms."
                       />

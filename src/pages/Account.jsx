@@ -58,8 +58,10 @@ import { overpayCreditBalanceFromEntries } from '../lib/customerLedgerCore.js';
 import { liveReceivablesNgn, openAuditQueue } from '../lib/liveAnalytics';
 import { effectiveOutstandingNgn, isEffectivelyFullyPaid } from '../lib/paymentOutstandingTolerance.js';
 import {
+  enrichReceiptsWithCuttingListMeta,
   findSalesReceiptByMatchToken,
   receiptCashReceivedNgn,
+  receiptLacksCuttingList,
   receiptLedgerReceiptTreasurySplits,
 } from '../lib/salesReceiptsList';
 import { openPrintHtmlDocument } from '../lib/officeDeskPrint';
@@ -174,6 +176,7 @@ const Account = () => {
   const [exceptionReportSummary, setExceptionReportSummary] = useState(null);
   /** In-tab filter for Receipts reconciliation list (also falls back to header search). */
   const [receiptsTableSearch, setReceiptsTableSearch] = useState('');
+  const [receiptsNoCuttingListOnly, setReceiptsNoCuttingListOnly] = useState(false);
   const [deletingExpenseId, setDeletingExpenseId] = useState('');
   const [deletingPayRequestId, setDeletingPayRequestId] = useState('');
   const [reversingTreasuryPayoutId, setReversingTreasuryPayoutId] = useState('');
@@ -1765,24 +1768,49 @@ const Account = () => {
 
   const receiptsVisibleInReconciliationQueue = useMemo(() => salesReceipts, [salesReceipts]);
 
+  const receiptsWithCuttingMeta = useMemo(
+    () => enrichReceiptsWithCuttingListMeta(receiptsVisibleInReconciliationQueue, liveCuttingLists),
+    [receiptsVisibleInReconciliationQueue, liveCuttingLists]
+  );
+
+  const receiptsWithoutCuttingListCount = useMemo(
+    () => receiptsWithCuttingMeta.filter((r) => !isReceiptReversed(r) && receiptLacksCuttingList(r)).length,
+    [receiptsWithCuttingMeta]
+  );
+
   const filteredSalesReceipts = useMemo(() => {
     const qq = (receiptsTableSearch.trim() || debouncedSearchQuery.trim()).toLowerCase();
-    if (!qq) return receiptsVisibleInReconciliationQueue;
-    return receiptsVisibleInReconciliationQueue.filter((r) => {
+    let rows = receiptsWithCuttingMeta;
+    if (receiptsNoCuttingListOnly) {
+      rows = rows.filter((r) => !isReceiptReversed(r) && receiptLacksCuttingList(r));
+    }
+    if (!qq) return rows;
+    return rows.filter((r) => {
       const id = String(r.id || '').toLowerCase();
       const cust = String(r.customer || '').toLowerCase();
       const qref = String(r.quotationRef || '').toLowerCase();
       const amt = String(r.amountNgn ?? '').toLowerCase();
       const date = String(r.dateISO || r.date || '').toLowerCase();
+      const clId = String(r._cuttingListId || '').toLowerCase();
+      const clLabel = String(r._cuttingListLabel || '').toLowerCase();
+      const clKind = r._cuttingListLinkKind === 'linked' ? 'linked cutting list' : 'no cutting list';
       return (
         id.includes(qq) ||
         cust.includes(qq) ||
         qref.includes(qq) ||
         amt.includes(qq) ||
-        date.includes(qq)
+        date.includes(qq) ||
+        clId.includes(qq) ||
+        clLabel.includes(qq) ||
+        clKind.includes(qq)
       );
     });
-  }, [receiptsVisibleInReconciliationQueue, receiptsTableSearch, debouncedSearchQuery]);
+  }, [
+    receiptsWithCuttingMeta,
+    receiptsTableSearch,
+    debouncedSearchQuery,
+    receiptsNoCuttingListOnly,
+  ]);
 
   const resolveSalesReceiptFromStatementMovement = useCallback(
     (movement) => {
@@ -1944,7 +1972,7 @@ const Account = () => {
   useEffect(() => {
     setWaitingReceiptsPage(0);
     setConfirmedReceiptsPage(0);
-  }, [receiptsSortKey, receiptsSortDir, debouncedSearchQuery, receiptsTableSearch]);
+  }, [receiptsSortKey, receiptsSortDir, debouncedSearchQuery, receiptsTableSearch, receiptsNoCuttingListOnly]);
 
   useEffect(() => {
     const total = waitingConfirmationReceipts.length;
@@ -3225,6 +3253,8 @@ const Account = () => {
       prPayoutPrimaryMovementId,
       receiptsListWindow,
       receiptsPendingClearanceNgn,
+      receiptsNoCuttingListOnly,
+      receiptsWithoutCuttingListCount,
       receiptsSortDir,
       receiptsSortKey,
       receiptsTableSearch,
@@ -3243,6 +3273,7 @@ const Account = () => {
       setEditingTransferBatchId,
       setPaymentsMutateApprovalId,
       setPaymentsTablePage,
+      setReceiptsNoCuttingListOnly,
       setReceiptsSortDir,
       setReceiptsSortKey,
     setReceiptsTableSearch,
@@ -3346,6 +3377,8 @@ const Account = () => {
       prPayoutPrimaryMovementId,
       receiptsListWindow,
       receiptsPendingClearanceNgn,
+      receiptsNoCuttingListOnly,
+      receiptsWithoutCuttingListCount,
       receiptsSortDir,
       receiptsSortKey,
       receiptsTableSearch,
@@ -3364,6 +3397,7 @@ const Account = () => {
       setEditingTransferBatchId,
       setPaymentsMutateApprovalId,
       setPaymentsTablePage,
+      setReceiptsNoCuttingListOnly,
       setReceiptsSortDir,
       setReceiptsSortKey,
     setReceiptsTableSearch,

@@ -9,6 +9,7 @@ const FILTER_OPTIONS = [
   { id: 'all', label: 'All' },
   { id: 'awaiting', label: SALES_RECEIPT_PAYMENT_STATUS_AWAITING_CASHIER },
   { id: 'confirmed', label: SALES_RECEIPT_PAYMENT_STATUS_CASHIER_CONFIRMED },
+  { id: 'no_cutting', label: 'No cutting list' },
 ];
 
 export function SalesReceiptPaymentStatusFilter({ value = 'all', onChange, counts = {} }) {
@@ -43,16 +44,17 @@ export function SalesReceiptPaymentStatusFilter({ value = 'all', onChange, count
 export function SalesReceiptPaymentStatusLegend() {
   return (
     <p className="text-ui-xs text-slate-500 leading-snug">
-      <span className="font-bold text-amber-800">Amber</span> — awaiting confirmation ·{' '}
+      <span className="font-bold text-amber-800">Amber</span> — draft (awaiting clearance) ·{' '}
       <span className="font-bold text-teal-800">Teal</span> — cashier confirmed ·{' '}
-      <span className="font-bold text-rose-800">Rose</span> — reversed
+      <span className="font-bold text-rose-800">Rose</span> — reversed ·{' '}
+      <span className="font-bold text-amber-900">No cutting list</span> — payment with no linked CL
     </p>
   );
 }
 
 export function SalesReceiptAwaitingAlert({ count = 0, onFilterAwaiting }) {
   if (count <= 0) return null;
-  const label = `${count} receipt${count !== 1 ? 's' : ''} awaiting confirmation`;
+  const label = `${count} draft receipt${count !== 1 ? 's' : ''} awaiting clearance`;
   return (
     <div
       className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2.5 sm:px-4"
@@ -69,7 +71,7 @@ export function SalesReceiptAwaitingAlert({ count = 0, onFilterAwaiting }) {
           onClick={onFilterAwaiting}
           className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-ui-xs font-bold uppercase tracking-wide text-amber-950 hover:bg-amber-100 transition-colors"
         >
-          Show awaiting only
+          Show draft only
         </button>
       ) : null}
     </div>

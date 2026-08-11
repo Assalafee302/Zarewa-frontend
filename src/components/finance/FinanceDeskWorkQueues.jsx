@@ -29,6 +29,13 @@ import {
   receiptRegisteredByLabel,
 } from "../../lib/receiptClearance";
 
+import {
+  enrichReceiptsWithCuttingListMeta,
+  receiptLacksCuttingList,
+} from "../../lib/salesReceiptsList";
+
+import { SALES_STATUS_CHIP, receiptCuttingListChipClass } from "../../lib/salesStatusUi";
+
 import { approvedRefundsAwaitingPayment, hangingRefundIndicatorsByCustomerId } from "../../lib/refundsStore";
 
 import {
@@ -173,6 +180,16 @@ export function FinanceDeskWorkQueues({
     [ws?.snapshot?.receipts],
   );
 
+  const cuttingLists = useMemo(
+    () => (Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : []),
+    [ws?.snapshot?.cuttingLists],
+  );
+
+  const receiptsWithCuttingMeta = useMemo(
+    () => enrichReceiptsWithCuttingListMeta(receipts, cuttingLists),
+    [receipts, cuttingLists],
+  );
+
   const treasuryMovements = useMemo(
     () =>
       Array.isArray(ws?.snapshot?.treasuryMovements)
@@ -249,9 +266,23 @@ export function FinanceDeskWorkQueues({
   );
 
   const pendingReceipts = useMemo(
-    () => receipts.filter((r) => isReceiptPendingClearance(r)).slice(0, 25),
+    () =>
+      receiptsWithCuttingMeta
+        .filter((r) => isReceiptPendingClearance(r))
+        .slice()
+        .sort((a, b) => {
+          const aMiss = receiptLacksCuttingList(a) ? 0 : 1;
+          const bMiss = receiptLacksCuttingList(b) ? 0 : 1;
+          if (aMiss !== bMiss) return aMiss - bMiss;
+          return String(b.dateISO || b.date || '').localeCompare(String(a.dateISO || a.date || ''));
+        })
+        .slice(0, 25),
+    [receiptsWithCuttingMeta],
+  );
 
-    [receipts],
+  const pendingReceiptsWithoutCuttingList = useMemo(
+    () => pendingReceipts.filter((r) => receiptLacksCuttingList(r)).length,
+    [pendingReceipts],
   );
 
   const confirmedToday = useMemo(
@@ -680,7 +711,11 @@ export function FinanceDeskWorkQueues({
               title="Confirm payment received"
               icon={<Banknote size={16} strokeWidth={2} />}
               count={pendingReceipts.length}
-              description="Sales recorded these payments — confirm bank or cash landed before cleared balances and refunds."
+              description={
+                pendingReceiptsWithoutCuttingList > 0
+                  ? `Sales recorded these payments — confirm bank or cash landed before cleared balances and refunds. ${pendingReceiptsWithoutCuttingList} without a cutting list (listed first).`
+                  : "Sales recorded these payments — confirm bank or cash landed before cleared balances and refunds."
+              }
               action={
                 <FinanceActionButton
                   variant="link"
@@ -695,6 +730,10 @@ export function FinanceDeskWorkQueues({
                   const hanging = hangingRefundByCustomerId.get(String(r.customerID || "").trim());
                   const registeredBy = receiptRegisteredByLabel(r, ledgerEntries);
                   const clearanceMeta = receiptClearanceBadgeLabel(r);
+                  const cuttingChipLabel =
+                    r._cuttingListLinkKind === "linked" && r._cuttingListId
+                      ? `CL ${r._cuttingListId}`
+                      : r._cuttingListLabel || "No cutting list";
                   return (
                   <FinanceDeskColoredQueueRow
                     key={r.id}
@@ -715,11 +754,15 @@ export function FinanceDeskWorkQueues({
                         : clearanceMeta
                     }
                     extra={
-                      hanging ? (
-                        <div className="mt-1">
-                          <HangingCustomerRefundChip indicator={hanging} />
-                        </div>
-                      ) : null
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`${SALES_STATUS_CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
+                          title={r._cuttingListTitle || cuttingChipLabel}
+                        >
+                          {cuttingChipLabel}
+                        </span>
+                        {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
+                      </div>
                     }
                     amount={formatNgn(r.amountNgn)}
                     actions={

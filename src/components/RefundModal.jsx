@@ -2318,6 +2318,7 @@ const RefundModal = ({
                                   const ymd = quotationYmdForPickRow(q, quotations);
                                   const dateBit = ymd ? ` · ${ymd}` : '';
                                   const remNgn = Math.max(0, Math.round(q.remaining_ngn ?? 0));
+                                  const preparedBy = quotationPreparedByLabel(q) || '—';
                                   const previewHint =
                                     Number(q.suggested_preview_amount_ngn) >= MIN_REFUND_QUOTATION_REMAINING_NGN
                                       ? ` · preview ₦${q.suggested_preview_amount_ngn.toLocaleString('en-NG')}`
@@ -2332,6 +2333,9 @@ const RefundModal = ({
                                     >
                                       <span className="block truncate">
                                         {q.id} · {q.customer_name}
+                                      </span>
+                                      <span className="block text-ui-xs font-bold text-slate-700 truncate">
+                                        Prepared by {preparedBy}
                                       </span>
                                       <span className="block text-ui-xs font-medium text-slate-500 truncate">
                                         ₦{remNgn.toLocaleString()} refundable

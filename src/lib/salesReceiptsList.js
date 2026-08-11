@@ -375,3 +375,31 @@ export function receiptCuttingListLinkMeta(receiptRow, quoteToCuttingList) {
     title: `Quotation ${qref} has no cutting list yet — extra payments here may be duplicates.`,
   };
 }
+
+/** True when the payment is not linked to any cutting list (missing quote or quote has no CL). */
+export function receiptLacksCuttingList(linkKindOrMeta) {
+  const kind =
+    typeof linkKindOrMeta === 'string'
+      ? linkKindOrMeta
+      : String(linkKindOrMeta?.kind || linkKindOrMeta?._cuttingListLinkKind || '').trim();
+  return kind !== 'linked';
+}
+
+/**
+ * Attach cutting-list link fields used by Sales / Finance clearance UIs.
+ * @param {object[]} receipts
+ * @param {object[]} cuttingLists
+ */
+export function enrichReceiptsWithCuttingListMeta(receipts, cuttingLists) {
+  const quoteToCuttingList = cuttingListByQuotationRefMap(cuttingLists);
+  return (Array.isArray(receipts) ? receipts : []).map((r) => {
+    const link = receiptCuttingListLinkMeta(r, quoteToCuttingList);
+    return {
+      ...r,
+      _cuttingListLinkKind: link.kind,
+      _cuttingListId: link.cuttingListId || '',
+      _cuttingListLabel: link.label,
+      _cuttingListTitle: link.title,
+    };
+  });
+}
