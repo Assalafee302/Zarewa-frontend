@@ -10,6 +10,7 @@ import {
   Pencil,
   Printer,
   ScrollText,
+  Undo2,
 } from 'lucide-react';
 import { MainPanel, ModalFrame, PageHeader, PageShell, Breadcrumbs } from '../components/layout';
 import CoilDamageRecordModal from '../components/operations/CoilDamageRecordModal';
@@ -94,6 +95,7 @@ export default function CoilProfile() {
   const [scrapForm, setScrapForm] = useState({ kg: '', meters: '', bookRef: '', reason: 'Damaged edge / offcut', note: '' });
   const [returnForm, setReturnForm] = useState({ kg: '', reason: 'Unused from production', note: '' });
   const [finishForm, setFinishForm] = useState({ note: '', cuttingListRef: '' });
+  const [undoFinishForm, setUndoFinishForm] = useState({ note: '', confirm: false, kg: '' });
   const [holdersMeta, setHoldersMeta] = useState(null);
   const [holdersLoading, setHoldersLoading] = useState(false);
   const [reconcilingReservation, setReconcilingReservation] = useState(false);
@@ -319,11 +321,15 @@ export default function CoilProfile() {
         ws?.hasPermission?.('operations.manage') ||
         ws?.hasPermission?.('production.manage'))
   );
+  const canUndoFinishRoll = Boolean(ws?.canMutate && mayEditCoilMaster);
   const finishRollEligible = Boolean(
     canFinishRoll &&
       freeKg > 0.05 &&
       freeKg < COIL_PROFILE_FINISH_MAX_KG &&
       String(coil?.currentStatus || '').toLowerCase() !== 'consumed'
+  );
+  const undoFinishEligible = Boolean(
+    canUndoFinishRoll && String(coil?.currentStatus || '').toLowerCase() === 'consumed'
   );
   const purchaseConversion = asNum(coil.supplierConversionKgPerM) || null;
   const avgActualConversion = avg(linkedChecks.map((c) => Number(c.actualConversionKgPerM)));
@@ -414,6 +420,51 @@ export default function CoilProfile() {
       );
       setActionModal('');
       setFinishForm({ note: '', cuttingListRef: '' });
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
+  const submitUndoFinishRoll = async (e) => {
+    e.preventDefault();
+    if (!canUndoFinishRoll) {
+      return showToast('Only a branch manager (or above) can undo finish roll.', { variant: 'error' });
+    }
+    if (!undoFinishForm.confirm) {
+      return showToast('Tick the confirmation that usable steel remains on this roll.', { variant: 'error' });
+    }
+    const note = undoFinishForm.note.trim();
+    if (note.length < 8) {
+      return showToast('Enter a note (at least 8 characters) for the audit trail.', { variant: 'error' });
+    }
+    const kgRaw = String(undoFinishForm.kg || '').trim();
+    const kg = kgRaw ? Number(kgRaw) : undefined;
+    if (kgRaw && (!Number.isFinite(kg) || kg <= 0)) {
+      return showToast('Enter a valid restore kg, or leave blank to use the last finish-roll amount.', {
+        variant: 'error',
+      });
+    }
+    setSavingAction(true);
+    try {
+      const { ok, data } = await apiFetch(`/api/coil-lots/${encodeURIComponent(coil.coilNo)}/undo-finish-roll`, {
+        method: 'POST',
+        body: JSON.stringify({
+          note,
+          confirmUndoFinishRoll: true,
+          dateISO: actionDateISO,
+          ...(Number.isFinite(kg) && kg > 0 ? { kg } : {}),
+        }),
+      });
+      if (!ok || !data?.ok) return showToast(data?.error || 'Could not undo finish roll.', { variant: 'error' });
+      await ws.refresh?.();
+      await refreshProductionHolders();
+      showToast(
+        `Finish roll undone — ${Number(data.kgRestored || 0).toLocaleString(undefined, {
+          maximumFractionDigits: 1,
+        })} kg restored. Status: ${data.currentStatus || 'Available'}.`
+      );
+      setActionModal('');
+      setUndoFinishForm({ note: '', confirm: false, kg: '' });
     } finally {
       setSavingAction(false);
     }
@@ -559,6 +610,17 @@ export default function CoilProfile() {
                 >
                   <CheckCircle2 size={16} aria-hidden />
                   Finish roll
+                </button>
+              ) : null}
+              {undoFinishEligible ? (
+                <button
+                  type="button"
+                  className="z-btn-secondary inline-flex items-center gap-1.5 border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100"
+                  onClick={() => setActionModal('undoFinish')}
+                  title="Branch manager+: restore a mistaken finish-roll tail"
+                >
+                  <Undo2 size={16} aria-hidden />
+                  Undo finish roll
                 </button>
               ) : null}
               <div className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2 py-1.5">
@@ -723,6 +785,15 @@ export default function CoilProfile() {
                   If this roll is physically finished (spool/core tail only), use <strong>Finish roll</strong> to clear
                   the remaining kg from raw stock. This fixes missed &ldquo;Roll finished&rdquo; at production complete
                   without posting new finished-goods metres or inflating stock value at month-end verification.
+                </p>
+              </div>
+            ) : null}
+            {undoFinishEligible ? (
+              <div className="mt-4 rounded-lg border border-sky-300 bg-sky-50 px-3 py-3 text-xs text-sky-950">
+                <p className="font-bold text-sky-900">Coil marked finished / consumed</p>
+                <p className="mt-1 leading-relaxed text-sky-900/90">
+                  If finish roll was mistaken and usable steel remains, a branch manager (or above) can{' '}
+                  <strong>Undo finish roll</strong> to restore the cleared tail and set the coil Available again.
                 </p>
               </div>
             ) : null}
@@ -981,6 +1052,47 @@ export default function CoilProfile() {
           />
           <button className="z-btn-primary" type="submit" disabled={savingAction}>
             {savingAction ? 'Clearing tail…' : 'Finish roll & clear stock'}
+          </button>
+        </form>
+      </ModalFrame>
+      <ModalFrame isOpen={actionModal === 'undoFinish'} onClose={closeActionModal}>
+        <form onSubmit={submitUndoFinishRoll} className="space-y-3" onInput={captureEdited} onChange={captureEdited}>
+          <h3 className="text-lg font-black text-zarewa-teal">Undo finish roll — {coil.coilNo}</h3>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Restores a mistaken finish-roll tail onto this coil and marks it Available again. Branch manager or above
+            only. Leave restore kg blank to use the last finish-roll amount on record.
+          </p>
+          <input
+            className="z-input w-full"
+            type="number"
+            min="0.01"
+            step="0.01"
+            placeholder={`Restore kg (optional, max ${COIL_PROFILE_FINISH_MAX_KG})`}
+            value={undoFinishForm.kg}
+            onChange={(e) => setUndoFinishForm((s) => ({ ...s, kg: e.target.value }))}
+          />
+          <textarea
+            className="z-input w-full min-h-24"
+            placeholder="Note (required, min 8 characters) — e.g. Mistaken finish roll; ~40 kg steel still on roll"
+            value={undoFinishForm.note}
+            onChange={(e) => setUndoFinishForm((s) => ({ ...s, note: e.target.value }))}
+            required
+            minLength={8}
+          />
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-950">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-amber-400 text-zarewa-teal"
+              checked={Boolean(undoFinishForm.confirm)}
+              onChange={(e) => setUndoFinishForm((s) => ({ ...s, confirm: e.target.checked }))}
+            />
+            <span>
+              <strong className="font-semibold">Confirm</strong> — usable steel remains on this roll; restore the
+              cleared finish-roll tail to stock.
+            </span>
+          </label>
+          <button className="z-btn-primary" type="submit" disabled={savingAction || !undoFinishForm.confirm}>
+            {savingAction ? 'Restoring…' : 'Undo finish roll & restore stock'}
           </button>
         </form>
       </ModalFrame>

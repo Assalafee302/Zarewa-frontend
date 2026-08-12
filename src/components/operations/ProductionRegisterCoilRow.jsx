@@ -76,6 +76,7 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
   canPickCoilAndOpening,
   canCaptureRun,
   canEditCompletedCoilCorrections,
+  canUndoFinishRoll = false,
   readOnly,
   jobSt,
   draftRow,
@@ -92,6 +93,8 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
     ? 'Primary coil is fixed while the run is open. Use Return to plan to change coils, or add a new coil row for an extra roll.'
     : coilSelectTitle;
   const lotMat = lot ? String(lot.materialTypeName || '').trim() : '';
+  const finishCoilLocked =
+    jobSt === 'Completed' && Number(row.finishCoilTailKg) > 0.05 && !canUndoFinishRoll;
   const hasUnsavedCoilData =
     draftRow &&
     Boolean(
@@ -274,23 +277,31 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
         ) : null}
       </div>
 
-      {canCaptureRun &&
+      {((canCaptureRun || canEditCompletedCoilCorrections) &&
       row.coilNo?.trim() &&
       Number(row.openingWeightKg) > 0 &&
       Number.isFinite(Number(row.closingWeightKg)) &&
       Number(row.closingWeightKg) >= 0 &&
       Number(row.closingWeightKg) < coilTailFinishMaxKg &&
-      Number(row.closingWeightKg) <= Number(row.openingWeightKg) ? (
+      Number(row.closingWeightKg) <= Number(row.openingWeightKg)) ? (
         <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md border border-amber-200/90 bg-amber-50/80 px-2 py-2 text-xs font-medium text-amber-950">
           <input
             type="checkbox"
             checked={Boolean(row.finishCoil)}
+            disabled={Boolean(finishCoilLocked)}
             onChange={(e) => onFieldChange(row.id, { finishCoil: e.target.checked })}
-            className="h-[1.125rem] w-[1.125rem] shrink-0 rounded border-amber-400 text-zarewa-teal focus:ring-2 focus:ring-zarewa-teal/30"
+            className="h-[1.125rem] w-[1.125rem] shrink-0 rounded border-amber-400 text-zarewa-teal focus:ring-2 focus:ring-zarewa-teal/30 disabled:opacity-60"
           />
           <span className="min-w-0 flex-1 leading-snug">
             <strong className="font-semibold">Finish roll</strong>
             <span className="text-amber-900/90"> (&lt;{coilTailFinishMaxKg} kg)</span>
+            {jobSt === 'Completed' && Number(row.finishCoilTailKg) > 0.05 ? (
+              <span className="mt-0.5 block text-[10px] font-semibold text-amber-900/80">
+                {canUndoFinishRoll
+                  ? 'Uncheck to restore the cleared tail (branch manager confirm on Save).'
+                  : 'Checked on book — ask a branch manager to uncheck and confirm restore.'}
+              </span>
+            ) : null}
           </span>
           <button
             type="button"

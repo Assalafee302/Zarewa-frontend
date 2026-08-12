@@ -40,6 +40,7 @@ function liveCoilWeightKg(lot) {
 const KIND_LABELS = {
   scrap_offcut: 'Scrap / offcut',
   finish_roll: 'Roll finished (tail cleared)',
+  undo_finish_roll: 'Undo finish roll (tail restored)',
   adjust_add_kg: 'Increase weight',
   adjust_remove_kg: 'Decrease weight',
   return_inward_pool: 'Offcut return pool',

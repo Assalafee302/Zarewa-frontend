@@ -185,6 +185,7 @@ export function LiveProductionMonitor({
   const [optimisticJobStatus, setOptimisticJobStatus] = useState(null);
   const [correctionModalKind, setCorrectionModalKind] = useState(null);
   const [correctionReason, setCorrectionReason] = useState('');
+  const [correctionUndoFinishRollConfirm, setCorrectionUndoFinishRollConfirm] = useState(false);
   const [correctionSaving, setCorrectionSaving] = useState(false);
   const [stockRecalcBusy, setStockRecalcBusy] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState(null);
@@ -317,6 +318,7 @@ export function LiveProductionMonitor({
     setOptimisticJobStatus(null);
     setCorrectionModalKind(null);
     setCorrectionReason('');
+    setCorrectionUndoFinishRollConfirm(false);
     setConfirmDialog(null);
     confirmDialogResolverRef.current = null;
     setSignoffEditApprovalId('');
@@ -615,6 +617,12 @@ export function LiveProductionMonitor({
     !viewOnly &&
     !stonePureNoCoil &&
     (Boolean(ws?.hasPermission?.('production.release')) || Boolean(ws?.hasPermission?.('operations.manage')));
+  const canUndoFinishRoll = useMemo(() => {
+    const rk = String(ws?.session?.user?.roleKey || '')
+      .trim()
+      .toLowerCase();
+    return ['admin', 'md', 'sales_manager', 'branch_manager'].includes(rk);
+  }, [ws?.session?.user?.roleKey]);
   const canEditCompletedAccessoryCorrections =
     jobSt === 'Completed' &&
     !viewOnly &&
@@ -1820,6 +1828,12 @@ export function LiveProductionMonitor({
     if (rowsToValidate.length === 0) return false;
     return rowsToValidate.every((r) => draftRowConversionPreviewReady(r));
   }, [canEditCompletedCoilCorrections, draftAllocations, selectedJobAllocations]);
+  const undoFinishRollOnCorrection = useMemo(() => {
+    if (!canEditCompletedCoilCorrections) return [];
+    return draftAllocations.filter(
+      (r) => !r.finishCoil && Number(r.finishCoilTailKg) > 0.05 && draftRowConversionPreviewReady(r)
+    );
+  }, [canEditCompletedCoilCorrections, draftAllocations]);
   const plannedAllocSaveReady = useMemo(
     () =>
       stonePureNoCoil ||
@@ -2476,6 +2490,7 @@ export function LiveProductionMonitor({
       return;
     }
     setCorrectionReason('');
+    setCorrectionUndoFinishRollConfirm(false);
     setCorrectionModalKind(kind);
   };
 
@@ -2490,6 +2505,17 @@ export function LiveProductionMonitor({
     setCorrectionSaving(true);
     try {
       if (correctionModalKind === 'coil') {
+        if (undoFinishRollOnCorrection.length && !canUndoFinishRoll) {
+          showToast(
+            'Unchecking Finish roll restores coil stock. Ask a branch manager (or above) to confirm.',
+            { variant: 'error' }
+          );
+          return;
+        }
+        if (undoFinishRollOnCorrection.length && !correctionUndoFinishRollConfirm) {
+          showToast('Tick “Confirm undo Finish roll” before saving.', { variant: 'error' });
+          return;
+        }
         const buildBody = (withAck) => ({
           reason,
           readings: draftAllocations
@@ -2505,6 +2531,9 @@ export function LiveProductionMonitor({
               ...(withAck ? { specMismatchAcknowledged: true } : {}),
             })),
           offcutInventoryMeters: offcutInventoryMetersNum,
+          ...(undoFinishRollOnCorrection.length && correctionUndoFinishRollConfirm
+            ? { confirmUndoFinishRoll: true }
+            : {}),
           ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
         });
         let res = await apiFetch(`${jobApi}/completion-coil-corrections`, {
@@ -2537,6 +2566,7 @@ export function LiveProductionMonitor({
         setPostCompletionEditApprovalId('');
         setCorrectionModalKind(null);
         setCorrectionReason('');
+        setCorrectionUndoFinishRollConfirm(false);
         showToast(`Completed job coil correction saved.${stockRecalcSuffix(res.data?.stockRecalc)}`);
         return;
       }
@@ -4942,6 +4972,7 @@ export function LiveProductionMonitor({
                         canPickCoilAndOpening={canPickCoilAndOpening}
                         canCaptureRun={canCaptureRun}
                         canEditCompletedCoilCorrections={canEditCompletedCoilCorrections}
+                        canUndoFinishRoll={canUndoFinishRoll}
                         readOnly={readOnly}
                         jobSt={jobSt}
                         draftRow={draftRow}
@@ -5513,10 +5544,24 @@ export function LiveProductionMonitor({
           reason={correctionReason}
           saving={correctionSaving}
           onReasonChange={setCorrectionReason}
+          undoFinishRollRequired={
+            correctionModalKind === 'coil' && undoFinishRollOnCorrection.length > 0 && canUndoFinishRoll
+          }
+          undoFinishRollConfirmed={correctionUndoFinishRollConfirm}
+          onUndoFinishRollConfirmChange={setCorrectionUndoFinishRollConfirm}
+          undoFinishRollSummary={undoFinishRollOnCorrection
+            .map(
+              (r) =>
+                `${r.coilNo} ~${Number(r.finishCoilTailKg).toLocaleString(undefined, {
+                  maximumFractionDigits: 1,
+                })} kg`
+            )
+            .join(', ')}
           onCancel={() => {
             if (correctionSaving) return;
             setCorrectionModalKind(null);
             setCorrectionReason('');
+            setCorrectionUndoFinishRollConfirm(false);
           }}
           onConfirm={() => void submitCorrectionFromModal()}
         />

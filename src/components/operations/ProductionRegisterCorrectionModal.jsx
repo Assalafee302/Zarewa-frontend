@@ -37,6 +37,10 @@ const COPY = {
  *   onReasonChange: (value: string) => void;
  *   onCancel: () => void;
  *   onConfirm: () => void;
+ *   undoFinishRollRequired?: boolean;
+ *   undoFinishRollConfirmed?: boolean;
+ *   onUndoFinishRollConfirmChange?: (value: boolean) => void;
+ *   undoFinishRollSummary?: string;
  * }} props
  */
 export function ProductionRegisterCorrectionModal({
@@ -46,9 +50,15 @@ export function ProductionRegisterCorrectionModal({
   onReasonChange,
   onCancel,
   onConfirm,
+  undoFinishRollRequired = false,
+  undoFinishRollConfirmed = false,
+  onUndoFinishRollConfirmChange,
+  undoFinishRollSummary = '',
 }) {
   const copy = COPY[kind] || COPY.coil;
   const minLen = 12;
+  const confirmBlocked =
+    saving || reason.trim().length < minLen || (undoFinishRollRequired && !undoFinishRollConfirmed);
 
   return (
     <div
@@ -73,6 +83,24 @@ export function ProductionRegisterCorrectionModal({
           placeholder={copy.placeholder}
           autoFocus
         />
+        {undoFinishRollRequired ? (
+          <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-950">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-amber-400 text-zarewa-teal focus:ring-2 focus:ring-zarewa-teal/30"
+              checked={Boolean(undoFinishRollConfirmed)}
+              onChange={(e) => onUndoFinishRollConfirmChange?.(e.target.checked)}
+            />
+            <span className="min-w-0 leading-snug">
+              <strong className="font-semibold">Confirm undo Finish roll</strong>
+              <span className="mt-0.5 block text-[11px] font-medium text-amber-900/90">
+                Usable steel remains on the roll
+                {undoFinishRollSummary ? ` (${undoFinishRollSummary})` : ''}. Restore the cleared
+                tail to coil stock.
+              </span>
+            </span>
+          </label>
+        ) : null}
         <div className="mt-3 flex flex-wrap justify-end gap-2">
           <button
             type="button"
@@ -84,7 +112,7 @@ export function ProductionRegisterCorrectionModal({
           </button>
           <button
             type="button"
-            disabled={saving || reason.trim().length < minLen}
+            disabled={confirmBlocked}
             onClick={onConfirm}
             className="min-h-11 rounded-md bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700 disabled:opacity-45 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
           >

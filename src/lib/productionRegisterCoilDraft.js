@@ -54,6 +54,7 @@ export function createDraftLine(row = {}) {
     note: row.note || '',
     specMismatch: Boolean(row.specMismatch),
     finishCoil: Boolean(row.finishCoil),
+    finishCoilTailKg: Number(row.finishCoilTailKg) || 0,
   };
 }
 
@@ -94,7 +95,7 @@ function mergeAllocationDraftFromServer(serverRow, prevDraft, storedDraft) {
     if (!serverAllocationHasRunLogField(serverRow, 'note') && src.note) {
       base.note = String(src.note);
     }
-    if (src.finishCoil && !serverRow.finishCoil) {
+    if (Object.prototype.hasOwnProperty.call(src, 'finishCoil')) {
       base.finishCoil = Boolean(src.finishCoil);
     }
     if ((!serverRow.openingWeightKg || serverRow.openingWeightKg === 0) && src.openingWeightKg) {
