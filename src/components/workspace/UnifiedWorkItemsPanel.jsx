@@ -38,6 +38,20 @@ function fallbackRoute(item) {
   if (item.routePath) return { to: item.routePath, state: item.routeState };
   if (item.linkedThreadId) return { to: '/', state: { selectedThreadId: String(item.linkedThreadId) } };
   if (item.documentType === 'payment_request') return { to: '/accounts', state: { accountsTab: 'requests' } };
+  if (item.documentType === 'register_settlement') {
+    const st = String(item?.status || '').trim().toLowerCase();
+    const sid = String(item?.sourceId || item?.data?.routeState?.settlementId || item?.referenceNo || '').trim();
+    if (st === 'awaiting_payment' || st === 'approved_awaiting_pay') {
+      return {
+        to: '/accounts',
+        state: { accountsTab: 'desk', settlementId: sid || undefined },
+      };
+    }
+    return {
+      to: '/exec',
+      state: { tab: 'decide', settlementId: sid || undefined },
+    };
+  }
   if (item.documentType === 'material_request') return { to: '/operations', state: { focusOpsTab: 'inventory' } };
   if (item.documentType === 'staff_purchase_credit') {
     const quote = String(item?.data?.quotationRef || item?.referenceNo || '').trim();

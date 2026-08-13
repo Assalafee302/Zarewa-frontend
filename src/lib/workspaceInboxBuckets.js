@@ -35,6 +35,7 @@ export function fileTrayCategoryLabel(item) {
   if (
     dt === 'payment_request' ||
     dt === 'refund_request' ||
+    dt === 'register_settlement' ||
     dt === 'bank_recon_exceptions' ||
     dt === 'po_transport_payment'
   ) {

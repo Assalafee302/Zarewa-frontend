@@ -87,6 +87,60 @@ describe('workItemPersonalInbox', () => {
     ).toBe(true);
   });
 
+  it('shows register_settlement (payable withdrawal) for finance.approve / refunds.approve', () => {
+    const item = { documentType: 'register_settlement', requiresApproval: true, status: 'pending' };
+    expect(
+      workItemShowsOnWorkspaceUnifiedInbox(item, {
+        userId: 'x',
+        roleKey: 'sales_staff',
+        permissions: [],
+      })
+    ).toBe(false);
+    expect(
+      workItemShowsOnWorkspaceUnifiedInbox(item, {
+        userId: 'x',
+        roleKey: 'md',
+        permissions: ['finance.approve', 'refunds.approve'],
+      })
+    ).toBe(true);
+    expect(
+      workItemShowsOnWorkspaceUnifiedInbox(item, {
+        userId: 'x',
+        roleKey: 'finance_manager',
+        permissions: ['finance.approve'],
+      })
+    ).toBe(true);
+  });
+
+  it('shows approved register_settlement awaiting payment for finance.pay / cashier desk', () => {
+    const item = {
+      documentType: 'register_settlement',
+      status: 'awaiting_payment',
+      requiresResponse: true,
+    };
+    expect(
+      workItemShowsOnWorkspaceUnifiedInbox(item, {
+        userId: 'x',
+        roleKey: 'sales_staff',
+        permissions: [],
+      })
+    ).toBe(false);
+    expect(
+      workItemShowsOnWorkspaceUnifiedInbox(item, {
+        userId: 'x',
+        roleKey: 'cashier',
+        permissions: ['finance.pay', 'cashier.desk.view'],
+      })
+    ).toBe(true);
+    expect(
+      workItemShowsOnWorkspaceUnifiedInbox(item, {
+        userId: 'x',
+        roleKey: 'finance_manager',
+        permissions: ['finance.pay'],
+      })
+    ).toBe(true);
+  });
+
   it('shows staff_purchase_credit for MD and HR loan managers', () => {
     const item = { documentType: 'staff_purchase_credit', requiresApproval: true };
     expect(

@@ -55,6 +55,7 @@ export const MANAGER_ATTENTION_FILTERS = [
   { key: 'orders', label: 'Orders', kinds: ['clearance', 'production', 'flagged'] },
   { key: 'expenses', label: 'Expenses', kinds: ['payments'] },
   { key: 'refunds', label: 'Refunds', kinds: ['refunds'] },
+  { key: 'withdrawals', label: 'Withdrawals', kinds: ['register_settlement'] },
   { key: 'overtime', label: 'Overtime', kinds: ['overtime'] },
   { key: 'qc', label: 'Production check', kinds: ['conversions'] },
   { key: 'material', label: 'Material exceptions', kinds: ['material'] },
@@ -77,6 +78,9 @@ export function pacAttentionRouteFromTab(tabKey) {
   if (k === 'cash_out' || k === 'cash') return { tab: 'attention', attentionFilter: 'expenses' };
   if (k === 'payments' || k === 'expenses' || k === 'expense') return { tab: 'attention', attentionFilter: 'expenses' };
   if (k === 'refunds' || k === 'refund') return { tab: 'attention', attentionFilter: 'refunds' };
+  if (k === 'withdrawals' || k === 'register_settlement' || k === 'settlement') {
+    return { tab: 'attention', attentionFilter: 'withdrawals' };
+  }
   if (k === 'overtime' || k === 'ot' || k === 'ot_pay' || k === 'otpay') {
     return { tab: 'attention', attentionFilter: 'overtime' };
   }
@@ -113,6 +117,7 @@ export function managerKindShortLabel(kind) {
     production: 'gate',
     flagged: 'flagged',
     refunds: 'refund',
+    register_settlement: 'withdrawal',
     payments: 'expense',
     overtime: 'OT pay',
     conversions: 'prod check',

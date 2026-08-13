@@ -7,6 +7,7 @@ const ATTENTION_KIND_LABELS = {
   production: 'Production gate',
   conversions: 'Production QC',
   refunds: 'Refund approval',
+  register_settlement: 'Payable withdrawal',
   payments: 'Expense approval',
   material: 'Material exceptions',
   edit_approvals: 'Edit approval',
@@ -30,6 +31,12 @@ export function managementAttentionItemPath(item) {
     return rid
       ? `/manager?inbox=cash_out&refundId=${encodeURIComponent(rid)}`
       : '/manager?inbox=cash_out';
+  }
+  if (kind === 'register_settlement') {
+    const sid = String(item.settlementId || item.title || '').trim();
+    return sid
+      ? `/exec?tab=decide&settlementId=${encodeURIComponent(sid)}`
+      : '/exec?tab=decide';
   }
   if (kind === 'payments') {
     const reqId = String(item.requestId || item.title || '').trim();

@@ -1298,6 +1298,14 @@ export function useBranchManagerWorkstation() {
         stayOnAttention('refunds');
         return;
       }
+      if (kind === 'register_settlement') {
+        const sid = String(item.settlementId || row.settlementId || row.settlement_id || item.title || '').trim();
+        navigate(
+          sid ? `/exec?tab=decide&settlementId=${encodeURIComponent(sid)}` : '/exec?tab=decide'
+        );
+        stayOnAttention('withdrawals');
+        return;
+      }
       if (kind === 'overtime') {
         openOtApprovalIntel(item);
         return;
@@ -1343,6 +1351,7 @@ export function useBranchManagerWorkstation() {
       }
     },
     [
+      navigate,
       openEditApprovalIntel,
       openGovernanceIntel,
       openMaterialIncidentIntel,

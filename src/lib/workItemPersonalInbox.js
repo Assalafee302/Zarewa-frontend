@@ -76,6 +76,24 @@ export function workItemShowsOnWorkspaceUnifiedInbox(item, { userId, roleKey, pe
     return true;
   }
 
+  if (dt === 'register_settlement') {
+    const st = String(item?.status || '').trim().toLowerCase();
+    const awaitingPay = st === 'awaiting_payment' || st === 'approved_awaiting_pay';
+    if (awaitingPay) {
+      return (
+        hasPermissionInList(permissions, 'finance.pay') ||
+        hasPermissionInList(permissions, 'cashier.desk.view') ||
+        hasPermissionInList(permissions, 'finance.approve') ||
+        hasPermissionInList(permissions, '*')
+      );
+    }
+    return (
+      hasPermissionInList(permissions, 'refunds.approve') ||
+      hasPermissionInList(permissions, 'finance.approve') ||
+      hasPermissionInList(permissions, '*')
+    );
+  }
+
   if (
     dt === 'staff_purchase_credit' &&
     (canApproveStaffPurchaseCredit(roleKey, permissions) || canRejectStaffPurchaseCredit(roleKey, permissions))
