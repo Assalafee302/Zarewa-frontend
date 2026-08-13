@@ -230,7 +230,7 @@ const AdvancePaymentModal = ({
         setPostingHint(null);
         if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !activeBankDepositId) {
           showToast(
-            `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match — link next time to avoid duplicate treasury.`,
+            `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match by amount/date (exact or close) — link next time to avoid duplicate treasury.`,
             { variant: 'info' }
           );
         }

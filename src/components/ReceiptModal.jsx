@@ -985,7 +985,7 @@ const ReceiptModal = ({
         );
         if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !activeBankDepositId) {
           showToast(
-            `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match this amount — link next time to avoid duplicate treasury cash.`,
+            `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match by amount/date (exact or close) — link next time to avoid duplicate treasury cash.`,
             { variant: 'info' }
           );
         }

@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { Link2 } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { apiFetch } from '../../lib/apiBase';
-import { bankDepositStatusLabel, openBankDepositsFromSnapshot } from '../../lib/bankDeposits';
+import { bankDepositStatusLabel, openBankDepositsFromSnapshot, scoreBankDepositMatch } from '../../lib/bankDeposits';
 
 /**
  * Optional link to a registered unlinked bank deposit (avoids duplicate treasury credit).
+ * Ranks by exact/close amount, exact/close date (±2 days), and bank reference.
  */
 export function BankDepositPicker({
   value = '',
@@ -19,30 +20,26 @@ export function BankDepositPicker({
 }) {
   const deposits = useMemo(() => openBankDepositsFromSnapshot(snapshot), [snapshot]);
 
-  const sorted = useMemo(() => {
-    const amt = Math.round(Number(amountNgn) || 0);
-    const ref = String(bankReference || '').trim().toLowerCase();
-    const date = String(bankDateISO || '').slice(0, 10);
-    return [...deposits].sort((a, b) => {
-      let sa = 0;
-      let sb = 0;
-      if (ref && String(a.bankReference || '').trim().toLowerCase() === ref) sa += 100;
-      if (ref && String(b.bankReference || '').trim().toLowerCase() === ref) sb += 100;
-      if (amt > 0 && Math.round(Number(a.amountNgn) || 0) === amt) sa += 40;
-      if (amt > 0 && Math.round(Number(b.amountNgn) || 0) === amt) sb += 40;
-      if (date && String(a.bankDateISO) === date) sa += 20;
-      if (date && String(b.bankDateISO) === date) sb += 20;
-      return sb - sa || String(b.bankDateISO || '').localeCompare(String(a.bankDateISO || ''));
-    });
+  const ranked = useMemo(() => {
+    const target = { amountNgn, bankDateISO, bankReference };
+    return [...deposits]
+      .map((d) => {
+        const match = scoreBankDepositMatch(d, target);
+        return { deposit: d, match };
+      })
+      .sort(
+        (a, b) =>
+          b.match.score - a.match.score ||
+          String(b.deposit.bankDateISO || '').localeCompare(String(a.deposit.bankDateISO || ''))
+      );
   }, [deposits, amountNgn, bankReference, bankDateISO]);
 
-  const reserve = useCallback(
-    async (depositId) => {
-      if (!depositId) return;
-      await apiFetch(`/api/bank-deposits/${encodeURIComponent(depositId)}/reserve`, { method: 'PATCH' });
-    },
-    []
-  );
+  const suggested = useMemo(() => ranked.filter((r) => r.match.score > 0).slice(0, 5), [ranked]);
+
+  const reserve = useCallback(async (depositId) => {
+    if (!depositId) return;
+    await apiFetch(`/api/bank-deposits/${encodeURIComponent(depositId)}/reserve`, { method: 'PATCH' });
+  }, []);
 
   const release = useCallback(async (depositId) => {
     if (!depositId) return;
@@ -54,9 +51,9 @@ export function BankDepositPicker({
   useEffect(() => {
     const id = String(value || '').trim();
     if (!id || disabled) return;
-    const stillLinkable = sorted.some((d) => String(d.id) === id);
+    const stillLinkable = ranked.some((r) => String(r.deposit.id) === id);
     if (!stillLinkable) onChange?.('');
-  }, [value, sorted, disabled, onChange]);
+  }, [value, ranked, disabled, onChange]);
 
   useEffect(() => {
     const id = String(value || '').trim();
@@ -67,7 +64,7 @@ export function BankDepositPicker({
     };
   }, [value, disabled, reserve, release]);
 
-  if (!sorted.length) {
+  if (!ranked.length) {
     return (
       <p className={`text-ui-xs text-slate-500 leading-snug ${className}`}>
         No unlinked bank deposits in this branch. Finance can register bank payments when money arrives before Sales
@@ -81,6 +78,15 @@ export function BankDepositPicker({
       <label className="flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal">
         <Link2 size={12} /> Link bank deposit (optional)
       </label>
+      {suggested.length > 0 ? (
+        <p className="text-ui-xs text-teal-900/80 leading-snug">
+          Suggested: {suggested.map((r) => r.deposit.id).join(', ')}
+          {suggested[0]?.match?.matchHints?.length
+            ? ` (${suggested[0].match.matchHints.join(', ')})`
+            : ''}
+          . Close amount (±₦100 or 1%) and close date (±2 days) are ranked higher.
+        </p>
+      ) : null}
       <select
         className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-800 disabled:opacity-60"
         value={value}
@@ -88,12 +94,18 @@ export function BankDepositPicker({
         onChange={(e) => onChange?.(e.target.value)}
       >
         <option value="">— Post new treasury movement (no link) —</option>
-        {sorted.map((d) => (
-          <option key={d.id} value={d.id}>
-            {d.id} · {formatNgn(d.remainingNgn)} left · {d.bankDateISO}
-            {d.bankReference ? ` · ${d.bankReference}` : ''} · {bankDepositStatusLabel(d.status)}
-          </option>
-        ))}
+        {ranked.map(({ deposit: d, match }) => {
+          const hint =
+            match.score > 0 && match.matchHints.length ? ` · ${match.matchHints.join(', ')}` : '';
+          return (
+            <option key={d.id} value={d.id}>
+              {match.score > 0 ? '★ ' : ''}
+              {d.id} · {formatNgn(d.remainingNgn)} left · {d.bankDateISO}
+              {d.bankReference ? ` · ${d.bankReference}` : ''} · {bankDepositStatusLabel(d.status)}
+              {hint}
+            </option>
+          );
+        })}
       </select>
       {value ? (
         <p className="text-ui-xs text-teal-800 leading-snug">
@@ -101,7 +113,7 @@ export function BankDepositPicker({
         </p>
       ) : (
         <p className="text-ui-xs text-amber-800 leading-snug">
-          If this payment matches a row below, link it to avoid duplicate cash in treasury.
+          If this payment matches a row below (exact or close amount/date), link it to avoid duplicate cash in treasury.
         </p>
       )}
     </div>
