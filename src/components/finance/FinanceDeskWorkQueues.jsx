@@ -79,8 +79,6 @@ import { CashierDeskReports } from "./CashierDeskReports";
 import { StaffPaymentsCashierPanel } from "./StaffPaymentsCashierPanel";
 import { CashierOtPayPanel } from "./CashierOtPayPanel";
 
-import { FinanceDeskLiquidityHeader } from "./FinanceDeskLiquidityHeader";
-
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
 
 import { FinanceDeskTreasurySummary } from "./FinanceDeskTreasurySummary";
@@ -515,13 +513,17 @@ export function FinanceDeskWorkQueues({
         </p>
       ) : null}
 
-          <FinanceDeskLiquidityHeader
-            bookTotalNgn={deskBalanceSplit.totals.bookNgn}
-            pendingClearanceNgn={deskBalanceSplit.totals.pendingNgn}
-            clearedBookNgn={deskBalanceSplit.totals.confirmedNgn}
-            nextActionSummary={nextActionSummary}
-            balanceSplit={deskBalanceSplit.totals}
-          />
+      {!hideAccountGrid ? (
+        <FinanceDeskTreasuryAccountGrid
+          accounts={treasuryAccounts}
+          bookById={bookById}
+          balanceByAccountId={deskBalanceSplit.byAccountId}
+          onGoToTab={onAccountClick ? undefined : onGoToTab}
+          onAccountClick={onAccountClick}
+          cardActionLabel={onAccountClick ? 'View statement' : undefined}
+          nextActionSummary={nextActionSummary}
+        />
+      ) : null}
 
           {canRecordBankCharge ? (
             <section
@@ -548,17 +550,6 @@ export function FinanceDeskWorkQueues({
               </div>
             </section>
           ) : null}
-
-      {!hideAccountGrid ? (
-        <FinanceDeskTreasuryAccountGrid
-          accounts={treasuryAccounts}
-          bookById={bookById}
-          balanceByAccountId={deskBalanceSplit.byAccountId}
-          onGoToTab={onAccountClick ? undefined : onGoToTab}
-          onAccountClick={onAccountClick}
-          cardActionLabel={onAccountClick ? 'View statement' : undefined}
-        />
-      ) : null}
 
       {isCashier && deskSubTab === "work" ? (
         <FinanceDeskCashierGuide />

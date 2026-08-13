@@ -1,8 +1,6 @@
 import {
-  isReceiptCleared,
   isReceiptPendingClearance,
   isReceiptReversed,
-  receiptEffectiveCashNgn,
 } from './receiptClearance.js';
 import { BANK_DEPOSIT_LINKABLE_STATUSES, bankDepositRemainingNgn } from './bankDeposits.js';
 
@@ -69,14 +67,8 @@ function bumpNgnMap(map, accountId, amountNgn) {
   const n = Math.round(Number(amountNgn) || 0);
   if (!n) return;
   const id = Number(accountId);
-  const key = Number.isFinite(id) ? id : 0;
-  map.set(key, (map.get(key) || 0) + n);
-}
-
-function sumNgnMap(map) {
-  let sum = 0;
-  for (const n of map.values()) sum += n;
-  return sum;
+  if (!Number.isFinite(id)) return;
+  map.set(id, (map.get(id) || 0) + n);
 }
 
 function isReceiptOrAdvanceInflow(movement) {
@@ -105,19 +97,10 @@ function receiptLookupBySourceId(receipts = []) {
 }
 
 /**
- * Cashier desk payment composition for an account (or branch totals).
- * `bookNgn` is the live account balance (opening + all movements).
- * Lines below that: cashier-confirmed receipts, confirmed + unlinked bank money,
- * and all inbound payments (confirmed + unlinked + draft receipts).
- *
- * @returns {{
- *   bookNgn: number;
- *   confirmedNgn: number;
- *   unlinkedNgn: number;
- *   pendingNgn: number;
- *   confirmedPlusUnlinkedNgn: number;
- *   allTotalNgn: number;
- * }}
+ * Per-account cashier desk balances (not lifetime payment totals).
+ * `allTotalNgn` / `bookNgn` is the live account balance.
+ * Confirmed (linked) = that balance after removing draft receipts and unlinked deposits.
+ * Confirmed + unlinked = account balance after removing draft receipts only.
  */
 export function emptyTreasuryDeskBalanceSplit() {
   return {
@@ -130,30 +113,22 @@ export function emptyTreasuryDeskBalanceSplit() {
   };
 }
 
-function composeDeskBalanceSplit(bookNgn, confirmedNgn, unlinkedNgn, pendingNgn) {
-  const confirmed = Math.round(Number(confirmedNgn) || 0);
-  const unlinked = Math.round(Number(unlinkedNgn) || 0);
-  const pending = Math.round(Number(pendingNgn) || 0);
+function composeDeskBalanceSplit(bookNgn, unlinkedNgn, pendingNgn) {
+  const book = Math.round(Number(bookNgn) || 0);
+  const unlinked = Math.max(0, Math.round(Number(unlinkedNgn) || 0));
+  const pending = Math.max(0, Math.round(Number(pendingNgn) || 0));
   return {
-    bookNgn: Math.round(Number(bookNgn) || 0),
-    confirmedNgn: confirmed,
+    bookNgn: book,
     unlinkedNgn: unlinked,
     pendingNgn: pending,
-    confirmedPlusUnlinkedNgn: confirmed + unlinked,
-    allTotalNgn: confirmed + unlinked + pending,
+    confirmedPlusUnlinkedNgn: book - pending,
+    confirmedNgn: book - pending - unlinked,
+    allTotalNgn: book,
   };
 }
 
 /**
- * Split cashier-desk balances: account book vs confirmed / unlinked / all inbound payments.
- *
- * @param {{
- *   accounts?: object[];
- *   movements?: object[];
- *   receipts?: object[];
- *   bankDeposits?: object[];
- *   bookById?: Map<number, number>;
- * }} input
+ * Split each treasury account's live balance into confirmed (linked), confirmed+unlinked, and all.
  */
 export function treasuryDeskBalanceSplit({
   accounts = [],
@@ -162,11 +137,9 @@ export function treasuryDeskBalanceSplit({
   bankDeposits = [],
   bookById,
 } = {}) {
-  const confirmedById = new Map();
   const pendingById = new Map();
   const unlinkedById = new Map();
   const receiptBySourceId = receiptLookupBySourceId(receipts);
-  const attributedReceiptIds = new Set();
   const reversedMovementIds = new Set(
     (Array.isArray(movements) ? movements : [])
       .map((m) => String(m?.reversesMovementId || '').trim())
@@ -181,24 +154,11 @@ export function treasuryDeskBalanceSplit({
     const sourceId = String(movement.sourceId || '').trim();
     const receipt = sourceId ? receiptBySourceId.get(sourceId) : null;
     if (receipt && isReceiptReversed(receipt)) continue;
-    if (receipt?.id != null) attributedReceiptIds.add(String(receipt.id));
-
     const pending = receipt
       ? isReceiptPendingClearance(receipt)
       : String(movement.type || '').trim() === 'RECEIPT_IN' ||
         String(movement.sourceKind || '').trim() === 'LEDGER_RECEIPT';
-    bumpNgnMap(pending ? pendingById : confirmedById, movement.treasuryAccountId, amount);
-  }
-
-  for (const receipt of Array.isArray(receipts) ? receipts : []) {
-    if (isReceiptReversed(receipt)) continue;
-    if (receipt?.id != null && attributedReceiptIds.has(String(receipt.id))) continue;
-    const cash = receiptEffectiveCashNgn(receipt);
-    bumpNgnMap(
-      isReceiptCleared(receipt) ? confirmedById : pendingById,
-      0,
-      cash
-    );
+    if (pending) bumpNgnMap(pendingById, movement.treasuryAccountId, amount);
   }
 
   for (const deposit of Array.isArray(bankDeposits) ? bankDeposits : []) {
@@ -217,7 +177,6 @@ export function treasuryDeskBalanceSplit({
       id,
       composeDeskBalanceSplit(
         treasuryBookDisplayNgn(account, bookById),
-        confirmedById.get(id) || 0,
         unlinkedById.get(id) || 0,
         pendingById.get(id) || 0
       )
@@ -227,9 +186,8 @@ export function treasuryDeskBalanceSplit({
   return {
     totals: composeDeskBalanceSplit(
       treasuryBookTotalNgn(accounts, bookById),
-      sumNgnMap(confirmedById),
-      sumNgnMap(unlinkedById),
-      sumNgnMap(pendingById)
+      [...unlinkedById.values()].reduce((s, n) => s + n, 0),
+      [...pendingById.values()].reduce((s, n) => s + n, 0)
     ),
     byAccountId,
   };

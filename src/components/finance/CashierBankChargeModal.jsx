@@ -144,7 +144,7 @@ export function CashierBankChargeModal({ open, onClose, initialAccountId = '' })
       closeDisabled={busy}
     >
       <ModalScrollShell size="md">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <ModalScrollHeader>
             <div className="flex items-start gap-3">
               <div className="rounded-xl bg-teal-50 p-2 text-zarewa-teal">

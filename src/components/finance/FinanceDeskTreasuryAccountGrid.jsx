@@ -28,6 +28,7 @@ export function FinanceDeskTreasuryAccountGrid({
   onGoToTab,
   onAccountClick,
   cardActionLabel,
+  nextActionSummary,
 }) {
   if (!accounts.length) {
     return (
@@ -60,15 +61,22 @@ export function FinanceDeskTreasuryAccountGrid({
           </FinanceActionButton>
         ) : null}
       </div>
+      {nextActionSummary ? (
+        <p className="text-xs font-semibold text-zarewa-teal leading-snug">{nextActionSummary}</p>
+      ) : null}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {accounts.map((acc) => {
+          const book = treasuryBookDisplayNgn(acc, bookById);
           const split = balanceByAccountId
             ? treasuryDeskBalanceForAccount(balanceByAccountId, acc)
             : {
                 ...emptyTreasuryDeskBalanceSplit(),
-                bookNgn: treasuryBookDisplayNgn(acc, bookById),
+                bookNgn: book,
+                confirmedNgn: book,
+                confirmedPlusUnlinkedNgn: book,
+                allTotalNgn: book,
               };
-          const balance = split.bookNgn;
+          const balance = split.allTotalNgn;
           return (
             <div
               key={acc.id}

@@ -44,7 +44,7 @@ describe('financeDeskTreasury', () => {
     expect(short?.name).toBe('Petty cash');
   });
 
-  it('splits cashier desk balance into confirmed, confirmed+unlinked, and all inbound payments', () => {
+  it('splits each account live balance into confirmed, confirmed+unlinked, and all total', () => {
     const accounts = [{ id: 7, name: 'GTB', openingBalanceNgn: 100_000, balance: 0 }];
     const receipts = [
       { id: 'RC-1', ledgerEntryId: 'LE-1', amountNgn: 50_000, financeReconciliationSavedAtISO: '2026-08-01' },
@@ -53,6 +53,7 @@ describe('financeDeskTreasury', () => {
     const movements = [
       { treasuryAccountId: 7, type: 'RECEIPT_IN', sourceKind: 'LEDGER_RECEIPT', sourceId: 'LE-1', amountNgn: 50_000 },
       { treasuryAccountId: 7, type: 'RECEIPT_IN', sourceKind: 'LEDGER_RECEIPT', sourceId: 'LE-2', amountNgn: 20_000 },
+      { treasuryAccountId: 7, type: 'BANK_UNIDENTIFIED_IN', sourceKind: 'BANK_DEPOSIT', sourceId: 'BD-1', amountNgn: 30_000 },
       { treasuryAccountId: 7, type: 'EXPENSE', sourceKind: 'EXPENSE', sourceId: 'EX-1', amountNgn: -10_000 },
     ];
     const bankDeposits = [
@@ -66,16 +67,12 @@ describe('financeDeskTreasury', () => {
       bankDeposits,
       bookById,
     });
-    expect(split.totals.bookNgn).toBe(160_000);
-    expect(split.totals.confirmedNgn).toBe(50_000);
-    expect(split.totals.unlinkedNgn).toBe(30_000);
-    expect(split.totals.confirmedPlusUnlinkedNgn).toBe(80_000);
-    expect(split.totals.pendingNgn).toBe(20_000);
-    expect(split.totals.allTotalNgn).toBe(100_000);
     const acc = treasuryDeskBalanceForAccount(split.byAccountId, accounts[0]);
-    expect(acc.bookNgn).toBe(160_000);
-    expect(acc.confirmedNgn).toBe(50_000);
-    expect(acc.confirmedPlusUnlinkedNgn).toBe(80_000);
-    expect(acc.allTotalNgn).toBe(100_000);
+    expect(acc.allTotalNgn).toBe(190_000);
+    expect(acc.bookNgn).toBe(190_000);
+    expect(acc.pendingNgn).toBe(20_000);
+    expect(acc.unlinkedNgn).toBe(30_000);
+    expect(acc.confirmedPlusUnlinkedNgn).toBe(170_000);
+    expect(acc.confirmedNgn).toBe(140_000);
   });
 });

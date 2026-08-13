@@ -45,7 +45,7 @@ vi.mock('../../context/ToastContext', () => ({
 }));
 
 describe('FinanceDeskWorkQueues', () => {
-  it('renders liquidity header and treasury account cards', () => {
+  it('renders each treasury account with confirmed, unlinked, and all-total balances', () => {
     render(
       <MemoryRouter>
         <FinanceDeskWorkQueues
@@ -59,14 +59,15 @@ describe('FinanceDeskWorkQueues', () => {
       </MemoryRouter>
     );
     expect(screen.getByText(/finance desk/i)).toBeTruthy();
-    expect(screen.getByTestId('desk-liquidity-header')).toBeTruthy();
-    expect(screen.getAllByText(/Confirmed payments/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Confirmed \+ unlinked/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/All total/i).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('desk-liquidity-header')).toBeNull();
+    expect(screen.getByText(/Main till/i)).toBeTruthy();
+    expect(screen.getByText(/Confirmed balance/i)).toBeTruthy();
+    expect(screen.getByText(/Confirmed \+ unlinked/i)).toBeTruthy();
+    expect(screen.getByText(/All total/i)).toBeTruthy();
     expect(screen.getByText(/Branch treasury accounts/i)).toBeTruthy();
     expect(screen.getByTestId('desk-all-clear')).toBeTruthy();
     expect(screen.getByText(/Main till/i)).toBeTruthy();
     expect(screen.getByTestId('desk-bank-charges')).toBeTruthy();
-    expect(screen.getByText(/Record bank charge/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Record bank charge$/i })).toBeTruthy();
   });
 });

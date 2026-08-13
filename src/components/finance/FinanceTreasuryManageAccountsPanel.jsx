@@ -57,13 +57,17 @@ export function FinanceTreasuryManageAccountsPanel({
           </div>
         ) : (
           accounts.map((acc) => {
+            const book = bookDisplayNgn?.(acc) ?? acc.balance ?? 0;
             const split = balanceByAccountId
               ? treasuryDeskBalanceForAccount(balanceByAccountId, acc)
               : {
                   ...emptyTreasuryDeskBalanceSplit(),
-                  bookNgn: bookDisplayNgn?.(acc) ?? acc.balance ?? 0,
+                  bookNgn: book,
+                  confirmedNgn: book,
+                  confirmedPlusUnlinkedNgn: book,
+                  allTotalNgn: book,
                 };
-            const balance = split.bookNgn;
+            const balance = split.allTotalNgn;
             return (
             <div
               key={acc.id}
