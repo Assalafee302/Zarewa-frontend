@@ -444,6 +444,7 @@ const ManagerDashboard = () => {
         handleReview={bm.handleReview}
         handleRefundDecision={bm.handleRefundDecision}
         handlePaymentDecision={bm.handlePaymentDecision}
+        handleRegisterSettlementDecision={bm.handleRegisterSettlementDecision}
         handleConversionSignoff={bm.handleConversionSignoff}
         handleDisapproveSelectedQuotation={bm.handleDisapproveSelectedQuotation}
         handleFlagSelectedQuotation={bm.handleFlagSelectedQuotation}

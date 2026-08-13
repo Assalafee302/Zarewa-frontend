@@ -53,6 +53,7 @@ export function ManagementDecisionModal({
   handleReview,
   handleRefundDecision,
   handlePaymentDecision,
+  handleRegisterSettlementDecision,
   handleConversionSignoff,
   handleDisapproveSelectedQuotation,
   handleFlagSelectedQuotation,
@@ -179,7 +180,40 @@ export function ManagementDecisionModal({
   }
 
   const stickyFooter =
-    selectedIntel?.kind === 'payment' ? (
+    selectedIntel?.kind === 'register_settlement' ? (
+      <DecisionStickyActions hint="Approve to send this payable withdrawal to Finance for treasury payout.">
+        {!canApproveRefunds ? (
+          <ZareApprovalHint
+            context={{
+              referenceNo: selectedIntel.settlementId,
+              documentType: 'register_settlement',
+              status: selectedIntel.row?.status || 'Pending',
+              canApprove: false,
+              canMutate: ws?.canMutate !== false,
+              missingPermission:
+                'Payable withdrawal approval requires refunds.approve or finance.approve permission.',
+              zareQuery: `Why can't I approve register withdrawal ${selectedIntel.settlementId}?`,
+            }}
+          />
+        ) : null}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <DecisionActionTile
+            variant="reject"
+            icon={Flag}
+            label="Reject"
+            disabled={modalBusy || !canApproveRefunds}
+            onClick={() => handleRegisterSettlementDecision?.('Rejected')}
+          />
+          <DecisionActionTile
+            variant="approve"
+            icon={CheckCircle2}
+            label="Approve"
+            disabled={modalBusy || !canApproveRefunds}
+            onClick={() => handleRegisterSettlementDecision?.('Approved')}
+          />
+        </div>
+      </DecisionStickyActions>
+    ) : selectedIntel?.kind === 'payment' ? (
       <DecisionStickyActions>
         {!canApprovePaymentRequests ? (
           <ZareApprovalHint
@@ -400,6 +434,49 @@ export function ManagementDecisionModal({
                   }
                 />
               </>
+            ) : selectedIntel?.kind === 'register_settlement' ? (
+              <div className="animate-in fade-in space-y-3 duration-200 text-slate-700">
+                <DecisionBand
+                  tone="payment"
+                  eyebrow="Payable withdrawal"
+                  title={selectedIntel.settlementId || selectedIntel.row?.settlementId || '—'}
+                  subtitle={selectedIntel.row?.partyName || selectedIntel.row?.party_name || null}
+                  aside={
+                    <>
+                      <p className="text-ui-xs font-bold uppercase text-slate-400">Amount</p>
+                      <p className="text-lg font-black tabular-nums text-slate-900">
+                        {asMoney(selectedIntel.row?.amountNgn ?? selectedIntel.row?.amount_ngn)}
+                      </p>
+                      {selectedIntel.row?.requestedAtIso || selectedIntel.row?.requested_at_iso ? (
+                        <p className="mt-0.5 text-ui-xs uppercase tracking-wide text-slate-500">
+                          {String(
+                            selectedIntel.row.requestedAtIso || selectedIntel.row.requested_at_iso || ''
+                          ).slice(0, 10)}
+                        </p>
+                      ) : null}
+                    </>
+                  }
+                >
+                  {selectedIntel.row?.registerLineId || selectedIntel.row?.register_line_id ? (
+                    <p className="mt-2 font-mono text-ui-xs text-slate-500">
+                      {selectedIntel.row.registerLineId || selectedIntel.row.register_line_id}
+                    </p>
+                  ) : null}
+                  {selectedIntel.row?.reason ? (
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-snug text-slate-600 rounded-lg bg-white border border-slate-100 px-3 py-2">
+                      {selectedIntel.row.reason}
+                    </p>
+                  ) : null}
+                  {selectedIntel.row?.requestedByName || selectedIntel.row?.requested_by_name ? (
+                    <p className="mt-2 text-ui-xs text-slate-500">
+                      Requested by{' '}
+                      {formatPersonNameUtil(
+                        selectedIntel.row.requestedByName || selectedIntel.row.requested_by_name
+                      )}
+                    </p>
+                  ) : null}
+                </DecisionBand>
+              </div>
             ) : selectedIntel?.kind === 'payment' ? (
               <div className="animate-in fade-in space-y-3 duration-200 text-slate-700">
                 <DecisionBand

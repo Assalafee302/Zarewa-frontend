@@ -35,8 +35,8 @@ export function managementAttentionItemPath(item) {
   if (kind === 'register_settlement') {
     const sid = String(item.settlementId || item.title || '').trim();
     return sid
-      ? `/exec?tab=decide&settlementId=${encodeURIComponent(sid)}`
-      : '/exec?tab=decide';
+      ? `/manager?inbox=withdrawals&settlementId=${encodeURIComponent(sid)}`
+      : '/manager?inbox=withdrawals';
   }
   if (kind === 'payments') {
     const reqId = String(item.requestId || item.title || '').trim();

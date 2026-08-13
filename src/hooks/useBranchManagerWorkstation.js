@@ -103,6 +103,7 @@ export function useBranchManagerWorkstation() {
   const quoteDeepLinked = useRef('');
   const poDeepLinked = useRef('');
   const refundDeepLinked = useRef('');
+  const settlementDeepLinked = useRef('');
   const jobDeepLinked = useRef('');
   const requestDeepLinked = useRef('');
   const materialIncidentDeepLinked = useRef('');
@@ -339,6 +340,7 @@ export function useBranchManagerWorkstation() {
     selectedIntel?.kind === 'quotation' ||
     selectedIntel?.kind === 'purchase_order' ||
     selectedIntel?.kind === 'payment' ||
+    selectedIntel?.kind === 'register_settlement' ||
     selectedIntel?.kind === 'conversion' ||
     selectedIntel?.kind === 'material' ||
     selectedIntel?.kind === 'governance' ||
@@ -356,15 +358,17 @@ export function useBranchManagerWorkstation() {
           ? 'Purchase order lifecycle'
           : selectedIntel?.kind === 'payment'
             ? 'Payment request review'
-            : selectedIntel?.kind === 'conversion'
-              ? 'Conversion QC sign-off'
-              : selectedIntel?.kind === 'material'
-                ? 'Material exception review'
-                : selectedIntel?.kind === 'governance'
-                  ? 'Governance & risk review'
-                  : selectedIntel?.kind === 'staff_purchase_credit'
-                    ? 'Staff purchase credit approval'
-                    : 'Transaction intel';
+            : selectedIntel?.kind === 'register_settlement'
+              ? 'Payable withdrawal review'
+              : selectedIntel?.kind === 'conversion'
+                ? 'Conversion QC sign-off'
+                : selectedIntel?.kind === 'material'
+                  ? 'Material exception review'
+                  : selectedIntel?.kind === 'governance'
+                    ? 'Governance & risk review'
+                    : selectedIntel?.kind === 'staff_purchase_credit'
+                      ? 'Staff purchase credit approval'
+                      : 'Transaction intel';
 
   const displayItems = useMemo(() => {
     if (ws?.hasWorkspaceData && ws.snapshot) {
@@ -909,6 +913,23 @@ export function useBranchManagerWorkstation() {
   }, [displayItems.pendingRefunds, loading, searchParams]);
 
   useEffect(() => {
+    const sid = (searchParams.get('settlementId') || searchParams.get('settlementID') || '').trim();
+    if (!sid || loading) return;
+    if (settlementDeepLinked.current === sid) return;
+    settlementDeepLinked.current = sid;
+    const row =
+      (attentionItems || []).find(
+        (it) =>
+          it?.kind === 'register_settlement' &&
+          String(it.settlementId || it.row?.settlementId || it.title || '') === sid
+      )?.row || { settlementId: sid };
+    setAuditData(null);
+    setRefundIntelExtras(null);
+    setSelectedIntel({ kind: 'register_settlement', settlementId: sid, row: { ...row, settlementId: sid } });
+    setPacRoute('withdrawals');
+  }, [attentionItems, loading, searchParams, setPacRoute]);
+
+  useEffect(() => {
     const jid = (searchParams.get('jobId') || searchParams.get('jobID') || '').trim();
     if (!jid || loading) return;
     if (jobDeepLinked.current === jid) return;
@@ -1300,9 +1321,13 @@ export function useBranchManagerWorkstation() {
       }
       if (kind === 'register_settlement') {
         const sid = String(item.settlementId || row.settlementId || row.settlement_id || item.title || '').trim();
-        navigate(
-          sid ? `/exec?tab=decide&settlementId=${encodeURIComponent(sid)}` : '/exec?tab=decide'
-        );
+        setAuditData(null);
+        setRefundIntelExtras(null);
+        setSelectedIntel({
+          kind: 'register_settlement',
+          settlementId: sid,
+          row: { ...row, settlementId: sid || row.settlementId || row.settlement_id },
+        });
         stayOnAttention('withdrawals');
         return;
       }
@@ -1351,7 +1376,6 @@ export function useBranchManagerWorkstation() {
       }
     },
     [
-      navigate,
       openEditApprovalIntel,
       openGovernanceIntel,
       openMaterialIncidentIntel,
@@ -1379,6 +1403,13 @@ export function useBranchManagerWorkstation() {
       }
       if (selectedIntel.kind === 'payment') {
         return it.kind === 'payments' && String(it.requestId || it.row?.request_id) === String(selectedIntel.requestId);
+      }
+      if (selectedIntel.kind === 'register_settlement') {
+        return (
+          it.kind === 'register_settlement' &&
+          String(it.settlementId || it.row?.settlementId || it.row?.settlement_id || it.title || '') ===
+            String(selectedIntel.settlementId)
+        );
       }
       if (selectedIntel.kind === 'conversion') {
         return it.kind === 'conversions' && String(it.jobId || it.row?.job_id) === String(selectedIntel.jobId);
@@ -1857,6 +1888,78 @@ export function useBranchManagerWorkstation() {
     [fetchData, findNextAttentionItemAfterDecision, openAttentionItem, requestRemark, selectedIntel, showToast]
   );
 
+  const handleRegisterSettlementDecision = useCallback(
+    async (status) => {
+      if (selectedIntel?.kind !== 'register_settlement') return;
+      const settlementId = String(selectedIntel.settlementId || selectedIntel.row?.settlementId || '').trim();
+      if (!settlementId) {
+        showToast('Withdrawal id is missing.', { variant: 'error' });
+        return;
+      }
+      const isReject = status !== 'Approved';
+      const amount = Math.round(Number(selectedIntel.row?.amountNgn || selectedIntel.row?.amount_ngn) || 0);
+      const refundHi =
+        Number(ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn) || 1_000_000;
+      if (!isReject && amount > refundHi) {
+        showToast(`Withdrawals above ₦${refundHi.toLocaleString('en-NG')} require Managing Director approval.`, {
+          variant: 'error',
+        });
+        return;
+      }
+      const asked = await requestRemark({
+        title: isReject ? 'Rejection reason (required)' : 'Approval note (optional)',
+        description: isReject
+          ? 'Explain why this payable withdrawal is rejected.'
+          : 'Optional note for the audit trail before finance pays out.',
+        confirmLabel: isReject ? 'Reject withdrawal' : 'Approve withdrawal',
+        minLength: isReject ? 3 : 0,
+        optional: !isReject,
+        variant: isReject ? 'warning' : 'default',
+        onSubmit: 'register_settlement_decision_note',
+      });
+      if (!asked?.ok) return;
+      const note = String(asked.value || '').trim();
+      if (isReject && note.length < 3) {
+        showToast('Rejection reason is required (at least 3 characters).', { variant: 'error' });
+        return;
+      }
+      setDecisionBusy(true);
+      const { ok, data } = await apiFetch(
+        `/api/accounting/settlements/${encodeURIComponent(settlementId)}/decision`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            status,
+            note: note || (isReject ? 'Rejected' : 'Approved'),
+            ...(!isReject && amount > 0 ? { approvedAmountNgn: amount } : {}),
+          }),
+        }
+      );
+      setDecisionBusy(false);
+      if (!ok || data?.ok === false) {
+        showToast(data?.error || 'Could not update withdrawal.', { variant: 'error' });
+        return;
+      }
+      showToast(
+        status === 'Approved' ? 'Withdrawal approved — waiting on Finance payout.' : 'Withdrawal rejected.',
+        { variant: 'success' }
+      );
+      const nextItem = findNextAttentionItemAfterDecision();
+      await fetchData({ background: true });
+      setSelectedIntel(null);
+      if (nextItem) queueMicrotask(() => openAttentionItem(nextItem));
+    },
+    [
+      fetchData,
+      findNextAttentionItemAfterDecision,
+      openAttentionItem,
+      requestRemark,
+      selectedIntel,
+      showToast,
+      ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn,
+    ]
+  );
+
   const handleConversionSignoff = useCallback(async () => {
     if (selectedIntel?.kind !== 'conversion') return;
     const remark = conversionSignoffRemark.trim();
@@ -1957,6 +2060,7 @@ export function useBranchManagerWorkstation() {
     // Allow the same deep-link (e.g. from search) to reopen after close.
     quoteDeepLinked.current = '';
     refundDeepLinked.current = '';
+    settlementDeepLinked.current = '';
     poDeepLinked.current = '';
     jobDeepLinked.current = '';
     requestDeepLinked.current = '';
@@ -1970,6 +2074,8 @@ export function useBranchManagerWorkstation() {
       'quoteRef',
       'refundId',
       'refundID',
+      'settlementId',
+      'settlementID',
       'poId',
       'poID',
       'jobId',
@@ -2238,6 +2344,7 @@ export function useBranchManagerWorkstation() {
     handleRefundDecision,
     handleStaffPurchaseCreditDecision,
     handlePaymentDecision,
+    handleRegisterSettlementDecision,
     handleConversionSignoff,
     handleDisapproveSelectedQuotation,
     handleFlagSelectedQuotation,
