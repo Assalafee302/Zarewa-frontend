@@ -39,6 +39,10 @@ import { BankDepositExceptionPanel } from '../../components/finance/BankDepositE
 import { AccountGlManualJournalCard } from '../../components/account/AccountGlManualJournalCard.jsx';
 import { receiptClearanceBadgeLabel, receiptRegisteredByLabel } from '../../lib/receiptClearance.js';
 import { hangingRefundIndicatorsByCustomerId } from '../../lib/refundsStore.js';
+import {
+  treasuryBookBalanceByAccountId,
+  treasuryDeskBalanceSplit,
+} from '../../lib/financeDeskTreasury.js';
 import { HangingCustomerRefundChip } from '../../components/finance/HangingCustomerRefundHint.jsx';
 import { useAccountPage } from './AccountPageContext.jsx';
 
@@ -172,6 +176,17 @@ export function AccountTabPanels() {
     [refundById, liveLedgerEntries]
   );
 
+  const deskAccountBalanceSplit = useMemo(() => {
+    const bookById = treasuryBookBalanceByAccountId(filteredBankAccounts, liveTreasuryMovements);
+    return treasuryDeskBalanceSplit({
+      accounts: filteredBankAccounts,
+      movements: liveTreasuryMovements,
+      receipts: liveReceipts,
+      bankDeposits: Array.isArray(ws?.snapshot?.bankDeposits) ? ws.snapshot.bankDeposits : [],
+      bookById,
+    });
+  }, [filteredBankAccounts, liveTreasuryMovements, liveReceipts, ws?.snapshot?.bankDeposits]);
+
   return (
             <>
             {activeTab === 'desk' && (
@@ -218,6 +233,7 @@ export function AccountTabPanels() {
                     onOpenStatement={setStatementAccount}
                     onEditAccount={openEditTreasuryAccount}
                     onRemoveAccount={removeTreasuryAccount}
+                    balanceByAccountId={deskAccountBalanceSplit.byAccountId}
                   />
                 ) : null}
               </>

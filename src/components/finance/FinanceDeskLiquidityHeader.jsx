@@ -1,44 +1,48 @@
 import React from 'react';
 import { formatNgn } from '../../Data/mockData';
+import { emptyTreasuryDeskBalanceSplit } from '../../lib/financeDeskTreasury';
+import { FinanceDeskBalanceBreakdown } from './FinanceDeskBalanceBreakdown';
 
 /**
- * Cashier desk — liquidity snapshot (Treasury left-rail pattern, full-width on Desk).
- * Sticky on mobile so cashiers keep balances visible while scrolling queues.
+ * Cashier desk — account balance snapshot at the top of the desk.
+ * Main figure is live book balance; payment composition sits just below.
  */
 export function FinanceDeskLiquidityHeader({
   bookTotalNgn,
   pendingClearanceNgn,
   clearedBookNgn,
   nextActionSummary,
+  balanceSplit,
 }) {
+  const split = balanceSplit || {
+    ...emptyTreasuryDeskBalanceSplit(),
+    bookNgn: bookTotalNgn,
+    pendingNgn: pendingClearanceNgn,
+    confirmedNgn: clearedBookNgn,
+    confirmedPlusUnlinkedNgn: clearedBookNgn,
+    allTotalNgn: bookTotalNgn,
+  };
+  const balanceNgn = split.bookNgn ?? bookTotalNgn;
+
   return (
     <div className="lg:static sticky top-0 z-20 -mx-1 px-1 pb-2 pt-0.5 bg-[var(--color-sequence-bg,#f8fafc)]/95 backdrop-blur-sm border-b border-transparent lg:border-0 lg:backdrop-blur-none lg:bg-transparent">
-      <section id="desk-liquidity" className="grid grid-cols-1 gap-3 sm:grid-cols-3 scroll-mt-16">
-        <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-zarewa-teal bg-white p-5 shadow-[var(--shadow-sequence)] sm:col-span-1">
+      <section id="desk-liquidity" className="scroll-mt-16" data-testid="desk-liquidity-header">
+        <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-zarewa-teal bg-white p-5 shadow-[var(--shadow-sequence)]">
           <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400 mb-2">
-            Total liquidity
+            Balance
           </h3>
           <p className="text-2xl font-black tracking-tight text-slate-900 tabular-nums">
-            {formatNgn(bookTotalNgn)}
+            {formatNgn(balanceNgn)}
           </p>
           <p className="text-ui-xs text-slate-500 font-medium leading-snug mt-1">
-            Combined bank, cash &amp; POS floats
+            Combined bank, cash &amp; POS account balance
           </p>
+          <FinanceDeskBalanceBreakdown split={split} />
           {nextActionSummary ? (
             <p className="mt-3 border-t border-slate-200 pt-2.5 text-xs font-semibold text-zarewa-teal leading-snug">
               {nextActionSummary}
             </p>
           ) : null}
-        </div>
-        <div className="rounded-xl border border-emerald-200/75 bg-emerald-50/50 px-4 py-3.5 shadow-sm">
-          <p className="text-ui-xs font-bold text-emerald-800 uppercase tracking-wide">Cleared book</p>
-          <p className="text-lg font-black text-emerald-800 tabular-nums mt-0.5">{formatNgn(clearedBookNgn)}</p>
-          <p className="text-ui-xs text-emerald-900/75 mt-1 leading-snug">After pending receipt clearance</p>
-        </div>
-        <div className="rounded-xl border border-amber-200/85 bg-amber-50/75 px-4 py-3.5 shadow-sm">
-          <p className="text-ui-xs font-bold text-amber-800 uppercase tracking-wide">Pending clearance</p>
-          <p className="text-lg font-black text-amber-900 tabular-nums mt-0.5">{formatNgn(pendingClearanceNgn)}</p>
-          <p className="text-ui-xs text-amber-900/75 mt-1 leading-snug">Receipts not yet confirmed by finance</p>
         </div>
       </section>
     </div>

@@ -26,7 +26,8 @@ vi.mock('../../context/WorkspaceContext', () => ({
       paymentRequests: [],
       refunds: [],
     },
-    session: { user: { roleKey: 'cashier', permissions: ['cashier.desk.view'] } },
+    session: { user: { roleKey: 'cashier', permissions: ['cashier.desk.view', 'finance.pay'] } },
+    hasPermission: (p) => ['cashier.desk.view', 'finance.pay'].includes(p),
   }),
 }));
 
@@ -37,6 +38,10 @@ vi.mock('../../hooks/useFinanceTrialExceptions', () => ({
     error: null,
     reload: () => {},
   }),
+}));
+
+vi.mock('../../context/ToastContext', () => ({
+  useToast: () => ({ show: () => {}, dismiss: () => {} }),
 }));
 
 describe('FinanceDeskWorkQueues', () => {
@@ -54,9 +59,14 @@ describe('FinanceDeskWorkQueues', () => {
       </MemoryRouter>
     );
     expect(screen.getByText(/finance desk/i)).toBeTruthy();
-    expect(screen.getByText(/Total liquidity/i)).toBeTruthy();
+    expect(screen.getByTestId('desk-liquidity-header')).toBeTruthy();
+    expect(screen.getAllByText(/Confirmed payments/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Confirmed \+ unlinked/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/All total/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Branch treasury accounts/i)).toBeTruthy();
     expect(screen.getByTestId('desk-all-clear')).toBeTruthy();
     expect(screen.getByText(/Main till/i)).toBeTruthy();
+    expect(screen.getByTestId('desk-bank-charges')).toBeTruthy();
+    expect(screen.getByText(/Record bank charge/i)).toBeTruthy();
   });
 });

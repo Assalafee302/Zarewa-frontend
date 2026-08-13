@@ -2,6 +2,11 @@ import React from 'react';
 import { CreditCard, Landmark, Pencil, Trash2 } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { treasuryAccountBranchLabel } from '../../lib/treasuryAccountsStore';
+import { FinanceDeskBalanceBreakdown } from './FinanceDeskBalanceBreakdown';
+import {
+  emptyTreasuryDeskBalanceSplit,
+  treasuryDeskBalanceForAccount,
+} from '../../lib/financeDeskTreasury';
 
 /**
  * Manage branch bank/till accounts on Finance desk (treasury admin tools).
@@ -20,6 +25,7 @@ export function FinanceTreasuryManageAccountsPanel({
   onOpenStatement,
   onEditAccount,
   onRemoveAccount,
+  balanceByAccountId,
 }) {
   return (
     <section className="space-y-3 scroll-mt-20" data-testid="finance-desk-manage-accounts">
@@ -50,7 +56,15 @@ export function FinanceTreasuryManageAccountsPanel({
             ) : null}
           </div>
         ) : (
-          accounts.map((acc) => (
+          accounts.map((acc) => {
+            const split = balanceByAccountId
+              ? treasuryDeskBalanceForAccount(balanceByAccountId, acc)
+              : {
+                  ...emptyTreasuryDeskBalanceSplit(),
+                  bookNgn: bookDisplayNgn?.(acc) ?? acc.balance ?? 0,
+                };
+            const balance = split.bookNgn;
+            return (
             <div
               key={acc.id}
               className="rounded-zarewa border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-lg hover:border-teal-100 transition-all group flex flex-col"
@@ -81,9 +95,11 @@ export function FinanceTreasuryManageAccountsPanel({
                     {acc.bankName}
                   </p>
                 ) : null}
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">Balance</p>
                 <h4 className="text-lg font-black text-zarewa-teal italic tracking-tighter tabular-nums">
-                  {formatNgn(bookDisplayNgn?.(acc) ?? acc.balance ?? 0)}
+                  {formatNgn(balance)}
                 </h4>
+                <FinanceDeskBalanceBreakdown split={split} compact />
                 {acc.accountOfficerName || acc.accountOfficerPhone ? (
                   <p className="text-ui-xs text-slate-600 mt-2 leading-snug line-clamp-2">
                     {acc.accountOfficerName ? (
@@ -124,7 +140,8 @@ export function FinanceTreasuryManageAccountsPanel({
                 </div>
               ) : null}
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </section>

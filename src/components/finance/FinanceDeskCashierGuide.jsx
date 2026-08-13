@@ -21,6 +21,11 @@ const STEPS = [
     body: 'Refunds, expenses, register withdrawals, and haulage — all from this tab.',
   },
   {
+    icon: Landmark,
+    title: 'Record bank charges',
+    body: 'When the bank takes COT, stamp duty, or a transfer fee, use Record bank charge — date, amount, and which account. It posts immediately from that account.',
+  },
+  {
     icon: UserRound,
     title: 'Staff payments stay private',
     body: 'Loans and HR recoveries sit in a collapsed section at the bottom — expand only when the employee is at your desk.',

@@ -49,6 +49,7 @@ import { treasuryAccountsForWorkspace } from "../../lib/treasuryAccountsStore";
 import {
   treasuryBookBalanceByAccountId,
   treasuryBookTotalNgn,
+  treasuryDeskBalanceSplit,
 } from "../../lib/financeDeskTreasury";
 
 import { useFinanceTrialExceptions } from "../../hooks/useFinanceTrialExceptions";
@@ -83,6 +84,8 @@ import { FinanceDeskLiquidityHeader } from "./FinanceDeskLiquidityHeader";
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
 
 import { FinanceDeskTreasurySummary } from "./FinanceDeskTreasurySummary";
+
+import { CashierBankChargeModal } from "./CashierBankChargeModal";
 
 import { HangingCustomerRefundChip } from "./HangingCustomerRefundHint";
 
@@ -174,6 +177,8 @@ export function FinanceDeskWorkQueues({
 
   const [staffPaymentsExpanded, setStaffPaymentsExpanded] = useState(false);
 
+  const [showBankChargeModal, setShowBankChargeModal] = useState(false);
+
   const receipts = useMemo(
     () => (Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : []),
 
@@ -228,6 +233,23 @@ export function FinanceDeskWorkQueues({
     () => treasuryBookTotalNgn(treasuryAccounts, bookById),
 
     [treasuryAccounts, bookById],
+  );
+
+  const bankDeposits = useMemo(
+    () => (Array.isArray(ws?.snapshot?.bankDeposits) ? ws.snapshot.bankDeposits : []),
+    [ws?.snapshot?.bankDeposits],
+  );
+
+  const deskBalanceSplit = useMemo(
+    () =>
+      treasuryDeskBalanceSplit({
+        accounts: treasuryAccounts,
+        movements: treasuryMovements,
+        receipts,
+        bankDeposits,
+        bookById,
+      }),
+    [treasuryAccounts, treasuryMovements, receipts, bankDeposits, bookById],
   );
 
   const paymentRequests = useMemo(
@@ -420,6 +442,8 @@ export function FinanceDeskWorkQueues({
 
   const isCashier = userIsCashierRole(roleKey);
 
+  const canRecordBankCharge = Boolean(ws?.hasPermission?.("finance.pay"));
+
   const permissions = ws?.permissions;
 
   const mayTrialApi = userMayViewFinanceTrialExceptionsClient(
@@ -491,6 +515,51 @@ export function FinanceDeskWorkQueues({
         </p>
       ) : null}
 
+          <FinanceDeskLiquidityHeader
+            bookTotalNgn={deskBalanceSplit.totals.bookNgn}
+            pendingClearanceNgn={deskBalanceSplit.totals.pendingNgn}
+            clearedBookNgn={deskBalanceSplit.totals.confirmedNgn}
+            nextActionSummary={nextActionSummary}
+            balanceSplit={deskBalanceSplit.totals}
+          />
+
+          {canRecordBankCharge ? (
+            <section
+              data-testid="desk-bank-charges"
+              className="rounded-zarewa border border-slate-200/80 bg-white p-4 shadow-[var(--shadow-sequence)] sm:p-5"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <h2 className="flex items-center gap-2 text-sm font-black text-slate-800">
+                    <Landmark size={16} className="text-teal-700" />
+                    Bank charges
+                  </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                    Record COT, stamp duty, or transfer fees already deducted from a bank account — date, amount, and
+                    which account. Posts immediately like an expense payout.
+                  </p>
+                </div>
+                <FinanceActionButton
+                  variant="primary"
+                  onClick={() => setShowBankChargeModal(true)}
+                >
+                  Record bank charge
+                </FinanceActionButton>
+              </div>
+            </section>
+          ) : null}
+
+      {!hideAccountGrid ? (
+        <FinanceDeskTreasuryAccountGrid
+          accounts={treasuryAccounts}
+          bookById={bookById}
+          balanceByAccountId={deskBalanceSplit.byAccountId}
+          onGoToTab={onAccountClick ? undefined : onGoToTab}
+          onAccountClick={onAccountClick}
+          cardActionLabel={onAccountClick ? 'View statement' : undefined}
+        />
+      ) : null}
+
       {isCashier && deskSubTab === "work" ? (
         <FinanceDeskCashierGuide />
       ) : null}
@@ -528,13 +597,6 @@ export function FinanceDeskWorkQueues({
 
       {deskSubTab === "work" ? (
         <>
-          <FinanceDeskLiquidityHeader
-            bookTotalNgn={liquidity.bookTotalNgn}
-            pendingClearanceNgn={liquidity.pendingClearanceNgn}
-            clearedBookNgn={liquidity.clearedBookNgn}
-            nextActionSummary={nextActionSummary}
-          />
-
           {treasurySummary ? (
             <FinanceDeskTreasurySummary
               inflowsNgn={treasurySummary.inflowsNgn}
@@ -542,16 +604,6 @@ export function FinanceDeskWorkQueues({
               reconciliationCount={treasurySummary.reconciliationCount}
               onGoToReceipts={treasurySummary.onGoToReceipts}
             />
-          ) : null}
-
-          {!hideAccountGrid ? (
-          <FinanceDeskTreasuryAccountGrid
-            accounts={treasuryAccounts}
-            bookById={bookById}
-            onGoToTab={onAccountClick ? undefined : onGoToTab}
-            onAccountClick={onAccountClick}
-            cardActionLabel={onAccountClick ? 'View statement' : undefined}
-          />
           ) : null}
 
           <section className="space-y-3">
@@ -936,6 +988,11 @@ export function FinanceDeskWorkQueues({
         </Link>{" "}
         — branch cashiers do not use that desk.
       </p>
+
+      <CashierBankChargeModal
+        open={showBankChargeModal}
+        onClose={() => setShowBankChargeModal(false)}
+      />
     </div>
   );
 }

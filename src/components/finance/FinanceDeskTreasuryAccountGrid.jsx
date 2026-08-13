@@ -2,13 +2,20 @@ import React from 'react';
 import { CreditCard, Landmark } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { FinanceActionButton } from './FinanceActionButton';
-import { treasuryBookDisplayNgn } from '../../lib/financeDeskTreasury';
+import { FinanceDeskBalanceBreakdown } from './FinanceDeskBalanceBreakdown';
+import {
+  emptyTreasuryDeskBalanceSplit,
+  treasuryBookDisplayNgn,
+  treasuryDeskBalanceForAccount,
+} from '../../lib/financeDeskTreasury';
 
 /**
  * Treasury-style account cards for Cashier Desk (matches Treasury tab card grid).
+ * Main figure is live account balance; confirmed / unlinked / all totals sit just below.
  * @param {{
  *   accounts: object[];
  *   bookById: Map<number, number>;
+ *   balanceByAccountId?: Map<number, object>;
  *   onGoToTab?: (tabId: string) => void;
  *   onAccountClick?: (account: object) => void;
  *   cardActionLabel?: string;
@@ -17,6 +24,7 @@ import { treasuryBookDisplayNgn } from '../../lib/financeDeskTreasury';
 export function FinanceDeskTreasuryAccountGrid({
   accounts = [],
   bookById,
+  balanceByAccountId,
   onGoToTab,
   onAccountClick,
   cardActionLabel,
@@ -54,7 +62,13 @@ export function FinanceDeskTreasuryAccountGrid({
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {accounts.map((acc) => {
-          const balance = treasuryBookDisplayNgn(acc, bookById);
+          const split = balanceByAccountId
+            ? treasuryDeskBalanceForAccount(balanceByAccountId, acc)
+            : {
+                ...emptyTreasuryDeskBalanceSplit(),
+                bookNgn: treasuryBookDisplayNgn(acc, bookById),
+              };
+          const balance = split.bookNgn;
           return (
             <div
               key={acc.id}
@@ -84,9 +98,11 @@ export function FinanceDeskTreasuryAccountGrid({
                     {acc.bankName}
                   </p>
                 ) : null}
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">Balance</p>
                 <h4 className="text-lg font-black text-zarewa-teal italic tracking-tighter tabular-nums">
                   {formatNgn(balance)}
                 </h4>
+                <FinanceDeskBalanceBreakdown split={split} compact />
                 <p className="text-ui-xs text-teal-700/80 font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   {cardActionLabel || (onAccountClick ? 'View statement' : 'View on treasury')}
                 </p>

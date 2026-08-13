@@ -265,6 +265,21 @@ const OPERATIONAL_TOPICS = [
   },
   {
     module: 'finance',
+    action: 'record a bank charge',
+    title: 'Record bank charges (cashier)',
+    answer:
+      'Bank charges (COT, stamp duty, transfer fees) are posted from Finance desk like an expense payout: date, amount, and which account. The bank already took the money, so this does not wait for Branch Manager approval.',
+    steps: [
+      'Open **Finance desk**.',
+      'Click **Record bank charge**.',
+      'Enter date, amount, and the bank/till the charge came from.',
+      'Choose charge type (COT, stamp duty, etc.) and post.',
+    ],
+    links: [{ label: 'Finance desk', to: '/accounts', state: { accountsTab: 'desk' } }],
+    extraKeywords: ['bank charges', 'COT', 'stamp duty', 'transfer fee', 'bank fee'],
+  },
+  {
+    module: 'finance',
     action: 'reconcile bank lines to receipts',
     title: 'Bank reconciliation',
     answer: 'Match external bank entries to ERP receipts and movements.',
