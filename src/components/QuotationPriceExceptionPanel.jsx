@@ -166,8 +166,10 @@ export function QuotationPriceExceptionPanel({
           const gap = min > 0 && quoted > 0 && quoted < min ? min - quoted : 0;
           const label =
             v.code === 'below_floor'
-              ? v.trimWorkbook || v.priceBasis === 'published_list_plus_ridge'
-                ? 'Below trim list price'
+              ? v.trimWorkbook ||
+                v.priceBasis === 'published_list_plus_ridge' ||
+                v.priceBasis === 'workbook_floor_plus_ridge'
+                ? 'Below trim workbook floor'
                 : 'Below workbook floor'
               : 'Below trading band';
           return (

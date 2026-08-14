@@ -66,9 +66,9 @@ import {
 import { apiFetch } from '../lib/apiBase';
 import { appConfirm } from '../lib/appConfirm';
 import {
-  designKeysToTry,
   materialKeyFromMaterialTypeRow,
   resolveMaterialWorkbookPriceFromRows,
+  resolvePublishedListUnitNgnFromItems,
 } from '../lib/materialWorkbookQuotationPrice';
 import { selectPriceListRowsAsOf, localCalendarDateIso } from '../lib/pricingAsOf';
 import {
@@ -186,16 +186,6 @@ function pricingNormKey(s) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ');
-}
-
-/** First numeric gauge token from quotation UI (e.g. "0.45mm" → "0.45") to match workbook `gauge_key`. */
-function gaugeMmKeyFromQuotationGauge(label) {
-  const s = String(label ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ');
-  const m = s.match(/^(\d+(?:\.\d+)?)/);
-  return m ? m[1] : pricingNormKey(s);
 }
 
 /** Map master material type row → workbook `material_key`. */
@@ -1583,47 +1573,15 @@ const QuotationModal = ({
       const usesWorkbook = productUsesWorkbookAutoPrice(name);
 
       // Prefer published price list (Publish path) over draft workbook suggested list.
-      let publishedListN = 0;
-      if (usesWorkbook && priceListItems.length > 0) {
-        const gaugeK = gaugeMmKeyFromQuotationGauge(gaugeForLine);
-        // Match publish keys (e.g. "longspan") and UI labels (e.g. "Long Span").
-        const designKeys = stoneFlatSheet ? [] : designKeysToTry(materialDesign);
-
-        let bestScore = -1;
-        let bestN = 0;
-        for (const row of priceListItems) {
-          const rg = String(row.gaugeKey ?? '').trim();
-          const rd = pricingNormKey(row.designKey);
-          const rmt = String(row.materialTypeKey ?? '').trim().toLowerCase();
-          const rb = String(row.branchId ?? '').trim();
-
-          if (rb && branchId && rb !== branchId) continue;
-          if (gaugeK && rg && rg !== gaugeK) continue;
-          const designHit = designKeys.length
-            ? Boolean(rd && designKeys.some((dk) => dk === rd || dk.replace(/ /g, '') === rd.replace(/ /g, '')))
-            : !rd;
-          if (designKeys.length && rd && !designHit) continue;
-          if (rmt && materialKey) {
-            if (rmt !== materialKey && !materialKey.includes(rmt) && !rmt.includes(materialKey)) continue;
-          } else if (rmt && !materialKey) {
-            continue;
-          }
-
-          const n = Math.round(Number(row.unitPricePerMeterNgn) || 0);
-          if (n <= 0) continue;
-
-          let score = 0;
-          if (gaugeK && rg === gaugeK) score += 4;
-          if (designHit && rd) score += 4;
-          if (rmt && materialKey) score += 2;
-          if (rb && branchId) score += 1;
-          if (score > bestScore) {
-            bestScore = score;
-            bestN = n;
-          }
-        }
-        publishedListN = bestScore > 0 ? bestN : 0;
-      }
+      const publishedListN = usesWorkbook
+        ? resolvePublishedListUnitNgnFromItems(priceListItems, {
+            gaugeLabel: gaugeForLine,
+            designLabel: stoneFlatSheet ? '' : materialDesign,
+            materialTypeKey: materialKey,
+            branchId,
+            skipDesign: stoneFlatSheet,
+          })
+        : 0;
 
       if (publishedListN > 0) return publishedListN;
 
@@ -1752,7 +1710,7 @@ const QuotationModal = ({
     const branchId = quotationBranchId;
     if (!branchId) return null;
     for (const row of productRows) {
-      // Include cladding + meter sheet; trims use separate list-basis checks on the server.
+      // Include cladding + meter sheet; trims use workbook-floor checks on the server.
       if (!productUsesWorkbookAutoPrice(row.name) || isQuotationTrimProductLine(row.name)) continue;
       const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
         materialKey: priceListMaterialKeyFromMeta(selectedMaterialTypeMeta),
@@ -2625,8 +2583,10 @@ const QuotationModal = ({
                       <p className="font-semibold capitalize">
                         {v.lineCategory || 'line'} #{Number(v.lineIndex) + 1}:{' '}
                         {v.code === 'below_floor'
-                          ? v.trimWorkbook || v.priceBasis === 'published_list_plus_ridge'
-                            ? 'Below trim list price'
+                          ? v.trimWorkbook ||
+                            v.priceBasis === 'published_list_plus_ridge' ||
+                            v.priceBasis === 'workbook_floor_plus_ridge'
+                            ? 'Below trim workbook floor'
                             : v.lineCategory === 'products'
                               ? 'Below workbook floor'
                               : 'Below list floor'
