@@ -33,7 +33,7 @@ export function FinancePilotHeader({
           </div>
         </div>
 
-        <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center xl:max-w-[min(100%,28rem)] xl:shrink-0">
+        <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center xl:max-w-[min(100%,42rem)] xl:shrink-0">
           {search ? <div className="min-w-0 w-full flex-1">{search}</div> : null}
           {trailing ? (
             <div className="flex flex-wrap items-center gap-2 shrink-0 sm:justify-end">{trailing}</div>

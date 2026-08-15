@@ -58,16 +58,15 @@ describe('FinanceDeskWorkQueues', () => {
         />
       </MemoryRouter>
     );
-    expect(screen.getByText(/finance desk/i)).toBeTruthy();
-    expect(screen.queryByTestId('desk-liquidity-header')).toBeNull();
     expect(screen.getByText(/Main till/i)).toBeTruthy();
     expect(screen.getByText(/Confirmed balance/i)).toBeTruthy();
     expect(screen.getByText(/Confirmed \+ unlinked/i)).toBeTruthy();
     expect(screen.getByText(/All total/i)).toBeTruthy();
     expect(screen.getByText(/Branch treasury accounts/i)).toBeTruthy();
     expect(screen.getByTestId('desk-all-clear')).toBeTruthy();
-    expect(screen.getByText(/Main till/i)).toBeTruthy();
-    expect(screen.getByTestId('desk-bank-charges')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^Record bank charge$/i })).toBeTruthy();
+    expect(screen.getByTestId('desk-confirm-column')).toBeTruthy();
+    expect(screen.getByTestId('finance-payouts-combined')).toBeTruthy();
+    expect(screen.queryByTestId('desk-bank-charges')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Record bank charge$/i })).toBeNull();
   });
 });

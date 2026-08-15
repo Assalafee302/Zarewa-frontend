@@ -19,7 +19,7 @@ import { ZareApprovalHint } from '../../components/ZareApprovalHint';
 import { EditSecondApprovalInline } from '../../components/EditSecondApprovalInline';
 import { formatNgn } from '../../Data/mockData';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance.js';
-import { receiptCashReceivedNgn, receiptLedgerReceiptTreasurySplits } from '../../lib/salesReceiptsList';
+import { receiptLedgerReceiptTreasurySplits } from '../../lib/salesReceiptsList';
 import { SALES_STATUS_CHIP, receiptCuttingListChipClass } from '../../lib/salesStatusUi';
 import { ExpenseCategoryLaneBadge } from '../../components/office/ExpenseCategoryLaneBadge.jsx';
 import { ExpenseCategoryExceptionBanner } from '../../components/office/ExpenseCategoryExceptionBanner.jsx';
@@ -163,8 +163,6 @@ export function AccountTabPanels() {
     sortedFilteredSalesReceipts,
     togglePaymentsSort,
     treasuryBookDisplayNgn,
-    treasuryInflowsNgn,
-    treasuryOutflowsNgn,
     waitingReceiptsListWindow,
     workspaceBranchId,
     workspaceBranchLabel,
@@ -191,33 +189,6 @@ export function AccountTabPanels() {
             <>
             {activeTab === 'desk' && (
               <>
-                <FinanceDeskWorkQueues
-                  onConfirmReceipt={handleDeskConfirmReceipt}
-                  onViewReceipt={handleDeskViewReceipt}
-                  onPayRequest={handleDeskPayRequest}
-                  onViewPaymentRequest={handleDeskViewPaymentRequest}
-                  onPayRefund={handleDeskPayRefund}
-                  onCancelRefund={handleDeskCancelRefund}
-                  onCancelPaymentRequest={handleDeskCancelPaymentRequest}
-                  onPayRegisterSettlement={handleDeskPayRegisterSettlement}
-                  onPayPoTransport={handleDeskPayPoTransport}
-                  onViewPoTransport={handleDeskViewPoTransport}
-                  onReceiveStaffRecovery={handleDeskReceiveStaffRecovery}
-                  onReceiveStaffObligation={handleDeskReceiveStaffObligation}
-                  onGoToTab={handleAccountTabChange}
-                  onAccountClick={canManageTreasury ? undefined : setStatementAccount}
-                  hideAccountGrid={canManageTreasury}
-                  treasurySummary={{
-                    inflowsNgn: ws?.hasWorkspaceData
-                      ? treasuryInflowsNgn
-                      : liveReceipts.reduce((s, r) => s + receiptCashReceivedNgn(r), 0),
-                    outflowsNgn: ws?.hasWorkspaceData
-                      ? treasuryOutflowsNgn
-                      : expenses.reduce((s, e) => s + e.amountNgn, 0),
-                    reconciliationCount: reconciliationFlags,
-                    onGoToReceipts: () => handleAccountTabChange('receipts'),
-                  }}
-                />
                 {canManageTreasury ? (
                   <FinanceTreasuryManageAccountsPanel
                     workspaceBranchLabel={workspaceBranchLabel}
@@ -236,6 +207,23 @@ export function AccountTabPanels() {
                     balanceByAccountId={deskAccountBalanceSplit.byAccountId}
                   />
                 ) : null}
+                <FinanceDeskWorkQueues
+                  onConfirmReceipt={handleDeskConfirmReceipt}
+                  onViewReceipt={handleDeskViewReceipt}
+                  onPayRequest={handleDeskPayRequest}
+                  onViewPaymentRequest={handleDeskViewPaymentRequest}
+                  onPayRefund={handleDeskPayRefund}
+                  onCancelRefund={handleDeskCancelRefund}
+                  onCancelPaymentRequest={handleDeskCancelPaymentRequest}
+                  onPayRegisterSettlement={handleDeskPayRegisterSettlement}
+                  onPayPoTransport={handleDeskPayPoTransport}
+                  onViewPoTransport={handleDeskViewPoTransport}
+                  onReceiveStaffRecovery={handleDeskReceiveStaffRecovery}
+                  onReceiveStaffObligation={handleDeskReceiveStaffObligation}
+                  onGoToTab={handleAccountTabChange}
+                  onAccountClick={canManageTreasury ? undefined : setStatementAccount}
+                  hideAccountGrid={canManageTreasury}
+                />
               </>
             )}
 

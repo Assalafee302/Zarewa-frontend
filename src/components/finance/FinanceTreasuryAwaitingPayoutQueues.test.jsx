@@ -27,6 +27,7 @@ describe('FinanceTreasuryAwaitingPayoutQueues', () => {
         renderPoTransportActions={() => null}
       />
     );
+    expect(screen.getByTestId('finance-payouts-combined')).toBeTruthy();
     expect(screen.getByTestId('finance-refunds-awaiting-payout')).toBeTruthy();
     expect(screen.getByTestId('finance-payment-requests-awaiting-payout')).toBeTruthy();
     expect(screen.getByTestId('finance-refund-awaiting-row-RF-1')).toBeTruthy();

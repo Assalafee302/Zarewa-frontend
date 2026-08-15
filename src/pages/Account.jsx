@@ -37,9 +37,7 @@ import {
   ModalFrame,
 } from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
-import { ZareHelpButton } from '../components/ZareHelpButton';
 import { ZareApprovalHint } from '../components/ZareApprovalHint';
-import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
@@ -115,6 +113,7 @@ import { FinanceTreasuryManageAccountsPanel } from '../components/finance/Financ
 import { AccountingRegisterSettlementPayModal } from '../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { StaffRecoveryCashierModal } from '../components/finance/StaffRecoveryCashierModal.jsx';
 import { StaffObligationRepaymentModal } from '../components/finance/StaffObligationRepaymentModal.jsx';
+import { CashierBankChargeModal } from '../components/finance/CashierBankChargeModal.jsx';
 import { registerSettlementsAwaitingPayment } from '../lib/registerSettlementPay';
 import {
   treasuryAccountDisplayName,
@@ -215,7 +214,7 @@ const Account = () => {
   const [cancelRefundBusyId, setCancelRefundBusyId] = useState('');
   const [cancelPayRequestBusyId, setCancelPayRequestBusyId] = useState('');
   const [treasuryPayoutSubmitting, setTreasuryPayoutSubmitting] = useState(false);
-  const [transportPayEditApprovalId, setTransportPayEditApprovalId] = useState('');
+  const [showBankChargeModal, setShowBankChargeModal] = useState(false);
   const [customerRefunds, setCustomerRefunds] = useState([]);
 
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -1287,9 +1286,6 @@ const Account = () => {
               dateISO: line.dateISO,
               note: requestPayNote.trim() || 'PO transport / haulage',
               createdBy: activeActorLabel,
-              ...(transportPayEditApprovalId.trim()
-                ? { editApprovalId: transportPayEditApprovalId.trim() }
-                : {}),
             }),
           });
           if (!ok || !data?.ok) {
@@ -1310,7 +1306,6 @@ const Account = () => {
       setSelectedPayment(null);
       setRequestPayLines([]);
       setRequestPayNote('');
-      setTransportPayEditApprovalId('');
       showToast(
         fullyPaid
           ? `PO ${poId} transport fee fully paid from treasury.`
@@ -1357,7 +1352,6 @@ const Account = () => {
     setSelectedPayment(null);
     setRequestPayLines([]);
     setRequestPayNote('');
-    setTransportPayEditApprovalId('');
     showToast(
       fullyPaid
         ? `Payment request ${selectedPayment.id} fully paid from treasury.`
@@ -3458,16 +3452,14 @@ const Account = () => {
                 <Plus size={16} /> {newRecordLabel}
               </button>
             ) : null}
-            {activeTab === 'receipts' || activeTab === 'desk' ? (
-              <ZareHelpButton
-                transactionContext={{
-                  module: 'finance',
-                  currentPage: activeTab,
-                  pathname: '/accounts',
-                  transactionType: activeTab === 'receipts' ? 'receipt_settlement' : 'payment',
-                }}
-                compact
-              />
+            {activeTab === 'desk' && ws?.hasPermission?.('finance.pay') ? (
+              <button
+                type="button"
+                onClick={() => setShowBankChargeModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 shrink-0"
+              >
+                Record bank charge
+              </button>
             ) : null}
             <AiAskButton
               mode="finance"
@@ -4136,7 +4128,6 @@ const Account = () => {
           setSelectedPayment(null);
           setRequestPayLines([]);
           setRequestPayNote('');
-          setTransportPayEditApprovalId('');
         }}
       >
         <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-10">
@@ -4153,7 +4144,6 @@ const Account = () => {
                 setSelectedPayment(null);
                 setRequestPayLines([]);
                 setRequestPayNote('');
-                setTransportPayEditApprovalId('');
               }}
               className="text-gray-300 hover:text-rose-500 disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -4324,14 +4314,6 @@ const Account = () => {
                   </span>
                 </div>
               </div>
-              {selectedPayment?.type === 'po_transport' ? (
-                <EditSecondApprovalInline
-                  entityKind="purchase_order"
-                  entityId={selectedPayment?.id}
-                  value={transportPayEditApprovalId}
-                  onChange={setTransportPayEditApprovalId}
-                />
-              ) : null}
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {selectedPayment?.type === 'payment_request' && canPayRequests ? (
                   <button
@@ -5182,6 +5164,11 @@ const Account = () => {
             variant: 'success',
           });
         }}
+      />
+
+      <CashierBankChargeModal
+        open={showBankChargeModal}
+        onClose={() => setShowBankChargeModal(false)}
       />
     </PageShell>
     </AccountPageContext.Provider>

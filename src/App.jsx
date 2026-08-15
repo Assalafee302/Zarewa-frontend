@@ -53,7 +53,6 @@ import { UnsavedWorkProvider, useUnsavedWorkRegistry, UNSAVED_LEAVE_MESSAGE } fr
 import { UnsavedWorkNavigationGuard } from './components/UnsavedWorkNavigationGuard';
 import { useWorkspace } from './context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
-import { BootstrapTruncatedBanner } from './components/workspace/BootstrapTruncatedBanner';
 import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
 import {
   useHrNotifSummaryQuery,
@@ -696,9 +695,6 @@ function AppShell() {
                 ) : null}
                 </div>
 
-                <p className="hidden text-xs text-gray-400 sm:block sm:max-w-[220px] sm:text-right lg:max-w-none">
-                  <span className="font-semibold text-gray-500">Tip:</span> ↑↓ to browse, Enter to open, Ctrl+K for palette.
-                </p>
               </>
             )}
 
@@ -966,9 +962,6 @@ function AppShell() {
         </div>
 
         <main id="main-content" className="min-h-0 min-w-0 w-full max-w-full outline-none" tabIndex={-1}>
-          <div className="px-3 pt-3 sm:px-4">
-            <BootstrapTruncatedBanner bootstrapMeta={ws?.snapshot?.bootstrapMeta} />
-          </div>
           <Suspense fallback={<LoadingScreen />}>
           <Routes>
             <Route path="/" element={<HomeRoute />} />

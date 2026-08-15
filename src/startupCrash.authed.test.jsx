@@ -526,7 +526,7 @@ describe('authenticated startup TDZ', () => {
     await waitFor(
       () => {
         expect(screen.getByRole('tab', { name: /^Finance desk$/i })).toBeInTheDocument();
-        expect(screen.getByTestId('desk-treasury-summary')).toBeInTheDocument();
+        expect(screen.getByTestId('finance-payouts-combined')).toBeInTheDocument();
       },
       { timeout: 15000 }
     );

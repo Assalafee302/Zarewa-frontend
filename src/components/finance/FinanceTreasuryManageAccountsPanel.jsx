@@ -29,15 +29,6 @@ export function FinanceTreasuryManageAccountsPanel({
 }) {
   return (
     <section className="space-y-3 scroll-mt-20" data-testid="finance-desk-manage-accounts">
-      {workspaceBranchLabel ? (
-        <p className="text-xs text-slate-600 leading-relaxed rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">
-          Bank and cash accounts shown here belong to{' '}
-          <strong className="text-zarewa-teal">{workspaceBranchLabel}</strong>. Switch workspace to Yola or Maiduguri
-          to manage that branch&apos;s treasury, then use <strong>New account</strong> to register local bank or till
-          accounts.
-        </p>
-      ) : null}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {accounts.length === 0 ? (
           <div className="sm:col-span-2 lg:col-span-3 z-empty-state py-12">

@@ -85,22 +85,35 @@ function PaymentRequestQueueExtra({ req }) {
   );
 }
 
+function PayoutTypeGroup({
+  sectionId,
+  theme,
+  title,
+  icon,
+  count,
+  testId,
+  action,
+  children,
+}) {
+  if (!count) return null;
+  return (
+    <FinanceDeskColoredQueuePanel
+      sectionId={sectionId}
+      theme={theme}
+      title={title}
+      icon={icon}
+      count={count}
+      testId={testId}
+      action={action}
+    >
+      {children}
+    </FinanceDeskColoredQueuePanel>
+  );
+}
+
 /**
  * Shared treasury payout queues — Desk and Treasury tab use the same panels and row layout.
- * @param {{
- *   refunds?: object[];
- *   paymentRequests?: object[];
- *   registerSettlements?: object[];
- *   poTransport?: object[];
- *   branchNameById?: Record<string, string>;
- *   expensePanelDescription?: string;
- *   poTransportPanelAction?: React.ReactNode;
- *   sectionIdPrefix?: string;
- *   renderRefundActions: (refund: object) => React.ReactNode;
- *   renderPaymentRequestActions: (request: object) => React.ReactNode;
- *   renderRegisterSettlementActions: (settlement: object) => React.ReactNode;
- *   renderPoTransportActions: (row: object) => React.ReactNode;
- * }} props
+ * Combined into one pay-expenses container; each type keeps its colour.
  */
 export function FinanceTreasuryAwaitingPayoutQueues({
   refunds = [],
@@ -108,150 +121,161 @@ export function FinanceTreasuryAwaitingPayoutQueues({
   registerSettlements = [],
   poTransport = [],
   branchNameById = {},
-  expensePanelDescription = 'Branch Manager approves first. Verify payee, amount, and category — refuse payout if something is wrong.',
   poTransportPanelAction = null,
   sectionIdPrefix = '',
   renderRefundActions,
   renderPaymentRequestActions,
   renderRegisterSettlementActions,
   renderPoTransportActions,
+  children,
+  alwaysShow = false,
 }) {
   const id = (suffix) => (sectionIdPrefix ? `${sectionIdPrefix}-${suffix}` : undefined);
+  const total =
+    refunds.length + paymentRequests.length + registerSettlements.length + poTransport.length;
+  const hasChildren = Boolean(children);
+
+  if (!alwaysShow && total === 0 && !hasChildren) return null;
 
   return (
-    <>
-      {refunds.length > 0 ? (
-        <FinanceDeskColoredQueuePanel
-          sectionId={id('refunds')}
-          theme="rose"
-          title="Customer refunds — approved, awaiting payout"
-          icon={<RotateCcw size={16} strokeWidth={2} />}
-          count={refunds.length}
-          description="Sales submits refund requests with a breakdown; managers approve. Record bank/cash payment once funds leave the business."
-          testId="finance-refunds-awaiting-payout"
-        >
-          <ul className="space-y-1.5">
-            {refunds.map((r) => (
-              <FinanceDeskColoredQueueRow
-                key={r.refundID}
-                theme="rose"
-                testId={`finance-refund-awaiting-row-${r.refundID}`}
-                title={
-                  <>
-                    <span className="font-mono">{r.refundID}</span>
-                    <span className="font-medium text-slate-600"> · {r.customer}</span>
-                  </>
-                }
-                meta={refundPayoutMetaLine(r, branchNameById)}
-                extra={<RefundPayeeExtra refund={r} />}
-                amount={formatNgn(refundOutstandingAmount(r))}
-                actions={renderRefundActions(r)}
-              />
-            ))}
-          </ul>
-        </FinanceDeskColoredQueuePanel>
+    <section
+      id={id('payouts') || 'desk-payout-queue'}
+      className="rounded-xl border border-slate-200/80 bg-white p-3 space-y-3 scroll-mt-20 sm:p-4"
+      data-testid="finance-payouts-combined"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+        <h2 className="text-xs font-black uppercase tracking-widest text-slate-800">Pay expenses</h2>
+        <span className="text-ui-xs font-bold tabular-nums text-slate-500">{total} open</span>
+      </div>
+
+      {total === 0 ? (
+        <p className="py-6 text-center text-xs text-slate-500">No expenses waiting to pay.</p>
       ) : null}
 
-      {paymentRequests.length > 0 ? (
-        <FinanceDeskColoredQueuePanel
-          sectionId={id('expenses')}
-          theme="teal"
-          title="Expense payment requests — approved, awaiting payout"
-          icon={<Banknote size={16} strokeWidth={2} />}
-          count={paymentRequests.length}
-          description={expensePanelDescription}
-          testId="finance-payment-requests-awaiting-payout"
-        >
-          <ul className="space-y-1.5">
-            {paymentRequests.map((req) => (
-              <FinanceDeskColoredQueueRow
-                key={req.requestID}
-                theme="teal"
-                testId={`finance-preq-awaiting-row-${req.requestID}`}
-                title={
-                  <>
-                    <span className="font-mono">{req.requestID}</span>
-                    <span className="font-medium text-slate-600">
-                      {' '}
-                      · {req.description || req.expenseCategory || '—'}
-                    </span>
-                  </>
-                }
-                meta={paymentRequestPayoutMetaLine(req, branchNameById)}
-                extra={<PaymentRequestQueueExtra req={req} />}
-                amount={formatNgn(paymentRequestOutstandingNgn(req))}
-                actions={renderPaymentRequestActions(req)}
-              />
-            ))}
-          </ul>
-        </FinanceDeskColoredQueuePanel>
-      ) : null}
+      <div className="space-y-3">
+          <PayoutTypeGroup
+            sectionId={id('refunds')}
+            theme="rose"
+            title="Refunds"
+            icon={<RotateCcw size={16} strokeWidth={2} />}
+            count={refunds.length}
+            testId="finance-refunds-awaiting-payout"
+          >
+            <ul className="space-y-1.5">
+              {refunds.map((r) => (
+                <FinanceDeskColoredQueueRow
+                  key={r.refundID}
+                  theme="rose"
+                  testId={`finance-refund-awaiting-row-${r.refundID}`}
+                  title={
+                    <>
+                      <span className="font-mono">{r.refundID}</span>
+                      <span className="font-medium text-slate-600"> · {r.customer}</span>
+                    </>
+                  }
+                  meta={refundPayoutMetaLine(r, branchNameById)}
+                  extra={<RefundPayeeExtra refund={r} />}
+                  amount={formatNgn(refundOutstandingAmount(r))}
+                  actions={renderRefundActions(r)}
+                />
+              ))}
+            </ul>
+          </PayoutTypeGroup>
 
-      {registerSettlements.length > 0 ? (
-        <FinanceDeskColoredQueuePanel
-          sectionId={id('withdrawals')}
-          theme="teal"
-          title="Register withdrawals — approved, awaiting payout"
-          icon={<Wallet size={16} strokeWidth={2} />}
-          count={registerSettlements.length}
-          description="Accounting requests a debtor-register withdrawal; MD/finance approves. Record bank or cash payout here."
-          testId="finance-register-withdrawals-awaiting-payout"
-        >
-          <ul className="space-y-1.5">
-            {registerSettlements.map((s) => (
-              <FinanceDeskColoredQueueRow
-                key={s.settlementId}
-                theme="teal"
-                testId={`finance-register-withdrawal-awaiting-row-${s.settlementId}`}
-                title={
-                  <>
-                    <span className="font-mono">{s.settlementId}</span>
-                    <span className="font-medium text-slate-600"> · {s.partyName || 'Withdrawal'}</span>
-                  </>
-                }
-                meta={registerSettlementPayoutMetaLine(s, branchNameById)}
-                amount={formatNgn(registerSettlementOutstandingNgn(s))}
-                actions={renderRegisterSettlementActions(s)}
-              />
-            ))}
-          </ul>
-        </FinanceDeskColoredQueuePanel>
-      ) : null}
+          <PayoutTypeGroup
+            sectionId={id('expenses')}
+            theme="teal"
+            title="Expenses"
+            icon={<Banknote size={16} strokeWidth={2} />}
+            count={paymentRequests.length}
+            testId="finance-payment-requests-awaiting-payout"
+          >
+            <ul className="space-y-1.5">
+              {paymentRequests.map((req) => (
+                <FinanceDeskColoredQueueRow
+                  key={req.requestID}
+                  theme="teal"
+                  testId={`finance-preq-awaiting-row-${req.requestID}`}
+                  title={
+                    <>
+                      <span className="font-mono">{req.requestID}</span>
+                      <span className="font-medium text-slate-600">
+                        {' '}
+                        · {req.description || req.expenseCategory || '—'}
+                      </span>
+                    </>
+                  }
+                  meta={paymentRequestPayoutMetaLine(req, branchNameById)}
+                  extra={<PaymentRequestQueueExtra req={req} />}
+                  amount={formatNgn(paymentRequestOutstandingNgn(req))}
+                  actions={renderPaymentRequestActions(req)}
+                />
+              ))}
+            </ul>
+          </PayoutTypeGroup>
 
-      {poTransport.length > 0 ? (
-        <FinanceDeskColoredQueuePanel
-          sectionId={id('haulage')}
-          theme="sky"
-          title="PO transport / haulage — awaiting treasury"
-          icon={<Truck size={16} strokeWidth={2} />}
-          count={poTransport.length}
-          description="Procurement links the transporter and quoted fee on the PO. Record payout so balances and in-transit status stay aligned."
-          testId="finance-po-transport-awaiting-payout"
-          action={poTransportPanelAction}
-        >
-          <ul className="space-y-1.5">
-            {poTransport.map((row) => (
-              <FinanceDeskColoredQueueRow
-                key={row.poID}
-                theme="sky"
-                testId={`finance-po-transport-awaiting-row-${row.poID}`}
-                title={
-                  <>
-                    <span className="font-mono">{row.poID}</span>
-                    <span className="font-medium text-slate-600">
-                      {' '}
-                      · {row.transportAgentName || 'Transporter'}
-                    </span>
-                  </>
-                }
-                meta={poTransportPayoutMetaLine(row, branchNameById)}
-                amount={formatNgn(row.outstandingNgn)}
-                actions={renderPoTransportActions(row)}
-              />
-            ))}
-          </ul>
-        </FinanceDeskColoredQueuePanel>
-      ) : null}
-    </>
+          <PayoutTypeGroup
+            sectionId={id('withdrawals')}
+            theme="teal"
+            title="Register withdrawals"
+            icon={<Wallet size={16} strokeWidth={2} />}
+            count={registerSettlements.length}
+            testId="finance-register-withdrawals-awaiting-payout"
+          >
+            <ul className="space-y-1.5">
+              {registerSettlements.map((s) => (
+                <FinanceDeskColoredQueueRow
+                  key={s.settlementId}
+                  theme="teal"
+                  testId={`finance-register-withdrawal-awaiting-row-${s.settlementId}`}
+                  title={
+                    <>
+                      <span className="font-mono">{s.settlementId}</span>
+                      <span className="font-medium text-slate-600"> · {s.partyName || 'Withdrawal'}</span>
+                    </>
+                  }
+                  meta={registerSettlementPayoutMetaLine(s, branchNameById)}
+                  amount={formatNgn(registerSettlementOutstandingNgn(s))}
+                  actions={renderRegisterSettlementActions(s)}
+                />
+              ))}
+            </ul>
+          </PayoutTypeGroup>
+
+          <PayoutTypeGroup
+            sectionId={id('haulage')}
+            theme="sky"
+            title="Transport / haulage"
+            icon={<Truck size={16} strokeWidth={2} />}
+            count={poTransport.length}
+            testId="finance-po-transport-awaiting-payout"
+            action={poTransportPanelAction}
+          >
+            <ul className="space-y-1.5">
+              {poTransport.map((row) => (
+                <FinanceDeskColoredQueueRow
+                  key={row.poID}
+                  theme="sky"
+                  testId={`finance-po-transport-awaiting-row-${row.poID}`}
+                  title={
+                    <>
+                      <span className="font-mono">{row.poID}</span>
+                      <span className="font-medium text-slate-600">
+                        {' '}
+                        · {row.transportAgentName || 'Transporter'}
+                      </span>
+                    </>
+                  }
+                  meta={poTransportPayoutMetaLine(row, branchNameById)}
+                  amount={formatNgn(row.outstandingNgn)}
+                  actions={renderPoTransportActions(row)}
+                />
+              ))}
+            </ul>
+          </PayoutTypeGroup>
+
+          {children}
+        </div>
+    </section>
   );
 }

@@ -1,7 +1,5 @@
 import React, { useMemo, useState } from "react";
 
-import { Link } from "react-router-dom";
-
 import {
   Banknote,
   Landmark,
@@ -60,8 +58,6 @@ import { userMayViewFinanceTrialExceptionsClient } from "../../lib/financeTrialE
 
 import { FinanceKpiCard } from "./FinanceKpiCard";
 
-import { FinanceTrialBanner } from "./FinanceTrialBanner";
-
 import { FinanceDeskCashierGuide } from "./FinanceDeskCashierGuide";
 
 import { isCashierRole as userIsCashierRole } from "../../lib/legacyAccountsAccess";
@@ -80,10 +76,6 @@ import { StaffPaymentsCashierPanel } from "./StaffPaymentsCashierPanel";
 import { CashierOtPayPanel } from "./CashierOtPayPanel";
 
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
-
-import { FinanceDeskTreasurySummary } from "./FinanceDeskTreasurySummary";
-
-import { CashierBankChargeModal } from "./CashierBankChargeModal";
 
 import { HangingCustomerRefundChip } from "./HangingCustomerRefundHint";
 
@@ -153,8 +145,6 @@ export function FinanceDeskWorkQueues({
 
   onAccountClick,
 
-  treasurySummary,
-
   hideAccountGrid = false,
 }) {
   const ws = useWorkspace();
@@ -174,8 +164,6 @@ export function FinanceDeskWorkQueues({
   const [showAllKpis, setShowAllKpis] = useState(false);
 
   const [staffPaymentsExpanded, setStaffPaymentsExpanded] = useState(false);
-
-  const [showBankChargeModal, setShowBankChargeModal] = useState(false);
 
   const receipts = useMemo(
     () => (Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : []),
@@ -440,8 +428,6 @@ export function FinanceDeskWorkQueues({
 
   const isCashier = userIsCashierRole(roleKey);
 
-  const canRecordBankCharge = Boolean(ws?.hasPermission?.("finance.pay"));
-
   const permissions = ws?.permissions;
 
   const mayTrialApi = userMayViewFinanceTrialExceptionsClient(
@@ -466,10 +452,6 @@ export function FinanceDeskWorkQueues({
   const trialEx = trialData?.exceptions;
 
   const creditTrial = trialData?.creditExceptions;
-
-  const branchLabel = ws.viewAllBranches
-    ? "All branches"
-    : ws.branchLabel || ws.branchScope || "";
 
   const nextActionSummary = buildNextActionSummary([
     pendingReceipts.length > 0
@@ -504,15 +486,6 @@ export function FinanceDeskWorkQueues({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {branchLabel ? (
-        <p className="text-xs text-slate-600 leading-relaxed rounded-xl border border-teal-200/70 bg-teal-50/50 px-4 py-3">
-          <strong className="text-zarewa-teal">{branchLabel}</strong> finance desk
-          — confirm receipts, post approved payouts, and view till/bank balances and statements here.
-          Staff loan and recovery payments use the private section below when an employee pays at the desk.
-          Supplier payments stay on Procurement.
-        </p>
-      ) : null}
-
       {!hideAccountGrid ? (
         <FinanceDeskTreasuryAccountGrid
           accounts={treasuryAccounts}
@@ -525,40 +498,9 @@ export function FinanceDeskWorkQueues({
         />
       ) : null}
 
-          {canRecordBankCharge ? (
-            <section
-              data-testid="desk-bank-charges"
-              className="rounded-zarewa border border-slate-200/80 bg-white p-4 shadow-[var(--shadow-sequence)] sm:p-5"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <h2 className="flex items-center gap-2 text-sm font-black text-slate-800">
-                    <Landmark size={16} className="text-teal-700" />
-                    Bank charges
-                  </h2>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                    Record COT, stamp duty, or transfer fees already deducted from a bank account — date, amount, and
-                    which account. Posts immediately like an expense payout.
-                  </p>
-                </div>
-                <FinanceActionButton
-                  variant="primary"
-                  onClick={() => setShowBankChargeModal(true)}
-                >
-                  Record bank charge
-                </FinanceActionButton>
-              </div>
-            </section>
-          ) : null}
-
       {isCashier && deskSubTab === "work" ? (
         <FinanceDeskCashierGuide />
       ) : null}
-
-      <FinanceTrialBanner>
-        Exception counts are visible to supervisors — use the work queues below
-        for daily tasks.
-      </FinanceTrialBanner>
 
       <FinanceMobileAlertStrip
         pendingReceipts={pendingReceipts.length}
@@ -588,15 +530,6 @@ export function FinanceDeskWorkQueues({
 
       {deskSubTab === "work" ? (
         <>
-          {treasurySummary ? (
-            <FinanceDeskTreasurySummary
-              inflowsNgn={treasurySummary.inflowsNgn}
-              outflowsNgn={treasurySummary.outflowsNgn}
-              reconciliationCount={treasurySummary.reconciliationCount}
-              onGoToReceipts={treasurySummary.onGoToReceipts}
-            />
-          ) : null}
-
           <section className="space-y-3">
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
               <FinanceKpiCard
@@ -725,195 +658,186 @@ export function FinanceDeskWorkQueues({
             </section>
           ) : null}
 
-          {allQueuesClear ? (
-            <div
-              data-testid="desk-all-clear"
-              className="rounded-2xl border border-emerald-200/80 bg-emerald-50/60 px-5 py-6 text-center"
+          <div
+            className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start"
+            data-testid={allQueuesClear ? "desk-all-clear" : "desk-confirm-pay-split"}
+          >
+            <section
+              className="rounded-xl border border-slate-200/80 bg-white p-3 space-y-3 scroll-mt-20 sm:p-4"
+              data-testid="desk-confirm-column"
             >
-              <CheckCircle2
-                size={28}
-                className="mx-auto text-emerald-700 mb-2"
-                aria-hidden
-              />
-
-              <p className="text-sm font-black text-emerald-950">
-                All daily queues clear
-              </p>
-
-              <p className="text-xs text-emerald-900/80 mt-1 max-w-md mx-auto leading-relaxed">
-                No receipts, payouts, or staff collections waiting. Review
-                treasury balances above or record a movement below.
-              </p>
-            </div>
-          ) : null}
-
-          {pendingReceipts.length > 0 ? (
-            <FinanceDeskColoredQueuePanel
-              sectionId="desk-queue-receipts"
-              theme="amber"
-              title="Confirm payment received"
-              icon={<Banknote size={16} strokeWidth={2} />}
-              count={pendingReceipts.length}
-              description={
-                pendingReceiptsWithoutCuttingList > 0
-                  ? `Sales recorded these payments — confirm bank or cash landed before cleared balances and refunds. ${pendingReceiptsWithoutCuttingList} without a cutting list (listed first).`
-                  : "Sales recorded these payments — confirm bank or cash landed before cleared balances and refunds."
-              }
-              action={
-                <FinanceActionButton
-                  variant="link"
-                  onClick={() => onGoToTab("receipts")}
-                >
+              <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+                <h2 className="text-xs font-black uppercase tracking-widest text-slate-800">
+                  Confirm payment
+                </h2>
+                <FinanceActionButton variant="link" onClick={() => onGoToTab("receipts")}>
                   View all
                 </FinanceActionButton>
+              </div>
+              {pendingReceipts.length > 0 ? (
+                <FinanceDeskColoredQueuePanel
+                  sectionId="desk-queue-receipts"
+                  theme="amber"
+                  title="Confirm payment received"
+                  icon={<Banknote size={16} strokeWidth={2} />}
+                  count={pendingReceipts.length}
+                  description={
+                    pendingReceiptsWithoutCuttingList > 0
+                      ? `${pendingReceiptsWithoutCuttingList} without a cutting list (listed first).`
+                      : undefined
+                  }
+                >
+                  <ul className="space-y-1.5">
+                    {pendingReceipts.map((r) => {
+                      const hanging = hangingRefundByCustomerId.get(String(r.customerID || "").trim());
+                      const registeredBy = receiptRegisteredByLabel(r, ledgerEntries);
+                      const clearanceMeta = receiptClearanceBadgeLabel(r);
+                      const cuttingChipLabel =
+                        r._cuttingListLinkKind === "linked" && r._cuttingListId
+                          ? `CL ${r._cuttingListId}`
+                          : r._cuttingListLabel || "No cutting list";
+                      return (
+                      <FinanceDeskColoredQueueRow
+                        key={r.id}
+                        theme="amber"
+                        title={
+                          <>
+                            <span className="font-mono">{r.id}</span>
+
+                            <span className="font-medium text-slate-600">
+                              {" "}
+                              · {r.customer || r.customerID}
+                            </span>
+                          </>
+                        }
+                        meta={
+                          registeredBy
+                            ? `${clearanceMeta} · Registered by ${registeredBy}`
+                            : clearanceMeta
+                        }
+                        extra={
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={`${SALES_STATUS_CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
+                              title={r._cuttingListTitle || cuttingChipLabel}
+                            >
+                              {cuttingChipLabel}
+                            </span>
+                            {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
+                          </div>
+                        }
+                        amount={formatNgn(r.amountNgn)}
+                        actions={
+                          <>
+                            <FinanceDeskQueueActionButton
+                              tone="primary"
+                              onClick={() => onConfirmReceipt(r)}
+                            >
+                              Confirm
+                            </FinanceDeskQueueActionButton>
+
+                            {onViewReceipt ? (
+                              <FinanceDeskQueueActionButton
+                                tone="slate"
+                                onClick={() => onViewReceipt(r)}
+                              >
+                                Receipts tab
+                              </FinanceDeskQueueActionButton>
+                            ) : null}
+                          </>
+                        }
+                      />
+                      );
+                    })}
+                  </ul>
+                </FinanceDeskColoredQueuePanel>
+              ) : (
+                <p className="py-8 text-center text-xs text-slate-500">No receipts waiting to confirm.</p>
+              )}
+            </section>
+
+            <FinanceTreasuryAwaitingPayoutQueues
+              alwaysShow
+              sectionIdPrefix="desk-queue"
+              refunds={approvedRefunds}
+              paymentRequests={approvedPayments}
+              registerSettlements={approvedRegisterSettlements}
+              poTransport={poTransportAwaiting}
+              poTransportPanelAction={
+                onViewPoTransport ? (
+                  <FinanceActionButton variant="link" onClick={() => onGoToTab("treasury")}>
+                    Treasury list
+                  </FinanceActionButton>
+                ) : null
               }
-            >
-              <ul className="space-y-1.5">
-                {pendingReceipts.map((r) => {
-                  const hanging = hangingRefundByCustomerId.get(String(r.customerID || "").trim());
-                  const registeredBy = receiptRegisteredByLabel(r, ledgerEntries);
-                  const clearanceMeta = receiptClearanceBadgeLabel(r);
-                  const cuttingChipLabel =
-                    r._cuttingListLinkKind === "linked" && r._cuttingListId
-                      ? `CL ${r._cuttingListId}`
-                      : r._cuttingListLabel || "No cutting list";
-                  return (
-                  <FinanceDeskColoredQueueRow
-                    key={r.id}
-                    theme="amber"
-                    title={
-                      <>
-                        <span className="font-mono">{r.id}</span>
-
-                        <span className="font-medium text-slate-600">
-                          {" "}
-                          · {r.customer || r.customerID}
-                        </span>
-                      </>
-                    }
-                    meta={
-                      registeredBy
-                        ? `${clearanceMeta} · Registered by ${registeredBy}`
-                        : clearanceMeta
-                    }
-                    extra={
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={`${SALES_STATUS_CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
-                          title={r._cuttingListTitle || cuttingChipLabel}
-                        >
-                          {cuttingChipLabel}
-                        </span>
-                        {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
-                      </div>
-                    }
-                    amount={formatNgn(r.amountNgn)}
-                    actions={
-                      <>
-                        <FinanceDeskQueueActionButton
-                          tone="primary"
-                          onClick={() => onConfirmReceipt(r)}
-                        >
-                          Confirm
-                        </FinanceDeskQueueActionButton>
-
-                        {onViewReceipt ? (
-                          <FinanceDeskQueueActionButton
-                            tone="slate"
-                            onClick={() => onViewReceipt(r)}
-                          >
-                            Receipts tab
-                          </FinanceDeskQueueActionButton>
-                        ) : null}
-                      </>
-                    }
-                  />
-                  );
-                })}
-              </ul>
-            </FinanceDeskColoredQueuePanel>
-          ) : null}
-
-          <OrphanHaulageDeskPanel
-            orphanRows={orphanHaulageRows}
-            canAccessProcurement={Boolean(ws?.canAccessModule?.("procurement"))}
-          />
-
-          <FinanceTreasuryAwaitingPayoutQueues
-            sectionIdPrefix="desk-queue"
-            refunds={approvedRefunds}
-            paymentRequests={approvedPayments}
-            registerSettlements={approvedRegisterSettlements}
-            poTransport={poTransportAwaiting}
-            expensePanelDescription="Branch Manager approved these requests — verify payee, amount, and category before paying. Refuse payout if something is wrong."
-            poTransportPanelAction={
-              onViewPoTransport ? (
-                <FinanceActionButton variant="link" onClick={() => onGoToTab("treasury")}>
-                  Treasury list
-                </FinanceActionButton>
-              ) : null
-            }
-            renderRefundActions={(r) => (
-              <>
-                <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayRefund(String(r.refundID || ""))}>
-                  Payout
-                </FinanceDeskQueueActionButton>
-                {onCancelRefund ? (
-                  <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelRefund(r)}>
-                    Cancel
+              renderRefundActions={(r) => (
+                <>
+                  <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayRefund(String(r.refundID || ""))}>
+                    Payout
                   </FinanceDeskQueueActionButton>
-                ) : null}
-                <FinanceDeskQueueActionButton tone="slate" to="/sales?tab=refunds">
-                  Review
-                </FinanceDeskQueueActionButton>
-              </>
-            )}
-            renderPaymentRequestActions={(req) => (
-              <>
-                <FinanceDeskQueueActionButton
-                  tone="teal"
-                  onClick={() => onPayRequest(String(req.requestID || req.id || ""))}
-                >
-                  Payout
-                </FinanceDeskQueueActionButton>
-                {onCancelPaymentRequest ? (
-                  <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelPaymentRequest(req)}>
-                    Refuse
+                  {onCancelRefund ? (
+                    <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelRefund(r)}>
+                      Cancel
+                    </FinanceDeskQueueActionButton>
+                  ) : null}
+                  <FinanceDeskQueueActionButton tone="slate" to="/sales?tab=refunds">
+                    Review
                   </FinanceDeskQueueActionButton>
-                ) : null}
-                {onViewPaymentRequest ? (
+                </>
+              )}
+              renderPaymentRequestActions={(req) => (
+                <>
                   <FinanceDeskQueueActionButton
-                    tone="slate"
-                    onClick={() => onViewPaymentRequest(String(req.requestID || req.id || ""))}
+                    tone="teal"
+                    onClick={() => onPayRequest(String(req.requestID || req.id || ""))}
                   >
-                    Register
+                    Payout
                   </FinanceDeskQueueActionButton>
-                ) : null}
-              </>
-            )}
-            renderRegisterSettlementActions={(s) =>
-              onPayRegisterSettlement ? (
-                <FinanceDeskQueueActionButton
-                  tone="teal"
-                  onClick={() => onPayRegisterSettlement(String(s.settlementId || ""))}
-                >
-                  Payout
-                </FinanceDeskQueueActionButton>
-              ) : null
-            }
-            renderPoTransportActions={(row) => (
-              <>
-                <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayPoTransport(row)}>
-                  Record pay
-                </FinanceDeskQueueActionButton>
-                {onViewPoTransport ? (
-                  <FinanceDeskQueueActionButton tone="slate" onClick={() => onViewPoTransport(row)}>
-                    Treasury
+                  {onCancelPaymentRequest ? (
+                    <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelPaymentRequest(req)}>
+                      Refuse
+                    </FinanceDeskQueueActionButton>
+                  ) : null}
+                  {onViewPaymentRequest ? (
+                    <FinanceDeskQueueActionButton
+                      tone="slate"
+                      onClick={() => onViewPaymentRequest(String(req.requestID || req.id || ""))}
+                    >
+                      Register
+                    </FinanceDeskQueueActionButton>
+                  ) : null}
+                </>
+              )}
+              renderRegisterSettlementActions={(s) =>
+                onPayRegisterSettlement ? (
+                  <FinanceDeskQueueActionButton
+                    tone="teal"
+                    onClick={() => onPayRegisterSettlement(String(s.settlementId || ""))}
+                  >
+                    Payout
                   </FinanceDeskQueueActionButton>
-                ) : null}
-              </>
-            )}
-          />
+                ) : null
+              }
+              renderPoTransportActions={(row) => (
+                <>
+                  <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayPoTransport(row)}>
+                    Payout
+                  </FinanceDeskQueueActionButton>
+                  {onViewPoTransport ? (
+                    <FinanceDeskQueueActionButton tone="slate" onClick={() => onViewPoTransport(row)}>
+                      Treasury
+                    </FinanceDeskQueueActionButton>
+                  ) : null}
+                </>
+              )}
+            >
+              <OrphanHaulageDeskPanel
+                orphanRows={orphanHaulageRows}
+                canAccessProcurement={Boolean(ws?.canAccessModule?.("procurement"))}
+              />
+              <CashierOtPayPanel embedded />
+            </FinanceTreasuryAwaitingPayoutQueues>
+          </div>
 
           {(staffRecoveriesDue.length > 0 || staffObligationsDue.length > 0) ? (
             <StaffPaymentsCashierPanel
@@ -925,8 +849,6 @@ export function FinanceDeskWorkQueues({
               onExpandedChange={setStaffPaymentsExpanded}
             />
           ) : null}
-
-          <CashierOtPayPanel />
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-800 mb-1">
@@ -968,22 +890,6 @@ export function FinanceDeskWorkQueues({
           ) : null}
         </>
       ) : null}
-
-      <p className="border-t border-slate-200 pt-4 text-xs font-medium text-slate-500">
-        Company accounting controls live on{" "}
-        <Link
-          to="/accounting"
-          className="font-bold text-teal-800 hover:underline"
-        >
-          Accounting Desk
-        </Link>{" "}
-        — branch cashiers do not use that desk.
-      </p>
-
-      <CashierBankChargeModal
-        open={showBankChargeModal}
-        onClose={() => setShowBankChargeModal(false)}
-      />
     </div>
   );
 }
