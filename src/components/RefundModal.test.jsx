@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import RefundModal from './RefundModal.jsx';
+import RefundModal, { refundCreatePathFromPreview } from './RefundModal.jsx';
 import { ToastProvider } from '../context/ToastContext.jsx';
 import { apiFetch } from '../lib/apiBase';
 
@@ -120,6 +120,47 @@ async function clickApproveWhenReady(user) {
   await waitFor(() => expect(approveBtn).not.toBeDisabled(), { timeout: 10_000 });
   await user.click(approveBtn);
 }
+
+describe('refundCreatePathFromPreview', () => {
+  it('uses Quick overpay only when overpayment is the sole positive reason', () => {
+    expect(
+      refundCreatePathFromPreview({
+        overpaymentExcessNgn: 2000,
+        suggestedLines: [{ category: 'Overpayment', amountNgn: 2000 }],
+      })
+    ).toBe('quick');
+  });
+
+  it('keeps Full refund when other calculated reasons exist alongside overpayment', () => {
+    expect(
+      refundCreatePathFromPreview({
+        overpaymentExcessNgn: 2000,
+        suggestedLines: [
+          { category: 'Overpayment', amountNgn: 2000 },
+          { category: 'Unproduced meterage', amountNgn: 5000 },
+        ],
+      })
+    ).toBe('full');
+    expect(
+      refundCreatePathFromPreview({
+        overpaymentExcessNgn: 1500,
+        suggestedLines: [
+          { category: 'Overpayment', amountNgn: 1500 },
+          { category: 'Substitution Difference', amountNgn: 800 },
+        ],
+      })
+    ).toBe('full');
+  });
+
+  it('keeps Full refund when there is no overpayment', () => {
+    expect(
+      refundCreatePathFromPreview({
+        overpaymentExcessNgn: 0,
+        suggestedLines: [{ category: 'Accessory shortfall', amountNgn: 4000 }],
+      })
+    ).toBe('full');
+  });
+});
 
 describe('RefundModal', () => {
   afterEach(() => {
@@ -356,6 +397,84 @@ describe('RefundModal', () => {
     });
     expect(
       screen.queryByText(/Line items total does not match the requested refund amount/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps Full refund when preview has overpayment plus other calculated reasons', async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      const u = String(url);
+      if (u.includes('eligible-quotations')) {
+        return {
+          ok: true,
+          data: {
+            ok: true,
+            quotations: [
+              {
+                id: 'QT-SEED',
+                customer_id: 'C1',
+                customer_name: 'Co',
+                handled_by: 'Mary Sales',
+                paid_ngn: 12000,
+                total_ngn: 10000,
+                total_refunded_ngn: 0,
+                suggested_preview_amount_ngn: 7000,
+                eligible_refund_categories: ['Overpayment', 'Unproduced meterage'],
+              },
+            ],
+          },
+        };
+      }
+      if (u.includes('/api/refunds/preview')) {
+        return {
+          ok: true,
+          data: {
+            ok: true,
+            preview: {
+              customerID: 'C1',
+              customerName: 'Co',
+              paidOnQuoteNgn: 12000,
+              overpayAdvanceNgn: 0,
+              quotationCashInNgn: 12000,
+              quoteTotalNgn: 10000,
+              overpaymentExcessNgn: 2000,
+              suggestedLines: [
+                { label: 'Overpayment on QT-SEED', amountNgn: 2000, category: 'Overpayment' },
+                { label: 'Unproduced metres (10.00m @ ₦500)', amountNgn: 5000, category: 'Unproduced meterage' },
+              ],
+              warnings: [],
+              substitutionPerMeterBreakdown: [],
+              alreadyRefundedCategories: [],
+              blockedRefundCategories: [],
+              eligibleRefundCategories: ['Overpayment', 'Unproduced meterage'],
+            },
+          },
+        };
+      }
+      if (u.includes('intelligence')) {
+        return {
+          ok: true,
+          data: { ok: true, receipts: [], cuttingLists: [], summary: { producedMeters: 0, accessoriesSummary: { lines: [] } } },
+        };
+      }
+      return { ok: false, data: { ok: false } };
+    });
+
+    renderWithToast(
+      <RefundModal {...baseProps} mode="create" productionJobs={SEED_PRODUCTION_JOBS} />
+    );
+
+    const quoteInput = await screen.findByLabelText(/search finished quotation/i);
+    await waitFor(() => expect(quoteInput).not.toBeDisabled());
+    await user.click(quoteInput);
+    await user.type(quoteInput, 'QT-SEED');
+    await user.click(await screen.findByRole('button', { name: /QT-SEED · Co/i }));
+
+    await screen.findByDisplayValue(/Overpayment on QT-SEED/i);
+    expect(await screen.findByDisplayValue(/Unproduced metres/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Full refund/i })).toHaveClass('bg-zarewa-teal');
+    expect(
+      screen.queryByText(/Other calculated refund reasons are available/i)
     ).not.toBeInTheDocument();
   });
 });

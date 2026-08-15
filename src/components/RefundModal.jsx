@@ -80,6 +80,30 @@ function roundMoneyLocal(n) {
   return Math.round(Number(n) || 0);
 }
 
+function suggestedLineIsPositiveNonOverpayment(line) {
+  if (roundMoneyLocal(line?.amountNgn) <= 0) return false;
+  const cat = String(line?.category || '').trim();
+  if (cat && cat !== 'Overpayment') return true;
+  const multi = Array.isArray(line?.appliesToCategories) ? line.appliesToCategories : [];
+  return multi.some((c) => {
+    const token = String(c || '').trim();
+    return Boolean(token) && token !== 'Overpayment';
+  });
+}
+
+/**
+ * Auto-select Quick overpay only when overpayment is the sole positive suggested reason.
+ * Other calculated categories (unproduced, substitution, shortfall, services, …) keep Full refund.
+ */
+export function refundCreatePathFromPreview({ overpaymentExcessNgn, suggestedLines } = {}) {
+  const overpay = roundMoneyLocal(overpaymentExcessNgn);
+  const hasOtherPositive = (Array.isArray(suggestedLines) ? suggestedLines : []).some(
+    suggestedLineIsPositiveNonOverpayment
+  );
+  if (overpay > 0 && !hasOtherPositive) return 'quick';
+  return 'full';
+}
+
 function deriveReasonCategoriesFromLines(lines) {
   const s = new Set();
   for (const l of lines || []) {
@@ -558,6 +582,7 @@ const RefundModal = ({
     setProductionAlignmentOverrideNote('');
     setApprovalEditMode(false);
     setCreatePath('full');
+    createPathRef.current = 'full';
     createPathUserTouchedRef.current = false;
     setQuoteDetailsOpen(false);
     setPasteQuoteIdOpen(false);
@@ -920,7 +945,10 @@ const RefundModal = ({
 
       const overpayAmtForPath = Math.round(Number(preview.overpaymentExcessNgn) || 0);
       if (!createPathUserTouchedRef.current) {
-        const nextPath = overpayAmtForPath > 0 ? 'quick' : 'full';
+        const nextPath = refundCreatePathFromPreview({
+          overpaymentExcessNgn: overpayAmtForPath,
+          suggestedLines: preview.suggestedLines,
+        });
         createPathRef.current = nextPath;
         setCreatePath(nextPath);
       }
@@ -1913,6 +1941,12 @@ const RefundModal = ({
     Math.round(lineSum) !== Math.round(Number(form.amountNgn));
   const quickOverpayAvailable =
     mode === 'create' && (refundMoneyBreakdown.overpay > 0 || overpayMaxNgn > 0);
+  const otherCalculatedReasonsAvailable = useMemo(
+    () =>
+      createPath === 'quick' &&
+      (lastPreviewSnapshot?.suggestedLines || []).some(suggestedLineIsPositiveNonOverpayment),
+    [createPath, lastPreviewSnapshot]
+  );
   const createAmountDerivedFromLines = mode === 'create' && lineSum > 0;
 
   const requestedRefundTotal = Math.round(Number(record?.amountNgn) || 0);
@@ -2039,6 +2073,7 @@ const RefundModal = ({
                     type="button"
                     onClick={() => {
                       createPathUserTouchedRef.current = true;
+                      createPathRef.current = 'quick';
                       setCreatePath('quick');
                       const r = String(form.quotationRef || '').trim();
                       if (r) void generatePreview(r, false);
@@ -2061,6 +2096,7 @@ const RefundModal = ({
                     type="button"
                     onClick={() => {
                       createPathUserTouchedRef.current = true;
+                      createPathRef.current = 'full';
                       setCreatePath('full');
                       const r = String(form.quotationRef || '').trim();
                       if (r) void generatePreview(r, includeCommissionInPreview);
@@ -2078,6 +2114,11 @@ const RefundModal = ({
               {createPath === 'quick' && form.quotationRef && !quickOverpayAvailable ? (
                 <p className="text-xs font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2" role="status">
                   No overpayment — switch to Full refund.
+                </p>
+              ) : null}
+              {createPath === 'quick' && otherCalculatedReasonsAvailable ? (
+                <p className="text-xs font-medium text-teal-900 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2" role="status">
+                  Other calculated refund reasons are available — switch to Full refund to include them.
                 </p>
               ) : null}
               <RefundCreatePolicyWarnings
