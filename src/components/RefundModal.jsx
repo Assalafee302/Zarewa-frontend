@@ -904,6 +904,7 @@ const RefundModal = ({
         pricePerMeterNgn: preview.pricePerMeterNgn,
         quoteTotalNgn: preview.quoteTotalNgn,
         quotationCashInNgn: preview.quotationCashInNgn,
+        overpaymentExcessNgn: Number(preview.overpaymentExcessNgn) || 0,
       });
       setMoneyContext({
         paidOnQuoteNgn: Number(preview.paidOnQuoteNgn) || 0,
@@ -1636,6 +1637,7 @@ const RefundModal = ({
       calculationLines: form.calculationLines,
       categories: reasonCategory,
       maxDefensibleRefundNgn: maxDefensible,
+      overpaymentExcessNgn: moneyContext?.overpaymentExcessNgn,
       toleranceNgn: AMOUNT_LINE_TOL,
     });
     if (exceedsFloorCap && !(mayMdBypassEconomicFloor && floorOverrideNoteOk)) {
@@ -3728,6 +3730,7 @@ const RefundModal = ({
                 calculationLines: form.calculationLines,
                 categories: deriveReasonCategoriesFromLines(form.calculationLines),
                 maxDefensibleRefundNgn: lastPreviewSnapshot?.economicFloor?.maxDefensibleRefundNgn,
+                overpaymentExcessNgn: moneyContext?.overpaymentExcessNgn,
                 toleranceNgn: AMOUNT_LINE_TOL,
               }) &&
                 (String(ws?.session?.user?.roleKey || '')

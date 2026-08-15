@@ -347,15 +347,22 @@ export function RefundManagerApprovalPreview({
       calculationLines: lines,
       categories: cats,
       maxDefensibleRefundNgn: economicFloor?.maxDefensibleRefundNgn,
+      overpaymentExcessNgn:
+        refund?.previewSnapshot?.overpaymentExcessNgn ??
+        integrityResult?.preview?.overpaymentExcessNgn ??
+        economicFloor?.overpaymentExcessNgn,
       toleranceNgn: 1,
     });
   }, [
     economicFloor?.maxDefensibleRefundNgn,
+    economicFloor?.overpaymentExcessNgn,
     refundAmountNgn,
     refund?.reasonCategory,
     refund?.reason_category,
     refund?.calculationLines,
     refund?.calculation_lines,
+    refund?.previewSnapshot?.overpaymentExcessNgn,
+    integrityResult?.preview?.overpaymentExcessNgn,
     refund?.productionAlignmentAckJson,
     refund?.production_alignment_ack_json,
   ]);

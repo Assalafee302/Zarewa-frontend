@@ -31,4 +31,16 @@ describe('economic floor mixed Full refund', () => {
       })
     ).toBe(true);
   });
+
+  it('treats quote overpayment as floor-exempt even when the line is not tagged Overpayment', () => {
+    expect(
+      refundAmountExceedsEconomicFloorCap({
+        amountNgn: 115_960,
+        calculationLines: [{ category: 'Unproduced meterage', amountNgn: 115_960 }],
+        categories: ['Unproduced meterage'],
+        maxDefensibleRefundNgn: 113_640,
+        overpaymentExcessNgn: 2_320,
+      })
+    ).toBe(false);
+  });
 });
