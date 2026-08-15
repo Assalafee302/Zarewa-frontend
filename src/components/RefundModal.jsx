@@ -37,6 +37,8 @@ import {
   MIN_REFUND_QUOTATION_REMAINING_NGN,
   quotationMeetsRefundPickerFloor,
   refundCategoryDisplayLabel,
+  refundAmountExceedsEconomicFloorCap,
+  refundFloorGatedAmountNgn,
   refundRequestIsEconomicFloorExempt,
 } from '../shared/refundConstants.js';
 import { userMayOverrideProductionAlignment, userMayBlockQuotationRefunds, isExecutiveRoleKey } from '../lib/workspaceGovernanceClient';
@@ -1629,18 +1631,20 @@ const RefundModal = ({
       categories: reasonCategory,
       calculationLines: form.calculationLines,
     });
-    if (
-      !floorExemptSubmit &&
-      maxDefensible != null &&
-      Number.isFinite(maxDefensible) &&
-      amountNgn > maxDefensible + AMOUNT_LINE_TOL &&
-      !(mayMdBypassEconomicFloor && floorOverrideNoteOk)
-    ) {
-      const msg = `Refund amount (₦${amountNgn.toLocaleString(
+    const exceedsFloorCap = refundAmountExceedsEconomicFloorCap({
+      amountNgn,
+      calculationLines: form.calculationLines,
+      categories: reasonCategory,
+      maxDefensibleRefundNgn: maxDefensible,
+      toleranceNgn: AMOUNT_LINE_TOL,
+    });
+    if (exceedsFloorCap && !(mayMdBypassEconomicFloor && floorOverrideNoteOk)) {
+      const gatedAmt = refundFloorGatedAmountNgn(form.calculationLines);
+      const msg = `Production-related refund amount (₦${gatedAmt.toLocaleString(
         'en-NG'
       )}) exceeds the economic floor cap (₦${maxDefensible.toLocaleString(
         'en-NG'
-      )}) after produced metres at workbook minimum ₦/m.${
+      )}) after produced metres at workbook minimum ₦/m. Overpayment and quoted services are not counted against this cap.${
         mayMdBypassEconomicFloor
           ? ' Enter an MD/admin override note (min 10 characters) to proceed — it will carry through approval and payout.'
           : ''
@@ -3347,10 +3351,11 @@ const RefundModal = ({
                               {Number(lastPreviewSnapshot.economicFloor.producedOutputMeters || 0).toLocaleString()} m
                               produced × workbook floor ≈{' '}
                               {formatNgnPrint(lastPreviewSnapshot.economicFloor.floorDeliveredValueNgn)} delivered value.
-                              Max defensible refund after prior payouts:{' '}
+                              Max defensible for production-related reasons after prior payouts:{' '}
                               <strong className="text-amber-200">
                                 {formatNgnPrint(lastPreviewSnapshot.economicFloor.maxDefensibleRefundNgn)}
                               </strong>
+                              . Overpayment and quoted services are not counted against this cap.
                             </p>
                             {lastPreviewSnapshot.economicFloor.incompleteFloorPricing ? (
                               <p className="text-ui-xs text-amber-400/90 mt-1">
@@ -3718,13 +3723,13 @@ const RefundModal = ({
                   </li>
                 ))}
               </ul>
-              {((!refundRequestIsEconomicFloorExempt({
-                categories: deriveReasonCategoriesFromLines(form.calculationLines),
+              {((refundAmountExceedsEconomicFloorCap({
+                amountNgn: Math.round(Number(form.amountNgn) || 0),
                 calculationLines: form.calculationLines,
+                categories: deriveReasonCategoriesFromLines(form.calculationLines),
+                maxDefensibleRefundNgn: lastPreviewSnapshot?.economicFloor?.maxDefensibleRefundNgn,
+                toleranceNgn: AMOUNT_LINE_TOL,
               }) &&
-                lastPreviewSnapshot?.economicFloor?.maxDefensibleRefundNgn != null &&
-                Math.round(Number(form.amountNgn) || 0) >
-                  Math.round(Number(lastPreviewSnapshot.economicFloor.maxDefensibleRefundNgn)) + 1 &&
                 (String(ws?.session?.user?.roleKey || '')
                   .trim()
                   .toLowerCase() === 'admin' ||

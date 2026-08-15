@@ -18,7 +18,10 @@ import { refundWorkspaceSnapshotFingerprint } from '../../lib/refundWorkspaceSna
 import { isStoneFlatsheetQuotationLine } from '../../lib/stoneCoatedQuotationPolicy';
 import { ConversionRecordPanel } from './ConversionRecordPanel';
 import { DecisionActionBar, DecisionBand } from './DecisionSurface';
-import { refundRequestIsEconomicFloorExempt } from '../../shared/refundConstants.js';
+import {
+  refundAmountExceedsEconomicFloorCap,
+  refundRequestIsEconomicFloorExempt,
+} from '../../shared/refundConstants.js';
 
 function refundCategoryTokens(value) {
   if (Array.isArray(value)) return value.map((x) => String(x ?? '').trim()).filter(Boolean);
@@ -339,9 +342,13 @@ export function RefundManagerApprovalPreview({
     ) {
       return false;
     }
-    const cap = Number(economicFloor?.maxDefensibleRefundNgn);
-    if (!Number.isFinite(cap)) return false;
-    return refundAmountNgn > cap + 1;
+    return refundAmountExceedsEconomicFloorCap({
+      amountNgn: refundAmountNgn,
+      calculationLines: lines,
+      categories: cats,
+      maxDefensibleRefundNgn: economicFloor?.maxDefensibleRefundNgn,
+      toleranceNgn: 1,
+    });
   }, [
     economicFloor?.maxDefensibleRefundNgn,
     refundAmountNgn,
@@ -983,8 +990,7 @@ export function RefundManagerApprovalPreview({
             {economicFloor && (economicFloor.producedOutputMeters > 0 || economicFloor.floorDeliveredValueNgn > 0) ? (
               <div
                 className={`mb-2 rounded-md border px-2 py-1.5 text-ui-xs leading-snug ${
-                  Number(refund?.amountNgn ?? refund?.amount_ngn ?? 0) >
-                  Number(economicFloor.maxDefensibleRefundNgn || 0) + 1
+                  exceedsEconomicFloorCap
                     ? 'border-amber-300 bg-amber-50 text-amber-950'
                     : 'border-slate-200 bg-slate-50/80 text-slate-700'
                 }`}
@@ -1006,9 +1012,10 @@ export function RefundManagerApprovalPreview({
                   ) : null}
                 </div>
                 <p className="mt-0.5">
-                  {Number(economicFloor.producedOutputMeters || 0).toLocaleString()} m produced ? floor value{' '}
-                  {formatNgn(economicFloor.floorDeliveredValueNgn)} ? max defensible refund{' '}
+                  {Number(economicFloor.producedOutputMeters || 0).toLocaleString()} m produced · floor value{' '}
+                  {formatNgn(economicFloor.floorDeliveredValueNgn)} · max defensible for production-related reasons{' '}
                   <span className="font-bold">{formatNgn(economicFloor.maxDefensibleRefundNgn)}</span>
+                  . Overpayment and quoted services are not counted against this cap.
                 </p>
                 {economicFloor.incompleteFloorPricing ? (
                   <p className="mt-0.5 font-semibold text-amber-800">

@@ -82,6 +82,14 @@ export function refundCategoriesAreEconomicFloorExempt(categories) {
   return cats.every((c) => refundCategoryIsEconomicFloorExempt(c));
 }
 
+function refundLineIsEconomicFloorExempt(line) {
+  const multi = Array.isArray(line?.appliesToCategories) ? line.appliesToCategories : [];
+  if (multi.length > 0) {
+    return multi.every((c) => refundCategoryIsEconomicFloorExempt(c));
+  }
+  return refundCategoryIsEconomicFloorExempt(line?.category);
+}
+
 /** @param {Array<{ category?: string, amountNgn?: number, include?: boolean, appliesToCategories?: string[], label?: string }> | null | undefined} lines */
 export function refundCalculationLinesAreEconomicFloorExempt(lines) {
   const included = (Array.isArray(lines) ? lines : []).filter((l) => {
@@ -90,13 +98,7 @@ export function refundCalculationLinesAreEconomicFloorExempt(lines) {
     return amt > 0 && String(l?.label ?? l?.category ?? '').trim();
   });
   if (!included.length) return false;
-  return included.every((l) => {
-    const multi = Array.isArray(l?.appliesToCategories) ? l.appliesToCategories : [];
-    if (multi.length > 0) {
-      return multi.every((c) => refundCategoryIsEconomicFloorExempt(c));
-    }
-    return refundCategoryIsEconomicFloorExempt(l?.category);
-  });
+  return included.every((l) => refundLineIsEconomicFloorExempt(l));
 }
 
 /** @param {{ categories?: unknown, calculationLines?: unknown }} p */
@@ -105,6 +107,32 @@ export function refundRequestIsEconomicFloorExempt({ categories, calculationLine
     refundCategoriesAreEconomicFloorExempt(categories) ||
     refundCalculationLinesAreEconomicFloorExempt(calculationLines)
   );
+}
+
+/** Sum of included lines gated by workbook floor (excludes overpayment and quoted services). */
+export function refundFloorGatedAmountNgn(lines) {
+  return (Array.isArray(lines) ? lines : []).reduce((sum, line) => {
+    if (line?.include === false) return sum;
+    const amt = Math.round(Number(line?.amountNgn) || 0);
+    if (amt <= 0) return sum;
+    if (refundLineIsEconomicFloorExempt(line)) return sum;
+    return sum + amt;
+  }, 0);
+}
+
+export function refundAmountExceedsEconomicFloorCap({
+  amountNgn,
+  calculationLines,
+  categories,
+  maxDefensibleRefundNgn,
+  toleranceNgn = 1,
+} = {}) {
+  if (maxDefensibleRefundNgn == null || !Number.isFinite(Number(maxDefensibleRefundNgn))) return false;
+  if (refundRequestIsEconomicFloorExempt({ categories, calculationLines })) return false;
+  const cap = Math.round(Number(maxDefensibleRefundNgn));
+  const lines = Array.isArray(calculationLines) ? calculationLines : [];
+  const gated = lines.length > 0 ? refundFloorGatedAmountNgn(lines) : Math.round(Number(amountNgn) || 0);
+  return gated > cap + Math.round(Number(toleranceNgn) || 0);
 }
 
 /**
