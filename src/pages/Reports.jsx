@@ -15,6 +15,7 @@ import { ReportsMonthEndPanel } from '../components/reports/ReportsMonthEndPanel
 import { ReportsStockStatusCard } from '../components/reports/ReportsStockStatusCard.jsx';
 import { ReportsExceptionsAlert, ReportsRelatedLinks } from '../components/reports/ReportsRelatedLinks.jsx';
 import { ReportsConfirmExportDialog } from '../components/reports/ReportsConfirmExportDialog.jsx';
+import { ReportsEnteredDataPanel } from '../components/reports/ReportsEnteredDataPanel.jsx';
 import { PaymentExceptionQueuePanel } from '../components/reports/PaymentExceptionQueuePanel.jsx';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal.jsx';
 import { ExecutiveReportPacksSection } from '../components/reports/ExecutiveReportPacksSection.jsx';
@@ -449,11 +450,13 @@ const Reports = () => {
                   bundleDownloadedAt={lastDownloadMap.__bundle__ || ''}
                   lastDownloadMap={lastDownloadMap}
                   busyId={busyId}
+                  showToast={showToast}
                 />
               ) : null}
 
               {job === REPORT_JOBS.export ? (
                 <div className="space-y-4">
+                  <ReportsEnteredDataPanel showToast={showToast} branchLabel={branchLabel} />
                   <ReportsKpiStrip salesKpis={salesKpis} onExportKpi={onExportKpi} />
                   <ReportsExportCatalog
                     hasFinanceView={hasFinanceView}

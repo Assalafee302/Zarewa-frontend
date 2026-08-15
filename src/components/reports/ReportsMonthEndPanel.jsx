@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, Circle, Download, Loader2, Package } from 'lucide-react';
 import { ReportsExportCatalog } from './ReportsExportCatalog.jsx';
+import { ReportsEnteredDataPanel } from './ReportsEnteredDataPanel.jsx';
 import { formatDownloadedAgo } from '../../lib/reportsExportCatalog.js';
 
 /**
@@ -23,6 +24,7 @@ export function ReportsMonthEndPanel({
   bundleDownloadedAt = '',
   lastDownloadMap = {},
   busyId = null,
+  showToast,
 }) {
   const bundleDone = Boolean(bundleDownloadedAt);
   const bundleAgo = formatDownloadedAgo(bundleDownloadedAt);
@@ -112,6 +114,8 @@ export function ReportsMonthEndPanel({
           </button>
         </div>
       </div>
+
+      <ReportsEnteredDataPanel showToast={showToast} branchLabel={branchLabel} />
 
       <div>
         <h4 className="text-sm font-semibold text-slate-800 mb-3">Recommended for month-end</h4>
