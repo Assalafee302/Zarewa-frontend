@@ -1,3 +1,8 @@
+/**
+ * Cutting-list / production payment threshold — mirror of
+ * Zarewa-backend-main/shared/lib/cuttingListPaymentGate.js
+ */
+
 import { receiptCashReceivedNgn } from './salesReceiptsList';
 import { productionGateOverrideEffective } from './productionGateAccess';
 
@@ -7,6 +12,41 @@ function normQuoteKey(s) {
     .replace(/\s+/g, '')
     .replace(/_/g, '-')
     .toLowerCase();
+}
+
+/** @param {number} totalNgn @param {number | null | undefined} paymentGateBasisTotalNgn @param {boolean} [hasBelowFloorViolations] */
+export function cuttingListPaymentThresholdTotalNgn(
+  totalNgn,
+  paymentGateBasisTotalNgn,
+  hasBelowFloorViolations = false
+) {
+  const total = Math.round(Number(totalNgn) || 0);
+  if (total <= 0) return 0;
+  if (hasBelowFloorViolations) return total;
+  const basis = Math.round(Number(paymentGateBasisTotalNgn) || 0);
+  if (basis > 0 && total > basis) return basis;
+  return total;
+}
+
+export function meetsCuttingListPaymentGate(
+  q,
+  cashPaidNgn,
+  minPaidFraction = 0.7,
+  hasBelowFloorViolations = false
+) {
+  if (productionGateOverrideEffective(q)) return true;
+  const total = Number(q?.totalNgn ?? q?.total_ngn) || 0;
+  if (total <= 0) return false;
+  const mf =
+    Number.isFinite(minPaidFraction) && minPaidFraction >= 0.05 && minPaidFraction <= 1
+      ? minPaidFraction
+      : 0.7;
+  const basis = Number(q?.paymentGateBasisTotalNgn ?? q?.payment_gate_basis_total_ngn) || 0;
+  const thresholdTotal = cuttingListPaymentThresholdTotalNgn(total, basis, hasBelowFloorViolations);
+  const threshold = thresholdTotal * mf - 1e-6;
+  const book = Math.max(0, Math.round(Number(q?.paidNgn ?? q?.paid_ngn) || 0));
+  const cash = Math.max(0, Math.round(Number(cashPaidNgn) || 0));
+  return cash >= threshold || book >= threshold;
 }
 
 export function cuttingListMinPaidFractionFromSession(session) {
@@ -59,17 +99,15 @@ export function receiptTillCashOnlyOnQuotation(quotationId, receiptRows) {
   return s;
 }
 
-/** Paid fraction gate (branch setting): actual cash in, or book allocation, or manager override. */
-export function meetsCuttingListPayThreshold(q, receiptRows, ledgerEntries, minPaidFraction = 0.7) {
+/** Paid fraction gate: cash, book allocation, manager override, or list-price roll-forward basis. */
+export function meetsCuttingListPayThreshold(
+  q,
+  receiptRows,
+  ledgerEntries,
+  minPaidFraction = 0.7,
+  hasBelowFloorViolations = false
+) {
   if (productionGateOverrideEffective(q)) return true;
-  const total = Number(q?.totalNgn ?? q?.total_ngn) || 0;
-  if (total <= 0) return false;
-  const mf =
-    Number.isFinite(minPaidFraction) && minPaidFraction >= 0.05 && minPaidFraction <= 1
-      ? minPaidFraction
-      : 0.7;
-  const threshold = total * mf - 1e-6;
-  const book = bookPaidTowardQuotation(q);
   const cash = cashPaidOnQuotation(q?.id, receiptRows, ledgerEntries);
-  return cash >= threshold || book >= threshold;
+  return meetsCuttingListPaymentGate(q, cash, minPaidFraction, hasBelowFloorViolations);
 }

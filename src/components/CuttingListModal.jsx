@@ -39,6 +39,7 @@ import {
   receiptTillCashOnlyOnQuotation,
   sumAdvanceAppliedNgnForQuotation,
 } from '../lib/cuttingListPaymentGate';
+import { quotationBelowFloorPendingMdApproval } from '../lib/quotationPriceException';
 import { validateCuttingListQuotedRoofingAlignment, cuttingListTotalMetresFromLines } from '../lib/refundCuttingListQuotationReconciliation';
 import { assessCuttingListQuotationConsumption } from '../lib/cuttingListBlankConsumption';
 import { quotedRoofingSheetMetresFromLines } from '../lib/refundQuotationMetres';
@@ -532,7 +533,13 @@ const CuttingListModal = ({
       if (!q?.id || takenByAnother(q.id)) return false;
       const total = Number(q.totalNgn ?? q.total_ngn) || 0;
       if (total <= 0) return false;
-      const meetsPay = meetsCuttingListPayThreshold(q, receipts, ledgerEntries, minPaidFraction);
+      const meetsPay = meetsCuttingListPayThreshold(
+        q,
+        receipts,
+        ledgerEntries,
+        minPaidFraction,
+        quotationBelowFloorPendingMdApproval(q)
+      );
       if (meetsPay) return true;
       // Keep the linked quote visible when editing an existing list (may be under threshold).
       return Boolean(editingQuoteId && q.id === editingQuoteId);
@@ -581,7 +588,7 @@ const CuttingListModal = ({
       }
       return { kind: 'has_list', q, listId: linked.id, branchId: linked.branchId ?? '' };
     }
-    if (!meetsCuttingListPayThreshold(q, receipts, ledgerEntries, minPaidFraction)) {
+    if (!meetsCuttingListPayThreshold(q, receipts, ledgerEntries, minPaidFraction, quotationBelowFloorPendingMdApproval(q))) {
       return { kind: 'under_paid', q };
     }
     return null;
@@ -590,6 +597,10 @@ const CuttingListModal = ({
   const selectedQuotation = useMemo(
     () => quotations.find((q) => q.id === quotationRef) ?? null,
     [quotations, quotationRef]
+  );
+  const selectedQuotationBelowFloorPending = useMemo(
+    () => quotationBelowFloorPendingMdApproval(selectedQuotation),
+    [selectedQuotation]
   );
   const selectedQuotationAccessoriesOnly = useMemo(
     () => quotationIsAccessoriesOnly(selectedQuotation),
@@ -1330,7 +1341,13 @@ const CuttingListModal = ({
     if (
       (shouldFinalize || isCreate) &&
       selectedQuotation &&
-      !meetsCuttingListPayThreshold(selectedQuotation, receipts, ledgerEntries, minPaidFraction)
+      !meetsCuttingListPayThreshold(
+        selectedQuotation,
+        receipts,
+        ledgerEntries,
+        minPaidFraction,
+        selectedQuotationBelowFloorPending
+      )
     ) {
       setSaving(false);
       showToast(
@@ -1407,7 +1424,13 @@ const CuttingListModal = ({
     }
     if (
       selectedQuotation &&
-      !meetsCuttingListPayThreshold(selectedQuotation, receipts, ledgerEntries, minPaidFraction)
+      !meetsCuttingListPayThreshold(
+        selectedQuotation,
+        receipts,
+        ledgerEntries,
+        minPaidFraction,
+        selectedQuotationBelowFloorPending
+      )
     ) {
       showToast(
         `Under ${minPaidPercentLabel}% paid: a manager must approve production on the Manager dashboard before this list can join the queue.`,
@@ -1714,7 +1737,13 @@ const CuttingListModal = ({
                           ) : (
                             filteredQuotePicker.map((q) => {
                               const cust = q.customer ?? q.customer_name ?? '';
-                              const okPay = meetsCuttingListPayThreshold(q, receipts, ledgerEntries, minPaidFraction);
+                              const okPay = meetsCuttingListPayThreshold(
+                                q,
+                                receipts,
+                                ledgerEntries,
+                                minPaidFraction,
+                                quotationBelowFloorPendingMdApproval(q)
+                              );
                               return (
                                 <button
                                   key={q.id}
@@ -1785,7 +1814,13 @@ const CuttingListModal = ({
                 {(isCreate || isDraftRecord) &&
                   quotationRef &&
                   selectedQuotation &&
-                  !meetsCuttingListPayThreshold(selectedQuotation, receipts, ledgerEntries, minPaidFraction) && (
+                  !meetsCuttingListPayThreshold(
+                    selectedQuotation,
+                    receipts,
+                    ledgerEntries,
+                    minPaidFraction,
+                    selectedQuotationBelowFloorPending
+                  ) && (
                   <div className="md:col-span-2 p-4 rounded-xl border border-amber-200 bg-amber-50 space-y-3">
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={20} />
