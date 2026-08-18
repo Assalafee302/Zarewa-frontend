@@ -18,7 +18,7 @@ export function isWorkspaceV3Enabled() {
     const raw = import.meta.env?.VITE_WORKSPACE_V3;
     if (raw === '0' || raw === 'false') return false;
     if (raw === '1' || raw === 'true') return true;
-    // Unset → V3 is the production workspace (Teams-style Chat shell).
+    // Unset → V3 is the production workspace.
     return true;
   } catch {
     return true;

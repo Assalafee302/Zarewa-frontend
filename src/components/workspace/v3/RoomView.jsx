@@ -117,6 +117,7 @@ export default function RoomView({
   onPromote,
   onOpenCard,
   onBack,
+  alwaysShowBack = false,
   presenceByUser = {},
   currentUserId = '',
   composerDisabled = false,
@@ -196,6 +197,7 @@ export default function RoomView({
   }
 
   const isDm = room.scopeKind === 'dm' || room.kind === 'dm';
+  const isBot = Boolean(room.bot);
   const headerPresence = isDm && room.peerUserId ? presenceByUser[room.peerUserId]?.status : null;
 
   return (
@@ -207,7 +209,7 @@ export default function RoomView({
               type="button"
               onClick={onBack}
               aria-label="Back to chat list"
-              className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 md:hidden"
+              className={`rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 ${alwaysShowBack ? '' : 'md:hidden'}`}
             >
               <ArrowLeft size={18} aria-hidden />
             </button>
@@ -217,19 +219,22 @@ export default function RoomView({
               displayName={room.name || room.slug}
               status={headerPresence || 'offline'}
               size={32}
+              bot={isBot}
             />
           ) : null}
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-bold text-slate-900">
               {room.name || `#${room.slug}`}
             </h2>
-            {isDm && headerPresence ? (
+            {isBot && room.description ? (
+              <p className="mt-0.5 text-xs text-slate-500">{room.description}</p>
+            ) : isDm && headerPresence ? (
               <p className="mt-0.5 text-xs capitalize text-slate-500">{headerPresence}</p>
             ) : room.description ? (
               <p className="mt-0.5 text-xs text-slate-500">{room.description}</p>
             ) : null}
           </div>
-          {onMuteRoom ? (
+          {onMuteRoom && !isBot ? (
             <button
               type="button"
               onClick={() => onMuteRoom(room, !room.muted)}
@@ -323,7 +328,7 @@ export default function RoomView({
                     grouped ? (
                       <span className="w-7 shrink-0" aria-hidden />
                     ) : (
-                      <PresenceAvatar displayName={name} status={status} size={28} />
+                      <PresenceAvatar displayName={name} status={status} size={28} bot={isBot && !mine} />
                     )
                   ) : null}
                   <div className={`min-w-0 max-w-[78%] ${mine ? 'items-end text-right' : ''}`}>
@@ -349,17 +354,17 @@ export default function RoomView({
                           >
                             <Copy size={13} aria-hidden />
                           </button>
-                          {mine && onEditMessage ? (
+                          {mine && onEditMessage && !isBot ? (
                             <button type="button" onClick={() => onEditMessage(m)} className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-700" aria-label="Edit message">
                               <Pencil size={13} aria-hidden />
                             </button>
                           ) : null}
-                          {mine && onDeleteMessage ? (
+                          {mine && onDeleteMessage && !isBot ? (
                             <button type="button" onClick={() => onDeleteMessage(m)} className="rounded p-1 text-slate-400 hover:bg-white hover:text-red-700" aria-label="Delete message">
                               <Trash2 size={13} aria-hidden />
                             </button>
                           ) : null}
-                          {onPromote && hasBody ? (
+                          {onPromote && hasBody && !isBot ? (
                             <button
                               type="button"
                               onClick={() => onPromote('work_item', m.body, m.id)}
@@ -419,10 +424,10 @@ export default function RoomView({
         sending={sending}
         disabled={composerDisabled}
         disabledReason={composerDisabledReason}
-        onPromote={onPromote}
-        showPromote
+        onPromote={isBot ? undefined : onPromote}
+        showPromote={!isBot}
         deskProfile={deskProfile}
-        placeholder={isDm ? `Message ${room.name || ''}…` : 'Message this channel…'}
+        placeholder={isBot ? 'Ask Zare…' : isDm ? `Message ${room.name || ''}…` : 'Message this channel…'}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         directory={directory}

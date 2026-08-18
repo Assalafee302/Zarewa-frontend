@@ -4,6 +4,7 @@ import { useAiAssistant } from '../context/AiAssistantContext';
 import { useHelpChat } from '../context/HelpChatContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { HELP_BOT_NAME, HELP_BOT_TAGLINE } from '../lib/helpBotBrand';
+import { appFabRightClass, appFabSlots } from '../lib/appFabLayout';
 
 /**
  * Lightweight Zare launcher — no help catalog imports (safe at app startup).
@@ -17,9 +18,7 @@ export function ZareHelpFab({ loadError = '' }) {
   if (!user || !help?.openZare) return null;
 
   const aiDockVisible = Boolean(user.roleKey !== 'ceo' && ai?.available === true);
-  const launcherClass = aiDockVisible
-    ? 'right-[calc(max(1.25rem,env(safe-area-inset-right))+4.25rem)]'
-    : 'right-[max(1.25rem,env(safe-area-inset-right))]';
+  const launcherClass = appFabRightClass(appFabSlots({ aiDockVisible }).zare);
 
   return (
     <button

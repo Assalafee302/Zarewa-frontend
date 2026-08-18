@@ -6,7 +6,6 @@ import {
   ChevronRight,
   ClipboardList,
   DollarSign,
-  Filter,
   PencilLine,
   Search,
   ShieldCheck,
@@ -20,8 +19,8 @@ import { FinanceSequencePanel } from '../layout';
 import {
   managerKindShortLabel,
   managerKindTone,
+  normalizeAttentionFilter,
 } from '../../lib/managerDashboardCore';
-import { MANAGER_PAC_TABS } from '../../lib/managerPageTabs';
 import { MaintenanceIssuesPanel } from './MaintenanceIssuesPanel';
 import {
   PAC_INBOX_ROW_CLASS as inboxRowBase,
@@ -98,7 +97,6 @@ export function BranchManagerCommandInbox(props) {
       ? formatRefundReasonCategory
       : (raw) => String(raw || '—').trim() || '—';
 
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
   const [issuesCount, setIssuesCount] = useState(() => Math.max(0, Number(maintenanceIssueCount) || 0));
 
@@ -118,7 +116,6 @@ export function BranchManagerCommandInbox(props) {
   };
 
   const pacView = pacViewFromActiveTab(activeTab);
-  const pacTabs = MANAGER_PAC_TABS.filter((t) => t.key !== 'credit' || showDeliveryCreditTab);
 
   const hasClearablePaid =
     attentionItems.some((it) => it.kind === 'clearance') ||
@@ -131,14 +128,10 @@ export function BranchManagerCommandInbox(props) {
   const showClearAllPaid =
     canAdminBulkClearPaid && (hasClearablePaid || hasClearableConversionGaps);
 
-  const selectPac = (key) => {
-    if (key === 'attention') {
-      setActiveTab?.('attention');
-      setAttentionFilter?.('all');
-      return;
-    }
-    setActiveTab?.(key);
-    setAttentionFilter?.('all');
+  const selectFilter = (key) => {
+    const next = normalizeAttentionFilter(key);
+    setActiveTab?.('attention');
+    setAttentionFilter?.(next);
   };
 
   const renderAttentionInboxRow = (it) => {
@@ -455,41 +448,52 @@ export function BranchManagerCommandInbox(props) {
     return null;
   };
 
-  const effectiveAttentionFilter =
-    pacView === 'attention'
-      ? activeTab === 'attention'
-        ? attentionFilter
-        : activeTab === 'orders'
-          ? 'orders'
+  const effectiveAttentionFilter = normalizeAttentionFilter(
+    pacView === 'credit'
+      ? 'orders'
+      : pacView === 'stock' || pacView === 'issues'
+        ? 'operations'
+        : activeTab === 'attention'
+          ? attentionFilter
+          : activeTab === 'orders'
+            ? 'orders'
             : activeTab === 'cash_out'
-              ? 'expenses'
-              : activeTab === 'qc'
-              ? 'qc'
-              : activeTab === 'material'
-                ? 'material'
-                : activeTab === 'procurement'
-                  ? 'procurement'
-                  : activeTab === 'governance'
-                    ? 'governance'
-                    : activeTab === 'edits'
-                      ? 'edits'
-                      : attentionFilter
-      : null;
+              ? 'cash'
+              : activeTab === 'qc' || activeTab === 'material' || activeTab === 'procurement'
+                ? 'operations'
+                : activeTab === 'governance' || activeTab === 'edits'
+                  ? 'control'
+                  : attentionFilter
+  );
+
+  const creditCount = Number(tabCounts.credit) || 0;
+  const stockCount = Array.isArray(stockRegisterInbox) ? stockRegisterInbox.length : 0;
+  const filterChipCount = (key) => {
+    if (key === 'all') return attentionItems.length;
+    const n = filterAttentionItems(attentionItems, key).length;
+    if (key === 'orders' && showDeliveryCreditTab) return n + creditCount;
+    if (key === 'operations') return n + stockCount + issuesCount;
+    return n;
+  };
 
   const emptyCopy = () => {
     if (inboxSearch.trim()) {
       return { title: 'No matches', detail: 'Try clearing the search filter or switching chips.' };
     }
     if (effectiveAttentionFilter && effectiveAttentionFilter !== 'all') {
+      const label =
+        MANAGER_ATTENTION_FILTERS.find((f) => f.key === effectiveAttentionFilter)?.label ||
+        effectiveAttentionFilter.replace(/_/g, ' ');
       return {
-        title: `No ${effectiveAttentionFilter.replace(/_/g, ' ')} items`,
+        title: `No ${String(label).toLowerCase()} items`,
         detail: 'This filter is clear — switch to All or another chip.',
       };
     }
-    if (!canApprovePaymentRequests && effectiveAttentionFilter === 'expenses') {
+    if (!canApprovePaymentRequests && effectiveAttentionFilter === 'cash') {
       return {
         title: 'Expense approvals need Finance',
-        detail: 'Payment-request approval needs branch manager, Finance, or MD authority. Refunds may still appear under the Refunds chip.',
+        detail:
+          'Payment-request approval needs branch manager, Finance, or MD authority. Refunds may still appear under Cash.',
       };
     }
     return {
@@ -497,6 +501,50 @@ export function BranchManagerCommandInbox(props) {
       detail: 'Queue clear — check your daily checklist or Branch Operations next.',
     };
   };
+
+  const creditPanel = (
+    <div className="rounded-xl border border-slate-100 bg-white p-4 sm:p-5">
+      <CreditExceptionPanel
+        branchId={ws?.workspaceBranchId || ws?.session?.branchId || null}
+        roleKey={ws?.session?.user?.roleKey}
+      />
+    </div>
+  );
+
+  const stockCard = (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 m-3 sm:m-4">
+      <div>
+        <p className="text-sm font-bold text-zarewa-teal">Month-end stock register</p>
+        <p className="text-xs text-slate-600 mt-1">
+          {stockCount
+            ? `${stockCount} period(s) awaiting manager count alignment.`
+            : 'No registers waiting for manager review.'}
+        </p>
+      </div>
+      <button type="button" className="z-btn-primary shrink-0" onClick={() => setStockRegisterMgrOpen?.(true)}>
+        Review stock register
+      </button>
+    </div>
+  );
+
+  const issuesPanel = (
+    <MaintenanceIssuesPanel
+      search={inboxSearch}
+      focusWorkOrderId={focusWorkOrderId}
+      onFocusWorkOrderHandled={() => setFocusWorkOrderId?.('')}
+      onCountChange={(n) => {
+        const next = Math.max(0, Number(n) || 0);
+        setIssuesCount(next);
+        setMaintenanceIssueCount?.(next);
+      }}
+    />
+  );
+
+  const showOrdersExtras = showDeliveryCreditTab && creditCount > 0 && effectiveAttentionFilter === 'orders';
+  const showFloorExtras =
+    effectiveAttentionFilter === 'operations' && (stockCount > 0 || issuesCount > 0);
+  const hasQueueRows = filteredInboxRows.length > 0;
+  const showEmpty = !hasQueueRows && !showOrdersExtras && !showFloorExtras;
 
   return (
     <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 overflow-hidden !p-0 bg-white">
@@ -537,105 +585,36 @@ export function BranchManagerCommandInbox(props) {
           </div>
         </div>
 
-        <div className="flex gap-1 mt-4 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar">
-          {pacTabs.map((t) => {
-            const active = pacView === t.key;
-            const count =
-              t.key === 'attention'
-                ? tabCounts.attention ?? 0
-                : t.key === 'credit'
-                  ? tabCounts.credit ?? 0
-                  : t.key === 'stock'
-                    ? stockRegisterInbox.length
-                    : issuesCount;
+        <div className="flex gap-1 mt-4 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar" role="group" aria-label="Queue filters">
+          {MANAGER_ATTENTION_FILTERS.map((f) => {
+            const active = effectiveAttentionFilter === f.key;
+            const count = filterChipCount(f.key);
             return (
               <button
-                key={t.key}
+                key={f.key}
                 type="button"
-                onClick={() => selectPac(t.key)}
-                className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-ui-xs font-bold uppercase tracking-wide transition-colors border ${
+                title={f.ariaLabel || f.label}
+                aria-label={`${f.ariaLabel || f.label}${count > 0 ? `, ${count} waiting` : ''}`}
+                aria-pressed={active}
+                onClick={() => selectFilter(f.key)}
+                className={`shrink-0 px-3 py-2 rounded-xl text-ui-xs font-bold uppercase tracking-wide border transition-colors ${
                   active
                     ? 'bg-zarewa-teal text-white border-zarewa-teal shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-teal-200 hover:text-zarewa-teal'
                 }`}
               >
-                {t.label}
-                <span className={`tabular-nums px-1.5 py-0.5 rounded-md text-ui-xs ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-700'}`}>
+                {f.label}
+                <span
+                  className={`ml-1.5 tabular-nums px-1.5 py-0.5 rounded-md text-ui-xs ${
+                    active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
                   {count}
                 </span>
               </button>
             );
           })}
         </div>
-
-        {pacView === 'attention' ? (
-          <>
-            <div className="mt-3 sm:hidden">
-              <button
-                type="button"
-                onClick={() => setMobileFiltersOpen((v) => !v)}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-600"
-              >
-                <Filter size={14} />
-                Filter
-                <span className="tabular-nums text-slate-400">
-                  {effectiveAttentionFilter === 'all' ? 'All' : String(effectiveAttentionFilter || '').replace(/_/g, ' ')}
-                </span>
-              </button>
-              {mobileFiltersOpen ? (
-                <div className="mt-2 flex gap-1 overflow-x-auto pb-1 custom-scrollbar" role="group" aria-label="Queue filters">
-                  {MANAGER_ATTENTION_FILTERS.map((f) => {
-                    const active = effectiveAttentionFilter === f.key;
-                    const count = f.key === 'all' ? attentionItems.length : filterAttentionItems(attentionItems, f.key).length;
-                    return (
-                      <button
-                        key={f.key}
-                        type="button"
-                        onClick={() => {
-                          setActiveTab?.('attention');
-                          setAttentionFilter?.(f.key);
-                          setMobileFiltersOpen(false);
-                        }}
-                        className={`shrink-0 px-2.5 py-1.5 rounded-lg text-ui-xs font-bold uppercase tracking-wide border transition-colors ${
-                          active
-                            ? 'bg-zarewa-teal text-white border-zarewa-teal'
-                            : 'bg-white text-slate-500 border-slate-200'
-                        }`}
-                      >
-                        {f.label}
-                        <span className={`ml-1 tabular-nums ${active ? 'text-teal-100' : 'text-slate-400'}`}>{count}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </div>
-            <div className="hidden sm:flex gap-1 mt-3 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar" role="group" aria-label="Queue filters">
-              {MANAGER_ATTENTION_FILTERS.map((f) => {
-                const active = effectiveAttentionFilter === f.key;
-                const count = f.key === 'all' ? attentionItems.length : filterAttentionItems(attentionItems, f.key).length;
-                return (
-                  <button
-                    key={f.key}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab?.('attention');
-                      setAttentionFilter?.(f.key);
-                    }}
-                    className={`shrink-0 px-2.5 py-1.5 rounded-lg text-ui-xs font-bold uppercase tracking-wide border transition-colors ${
-                      active
-                        ? 'bg-zarewa-teal text-white border-zarewa-teal'
-                        : 'bg-white text-slate-500 border-slate-200 hover:border-teal-200 hover:text-zarewa-teal'
-                    }`}
-                  >
-                    {f.label}
-                    <span className={`ml-1 tabular-nums ${active ? 'text-teal-100' : 'text-slate-400'}`}>{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        ) : null}
       </div>
 
       <div
@@ -668,64 +647,41 @@ export function BranchManagerCommandInbox(props) {
         aria-label="Priority action queue"
       >
         {pacView === 'stock' ? (
-          <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <p className="text-sm font-bold text-zarewa-teal">Month-end stock register</p>
-              <p className="text-xs text-slate-600 mt-1">
-                {stockRegisterInbox.length
-                  ? `${stockRegisterInbox.length} period(s) awaiting manager count alignment.`
-                  : 'No registers waiting for manager review.'}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="z-btn-primary shrink-0"
-              onClick={() => setStockRegisterMgrOpen?.(true)}
-            >
-              Review stock register
-            </button>
-          </div>
+          stockCard
         ) : pacView === 'issues' ? (
-          <MaintenanceIssuesPanel
-            search={inboxSearch}
-            focusWorkOrderId={focusWorkOrderId}
-            onFocusWorkOrderHandled={() => setFocusWorkOrderId?.('')}
-            onCountChange={(n) => {
-              const next = Math.max(0, Number(n) || 0);
-              setIssuesCount(next);
-              setMaintenanceIssueCount?.(next);
-            }}
-          />
+          issuesPanel
         ) : pacView === 'credit' ? (
-          <div className="rounded-xl border border-slate-100 bg-white">
-            <CreditExceptionPanel
-              branchId={ws?.workspaceBranchId || ws?.session?.branchId || null}
-              roleKey={ws?.session?.user?.roleKey}
-            />
-          </div>
+          creditPanel
         ) : loading ? (
           <div className="space-y-2 p-3" aria-busy="true" aria-label="Loading queues">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="h-11 rounded-lg bg-slate-100 animate-pulse" />
             ))}
           </div>
-        ) : filteredInboxRows.length === 0 ? (
+        ) : showEmpty ? (
           <PacEmptyState icon={emptyIcon()} title={emptyCopy().title} detail={emptyCopy().detail} />
         ) : (
           <div>
-            {(showAllRows || filteredInboxRows.length <= 50
-              ? filteredInboxRows
-              : filteredInboxRows.slice(0, 50)
-            ).map((row) => renderInboxRow(row))}
-            {!showAllRows && filteredInboxRows.length > 50 ? (
-              <button
-                type="button"
-                onClick={() => setShowAllRows(true)}
-                className="w-full py-3 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-50"
-              >
-                Show all {filteredInboxRows.length} items
-              </button>
+            {hasQueueRows ? (
+              <>
+                {(showAllRows || filteredInboxRows.length <= 50
+                  ? filteredInboxRows
+                  : filteredInboxRows.slice(0, 50)
+                ).map((row) => renderInboxRow(row))}
+                {!showAllRows && filteredInboxRows.length > 50 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllRows(true)}
+                    className="w-full py-3 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-50"
+                  >
+                    Show all {filteredInboxRows.length} items
+                  </button>
+                ) : null}
+              </>
             ) : null}
+            {showOrdersExtras ? creditPanel : null}
+            {showFloorExtras && stockCount > 0 ? stockCard : null}
+            {showFloorExtras && issuesCount > 0 ? issuesPanel : null}
           </div>
         )}
       </div>

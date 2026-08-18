@@ -1,58 +1,55 @@
 import React from 'react';
 
 /**
- * Compact module header: eyebrow + optional subtitle on the left, section tabs top-right,
- * page-level actions on a row below the tabs (not beside the table).
- * @param {string} [eyebrow] — Module or area label
- * @param {string} [title] — Document title for assistive tech only (no large visible heading)
- * @param {React.ReactNode} [tabs] — Sub-navigation (e.g. PageTabs), aligned end / top-right on sm+
- * @param {React.ReactNode} [toolbar] — Primary page actions; shown below tabs when tabs exist
- * @param {React.ReactNode} [actions] — Alias for toolbar (backward compatible)
+ * Compact page chrome: title + tools on one row, section tabs as a slim underline below.
+ * @param {string} [eyebrow] — Quiet module label above the title
+ * @param {string} [title] — Visible page heading
+ * @param {React.ReactNode} [subtitle]
+ * @param {React.ReactNode} [tabs]
+ * @param {React.ReactNode} [search]
+ * @param {React.ReactNode} [toolbar]
+ * @param {React.ReactNode} [actions]
+ * @param {React.ReactNode} [trailing] — Alias for toolbar (finance header)
  */
-export function PageHeader({ eyebrow, title, subtitle, tabs, toolbar, actions }) {
-  const bottomContent = toolbar ?? actions;
-  const hasBottom = bottomContent != null && bottomContent !== false;
+export function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  tabs,
+  search,
+  toolbar,
+  actions,
+  trailing,
+}) {
+  const tools = toolbar ?? actions ?? trailing;
+  const hasSearch = search != null && search !== false;
+  const hasTools = tools != null && tools !== false;
   const a11yTitle = title || eyebrow || 'Page';
 
   return (
-    <header
-      className={`mb-6 sm:mb-8 ${hasBottom ? 'space-y-3' : ''}`}
-    >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="min-w-0 flex gap-3 sm:gap-4">
-          <span
-            className="hidden sm:block w-1.5 shrink-0 rounded-full bg-gradient-to-b from-[#5eead4] via-[#2dd4bf] to-zarewa-teal self-stretch min-h-[2.5rem] shadow-sm"
-            aria-hidden
-          />
-          <div className="min-w-0">
-            {eyebrow ? (
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400 mb-0.5">
-                {eyebrow}
-              </p>
-            ) : null}
-            <h1 className="z-page-title">{a11yTitle}</h1>
-            {subtitle ? (
-              <p className="z-page-subtitle">
-                {subtitle}
-              </p>
-            ) : null}
-          </div>
+    <header className="mb-4 sm:mb-5">
+      <div className="flex min-w-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0 max-w-full sm:flex-1">
+          {eyebrow ? (
+            <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+              {eyebrow}
+            </p>
+          ) : null}
+          <h1 className="z-page-title">{a11yTitle}</h1>
+          {subtitle ? <p className="z-page-subtitle">{subtitle}</p> : null}
         </div>
-        {tabs ? (
-          <div className="flex w-full min-w-0 shrink-0 justify-start sm:w-auto sm:justify-end">
-            {tabs}
+        {hasSearch || hasTools ? (
+          <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:max-w-[min(100%,36rem)] sm:flex-1 sm:flex-row sm:items-center sm:justify-end">
+            {hasSearch ? <div className="min-w-0 w-full sm:flex-1">{search}</div> : null}
+            {hasTools ? (
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 shrink-0">
+                {tools}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
-      {hasBottom ? (
-        <div
-          className={`flex flex-wrap items-center gap-2 justify-end w-full min-w-0 ${
-            tabs ? 'mt-3 pt-3 border-t border-slate-100' : 'mt-1'
-          }`}
-        >
-          {bottomContent}
-        </div>
-      ) : null}
+      {tabs ? <div className="mt-3 min-w-0">{tabs}</div> : null}
     </header>
   );
 }

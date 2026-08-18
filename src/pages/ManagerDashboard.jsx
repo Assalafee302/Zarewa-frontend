@@ -7,7 +7,6 @@ import {
   PageShell,
   PageTabs,
 } from '../components/layout';
-import DeliveryGateDiagnosticsBanner from '../components/finance/DeliveryGateDiagnosticsBanner';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFormFields.jsx';
 import { BranchManagerCommandInbox } from '../components/branchManager/BranchManagerCommandInbox';
@@ -31,9 +30,7 @@ import {
   ManagerStockRequestsPanel,
   ManagerVacanciesPanel,
 } from '../components/branchManager/ManagerDeskExtras';
-import { ManagerIntelligenceTab } from '../components/branchManager/ManagerIntelligenceTab';
-import { ManagerOperationsTab } from '../components/branchManager/ManagerOperationsTab';
-import { ManagerPerformanceTab } from '../components/branchManager/ManagerPerformanceTab';
+import { ManagerBranchTab } from '../components/branchManager/ManagerBranchTab';
 import { ManagerSpendTab } from '../components/branchManager/ManagerSpendTab';
 import { ManagementDecisionModal } from '../components/branchManager/ManagementDecisionModal';
 import { OtApprovalDecisionModal } from '../components/branchManager/OtApprovalDecisionModal';
@@ -60,7 +57,7 @@ import { formatPersonName } from '../lib/formatPersonName';
 import { managerRowAgeHours } from '../lib/managerDashboardCore';
 
 /**
- * Branch manager command center — Sequence shell, five moments, Priority Action Center.
+ * Branch manager command center — Today, Approvals, Branch, Expenses.
  */
 const ManagerDashboard = () => {
   const bm = useBranchManagerWorkstation();
@@ -69,7 +66,11 @@ const ManagerDashboard = () => {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [commandSearch, setCommandSearch] = useState('');
 
-  const pageTab = normalizeManagerPageTab(searchParams.get('tab'));
+  const inboxParam = (searchParams.get('inbox') || '').trim().toLowerCase();
+  const rawTab = searchParams.get('tab');
+  const inboxWantsApprovals =
+    Boolean(inboxParam) && inboxParam !== 'attendance' && inboxParam !== 'staff';
+  const pageTab = normalizeManagerPageTab(!rawTab && inboxWantsApprovals ? 'approvals' : rawTab);
 
   const setPageTab = useCallback(
     (next) => {
@@ -77,8 +78,10 @@ const ManagerDashboard = () => {
       setSearchParams(
         (prev) => {
           const p = new URLSearchParams(prev);
-          if (id === 'today') p.delete('tab');
-          else p.set('tab', id);
+          if (id === 'today') {
+            p.delete('tab');
+            p.delete('inbox');
+          } else p.set('tab', id);
           return p;
         },
         { replace: true }
@@ -87,7 +90,14 @@ const ManagerDashboard = () => {
     [setSearchParams]
   );
 
-  const showDeliveryBanner = ['md', 'admin', 'sales_manager'].includes(bm.managerRoleKey);
+  useEffect(() => {
+    const raw = (searchParams.get('tab') || '').trim().toLowerCase();
+    if (!raw) return;
+    const id = normalizeManagerPageTab(raw);
+    if (id !== raw) {
+      setPageTab(id);
+    }
+  }, [searchParams, setPageTab]);
 
   const peopleGlanceAvailable =
     canMarkHrAttendance(bm.ws?.permissions) || hrHasPermission(bm.ws?.permissions, 'hr.team.view');
@@ -155,7 +165,7 @@ const ManagerDashboard = () => {
 
   const jumpToQueue = useCallback(
     (action) => {
-      setPageTab('today');
+      setPageTab('approvals');
       if (action === 'stock') {
         bm.setActiveTab('stock');
         bm.setAttentionFilter('all');
@@ -206,7 +216,7 @@ const ManagerDashboard = () => {
       e.preventDefault();
       const q = commandSearch.trim();
       if (!q) return;
-      setPageTab('today');
+      setPageTab('approvals');
       bm.setActiveTab('attention');
       bm.setAttentionFilter('all');
       bm.setInboxSearch(q);
@@ -251,10 +261,17 @@ const ManagerDashboard = () => {
     bm.ws?.session?.user?.displayName || bm.ws?.session?.user?.name || bm.ws?.session?.user?.email || 'Manager'
   );
 
+  const managerTabs = useMemo(
+    () =>
+      MANAGER_PAGE_TABS.map((t) =>
+        t.id === 'approvals' ? { ...t, badge: bm.totalOpenActions } : t
+      ),
+    [bm.totalOpenActions]
+  );
+
   return (
     <PageShell className="pb-14">
       <FinancePilotHeader
-        eyebrow="Branch manager"
         title={branchLabel}
         subtitle={subtitle}
         search={
@@ -269,7 +286,7 @@ const ManagerDashboard = () => {
             />
           </form>
         }
-        tabs={<PageTabs tabs={MANAGER_PAGE_TABS} value={pageTab} onChange={setPageTab} ariaLabel="Manager sections" />}
+        tabs={<PageTabs tabs={managerTabs} value={pageTab} onChange={setPageTab} ariaLabel="Manager sections" />}
       />
 
       {bm.loadError ? (
@@ -281,12 +298,6 @@ const ManagerDashboard = () => {
           <button type="button" className="underline font-bold" onClick={() => void bm.fetchData?.()}>
             Retry
           </button>
-        </div>
-      ) : null}
-
-      {showDeliveryBanner ? (
-        <div className="mb-5">
-          <DeliveryGateDiagnosticsBanner deliveryPaymentGate={bm.deliveryGateMode} />
         </div>
       ) : null}
 
@@ -355,52 +366,33 @@ const ManagerDashboard = () => {
             <ManagerDeliveryComplaintsPanel available={customerIssuesAvailable} />
           </div>
 
-          <BranchManagerCommandInbox bm={bm} showDeliveryCreditTab={bm.showDeliveryCreditTab} />
-
           <ManagerDailyChecklist branchId={bm.mgrBranchId} actorName={actorName} />
         </div>
       ) : null}
 
-      {pageTab === 'intelligence' ? (
-        <ManagerIntelligenceTab
-          displaySnapshots={bm.displaySnapshots}
-          branchLabel={branchLabel}
-          mayViewReports={userMayViewManagementReportsClient(
-            bm.ws?.session?.user?.roleKey,
-            bm.ws?.permissions
-          )}
-          onJumpFilter={(f) => jumpToQueue(f)}
-          quotations={bm.ws?.snapshot?.quotations || []}
-          salesAvailable={customerIssuesAvailable}
-        />
+      {pageTab === 'approvals' ? (
+        <BranchManagerCommandInbox bm={bm} showDeliveryCreditTab={bm.showDeliveryCreditTab} />
       ) : null}
 
-      {pageTab === 'operations' ? (
-        <ManagerOperationsTab
-          ws={bm.ws}
-          showDeliveryCredit={bm.showDeliveryCreditTab}
-          materialCount={bm.tabCounts?.material || 0}
-          attendancePendingCount={bm.attendancePendingCount}
-          onOpenMaterialQueue={() => jumpToQueue('material')}
-          onOpenStockRegister={() => bm.setStockRegisterMgrOpen(true)}
-        />
-      ) : null}
-
-      {pageTab === 'performance' ? (
-        <ManagerPerformanceTab
+      {pageTab === 'branch' ? (
+        <ManagerBranchTab
           displaySnapshots={bm.displaySnapshots}
           metricPeriod={bm.metricPeriod}
           onMetricPeriodChange={bm.setMetricPeriod}
           managerTargetSourceMeta={bm.managerTargetSourceMeta}
-          totalOpenActions={bm.totalOpenActions}
           producedSalesProgress={bm.producedSalesProgress}
           productionMetresProgress={bm.productionMetresProgress}
-          healthScore={healthScore}
           mayViewReports={userMayViewManagementReportsClient(
             bm.ws?.session?.user?.roleKey,
             bm.ws?.permissions
           )}
           loading={bm.loading}
+          quotations={bm.ws?.snapshot?.quotations || []}
+          salesAvailable={customerIssuesAvailable}
+          materialCount={bm.tabCounts?.material || 0}
+          attendancePendingCount={bm.attendancePendingCount}
+          onOpenMaterialQueue={() => jumpToQueue('material')}
+          onOpenStockRegister={() => bm.setStockRegisterMgrOpen(true)}
         />
       ) : null}
 

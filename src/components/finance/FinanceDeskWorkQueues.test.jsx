@@ -59,9 +59,7 @@ describe('FinanceDeskWorkQueues', () => {
       </MemoryRouter>
     );
     expect(screen.getByText(/Main till/i)).toBeTruthy();
-    expect(screen.getByText(/Confirmed balance/i)).toBeTruthy();
-    expect(screen.getByText(/Confirmed \+ unlinked/i)).toBeTruthy();
-    expect(screen.getByText(/All total/i)).toBeTruthy();
+    expect(screen.getByText(/Confirmed ₦/)).toBeTruthy();
     expect(screen.getByText(/Branch treasury accounts/i)).toBeTruthy();
     expect(screen.getByTestId('desk-all-clear')).toBeTruthy();
     expect(screen.getByTestId('desk-confirm-column')).toBeTruthy();

@@ -7,16 +7,11 @@ import {
   CheckCircle2,
   X,
   Edit3,
-  Activity,
-  ArrowDownLeft,
   Search,
-  CreditCard,
   ClipboardList,
   ArrowRightLeft,
   ChevronLeft,
   ChevronRight,
-  Truck,
-  BookOpen,
   AlertCircle,
   RotateCcw,
   RefreshCw,
@@ -53,7 +48,7 @@ import {
   hangingRefundsForCustomer,
 } from '../lib/refundsStore';
 import { overpayCreditBalanceFromEntries } from '../lib/customerLedgerCore.js';
-import { liveReceivablesNgn, openAuditQueue } from '../lib/liveAnalytics';
+import { openAuditQueue } from '../lib/liveAnalytics';
 import { effectiveOutstandingNgn, isEffectivelyFullyPaid } from '../lib/paymentOutstandingTolerance.js';
 import {
   enrichReceiptsWithCuttingListMeta,
@@ -427,11 +422,6 @@ const Account = () => {
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
   );
-  const liveProductionJobs = useMemo(
-    () =>
-      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : [],
-    [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
-  );
   const liveReceipts = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.receipts]
@@ -555,11 +545,6 @@ const Account = () => {
   const movementRows = useMemo(
     () => (ws?.hasWorkspaceData ? treasuryTransferRows : fundMovements),
     [fundMovements, treasuryTransferRows, ws?.hasWorkspaceData]
-  );
-
-  const receivablesNgn = useMemo(
-    () => liveReceivablesNgn(liveQuotations, liveLedgerEntries, liveProductionJobs),
-    [liveLedgerEntries, liveProductionJobs, liveQuotations]
   );
 
   const reconciliationFlags = useMemo(
@@ -1361,11 +1346,11 @@ const Account = () => {
 
   const accountTabs = useMemo(() => {
     const all = [
-      { id: 'desk', icon: <LayoutDashboard size={16} />, label: FINANCE_DESK_TAB_LABEL },
-      { id: 'receipts', icon: <Banknote size={16} />, label: TAB_LABELS.receipts },
-      { id: 'movements', icon: <ArrowRightLeft size={16} />, label: TAB_LABELS.movements },
-      { id: 'disbursements', icon: <ClipboardList size={16} />, label: TAB_LABELS.disbursements },
-      { id: 'audit', icon: <ShieldCheck size={16} />, label: 'Audit' },
+      { id: 'desk', icon: <LayoutDashboard size={14} />, label: 'Desk', title: FINANCE_DESK_TAB_LABEL },
+      { id: 'receipts', icon: <Banknote size={14} />, label: 'Receipts', title: TAB_LABELS.receipts },
+      { id: 'movements', icon: <ArrowRightLeft size={14} />, label: 'Transfers', title: TAB_LABELS.movements },
+      { id: 'disbursements', icon: <ClipboardList size={14} />, label: 'Payouts', title: TAB_LABELS.disbursements },
+      { id: 'audit', icon: <ShieldCheck size={14} />, label: 'Audit', title: TAB_LABELS.audit },
     ];
     const rk = ws?.session?.user?.roleKey;
     const permissions = ws?.permissions;
@@ -1744,21 +1729,6 @@ const Account = () => {
     }
     return [...names];
   }, [refundPayTarget?.quotationRef, salesReceipts]);
-
-  const reconciledSubtotalNgn = useMemo(
-    () =>
-      salesReceipts
-        .filter((r) => !isReceiptReversed(r) && Boolean(r.financeReconciliationSavedAtISO))
-        .reduce((sum, r) => sum + (Number(r.bankReceivedAmountNgn ?? r.cashReceivedNgn ?? r.amountNgn) || 0), 0),
-    [salesReceipts]
-  );
-  const nonReconciledSubtotalNgn = useMemo(
-    () =>
-      salesReceipts
-        .filter((r) => isReceiptPendingClearance(r))
-        .reduce((sum, r) => sum + (Number(r.cashReceivedNgn ?? r.amountNgn) || 0), 0),
-    [salesReceipts]
-  );
 
   const receiptsVisibleInReconciliationQueue = useMemo(() => salesReceipts, [salesReceipts]);
 
@@ -3141,10 +3111,6 @@ const Account = () => {
   );
 
   const isCashierRole = userIsCashierRole(ws?.session?.user?.roleKey);
-  const financePageTitle = (() => {
-    if (activeTab === 'desk') return FINANCE_DESK_TAB_LABEL;
-    return 'Finance';
-  })();
   const financePageSubtitle = (() => {
     if (activeTab === 'desk') {
       return 'Balances, statements, receipts, and payout queues — your branch finance home.';
@@ -3221,6 +3187,7 @@ const Account = () => {
       handleDeskViewReceipt,
       isAdminRole,
       isCashierRole,
+      liveQuotations,
       liveLedgerEntries,
       liveReceipts,
       liveTreasuryMovements,
@@ -3345,6 +3312,7 @@ const Account = () => {
       handleDeskViewReceipt,
       isAdminRole,
       isCashierRole,
+      liveQuotations,
       liveLedgerEntries,
       liveReceipts,
       liveTreasuryMovements,
@@ -3419,21 +3387,14 @@ const Account = () => {
     <AccountPageContext.Provider value={pageContextValue}>
       <PageShell blurred={isAnyModalOpen}>
       <FinancePilotHeader
-        eyebrow={
-          isCashierRole
-            ? activeTab === 'desk'
-              ? 'Finance · Cashier'
-              : 'Finance · Cashier'
-            : 'Finance'
-        }
-        title={financePageTitle}
+        title="Finance"
         subtitle={financePageSubtitle}
         tabs={<PageTabs tabs={accountTabs} value={activeTab} onChange={handleAccountTabChange} />}
         search={
           <div className="relative w-full min-w-0">
             <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              size={16}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              size={14}
             />
             <input
               type="search"
@@ -3485,91 +3446,8 @@ const Account = () => {
         }
       />
 
-      <div
-        className={`grid min-w-0 grid-cols-1 gap-8 lg:gap-10 ${activeTab === 'receipts' || activeTab === 'desk' ? '' : 'lg:grid-cols-4'}`}
-      >
-        {activeTab !== 'receipts' && activeTab !== 'desk' ? (
-        <div className="lg:col-span-1 space-y-6">
-          <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-zarewa-teal bg-white p-6 shadow-[var(--shadow-sequence)]">
-            <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">
-              Total liquidity
-            </h3>
-            <div className="space-y-1">
-              <p className="text-2xl font-black tracking-tight text-slate-900 tabular-nums">
-                ₦{totals.cash.toLocaleString()}
-              </p>
-              <p className="text-ui-xs text-slate-500 font-medium leading-snug">
-                Combined bank, cash & POS floats
-              </p>
-            </div>
-            <div className="mt-3 space-y-1 border-t border-slate-200 pt-2.5 text-ui-xs">
-              <p className="flex items-center justify-between gap-2 text-slate-600">
-                <span>Cleared receipts</span>
-                <span className="font-bold tabular-nums text-emerald-700">{formatNgn(reconciledSubtotalNgn)}</span>
-              </p>
-              <p className="flex items-center justify-between gap-2 text-slate-600">
-                <span>Pending clearance</span>
-                <span className="font-bold tabular-nums text-amber-700">{formatNgn(nonReconciledSubtotalNgn)}</span>
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => handleAccountTabChange('receipts')}
-            className="w-full text-left rounded-zarewa border border-slate-200/75 bg-white p-5 shadow-[var(--shadow-sequence)] transition-colors hover:border-teal-200/70 cursor-pointer"
-          >
-            <h3 className="z-section-title flex items-center gap-2">
-              <ArrowDownLeft size={14} />
-              Accounts receivable
-            </h3>
-            <p className="text-xl font-black text-zarewa-teal">{formatNgn(receivablesNgn)}</p>
-            <p className="text-ui-xs font-bold text-gray-400 mt-2 uppercase tracking-wide">
-              Due after production only · unpaid quotes with no output excluded
-            </p>
-          </button>
-
-          <Link
-            to="/procurement"
-            state={{ focusTab: 'payables' }}
-            className="block w-full text-left rounded-zarewa border border-slate-200/75 bg-white p-5 shadow-[var(--shadow-sequence)] transition-colors hover:border-teal-200/70 cursor-pointer"
-          >
-            <h3 className="z-section-title flex items-center gap-2">
-              <Truck size={14} />
-              Supplier payments
-            </h3>
-            <p className="text-ui-xs text-gray-600 mt-2 leading-relaxed">
-              Pay suppliers against purchase orders on Procurement →{' '}
-              <span className="font-bold text-zarewa-teal">Payments</span> (not Finance → Payouts & expenses).
-            </p>
-          </Link>
-
-          {!isCashierRole ? (
-          <div className="rounded-zarewa border border-slate-200/70 bg-slate-50/70 p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.1)]">
-            <h3 className="z-section-title flex items-center gap-2 text-ui-xs">
-              <Activity size={12} className="shrink-0" />
-              GL phase note
-            </h3>
-            <p className="text-ui-xs text-slate-500 leading-relaxed">
-              Operational tabs post live treasury movements today. Full double-entry GL is on{' '}
-              <strong className="text-slate-700">Accounting Desk</strong>.
-            </p>
-          </div>
-          ) : null}
-
-          {!isCashierRole ? (
-          <div className="rounded-zarewa border border-slate-200/70 bg-white p-3 text-ui-xs text-slate-500 leading-relaxed shadow-[0_10px_36px_-30px_rgba(15,23,42,0.08)]">
-            <p className="font-black uppercase tracking-wider text-zarewa-teal mb-1 flex items-center gap-1">
-              <BookOpen size={11} />
-              Principles
-            </p>
-            Accrual reporting and expense matching follow Accounting Desk once the ledger is live.
-          </div>
-          ) : null}
-        </div>
-        ) : null}
-
-        <div className={activeTab === 'receipts' || activeTab === 'desk' ? 'min-w-0' : 'lg:col-span-3 min-w-0'}>
+      <div className="grid min-w-0 grid-cols-1">
+        <div className="min-w-0">
           <FinanceSequencePanel>
             <AccountTabPanels />
           </FinanceSequencePanel>

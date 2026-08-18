@@ -6,8 +6,12 @@ import { managerKindTone, managerSlaMeta, normalizeManagerInboxRoute } from './m
 
 describe('manager command center helpers', () => {
   it('normalizes page tabs', () => {
-    expect(normalizeManagerPageTab('intelligence')).toBe('intelligence');
-    expect(normalizeManagerPageTab('ops')).toBe('operations');
+    expect(normalizeManagerPageTab('intelligence')).toBe('branch');
+    expect(normalizeManagerPageTab('ops')).toBe('branch');
+    expect(normalizeManagerPageTab('performance')).toBe('branch');
+    expect(normalizeManagerPageTab('branch')).toBe('branch');
+    expect(normalizeManagerPageTab('approvals')).toBe('approvals');
+    expect(normalizeManagerPageTab('pac')).toBe('approvals');
     expect(normalizeManagerPageTab('')).toBe('today');
   });
 

@@ -62,10 +62,10 @@ export function BranchWorkspaceBar() {
   const scopeSelectValue = viewAll && canHqRollup ? '__ALL__' : currentId || (branches[0]?.id ?? '');
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-1 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+    <div className="flex w-full min-w-0 flex-col gap-1 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
       {isHqRole ? (
-        <div className="flex min-w-0 w-full items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 shadow-sm sm:gap-2 sm:rounded-2xl sm:border-gray-100/90 sm:bg-white/95 sm:px-3 sm:py-2 sm:shadow-sm">
-          <Building2 size={16} className="shrink-0 text-zarewa-teal/70" aria-hidden />
+        <div className="flex min-w-0 w-full items-center gap-1.5 rounded-lg border border-slate-200/70 bg-white px-2 py-1 sm:w-auto sm:max-w-[220px]">
+          <Building2 size={14} className="shrink-0 text-zarewa-teal/70" aria-hidden />
           <div className="min-w-0 flex-1">
             <label htmlFor="zarewa-branch-workspace" className="sr-only">
               Workspace scope
@@ -75,7 +75,7 @@ export function BranchWorkspaceBar() {
               value={scopeSelectValue}
               onChange={canHqRollup ? onWorkspaceScopeChange : onBranchChange}
               disabled={busy}
-              className="w-full min-w-0 max-w-none cursor-pointer truncate bg-transparent text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal outline-none disabled:opacity-50 sm:z-toolbar-shell sm:text-xs sm:max-w-[280px]"
+              className="w-full min-w-0 max-w-none cursor-pointer truncate bg-transparent text-xs font-semibold text-slate-700 outline-none disabled:opacity-50"
             >
               {canHqRollup ? (
                 <option value="__ALL__">All branches (HQ roll-up)</option>
@@ -89,10 +89,10 @@ export function BranchWorkspaceBar() {
           </div>
         </div>
       ) : (
-        <div className="flex min-w-0 w-full items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 shadow-sm sm:gap-2 sm:rounded-2xl sm:border-gray-100/90 sm:bg-white/95 sm:px-3 sm:py-2 sm:shadow-sm">
-          <Building2 size={16} className="shrink-0 text-zarewa-teal/70" aria-hidden />
+        <div className="flex min-w-0 w-full items-center gap-1.5 rounded-lg border border-slate-200/70 bg-white px-2 py-1 sm:w-auto sm:max-w-[220px]">
+          <Building2 size={14} className="shrink-0 text-zarewa-teal/70" aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal sm:text-xs">
+            <p className="truncate text-xs font-semibold text-slate-700">
               {activeBranch ? activeBranch.name || activeBranch.code || activeBranch.id : 'Branch'}
             </p>
           </div>

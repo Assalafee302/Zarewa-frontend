@@ -1,16 +1,15 @@
 import React from 'react';
-import { Activity, MessageSquare, CheckSquare, FolderOpen, LayoutGrid } from 'lucide-react';
+import { Activity, CheckSquare, FolderOpen, LayoutGrid } from 'lucide-react';
 
 const ICONS = {
   activity: Activity,
-  rooms: MessageSquare,
   action: CheckSquare,
   records: FolderOpen,
   apps: LayoutGrid,
 };
 
 /**
- * Left rail — five zones only.
+ * Left rail — workspace zones (chat lives in the bottom-right dock).
  */
 export default function WorkspaceRail({
   zones,

@@ -694,7 +694,6 @@ export default function ExecutiveCommandCentre() {
     <MainPanel>
       <PageShell>
         <PageHeader
-          eyebrow="Zarewa Aluminium & Plastics"
           title="Executive Office"
           subtitle={pageSubtitle}
           tabs={

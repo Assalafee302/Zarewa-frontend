@@ -2,13 +2,25 @@
 
 export const MANAGER_PAGE_TABS = [
   { id: 'today', label: 'Today' },
-  { id: 'intelligence', label: 'Insights' },
-  { id: 'operations', label: 'Branch Operations' },
-  { id: 'performance', label: 'Performance' },
+  { id: 'approvals', label: 'Approvals' },
+  { id: 'branch', label: 'Branch' },
   { id: 'spend', label: 'Expenses' },
 ];
 
 export const MANAGER_PAGE_TAB_IDS = MANAGER_PAGE_TABS.map((t) => t.id);
+
+const BRANCH_TAB_ALIASES = new Set([
+  'branch',
+  'intelligence',
+  'insights',
+  'operations',
+  'performance',
+  'bi',
+  'intel',
+  'ops',
+  'pulse',
+  'perf',
+]);
 
 /** Priority Action Center primary views (attendance lives on Team HR). */
 export const MANAGER_PAC_TABS = [
@@ -20,14 +32,13 @@ export const MANAGER_PAC_TABS = [
 
 /**
  * @param {string | null | undefined} raw
- * @returns {'today' | 'intelligence' | 'operations' | 'performance' | 'spend'}
+ * @returns {'today' | 'approvals' | 'branch' | 'spend'}
  */
 export function normalizeManagerPageTab(raw) {
   const k = String(raw || '').trim().toLowerCase();
+  if (k === 'pac' || k === 'queue' || k === 'inbox' || k === 'approval') return 'approvals';
+  if (BRANCH_TAB_ALIASES.has(k)) return 'branch';
   if (MANAGER_PAGE_TAB_IDS.includes(k)) return /** @type {any} */ (k);
-  if (k === 'bi' || k === 'intel') return 'intelligence';
-  if (k === 'ops') return 'operations';
-  if (k === 'pulse' || k === 'perf') return 'performance';
   if (k === 'expenses' || k === 'expense') return 'spend';
   return 'today';
 }

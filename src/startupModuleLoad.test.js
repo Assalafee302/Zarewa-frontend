@@ -45,4 +45,9 @@ describe('startup module graph', () => {
     const mod = await import('./components/HelpChatDockGate.jsx');
     expect(typeof mod.HelpChatDockGate).toBe('function');
   });
+
+  it('loads TeamChatDockGate without TDZ', async () => {
+    const mod = await import('./components/TeamChatDockGate.jsx');
+    expect(typeof mod.TeamChatDockGate).toBe('function');
+  });
 });

@@ -105,7 +105,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
       detail: `${attentionTotal - attentionRowsShown} additional prioritized item(s) on All items — open the full queue.`,
       severity: 'info',
       priority: 44,
-      path: '/manager?tab=today&inbox=attention',
+      path: '/manager?tab=approvals&inbox=attention',
       state: {},
     });
   }
@@ -135,7 +135,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
         : `${parts.join(' · ')}. Paid quotes from the sales office need branch manager review — with or without a refund.`,
       severity: flagged > 0 ? 'critical' : 'warning',
       priority: flagged > 0 ? 95 : 82,
-      path: '/manager?tab=today&inbox=orders',
+      path: '/manager?tab=approvals&inbox=orders',
       state: {},
     });
   }
@@ -163,7 +163,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
       detail: cashPreview ? `${parts.join(' · ')} — e.g. ${cashPreview}` : parts.join(' · '),
       severity: 'warning',
       priority: 88,
-      path: '/manager?tab=today&inbox=cash_out',
+      path: '/manager?tab=approvals&inbox=cash_out',
       state: {},
     });
   }
@@ -177,7 +177,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
       detail: `${qc} completed job(s) need a close production check — separate from order sign-off.`,
       severity: 'warning',
       priority: 72,
-      path: '/manager?tab=today&inbox=qc',
+      path: '/manager?tab=approvals&inbox=qc',
       state: {},
     });
   }
@@ -192,7 +192,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
       detail: `${pendingMex.length} incident(s) awaiting branch manager approval before stock posts.`,
       severity: 'warning',
       priority: 78,
-      path: '/manager?tab=today&inbox=material',
+      path: '/manager?tab=approvals&inbox=material',
       state: {},
     });
   }
@@ -227,7 +227,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
         detail: `${editPending.length} sensitive edit(s) waiting for second-party OK.`,
         severity: 'warning',
         priority: 80,
-      path: '/manager?tab=today&inbox=edits',
+      path: '/manager?tab=approvals&inbox=edits',
       state: {},
       });
     }

@@ -46,8 +46,6 @@ import {
 import { ReceiptPrintQuick, ReceiptPrintFull } from './receipt/ReceiptPrintViews';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
-import { ZareHelpButton } from './ZareHelpButton';
-import { buildZareTransactionContext } from '../lib/zareTransactionContext';
 import {
   isReceiptCleared,
   receiptMayPrint,
@@ -1117,22 +1115,6 @@ const ReceiptModal = ({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <ZareHelpButton
-              compact
-              transactionContext={buildZareTransactionContext({
-                module: 'sales',
-                currentPage: 'receipt',
-                pathname: '/sales',
-                transactionType: 'receipt',
-                referenceNo: editData?.id,
-                status: isExistingPayment && isReceiptCleared(editData) ? 'cleared' : 'draft',
-                readOnly,
-                canEdit: !readOnly && Boolean(ws?.canMutate),
-                canReverse: readOnly,
-                showFinancialSummary: Boolean(editData?.amountNgn),
-                amountSummary: editData?.amountNgn != null ? `₦${Number(editData.amountNgn).toLocaleString()}` : '',
-              })}
-            />
             <button
               type="button"
               onClick={handleClose}

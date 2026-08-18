@@ -26,9 +26,7 @@ import { WorkspacePanelToolbar } from '../components/workspace';
 import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import RegisterCoilModal from '../components/operations/RegisterCoilModal';
-import { StoreClearNow } from '../components/operations/StoreClearNow';
-import SpecBoardPanel from '../components/operations/SpecBoardPanel';
-import StoneSpecBoardPanel from '../components/operations/StoneSpecBoardPanel';
+import { OperationsProductionOverview } from '../components/operations/OperationsProductionOverview';
 import OperationsMobileAlertStrip from '../components/operations/OperationsMobileAlertStrip';
 import { normalizeOpsFocusTab } from '../lib/storeClearanceRank';
 import {
@@ -41,12 +39,6 @@ import {
 } from '../lib/storeStoneSpecAggregate';
 import { normalizeOrgStoreRestock } from '../lib/orgStoreRestock';
 import { STORE_STOCK_BUY_PATH } from '../lib/coilRequestStatus';
-import {
-  buildMetresBySpec,
-  pickStoreHeroes,
-  buildRestockClearanceRows,
-  buildStoneRestockClearanceRows,
-} from '../lib/storeHeroEngine';
 import {
   ProductionListTableFrame,
   ProductionListSearchInput,
@@ -64,7 +56,6 @@ import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../lib/appDataTable
 import { AppTablePager, AppTableWrap } from '../components/ui/AppDataTable';
 import { ListEmptyState } from '../components/ui/ListEmptyState';
 import { SALES_STATUS_CHIP } from '../lib/salesStatusUi';
-import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
@@ -257,15 +248,15 @@ const PRODUCTION_SORT_FIELDS = [
   { id: 'status', label: 'Status' },
 ];
 
-/** Compact rows — aligned with Sales quotations / receipts lists */
+/** Compact rows — quiet register list, one status chip. */
 const CARD_ROW =
-  'rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm transition-colors hover:bg-white/70';
+  'rounded-md border border-slate-200/80 bg-white py-2.5 px-3 transition-colors hover:border-teal-200/70 hover:bg-slate-50/70';
 
 const CHIP = SALES_STATUS_CHIP;
 
 function productionListItemClass(rowKey, openKey, toneClass = '') {
   const base = toneClass
-    ? `rounded-lg border py-1.5 px-2.5 shadow-sm backdrop-blur-md transition-colors ${toneClass}`
+    ? `rounded-md border py-2.5 px-3 transition-colors hover:brightness-[0.99] ${toneClass}`
     : CARD_ROW;
   return openKey === rowKey ? `${base} relative z-50` : base;
 }
@@ -653,10 +644,6 @@ const Operations = () => {
   const canOtRequest = Boolean(ws?.hasPermission?.('ot.request') || ws?.hasPermission?.('*'));
 
   const [activeTab, setActiveTab] = useState('overview');
-  const [specBoardFilter, setSpecBoardFilter] = useState(
-    /** @type {'all'|'below_min'|'thin'|'idle'|'heroes'} */ ('all')
-  );
-  const [focusDeliveries, setFocusDeliveries] = useState(false);
   const [materialIncidentFocusId, setMaterialIncidentFocusId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   /** Closed-record list: all | completed | cancelled | coils_allocated (in-progress jobs are above). */
@@ -1068,11 +1055,6 @@ const Operations = () => {
     };
   }, [productionConversionChecks]);
 
-  const jobsNeedingManagerReview = useMemo(
-    () => productionJobs.filter((j) => productionJobNeedsManagerReviewAttention(j)),
-    [productionJobs]
-  );
-
   const conversionChecksByCuttingListId = useMemo(() => {
     const m = new Map();
     for (const c of productionConversionChecks) {
@@ -1154,23 +1136,25 @@ const Operations = () => {
     ws?.hasWorkspaceData
   );
 
-  const jobsReviewPage = useAppTablePaging(
-    jobsNeedingManagerReview,
-    PRODUCTION_TABLE_PAGE_SIZE,
-    jobsNeedingManagerReview.length,
-    searchQuery
-  );
-
   const productionQueueStats = useMemo(() => {
     const rows = productionQueueModel.sections.flatMap((s) => s.rows || []);
     const active = rows.filter((r) => !r.completed);
+    const waiting = active.filter(
+      (r) => r.priority === 'Waiting' || r.priority === 'Wait' || r.status === 'Planned'
+    ).length;
+    const noCoil = active.filter((r) => r.needsCoil).length;
+    const coilsAllocated = active.filter((r) => r.hasCoilsAllocated).length;
+    const needsReview = active.filter((r) => r.managerReviewRequired).length;
+    const overdue = active.filter((r) => r.overdue).length;
+    const attention = active.filter((r) => r.managerReviewRequired || r.overdue).length;
     return {
-      waiting: active.filter((r) => r.priority === 'Waiting' || r.priority === 'Wait' || r.status === 'Planned')
-        .length,
-      noCoil: active.filter((r) => r.needsCoil).length,
-      coilsAllocated: active.filter((r) => r.hasCoilsAllocated).length,
-      needsReview: active.filter((r) => r.managerReviewRequired).length,
-      overdue: active.filter((r) => r.overdue).length,
+      waiting,
+      noCoil,
+      coilsAllocated,
+      needsReview,
+      overdue,
+      onFloor: waiting + coilsAllocated,
+      attention,
     };
   }, [productionQueueModel]);
 
@@ -1201,10 +1185,6 @@ const Operations = () => {
     if (kindOrOpts && typeof kindOrOpts === 'object') {
       const kind = kindOrOpts.kind || kindOrOpts.stockReceiveKind || 'coil';
       setStockReceiveKind(normalizeStockReceiveKind(kind));
-      const boardFilter = String(kindOrOpts.specBoardFilter || '').trim().toLowerCase();
-      if (['all', 'below_min', 'thin', 'idle', 'heroes'].includes(boardFilter)) {
-        setSpecBoardFilter(/** @type {any} */ (boardFilter));
-      }
       return;
     }
     setStockReceiveKind(normalizeStockReceiveKind(kindOrOpts));
@@ -1257,7 +1237,6 @@ const Operations = () => {
 
   const handleOpsTab = (id) => {
     setActiveTab(id);
-    setFocusDeliveries(false);
     setSearchQuery('');
     setProductionFilter('all');
   };
@@ -1289,7 +1268,6 @@ const Operations = () => {
     }
 
     setActiveTab(normalized.tab);
-    setFocusDeliveries(Boolean(normalized.deliveriesFocus));
 
     if (normalized.tab === 'inventory') {
       if (invSku) {
@@ -1305,13 +1283,9 @@ const Operations = () => {
       if (kindHint) {
         setStockReceiveKind(normalizeStockReceiveKind(kindHint));
       } else if (!invSku && ['idle', 'thin', 'heroes'].includes(boardFilter)) {
-        // Coil Spec board filters — force coil kind when deep-linking from notifications.
         setStockReceiveKind('coil');
       } else if (!invSku && boardFilter === 'below_min' && st.opsFamily === 'stone') {
         setStockReceiveKind('stone_meter');
-      }
-      if (['all', 'below_min', 'thin', 'idle', 'heroes'].includes(boardFilter)) {
-        setSpecBoardFilter(/** @type {any} */ (boardFilter));
       }
       if (st.openStockAdjust && canAdjustInventory) {
         setStockAdjustMaterialFamily(null);
@@ -1359,7 +1333,7 @@ const Operations = () => {
     const registerBadge =
       (Number(productionQueueStats.noCoil) || 0) + (Number(productionQueueStats.overdue) || 0);
     return [
-      { id: 'overview', icon: <LayoutDashboard size={16} />, label: 'Clear now' },
+      { id: 'overview', icon: <LayoutDashboard size={16} />, label: 'Desk' },
       {
         id: 'inventory',
         icon: <Box size={16} />,
@@ -1406,53 +1380,6 @@ const Operations = () => {
       transitBySpec: stoneTransit,
     }).filter((r) => r.belowMin).length;
   }, [inventoryRows, setupMasterData, transitOrdersAll, stoneRestockMinM]);
-
-  const storeRestockClearanceRows = useMemo(() => {
-    const transitBySpec = buildTransitKgBySpec(transitOrdersAll, setupMasterData, shouldShowPoInTransit);
-    const coilSpecs = buildCoilSpecBoardRows(coilLots, setupMasterData, {
-      restockMinKg: coilRestockMinKg,
-      specMinOverrides,
-      transitBySpec,
-    });
-    const coilMetres = buildMetresBySpec({
-      productionJobs,
-      quotations: ws?.snapshot?.quotations || [],
-      period: 'quarter',
-      masterData: setupMasterData,
-      familyScope: 'coil',
-    });
-    const { heroKeys: coilHeroKeys } = pickStoreHeroes(coilMetres);
-    const coilRows = buildRestockClearanceRows(coilSpecs, coilHeroKeys, { max: 3 });
-
-    const stoneTransit = buildTransitMByStoneSpec(transitOrdersAll, setupMasterData, shouldShowPoInTransit);
-    const stoneSpecs = buildStoneSpecBoardRows(inventoryRows, setupMasterData, {
-      restockMinM: stoneRestockMinM,
-      transitBySpec: stoneTransit,
-    });
-    const stoneMetres = buildMetresBySpec({
-      productionJobs,
-      quotations: ws?.snapshot?.quotations || [],
-      period: 'quarter',
-      masterData: setupMasterData,
-      familyScope: 'stone',
-    });
-    const { heroKeys: stoneHeroKeys } = pickStoreHeroes(stoneMetres, undefined, { families: ['stone'] });
-    const stoneRows = buildStoneRestockClearanceRows(stoneSpecs, stoneHeroKeys, { max: 3 });
-
-    return [...coilRows, ...stoneRows]
-      .sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
-      .slice(0, 3);
-  }, [
-    coilLots,
-    inventoryRows,
-    setupMasterData,
-    transitOrdersAll,
-    coilRestockMinKg,
-    stoneRestockMinM,
-    specMinOverrides,
-    productionJobs,
-    ws?.snapshot?.quotations,
-  ]);
 
   const transitSearchNorm = transitSearch.trim().toLowerCase();
   const transitOrdersSortedFiltered = useMemo(() => {
@@ -2062,7 +1989,7 @@ const Operations = () => {
         lowStockCount={inventoryStats.lowStock}
         pendingMexCount={pendingMexCount}
         onGoInventory={() => goOverviewInventory({ kind: 'coil' })}
-        onGoThinCoils={() => goOverviewInventory({ kind: 'coil', specBoardFilter: 'thin' })}
+        onGoThinCoils={() => goOverviewInventory({ kind: 'coil' })}
         onGoMaterialExceptions={() => setActiveTab('materialExceptions')}
       />
 
@@ -2088,33 +2015,24 @@ const Operations = () => {
           <div className="col-span-full order-1">
             <MainPanel>
               <WorkspacePanelToolbar title={PANEL_TITLE.overview} />
-              <StoreClearNow
+              <OperationsProductionOverview
                 coilLots={coilLots}
+                inventoryRows={inventoryRows}
                 cuttingLists={cuttingLists}
                 productionQueueModel={productionQueueModel}
+                conversionStats={conversionStats}
                 productionQueueStats={productionQueueStats}
                 hasWorkspaceData={Boolean(ws?.hasWorkspaceData)}
-                receiveCount={transitOrdersAll.length}
-                pendingMexCount={pendingMexCount}
-                focusDeliveries={focusDeliveries}
-                onGoRegister={({ highlightId, filter } = {}) => {
+                masterData={setupMasterData}
+                onGoProduction={() => {
                   setActiveTab('production');
-                  if (highlightId) setSearchQuery(String(highlightId));
-                  if (filter) setProductionActiveFilter(String(filter));
                 }}
-                onGoReceive={() => {
-                  setActiveTab('inventory');
-                  setStockReceiveKind('coil');
-                }}
-                onGoExceptions={() => setActiveTab('materialExceptions')}
-                onGoOnHand={(kind) => goOverviewInventory(kind)}
-                onRequestStock={() => openRequestStock()}
+                onGoInventory={(kind) => goOverviewInventory(kind)}
+                onRequestCoils={() => openRequestStock()}
                 onMonthEndStock={() => setMonthEndStockOpen(true)}
-                onOpenCoil={(coilNo) => navigate(`/operations/coils/${encodeURIComponent(coilNo)}`)}
-                onRequestRestock={openRequestStock}
-                restockRows={storeRestockClearanceRows}
-                movements={ws?.snapshot?.movements || []}
-                branchId={ws?.branchScope || ws?.session?.currentBranchId || ''}
+                roleKey={ws?.session?.user?.roleKey || ''}
+                branchId={opsBranchId}
+                branches={ws?.snapshot?.branches || []}
               />
               {canOtRequest ? (
                 <Link
@@ -2543,24 +2461,6 @@ const Operations = () => {
                 </h3>
                 {stockReceiveKind === 'coil' ? (
                   <>
-                    <SpecBoardPanel
-                      key={`spec-board-${specBoardFilter}`}
-                      coilLots={coilLots}
-                      masterData={setupMasterData}
-                      movements={ws?.snapshot?.movements || []}
-                      productionJobs={productionJobs}
-                      quotations={ws?.snapshot?.quotations || []}
-                      transitPurchaseOrders={transitOrdersAll}
-                      isReceivablePo={shouldShowPoInTransit}
-                      restockMinKg={coilRestockMinKg}
-                      specMinOverrides={specMinOverrides}
-                      initialFilter={specBoardFilter}
-                      onOpenCoil={(coilNo) => navigate(`/operations/coils/${encodeURIComponent(coilNo)}`)}
-                      onRequestRestock={openRequestStock}
-                    />
-                    <h4 className="text-ui-xs font-bold text-slate-600 uppercase tracking-widest mb-2">
-                      Coil lots (detail)
-                    </h4>
                     <div className="flex flex-col gap-1.5 mb-2 shrink-0">
                       <label className="relative min-w-0 w-full">
                         <Search
@@ -2725,29 +2625,6 @@ const Operations = () => {
                   </>
                 ) : (
                   <>
-                    {stockReceiveKind === 'stone_meter' ? (
-                      <StoneSpecBoardPanel
-                        key={`stone-spec-${specBoardFilter}`}
-                        products={inventoryRows}
-                        masterData={setupMasterData}
-                        productionJobs={productionJobs}
-                        quotations={ws?.snapshot?.quotations || []}
-                        transitPurchaseOrders={transitOrdersAll}
-                        isReceivablePo={shouldShowPoInTransit}
-                        restockMinM={stoneRestockMinM}
-                        initialFilter={
-                          ['all', 'below_min', 'heroes'].includes(specBoardFilter) ? specBoardFilter : 'all'
-                        }
-                        onRequestRestock={openRequestStock}
-                        onOpenSku={(sku) =>
-                          setProductMovementModal({
-                            productID: sku.productID,
-                            name: sku.name || sku.productID,
-                            unit: 'm',
-                          })
-                        }
-                      />
-                    ) : null}
                     {skuProductsLiveSorted.length === 0 ? (
                       <p className="text-xs font-medium text-slate-400">
                         No{' '}
@@ -2763,7 +2640,7 @@ const Operations = () => {
                     ) : (
                       <>
                         <h4 className="text-ui-xs font-bold text-slate-600 uppercase tracking-widest mb-2">
-                          {stockReceiveKind === 'stone_meter' ? 'Stone SKUs (detail)' : 'SKU lots (detail)'}
+                          {stockReceiveKind === 'stone_meter' ? 'Stone SKUs' : 'SKU lots'}
                         </h4>
                         <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 mb-2 shrink-0">
                           <label className="relative min-w-0 w-full flex-1 sm:min-w-[140px]">
@@ -2982,73 +2859,80 @@ const Operations = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-start">
-                  {/* Left 1/3 — in progress / need action */}
-                  <section className="space-y-4 lg:col-span-1 order-1 min-w-0 flex flex-col">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                        <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Jobs waiting</p>
-                        <p className="mt-0.5 text-lg font-black text-zarewa-teal tabular-nums">
-                          {productionQueueStats.waiting}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-teal-200 bg-teal-50/60 p-2.5">
-                        <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-800">Coils reserved</p>
-                        <p className="mt-0.5 text-lg font-black text-teal-900 tabular-nums">
-                          {productionQueueStats.coilsAllocated}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
-                        <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-800">No coil</p>
-                        <p className="mt-0.5 text-lg font-black text-amber-800 tabular-nums">
-                          {productionQueueStats.noCoil}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-red-200 bg-red-50/50 p-2.5">
-                        <p className="text-ui-xs font-bold uppercase tracking-wide text-red-800">Manager review</p>
-                        <p className="mt-0.5 text-lg font-black text-red-800 tabular-nums">
-                          {productionQueueStats.needsReview}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-2.5 sm:col-span-2">
-                        <p className="text-ui-xs font-bold uppercase tracking-wide text-rose-800">Overdue</p>
-                        <p className="mt-0.5 text-lg font-black text-rose-800 tabular-nums">
-                          {productionQueueStats.overdue}
-                        </p>
-                      </div>
-                    </div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => setProductionActiveFilter('all')}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-teal-200/80"
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">On floor</p>
+                  <p className="mt-0.5 text-xl font-black tabular-nums text-zarewa-teal">
+                    {productionQueueStats.onFloor}
+                  </p>
+                  <p className="mt-0.5 hidden text-[10px] font-medium text-slate-400 sm:block">
+                    Waiting &amp; reserved
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProductionActiveFilter('no_coil')}
+                  className={`rounded-lg border px-3 py-2.5 text-left transition ${
+                    productionQueueStats.noCoil > 0
+                      ? 'border-amber-200 bg-amber-50/70 hover:border-amber-300'
+                      : 'border-slate-200 bg-white hover:border-teal-200/80'
+                  }`}
+                >
+                  <p
+                    className={`text-[10px] font-bold uppercase tracking-wider ${
+                      productionQueueStats.noCoil > 0 ? 'text-amber-800' : 'text-slate-500'
+                    }`}
+                  >
+                    Need coil
+                  </p>
+                  <p
+                    className={`mt-0.5 text-xl font-black tabular-nums ${
+                      productionQueueStats.noCoil > 0 ? 'text-amber-900' : 'text-slate-800'
+                    }`}
+                  >
+                    {productionQueueStats.noCoil}
+                  </p>
+                  <p className="mt-0.5 hidden text-[10px] font-medium text-slate-400 sm:block">
+                    Shop floor blocked
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProductionActiveFilter('all')}
+                  className={`rounded-lg border px-3 py-2.5 text-left transition ${
+                    productionQueueStats.attention > 0
+                      ? 'border-rose-200 bg-rose-50/70 hover:border-rose-300'
+                      : 'border-slate-200 bg-white hover:border-teal-200/80'
+                  }`}
+                >
+                  <p
+                    className={`text-[10px] font-bold uppercase tracking-wider ${
+                      productionQueueStats.attention > 0 ? 'text-rose-800' : 'text-slate-500'
+                    }`}
+                  >
+                    Attention
+                  </p>
+                  <p
+                    className={`mt-0.5 text-xl font-black tabular-nums ${
+                      productionQueueStats.attention > 0 ? 'text-rose-900' : 'text-slate-800'
+                    }`}
+                  >
+                    {productionQueueStats.attention}
+                  </p>
+                  <p className="mt-0.5 hidden text-[10px] font-medium text-slate-400 sm:block">
+                    Review or overdue
+                  </p>
+                </button>
+              </div>
 
-                    {ws?.hasWorkspaceData && jobsNeedingManagerReview.length > 0 ? (
-                      <div className="rounded-lg border border-red-200 bg-red-50/90 px-3 py-3 text-sm text-red-950 shadow-sm">
-                        <p className="text-ui-xs font-black uppercase tracking-widest text-red-800 flex items-center gap-2">
-                          <AlertTriangle size={16} className="shrink-0" />
-                          Manager review queue
-                        </p>
-                        <p className="mt-2 text-ui-xs text-red-900/90 leading-snug">
-                          Conversion outside agreed bands — resolve from traceability.
-                        </p>
-                        <ul className="mt-2 space-y-1 text-ui-xs font-semibold">
-                          {jobsReviewPage.slice.map((j) => (
-                            <li key={j.jobID} className="font-mono text-red-950">
-                              {j.cuttingListId || j.jobID}
-                            </li>
-                          ))}
-                        </ul>
-                        <AppTablePager
-                          showingFrom={jobsReviewPage.showingFrom}
-                          showingTo={jobsReviewPage.showingTo}
-                          total={jobsReviewPage.total}
-                          hasPrev={jobsReviewPage.hasPrev}
-                          hasNext={jobsReviewPage.hasNext}
-                          onPrev={jobsReviewPage.goPrev}
-                          onNext={jobsReviewPage.goNext}
-                          pageSize={PRODUCTION_TABLE_PAGE_SIZE}
-                        />
-                      </div>
-                    ) : null}
-
-                    <div className="min-w-0">
-                      <h3 className="mb-3 text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 items-start">
+                  {/* Left — in progress / need action */}
+                  <section className="space-y-3 min-w-0 flex flex-col">
+                      <h3 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
                         In progress · need action
                       </h3>
                       <ProductionListTableFrame
@@ -3130,93 +3014,80 @@ const Operations = () => {
                             <ul className="space-y-1.5">
                               {productionActivePage.slice.map((item) => {
                                 const rowKey = `live-${item.id}`;
-                                const liveTone = item.liveJobCardClass || '';
+                                const liveTone = item.needsCoil
+                                  ? 'border-amber-200 bg-amber-50/40'
+                                  : item.managerReviewRequired || item.overdue
+                                    ? 'border-rose-200 bg-rose-50/40'
+                                    : '';
+                                const coilMeta = item.hasCoilsAllocated
+                                  ? [
+                                      item.reservedCoilNos?.length
+                                        ? item.reservedCoilNos.join(' · ')
+                                        : item.coilLabel || 'Coils allocated',
+                                      item.reservedKg > 0
+                                        ? `${item.reservedKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg`
+                                        : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' · ')
+                                  : item.coilLabel || '';
                                 return (
                                   <li
                                     key={item.id}
                                     className={productionListItemClass(rowKey, actionMenuKey, liveTone)}
                                   >
-                                    <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                                      <div className="min-w-0 flex-1 leading-tight">
-                                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                                          <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
-                                            <span className="tabular-nums font-mono">{item.id}</span>
-                                            <span className="font-medium text-slate-600">
-                                              {' '}
-                                              · {item.customer}
-                                            </span>
-                                          </p>
-                                          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                            <span
-                                              className={`${CHIP} ${
-                                                item.lineStatusChipClass ||
-                                                'border-slate-200 bg-slate-50 text-slate-600'
-                                              }`}
-                                            >
-                                              {item.lineStatusLabel || '—'}
-                                            </span>
-                                            {item.liveJobMaterialChipLabel ? (
-                                              <span
-                                                className={`${CHIP} ${
-                                                  item.liveJobMaterialChipClass ||
-                                                  'border-slate-200 bg-slate-50 text-slate-600'
-                                                }`}
-                                                title="Job material class"
-                                              >
-                                                {item.liveJobMaterialChipLabel}
-                                              </span>
-                                            ) : null}
-                                            <ProductionRowMenu
-                                              rowKey={rowKey}
-                                              openKey={actionMenuKey}
-                                              setOpenKey={setActionMenuKey}
-                                              onView={() => openProductionQueueRow(item)}
-                                              onEditRegister={() =>
-                                                openTraceWithHint(
-                                                  item,
-                                                  'Production register: enter closing kg & metres, Save while running, then Complete.'
-                                                )
-                                              }
-                                              onRecall={() =>
-                                                openTraceWithHint(
-                                                  item,
-                                                  item.status === 'Running'
-                                                    ? 'Recall entry: confirm return to plan, then re-enter coils and start again.'
-                                                    : 'Recall entry: confirm cancel to release the cutting list to Waiting, then fix and re-register if needed.',
-                                                  { recallIntent: true }
-                                                )
-                                              }
-                                            />
-                                          </div>
-                                        </div>
-                                        {item.hasCoilsAllocated ? (
+                                    <div className="flex items-start gap-3 min-w-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => openProductionQueueRow(item)}
+                                        className="min-w-0 flex-1 text-left rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
+                                      >
+                                        <p className="text-sm font-semibold text-slate-800 truncate">
+                                          <span className="font-mono tabular-nums text-zarewa-teal">{item.id}</span>
+                                          <span className="font-normal text-slate-400"> · </span>
+                                          <span className="font-medium text-slate-700">{item.customer}</span>
+                                        </p>
+                                        {coilMeta ? (
                                           <p
-                                            className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2 font-mono"
-                                            title={
-                                              item.reservedKg > 0
-                                                ? `${item.reservedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg opening reserved on this job`
-                                                : undefined
-                                            }
+                                            className={`mt-0.5 text-ui-xs truncate ${
+                                              item.hasCoilsAllocated ? 'text-slate-500' : 'text-amber-800'
+                                            }`}
+                                            title={coilMeta}
                                           >
-                                            {item.reservedCoilNos?.length
-                                              ? item.reservedCoilNos.join(' · ')
-                                              : item.coilLabel || 'Coils allocated'}
-                                            {item.reservedKg > 0 ? (
-                                              <span>
-                                                {' '}
-                                                ·{' '}
-                                                {item.reservedKg.toLocaleString(undefined, {
-                                                  maximumFractionDigits: 0,
-                                                })}{' '}
-                                                kg
-                                              </span>
-                                            ) : null}
-                                          </p>
-                                        ) : item.coilLabel ? (
-                                          <p className="text-ui-xs text-amber-800/90 mt-0.5 leading-snug">
-                                            {item.coilLabel}
+                                            {coilMeta}
                                           </p>
                                         ) : null}
+                                      </button>
+                                      <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                                        <span
+                                          className={`${CHIP} ${
+                                            item.lineStatusChipClass ||
+                                            'border-slate-200 bg-slate-50 text-slate-600'
+                                          }`}
+                                        >
+                                          {item.lineStatusLabel || '—'}
+                                        </span>
+                                        <ProductionRowMenu
+                                          rowKey={rowKey}
+                                          openKey={actionMenuKey}
+                                          setOpenKey={setActionMenuKey}
+                                          onView={() => openProductionQueueRow(item)}
+                                          onEditRegister={() =>
+                                            openTraceWithHint(
+                                              item,
+                                              'Production register: enter closing kg & metres, Save while running, then Complete.'
+                                            )
+                                          }
+                                          onRecall={() =>
+                                            openTraceWithHint(
+                                              item,
+                                              item.status === 'Running'
+                                                ? 'Recall entry: confirm return to plan, then re-enter coils and start again.'
+                                                : 'Recall entry: confirm cancel to release the cutting list to Waiting, then fix and re-register if needed.',
+                                              { recallIntent: true }
+                                            )
+                                          }
+                                        />
                                       </div>
                                     </div>
                                   </li>
@@ -3236,12 +3107,11 @@ const Operations = () => {
                           </>
                         )}
                       </ProductionListTableFrame>
-                    </div>
                   </section>
 
-                  {/* Right 2/3 — closed / finished / complete (Sales quotations parity) */}
-                  <section className="space-y-0 lg:col-span-2 order-2 min-w-0 flex min-h-0 flex-col">
-                    <div className="mb-3 min-w-0">
+                  {/* Right — closed / finished / complete */}
+                  <section className="space-y-3 min-w-0 flex min-h-0 flex-col">
+                    <div className="min-w-0">
                       <h3 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
                         Closed · finished · complete
                       </h3>
@@ -3331,30 +3201,6 @@ const Operations = () => {
                           <ul className="space-y-1.5">
                             {productionClosedPage.slice.map((item) => {
                               const rowKey = `closed-${item.queueKind}-${item.id}`;
-                              const meta2 = [
-                                item.spec,
-                                item.quantity,
-                                ws?.hasWorkspaceData && item.coilLabel ? item.coilLabel : null,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ');
-                              const rowTone = item.needsCoil
-                                ? 'border-amber-300/80 bg-amber-50/50 hover:bg-amber-50/70'
-                                : item.managerReviewRequired
-                                  ? 'border-red-300/80 bg-red-50/45 hover:bg-red-50/65'
-                                  : item.overdue
-                                    ? 'border-rose-300/80 bg-rose-50/45 hover:bg-rose-50/65'
-                                    : '';
-                              const priorityChip =
-                                item.priority === 'High'
-                                  ? 'border-red-200 bg-red-50 text-red-700'
-                                  : item.priority === 'Done'
-                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                    : item.priority === 'Cancelled'
-                                      ? 'border-slate-300 bg-slate-100 text-slate-700'
-                                      : item.priority === 'Waiting' || item.priority === 'Wait'
-                                        ? 'border-amber-200 bg-amber-50 text-amber-900'
-                                        : 'border-slate-200 bg-slate-50 text-slate-600';
                               const clIdForConv = String(item.cuttingListId || item.id || '').trim();
                               const convChecks =
                                 ws?.hasWorkspaceData && clIdForConv
@@ -3363,116 +3209,107 @@ const Operations = () => {
                               const convSum = convChecks?.length
                                 ? summarizeConversionChecksForCuttingList(convChecks, formatVariancePct)
                                 : null;
-                              const convWorstTone = convSum
-                                ? (() => {
-                                    const w = String(convSum.worst || 'OK');
-                                    if (w === 'High') return 'border-red-200 bg-red-50 text-red-800';
-                                    if (w === 'Low') return 'border-amber-200 bg-amber-50 text-amber-900';
-                                    if (w === 'Watch') return 'border-sky-200 bg-sky-50 text-sky-900';
-                                    return 'border-emerald-200 bg-emerald-50 text-emerald-800';
-                                  })()
-                                : null;
+                              const metaBits = [
+                                item.spec,
+                                item.quantity,
+                                ws?.hasWorkspaceData && item.coilLabel ? item.coilLabel : null,
+                                convSum
+                                  ? `4-ref ${convSum.worst}${convSum.deltaLabel ? ` ${convSum.deltaLabel}` : ''}`
+                                  : null,
+                                item.conversionHighLow ? 'Conversion flag' : null,
+                                item.metreVarianceAttention ? 'Metre variance' : null,
+                              ].filter(Boolean);
+                              const meta2 = metaBits.join(' · ');
+                              const rowTone = item.needsCoil
+                                ? 'border-amber-200 bg-amber-50/40'
+                                : item.managerReviewRequired || item.overdue
+                                  ? 'border-rose-200 bg-rose-50/40'
+                                  : '';
+                              const showPriority =
+                                item.priority &&
+                                item.priority !== 'Done' &&
+                                item.priority !== 'Normal' &&
+                                String(item.priority).toLowerCase() !==
+                                  String(item.lineStatusLabel || '').toLowerCase();
                               return (
                                 <li
                                   key={`${item.queueKind}-${item.id}`}
                                   className={productionListItemClass(rowKey, actionMenuKey, rowTone)}
                                 >
-                                  <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                                    <div className="min-w-0 flex-1 leading-tight">
-                                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                                        <button
-                                          type="button"
-                                          onClick={() => openProductionQueueRow(item)}
-                                          className="text-xs font-bold text-zarewa-teal truncate min-w-0 text-left rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
-                                        >
-                                          <span className="tabular-nums font-mono">{item.id}</span>
-                                          <span className="font-medium text-slate-600">
-                                            {' '}
-                                            · {item.customer}
-                                          </span>
-                                        </button>
-                                        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                          <span
-                                            className={`${CHIP} ${
-                                              item.lineStatusChipClass ||
-                                              'border-slate-200 bg-slate-50 text-slate-600'
-                                            }`}
-                                          >
-                                            {item.lineStatusLabel || '—'}
-                                          </span>
-                                          {item.conversionHighLow ? (
-                                            <span
-                                              className={`${CHIP} border-rose-200 bg-rose-50 text-rose-800`}
-                                            >
-                                              Conv
-                                            </span>
-                                          ) : null}
-                                          {item.metreVarianceAttention ? (
-                                            <span
-                                              className={`${CHIP} border-amber-200 bg-amber-50 text-amber-900`}
-                                            >
-                                              Var
-                                            </span>
-                                          ) : null}
-                                          <span className={`${CHIP} ${priorityChip}`}>{item.priority}</span>
-                                          <ProductionRowMenu
-                                            rowKey={rowKey}
-                                            openKey={actionMenuKey}
-                                            setOpenKey={setActionMenuKey}
-                                            onView={() => openProductionQueueRow(item)}
-                                            onEditRegister={() =>
-                                              openTraceWithHint(
-                                                item,
-                                                'Production register: coil allocation, run log, and completion.'
-                                              )
-                                            }
-                                            onAssignCoil={
-                                              !item.completed
-                                                ? () =>
-                                                    openTraceWithHint(
-                                                      item,
-                                                      'Opens production register — coil assignment.'
-                                                    )
-                                                : undefined
-                                            }
-                                            onOpenRegister={
-                                              !item.completed
-                                                ? () =>
-                                                    openTraceWithHint(
-                                                      item,
-                                                      'Opens production register — use Start run in the register after coils are allocated.'
-                                                    )
-                                                : undefined
-                                            }
-                                            onPrepareComplete={
-                                              !item.completed
-                                                ? () => requestMarkComplete(item)
-                                                : undefined
-                                            }
-                                          />
-                                        </div>
-                                      </div>
-                                      <p
-                                        className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2 tabular-nums"
-                                        title={meta2}
-                                      >
-                                        {meta2}
-                                        {convSum && convWorstTone ? (
-                                          <>
-                                            {' '}
-                                            ·{' '}
-                                            <span className={`${CHIP} ${convWorstTone} align-middle`}>
-                                              4-ref {convSum.worst}
-                                            </span>{' '}
-                                            <span className="tabular-nums">{convSum.deltaLabel}</span>
-                                            <span>
-                                              {' '}
-                                              · {convSum.count} coil line
-                                              {convSum.count === 1 ? '' : 's'}
-                                            </span>
-                                          </>
-                                        ) : null}
+                                  <div className="flex items-start gap-3 min-w-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => openProductionQueueRow(item)}
+                                      className="min-w-0 flex-1 text-left rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
+                                    >
+                                      <p className="text-sm font-semibold text-slate-800 truncate">
+                                        <span className="font-mono tabular-nums text-zarewa-teal">{item.id}</span>
+                                        <span className="font-normal text-slate-400"> · </span>
+                                        <span className="font-medium text-slate-700">{item.customer}</span>
                                       </p>
+                                      {meta2 ? (
+                                        <p className="mt-0.5 text-ui-xs text-slate-500 truncate" title={meta2}>
+                                          {meta2}
+                                        </p>
+                                      ) : null}
+                                    </button>
+                                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                                      <span
+                                        className={`${CHIP} ${
+                                          item.lineStatusChipClass ||
+                                          'border-slate-200 bg-slate-50 text-slate-600'
+                                        }`}
+                                      >
+                                        {item.lineStatusLabel || '—'}
+                                      </span>
+                                      {showPriority ? (
+                                        <span
+                                          className={`${CHIP} ${
+                                            item.priority === 'High'
+                                              ? 'border-red-200 bg-red-50 text-red-700'
+                                              : item.priority === 'Cancelled'
+                                                ? 'border-slate-300 bg-slate-100 text-slate-700'
+                                                : 'border-slate-200 bg-slate-50 text-slate-600'
+                                          }`}
+                                        >
+                                          {item.priority}
+                                        </span>
+                                      ) : null}
+                                      <ProductionRowMenu
+                                        rowKey={rowKey}
+                                        openKey={actionMenuKey}
+                                        setOpenKey={setActionMenuKey}
+                                        onView={() => openProductionQueueRow(item)}
+                                        onEditRegister={() =>
+                                          openTraceWithHint(
+                                            item,
+                                            'Production register: coil allocation, run log, and completion.'
+                                          )
+                                        }
+                                        onAssignCoil={
+                                          !item.completed
+                                            ? () =>
+                                                openTraceWithHint(
+                                                  item,
+                                                  'Opens production register — coil assignment.'
+                                                )
+                                            : undefined
+                                        }
+                                        onOpenRegister={
+                                          !item.completed
+                                            ? () =>
+                                                openTraceWithHint(
+                                                  item,
+                                                  'Opens production register — use Start run in the register after coils are allocated.'
+                                                )
+                                            : undefined
+                                        }
+                                        onPrepareComplete={
+                                          !item.completed
+                                            ? () => requestMarkComplete(item)
+                                            : undefined
+                                        }
+                                      />
                                     </div>
                                   </div>
                                 </li>
@@ -3728,7 +3565,7 @@ const Operations = () => {
             </button>
           </div>
           <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-            {STORE_STOCK_BUY_PATH}. Prefill from Spec board shortfall when available.
+            Request coils, stone, or accessories for procurement. {STORE_STOCK_BUY_PATH}.
           </p>
           <form className="space-y-4" onSubmit={submitCoilRequest}>
             <div className="space-y-3">

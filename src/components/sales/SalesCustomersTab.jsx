@@ -284,38 +284,37 @@ export default function SalesCustomersTab({
                 <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest">No matching customers</p>
               </div>
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="space-y-1">
               {paginated.map((c) => {
                 const rev = customerRevenue.get(c.customerID) || 0;
-                const meta2 = [c.phoneNumber || 'No phone', c.email || 'No email'].join(' · ');
+                const meta2 = [c.customerID, c.phoneNumber || 'No phone', c.email || 'No email'].join(' · ');
                 const profileTo = `/customers/${encodeURIComponent(c.customerID)}`;
                 return (
                   <li key={c.customerID} className={`${CARD_ROW} flex flex-nowrap items-stretch min-w-0 overflow-hidden`}>
                     <Link
                       to={profileTo}
-                      className="min-w-0 flex-1 flex items-center gap-3 px-3 py-3 text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/25"
+                      className="min-w-0 flex-1 flex items-center gap-2.5 px-3 py-1.5 text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/25"
                     >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-zarewa-teal to-teal-700 text-xs font-black text-teal-100">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-zarewa-teal to-teal-700 text-[10px] font-black text-teal-100">
                         {customerInitials(c.name)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 min-w-0">
                           <p className="text-sm font-bold text-zarewa-teal truncate min-w-0">
                             {c.name}
                           </p>
-                          <span className="text-sm font-black text-zarewa-teal tabular-nums shrink-0">
+                          <span className="text-xs font-black text-zarewa-teal tabular-nums shrink-0">
                             {formatNgn(rev)}
                           </span>
                         </div>
-                        <p className="text-ui-xs text-slate-500 mt-0.5 truncate tabular-nums font-mono">
-                          {c.customerID}
-                        </p>
-                        <p className="text-ui-xs text-slate-500 mt-1 leading-snug line-clamp-1" title={meta2}>
-                          {meta2}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                          <CustomerStatusChip status={c.status} />
-                          <CustomerTierChip tier={c.tier} />
+                        <div className="mt-0.5 flex min-w-0 items-center gap-2">
+                          <p className="min-w-0 flex-1 truncate text-ui-xs font-mono tabular-nums text-slate-500" title={meta2}>
+                            {meta2}
+                          </p>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <CustomerStatusChip status={c.status} className="!px-1.5 !py-0 !text-[10px]" />
+                            <CustomerTierChip tier={c.tier} className="!px-1.5 !py-0 !text-[10px]" />
+                          </div>
                         </div>
                       </div>
                     </Link>

@@ -1,15 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FilePlus, LifeBuoy, RefreshCw, Search } from 'lucide-react';
+import { FilePlus, RefreshCw, Search } from 'lucide-react';
 import { PageShell } from '../components/layout';
 import { BranchWorkspaceBar } from '../components/layout/BranchWorkspaceBar';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { useHelpChat } from '../context/HelpChatContext';
-import { HELP_BOT_NAME } from '../lib/helpBotBrand';
 import { getWorkspaceDeskNav } from '../lib/workspaceDeskNav';
 import { workItemShowsOnWorkspaceUnifiedInbox } from '../lib/workItemPersonalInbox';
-import { buildWorkspaceAiContext } from '../lib/workspaceAiContext';
-import { computeWorkspaceIntelligence } from '../lib/workspaceIntelligence';
 import TodayWorkCards, { useTodayWorkCounts } from '../components/workspace/TodayWorkCards';
 import OfficeDeskShell from '../components/workspace/OfficeDeskShell';
 import CreateOfficeRecordWizard from '../components/workspace/CreateOfficeRecordWizard';
@@ -19,7 +15,6 @@ import { suggestForumOfficeRecord } from '../lib/suggestForumOfficeRecord';
 
 export default function WorkspaceDesk() {
   const ws = useWorkspace();
-  const helpChat = useHelpChat();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -48,18 +43,6 @@ export default function WorkspaceDesk() {
   }, [ws?.snapshot?.unifiedWorkItems, inboxCtx]);
 
   const taskCounts = useTodayWorkCounts(visibleWorkItems, inboxCtx);
-
-  const intelligence = useMemo(
-    () =>
-      computeWorkspaceIntelligence({
-        items: visibleWorkItems,
-        userId,
-        inboxCtx,
-        officeSummary: null,
-        canMonitor: ['admin', 'ceo', 'md', 'sales_manager'].includes(String(roleKey || '')),
-      }),
-    [visibleWorkItems, userId, inboxCtx, roleKey]
-  );
 
   useEffect(() => {
     const st = location.state;
@@ -92,22 +75,6 @@ export default function WorkspaceDesk() {
 
   const blocksCreate = Boolean(ws?.blocksBranchScopedCreate);
 
-  const aiContext = useMemo(
-    () =>
-      buildWorkspaceAiContext({
-        deskSection: sectionId,
-        taskTab,
-        userRole: roleKey,
-        branchScope: ws?.branchScope,
-        viewAllBranches: ws?.session?.viewAllBranches,
-        permissions: ws?.permissions,
-        canMutate: ws?.canMutate,
-        degraded: ws?.usingCachedData,
-        intelligence,
-      }),
-    [sectionId, taskTab, roleKey, ws, intelligence]
-  );
-
   return (
     <PageShell>
       <div className="min-w-0 space-y-4 px-1 pb-10 md:space-y-6">
@@ -133,20 +100,6 @@ export default function WorkspaceDesk() {
               >
                 <FilePlus size={16} aria-hidden />
                 Create Office Record
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  helpChat?.openZare?.({
-                    prompt: 'What should I do next on my desk?',
-                    pageContext: { ...aiContext, source: 'workspace-desk' },
-                    autoSend: true,
-                  })
-                }
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-teal-900 hover:bg-teal-50"
-              >
-                <LifeBuoy size={14} />
-                Ask {HELP_BOT_NAME}
               </button>
             </div>
           </div>

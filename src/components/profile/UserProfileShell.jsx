@@ -14,16 +14,16 @@ function AccountSubnav() {
   );
 
   const tabClass = (active) =>
-    `shrink-0 snap-start rounded-lg px-4 py-2.5 text-sm font-semibold no-underline transition-colors min-h-11 inline-flex items-center ${
+    `relative shrink-0 whitespace-nowrap px-2.5 py-2 text-[13px] font-semibold no-underline transition-colors min-h-9 inline-flex items-center ${
       active
-        ? 'bg-zarewa-teal text-white shadow-sm'
-        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+        ? 'text-zarewa-teal after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-zarewa-teal'
+        : 'text-slate-500 hover:text-zarewa-teal'
     }`;
 
   return (
     <nav
       aria-label="Account sections"
-      className="flex w-full min-w-0 gap-1.5 overflow-x-auto border-b border-slate-200/80 pb-3 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+      className="flex w-full min-w-0 gap-0.5 overflow-x-auto border-b border-slate-200/90 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {nav.map((item) => (
         <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => tabClass(isActive)}>
@@ -47,18 +47,11 @@ function UserProfileShellInner() {
   return (
     <PageShell className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">
       <PageHeader
-        eyebrow="Workspace"
         title="Account"
         subtitle={subtitle}
-        tabs={
-          <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:items-end">
-            <ProfileHubTabs />
-            {hasHrSelfService && cohort !== 'account_only' ? (
-              <div className="flex w-full justify-end">
-                <HrNotificationsPanel compact />
-              </div>
-            ) : null}
-          </div>
+        tabs={<ProfileHubTabs />}
+        toolbar={
+          hasHrSelfService && cohort !== 'account_only' ? <HrNotificationsPanel compact /> : null
         }
       />
 

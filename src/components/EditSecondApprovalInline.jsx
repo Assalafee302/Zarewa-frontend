@@ -188,7 +188,7 @@ export function EditSecondApprovalInline({
       <p className="font-bold text-amber-900 mb-1">Second approval for this change</p>
       <p className="text-amber-800/95 mb-2 leading-snug">
         Use <strong className="font-semibold">Request approval</strong>, then ask an approver to open{' '}
-        <strong className="font-semibold">Change authorisations</strong> in the sidebar (badge when something is waiting) or{' '}
+        <strong className="font-semibold">Approvals → Edits</strong> (Change authorisations) or{' '}
         <strong className="font-semibold">Management → Edit OKs</strong>. You can stay on this screen — the 6-digit code
         fills in when ready. Each token works for one successful save only.
       </p>

@@ -159,9 +159,8 @@ export default function OvertimeHub() {
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Operations"
         title="Overtime"
-        subtitle="Raise · approve · mark paid · track every branch OT pay request"
+        subtitle="Raise, approve, mark paid, and track branch OT pay."
         tabs={<PageTabs tabs={tabIds} value={activeTab} onChange={setTab} />}
         actions={
           <div className="flex flex-wrap items-center gap-2">

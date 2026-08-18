@@ -22,13 +22,12 @@ describe('legacyAccountsAccess (client)', () => {
     expect(getDefaultLegacyAccountTab('cashier', ['cashier.desk.view'])).toBe('desk');
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).toContain('desk');
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('audit');
-    expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('disbursements');
+    expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).toContain('disbursements');
+    expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).toContain('movements');
     expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'audit')?.to).toBe(
       '/accounts?tab=desk'
     );
-    expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'disbursements')?.to).toBe(
-      '/accounts?tab=desk'
-    );
+    expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'disbursements')).toBeNull();
   });
 
   it('cashier treasury tab resolves to Finance desk and is not in allowed tabs', () => {
@@ -37,13 +36,13 @@ describe('legacyAccountsAccess (client)', () => {
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('treasury');
     expect(resolveAccountsNavigationTab('treasury', 'cashier', ['cashier.desk.view'])).toBe('desk');
     expect(resolveAccountsNavigationTab('treasury', 'finance_manager', ['accounting.desk.view'])).toBe('desk');
-    expect(legacyAccountTabLabelForRole('desk', 'cashier')).toBe('Finance desk');
+    expect(legacyAccountTabLabelForRole('desk', 'cashier')).toBe('Desk');
     expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'treasury')).toBeNull();
   });
 
   it('resolveAccountsNavigationTab maps forbidden tabs to role default', () => {
-    expect(resolveAccountsNavigationTab('disbursements', 'cashier', ['cashier.desk.view'])).toBe('desk');
-    expect(resolveAccountsNavigationTab('requests', 'cashier', ['cashier.desk.view'])).toBe('desk');
+    expect(resolveAccountsNavigationTab('disbursements', 'cashier', ['cashier.desk.view'])).toBe('disbursements');
+    expect(resolveAccountsNavigationTab('requests', 'cashier', ['cashier.desk.view'])).toBe('disbursements');
     expect(resolveAccountsNavigationTab('disbursements', 'finance_manager', ['accounting.desk.view'])).toBe(
       'disbursements'
     );

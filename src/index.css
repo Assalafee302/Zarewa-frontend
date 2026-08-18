@@ -140,7 +140,7 @@ summary {
 
 /* Shared field styles — keep list pages visually aligned */
 .z-input-search {
-  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-base sm:text-sm outline-none transition-all;
+  @apply w-full rounded-lg border border-slate-200/90 bg-white py-2 pl-9 pr-3 text-sm outline-none transition-all min-h-9;
   @apply focus:border-teal-500/30 focus:ring-2 focus:ring-zarewa-teal/10;
 }
 
@@ -163,11 +163,15 @@ summary {
 
 /* Program-wide readability standards (bank-grade baseline) */
 .z-page-title {
-  @apply text-lg sm:text-xl font-black tracking-tight text-slate-900 break-words;
+  @apply max-w-full text-base sm:text-lg font-bold tracking-tight text-slate-900;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .z-page-subtitle {
-  @apply mt-1 text-sm text-slate-600 leading-relaxed max-w-3xl break-words [overflow-wrap:anywhere];
+  @apply mt-0.5 max-w-2xl text-xs sm:text-[13px] leading-snug text-slate-500 line-clamp-1;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .z-meta-text {
@@ -288,8 +292,8 @@ summary {
 }
 
 .z-toolbar-shell {
-  @apply rounded-[28px] border border-white/80 bg-white/70 backdrop-blur-2xl;
-  box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
+  @apply rounded-2xl border border-white/80 bg-white/80 backdrop-blur-xl;
+  box-shadow: 0 10px 28px -22px rgba(15, 23, 42, 0.18);
 }
 
 .custom-scrollbar,

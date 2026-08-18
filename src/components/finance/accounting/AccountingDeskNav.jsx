@@ -34,18 +34,17 @@ export function AccountingDeskNav({ tab, onTabChange, readOnlyExecutive = false 
   };
 
   return (
-    <div className="z-soft-panel w-full max-w-full min-w-0 p-2">
+    <div className="w-full min-w-0 space-y-1">
       <PageTabs tabs={zoneTabs} value={zoneId} onChange={onZoneChange} ariaLabel="Accounting desk zone" />
       {secondary.length > 1 ? (
         <PageTabs
           tabs={secondary.map((t) => {
             const Icon = tabIconComponent(t.id);
-            return { ...t, icon: <Icon size={16} /> };
+            return { ...t, icon: <Icon size={14} /> };
           })}
           value={tab}
           onChange={onTabChange}
           ariaLabel="Accounting desk section"
-          className="mt-2"
         />
       ) : null}
     </div>

@@ -7,11 +7,18 @@ import { emptyTreasuryDeskBalanceSplit } from '../../lib/financeDeskTreasury';
  */
 export function FinanceDeskBalanceBreakdown({ split, compact = false }) {
   const s = split || emptyTreasuryDeskBalanceSplit();
-  const rowClass = compact
-    ? 'flex items-center justify-between gap-2 text-ui-xs text-slate-600'
-    : 'flex items-center justify-between gap-2 text-xs text-slate-600';
+  if (compact) {
+    return (
+      <p className="mt-0.5 text-[10px] leading-snug text-slate-500 tabular-nums">
+        Confirmed {formatNgn(s.confirmedNgn)}
+        <span className="text-slate-300"> · </span>
+        All {formatNgn(s.allTotalNgn)}
+      </p>
+    );
+  }
+  const rowClass = 'flex items-center justify-between gap-2 text-xs text-slate-600';
   return (
-    <div className={compact ? 'mt-2 space-y-1 border-t border-slate-200/80 pt-2' : 'mt-3 space-y-1.5 border-t border-slate-200 pt-2.5'}>
+    <div className="mt-3 space-y-1.5 border-t border-slate-200 pt-2.5">
       <p className={rowClass} title="This account's remaining balance from cashier-confirmed, customer-linked payments">
         <span>Confirmed balance</span>
         <span className="font-bold tabular-nums text-emerald-700">{formatNgn(s.confirmedNgn)}</span>

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { appConfirm } from '../../lib/appConfirm';
 import { formatNgn } from '../../Data/mockData';
@@ -9,6 +9,15 @@ import {
   treasuryAccountsForWorkspace,
 } from '../../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../../lib/selectOptionSort';
+import {
+  AppTable,
+  AppTableBody,
+  AppTableTd,
+  AppTableTh,
+  AppTableThead,
+  AppTableTr,
+  AppTableWrap,
+} from '../ui/AppDataTable';
 
 /**
  * Finance: register bank inflow → treasury credit + unlinked pool for Sales.
@@ -31,6 +40,7 @@ export function RegisterBankDepositPanel({
     note: '',
   });
   const [busy, setBusy] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [filter, setFilter] = useState('open');
   const [actionBusyId, setActionBusyId] = useState('');
   const [reclassDraft, setReclassDraft] = useState({ depositId: '', kind: '', note: '' });
@@ -85,6 +95,7 @@ export function RegisterBankDepositPanel({
       }
       showToast?.(`Registered ${res.data.id} — visible to Sales as unlinked.`, { variant: 'success' });
       setForm((f) => ({ ...f, description: '', bankReference: '', amountNgn: '', note: '' }));
+      setFormOpen(false);
       await onRegistered?.();
     } finally {
       setBusy(false);
@@ -157,16 +168,29 @@ export function RegisterBankDepositPanel({
             posting receipt or advance.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void onRegistered?.()}
-          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-ui-xs font-bold uppercase text-slate-700 hover:bg-slate-50"
-        >
-          <RefreshCw size={12} /> Refresh
-        </button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {canPost ? (
+            <button
+              type="button"
+              onClick={() => setFormOpen((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-lg bg-zarewa-teal px-2.5 py-1 text-ui-xs font-bold uppercase text-white hover:brightness-110"
+              aria-expanded={formOpen}
+            >
+              {formOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              {formOpen ? 'Close form' : 'New payment'}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void onRegistered?.()}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-ui-xs font-bold uppercase text-slate-700 hover:bg-slate-50"
+          >
+            <RefreshCw size={12} /> Refresh
+          </button>
+        </div>
       </div>
 
-      {canPost ? (
+      {canPost && formOpen ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 rounded-lg border border-slate-100 bg-slate-50/80 p-3">
           <label className="text-ui-xs font-bold text-slate-600">
             Bank date
@@ -256,27 +280,25 @@ export function RegisterBankDepositPanel({
             </button>
           ))}
         </div>
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="min-w-full text-ui-xs">
-            <thead className="bg-slate-50 text-ui-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-2 py-1.5 text-left">Id</th>
-                <th className="px-2 py-1.5 text-left">Date</th>
-                <th className="px-2 py-1.5 text-right">Amount</th>
-                <th className="px-2 py-1.5 text-right">Remaining</th>
-                <th className="px-2 py-1.5 text-left">Status</th>
-                <th className="px-2 py-1.5 text-left">Reference</th>
-                <th className="px-2 py-1.5 text-left">Description</th>
-                {canPost ? <th className="px-2 py-1.5 text-right">Actions</th> : null}
-              </tr>
-            </thead>
-            <tbody>
+        <AppTableWrap>
+          <AppTable role="numeric">
+            <AppTableThead>
+              <AppTableTh>Id</AppTableTh>
+              <AppTableTh>Date</AppTableTh>
+              <AppTableTh align="right">Amount</AppTableTh>
+              <AppTableTh align="right">Remaining</AppTableTh>
+              <AppTableTh>Status</AppTableTh>
+              <AppTableTh>Reference</AppTableTh>
+              <AppTableTh>Description</AppTableTh>
+              {canPost ? <AppTableTh align="right">Actions</AppTableTh> : null}
+            </AppTableThead>
+            <AppTableBody>
               {deposits.length === 0 ? (
-                <tr>
-                  <td colSpan={canPost ? 8 : 7} className="px-2 py-6 text-center text-slate-400">
+                <AppTableTr>
+                  <AppTableTd colSpan={canPost ? 8 : 7} truncate={false} className="text-center text-slate-500">
                     No bank deposits for this filter.
-                  </td>
-                </tr>
+                  </AppTableTd>
+                </AppTableTr>
               ) : (
                 deposits.map((d) => {
                   const canAct =
@@ -285,94 +307,96 @@ export function RegisterBankDepositPanel({
                     ['OPEN', 'PARTIAL', 'RESERVED'].includes(String(d.status || '').toUpperCase());
                   const showReclass = reclassDraft.depositId === d.id;
                   return (
-                  <tr key={d.id} className="border-t border-slate-100 hover:bg-slate-50/80">
-                    <td className="px-2 py-1.5 font-mono font-bold text-zarewa-teal">{d.id}</td>
-                    <td className="px-2 py-1.5 tabular-nums">{d.bankDateISO}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{formatNgn(d.amountNgn)}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{formatNgn(d.remainingNgn)}</td>
-                    <td className="px-2 py-1.5">
-                      {bankDepositStatusLabel(d.status)}
-                      {d.reclassKind ? (
-                        <span className="block text-ui-xs text-slate-500">{bankDepositReclassKindLabel(d.reclassKind)}</span>
-                      ) : null}
-                    </td>
-                    <td className="px-2 py-1.5 font-mono truncate max-w-[8rem]" title={d.bankReference}>
-                      {d.bankReference || '—'}
-                    </td>
-                    <td className="px-2 py-1.5 truncate max-w-[12rem]" title={d.description}>
-                      {d.description || '—'}
-                    </td>
-                    {canPost ? (
-                      <td className="px-2 py-1.5 text-right align-top">
-                        {canAct ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <div className="flex flex-wrap justify-end gap-1">
-                              <button
-                                type="button"
-                                disabled={actionBusyId === d.id}
-                                onClick={() => void reverseDeposit(d.id)}
-                                className="rounded border border-rose-200 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-rose-700 hover:bg-rose-50 disabled:opacity-50"
-                              >
-                                Reverse
-                              </button>
-                              <button
-                                type="button"
-                                disabled={actionBusyId === d.id}
-                                onClick={() =>
-                                  setReclassDraft((prev) =>
-                                    prev.depositId === d.id
-                                      ? { depositId: '', kind: '', note: '' }
-                                      : { depositId: d.id, kind: '', note: '' }
-                                  )
-                                }
-                                className="rounded border border-violet-200 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-violet-700 hover:bg-violet-50 disabled:opacity-50"
-                              >
-                                {showReclass ? 'Cancel' : 'Reclass'}
-                              </button>
-                            </div>
-                            {showReclass ? (
-                              <div className="mt-1 w-full max-w-[14rem] rounded border border-violet-100 bg-violet-50/50 p-1.5 text-left space-y-1">
-                                <select
-                                  className="w-full rounded border border-slate-200 px-1 py-0.5 text-ui-xs"
-                                  value={reclassDraft.kind}
-                                  onChange={(e) => setReclassDraft((f) => ({ ...f, kind: e.target.value }))}
-                                >
-                                  <option value="">Type…</option>
-                                  {BANK_DEPOSIT_RECLASS_OPTIONS.map((o) => (
-                                    <option key={o.value} value={o.value}>
-                                      {o.label}
-                                    </option>
-                                  ))}
-                                </select>
-                                <input
-                                  className="w-full rounded border border-slate-200 px-1 py-0.5 text-ui-xs"
-                                  placeholder="Note (optional)"
-                                  value={reclassDraft.note}
-                                  onChange={(e) => setReclassDraft((f) => ({ ...f, note: e.target.value }))}
-                                />
+                    <AppTableTr key={d.id}>
+                      <AppTableTd monospace title={d.id}>
+                        {d.id}
+                      </AppTableTd>
+                      <AppTableTd>{d.bankDateISO || '—'}</AppTableTd>
+                      <AppTableTd align="right">{formatNgn(d.amountNgn)}</AppTableTd>
+                      <AppTableTd align="right">{formatNgn(d.remainingNgn)}</AppTableTd>
+                      <AppTableTd truncate={false}>
+                        {bankDepositStatusLabel(d.status)}
+                        {d.reclassKind ? (
+                          <span className="block text-ui-xs text-slate-500">
+                            {bankDepositReclassKindLabel(d.reclassKind)}
+                          </span>
+                        ) : null}
+                      </AppTableTd>
+                      <AppTableTd monospace title={d.bankReference || ''}>
+                        {d.bankReference || '—'}
+                      </AppTableTd>
+                      <AppTableTd title={d.description || ''}>{d.description || '—'}</AppTableTd>
+                      {canPost ? (
+                        <AppTableTd align="right" truncate={false}>
+                          {canAct ? (
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex flex-wrap justify-end gap-1">
                                 <button
                                   type="button"
                                   disabled={actionBusyId === d.id}
-                                  onClick={() => void submitReclass(d.id)}
-                                  className="w-full rounded bg-violet-700 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-white disabled:opacity-50"
+                                  onClick={() => void reverseDeposit(d.id)}
+                                  className="rounded border border-rose-200 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-rose-700 hover:bg-rose-50 disabled:opacity-50"
                                 >
-                                  Confirm reclass
+                                  Reverse
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={actionBusyId === d.id}
+                                  onClick={() =>
+                                    setReclassDraft((prev) =>
+                                      prev.depositId === d.id
+                                        ? { depositId: '', kind: '', note: '' }
+                                        : { depositId: d.id, kind: '', note: '' }
+                                    )
+                                  }
+                                  className="rounded border border-violet-200 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+                                >
+                                  {showReclass ? 'Cancel' : 'Reclass'}
                                 </button>
                               </div>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="text-ui-xs text-slate-400">—</span>
-                        )}
-                      </td>
-                    ) : null}
-                  </tr>
+                              {showReclass ? (
+                                <div className="mt-1 w-full max-w-[14rem] rounded border border-violet-100 bg-violet-50/50 p-1.5 text-left space-y-1">
+                                  <select
+                                    className="w-full rounded border border-slate-200 px-1 py-0.5 text-ui-xs"
+                                    value={reclassDraft.kind}
+                                    onChange={(e) => setReclassDraft((f) => ({ ...f, kind: e.target.value }))}
+                                  >
+                                    <option value="">Type…</option>
+                                    {BANK_DEPOSIT_RECLASS_OPTIONS.map((o) => (
+                                      <option key={o.value} value={o.value}>
+                                        {o.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    className="w-full rounded border border-slate-200 px-1 py-0.5 text-ui-xs"
+                                    placeholder="Note (optional)"
+                                    value={reclassDraft.note}
+                                    onChange={(e) => setReclassDraft((f) => ({ ...f, note: e.target.value }))}
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={actionBusyId === d.id}
+                                    onClick={() => void submitReclass(d.id)}
+                                    className="w-full rounded bg-violet-700 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-white disabled:opacity-50"
+                                  >
+                                    Confirm reclass
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-ui-xs text-slate-400">—</span>
+                          )}
+                        </AppTableTd>
+                      ) : null}
+                    </AppTableTr>
                   );
                 })
               )}
-            </tbody>
-          </table>
-        </div>
+            </AppTableBody>
+          </AppTable>
+        </AppTableWrap>
       </div>
     </div>
   );

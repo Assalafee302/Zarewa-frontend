@@ -49,48 +49,109 @@ export const MANAGER_INBOX_TABS = [
   },
 ];
 
-/** Filter chips on the All items tab for quick sorting. */
+/** Filter chips on Approvals — short buckets, similar kinds merged. */
 export const MANAGER_ATTENTION_FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'orders', label: 'Orders', kinds: ['clearance', 'production', 'flagged'] },
-  { key: 'expenses', label: 'Expenses', kinds: ['payments'] },
-  { key: 'refunds', label: 'Refunds', kinds: ['refunds'] },
-  { key: 'withdrawals', label: 'Withdrawals', kinds: ['register_settlement'] },
-  { key: 'overtime', label: 'Overtime', kinds: ['overtime'] },
-  { key: 'qc', label: 'Production check', kinds: ['conversions'] },
-  { key: 'material', label: 'Material exceptions', kinds: ['material'] },
-  { key: 'procurement', label: 'Procurement', kinds: ['purchase_orders', 'purchase_order'] },
-  { key: 'flagged', label: 'Flagged', kinds: ['flagged'] },
-  { key: 'governance', label: 'Governance', kinds: ['governance'] },
-  { key: 'staff_credit', label: 'Staff credit', kinds: ['staff_purchase_credit'] },
-  { key: 'edits', label: 'Edits', kinds: ['edit_approvals'] },
+  {
+    key: 'orders',
+    label: 'Orders',
+    kinds: ['clearance', 'production', 'flagged', 'staff_purchase_credit'],
+  },
+  {
+    key: 'cash',
+    label: 'Cash',
+    kinds: ['payments', 'refunds', 'register_settlement', 'overtime'],
+  },
+  {
+    key: 'operations',
+    label: 'Floor',
+    kinds: ['conversions', 'material', 'purchase_orders', 'purchase_order'],
+  },
+  {
+    key: 'control',
+    label: 'Control',
+    kinds: ['governance'],
+  },
+  {
+    key: 'edits',
+    label: 'Edits',
+    ariaLabel: 'Change authorisations',
+    kinds: ['edit_approvals', 'edit_approval'],
+  },
 ];
 
 const ATTENTION_FILTER_KINDS = Object.fromEntries(
   MANAGER_ATTENTION_FILTERS.filter((f) => f.kinds).map((f) => [f.key, f.kinds])
 );
 
-/** Map any legacy category tab to PAC attention + filter (credit/stock stay as PAC tabs). */
+/** Legacy chip / inbox keys → canonical Approvals filter. */
+const ATTENTION_FILTER_ALIASES = {
+  expenses: 'cash',
+  expense: 'cash',
+  payments: 'cash',
+  refunds: 'cash',
+  refund: 'cash',
+  withdrawals: 'cash',
+  register_settlement: 'cash',
+  settlement: 'cash',
+  overtime: 'cash',
+  ot: 'cash',
+  ot_pay: 'cash',
+  otpay: 'cash',
+  cash_out: 'cash',
+  flagged: 'orders',
+  staff_credit: 'orders',
+  staff_purchase_credit: 'orders',
+  clearance: 'orders',
+  production: 'orders',
+  qc: 'operations',
+  conversions: 'operations',
+  material: 'operations',
+  procurement: 'operations',
+  purchase_orders: 'operations',
+  po: 'operations',
+  governance: 'control',
+  edits: 'edits',
+  edit_approvals: 'edits',
+  edit_approval: 'edits',
+};
+
+/**
+ * @param {string | null | undefined} raw
+ * @returns {'all' | 'orders' | 'cash' | 'operations' | 'control' | 'edits'}
+ */
+export function normalizeAttentionFilter(raw) {
+  const k = String(raw || 'all').trim().toLowerCase();
+  if (!k || k === 'all' || k === 'attention') return 'all';
+  if (MANAGER_ATTENTION_FILTERS.some((f) => f.key === k)) return /** @type {any} */ (k);
+  return ATTENTION_FILTER_ALIASES[k] || 'all';
+}
+
+/** Map any legacy category tab to PAC attention + filter (credit/stock stay as special views). */
 export function pacAttentionRouteFromTab(tabKey) {
   const k = String(tabKey || '').trim().toLowerCase();
   if (k === 'credit' || k === 'stock' || k === 'issues') return { tab: k, attentionFilter: 'all' };
   if (k === 'orders' || k === 'clearance' || k === 'production') return { tab: 'attention', attentionFilter: 'orders' };
-  if (k === 'cash_out' || k === 'cash') return { tab: 'attention', attentionFilter: 'expenses' };
-  if (k === 'payments' || k === 'expenses' || k === 'expense') return { tab: 'attention', attentionFilter: 'expenses' };
-  if (k === 'refunds' || k === 'refund') return { tab: 'attention', attentionFilter: 'refunds' };
+  if (k === 'cash_out' || k === 'cash') return { tab: 'attention', attentionFilter: 'cash' };
+  if (k === 'payments' || k === 'expenses' || k === 'expense') return { tab: 'attention', attentionFilter: 'cash' };
+  if (k === 'refunds' || k === 'refund') return { tab: 'attention', attentionFilter: 'cash' };
   if (k === 'withdrawals' || k === 'register_settlement' || k === 'settlement') {
-    return { tab: 'attention', attentionFilter: 'withdrawals' };
+    return { tab: 'attention', attentionFilter: 'cash' };
   }
   if (k === 'overtime' || k === 'ot' || k === 'ot_pay' || k === 'otpay') {
-    return { tab: 'attention', attentionFilter: 'overtime' };
+    return { tab: 'attention', attentionFilter: 'cash' };
   }
-  if (k === 'qc' || k === 'conversions') return { tab: 'attention', attentionFilter: 'qc' };
-  if (k === 'material') return { tab: 'attention', attentionFilter: 'material' };
-  if (k === 'procurement' || k === 'purchase_orders' || k === 'po') return { tab: 'attention', attentionFilter: 'procurement' };
-  if (k === 'governance') return { tab: 'attention', attentionFilter: 'governance' };
-  if (k === 'edits' || k === 'edit_approvals') return { tab: 'attention', attentionFilter: 'edits' };
-  if (k === 'flagged') return { tab: 'attention', attentionFilter: 'flagged' };
-  if (k === 'staff_credit' || k === 'staff_purchase_credit') return { tab: 'attention', attentionFilter: 'staff_credit' };
+  if (k === 'qc' || k === 'conversions') return { tab: 'attention', attentionFilter: 'operations' };
+  if (k === 'material') return { tab: 'attention', attentionFilter: 'operations' };
+  if (k === 'procurement' || k === 'purchase_orders' || k === 'po') {
+    return { tab: 'attention', attentionFilter: 'operations' };
+  }
+  if (k === 'governance') return { tab: 'attention', attentionFilter: 'control' };
+  if (k === 'edits' || k === 'edit_approvals' || k === 'edit_approval') {
+    return { tab: 'attention', attentionFilter: 'edits' };
+  }
+  if (k === 'flagged') return { tab: 'attention', attentionFilter: 'orders' };
+  if (k === 'staff_credit' || k === 'staff_purchase_credit') return { tab: 'attention', attentionFilter: 'orders' };
   return { tab: 'attention', attentionFilter: 'all' };
 }
 
@@ -263,7 +324,7 @@ export function managerSlaMeta(kind, ageHours, { compact = false } = {}) {
 }
 
 export function attentionKindMatchesFilter(kind, filterKey) {
-  const fk = String(filterKey || 'all').trim().toLowerCase();
+  const fk = normalizeAttentionFilter(filterKey);
   if (fk === 'all') return true;
   const kinds = ATTENTION_FILTER_KINDS[fk];
   if (!kinds) return true;

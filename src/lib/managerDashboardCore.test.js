@@ -8,6 +8,7 @@ import {
   formatRefundReasonCategory,
   ledgerTypeStyle,
   matchesInboxSearch,
+  normalizeAttentionFilter,
   normalizeManagerInboxRoute,
   ymdLocal,
 } from './managerDashboardCore';
@@ -67,32 +68,45 @@ describe('managerDashboardCore', () => {
 
   it('normalizes legacy inbox routes onto Needs approval + filter', () => {
     expect(normalizeManagerInboxRoute('clearance')).toEqual({ tab: 'attention', attentionFilter: 'orders' });
-    expect(normalizeManagerInboxRoute('refunds')).toEqual({ tab: 'attention', attentionFilter: 'refunds' });
-    expect(normalizeManagerInboxRoute('cash')).toEqual({ tab: 'attention', attentionFilter: 'expenses' });
-    expect(normalizeManagerInboxRoute('cash_out')).toEqual({ tab: 'attention', attentionFilter: 'expenses' });
-    expect(normalizeManagerInboxRoute('payments')).toEqual({ tab: 'attention', attentionFilter: 'expenses' });
-    expect(normalizeManagerInboxRoute('flagged')).toEqual({ tab: 'attention', attentionFilter: 'flagged' });
-    expect(normalizeManagerInboxRoute('material')).toEqual({ tab: 'attention', attentionFilter: 'material' });
-    expect(normalizeManagerInboxRoute('governance')).toEqual({ tab: 'attention', attentionFilter: 'governance' });
-    expect(normalizeManagerInboxRoute('procurement')).toEqual({ tab: 'attention', attentionFilter: 'procurement' });
+    expect(normalizeManagerInboxRoute('refunds')).toEqual({ tab: 'attention', attentionFilter: 'cash' });
+    expect(normalizeManagerInboxRoute('cash')).toEqual({ tab: 'attention', attentionFilter: 'cash' });
+    expect(normalizeManagerInboxRoute('cash_out')).toEqual({ tab: 'attention', attentionFilter: 'cash' });
+    expect(normalizeManagerInboxRoute('payments')).toEqual({ tab: 'attention', attentionFilter: 'cash' });
+    expect(normalizeManagerInboxRoute('flagged')).toEqual({ tab: 'attention', attentionFilter: 'orders' });
+    expect(normalizeManagerInboxRoute('material')).toEqual({ tab: 'attention', attentionFilter: 'operations' });
+    expect(normalizeManagerInboxRoute('governance')).toEqual({ tab: 'attention', attentionFilter: 'control' });
+    expect(normalizeManagerInboxRoute('procurement')).toEqual({ tab: 'attention', attentionFilter: 'operations' });
     expect(normalizeManagerInboxRoute('edits')).toEqual({ tab: 'attention', attentionFilter: 'edits' });
-    expect(normalizeManagerInboxRoute('overtime')).toEqual({ tab: 'attention', attentionFilter: 'overtime' });
-    expect(normalizeManagerInboxRoute('ot')).toEqual({ tab: 'attention', attentionFilter: 'overtime' });
+    expect(normalizeManagerInboxRoute('overtime')).toEqual({ tab: 'attention', attentionFilter: 'cash' });
+    expect(normalizeManagerInboxRoute('ot')).toEqual({ tab: 'attention', attentionFilter: 'cash' });
+    expect(normalizeManagerInboxRoute('credit')).toEqual({ tab: 'credit', attentionFilter: 'all' });
+    expect(normalizeManagerInboxRoute('issues')).toEqual({ tab: 'issues', attentionFilter: 'all' });
   });
 
-  it('filters attention items by chip', () => {
+  it('filters attention items by merged chips', () => {
     const items = [
       { id: '1', kind: 'clearance' },
       { id: '2', kind: 'refunds' },
       { id: '3', kind: 'flagged' },
       { id: '4', kind: 'payments' },
       { id: '5', kind: 'overtime' },
+      { id: '6', kind: 'material' },
+      { id: '7', kind: 'edit_approvals' },
     ];
-    expect(filterAttentionItems(items, 'refunds')).toHaveLength(1);
-    expect(filterAttentionItems(items, 'expenses')).toHaveLength(1);
+    expect(filterAttentionItems(items, 'refunds')).toHaveLength(3);
+    expect(filterAttentionItems(items, 'cash')).toHaveLength(3);
+    expect(filterAttentionItems(items, 'expenses')).toHaveLength(3);
     expect(filterAttentionItems(items, 'orders')).toHaveLength(2);
-    expect(filterAttentionItems(items, 'overtime')).toHaveLength(1);
+    expect(filterAttentionItems(items, 'overtime')).toHaveLength(3);
+    expect(filterAttentionItems(items, 'operations')).toHaveLength(1);
+    expect(filterAttentionItems(items, 'control')).toHaveLength(0);
+    expect(filterAttentionItems(items, 'edits')).toHaveLength(1);
     expect(filterAttentionItems([{ kind: 'staff_purchase_credit' }], 'staff_credit')).toHaveLength(1);
+    expect(filterAttentionItems([{ kind: 'staff_purchase_credit' }], 'orders')).toHaveLength(1);
+    expect(normalizeAttentionFilter('refunds')).toBe('cash');
+    expect(normalizeAttentionFilter('qc')).toBe('operations');
+    expect(normalizeAttentionFilter('edits')).toBe('edits');
+    expect(normalizeAttentionFilter('edit_approvals')).toBe('edits');
   });
 
   it('formats local ymd date', () => {

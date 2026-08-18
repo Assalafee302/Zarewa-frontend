@@ -4,12 +4,10 @@ import {
   Download,
   Layers,
   RefreshCw,
-  Sparkles,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import { useHelpChat } from '../../context/HelpChatContext';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
 
 const PERIOD_OPTIONS = [
@@ -196,7 +194,6 @@ function SkuActionList({ title, rows, tone }) {
  * Used inside Command Centre (Intelligence tab) and standalone /analytics fallback.
  */
 export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId = null }) {
-  const { openZare } = useHelpChat() || {};
   const [periodKey, setPeriodKey] = useState('month');
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(autoLoad);
@@ -328,21 +325,6 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
             <Download size={14} className={exportBusy ? 'animate-pulse' : ''} />
             Excel
           </button>
-          {openZare ? (
-            <button
-              type="button"
-              onClick={() =>
-                openZare({
-                  prompt: 'Analyze my business — sales, aluminium and aluzinc inventory, and cash flow outlook.',
-                  autoSend: true,
-                })
-              }
-              className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-black uppercase text-zarewa-teal"
-            >
-              <Sparkles size={14} />
-              Ask Zare
-            </button>
-          ) : null}
         </div>
       </div>
 

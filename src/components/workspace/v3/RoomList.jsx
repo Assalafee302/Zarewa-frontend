@@ -25,6 +25,7 @@ function previewTime(iso) {
 /** Teams-style chat row: avatar + presence, name, last-message preview, time, unread. */
 function RoomActions({ room, channel, onMuteRoom, onArchiveRoom }) {
   const [open, setOpen] = useState(false);
+  if (room?.bot) return null;
   if (!onMuteRoom && (!channel || !onArchiveRoom)) return null;
   return (
     <div className="relative shrink-0">
@@ -89,7 +90,7 @@ function ChatRow({ room, activeRoomId, onSelectRoom, presenceByUser, currentUser
         active ? 'bg-teal-50' : 'hover:bg-slate-50'
       }`}
     >
-      <PresenceAvatar displayName={label} status={status} size={36} />
+      <PresenceAvatar displayName={label} status={status} size={36} bot={Boolean(room.bot)} />
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-2">
           <span
@@ -98,6 +99,11 @@ function ChatRow({ room, activeRoomId, onSelectRoom, presenceByUser, currentUser
             }`}
           >
             {label}
+            {room.bot ? (
+              <span className="ml-1.5 inline-flex align-middle rounded bg-teal-100 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-teal-800">
+                Guide
+              </span>
+            ) : null}
             {room.muted ? <BellOff size={12} className="ml-1 inline text-slate-400" aria-label="Muted" /> : null}
           </span>
           {last?.createdAtIso ? (
@@ -220,8 +226,16 @@ function NewDmPicker({ directory, onPick, onClose, creating, presenceByUser }) {
                   displayName={u.displayName || u.username}
                   status={presenceByUser?.[u.id]?.status || 'offline'}
                   size={28}
+                  bot={Boolean(u.bot)}
                 />
-                <span className="min-w-0 flex-1 truncate">{u.displayName || u.username}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {u.displayName || u.username}
+                  {u.bot ? (
+                    <span className="ml-1.5 inline-flex align-middle rounded bg-teal-100 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-teal-800">
+                      Guide
+                    </span>
+                  ) : null}
+                </span>
               </button>
             </li>
           ))}
@@ -254,11 +268,13 @@ export default function RoomList({
   const channels = rooms.filter((r) => r.scopeKind !== 'dm' && r.kind !== 'dm');
   const dms = rooms
     .filter((r) => r.scopeKind === 'dm' || r.kind === 'dm')
-    .sort((a, b) =>
-      String(b.lastMessage?.createdAtIso || b.updatedAtIso || '').localeCompare(
+    .sort((a, b) => {
+      if (a.bot && !b.bot) return -1;
+      if (!a.bot && b.bot) return 1;
+      return String(b.lastMessage?.createdAtIso || b.updatedAtIso || '').localeCompare(
         String(a.lastMessage?.createdAtIso || a.updatedAtIso || '')
-      )
-    );
+      );
+    });
   const hasQuery = Boolean(String(searchQuery || '').trim());
 
   if (loading) {

@@ -26,11 +26,10 @@ const APP_MODULE_BY_ID = {
   reports: 'reports',
 };
 
-/** @typedef {'activity' | 'rooms' | 'action' | 'records' | 'apps'} WorkspaceZoneId */
+/** @typedef {'activity' | 'action' | 'records' | 'apps'} WorkspaceZoneId */
 
 export const WORKSPACE_ZONES = [
   { id: 'activity', label: 'Activity', shortLabel: 'Activity' },
-  { id: 'rooms', label: 'Chat', shortLabel: 'Chat' },
   { id: 'action', label: 'Action', shortLabel: 'Action' },
   { id: 'records', label: 'Records', shortLabel: 'Records' },
   { id: 'apps', label: 'Apps', shortLabel: 'Apps' },
@@ -218,7 +217,7 @@ export function workItemMatchesActionChip(item, chipId) {
   }
 }
 
-/** Labels for the five workspace zones (shared by rail + mobile tabs). */
+/** Labels for workspace zones (shared by rail + mobile tabs). */
 export function getWorkspaceZoneLabel(zoneId) {
   const zone = WORKSPACE_ZONES.find((z) => z.id === zoneId);
   return zone?.label || zoneId;

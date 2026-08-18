@@ -30,7 +30,7 @@ export function HrSectionShell({
         </div>
       ) : null}
       {navItems.length > 0 ? (
-        <div className="mb-4">
+        <div className="mb-3">
           <HrSubnav
             items={navItems}
             moreItems={moreNavItems}

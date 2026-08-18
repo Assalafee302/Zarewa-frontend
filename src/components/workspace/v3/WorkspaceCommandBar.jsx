@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FilePlus, LifeBuoy, RefreshCw, Search, ChevronDown } from 'lucide-react';
+import { FilePlus, RefreshCw, Search, ChevronDown } from 'lucide-react';
 import { BranchWorkspaceBar } from '../../layout/BranchWorkspaceBar';
-import { HELP_BOT_NAME } from '../../../lib/helpBotBrand';
 
 const CREATE_OPTIONS = [
   { id: 'memo', label: 'Memo', profiles: ['staff', 'branch', 'office', 'executive'] },
@@ -21,7 +20,6 @@ export default function WorkspaceCommandBar({
   onRefresh,
   refreshing,
   onOpenSearch,
-  onAskZare,
   onCreate,
   blocksCreate,
   createBlockedMessage,
@@ -111,15 +109,6 @@ export default function WorkspaceCommandBar({
               </ul>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={onAskZare}
-            aria-label={`Ask ${HELP_BOT_NAME} for workspace help`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-teal-900 hover:bg-teal-50"
-          >
-            <LifeBuoy size={14} aria-hidden />
-            Ask {HELP_BOT_NAME}
-          </button>
           <button
             type="button"
             disabled={refreshing}

@@ -3,10 +3,10 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 
 const linkClass = ({ isActive }) =>
-  `shrink-0 rounded-xl px-3 py-2 text-xs font-semibold transition no-underline ${
+  `relative shrink-0 whitespace-nowrap px-2.5 py-2 text-[13px] font-semibold no-underline transition-colors ${
     isActive
-      ? 'bg-zarewa-teal text-white shadow-md shadow-teal-950/15'
-      : 'text-slate-600 hover:bg-slate-50 hover:text-zarewa-teal'
+      ? 'text-zarewa-teal after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-zarewa-teal'
+      : 'text-slate-500 hover:text-zarewa-teal'
   }`;
 
 /**
@@ -30,7 +30,7 @@ export function HrSubnav({ items, moreItems = [], moreLabel = 'Programs', sticky
     <div className={navCls}>
       <nav
         aria-label="HR sections"
-        className="flex w-full min-w-0 gap-1 overflow-x-auto overscroll-x-contain rounded-2xl border border-white/80 bg-white/90 p-1.5 shadow-sm [-webkit-overflow-scrolling:touch]"
+        className="flex w-full min-w-0 gap-0.5 overflow-x-auto overscroll-x-contain border-b border-slate-200/90 [-webkit-overflow-scrolling:touch]"
       >
         {items.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.end} className={linkClass}>
@@ -42,10 +42,10 @@ export function HrSubnav({ items, moreItems = [], moreLabel = 'Programs', sticky
             <button
               type="button"
               onClick={() => setMoreOpen((o) => !o)}
-              className={`rounded-xl px-3 py-2 min-h-11 text-xs font-semibold transition ${
+              className={`relative min-h-9 whitespace-nowrap px-2.5 py-2 text-[13px] font-semibold transition-colors ${
                 moreOpen || moreActive
-                  ? 'bg-zarewa-teal text-white'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-zarewa-teal'
+                  ? 'text-zarewa-teal after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-zarewa-teal'
+                  : 'text-slate-500 hover:text-zarewa-teal'
               }`}
               aria-expanded={moreOpen}
             >

@@ -15,8 +15,8 @@ const ROLE_CASHIER = 'cashier';
 const ROLE_ACCOUNTANT = 'finance_manager';
 const OVERSIGHT_ROLES = new Set(['admin', 'md']);
 
-/** Cashier: Finance desk + receipts + movements. */
-const CASHIER_LEGACY_TABS = new Set(['desk', 'receipts', 'movements']);
+/** Cashier: desk, receipts, transfers, and payouts. */
+const CASHIER_LEGACY_TABS = new Set(['desk', 'receipts', 'movements', 'disbursements']);
 /** Accountant — Finance desk replaces legacy Treasury tab. */
 const ACCOUNTANT_LEGACY_TABS = new Set(['desk', 'receipts', 'movements', 'disbursements', 'audit']);
 
@@ -153,11 +153,12 @@ export function resolveAccountsNavigationTab(tabOrAlias, roleKey, permissions) {
 /** Role-aware tab labels on Finance → PageTabs. */
 export function legacyAccountTabLabelForRole(tabId, roleKey) {
   const tab = String(tabId || '').trim();
-  if (tab === FINANCE_DESK_TAB_ID) return FINANCE_DESK_TAB_LABEL;
+  if (tab === FINANCE_DESK_TAB_ID) return 'Desk';
   if (isCashierRole(roleKey)) {
     const labels = {
       receipts: 'Receipts',
-      movements: 'Internal transfers',
+      movements: 'Transfers',
+      disbursements: 'Payouts',
     };
     return labels[tab] || null;
   }

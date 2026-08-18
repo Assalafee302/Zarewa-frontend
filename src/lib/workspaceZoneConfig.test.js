@@ -11,11 +11,11 @@ import {
 import { TASK_QUEUE_TABS } from './workspaceTaskQueue.js';
 
 describe('workspaceZoneConfig', () => {
-  it('returns five zones and staff default action', () => {
+  it('returns four zones and staff default action', () => {
     const cfg = getWorkspaceZoneConfig({ roleKey: 'sales_staff' });
-    expect(cfg.zones).toHaveLength(5);
+    expect(cfg.zones).toHaveLength(4);
     expect(cfg.defaultZone).toBe('action');
-    expect(cfg.zones.map((z) => z.id)).toEqual(['activity', 'rooms', 'action', 'records', 'apps']);
+    expect(cfg.zones.map((z) => z.id)).toEqual(['activity', 'action', 'records', 'apps']);
   });
 
   it('maps branch manager to activity default with endorsement chips', () => {
@@ -82,8 +82,9 @@ describe('workspaceZoneConfig', () => {
     expect(workItemMatchesActionChip({ documentType: 'payment_request' }, 'finance')).toBe(true);
   });
 
-  it('isValidWorkspaceZone accepts the five zones only', () => {
+  it('isValidWorkspaceZone accepts the four zones only', () => {
     for (const z of WORKSPACE_ZONES) expect(isValidWorkspaceZone(z.id)).toBe(true);
+    expect(isValidWorkspaceZone('rooms')).toBe(false);
     expect(isValidWorkspaceZone('desk')).toBe(false);
     expect(isValidWorkspaceZone('')).toBe(false);
   });

@@ -38,6 +38,7 @@ import {
   filterAttentionItems,
   formatRefundReasonCategory,
   matchesInboxSearch,
+  normalizeAttentionFilter,
   normalizeManagerInboxRoute,
   pacAttentionRouteFromTab,
   ymdLocal,
@@ -152,7 +153,7 @@ export function useBranchManagerWorkstation() {
   const setPacRoute = useCallback((tabOrFilter) => {
     const route = pacAttentionRouteFromTab(tabOrFilter);
     setActiveTab(route.tab);
-    setAttentionFilter(route.attentionFilter);
+    setAttentionFilter(normalizeAttentionFilter(route.attentionFilter));
   }, []);
   const [attentionItems, setAttentionItems] = useState([]);
   const [attentionSummary, setAttentionSummary] = useState(null);
@@ -875,7 +876,7 @@ export function useBranchManagerWorkstation() {
       return;
     }
     setActiveTab(tab);
-    setAttentionFilter(af);
+    setAttentionFilter(normalizeAttentionFilter(af));
   }, [location.state, navigate, searchParams]);
 
   useEffect(() => {
@@ -1287,7 +1288,7 @@ export function useBranchManagerWorkstation() {
       const kind = item.kind;
       const stayOnAttention = (filterKey) => {
         setActiveTab('attention');
-        setAttentionFilter(filterKey || 'all');
+        setAttentionFilter(normalizeAttentionFilter(filterKey || 'all'));
       };
       if (kind === 'clearance' || kind === 'flagged') {
         const qid = item.quotationRef || row.id;

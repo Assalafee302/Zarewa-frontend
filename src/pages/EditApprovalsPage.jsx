@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { PageHeader, PageShell, MainPanel } from '../components/layout';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -7,6 +8,7 @@ import { ClipboardCheck, RefreshCw } from 'lucide-react';
 
 /**
  * Standalone queue for designated roles to approve second-party edit tokens (PATCH pre-approval).
+ * Branch managers land on Approvals → Edits instead.
  */
 export default function EditApprovalsPage() {
   const ws = useWorkspace();
@@ -15,6 +17,8 @@ export default function EditApprovalsPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
+  const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
+  const redirectToManagerApprovals = roleKey === 'sales_manager' || roleKey === 'branch_manager';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -30,8 +34,9 @@ export default function EditApprovalsPage() {
   }, [showToast, wsRefreshEditApprovalsPending]);
 
   useEffect(() => {
+    if (redirectToManagerApprovals) return;
     void load();
-  }, [load, ws?.refreshEpoch]);
+  }, [load, ws?.refreshEpoch, redirectToManagerApprovals]);
 
   const approve = async (id) => {
     setBusyId(id);
@@ -47,6 +52,10 @@ export default function EditApprovalsPage() {
     showToast('Edit approval granted — the colleague can save once with this 6-digit code.');
     await load();
   };
+
+  if (redirectToManagerApprovals) {
+    return <Navigate to="/manager?tab=approvals&inbox=edits" replace />;
+  }
 
   return (
     <PageShell>

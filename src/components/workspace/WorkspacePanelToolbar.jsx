@@ -15,11 +15,11 @@ export function WorkspacePanelToolbar({
 }) {
   return (
     <div
-      className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 ${className}`}
+      className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4 ${className}`}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center min-w-0 w-full sm:flex-1">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center min-w-0 w-full sm:flex-1">
         {title ? (
-          <h2 className="text-xl font-bold text-zarewa-teal shrink-0 tracking-tight">{title}</h2>
+          <h2 className="text-base font-bold text-zarewa-teal shrink-0 tracking-tight">{title}</h2>
         ) : null}
         {onSearchChange != null ? (
           <div className="relative flex-1 sm:max-w-xs min-w-0">

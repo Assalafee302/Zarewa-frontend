@@ -64,7 +64,7 @@ export function FinanceDeskTreasuryAccountGrid({
       {nextActionSummary ? (
         <p className="text-xs font-semibold text-zarewa-teal leading-snug">{nextActionSummary}</p>
       ) : null}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {accounts.map((acc) => {
           const book = treasuryBookDisplayNgn(acc, bookById);
           const split = balanceByAccountId
@@ -80,7 +80,7 @@ export function FinanceDeskTreasuryAccountGrid({
           return (
             <div
               key={acc.id}
-              className="rounded-zarewa border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-lg hover:border-teal-100 transition-all group flex flex-col"
+              className="rounded-xl border border-slate-200/80 bg-white hover:border-teal-200 hover:shadow-sm transition-all group flex flex-col min-w-0"
             >
               <button
                 type="button"
@@ -88,32 +88,28 @@ export function FinanceDeskTreasuryAccountGrid({
                   if (onAccountClick) onAccountClick(acc);
                   else onGoToTab?.('treasury');
                 }}
-                className="text-left p-4 flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/30 rounded-t-zarewa"
+                className="text-left p-2.5 flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/30 rounded-xl min-w-0"
               >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="p-2 bg-white rounded-lg shadow-sm text-zarewa-teal">
-                    {acc.type === 'Bank' ? <Landmark size={18} /> : <CreditCard size={18} />}
+                <div className="flex justify-between items-start gap-1 mb-1">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-50 text-zarewa-teal">
+                    {acc.type === 'Bank' ? <Landmark size={14} /> : <CreditCard size={14} />}
                   </div>
-                  <span className="text-ui-xs font-bold text-gray-400 uppercase tracking-tighter">
+                  <span className="text-[10px] font-semibold text-slate-400 tabular-nums truncate">
                     {acc.accNo || '—'}
                   </span>
                 </div>
-                <p className="text-ui-xs font-black text-gray-400 uppercase tracking-widest mb-0.5">
+                <p className="text-[11px] font-bold text-slate-800 truncate" title={acc.name}>
                   {acc.name}
                 </p>
                 {acc.type === 'Bank' && acc.bankName ? (
-                  <p className="text-ui-xs text-slate-500 font-semibold mb-1 truncate" title={acc.bankName}>
+                  <p className="text-[10px] text-slate-500 truncate" title={acc.bankName}>
                     {acc.bankName}
                   </p>
                 ) : null}
-                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">Balance</p>
-                <h4 className="text-lg font-black text-zarewa-teal italic tracking-tighter tabular-nums">
+                <p className="mt-1 text-sm font-bold tabular-nums text-zarewa-teal tracking-tight">
                   {formatNgn(balance)}
-                </h4>
-                <FinanceDeskBalanceBreakdown split={split} compact />
-                <p className="text-ui-xs text-teal-700/80 font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {cardActionLabel || (onAccountClick ? 'View statement' : 'View on treasury')}
                 </p>
+                <FinanceDeskBalanceBreakdown split={split} compact />
               </button>
             </div>
           );

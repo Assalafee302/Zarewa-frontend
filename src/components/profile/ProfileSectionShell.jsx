@@ -4,7 +4,7 @@ import { PageHeader, PageShell, MainPanel } from '../layout';
 import { ProfileHubTabs } from './ProfileHubTabs';
 import { ProfileSidebarNav, ProfileMobileNav } from './ProfileSidebarNav';
 import { HrNotificationsPanel } from '../hr/HrNotificationsPanel';
-import { profilePageMetaForPath, profileShellEyebrow } from '../../lib/profileNavConfig';
+import { profilePageMetaForPath } from '../../lib/profileNavConfig';
 
 /**
  * My HR layout — open work surface (Sales / Procurement), not nested cards.
@@ -21,19 +21,10 @@ export function ProfileSectionShell({
   return (
     <PageShell className="pb-10">
       <PageHeader
-        eyebrow={profileShellEyebrow(cohort)}
         title={title}
         subtitle={subtitle}
-        tabs={
-          <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:items-end">
-            <ProfileHubTabs />
-            {isExecutiveBenefitsHub ? (
-              <div className="flex w-full justify-end">
-                <HrNotificationsPanel compact />
-              </div>
-            ) : null}
-          </div>
-        }
+        tabs={<ProfileHubTabs />}
+        toolbar={isExecutiveBenefitsHub ? <HrNotificationsPanel compact /> : null}
       />
 
       {beforeNav ? <div className="mb-4">{beforeNav}</div> : null}

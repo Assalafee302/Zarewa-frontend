@@ -29,11 +29,11 @@ import {
 import { buildHelpCoachingHints, mergePersonalizedPrompts } from '../lib/helpRecommend';
 import { detectHelpIntent, synthesizeHelpReply, synthesizeMetaReply } from '../lib/helpSynthesize';
 import { classifyAgentRoute, routeLabel } from '../lib/helpAgentIntent';
-import { HELP_BOT_NAME, HELP_BOT_TAGLINE } from '../lib/helpBotBrand';
+import { HELP_BOT_NAME, HELP_BOT_TAGLINE, HELP_BOT_ALT_TAGLINE } from '../lib/helpBotBrand';
+import { appFabRightClass, appFabSlots } from '../lib/appFabLayout';
 import { useHelpChat } from '../context/HelpChatContext';
 import { TRANSACTION_ISSUE_CHIPS } from '../lib/helpTransactionHelp';
 import { sanitizeZarePageContext } from '../lib/workspaceSanitize';
-import { HELP_BOT_ALT_TAGLINE } from '../lib/helpBotBrand';
 import { getPageTourForPath } from '../lib/pageTourGuide';
 
 const LOCAL_REPLY_DELAY_MS = 240;
@@ -740,9 +740,7 @@ export function HelpChatDock() {
 
   if (!user) return null;
 
-  const launcherClass = aiDockVisible
-    ? 'right-[calc(max(1.25rem,env(safe-area-inset-right))+4.25rem)]'
-    : 'right-[max(1.25rem,env(safe-area-inset-right))]';
+  const launcherClass = appFabRightClass(appFabSlots({ aiDockVisible }).zare);
 
   return (
     <>

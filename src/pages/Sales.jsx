@@ -82,7 +82,6 @@ import {
 } from '../lib/salesStatusUi';
 import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
 import { AiAskButton } from '../components/AiAskButton';
-import { ZareHelpButton } from '../components/ZareHelpButton';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
 import { useCustomers } from '../context/CustomersContext';
@@ -1356,24 +1355,10 @@ const Sales = () => {
     <PageShell blurred={isAnyModalOpen}>
       <PageHeader
         title="Sales"
-        subtitle="Quotations, receipts, cutting lists, refunds & customers — yard pricing matches the dashboard spot list; stock check is in the sidebar."
-        tabs={
-          <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:items-end">
-            <div className="flex w-full min-w-0 justify-start sm:justify-end">
-              <PageTabs tabs={salesTabs} value={salesTab} onChange={handleTabChange} />
-            </div>
+        subtitle="Quotations, receipts, cutting lists, refunds and customers."
+        tabs={<PageTabs tabs={salesTabs} value={salesTab} onChange={handleTabChange} />}
+        toolbar={
             <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2">
-              {salesTab === 'receipts' ? (
-                <ZareHelpButton
-                  transactionContext={{
-                    module: 'sales',
-                    currentPage: 'receipts',
-                    transactionType: 'receipt',
-                    pathname: '/sales',
-                  }}
-                  compact
-                />
-              ) : null}
               <AiAskButton
                 mode="sales"
                 prompt={
@@ -1456,7 +1441,6 @@ const Sales = () => {
                 </button>
               )}
             </div>
-          </div>
         }
       />
 

@@ -1,7 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Link2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, Link2, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
+import {
+  AppTable,
+  AppTableBody,
+  AppTableTd,
+  AppTableTh,
+  AppTableThead,
+  AppTableTr,
+  AppTableWrap,
+} from '../ui/AppDataTable';
 
 /**
  * Finance: duplicate treasury queue — Finance registered bank inflow and Sales posted receipt/advance separately.
@@ -12,6 +21,7 @@ export function BankDepositExceptionPanel({ canPost = false, showToast, onChange
   const [exceptions, setExceptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState('');
+  const [open, setOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -22,6 +32,9 @@ export function BankDepositExceptionPanel({ canPost = false, showToast, onChange
         return;
       }
       setExceptions(Array.isArray(res.data.exceptions) ? res.data.exceptions : []);
+      if (Array.isArray(res.data.exceptions) && res.data.exceptions.length > 0) {
+        setOpen(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -61,15 +74,25 @@ export function BankDepositExceptionPanel({ canPost = false, showToast, onChange
   return (
     <div className="space-y-3 rounded-xl border border-amber-200/90 bg-amber-50/40 p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-widest text-amber-900 flex items-center gap-1.5">
-            <AlertTriangle size={14} /> Duplicate cash exceptions
-          </h3>
-          <p className="text-ui-xs text-slate-600 mt-1 max-w-2xl">
-            Unlinked bank deposits paired with receipt/advance treasury credits by exact or close amount (±₦100 or 1%)
-            and exact or close date (±2 days). Merge requires an exact amount; close-date pairs are mergeable.
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex min-w-0 flex-1 items-start gap-1.5 text-left"
+          aria-expanded={open}
+        >
+          <span className="mt-0.5 text-amber-800">
+            {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </span>
+          <span>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-amber-900 flex items-center gap-1.5">
+              <AlertTriangle size={14} /> Duplicate cash exceptions
+              <span className="font-semibold tabular-nums text-amber-800">({exceptions.length})</span>
+            </h3>
+            <p className="text-ui-xs text-slate-600 mt-1 max-w-2xl">
+              Unlinked bank deposits paired with receipt/advance treasury credits. Merge when amounts match.
+            </p>
+          </span>
+        </button>
         <button
           type="button"
           onClick={() => void load()}
@@ -80,27 +103,26 @@ export function BankDepositExceptionPanel({ canPost = false, showToast, onChange
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-amber-100 bg-white">
-        <table className="min-w-full text-ui-xs">
-          <thead className="bg-amber-50/80 text-ui-xs uppercase text-amber-900/80">
-            <tr>
-              <th className="px-2 py-1.5 text-left">Deposit</th>
-              <th className="px-2 py-1.5 text-left">Ledger</th>
-              <th className="px-2 py-1.5 text-left">Customer</th>
-              <th className="px-2 py-1.5 text-right">Amount</th>
-              <th className="px-2 py-1.5 text-left">Date</th>
-              <th className="px-2 py-1.5 text-left">Match</th>
-              <th className="px-2 py-1.5 text-left">Reference</th>
-              {canPost ? <th className="px-2 py-1.5 text-right">Action</th> : null}
-            </tr>
-          </thead>
-          <tbody>
+      {open ? (
+      <AppTableWrap>
+        <AppTable role="numeric">
+          <AppTableThead>
+            <AppTableTh>Deposit</AppTableTh>
+            <AppTableTh>Ledger</AppTableTh>
+            <AppTableTh>Customer</AppTableTh>
+            <AppTableTh align="right">Amount</AppTableTh>
+            <AppTableTh>Date</AppTableTh>
+            <AppTableTh>Match</AppTableTh>
+            <AppTableTh>Reference</AppTableTh>
+            {canPost ? <AppTableTh align="right">Action</AppTableTh> : null}
+          </AppTableThead>
+          <AppTableBody>
             {exceptions.length === 0 ? (
-              <tr>
-                <td colSpan={canPost ? 8 : 7} className="px-2 py-6 text-center text-slate-400">
+              <AppTableTr>
+                <AppTableTd colSpan={canPost ? 8 : 7} truncate={false} className="text-center text-slate-500">
                   {loading ? 'Loading…' : 'No duplicate exceptions — treasury looks clean.'}
-                </td>
-              </tr>
+                </AppTableTd>
+              </AppTableTr>
             ) : (
               exceptions.map((row) => {
                 const key = `${row.depositId}:${row.ledgerEntryId}`;
@@ -115,23 +137,27 @@ export function BankDepositExceptionPanel({ canPost = false, showToast, onChange
                     ? row.bankDateISO
                     : `${row.bankDateISO} / ${row.ledgerBankDateISO}`;
                 return (
-                  <tr key={key} className="border-t border-amber-50 hover:bg-amber-50/30">
-                    <td className="px-2 py-1.5 font-mono font-bold text-zarewa-teal">{row.depositId}</td>
-                    <td className="px-2 py-1.5 font-mono">{row.ledgerEntryId}</td>
-                    <td className="px-2 py-1.5">{row.customerName || '—'}</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{amountLabel}</td>
-                    <td className="px-2 py-1.5 tabular-nums">{dateLabel}</td>
-                    <td className="px-2 py-1.5 text-slate-600">
+                  <AppTableTr key={key}>
+                    <AppTableTd monospace title={row.depositId}>
+                      {row.depositId}
+                    </AppTableTd>
+                    <AppTableTd monospace title={row.ledgerEntryId}>
+                      {row.ledgerEntryId}
+                    </AppTableTd>
+                    <AppTableTd title={row.customerName || ''}>{row.customerName || '—'}</AppTableTd>
+                    <AppTableTd align="right">{amountLabel}</AppTableTd>
+                    <AppTableTd>{dateLabel || '—'}</AppTableTd>
+                    <AppTableTd truncate={false}>
                       {hints.length ? hints.join(', ') : row.canMerge ? 'exact' : 'suggested'}
                       {!row.canMerge ? (
-                        <span className="block text-amber-800/90">Close amount — review only</span>
+                        <span className="block text-ui-xs text-amber-800/90">Close amount — review only</span>
                       ) : null}
-                    </td>
-                    <td className="px-2 py-1.5 font-mono truncate max-w-[8rem]" title={ref}>
+                    </AppTableTd>
+                    <AppTableTd monospace title={ref}>
                       {ref}
-                    </td>
+                    </AppTableTd>
                     {canPost ? (
-                      <td className="px-2 py-1.5 text-right">
+                      <AppTableTd align="right" truncate={false}>
                         {row.canMerge ? (
                           <button
                             type="button"
@@ -142,17 +168,18 @@ export function BankDepositExceptionPanel({ canPost = false, showToast, onChange
                             <Link2 size={11} /> {busyId === key ? 'Merging…' : 'Merge'}
                           </button>
                         ) : (
-                          <span className="text-slate-400 uppercase tracking-wide">Suggest only</span>
+                          <span className="text-slate-400 uppercase tracking-wide text-ui-xs">Suggest only</span>
                         )}
-                      </td>
+                      </AppTableTd>
                     ) : null}
-                  </tr>
+                  </AppTableTr>
                 );
               })
             )}
-          </tbody>
-        </table>
-      </div>
+          </AppTableBody>
+        </AppTable>
+      </AppTableWrap>
+      ) : null}
     </div>
   );
 }

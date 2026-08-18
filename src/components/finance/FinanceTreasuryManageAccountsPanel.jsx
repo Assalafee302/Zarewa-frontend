@@ -29,7 +29,7 @@ export function FinanceTreasuryManageAccountsPanel({
 }) {
   return (
     <section className="space-y-3 scroll-mt-20" data-testid="finance-desk-manage-accounts">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
         {accounts.length === 0 ? (
           <div className="sm:col-span-2 lg:col-span-3 z-empty-state py-12">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
@@ -62,63 +62,55 @@ export function FinanceTreasuryManageAccountsPanel({
             return (
             <div
               key={acc.id}
-              className="rounded-zarewa border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-lg hover:border-teal-100 transition-all group flex flex-col"
+              className="rounded-xl border border-slate-200/80 bg-white hover:border-teal-200 hover:shadow-sm transition-all group flex flex-col min-w-0"
             >
               <button
                 type="button"
                 onClick={() => onOpenStatement?.(acc)}
-                className="text-left p-4 flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/30 rounded-t-zarewa"
+                className="text-left p-2.5 flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/30 rounded-t-xl min-w-0"
               >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="p-2 bg-white rounded-lg shadow-sm text-zarewa-teal">
-                    {acc.type === 'Bank' ? <Landmark size={18} /> : <CreditCard size={18} />}
+                <div className="flex justify-between items-start gap-1 mb-1">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-50 text-zarewa-teal">
+                    {acc.type === 'Bank' ? <Landmark size={14} /> : <CreditCard size={14} />}
                   </div>
-                  <div className="text-right">
+                  <div className="text-right min-w-0">
                     {(showAllTreasuryInTab || String(acc.branchId || '') !== workspaceBranchId) && acc.branchId ? (
-                      <span className="block text-ui-xs font-bold text-sky-800 uppercase tracking-wide mb-0.5">
+                      <span className="block text-[10px] font-semibold text-sky-800 truncate">
                         {treasuryAccountBranchLabel(acc.branchId, branchNameById)}
                       </span>
                     ) : null}
-                    <span className="text-ui-xs font-bold text-gray-400 uppercase tracking-tighter">
+                    <span className="block text-[10px] font-semibold text-slate-400 tabular-nums truncate">
                       {acc.accNo || '—'}
                     </span>
                   </div>
                 </div>
-                <p className="text-ui-xs font-black text-gray-400 uppercase tracking-widest mb-0.5">{acc.name}</p>
+                <p className="text-[11px] font-bold text-slate-800 truncate" title={acc.name}>{acc.name}</p>
                 {acc.type === 'Bank' && acc.bankName ? (
-                  <p className="text-ui-xs text-slate-500 font-semibold mb-1 truncate" title={acc.bankName}>
+                  <p className="text-[10px] text-slate-500 truncate" title={acc.bankName}>
                     {acc.bankName}
                   </p>
                 ) : null}
-                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">Balance</p>
-                <h4 className="text-lg font-black text-zarewa-teal italic tracking-tighter tabular-nums">
+                <p className="mt-1 text-sm font-bold tabular-nums text-zarewa-teal tracking-tight">
                   {formatNgn(balance)}
-                </h4>
+                </p>
                 <FinanceDeskBalanceBreakdown split={split} compact />
                 {acc.accountOfficerName || acc.accountOfficerPhone ? (
-                  <p className="text-ui-xs text-slate-600 mt-2 leading-snug line-clamp-2">
-                    {acc.accountOfficerName ? (
-                      <span className="font-semibold">{acc.accountOfficerName}</span>
-                    ) : null}
-                    {acc.accountOfficerName && acc.accountOfficerPhone ? ' · ' : null}
-                    {acc.accountOfficerPhone ? (
-                      <span className="tabular-nums">{acc.accountOfficerPhone}</span>
-                    ) : null}
+                  <p className="text-[10px] text-slate-500 mt-1 truncate">
+                    {acc.accountOfficerName || ''}
+                    {acc.accountOfficerName && acc.accountOfficerPhone ? ' · ' : ''}
+                    {acc.accountOfficerPhone || ''}
                   </p>
                 ) : null}
-                <p className="text-ui-xs text-teal-700/80 font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  View statement
-                </p>
               </button>
               {(canManageTreasury && canMutate) || canExecTreasuryDelete ? (
-                <div className="flex items-center justify-end gap-2 px-3 pb-3 pt-0 border-t border-gray-100/80">
+                <div className="flex items-center justify-end gap-1 px-2 pb-2 pt-0 border-t border-slate-100">
                   {canManageTreasury && canMutate ? (
                     <button
                       type="button"
                       onClick={() => onEditAccount?.(acc)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-700 hover:border-teal-200 hover:bg-teal-50/50"
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:border-teal-200 hover:bg-teal-50/50"
                     >
-                      <Pencil size={12} /> Edit
+                      <Pencil size={11} /> Edit
                     </button>
                   ) : null}
                   {canExecTreasuryDelete ? (

@@ -3,7 +3,6 @@ import { Bell } from 'lucide-react';
 
 /**
  * Ops alerts — in-transit, thin coils, pending stock-damage reports.
- * Shown on all breakpoints (Clear now also has its own pulse; strip remains a compact backup).
  */
 export default function OperationsMobileAlertStrip({
   inTransitCount = 0,

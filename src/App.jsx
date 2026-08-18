@@ -132,6 +132,10 @@ const HelpChatDockGate = lazyWithRetry(
   () => import('./components/HelpChatDockGate.jsx').then((m) => ({ default: m.HelpChatDockGate })),
   { id: 'HelpChatDockGate' }
 );
+const TeamChatDockGate = lazyWithRetry(
+  () => import('./components/TeamChatDockGate.jsx').then((m) => ({ default: m.TeamChatDockGate })),
+  { id: 'TeamChatDockGate' }
+);
 const HumanResources = lazyWithRetry(() => import('./pages/hr/HumanResources'), { id: 'HumanResources' });
 const MyProfile = lazyWithRetry(() => import('./pages/hr/MyProfile'), { id: 'MyProfile' });
 const TeamHr = lazyWithRetry(() => import('./pages/hr/TeamHr'), { id: 'TeamHr' });
@@ -581,7 +585,7 @@ function AppShell() {
       />
 
       <div
-        className={`relative z-0 flex-1 min-h-screen min-w-0 ml-0 pt-[max(4.25rem,calc(env(safe-area-inset-top)+3.25rem))] sm:pt-10 px-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:px-6 lg:px-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] transition-[margin] duration-300 ease-out ${
+        className={`relative z-0 flex-1 min-h-screen min-w-0 ml-0 pt-[max(4.25rem,calc(env(safe-area-inset-top)+3.25rem))] sm:pt-5 lg:pt-6 px-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:px-6 lg:px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] transition-[margin] duration-300 ease-out ${
           sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
         }`}
       >
@@ -602,8 +606,8 @@ function AppShell() {
           <Menu size={22} strokeWidth={2} />
         </button>
 
-        <div className="relative z-30 -mx-4 min-w-0 max-sm:overflow-x-clip sm:sticky sm:top-0 sm:-mx-6 lg:mx-0 mb-4 max-sm:mb-3 sm:mb-8 py-2 pl-2 pr-2 max-sm:pl-14 sm:px-0 sm:py-0">
-          <div className="flex min-w-0 flex-col gap-2 px-2 py-2 max-sm:border-0 max-sm:bg-transparent max-sm:shadow-none sm:z-toolbar-shell sm:gap-3 sm:px-4 sm:py-3 sm:flex-row sm:items-center sm:justify-between max-sm:pt-1">
+        <div className="relative z-30 -mx-4 min-w-0 max-sm:overflow-x-clip sm:sticky sm:top-0 sm:-mx-6 lg:mx-0 mb-3 max-sm:mb-2 sm:mb-4 py-1.5 pl-2 pr-2 max-sm:pl-14 sm:px-0 sm:py-0">
+          <div className="flex min-w-0 flex-col gap-1.5 px-2 py-1.5 max-sm:border-0 max-sm:bg-transparent max-sm:shadow-none sm:z-toolbar-shell sm:gap-2 sm:px-3 sm:py-1.5 sm:flex-row sm:items-center sm:justify-between max-sm:pt-1">
             {ws?.session?.user?.roleKey === 'ceo' ? (
               <p className="flex-1 min-w-0 text-[12px] text-gray-500 sm:max-w-[520px] max-sm:order-2">
                 Global search is hidden for the executive read-only role.
@@ -616,8 +620,8 @@ function AppShell() {
                   onSubmit={runGlobalSearch}
                 >
                   <Search
-                    className="absolute left-3.5 sm:left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-zarewa-teal transition-colors pointer-events-none z-[1]"
-                    size={16}
+                    className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-zarewa-teal transition-colors pointer-events-none z-[1]"
+                    size={15}
                   />
                   <input
                     ref={searchRef}
@@ -647,12 +651,12 @@ function AppShell() {
                         : undefined
                     }
                     enterKeyHint="search"
-                    className="w-full min-h-10 rounded-xl border border-slate-200/90 bg-white py-2.5 pl-10 pr-12 text-[15px] font-medium shadow-sm outline-none transition focus:border-teal-300/60 focus:ring-2 focus:ring-teal-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/25 sm:z-toolbar-shell sm:min-h-12 sm:py-3 sm:pl-12 sm:pr-14 sm:text-[13px] sm:focus:ring-4"
+                    className="w-full min-h-9 rounded-lg border border-slate-200/90 bg-white py-2 pl-9 pr-11 text-[15px] font-medium outline-none transition focus:border-teal-300/60 focus:ring-2 focus:ring-teal-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/25 sm:min-h-9 sm:py-1.5 sm:pl-10 sm:pr-12 sm:text-[13px]"
                   />
                   <button
                     type="button"
                     onClick={() => setCommandPaletteOpen(true)}
-                    className="pointer-events-auto absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-lg border border-gray-100 bg-gray-50/90 px-2 py-1 sm:flex hover:bg-gray-100"
+                    className="pointer-events-auto absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-gray-100 bg-gray-50/90 px-1.5 py-0.5 sm:flex hover:bg-gray-100"
                     aria-label="Open command palette"
                     title="Command palette (Ctrl+K)"
                   >
@@ -680,7 +684,7 @@ function AppShell() {
                     type="button"
                     onClick={askAiAboutSearch}
                     aria-label="Ask AI about workspace search"
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-teal-100/90 bg-white text-zarewa-teal shadow-sm transition hover:border-teal-200 hover:bg-teal-50/50 active:scale-[0.98] sm:h-12 sm:w-auto sm:gap-2 sm:rounded-2xl sm:px-3 sm:self-center"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-teal-100/90 bg-white text-zarewa-teal transition hover:border-teal-200 hover:bg-teal-50/50 active:scale-[0.98] sm:h-9 sm:w-auto sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:self-center"
                     title={
                       headerSearch.trim()
                         ? 'Ask AI to explain this workspace query'
@@ -698,11 +702,11 @@ function AppShell() {
               </>
             )}
 
-            <div className="flex w-full min-w-0 max-w-full flex-row flex-wrap items-center gap-2 max-sm:justify-end sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-4 lg:gap-5 max-sm:order-1">
+            <div className="flex w-full min-w-0 max-w-full flex-row flex-wrap items-center gap-1.5 max-sm:justify-end sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-2 lg:gap-3 max-sm:order-1">
               <div className="w-full min-w-0 basis-full max-sm:order-last max-sm:pt-1 sm:basis-auto sm:w-auto sm:order-none sm:pt-0">
                 <BranchWorkspaceBar />
               </div>
-              <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 <div className="relative flex shrink-0 items-center gap-2">
                   <button
                   type="button"
@@ -713,11 +717,11 @@ function AppShell() {
                     setUserMenuOpen(false);
                     setNotifOpen((o) => !o);
                   }}
-                  className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200/80 bg-white/95 shadow-sm transition hover:border-teal-100 hover:shadow-md active:scale-[0.98] sm:h-12 sm:w-12 sm:rounded-2xl sm:border-gray-100/90"
+                  className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200/80 bg-white/95 transition hover:border-teal-100 hover:shadow-sm active:scale-[0.98] sm:h-9 sm:w-9 sm:rounded-lg sm:border-gray-100/90"
                   aria-label="Notifications"
                   title="Notifications"
                 >
-                    <Bell size={20} className="text-gray-400" />
+                    <Bell size={18} className="text-gray-400" />
                     {notificationItems.length > 0 ? (
                       <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-ui-xs font-black text-white">
                         {urgentNotifCount || notificationItems.length}
@@ -852,16 +856,16 @@ function AppShell() {
                       setNotifOpen(false);
                       setUserMenuOpen((o) => !o);
                     }}
-                    className="flex min-w-0 max-w-full items-center gap-2 rounded-zarewa border border-gray-100/90 bg-white/95 py-1.5 pl-1.5 pr-2 text-left shadow-sm transition hover:border-teal-200 hover:shadow-md max-sm:flex-none max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none sm:flex-initial sm:gap-3 sm:pr-3"
+                    className="flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-gray-100/90 bg-white/95 py-1 pl-1 pr-1.5 text-left transition hover:border-teal-200 hover:shadow-sm max-sm:flex-none max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none sm:flex-initial sm:gap-2 sm:pr-2"
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zarewa-teal text-xs font-black text-[#2dd4bf] shadow-inner sm:h-9 sm:w-9">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zarewa-teal text-[11px] font-bold text-[#2dd4bf] shadow-inner sm:h-8 sm:w-8">
                       {userInitials}
                     </span>
-                    <div className="hidden min-w-0 sm:block sm:flex-initial sm:max-w-[11rem]">
-                      <p className="truncate text-ui-xs font-black uppercase leading-none tracking-tighter text-zarewa-teal">
+                    <div className="hidden min-w-0 sm:block sm:flex-initial sm:max-w-[10rem]">
+                      <p className="truncate text-xs font-semibold leading-tight text-slate-800">
                         {userName}
                       </p>
-                      <p className="mt-0.5 truncate text-ui-xs font-bold uppercase leading-none tracking-widest text-gray-400">
+                      <p className="truncate text-[11px] font-medium leading-tight text-slate-400">
                         {userRole}
                       </p>
                     </div>
@@ -1249,6 +1253,9 @@ function AppShell() {
           hasPermission={wsHasPerm}
           initialQuery={headerSearch}
         />
+      </Suspense>
+      <Suspense fallback={null}>
+        <TeamChatDockGate />
       </Suspense>
       <Suspense fallback={null}>
         <HelpChatDockGate />

@@ -334,11 +334,7 @@ export default function AccountingDesk() {
       <PageShell>
 
         <PageHeader
-
-          eyebrow="Finance"
-
           title="Accounting Desk"
-
           subtitle={TAB_HINTS[tab] || ''}
 
           tabs={<AccountingDeskNav tab={tab} onTabChange={setTab} readOnlyExecutive={readOnlyExecutive} />}

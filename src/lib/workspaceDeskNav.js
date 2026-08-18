@@ -3,7 +3,7 @@ import { canAccessModuleWithPermissions } from './moduleAccess.js';
 
 /**
  * Desk profile keys
- * @deprecated For Workspace V3 (`VITE_WORKSPACE_V3`), use `workspaceZoneConfig.js` five-zone model.
+ * @deprecated For Workspace V3 (`VITE_WORKSPACE_V3`), use `workspaceZoneConfig.js` zone model.
  * This file remains the source of truth for legacy WorkspaceDesk / OFFICE_DESK_V2 and for
  * `resolveDeskProfile` reused by zone config.
  */

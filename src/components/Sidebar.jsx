@@ -16,7 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
-  ClipboardCheck,
   Users,
   UserCircle,
   Calculator,
@@ -195,14 +194,6 @@ const Sidebar = ({
         pathMatches(p, '/me') ||
         (canAccessMyProfileHr(permissions) && pathMatches(p, '/my-profile')),
       visible: true,
-    },
-    {
-      icon: <ClipboardCheck size={18} />,
-      label: 'Change authorisations',
-      path: '/edit-approvals',
-      // Edit approvals is embedded on the workspace home (not a standalone page).
-      visible: (ws?.editApprovalsPendingCount ?? 0) > 0 || Boolean(ws?.canAccessModule?.('edit_approvals')),
-      badgeCount: ws?.editApprovalsPendingCount ?? 0,
     },
     {
       icon: <Settings size={18} />,

@@ -19,8 +19,6 @@ import { ZareApprovalHint } from '../../components/ZareApprovalHint';
 import { EditSecondApprovalInline } from '../../components/EditSecondApprovalInline';
 import { formatNgn } from '../../Data/mockData';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance.js';
-import { receiptLedgerReceiptTreasurySplits } from '../../lib/salesReceiptsList';
-import { SALES_STATUS_CHIP, receiptCuttingListChipClass } from '../../lib/salesStatusUi';
 import { ExpenseCategoryLaneBadge } from '../../components/office/ExpenseCategoryLaneBadge.jsx';
 import { ExpenseCategoryExceptionBanner } from '../../components/office/ExpenseCategoryExceptionBanner.jsx';
 import {
@@ -29,7 +27,9 @@ import {
   isPayFromCorrectionTreasuryRow,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../../lib/accountCore';
-import { FinanceDeskWorkQueues } from '../../components/finance/FinanceDeskWorkQueues.jsx';
+import { FinanceCashierPayoutsPanel } from '../../components/finance/FinanceCashierPayoutsPanel.jsx';
+import { FinancePartialQuotesPanel } from '../../components/finance/FinancePartialQuotesPanel.jsx';
+import { FinanceReceiptsClearanceTable } from '../../components/finance/FinanceReceiptsClearanceTable.jsx';
 import { FinanceTabContextBanner } from '../../components/finance/FinanceTabContextBanner.jsx';
 import { FinanceReceiptsWorkflowStrip } from '../../components/finance/FinanceReceiptsWorkflowStrip.jsx';
 import { FinanceTreasuryManageAccountsPanel } from '../../components/finance/FinanceTreasuryManageAccountsPanel.jsx';
@@ -37,13 +37,11 @@ import { AccountBankReconciliationPanel } from '../../components/account/Account
 import { RegisterBankDepositPanel } from '../../components/finance/RegisterBankDepositPanel.jsx';
 import { BankDepositExceptionPanel } from '../../components/finance/BankDepositExceptionPanel.jsx';
 import { AccountGlManualJournalCard } from '../../components/account/AccountGlManualJournalCard.jsx';
-import { receiptClearanceBadgeLabel, receiptRegisteredByLabel } from '../../lib/receiptClearance.js';
 import { hangingRefundIndicatorsByCustomerId } from '../../lib/refundsStore.js';
 import {
   treasuryBookBalanceByAccountId,
   treasuryDeskBalanceSplit,
 } from '../../lib/financeDeskTreasury.js';
-import { HangingCustomerRefundChip } from '../../components/finance/HangingCustomerRefundHint.jsx';
 import { useAccountPage } from './AccountPageContext.jsx';
 
 export function AccountTabPanels() {
@@ -103,6 +101,7 @@ export function AccountTabPanels() {
     handleDeskViewReceipt,
     isAdminRole,
     isCashierRole,
+    liveQuotations,
     liveLedgerEntries,
     liveReceipts,
     liveTreasuryMovements,
@@ -253,6 +252,7 @@ export function AccountTabPanels() {
                   openBankDeposits={openBankDepositsCount}
                   onGoToDesk={() => handleAccountTabChange('desk')}
                 />
+                <FinancePartialQuotesPanel />
                 <section className="space-y-3">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -347,287 +347,51 @@ export function AccountTabPanels() {
                         </div>
                       </div>
                       <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8 lg:items-start">
-                      <section className="space-y-2 min-w-0">
-                        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200/70 bg-amber-50/65 px-3 py-2">
-                          <div>
-                            <p className="text-ui-xs font-black uppercase tracking-wide text-amber-900">
-                              Pending clearance
-                            </p>
-                            <p className="text-ui-xs text-amber-800/90">
-                              Sales recorded these payments — Finance must confirm bank/cash before refunds and cleared balances.
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-ui-xs text-amber-900">
-                            <span className="tabular-nums">
-                              {waitingReceiptsListWindow.total === 0
-                                ? '0 receipts'
-                                : `Showing ${waitingReceiptsListWindow.from}-${waitingReceiptsListWindow.to} of ${waitingReceiptsListWindow.total}`}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={waitingReceiptsListWindow.safePage <= 0}
-                              onClick={() => setWaitingReceiptsPage((p) => Math.max(0, p - 1))}
-                              className="inline-flex items-center rounded-lg border border-amber-200 bg-white px-2 py-1 disabled:opacity-40"
-                              aria-label="Previous waiting page"
-                            >
-                              <ChevronLeft size={14} />
-                            </button>
-                            <span className="text-ui-xs font-bold tabular-nums text-amber-800">
-                              {waitingReceiptsListWindow.safePage + 1}/{waitingReceiptsListWindow.pageCount}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={waitingReceiptsListWindow.safePage >= waitingReceiptsListWindow.pageCount - 1}
-                              onClick={() => setWaitingReceiptsPage((p) => p + 1)}
-                              className="inline-flex items-center rounded-lg border border-amber-200 bg-white px-2 py-1 disabled:opacity-40"
-                              aria-label="Next waiting page"
-                            >
-                              <ChevronRight size={14} />
-                            </button>
-                          </div>
-                        </div>
-                        {waitingReceiptsListWindow.total === 0 ? (
-                          <p className="text-ui-xs text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
-                            {receiptsNoCuttingListOnly
-                              ? 'No waiting receipts without a cutting list.'
-                              : 'No waiting receipts.'}
-                          </p>
-                        ) : null}
-                        <ul className="space-y-1.5">
-                          {waitingReceiptsListWindow.slice.map((r) => {
-                            const allocated = Number(r.amountNgn) || 0;
-                            const cash =
-                              r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
-                            const bank =
-                              r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : null;
-                            const clearanceLabel = receiptClearanceBadgeLabel(r);
-                            const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
-                            const hanging = hangingRefundByCustomerId.get(String(r.customerID || '').trim());
-                            const registeredBy = receiptRegisteredByLabel(r, liveLedgerEntries);
-                            const cuttingChipLabel =
-                              r._cuttingListLinkKind === 'linked' && r._cuttingListId
-                                ? `CL ${r._cuttingListId}`
-                                : r._cuttingListLabel || 'No cutting list';
-                            return (
-                              <li
-                                key={r.id}
-                                className="rounded-lg border border-slate-200/75 bg-white py-1.5 px-2.5 shadow-sm flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[11px] font-bold text-zarewa-teal font-mono">{r.id}</p>
-                                  <p className="text-ui-xs text-slate-500 truncate">
-                                    {r.customer || '-'} · {r.quotationRef || '-'} · {r.dateISO || r.date || '-'}
-                                    {registeredBy ? (
-                                      <span className="text-slate-600"> · Registered by {registeredBy}</span>
-                                    ) : null}
-                                  </p>
-                                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                    <span
-                                      className={`${SALES_STATUS_CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
-                                      title={r._cuttingListTitle || cuttingChipLabel}
-                                    >
-                                      {cuttingChipLabel}
-                                    </span>
-                                    {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
-                                  </div>
-                                  {paySplits.length > 0 ? (
-                                    <ul className="mt-1.5 space-y-0.5 border-t border-dashed border-slate-200/80 pt-1.5">
-                                      {paySplits.map((s) => (
-                                        <li
-                                          key={s.movementId}
-                                          className="flex justify-between gap-2 text-ui-xs text-slate-700"
-                                        >
-                                          <span className="min-w-0 truncate font-medium" title={s.accountLabel}>
-                                            {s.accountLabel}
-                                          </span>
-                                          <span className="shrink-0 font-bold tabular-nums text-zarewa-teal">
-                                            {formatNgn(s.amountNgn)}
-                                          </span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : null}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                                  <span className="text-ui-xs font-bold text-slate-600 tabular-nums">
-                                    Total {formatNgn(cash)}
-                                    {Math.round(allocated) !== Math.round(cash) ? (
-                                      <span className="text-slate-500 font-semibold"> (quote {formatNgn(allocated)})</span>
-                                    ) : null}
-                                    {bank != null && Math.round(bank) !== Math.round(cash) ? (
-                                      <span className="text-amber-800"> · Bank {formatNgn(bank)}</span>
-                                    ) : null}
-                                  </span>
-                                  <span
-                                    className={`text-ui-xs font-bold uppercase px-2 py-0.5 rounded-full ${
-                                      clearanceLabel === 'Pending clearance'
-                                        ? 'bg-amber-100 text-amber-900'
-                                        : 'bg-slate-100 text-slate-700'
-                                    }`}
-                                  >
-                                    {clearanceLabel}
-                                  </span>
-                                  {canFinanceReceiptSettlement && ws?.canMutate ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => openReceiptFinance(r)}
-                                      className="text-ui-xs font-bold uppercase px-2 py-1 rounded-md bg-zarewa-teal text-white hover:bg-[#0f3d3a]"
-                                      >
-                                      Confirm
-                                    </button>
-                                  ) : null}
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </section>
-                      <section className="space-y-2 min-w-0">
-                        <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200/70 bg-emerald-50/65 px-3 py-2">
-                          <div>
-                            <p className="text-ui-xs font-black uppercase tracking-wide text-emerald-900">
-                              Confirmed
-                            </p>
-                            <p className="text-ui-xs text-emerald-800/90">
-                              Receipts already confirmed and reconciled by finance.
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-ui-xs text-emerald-900">
-                            <span className="tabular-nums">
-                              {receiptsListWindow.total === 0
-                                ? '0 receipts'
-                                : `Showing ${receiptsListWindow.from}-${receiptsListWindow.to} of ${receiptsListWindow.total}`}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={receiptsListWindow.safePage <= 0}
-                              onClick={() => setConfirmedReceiptsPage((p) => Math.max(0, p - 1))}
-                              className="inline-flex items-center rounded-lg border border-emerald-200 bg-white px-2 py-1 disabled:opacity-40"
-                              aria-label="Previous confirmed page"
-                            >
-                              <ChevronLeft size={14} />
-                            </button>
-                            <span className="text-ui-xs font-bold tabular-nums text-emerald-800">
-                              {receiptsListWindow.safePage + 1}/{receiptsListWindow.pageCount}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={receiptsListWindow.safePage >= receiptsListWindow.pageCount - 1}
-                              onClick={() => setConfirmedReceiptsPage((p) => p + 1)}
-                              className="inline-flex items-center rounded-lg border border-emerald-200 bg-white px-2 py-1 disabled:opacity-40"
-                              aria-label="Next confirmed page"
-                            >
-                              <ChevronRight size={14} />
-                            </button>
-                          </div>
-                        </div>
-                        {receiptsListWindow.total === 0 ? (
-                          <p className="text-ui-xs text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
-                            {receiptsNoCuttingListOnly
-                              ? 'No confirmed receipts without a cutting list.'
-                              : 'No confirmed receipts yet.'}
-                          </p>
-                        ) : null}
-                        <ul className="space-y-1.5">
-                          {receiptsListWindow.slice.map((r) => {
-                        const allocated = Number(r.amountNgn) || 0;
-                        const cash =
-                          r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
-                        const bank =
-                          r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : null;
-                        const cleared = Boolean(r.financeDeliveryClearedAtISO);
-                        const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
-                        const hanging = hangingRefundByCustomerId.get(String(r.customerID || '').trim());
-                        const registeredBy = receiptRegisteredByLabel(r, liveLedgerEntries);
-                        const cuttingChipLabel =
-                          r._cuttingListLinkKind === 'linked' && r._cuttingListId
-                            ? `CL ${r._cuttingListId}`
-                            : r._cuttingListLabel || 'No cutting list';
-                        return (
-                          <li
-                            key={r.id}
-                            className="rounded-lg border border-slate-200/75 bg-white py-1.5 px-2.5 shadow-sm flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[11px] font-bold text-zarewa-teal font-mono">{r.id}</p>
-                              <p className="text-ui-xs text-slate-500 truncate">
-                                {r.customer || '—'} · {r.quotationRef || '—'} · {r.dateISO || r.date || '—'}
-                                {registeredBy ? (
-                                  <span className="text-slate-600"> · Registered by {registeredBy}</span>
-                                ) : null}
-                              </p>
-                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                <span
-                                  className={`${SALES_STATUS_CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
-                                  title={r._cuttingListTitle || cuttingChipLabel}
-                                >
-                                  {cuttingChipLabel}
-                                </span>
-                                {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
-                              </div>
-                              {paySplits.length > 0 ? (
-                                <ul className="mt-1.5 space-y-0.5 border-t border-dashed border-slate-200/80 pt-1.5">
-                                  {paySplits.map((s) => (
-                                    <li
-                                      key={s.movementId}
-                                      className="flex justify-between gap-2 text-ui-xs text-slate-700"
-                                    >
-                                      <span className="min-w-0 truncate font-medium" title={s.accountLabel}>
-                                        {s.accountLabel}
-                                      </span>
-                                      <span className="shrink-0 font-bold tabular-nums text-zarewa-teal">
-                                        {formatNgn(s.amountNgn)}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : null}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 shrink-0">
-                              <span className="text-ui-xs font-bold text-slate-600 tabular-nums">
-                                Total {formatNgn(cash)}
-                                {Math.round(allocated) !== Math.round(cash) ? (
-                                  <span className="text-slate-500 font-semibold">
-                                    {' '}
-                                    (quote {formatNgn(allocated)})
-                                  </span>
-                                ) : null}
-                                {bank != null && Math.round(bank) !== Math.round(cash) ? (
-                                  <span className="text-amber-800"> · Bank {formatNgn(bank)}</span>
-                                ) : null}
-                              </span>
-                              {r.financeReconciliationSavedAtISO ? (
-                                <span className="text-ui-xs font-bold uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-800">
-                                  Reconciled
-                                </span>
-                              ) : null}
-                              {cleared ? (
-                                <span className="text-ui-xs font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900">
-                                  Cleared delivery
-                                </span>
-                              ) : (
-                                <span className="text-ui-xs font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                                  Pending
-                                </span>
-                              )}
-                              {canFinanceReceiptSettlement && ws?.canMutate ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openReceiptFinance(r)}
-                                  className="text-ui-xs font-bold uppercase px-2 py-1 rounded-md bg-zarewa-teal text-white hover:bg-[#0f3d3a]"
-                                >
-                                  {r.financeReconciliationSavedAtISO ? 'Revise' : 'Confirm'}
-                                </button>
-                              ) : null}
-                            </div>
-                          </li>
-                        );
-                      })}
-                        </ul>
-                      </section>
+                      <FinanceReceiptsClearanceTable
+                        tone="amber"
+                        title="Pending clearance"
+                        description="Sales recorded these payments — Finance must confirm bank/cash before refunds and cleared balances."
+                        listWindow={waitingReceiptsListWindow}
+                        onPrev={() => setWaitingReceiptsPage((p) => Math.max(0, p - 1))}
+                        onNext={() => setWaitingReceiptsPage((p) => p + 1)}
+                        emptyMessage={
+                          receiptsNoCuttingListOnly
+                            ? 'No waiting receipts without a cutting list.'
+                            : 'No waiting receipts.'
+                        }
+                        quotations={liveQuotations}
+                        liveTreasuryMovements={liveTreasuryMovements}
+                        liveLedgerEntries={liveLedgerEntries}
+                        hangingRefundByCustomerId={hangingRefundByCustomerId}
+                        canConfirm={Boolean(canFinanceReceiptSettlement && ws?.canMutate)}
+                        onConfirm={openReceiptFinance}
+                        confirmLabel="Confirm"
+                      />
+                      <FinanceReceiptsClearanceTable
+                        tone="emerald"
+                        title="Confirmed"
+                        description="Receipts already confirmed and reconciled by finance."
+                        listWindow={receiptsListWindow}
+                        onPrev={() => setConfirmedReceiptsPage((p) => Math.max(0, p - 1))}
+                        onNext={() => setConfirmedReceiptsPage((p) => p + 1)}
+                        emptyMessage={
+                          receiptsNoCuttingListOnly
+                            ? 'No confirmed receipts without a cutting list.'
+                            : 'No confirmed receipts yet.'
+                        }
+                        quotations={liveQuotations}
+                        liveTreasuryMovements={liveTreasuryMovements}
+                        liveLedgerEntries={liveLedgerEntries}
+                        hangingRefundByCustomerId={hangingRefundByCustomerId}
+                        canConfirm={Boolean(canFinanceReceiptSettlement && ws?.canMutate)}
+                        onConfirm={openReceiptFinance}
+                        confirmLabel={(r) => (r.financeReconciliationSavedAtISO ? 'Revise' : 'Confirm')}
+                      />
                       </div>
+                    </>
+                  )}
 
-                      {ws?.hasPermission?.('finance.view') ? (
+                      {ws?.hasPermission?.('finance.view') || isCashierRole ? (
                         <section className="space-y-3 border-t border-slate-200/80 pt-6">
                           <RegisterBankDepositPanel
                             snapshot={ws?.snapshot}
@@ -646,7 +410,7 @@ export function AccountTabPanels() {
                         </section>
                       ) : null}
 
-                      {ws?.hasPermission?.('finance.view') ? (
+                      {ws?.hasPermission?.('finance.view') || isCashierRole ? (
                         <section className="space-y-3 border-t border-slate-200/80 pt-6">
                           <div>
                             <h3 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
@@ -668,8 +432,6 @@ export function AccountTabPanels() {
                           />
                         </section>
                       ) : null}
-                    </>
-                  )}
                 </section>
               </div>
             )}
@@ -793,6 +555,14 @@ export function AccountTabPanels() {
             )}
 
             {activeTab === 'disbursements' && (
+              isCashierRole ? (
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  <p className="text-xs text-slate-600">
+                    Pay approved items here, then switch to Paid to confirm they left treasury.
+                  </p>
+                  <FinanceCashierPayoutsPanel />
+                </div>
+              ) : (
               <div className="space-y-4 animate-in slide-in-from-right-5">
                 <FinanceTabContextBanner
                   tone="slate"
@@ -1646,6 +1416,7 @@ export function AccountTabPanels() {
                   </div>
                 </details>
               </div>
+              )
             )}
 
             {activeTab === 'audit' && (

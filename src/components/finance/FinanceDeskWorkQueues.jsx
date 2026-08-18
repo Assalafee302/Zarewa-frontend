@@ -87,6 +87,11 @@ import {
 
 import { FinanceTreasuryAwaitingPayoutQueues } from "./FinanceTreasuryAwaitingPayoutQueues";
 import { OrphanHaulageDeskPanel } from "./OrphanHaulageDeskPanel";
+import {
+  findQuotationByRef,
+  quotationColourGaugeLabel,
+  receiptDateLabel,
+} from "../../lib/quotationColourGauge.js";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -451,8 +456,6 @@ export function FinanceDeskWorkQueues({
 
   const trialEx = trialData?.exceptions;
 
-  const creditTrial = trialData?.creditExceptions;
-
   const nextActionSummary = buildNextActionSummary([
     pendingReceipts.length > 0
       ? `${pendingReceipts.length} receipt${pendingReceipts.length !== 1 ? "s" : ""} to confirm`
@@ -474,15 +477,8 @@ export function FinanceDeskWorkQueues({
       w.push({ label: "Treasury movement not settled", tone: "warn" });
     }
 
-    if ((creditTrial?.deliveriesWarningNoCreditCount ?? 0) > 0) {
-      w.push({
-        label: "Deliveries waiting on payment or credit",
-        tone: "warn",
-      });
-    }
-
     return w;
-  }, [trialEx, creditTrial]);
+  }, [trialEx]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -696,6 +692,10 @@ export function FinanceDeskWorkQueues({
                         r._cuttingListLinkKind === "linked" && r._cuttingListId
                           ? `CL ${r._cuttingListId}`
                           : r._cuttingListLabel || "No cutting list";
+                      const quoteSpec = quotationColourGaugeLabel(
+                        findQuotationByRef(ws?.snapshot?.quotations, r.quotationRef)
+                      );
+                      const dateLabel = receiptDateLabel(r);
                       return (
                       <FinanceDeskColoredQueueRow
                         key={r.id}
@@ -717,6 +717,16 @@ export function FinanceDeskWorkQueues({
                         }
                         extra={
                           <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            {dateLabel ? (
+                              <span className="text-ui-xs font-semibold tabular-nums text-slate-600">
+                                {dateLabel}
+                              </span>
+                            ) : null}
+                            {quoteSpec ? (
+                              <span className="rounded-md border border-slate-200 bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+                                {quoteSpec}
+                              </span>
+                            ) : null}
                             <span
                               className={`${SALES_STATUS_CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
                               title={r._cuttingListTitle || cuttingChipLabel}

@@ -178,7 +178,7 @@ export function OperationsProductionOverview({
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200/90 bg-gradient-to-r from-slate-50/90 to-white px-3 py-2.5 sm:px-4">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Store desk · today</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Store desk</p>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -315,22 +315,25 @@ export function OperationsProductionOverview({
           ) : (
             <ul className="space-y-2 max-h-[min(280px,40vh)] overflow-y-auto pr-1 custom-scrollbar">
               {pendingProductions.map((row) => (
-                <li
-                  key={`${row.id}-${row.reason}`}
-                  className={`rounded-lg border px-3 py-2 ${
-                    row.severity === 'critical'
-                      ? 'border-rose-200 bg-rose-50/80'
-                      : row.severity === 'high'
-                        ? 'border-amber-200 bg-amber-50/70'
-                        : 'border-slate-200 bg-slate-50/60'
-                  }`}
-                >
-                  <div className="flex justify-between gap-2">
-                    <span className="font-mono text-ui-xs font-bold text-slate-900">{row.id}</span>
-                    <span className="text-ui-xs font-black uppercase text-slate-500">{row.reason}</span>
-                  </div>
-                  <p className="mt-0.5 text-ui-xs font-semibold text-slate-800 truncate">{row.customer}</p>
-                  <p className="text-ui-xs text-slate-500 truncate">{row.label}</p>
+                <li key={`${row.id}-${row.reason}`}>
+                  <button
+                    type="button"
+                    onClick={onGoProduction}
+                    className={`w-full text-left rounded-lg border px-3 py-2 transition hover:brightness-[0.99] ${
+                      row.severity === 'critical'
+                        ? 'border-rose-200 bg-rose-50/80'
+                        : row.severity === 'high'
+                          ? 'border-amber-200 bg-amber-50/70'
+                          : 'border-slate-200 bg-slate-50/60'
+                    }`}
+                  >
+                    <div className="flex justify-between gap-2">
+                      <span className="font-mono text-ui-xs font-bold text-slate-900">{row.id}</span>
+                      <span className="text-ui-xs font-black uppercase text-slate-500">{row.reason}</span>
+                    </div>
+                    <p className="mt-0.5 text-ui-xs font-semibold text-slate-800 truncate">{row.customer}</p>
+                    <p className="text-ui-xs text-slate-500 truncate">{row.label}</p>
+                  </button>
                 </li>
               ))}
             </ul>

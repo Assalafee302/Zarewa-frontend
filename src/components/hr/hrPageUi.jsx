@@ -57,12 +57,12 @@ export function HrPageIntro({ title, description, actions, children }) {
 
   return (
     <div
-      className={`flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between ${
-        hasCopy ? 'border-b border-slate-100 pb-4' : ''
+      className={`flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between ${
+        hasCopy ? 'border-b border-slate-100 pb-3' : ''
       }`}
     >
       {hasCopy ? (
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 max-w-full sm:flex-1">
           {title ? <h2 className="z-page-title text-zarewa-teal">{title}</h2> : null}
           {description ? <p className="z-page-subtitle">{description}</p> : null}
           {children}

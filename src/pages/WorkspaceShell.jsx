@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PageShell } from '../components/layout';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { useHelpChat } from '../context/HelpChatContext';
 import { useOptionalToast } from '../context/ToastContext';
 import {
   getWorkspaceZoneConfig,
@@ -13,7 +12,6 @@ import {
 import { workItemShowsOnWorkspaceUnifiedInbox } from '../lib/workItemPersonalInbox';
 import { workItemMatchesTaskQueueTab } from '../lib/workspaceTaskQueue';
 import { computeWorkspaceIntelligence } from '../lib/workspaceIntelligence';
-import { buildWorkspaceAiContext } from '../lib/workspaceAiContext';
 import { officeThreadIdFromWorkItem } from '../lib/officeThreadFromWorkItem';
 import { useOfficeRecordActions } from '../lib/useOfficeRecordActions';
 import { apiFetch } from '../lib/apiBase';
@@ -29,24 +27,12 @@ import ActionInbox from '../components/workspace/v3/ActionInbox';
 import RecordsZone from '../components/workspace/v3/RecordsZone';
 import AppsGrid from '../components/workspace/v3/AppsGrid';
 import ActivityFeed from '../components/workspace/v3/ActivityFeed';
-import RoomList from '../components/workspace/v3/RoomList';
-import RoomView from '../components/workspace/v3/RoomView';
+import { openTeamChat } from '../lib/teamChatEvents';
 import {
-  fetchWorkspaceRooms,
-  fetchRoomMessages,
-  markRoomRead,
-  sendRoomMessage,
   fetchWorkspaceActivity,
   markWorkspaceActivityRead,
   fetchWorkspacePresence,
   postPresenceHeartbeat,
-  promoteRoomMessage,
-  createWorkspaceDm,
-  muteWorkspaceRoom,
-  archiveWorkspaceRoom,
-  editRoomMessage,
-  deleteRoomMessage,
-  pinRoomWorkCard,
   openWorkspaceRealtime,
 } from '../lib/workspaceV3Api';
 
@@ -59,17 +45,14 @@ const CREATE_KIND_MAP = {
 };
 
 const LAST_ZONE_KEY = 'zarewa.workspace.v3.lastZone';
-const draftQueueKey = (roomId) => `zarewa.workspace.v3.messageDraft.${roomId}`;
 
 const ZONE_HOTKEYS = {
   '1': 'activity',
-  '2': 'rooms',
-  '3': 'action',
-  '4': 'records',
-  '5': 'apps',
+  '2': 'action',
+  '3': 'records',
+  '4': 'apps',
 };
 
-const ROOMS_POLL_MS = 30000;
 const IDLE_POLL_MS = 60000;
 const HEARTBEAT_MS = 30000;
 
@@ -84,7 +67,6 @@ const MONITOR_ROLES = new Set([
 
 export default function WorkspaceShell() {
   const ws = useWorkspace();
-  const helpChat = useHelpChat();
   const { show: showToast } = useOptionalToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -120,20 +102,6 @@ export default function WorkspaceShell() {
   const [contextOpen, setContextOpen] = useState(true);
   const [filingBusy, setFilingBusy] = useState(false);
 
-  const [rooms, setRooms] = useState([]);
-  const [roomsLoading, setRoomsLoading] = useState(false);
-  const [roomQuery, setRoomQuery] = useState('');
-  const [activeRoomId, setActiveRoomId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [pinnedCards, setPinnedCards] = useState([]);
-  const [messagesLoading, setMessagesLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [hasEarlierMessages, setHasEarlierMessages] = useState(false);
-  const [loadingEarlier, setLoadingEarlier] = useState(false);
-  const [dmDirectory, setDmDirectory] = useState(null);
-  const [dmLoadFailed, setDmLoadFailed] = useState(false);
-  const [dmCreating, setDmCreating] = useState(false);
-
   const [activityEvents, setActivityEvents] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [presence, setPresence] = useState([]);
@@ -142,13 +110,9 @@ export default function WorkspaceShell() {
   // Refs keep callbacks referentially stable so effects (SSE, initial load)
   // don't tear down and refire whenever work items or the toast change.
   const wsRef = useRef(ws);
-  const activeRoomIdRef = useRef(activeRoomId);
   const activityFallbackToastShownRef = useRef(false);
-  const roomsRef = useRef(rooms);
   const activityEventsRef = useRef(activityEvents);
   const showToastRef = useRef(showToast);
-  const messagesReqIdRef = useRef(0);
-  const messagesAbortRef = useRef(null);
   const profileRef = useRef(null);
 
   const visibleWorkItems = useMemo(() => {
@@ -171,48 +135,27 @@ export default function WorkspaceShell() {
 
   useEffect(() => {
     wsRef.current = ws;
-    activeRoomIdRef.current = activeRoomId;
-    roomsRef.current = rooms;
     activityEventsRef.current = activityEvents;
     intelligenceRef.current = intelligence;
     showToastRef.current = showToast;
-  }, [ws, activeRoomId, rooms, activityEvents, intelligence, showToast]);
+  }, [ws, activityEvents, intelligence, showToast]);
 
   const unread = useMemo(() => {
     // Action badge matches the "Needs my action" tab count exactly.
     const actionCount = visibleWorkItems.filter((i) =>
       workItemMatchesTaskQueueTab(i, 'needs_action', inboxCtx)
     ).length;
-    const roomsUnread = rooms.reduce((n, r) => n + Number(r.unreadCount || 0), 0);
     // Own actions never count as unread for the actor.
     const activityUnread = activityEvents.filter(
       (e) => !e.read && String(e.actorUserId || '') !== userId
     ).length;
     return {
       activity: activityUnread,
-      rooms: roomsUnread,
       action: actionCount,
       records: 0,
       apps: 0,
     };
-  }, [visibleWorkItems, inboxCtx, rooms, activityEvents, userId]);
-
-  const activeRoom = useMemo(() => rooms.find((r) => r.id === activeRoomId) || null, [rooms, activeRoomId]);
-
-  const filteredRooms = useMemo(() => {
-    const q = roomQuery.trim().toLowerCase();
-    if (!q) return rooms;
-    return rooms.filter((r) => {
-      const hay = `${r.name || ''} ${r.slug || ''} ${r.description || ''}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [rooms, roomQuery]);
-
-  const presenceByUser = useMemo(() => {
-    const map = {};
-    for (const p of presence) map[p.userId] = p;
-    return map;
-  }, [presence]);
+  }, [visibleWorkItems, inboxCtx, activityEvents, userId]);
 
   const selectedThreadId = officeThreadIdFromWorkItem(selectedItem);
   const recordActions = useOfficeRecordActions({
@@ -255,55 +198,6 @@ export default function WorkspaceShell() {
       },
     };
   }, [intelligence]);
-
-  const loadRooms = useCallback(async ({ silent } = {}) => {
-    const isFirstLoad = roomsRef.current.length === 0;
-    if (!silent || isFirstLoad) setRoomsLoading(true);
-    try {
-      const { rooms: list, error } = await fetchWorkspaceRooms();
-      if (error) {
-        if (isFirstLoad) setRooms([]);
-      } else {
-        setRooms(list);
-        setActiveRoomId((prev) => {
-          if (prev && list.some((r) => r.id === prev)) return prev;
-          return prev || list[0]?.id || null;
-        });
-      }
-    } finally {
-      if (!silent || isFirstLoad) setRoomsLoading(false);
-    }
-  }, []);
-
-  const loadMessages = useCallback(async (roomId, { silent, beforeIso } = {}) => {
-    if (!roomId) return;
-    messagesAbortRef.current?.abort();
-    const ac = new AbortController();
-    messagesAbortRef.current = ac;
-    const seq = ++messagesReqIdRef.current;
-    if (beforeIso) setLoadingEarlier(true);
-    else if (!silent) setMessagesLoading(true);
-    try {
-      const { messages: msgs, pinned, hasMore, error } = await fetchRoomMessages(roomId, {
-        signal: ac.signal,
-        beforeIso,
-      });
-      if (seq !== messagesReqIdRef.current) return;
-      if (!error) {
-        setMessages((prev) => (beforeIso ? [...msgs, ...prev] : msgs));
-        setPinnedCards(pinned || []);
-        setHasEarlierMessages(Boolean(hasMore));
-      }
-    } catch (err) {
-      if (err?.name === 'AbortError') return;
-      showToastRef.current?.('Could not load messages — try again', { variant: 'error' });
-    } finally {
-      if (seq === messagesReqIdRef.current) {
-        if (beforeIso) setLoadingEarlier(false);
-        else if (!silent) setMessagesLoading(false);
-      }
-    }
-  }, []);
 
   const loadActivity = useCallback(async ({ silent } = {}) => {
     const isFirstLoad = activityEventsRef.current.length === 0;
@@ -391,63 +285,19 @@ export default function WorkspaceShell() {
   }, [visibleWorkItems, selectedItem]);
 
   useEffect(() => {
-    void loadRooms();
     void loadActivity();
     void loadPresence();
-  }, [loadRooms, loadActivity, loadPresence]);
-
-  // Lazily fetch the office directory the first time Rooms is opened
-  // (feeds the New DM picker).
-  useEffect(() => {
-    if (activeZone !== 'rooms' || Array.isArray(dmDirectory) || dmLoadFailed) return;
-    let cancelled = false;
-    (async () => {
-      const { ok, data } = await apiFetch('/api/office/directory');
-      if (cancelled) return;
-      if (ok && data?.ok && Array.isArray(data.users)) {
-        setDmDirectory(data.users.filter((u) => String(u.id || '') !== userId));
-        setDmLoadFailed(false);
-      } else {
-        setDmLoadFailed(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeZone, dmDirectory, dmLoadFailed, userId]);
+  }, [loadActivity, loadPresence]);
 
   useEffect(() => {
     if (realtimeStatus !== 'polling') return undefined;
-    const interval = activeZone === 'rooms' ? ROOMS_POLL_MS : IDLE_POLL_MS;
     const t = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      void loadRooms({ silent: true });
       void loadActivity({ silent: true });
       void loadPresence();
-      if (activeZone === 'rooms' && activeRoomIdRef.current) {
-        void loadMessages(activeRoomIdRef.current, { silent: true });
-      }
-    }, interval);
+    }, IDLE_POLL_MS);
     return () => clearInterval(t);
-  }, [realtimeStatus, activeZone, loadRooms, loadActivity, loadPresence, loadMessages]);
-
-  useEffect(() => {
-    if (activeZone !== 'rooms') return;
-    setMessages([]);
-    setPinnedCards([]);
-    setHasEarlierMessages(false);
-    if (activeRoomId) {
-      void loadMessages(activeRoomId);
-      // Clear the unread cursor for the viewed room, then refresh badges.
-      void markRoomRead(activeRoomId).then((ok) => {
-        if (ok) {
-          setRooms((prev) =>
-            prev.map((r) => (r.id === activeRoomId ? { ...r, unreadCount: 0 } : r))
-          );
-        }
-      });
-    }
-  }, [activeZone, activeRoomId, loadMessages]);
+  }, [realtimeStatus, loadActivity, loadPresence]);
 
   // Presence heartbeat pauses while the tab is hidden and reports away/online
   // transitions on visibility change.
@@ -478,13 +328,6 @@ export default function WorkspaceShell() {
       onOpen: () => setRealtimeStatus('connected'),
       onEvent: (payload) => {
         setRealtimeStatus('connected');
-        if (payload?.type === 'message.created') {
-          if (payload.roomId && payload.roomId === activeRoomIdRef.current) {
-            void loadMessages(activeRoomIdRef.current, { silent: true });
-            void markRoomRead(activeRoomIdRef.current);
-          }
-          void loadRooms({ silent: true });
-        }
         if (payload?.type === 'activity.created') void loadActivity({ silent: true });
         if (payload?.type === 'presence.changed') void loadPresence();
         if (payload?.type === 'work_item.updated') void wsRef.current?.refresh?.();
@@ -499,7 +342,7 @@ export default function WorkspaceShell() {
         /* ignore */
       }
     };
-  }, [loadMessages, loadActivity, loadPresence, loadRooms]);
+  }, [loadActivity, loadPresence]);
 
   useEffect(() => {
     const st = location.state;
@@ -508,9 +351,8 @@ export default function WorkspaceShell() {
     }
     if (st?.zone && isValidWorkspaceZone(String(st.zone))) setActiveZone(String(st.zone));
     if (st?.taskTab && isValidTaskQueueTab(String(st.taskTab))) setTaskTab(String(st.taskTab));
-    if (st?.roomId) {
-      setActiveRoomId(String(st.roomId));
-      setActiveZone('rooms');
+    if (st?.roomId || st?.zone === 'rooms') {
+      openTeamChat({ roomId: st.roomId ? String(st.roomId) : undefined });
     }
     if (st?.workItemId && ws?.getUnifiedWorkItemById) {
       const item = ws.getUnifiedWorkItemById(String(st.workItemId));
@@ -538,9 +380,6 @@ export default function WorkspaceShell() {
           setSelectedItem(null);
           return;
         }
-        if (activeZone === 'rooms' && activeRoomId && window.matchMedia('(max-width: 767px)').matches) {
-          setActiveRoomId(null);
-        }
         return;
       }
       // No zone jumps while a dialog or create menu is open.
@@ -555,15 +394,13 @@ export default function WorkspaceShell() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [createOpen, createMenuOpen, selectedItem, activeZone, activeRoomId]);
+  }, [createOpen, createMenuOpen, selectedItem]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
       await ws.refresh?.();
-      await loadRooms();
       await loadActivity();
-      if (activeRoomId) await loadMessages(activeRoomId);
       showToast?.('Workspace refreshed', { variant: 'success' });
     } catch {
       showToast?.('Refresh failed — try again', { variant: 'error' });
@@ -586,194 +423,6 @@ export default function WorkspaceShell() {
     }
     setCreatePrefill({ recordType: CREATE_KIND_MAP[kind] || kind });
     setCreateOpen(true);
-  };
-
-  /**
-   * @param {{ body: string, attachments?: object[] } | string} payload
-   * @returns {Promise<boolean>} false on failure so the composer keeps the draft.
-   */
-  const handleSend = async (payload) => {
-    if (!activeRoomId) return false;
-    setSending(true);
-    try {
-      const { message, error } = await sendRoomMessage(activeRoomId, payload);
-      if (error) {
-        const offline =
-          ws?.usingCachedData ||
-          (typeof navigator !== 'undefined' && !navigator.onLine) ||
-          /network|offline|fetch/i.test(error);
-        if (offline) {
-          try {
-            sessionStorage.setItem(draftQueueKey(activeRoomId), JSON.stringify(payload));
-            showToast?.('Message queued and will retry when you reconnect', { variant: 'warning' });
-            return true;
-          } catch {
-            /* preserve the composer draft */
-          }
-        }
-        showToast?.(error, { variant: 'error' });
-        return false;
-      }
-      if (message) setMessages((prev) => [...prev, message]);
-      else await loadMessages(activeRoomId);
-      void loadRooms({ silent: true });
-      return true;
-    } finally {
-      setSending(false);
-    }
-  };
-
-  useEffect(() => {
-    const retryQueued = async () => {
-      if (!activeRoomId || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
-      let payload;
-      try {
-        payload = JSON.parse(sessionStorage.getItem(draftQueueKey(activeRoomId)) || 'null');
-      } catch {
-        payload = null;
-      }
-      if (!payload) return;
-      const { message, error } = await sendRoomMessage(activeRoomId, payload);
-      if (error) return;
-      try {
-        sessionStorage.removeItem(draftQueueKey(activeRoomId));
-      } catch {
-        /* storage unavailable */
-      }
-      if (message) setMessages((prev) => [...prev, message]);
-      else void loadMessages(activeRoomId);
-      showToast?.('Queued message sent', { variant: 'success' });
-    };
-    window.addEventListener('online', retryQueued);
-    void retryQueued();
-    return () => window.removeEventListener('online', retryQueued);
-  }, [activeRoomId, loadMessages, showToast]);
-
-  const handleMuteRoom = async (room, shouldMute) => {
-    const mutedUntilIso = shouldMute ? new Date(Date.now() + 8 * 3600000).toISOString() : null;
-    const result = await muteWorkspaceRoom(room.id, { mutedUntilIso, unmute: !shouldMute });
-    if (!result.ok) {
-      showToast?.(result.error || 'Could not update mute', { variant: 'error' });
-      return;
-    }
-    setRooms((prev) =>
-      prev.map((entry) =>
-        entry.id === room.id
-          ? { ...entry, muted: result.muted, mutedUntilIso: result.mutedUntilIso }
-          : entry
-      )
-    );
-  };
-
-  const handleArchiveRoom = async (room) => {
-    if (room.scopeKind === 'dm' || room.kind === 'dm') return;
-    if (!window.confirm(`Archive ${room.name || room.slug || 'this channel'}?`)) return;
-    const result = await archiveWorkspaceRoom(room.id, { archived: true });
-    if (!result.ok) {
-      showToast?.(result.error || 'Could not archive channel', { variant: 'error' });
-      return;
-    }
-    setRooms((prev) => prev.filter((entry) => entry.id !== room.id));
-    setActiveRoomId((current) => (current === room.id ? null : current));
-  };
-
-  const handleEditMessage = async (message) => {
-    const body = window.prompt('Edit message', message.body || '');
-    if (body === null || !body.trim() || body.trim() === message.body) return;
-    const result = await editRoomMessage(activeRoomId, message.id, { body });
-    if (!result.ok) {
-      showToast?.(result.error || 'Could not edit message', { variant: 'error' });
-      return;
-    }
-    setMessages((prev) =>
-      prev.map((entry) =>
-        entry.id === message.id
-          ? result.message || { ...entry, body: body.trim(), editedAtIso: new Date().toISOString() }
-          : entry
-      )
-    );
-  };
-
-  const handleDeleteMessage = async (message) => {
-    if (!window.confirm('Delete this message?')) return;
-    const result = await deleteRoomMessage(activeRoomId, message.id);
-    if (!result.ok) {
-      showToast?.(result.error || 'Could not delete message', { variant: 'error' });
-      return;
-    }
-    setMessages((prev) =>
-      prev.map((entry) =>
-        entry.id === message.id
-          ? { ...entry, body: 'This message was deleted', deleted: true, deletedAtIso: new Date().toISOString(), attachments: [] }
-          : entry
-      )
-    );
-  };
-
-  const handlePinSelectedToRoom = async () => {
-    if (!activeRoomId || !selectedItem) return;
-    const result = await pinRoomWorkCard(activeRoomId, {
-      workItemId: selectedItem.id,
-      title: selectedItem.title || selectedItem.referenceNo || 'Pinned work item',
-      subtitle: selectedItem.referenceNo || selectedItem.status || '',
-      status: selectedItem.status,
-      kind: selectedItem.documentType || 'work_item',
-    });
-    if (!result.ok) {
-      showToast?.(result.error || 'Could not pin work item', { variant: 'error' });
-      return;
-    }
-    showToast?.('Work item pinned to chat', { variant: 'success' });
-    await loadMessages(activeRoomId, { silent: true });
-  };
-
-  const handleStartDm = async (user) => {
-    if (dmCreating) return false;
-    setDmCreating(true);
-    try {
-      const { ok, room, error } = await createWorkspaceDm(user.id);
-      if (!ok) {
-        showToast?.(error || 'Could not start conversation', { variant: 'error' });
-        return false;
-      }
-      await loadRooms();
-      if (room?.id) setActiveRoomId(room.id);
-      return true;
-    } finally {
-      setDmCreating(false);
-    }
-  };
-
-  const handlePromote = async (kind, excerpt, messageId) => {
-    if (!activeRoomId) return;
-    if (!excerpt?.trim()) {
-      showToast?.('Add message text before converting', { variant: 'warning' });
-      return;
-    }
-    if (kind === 'memo' || kind === 'expense' || kind === 'material') {
-      setCreatePrefill({
-        recordType: CREATE_KIND_MAP[kind] || kind,
-        body: excerpt,
-        subject: String(excerpt).slice(0, 80),
-      });
-      setCreateOpen(true);
-      return;
-    }
-    const { ok, error, result } = await promoteRoomMessage(activeRoomId, { kind, excerpt, messageId });
-    if (!ok) {
-      showToast?.(error || 'Promote failed', { variant: 'error' });
-      return;
-    }
-    showToast?.('Work item created', { variant: 'success' });
-    await ws.refresh?.();
-    if (result?.workItemId) {
-      const item =
-        ws?.getUnifiedWorkItemById?.(result.workItemId) ||
-        result?.item ||
-        { id: result.workItemId };
-      setSelectedItem(item);
-      setActiveZone('action');
-    }
   };
 
   const fileSelectedRecord = async () => {
@@ -802,22 +451,6 @@ export default function WorkspaceShell() {
     }
   };
 
-  const aiContext = useMemo(
-    () =>
-      buildWorkspaceAiContext({
-        deskSection: activeZone,
-        taskTab,
-        userRole: roleKey,
-        branchScope: ws?.branchScope,
-        viewAllBranches: ws?.session?.viewAllBranches,
-        permissions: ws?.permissions,
-        canMutate: ws?.canMutate,
-        degraded: ws?.usingCachedData,
-        intelligence,
-      }),
-    [activeZone, taskTab, roleKey, ws, intelligence]
-  );
-
   const readOnly = Boolean(ws?.usingCachedData) || ws?.canMutate === false;
   const blocksCreate = Boolean(ws?.blocksBranchScopedCreate) || readOnly;
   const createBlockedMessage = readOnly
@@ -843,13 +476,6 @@ export default function WorkspaceShell() {
           onRefresh={handleRefresh}
           refreshing={refreshing}
           onOpenSearch={() => window.dispatchEvent(new CustomEvent('zarewa:open-command-palette'))}
-          onAskZare={() =>
-            helpChat?.openZare?.({
-              prompt: 'What should I do next in my workspace?',
-              pageContext: { ...aiContext, source: 'workspace-v3', realtimeStatus },
-              autoSend: true,
-            })
-          }
           onCreate={handleCreate}
           blocksCreate={blocksCreate}
           createBlockedMessage={createBlockedMessage}
@@ -910,86 +536,12 @@ export default function WorkspaceShell() {
                     }
                   }
                   if (ev.roomId) {
-                    setActiveRoomId(ev.roomId);
-                    setActiveZone('rooms');
+                    openTeamChat({ roomId: ev.roomId });
                   } else {
                     setActiveZone('action');
                   }
                 }}
                 />
-              </div>
-            ) : null}
-
-            {activeZone === 'rooms' ? (
-              <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden">
-                <div
-                  className={`w-full shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white md:max-w-[18rem] ${
-                    activeRoom ? 'hidden md:block' : 'block'
-                  }`}
-                >
-                  <RoomList
-                    rooms={filteredRooms}
-                    activeRoomId={activeRoomId}
-                    loading={roomsLoading && rooms.length === 0}
-                    searchQuery={roomQuery}
-                    onSearchQueryChange={setRoomQuery}
-                    onSelectRoom={(r) => setActiveRoomId(r.id)}
-                    onRetry={() => {
-                      setDmLoadFailed(false);
-                      void loadRooms();
-                    }}
-                    onStartDm={handleStartDm}
-                    dmDirectory={dmDirectory}
-                    dmCreating={dmCreating}
-                    presenceByUser={presenceByUser}
-                    currentUserId={userId}
-                    onMuteRoom={handleMuteRoom}
-                    onArchiveRoom={handleArchiveRoom}
-                  />
-                </div>
-                <div
-                  className={`min-w-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white ${
-                    activeRoom ? 'flex' : 'hidden md:flex'
-                  }`}
-                >
-                  <RoomView
-                    room={activeRoom}
-                    messages={messages}
-                    pinnedCards={pinnedCards}
-                    loading={messagesLoading}
-                    sending={sending}
-                    onSend={handleSend}
-                    onPromote={handlePromote}
-                    hasMore={hasEarlierMessages}
-                    loadingEarlier={loadingEarlier}
-                    onLoadEarlier={() => {
-                      const oldest = messages[0]?.createdAtIso;
-                      if (oldest) void loadMessages(activeRoomId, { beforeIso: oldest });
-                    }}
-                    onMuteRoom={handleMuteRoom}
-                    onArchiveRoom={handleArchiveRoom}
-                    onEditMessage={handleEditMessage}
-                    onDeleteMessage={handleDeleteMessage}
-                    directory={dmDirectory || []}
-                    presenceByUser={presenceByUser}
-                    currentUserId={userId}
-                    onBack={() => setActiveRoomId(null)}
-                    composerDisabled={readOnly}
-                    composerDisabledReason={
-                      readOnly ? 'Read-only snapshot — reconnect to send messages.' : undefined
-                    }
-                    deskProfile={zoneConfig.profile}
-                    onOpenCard={(card) => {
-                      if (card.workItemId && ws?.getUnifiedWorkItemById) {
-                        const item = ws.getUnifiedWorkItemById(card.workItemId);
-                        if (item) {
-                          setSelectedItem(item);
-                          setActiveZone('action');
-                        }
-                      }
-                    }}
-                  />
-                </div>
               </div>
             ) : null}
 
@@ -1019,8 +571,7 @@ export default function WorkspaceShell() {
                   setActiveChip(null);
                 }}
                 onOpenSourceRoom={(roomId) => {
-                  setActiveRoomId(roomId);
-                  setActiveZone('rooms');
+                  openTeamChat({ roomId });
                 }}
               />
             ) : null}
@@ -1059,24 +610,21 @@ export default function WorkspaceShell() {
 
           <div
             className={
-              contextOpen && (selectedItem || (activeZone === 'rooms' && activeRoom))
+              contextOpen && selectedItem
                 ? 'fixed inset-x-0 bottom-[3.25rem] z-40 max-h-[45vh] overflow-hidden rounded-t-xl shadow-2xl md:bottom-0 xl:static xl:max-h-none xl:rounded-none xl:shadow-none'
                 : 'hidden xl:block'
             }
           >
             <ContextRail
               workItem={contextOpen ? selectedItem : null}
-              room={contextOpen ? activeRoom : null}
               presence={presence}
               actionsBusy={recordActions.busy}
               fileBusy={filingBusy}
               onApprove={canContextApprove ? () => void recordActions.endorse() : undefined}
               onReject={canContextReject ? () => void recordActions.returnForInfo() : undefined}
               onFile={canContextFile ? () => void fileSelectedRecord() : undefined}
-              onPinToRoom={selectedItem && activeRoom && !readOnly ? () => void handlePinSelectedToRoom() : undefined}
               onOpenOriginRoom={(roomId) => {
-                setActiveRoomId(roomId);
-                setActiveZone('rooms');
+                openTeamChat({ roomId });
               }}
               onClose={() => {
                 setContextOpen(false);
