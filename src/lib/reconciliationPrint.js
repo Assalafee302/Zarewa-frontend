@@ -4,6 +4,7 @@ import { isReceiptPendingClearance, pendingClearanceTotalNgn, receiptEffectiveCa
 import {
   hangingRefundIndicatorsByCustomerId,
 } from './refundsStore';
+import { quotationsStillToBalanceRows, quotationEffectivePaidNgn } from './quotationPaymentSummary.js';
 import { normSalesQuotationRefKey, receiptLedgerReceiptTreasurySplits } from './salesReceiptsList';
 
 /** Print cell for same-customer open refunds / unapplied overpay credit (indicator only). */
@@ -83,25 +84,18 @@ export function formatReceiptCustomerWithPhone(receipt, phoneByCustomerId) {
   return name === '—' ? phone : `${name} · ${phone}`;
 }
 
-/** Plain table print — matches treasury account statement (lines + data only). */
-export function buildReconciliationListPrintHtml(payload) {
-  const title = String(payload?.title || 'Reconciliation list');
-  const periodLabel = String(payload?.periodLabel || '').trim();
-  const columns = Array.isArray(payload?.columns) ? payload.columns : [];
-  const rows = Array.isArray(payload?.rows) ? payload.rows : [];
-  const summaryLines = Array.isArray(payload?.summaryLines) ? payload.summaryLines : [];
-  const isLandscape = payload?.layout !== 'portrait';
-
-  const headerCells = columns
+function renderPrintDataTable(columns, rows) {
+  const cols = Array.isArray(columns) ? columns : [];
+  const data = Array.isArray(rows) ? rows : [];
+  const headerCells = cols
     .map(
       (c) =>
         `<th${c.align === 'right' ? ' class="num"' : ''}>${escapeHtml(c.label)}</th>`
     )
     .join('');
-
-  const bodyRows = rows
+  const bodyRows = data
     .map((row) => {
-      const cells = columns
+      const cells = cols
         .map((c) => {
           const raw = row[c.key];
           const text = raw != null && raw !== '' ? String(raw) : '—';
@@ -112,6 +106,24 @@ export function buildReconciliationListPrintHtml(payload) {
       return `<tr>${cells}</tr>`;
     })
     .join('');
+  return `<table>
+    <thead><tr>${headerCells}</tr></thead>
+    <tbody>${
+      bodyRows ||
+      `<tr><td colspan="${Math.max(1, cols.length)}">No rows.</td></tr>`
+    }</tbody>
+  </table>`;
+}
+
+/** Plain table print — matches treasury account statement (lines + data only). */
+export function buildReconciliationListPrintHtml(payload) {
+  const title = String(payload?.title || 'Reconciliation list');
+  const periodLabel = String(payload?.periodLabel || '').trim();
+  const columns = Array.isArray(payload?.columns) ? payload.columns : [];
+  const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+  const extraSections = Array.isArray(payload?.extraSections) ? payload.extraSections : [];
+  const summaryLines = Array.isArray(payload?.summaryLines) ? payload.summaryLines : [];
+  const isLandscape = payload?.layout !== 'portrait';
 
   const summaryHtml = summaryLines
     .map(
@@ -120,9 +132,22 @@ export function buildReconciliationListPrintHtml(payload) {
     )
     .join('');
 
+  const extraHtml = extraSections
+    .filter((section) => Array.isArray(section?.rows) && section.rows.length > 0)
+    .map((section) => {
+      const heading = String(section.heading || '').trim();
+      const note = String(section.note || '').trim();
+      return `${heading ? `<h2>${escapeHtml(heading)}</h2>` : ''}
+      ${note ? `<p class="meta">${escapeHtml(note)}</p>` : ''}
+      ${renderPrintDataTable(section.columns, section.rows)}`;
+    })
+    .join('');
+
   const pageRule = isLandscape
     ? '@page { size: A4 landscape; margin: 12mm; }'
     : '@page { size: A4 portrait; margin: 12mm; }';
+
+  const mainHeading = extraHtml && rows.length ? '<h2>Receipts pending confirmation</h2>' : '';
 
   return `<!doctype html>
 <html>
@@ -133,6 +158,7 @@ export function buildReconciliationListPrintHtml(payload) {
     ${pageRule}
     body { font-family: Arial, sans-serif; margin: 24px; color: #000; }
     h1 { margin: 0 0 8px; font-size: 20px; font-weight: bold; }
+    h2 { margin: 20px 0 8px; font-size: 14px; font-weight: bold; }
     p.meta { margin: 0 0 4px; font-size: 12px; }
     table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 11px; }
     th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: top; line-height: 1.25; }
@@ -145,20 +171,23 @@ export function buildReconciliationListPrintHtml(payload) {
   <h1>${escapeHtml(title)}</h1>
   ${periodLabel ? `<p class="meta">${escapeHtml(periodLabel)}</p>` : ''}
   ${summaryHtml}
-  <table>
-    <thead><tr>${headerCells}</tr></thead>
-    <tbody>${
-      bodyRows ||
-      `<tr><td colspan="${Math.max(1, columns.length)}">No rows.</td></tr>`
-    }</tbody>
-  </table>
+  ${mainHeading}
+  ${rows.length || !extraHtml ? renderPrintDataTable(columns, rows) : ''}
+  ${extraHtml}
 </body>
 </html>`;
 }
 
+export function reconciliationPrintHasRows(payload) {
+  if (payload?.rows?.length) return true;
+  return (Array.isArray(payload?.extraSections) ? payload.extraSections : []).some(
+    (section) => Array.isArray(section?.rows) && section.rows.length > 0
+  );
+}
+
 /** @param {ReturnType<typeof unreconciledReceiptsPrintPayload>} payload */
 export function openReconciliationListPrint(payload) {
-  if (!payload?.rows?.length) return false;
+  if (!reconciliationPrintHasRows(payload)) return false;
   const html = buildReconciliationListPrintHtml(payload);
   return openPrintHtmlDocument(html, payload.title || 'Reconciliation list');
 }
@@ -189,6 +218,7 @@ export function unreconciledReceiptRows(receipts = []) {
  *   cuttingLists?: object[];
  *   refunds?: object[];
  *   ledgerEntries?: object[];
+ *   salesReceipts?: object[];
  * }} [opts]
  */
 export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [], opts = {}) {
@@ -196,6 +226,15 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
   const materialByQuote = quotationMaterialByRefMap(opts.quotations);
   const cuttingByQuote = cuttingListSummaryByQuoteRefMap(opts.cuttingLists);
   const hangingByCustomer = hangingRefundIndicatorsByCustomerId(opts.refunds, opts.ledgerEntries);
+  const payOpts = {
+    salesReceipts: Array.isArray(opts.salesReceipts) && opts.salesReceipts.length ? opts.salesReceipts : receipts,
+    ledgerEntries: opts.ledgerEntries,
+  };
+  const quoteByRef = new Map();
+  for (const q of opts.quotations || []) {
+    const key = normSalesQuotationRefKey(q?.id || q?.quotationID || q?.quotationRef);
+    if (key && !quoteByRef.has(key)) quoteByRef.set(key, q);
+  }
 
   let receiptsWithHangingRefund = 0;
   let receiptsWithoutCuttingList = 0;
@@ -218,6 +257,13 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       const qKey = normSalesQuotationRefKey(r.quotationRef);
       const material = qKey ? materialByQuote.get(qKey) : null;
       const cutting = qKey ? cuttingByQuote.get(qKey) : null;
+      const quote = qKey ? quoteByRef.get(qKey) : null;
+      const stillDueNgn = quote
+        ? Math.max(
+            0,
+            Math.round(Number(quote.totalNgn ?? quote.total_ngn) || 0) - quotationEffectivePaidNgn(quote, payOpts)
+          )
+        : 0;
       const customerId = String(r.customerID || '').trim();
       const hanging = customerId ? hangingByCustomer.get(customerId) : null;
       if (hanging) receiptsWithHangingRefund += 1;
@@ -233,6 +279,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
         customer: formatReceiptCustomerWithPhone(r, phoneByCustomerId),
         quotationRef: String(r.quotationRef || '—'),
         amountReceived: formatNgn(cash),
+        stillDue: stillDueNgn > 0 ? formatNgn(stillDueNgn) : '—',
         treasuryAccounts: accounts,
         registeredBy: receiptRegisteredByLabel(r, opts.ledgerEntries) || '—',
         colour: material?.colour || '—',
@@ -240,16 +287,65 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
         cuttingList: cuttingListLabel,
         totalMeters: cutting?.totalMetersLabel || '—',
         hangingRefund: formatHangingRefundPrintCell(hanging),
-        status: 'Pending clearance',
+        status: stillDueNgn > 0 ? 'Pending clearance · partial' : 'Pending clearance',
       };
     });
+
+  const partialQuotes = quotationsStillToBalanceRows(opts.quotations, payOpts);
+  const partialQuoteRows = partialQuotes.map((row) => {
+    const qKey = normSalesQuotationRefKey(row.id);
+    const material = qKey ? materialByQuote.get(qKey) : null;
+    const cutting = qKey ? cuttingByQuote.get(qKey) : null;
+    return {
+      quoteDate: row.date || '—',
+      quotationRef: row.id || '—',
+      customer: formatReceiptCustomerWithPhone(
+        { customer: row.customer, customerID: row.customerID },
+        phoneByCustomerId
+      ),
+      colour: material?.colour || '—',
+      gauge: material?.gauge || '—',
+      paid: formatNgn(row.paid),
+      quoteTotal: formatNgn(row.total),
+      stillDue: formatNgn(row.balance),
+      cuttingList: cutting?.cuttingListLabel || (qKey ? 'No cutting list' : '—'),
+      totalMeters: cutting?.totalMetersLabel || '—',
+      status: 'Partial — balance due',
+    };
+  });
+  const partialBalanceTotalNgn = partialQuotes.reduce((s, row) => s + row.balance, 0);
+
+  const extraSections = partialQuoteRows.length
+    ? [
+        {
+          heading: 'Quotations still to balance (partial payment)',
+          note: 'Customers who already paid part of the quote and still have a remaining balance.',
+          columns: [
+            { key: 'quoteDate', label: 'Date' },
+            { key: 'quotationRef', label: 'Quotation' },
+            { key: 'customer', label: 'Customer' },
+            { key: 'colour', label: 'Colour' },
+            { key: 'gauge', label: 'Gauge' },
+            { key: 'paid', label: 'Paid', align: 'right' },
+            { key: 'quoteTotal', label: 'Quote total', align: 'right' },
+            { key: 'stillDue', label: 'Balance due', align: 'right' },
+            { key: 'cuttingList', label: 'Cutting list' },
+            { key: 'totalMeters', label: 'Total metres', align: 'right' },
+            { key: 'status', label: 'Status' },
+          ],
+          rows: partialQuoteRows,
+        },
+      ]
+    : [];
 
   const branchLabel = String(opts.branchLabel || '').trim();
   const generatedAt = opts.generatedAt instanceof Date ? opts.generatedAt : new Date();
   const totalNgn = pendingClearanceTotalNgn(receipts);
 
   return {
-    title: 'Unreconciled customer receipts',
+    title: extraSections.length
+      ? 'Receipts pending confirmation & partial balances'
+      : 'Unreconciled customer receipts',
     periodLabel: branchLabel
       ? `${branchLabel} · as at ${generatedAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
       : `As at ${generatedAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`,
@@ -262,6 +358,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       { key: 'customer', label: 'Customer' },
       { key: 'quotationRef', label: 'Quotation' },
       { key: 'amountReceived', label: 'Received', align: 'right' },
+      { key: 'stillDue', label: 'Still due', align: 'right' },
       { key: 'treasuryAccounts', label: 'Bank / cash account' },
       { key: 'registeredBy', label: 'Registered by' },
       { key: 'colour', label: 'Colour' },
@@ -272,9 +369,12 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
       { key: 'status', label: 'Status' },
     ],
     rows,
+    extraSections,
     summaryLines: [
       { label: 'Receipts pending clearance', value: String(rows.length) },
       { label: 'Total awaiting reconciliation', value: formatNgn(totalNgn) },
+      { label: 'Partial quotations still to balance', value: String(partialQuoteRows.length) },
+      { label: 'Remaining quote balances', value: formatNgn(partialBalanceTotalNgn) },
       { label: 'Pending receipts without cutting list', value: String(receiptsWithoutCuttingList) },
       {
         label: 'Receipts with same-customer hanging refund / unapplied overpay credit (indicator only)',

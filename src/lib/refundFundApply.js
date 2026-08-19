@@ -6,9 +6,25 @@
 export const REFUND_FUND_LEDGER_REF_PREFIX = 'CREDIT_APPLY:';
 export const REFUND_FUND_USE_LABEL = 'Use from refund fund';
 export const REFUND_FUND_DEDUCTED_LABEL = 'Deducted from refund fund';
+export const REFUND_FUND_CASHIER_OFFSET_LABEL = 'Use approved refund on this receipt';
 
 function roundNgn(n) {
   return Math.max(0, Math.round(Number(n) || 0));
+}
+
+/**
+ * Cashier confirm: take refund fund off unconfirmed receipt cash; leftover refund stays for payout.
+ * @param {{ receiptCashNgn?: number, availableNgn?: number }} p
+ */
+export function planCashierRefundOffset({ receiptCashNgn, availableNgn }) {
+  const receipt = roundNgn(receiptCashNgn);
+  const available = roundNgn(availableNgn);
+  const offsetNgn = Math.min(receipt, available);
+  return {
+    offsetNgn,
+    cashToConfirmNgn: Math.max(0, receipt - offsetNgn),
+    leftoverRefundNgn: Math.max(0, available - offsetNgn),
+  };
 }
 
 export function parsePaymentLineAmount(v) {

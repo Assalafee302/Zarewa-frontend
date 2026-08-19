@@ -1,27 +1,20 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Wallet } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { receiptLedgerReceiptTreasurySplits } from '../../lib/salesReceiptsList';
-import { SALES_STATUS_CHIP, receiptCuttingListChipClass } from '../../lib/salesStatusUi';
 import { receiptClearanceBadgeLabel, receiptRegisteredByLabel } from '../../lib/receiptClearance.js';
 import {
   findQuotationByRef,
   quotationColourGaugeLabel,
   receiptDateLabel,
 } from '../../lib/quotationColourGauge.js';
-import { HangingCustomerRefundChip, RefundFundAppliedChip } from './HangingCustomerRefundHint.jsx';
-import {
-  AppTable,
-  AppTableBody,
-  AppTableTd,
-  AppTableTh,
-  AppTableThead,
-  AppTableTr,
-  AppTableWrap,
-} from '../ui/AppDataTable';
+
+const TH =
+  'px-1.5 py-1 text-left text-[10px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap';
+const TD = 'px-1.5 py-1 align-middle text-[11px] leading-tight text-slate-800';
 
 /**
- * Pending / confirmed receipts as a uniform AppDataTable.
+ * Pending / confirmed receipts as one compact line per row (no sideways scroll).
  */
 export function FinanceReceiptsClearanceTable({
   tone = 'amber',
@@ -42,72 +35,80 @@ export function FinanceReceiptsClearanceTable({
 }) {
   const headerCls =
     tone === 'emerald'
-      ? 'rounded-lg border border-emerald-200/70 bg-emerald-50/65 px-3 py-2'
-      : 'rounded-lg border border-amber-200/70 bg-amber-50/65 px-3 py-2';
+      ? 'border-emerald-200/70 bg-emerald-50/65'
+      : 'border-amber-200/70 bg-amber-50/65';
   const titleCls = tone === 'emerald' ? 'text-emerald-900' : 'text-amber-900';
-  const descCls = tone === 'emerald' ? 'text-emerald-800/90' : 'text-amber-800/90';
   const navCls = tone === 'emerald' ? 'text-emerald-900 border-emerald-200' : 'text-amber-900 border-amber-200';
 
   return (
-    <section className="space-y-2 min-w-0">
-      <div className={`flex items-center justify-between gap-2 ${headerCls}`}>
-        <div>
-          <p className={`text-ui-xs font-black uppercase tracking-wide ${titleCls}`}>{title}</p>
-          <p className={`text-ui-xs ${descCls}`}>{description}</p>
-        </div>
-        <div className={`flex flex-wrap items-center gap-2 text-ui-xs ${titleCls}`}>
+    <section className="min-w-0 space-y-1.5">
+      <div className={`flex min-w-0 items-center justify-between gap-2 rounded-lg border px-2 py-1 ${headerCls}`}>
+        <p className={`min-w-0 truncate text-[11px] font-black uppercase tracking-wide ${titleCls}`} title={description}>
+          {title}
+        </p>
+        <div className={`flex shrink-0 items-center gap-1 text-[10px] ${titleCls}`}>
           <span className="tabular-nums">
             {listWindow.total === 0
-              ? '0 receipts'
-              : `Showing ${listWindow.from}–${listWindow.to} of ${listWindow.total}`}
+              ? '0'
+              : `${listWindow.from}–${listWindow.to}/${listWindow.total}`}
           </span>
           <button
             type="button"
             disabled={listWindow.safePage <= 0}
             onClick={onPrev}
-            className={`inline-flex items-center rounded-lg border bg-white px-2 py-1 disabled:opacity-40 ${navCls}`}
+            className={`inline-flex items-center rounded border bg-white p-0.5 disabled:opacity-40 ${navCls}`}
             aria-label="Previous page"
           >
-            <ChevronLeft size={14} />
+            <ChevronLeft size={12} />
           </button>
-          <span className="text-ui-xs font-bold tabular-nums">
+          <span className="font-bold tabular-nums">
             {listWindow.safePage + 1}/{listWindow.pageCount}
           </span>
           <button
             type="button"
             disabled={listWindow.safePage >= listWindow.pageCount - 1}
             onClick={onNext}
-            className={`inline-flex items-center rounded-lg border bg-white px-2 py-1 disabled:opacity-40 ${navCls}`}
+            className={`inline-flex items-center rounded border bg-white p-0.5 disabled:opacity-40 ${navCls}`}
             aria-label="Next page"
           >
-            <ChevronRight size={14} />
+            <ChevronRight size={12} />
           </button>
         </div>
       </div>
       {listWindow.total === 0 ? (
-        <p className="text-ui-xs text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
+        <p className="rounded-lg border border-dashed border-slate-200 py-2 text-center text-[11px] text-slate-500">
           {emptyMessage}
         </p>
       ) : (
-        <AppTableWrap>
-          <AppTable role="numeric">
-            <AppTableThead>
-              <AppTableTh>Date</AppTableTh>
-              <AppTableTh>Receipt</AppTableTh>
-              <AppTableTh>Customer</AppTableTh>
-              <AppTableTh>Colour / gauge</AppTableTh>
-              <AppTableTh align="right">Amount</AppTableTh>
-              <AppTableTh>Status</AppTableTh>
-              <AppTableTh align="right"> </AppTableTh>
-            </AppTableThead>
-            <AppTableBody>
+        <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200/90 bg-white">
+          <table className="w-full table-fixed border-collapse">
+            <colgroup>
+              <col className="w-[9%]" />
+              <col className="w-[26%]" />
+              <col className="w-[18%]" />
+              <col className="w-[14%]" />
+              <col className="w-[12%]" />
+              <col className="w-[13%]" />
+              <col className="w-[8%]" />
+            </colgroup>
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className={TH}>Date</th>
+                <th className={TH}>Receipt</th>
+                <th className={TH}>Customer</th>
+                <th className={`${TH} hidden sm:table-cell`}>Colour / gauge</th>
+                <th className={`${TH} text-right`}>Amount</th>
+                <th className={TH}>Status</th>
+                <th className={`${TH} text-right`}> </th>
+              </tr>
+            </thead>
+            <tbody>
               {listWindow.slice.map((r) => {
                 const allocated = Number(r.amountNgn) || 0;
                 const cash =
                   r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
                 const bank =
                   r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : null;
-                const cleared = Boolean(r.financeDeliveryClearedAtISO);
                 const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
                 const hanging = hangingRefundByCustomerId?.get(String(r.customerID || '').trim());
                 const refundFund = refundFundByQuote?.get(String(r.quotationRef || '').trim());
@@ -117,83 +118,106 @@ export function FinanceReceiptsClearanceTable({
                 const date = receiptDateLabel(r);
                 const cuttingChipLabel =
                   r._cuttingListLinkKind === 'linked' && r._cuttingListId
-                    ? `CL ${r._cuttingListId}`
-                    : r._cuttingListLabel || 'No cutting list';
+                    ? r._cuttingListId
+                    : r._cuttingListLabel || 'No CL';
                 const clearanceLabel = receiptClearanceBadgeLabel(r);
                 const confirmText =
                   typeof confirmLabel === 'function' ? confirmLabel(r) : confirmLabel;
+                const statusShort = r.financeReconciliationSavedAtISO
+                  ? 'Reconciled'
+                  : clearanceLabel === 'Pending clearance'
+                    ? 'Pending'
+                    : clearanceLabel;
+                const amountTitle = [
+                  formatNgn(cash),
+                  Math.round(allocated) !== Math.round(cash) ? `Quote ${formatNgn(allocated)}` : '',
+                  bank != null && Math.round(bank) !== Math.round(cash) ? `Bank ${formatNgn(bank)}` : '',
+                  paySplits.length > 0 ? paySplits.map((s) => s.accountLabel).join(', ') : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ');
+                const receiptTitle = [r.id, r.quotationRef, registeredBy, cuttingChipLabel]
+                  .filter(Boolean)
+                  .join(' · ');
                 return (
-                  <AppTableTr key={r.id}>
-                    <AppTableTd>{date || '—'}</AppTableTd>
-                    <AppTableTd truncate={false}>
-                      <div className="min-w-0">
-                        <p className="font-mono text-[13px] font-semibold text-zarewa-teal">{r.id}</p>
-                        <p className="text-ui-xs text-slate-500 truncate" title={r.quotationRef || ''}>
-                          {r.quotationRef || '—'}
-                          {registeredBy ? ` · ${registeredBy}` : ''}
-                        </p>
-                        <div className="mt-1 flex flex-wrap items-center gap-1">
-                          <span
-                            className={`${SALES_STATUS_CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
-                            title={r._cuttingListTitle || cuttingChipLabel}
-                          >
-                            {cuttingChipLabel}
-                          </span>
-                          {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
-                          {refundFund ? <RefundFundAppliedChip appliedNgn={refundFund.appliedNgn} /> : null}
-                        </div>
-                      </div>
-                    </AppTableTd>
-                    <AppTableTd title={r.customer || ''}>{r.customer || '—'}</AppTableTd>
-                    <AppTableTd title={spec}>{spec || '—'}</AppTableTd>
-                    <AppTableTd align="right" truncate={false}>
-                      <span className="font-semibold">{formatNgn(cash)}</span>
-                      {Math.round(allocated) !== Math.round(cash) ? (
-                        <span className="block text-ui-xs text-slate-500">Quote {formatNgn(allocated)}</span>
-                      ) : null}
-                      {bank != null && Math.round(bank) !== Math.round(cash) ? (
-                        <span className="block text-ui-xs text-amber-800">Bank {formatNgn(bank)}</span>
-                      ) : null}
-                      {paySplits.length > 0 ? (
-                        <span className="block text-ui-xs text-slate-500">
-                          {paySplits.map((s) => s.accountLabel).join(', ')}
+                  <tr key={r.id} className="border-t border-slate-100 hover:bg-teal-50/30">
+                    <td className={`${TD} whitespace-nowrap tabular-nums text-slate-600`} title={date}>
+                      {date || '—'}
+                    </td>
+                    <td className={TD} title={receiptTitle}>
+                      <div className="flex min-w-0 items-center gap-1">
+                        <span className="min-w-0 truncate font-mono text-[11px] font-semibold text-zarewa-teal">
+                          {r.id}
+                          {r.quotationRef ? ` · ${r.quotationRef}` : ''}
                         </span>
-                      ) : null}
-                    </AppTableTd>
-                    <AppTableTd truncate={false}>
-                      {r.financeReconciliationSavedAtISO ? (
-                        <span className="text-ui-xs font-bold uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-800">
-                          Reconciled
-                        </span>
-                      ) : (
                         <span
-                          className={`text-ui-xs font-bold uppercase px-2 py-0.5 rounded-full ${
-                            clearanceLabel === 'Pending clearance' || !cleared
-                              ? 'bg-amber-100 text-amber-900'
-                              : 'bg-emerald-100 text-emerald-900'
+                          className={`shrink-0 truncate max-w-[5.5rem] text-[9px] font-semibold uppercase ${
+                            r._cuttingListLinkKind === 'linked'
+                              ? 'text-teal-800'
+                              : 'text-amber-800'
                           }`}
+                          title={r._cuttingListTitle || cuttingChipLabel}
                         >
-                          {tone === 'emerald' && cleared ? 'Cleared' : clearanceLabel}
+                          {cuttingChipLabel}
                         </span>
-                      )}
-                    </AppTableTd>
-                    <AppTableTd align="right" truncate={false}>
+                      </div>
+                    </td>
+                    <td className={`${TD} truncate`} title={r.customer || ''}>
+                      {r.customer || '—'}
+                    </td>
+                    <td className={`${TD} hidden truncate sm:table-cell`} title={spec || ''}>
+                      {spec || '—'}
+                    </td>
+                    <td className={`${TD} text-right font-semibold tabular-nums whitespace-nowrap`} title={amountTitle}>
+                      {formatNgn(cash)}
+                    </td>
+                    <td className={TD}>
+                      <div className="flex min-w-0 items-center gap-1">
+                        {hanging ? (
+                          <span
+                            className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-bold uppercase text-rose-800"
+                            title={hanging.shortLabel || 'Hanging refund'}
+                          >
+                            <AlertTriangle size={10} className="shrink-0" aria-hidden />
+                            {formatNgn(hanging.totalOpenNgn || hanging.overpayCreditNgn || 0)}
+                          </span>
+                        ) : null}
+                        {refundFund ? (
+                          <span
+                            className="inline-flex shrink-0 items-center gap-0.5 text-[9px] font-bold uppercase text-sky-800"
+                            title={`Refund fund ${formatNgn(refundFund.appliedNgn)}`}
+                          >
+                            <Wallet size={10} className="shrink-0" aria-hidden />
+                            {formatNgn(refundFund.appliedNgn)}
+                          </span>
+                        ) : null}
+                        <span
+                          className={`min-w-0 truncate text-[9px] font-bold uppercase ${
+                            r.financeReconciliationSavedAtISO ? 'text-slate-600' : 'text-amber-900'
+                          }`}
+                          title={statusShort}
+                        >
+                          {statusShort}
+                        </span>
+                      </div>
+                    </td>
+                    <td className={`${TD} text-right`}>
                       {canConfirm ? (
                         <button
                           type="button"
                           onClick={() => onConfirm(r)}
-                          className="text-ui-xs font-bold uppercase px-2 py-1 rounded-md bg-zarewa-teal text-white hover:bg-[#0f3d3a]"
+                          className="rounded bg-zarewa-teal px-1.5 py-0.5 text-[10px] font-bold uppercase text-white hover:bg-[#0f3d3a]"
                         >
                           {confirmText}
                         </button>
                       ) : null}
-                    </AppTableTd>
-                  </AppTableTr>
+                    </td>
+                  </tr>
                 );
               })}
-            </AppTableBody>
-          </AppTable>
-        </AppTableWrap>
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );

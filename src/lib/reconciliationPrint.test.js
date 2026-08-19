@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildReconciliationListPrintHtml,
   openReconciliationListPrint,
+  reconciliationPrintHasRows,
   unreconciledBankLinesPrintPayload,
   unreconciledBankReconciliationLines,
   unreconciledReceiptRows,
@@ -84,7 +85,7 @@ describe('reconciliationPrint', () => {
     expect(payload.rows[0].reference).toBeUndefined();
     expect(payload.columns.some((c) => c.key === 'reference')).toBe(false);
     expect(payload.columns.map((c) => c.key)).toEqual(
-      expect.arrayContaining(['colour', 'gauge', 'totalMeters', 'hangingRefund', 'registeredBy'])
+      expect.arrayContaining(['colour', 'gauge', 'totalMeters', 'hangingRefund', 'registeredBy', 'stillDue'])
     );
     expect(payload.summaryLines[0].value).toBe('1');
     expect(payload.summaryLines.some((l) => /hanging refund/i.test(l.label) && l.value === '1')).toBe(
@@ -118,5 +119,75 @@ describe('reconciliationPrint', () => {
 
   it('openReconciliationListPrint returns false for empty rows', () => {
     expect(openReconciliationListPrint({ title: 'Test', rows: [], columns: [] })).toBe(false);
+  });
+
+  it('includes partial quotations that still need a balance', () => {
+    const payload = unreconciledReceiptsPrintPayload(
+      [
+        {
+          id: 'RC-PEND',
+          customer: 'Pending Co',
+          quotationRef: 'QT-PEND',
+          dateISO: '2026-06-12',
+          cashReceivedNgn: 80_000,
+        },
+      ],
+      [],
+      {
+        quotations: [
+          { id: 'QT-PEND', paidNgn: 80_000, totalNgn: 200_000, customer: 'Pending Co' },
+          {
+            id: 'QT-PART',
+            paidNgn: 40_000,
+            totalNgn: 100_000,
+            customer: 'Balance Co',
+            customerID: 'CUS-9',
+            dateISO: '2026-06-01',
+            materialColor: 'White',
+            materialGauge: '0.40mm',
+          },
+          { id: 'QT-UNPAID', paidNgn: 0, totalNgn: 50_000, customer: 'No Pay Yet' },
+        ],
+        customers: [{ customerID: 'CUS-9', phoneNumber: '08035550999' }],
+        salesReceipts: [
+          { id: 'RC-PEND', quotationRef: 'QT-PEND', amountNgn: 80_000 },
+          {
+            id: 'RC-OLD',
+            quotationRef: 'QT-PART',
+            amountNgn: 40_000,
+            financeReconciliationSavedAtISO: '2026-06-01T00:00:00Z',
+          },
+        ],
+      }
+    );
+    expect(payload.rows).toHaveLength(1);
+    expect(payload.rows[0].stillDue).not.toBe('—');
+    expect(payload.rows[0].status).toMatch(/partial/i);
+    expect(payload.extraSections?.[0]?.rows.map((r) => r.quotationRef)).toEqual(['QT-PEND', 'QT-PART']);
+    expect(payload.extraSections[0].rows.find((r) => r.quotationRef === 'QT-PART').customer).toContain(
+      '08035550999'
+    );
+    expect(reconciliationPrintHasRows(payload)).toBe(true);
+    const html = buildReconciliationListPrintHtml(payload);
+    expect(html).toContain('Quotations still to balance');
+    expect(html).toContain('QT-PART');
+    expect(html).toContain('Receipts pending confirmation');
+  });
+
+  it('prints partial balances even when no receipts are awaiting confirmation', () => {
+    const payload = unreconciledReceiptsPrintPayload(
+      [{ id: 'RC-DONE', financeReconciliationSavedAtISO: '2026-06-01T12:00:00.000Z', quotationRef: 'QT-PART' }],
+      [],
+      {
+        quotations: [{ id: 'QT-PART', paidNgn: 25_000, totalNgn: 75_000, customer: 'Owes Balance' }],
+        salesReceipts: [
+          { id: 'RC-DONE', quotationRef: 'QT-PART', amountNgn: 25_000, financeReconciliationSavedAtISO: '2026-06-01' },
+        ],
+      }
+    );
+    expect(payload.rows).toHaveLength(0);
+    expect(payload.extraSections[0].rows).toHaveLength(1);
+    expect(payload.extraSections[0].rows[0].quotationRef).toBe('QT-PART');
+    expect(reconciliationPrintHasRows(payload)).toBe(true);
   });
 });

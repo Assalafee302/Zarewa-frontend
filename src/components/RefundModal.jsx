@@ -662,6 +662,8 @@ const RefundModal = ({
     });
   }, [quotationPickList, quotationSearchText]);
 
+  const quotationSearchLooksLikeId = /qt[-_]/i.test(String(quotationSearchText || '').trim());
+
   const refundMoneyBreakdown = useMemo(() => {
     const ref = form.quotationRef;
     if (!ref) return { booked: 0, overpay: 0, cashIn: 0, quoteTotal: 0 };
@@ -2411,6 +2413,23 @@ const RefundModal = ({
                                     </button>
                                   );
                                 })}
+                              </div>
+                            ) : quotationSuggestOpen &&
+                              quotationSearchLooksLikeId &&
+                              !loadingQuotes &&
+                              String(quotationSearchText || '').trim() ? (
+                              <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                                <button
+                                  type="button"
+                                  className="w-full px-3 py-2 text-left text-xs font-semibold text-zarewa-teal hover:bg-rose-50"
+                                  onMouseDown={(ev) => ev.preventDefault()}
+                                  onClick={() => void verifyAndApplyQuotationId()}
+                                >
+                                  Look up {String(quotationSearchText || '').trim()}
+                                  <span className="block text-ui-xs font-medium text-slate-500">
+                                    Not in the loaded list — verify this quotation id
+                                  </span>
+                                </button>
                               </div>
                             ) : null}
                           </div>

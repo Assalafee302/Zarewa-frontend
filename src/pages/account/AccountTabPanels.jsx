@@ -337,7 +337,7 @@ export function AccountTabPanels() {
                             type="button"
                             onClick={openUnreconciledReceiptsPrint}
                             className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-ui-xs font-black uppercase tracking-wide text-amber-900 hover:bg-amber-100"
-                            title="Print full list of receipts pending finance clearance"
+                            title="Print receipts pending confirmation and quotations that still have a balance"
                           >
                             <Printer size={12} />
                             Print unreconciled
@@ -360,7 +360,7 @@ export function AccountTabPanels() {
                           {sortedFilteredSalesReceipts.length !== 1 ? 's' : ''} in view
                         </div>
                       </div>
-                      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8 lg:items-start">
+                      <div className="grid min-w-0 grid-cols-1 gap-3">
                       <FinanceReceiptsClearanceTable
                         tone="amber"
                         title="Pending clearance"

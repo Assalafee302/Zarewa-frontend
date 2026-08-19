@@ -41,6 +41,37 @@ export function quotationDisplayPaymentStatus(q, opts = {}) {
   return 'Partial';
 }
 
+const SKIP_PARTIAL_QUOTE_STATUSES = new Set(['cancelled', 'rejected', 'void']);
+
+/**
+ * Live quotations with a remaining customer balance after a partial payment.
+ * @param {object[]} quotations
+ * @param {{ salesReceipts?: object[]; ledgerEntries?: object[] }} [payOpts]
+ */
+export function quotationsStillToBalanceRows(quotations = [], payOpts = {}) {
+  return (Array.isArray(quotations) ? quotations : [])
+    .filter((q) => {
+      const status = String(q?.status || '').trim().toLowerCase();
+      if (SKIP_PARTIAL_QUOTE_STATUSES.has(status)) return false;
+      return quotationDisplayPaymentStatus(q, payOpts) === 'Partial';
+    })
+    .map((q) => {
+      const paid = quotationEffectivePaidNgn(q, payOpts);
+      const total = Math.round(Number(q?.totalNgn ?? q?.total_ngn) || 0);
+      return {
+        id: String(q.id || q.quotationID || ''),
+        date: String(q.dateISO || q.date || '').slice(0, 10),
+        customer: q.customer || q.customerName || q.customerID || '—',
+        customerID: String(q.customerID || q.customer_id || '').trim(),
+        quotation: q,
+        paid,
+        total,
+        balance: Math.max(0, total - paid),
+      };
+    })
+    .sort((a, b) => b.balance - a.balance);
+}
+
 /**
  * Second line on quotation list cards: paid vs total, payment count, balance.
  * @param {object} q quotation row

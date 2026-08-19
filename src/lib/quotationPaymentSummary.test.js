@@ -3,6 +3,7 @@ import {
   paymentCountByQuotationRef,
   quotationDisplayPaymentStatus,
   quotationListPaymentMeta,
+  quotationsStillToBalanceRows,
   isExistingSalesPaymentRow,
   isQuotationAddPaymentContext,
 } from './quotationPaymentSummary.js';
@@ -48,6 +49,19 @@ describe('quotationPaymentSummary', () => {
         }
       )
     ).toBe('Paid');
+  });
+
+  it('lists quotations that still have a partial balance', () => {
+    const rows = quotationsStillToBalanceRows(
+      [
+        { id: 'QT-PAID', paidNgn: 100, totalNgn: 100 },
+        { id: 'QT-OPEN', paidNgn: 40_000, totalNgn: 100_000, customer: 'Acme' },
+        { id: 'QT-VOID', status: 'cancelled', paidNgn: 10, totalNgn: 100 },
+        { id: 'QT-UNPAID', paidNgn: 0, totalNgn: 80_000 },
+      ]
+    );
+    expect(rows.map((r) => r.id)).toEqual(['QT-OPEN']);
+    expect(rows[0].balance).toBe(60_000);
   });
 
   it('distinguishes payment row vs quotation add-payment context', () => {

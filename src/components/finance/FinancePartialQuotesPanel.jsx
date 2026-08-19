@@ -1,9 +1,6 @@
 import React, { useMemo } from 'react';
 import { formatNgn } from '../../Data/mockData';
-import {
-  quotationDisplayPaymentStatus,
-  quotationEffectivePaidNgn,
-} from '../../lib/quotationPaymentSummary.js';
+import { quotationsStillToBalanceRows } from '../../lib/quotationPaymentSummary.js';
 import { quotationColourGaugeLabel } from '../../lib/quotationColourGauge.js';
 import {
   AppTable,
@@ -16,8 +13,6 @@ import {
 } from '../ui/AppDataTable';
 import { useAccountPage } from '../../pages/account/AccountPageContext.jsx';
 
-const SKIP_STATUSES = new Set(['cancelled', 'rejected', 'void']);
-
 /**
  * Quotations with a remaining balance so cashiers can see who still needs to pay.
  */
@@ -28,28 +23,14 @@ export function FinancePartialQuotesPanel() {
     [liveReceipts, liveLedgerEntries]
   );
 
-  const rows = useMemo(() => {
-    return (liveQuotations || [])
-      .filter((q) => {
-        const status = String(q?.status || '').trim().toLowerCase();
-        if (SKIP_STATUSES.has(status)) return false;
-        return quotationDisplayPaymentStatus(q, payOpts) === 'Partial';
-      })
-      .map((q) => {
-        const paid = quotationEffectivePaidNgn(q, payOpts);
-        const total = Math.round(Number(q?.totalNgn ?? q?.total_ngn) || 0);
-        return {
-          id: String(q.id || q.quotationID || ''),
-          date: String(q.dateISO || q.date || '').slice(0, 10),
-          customer: q.customer || q.customerName || q.customerID || '—',
-          spec: quotationColourGaugeLabel(q) || '—',
-          paid,
-          total,
-          balance: Math.max(0, total - paid),
-        };
-      })
-      .sort((a, b) => b.balance - a.balance);
-  }, [liveQuotations, payOpts]);
+  const rows = useMemo(
+    () =>
+      quotationsStillToBalanceRows(liveQuotations, payOpts).map((row) => ({
+        ...row,
+        spec: quotationColourGaugeLabel(row.quotation) || '—',
+      })),
+    [liveQuotations, payOpts]
+  );
 
   if (rows.length === 0) return null;
 

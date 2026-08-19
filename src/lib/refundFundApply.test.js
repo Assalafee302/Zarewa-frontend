@@ -3,6 +3,7 @@ import {
   applyRefundFundDeductionToPaymentLines,
   buildRefundFundClearanceSummary,
   isRefundFundApplyLedgerEntry,
+  planCashierRefundOffset,
   refundFundAppliedByQuotationRef,
   refundFundAppliedOnQuotation,
   restorePaymentLinesAfterRefundFundUnchecked,
@@ -157,5 +158,18 @@ describe('refund fund apply helpers', () => {
         cashOnReceiptNgn: 35_000,
       })
     ).toBeNull();
+  });
+
+  it('plans cashier receipt offset against approved refund fund', () => {
+    expect(planCashierRefundOffset({ receiptCashNgn: 80_000, availableNgn: 50_000 })).toEqual({
+      offsetNgn: 50_000,
+      cashToConfirmNgn: 30_000,
+      leftoverRefundNgn: 0,
+    });
+    expect(planCashierRefundOffset({ receiptCashNgn: 40_000, availableNgn: 90_000 })).toEqual({
+      offsetNgn: 40_000,
+      cashToConfirmNgn: 0,
+      leftoverRefundNgn: 50_000,
+    });
   });
 });

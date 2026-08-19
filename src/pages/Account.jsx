@@ -119,11 +119,18 @@ import { RegisterBankDepositPanel } from '../components/finance/RegisterBankDepo
 import { BankDepositExceptionPanel } from '../components/finance/BankDepositExceptionPanel.jsx';
 import { HangingCustomerRefundBanner } from '../components/finance/HangingCustomerRefundHint.jsx';
 import { RefundFundClearanceBanner } from '../components/finance/HangingCustomerRefundHint.jsx';
-import { buildRefundFundClearanceSummary } from '../lib/refundFundApply.js';
+import {
+  applyRefundFundDeductionToPaymentLines,
+  buildRefundFundClearanceSummary,
+  planCashierRefundOffset,
+  REFUND_FUND_CASHIER_OFFSET_LABEL,
+  restorePaymentLinesAfterRefundFundUnchecked,
+} from '../lib/refundFundApply.js';
 import { findQuotationByRef } from '../lib/quotationColourGauge.js';
 import { AccountGlManualJournalCard } from '../components/account/AccountGlManualJournalCard.jsx';
 import {
   openReconciliationListPrint,
+  reconciliationPrintHasRows,
   unreconciledReceiptsPrintPayload,
 } from '../lib/reconciliationPrint';
 import {
@@ -248,6 +255,9 @@ const Account = () => {
   /** When true, confirm payment but do not set finance delivery clearance. */
   const [receiptHoldDelivery, setReceiptHoldDelivery] = useState(false);
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
+  const [applyRefundOnConfirm, setApplyRefundOnConfirm] = useState(false);
+  const [cashierRefundCreditInfo, setCashierRefundCreditInfo] = useState(null);
+  const [cashierRefundCreditLoading, setCashierRefundCreditLoading] = useState(false);
   /** Correct bank/cash account for expense or payment-request treasury outflows (same idea as receipt splits). */
   const [expenseOutflowEdit, setExpenseOutflowEdit] = useState(null);
   const [expenseOutflowLineIdx, setExpenseOutflowLineIdx] = useState(0);
@@ -1823,9 +1833,10 @@ const Account = () => {
       cuttingLists: Array.isArray(snap?.cuttingLists) ? snap.cuttingLists : liveCuttingLists,
       refunds: customerRefunds,
       ledgerEntries: liveLedgerEntries,
+      salesReceipts: Array.isArray(snap?.receipts) ? snap.receipts : liveReceipts,
     });
-    if (!payload.rows.length) {
-      showToast('No unreconciled receipts to print.', { variant: 'info' });
+    if (!reconciliationPrintHasRows(payload)) {
+      showToast('No unreconciled receipts or partial balances to print.', { variant: 'info' });
       return;
     }
     if (!openReconciliationListPrint(payload)) {
@@ -1837,6 +1848,7 @@ const Account = () => {
     liveCustomers,
     liveQuotations,
     liveCuttingLists,
+    liveReceipts,
     customerRefunds,
     liveLedgerEntries,
     workspaceBranchLabel,
@@ -1979,6 +1991,89 @@ const Account = () => {
     [openReceiptFinance]
   );
 
+  useEffect(() => {
+    if (!receiptFinanceRow?.id) {
+      setCashierRefundCreditInfo(null);
+      setApplyRefundOnConfirm(false);
+      setCashierRefundCreditLoading(false);
+      return;
+    }
+    if (receiptFinanceRow.financeReconciliationSavedAtISO) {
+      setCashierRefundCreditInfo(null);
+      setApplyRefundOnConfirm(false);
+      setCashierRefundCreditLoading(false);
+      return;
+    }
+    const cid = String(receiptFinanceRow.customerID || '').trim();
+    const qid = String(receiptFinanceRow.quotationRef || '').trim();
+    if (!cid || !qid) {
+      setCashierRefundCreditInfo(null);
+      setApplyRefundOnConfirm(false);
+      return;
+    }
+    let cancelled = false;
+    setCashierRefundCreditLoading(true);
+    (async () => {
+      const { ok, data } = await apiFetch(
+        `/api/ledger/refund-credit-eligible?customerID=${encodeURIComponent(cid)}&targetQuotationRef=${encodeURIComponent(qid)}`
+      );
+      if (cancelled) return;
+      setCashierRefundCreditLoading(false);
+      if (!ok || !data?.ok || !(Number(data.totalAvailableNgn) > 0)) {
+        setCashierRefundCreditInfo(null);
+        setApplyRefundOnConfirm(false);
+        return;
+      }
+      setCashierRefundCreditInfo(data);
+      setApplyRefundOnConfirm(true);
+    })().catch(() => {
+      if (!cancelled) {
+        setCashierRefundCreditLoading(false);
+        setCashierRefundCreditInfo(null);
+        setApplyRefundOnConfirm(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [receiptFinanceRow?.id, receiptFinanceRow?.customerID, receiptFinanceRow?.quotationRef, receiptFinanceRow?.financeReconciliationSavedAtISO]);
+
+  const cashierReceiptCashNgn = useMemo(() => {
+    if (!receiptFinanceRow) return 0;
+    if (receiptFinanceRow.cashReceivedNgn != null) return Math.round(Number(receiptFinanceRow.cashReceivedNgn) || 0);
+    return Math.round(Number(receiptFinanceRow.amountNgn) || 0);
+  }, [receiptFinanceRow]);
+
+  const cashierRefundOffset = useMemo(() => {
+    if (!cashierRefundCreditInfo) return null;
+    const plan = planCashierRefundOffset({
+      receiptCashNgn: cashierReceiptCashNgn,
+      availableNgn: cashierRefundCreditInfo.totalAvailableNgn,
+    });
+    return plan.offsetNgn > 0 ? plan : null;
+  }, [cashierRefundCreditInfo, cashierReceiptCashNgn]);
+
+  useEffect(() => {
+    if (!receiptFinanceRow || !cashierRefundOffset) return;
+    const cashDue = applyRefundOnConfirm ? cashierRefundOffset.cashToConfirmNgn : cashierReceiptCashNgn;
+    setReceiptBankAmtInput(String(cashDue));
+    setPaymentCorrectionDrafts((prev) => {
+      const keys = Object.keys(prev);
+      if (!keys.length) return prev;
+      const lines = keys.map((movementId) => ({ movementId, amount: prev[movementId]?.amountNgn }));
+      const nextLines = applyRefundOnConfirm
+        ? applyRefundFundDeductionToPaymentLines(lines, cashDue)
+        : restorePaymentLinesAfterRefundFundUnchecked(lines, cashierReceiptCashNgn, cashierRefundOffset.cashToConfirmNgn);
+      const out = { ...prev };
+      nextLines.forEach((line, i) => {
+        const id = keys[i];
+        if (!id) return;
+        out[id] = { ...out[id], amountNgn: line.amount == null ? '' : String(line.amount) };
+      });
+      return out;
+    });
+  }, [applyRefundOnConfirm, cashierRefundOffset, cashierReceiptCashNgn, receiptFinanceRow]);
+
   const handleDeskViewReceipt = useCallback(
     (receipt) => {
       const rid = String(receipt?.id || '').trim();
@@ -2042,6 +2137,10 @@ const Account = () => {
         return;
       }
       const settleSplits = receiptLedgerReceiptTreasurySplits(receiptFinanceRow, liveTreasuryMovements);
+      const offsetNgn =
+        applyRefundOnConfirm && cashierRefundOffset?.offsetNgn > 0
+          ? Math.round(Number(cashierRefundOffset.offsetNgn) || 0)
+          : 0;
       const paymentLineCorrections = [];
       for (const s of settleSplits) {
         const d = paymentCorrectionDrafts[s.movementId];
@@ -2054,12 +2153,9 @@ const Account = () => {
           };
         const amountNgn = Math.round(Number(String(draft.amountNgn).replace(/,/g, '')) || 0);
         const treasuryAccountId = Number(draft.treasuryAccountId);
+        if (amountNgn <= 0) continue;
         if (!treasuryAccountId) {
           showToast('Select the treasury account (bank or cash) for each payment line.', { variant: 'error' });
-          return;
-        }
-        if (amountNgn <= 0) {
-          showToast('Each payment line amount must be greater than zero.', { variant: 'error' });
           return;
         }
         const line = { movementId: s.movementId, amountNgn, treasuryAccountId };
@@ -2076,8 +2172,12 @@ const Account = () => {
         settleSplits.length > 0
           ? paymentLineCorrections.reduce((sum, line) => sum + line.amountNgn, 0)
           : parseNgnInput(receiptBankAmtInput);
-      if (bankReceivedAmountNgn <= 0) {
+      if (bankReceivedAmountNgn <= 0 && offsetNgn <= 0) {
         showToast('Enter the amount actually received before confirming.', { variant: 'error' });
+        return;
+      }
+      if (settleSplits.length > 0 && bankReceivedAmountNgn > 0 && paymentLineCorrections.length === 0) {
+        showToast('Each payment line amount must be greater than zero.', { variant: 'error' });
         return;
       }
 
@@ -2092,6 +2192,16 @@ const Account = () => {
               bankReceivedAmountNgn,
               clearForDelivery: !receiptHoldDelivery,
               paymentLineCorrections,
+              ...(offsetNgn > 0
+                ? {
+                    refundCreditApply: {
+                      amountNgn: offsetNgn,
+                      sourceIds: Array.isArray(cashierRefundCreditInfo?.sources)
+                        ? cashierRefundCreditInfo.sources.map((s) => s.id).filter(Boolean)
+                        : [],
+                    },
+                  }
+                : {}),
             }),
           }
         );
@@ -2100,10 +2210,18 @@ const Account = () => {
           showToast((data?.error || `Could not save settlement (${status}).`) + hint, { variant: 'error' });
           return;
         }
+        const leftover = Math.round(Number(data.refundCreditLeftoverNgn) || cashierRefundOffset?.leftoverRefundNgn || 0);
+        const applied = Math.round(Number(data.refundCreditAppliedNgn) || offsetNgn || 0);
+        const creditBit =
+          applied > 0
+            ? leftover > 0
+              ? ` Refund fund ${formatNgn(applied)} covered this receipt; ${formatNgn(leftover)} still to pay out.`
+              : ` Refund fund ${formatNgn(applied)} covered this receipt — nothing left to pay out on that refund.`
+            : '';
         showToast(
-          receiptHoldDelivery
+          (receiptHoldDelivery
             ? 'Payment confirmed — books updated (delivery held).'
-            : 'Payment confirmed — books updated and cleared for delivery.'
+            : 'Payment confirmed — books updated and cleared for delivery.') + creditBit
         );
         setReceiptFinanceRow(null);
         setPaymentCorrectionDrafts({});
@@ -2123,6 +2241,9 @@ const Account = () => {
       wsCanMutate,
       wsUsingCachedData,
       showToast,
+      applyRefundOnConfirm,
+      cashierRefundOffset,
+      cashierRefundCreditInfo,
     ]
   );
 
@@ -4719,6 +4840,37 @@ const Account = () => {
                         String(receiptFinanceRow.customerID || '').trim()
                       )}
                     />
+
+                    {cashierRefundCreditLoading ? (
+                      <p className="text-ui-xs text-slate-500">Checking approved refund fund…</p>
+                    ) : cashierRefundOffset && !receiptFinanceRow.financeReconciliationSavedAtISO ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-ui-xs text-amber-950 space-y-1.5">
+                        <label className="flex items-start gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                            checked={applyRefundOnConfirm}
+                            disabled={receiptFinanceBusy}
+                            onChange={(e) => setApplyRefundOnConfirm(e.target.checked)}
+                          />
+                          <span>
+                            <span className="font-bold">{REFUND_FUND_CASHIER_OFFSET_LABEL}: </span>
+                            {formatNgn(cashierRefundOffset.offsetNgn)} from this customer’s approved refund
+                            will cover this receipt. That slice is not paid out in cash.
+                            {cashierRefundOffset.leftoverRefundNgn > 0
+                              ? ` Leftover ${formatNgn(cashierRefundOffset.leftoverRefundNgn)} stays on the payout queue.`
+                              : ' Nothing left to pay out on that refund.'}
+                          </span>
+                        </label>
+                        {applyRefundOnConfirm ? (
+                          <p className="pl-6 font-semibold text-emerald-800">
+                            {cashierRefundOffset.cashToConfirmNgn > 0
+                              ? `Cash still to confirm: ${formatNgn(cashierRefundOffset.cashToConfirmNgn)}`
+                              : 'Refund fund covers this receipt — no cash to confirm.'}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                 {settleSplits.length > 0 ? (
                     <div className="space-y-3">
