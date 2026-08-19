@@ -116,23 +116,6 @@ function EstChip() {
   );
 }
 
-function formatLastUpdated(iso) {
-  const s = String(iso || '').trim();
-  if (!s) return '—';
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-}
-
-function formatPeriodWindow(period) {
-  if (!period?.startISO || !period?.endISO) return null;
-  if (period.startISO === period.endISO) return period.startISO;
-  return `${period.startISO} – ${period.endISO}`;
-}
-
 function KpiCard({ label, value, sub, icon, loading, accent, estimated }) {
   return (
     <div
@@ -648,14 +631,12 @@ export default function ExecutiveCommandCentre() {
   }
 
   const kpis = data?.kpis || {};
-  const periodWindow = formatPeriodWindow(data?.period);
   const branchScopeLabel =
     data?.branchScope === 'ALL'
       ? 'All branches'
       : BRANCH_OPTIONS.find((b) => b.id === data?.branchScope)?.label || data?.branchScope || '';
   const showBranchComparison = Boolean(data?.branches?.comparisonAvailable);
   const branchComparisonEmpty = !showBranchComparison && !busy && data;
-  const scopeNote = (data?.dataScopeNotes || [])[0]?.message;
 
   const visibleTabs = (isIntelligenceOnly
     ? EXEC_TABS.filter((t) => t.id === 'intelligence')
@@ -677,18 +658,11 @@ export default function ExecutiveCommandCentre() {
     icon: EXEC_TAB_ICONS[t.id] ?? null,
   }));
 
-  const pageSubtitle = [
-    isIntelligenceOnly
-      ? 'Business intelligence for your branch — forecasts, expenses, and material signals.'
-      : roleKey === 'md'
-        ? 'Decisions, approvals, and company performance — act here without opening other departments.'
-        : 'Company performance, decisions, and intelligence for executive oversight.',
-    periodWindow ? `Window: ${periodWindow}` : null,
-    branchScopeLabel ? `Scope: ${branchScopeLabel}` : null,
-    data?.generatedAtISO ? `Updated ${formatLastUpdated(data.generatedAtISO)}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const pageSubtitle = isIntelligenceOnly
+    ? 'Business intelligence for your branch — forecasts, expenses, and material signals.'
+    : roleKey === 'md'
+      ? 'Decisions, approvals, and company performance — act here without opening other departments.'
+      : 'Company performance, decisions, and intelligence for executive oversight.';
 
   return (
     <MainPanel>
@@ -774,18 +748,6 @@ export default function ExecutiveCommandCentre() {
 
       {err ? (
         <p className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{err}</p>
-      ) : null}
-
-      {data?.degradedReason ? (
-        <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          {data.degradedReason} — KPIs may be incomplete.
-        </p>
-      ) : null}
-
-      {scopeNote ? (
-        <p className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 leading-relaxed">
-          {scopeNote}
-        </p>
       ) : null}
 
       {activeTab === 'today' && isMdCockpit ? (

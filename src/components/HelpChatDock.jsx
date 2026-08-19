@@ -30,7 +30,6 @@ import { buildHelpCoachingHints, mergePersonalizedPrompts } from '../lib/helpRec
 import { detectHelpIntent, synthesizeHelpReply, synthesizeMetaReply } from '../lib/helpSynthesize';
 import { classifyAgentRoute, routeLabel } from '../lib/helpAgentIntent';
 import { HELP_BOT_NAME, HELP_BOT_TAGLINE, HELP_BOT_ALT_TAGLINE } from '../lib/helpBotBrand';
-import { appFabRightClass, appFabSlots } from '../lib/appFabLayout';
 import { useHelpChat } from '../context/HelpChatContext';
 import { TRANSACTION_ISSUE_CHIPS } from '../lib/helpTransactionHelp';
 import { sanitizeZarePageContext } from '../lib/workspaceSanitize';
@@ -293,7 +292,6 @@ export function HelpChatDock() {
   const [livePersonalization, setLivePersonalization] = useState(null);
   const [helpAiStatus, setHelpAiStatus] = useState(null);
 
-  const aiDockVisible = Boolean(user && user.roleKey !== 'ceo' && ai?.available === true);
   const snapshot = ws?.snapshot;
   const helpPersonalization = livePersonalization || snapshot?.helpPersonalization;
   const pageName = pageLabel(location.pathname);
@@ -738,28 +736,9 @@ export function HelpChatDock() {
     [busy, messages.length]
   );
 
-  if (!user) return null;
-
-  const launcherClass = appFabRightClass(appFabSlots({ aiDockVisible }).zare);
+  if (!user || !open) return null;
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={`z-help-launcher fixed z-[165] flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-2xl border border-teal-200/60 bg-gradient-to-br from-zarewa-teal via-[#0f766e] to-[#115e59] text-teal-50 transition hover:scale-[1.03] active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${launcherClass}`}
-        aria-label={`Open ${HELP_BOT_NAME}`}
-        title={`${HELP_BOT_NAME} — ${HELP_BOT_TAGLINE}`}
-      >
-        <LifeBuoy size={26} strokeWidth={2} aria-hidden />
-        {coachingHints.length > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-ui-xs font-black text-amber-950 ring-2 ring-white">
-            !
-          </span>
-        ) : null}
-      </button>
-
-      {open ? (
         <div
           className="fixed inset-0 z-[175] flex items-end justify-end bg-slate-900/50 p-2 sm:p-4 sm:items-stretch sm:justify-end backdrop-blur-[2px]"
           role="presentation"
@@ -1094,7 +1073,5 @@ export function HelpChatDock() {
             </footer>
           </div>
         </div>
-      ) : null}
-    </>
   );
 }

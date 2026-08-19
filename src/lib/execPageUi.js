@@ -12,5 +12,9 @@ export const EXEC_PRIMARY_BTN =
 export const EXEC_SECONDARY_BTN =
   'inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-ui-xs font-semibold uppercase tracking-wider text-slate-700 shadow-sm hover:bg-slate-50 transition-all min-h-[44px]';
 
+/** Dense row action — use in lists/tables instead of the full-width primary brick. */
+export const EXEC_COMPACT_ACTION_BTN =
+  'inline-flex shrink-0 items-center justify-center rounded-md bg-zarewa-teal px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white hover:brightness-110 min-h-8 min-w-[3.75rem]';
+
 export const EXEC_SELECT =
   'rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-8 text-base sm:text-xs font-semibold text-zarewa-teal outline-none focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10 shadow-sm';

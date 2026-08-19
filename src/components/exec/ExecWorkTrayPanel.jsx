@@ -1,11 +1,10 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
 import {
   approvalTierChipClass,
   EXEC_APPROVAL_TIER_MD_ONLY,
   EXEC_APPROVAL_TIER_SHARED,
 } from '../../lib/execApprovalTier';
-import { EXEC_CARD_ROW, EXEC_CHIP, EXEC_PRIMARY_BTN } from '../../lib/execPageUi';
+import { EXEC_CARD_ROW, EXEC_CHIP, EXEC_COMPACT_ACTION_BTN } from '../../lib/execPageUi';
 import { SalesListSearchInput, SalesListTableFrame } from '../sales/SalesListTableFrame';
 
 function approvalTierChip(tier) {
@@ -14,58 +13,62 @@ function approvalTierChip(tier) {
   return 'bg-slate-100 text-slate-700 ring-slate-200 border-slate-200';
 }
 
+function compactChip(extra) {
+  return `inline-flex shrink-0 items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${extra}`;
+}
+
 function priorityChip(p) {
   if (p === 'high') return 'border-rose-200 bg-rose-50 text-rose-900';
   if (p === 'medium') return 'border-amber-200 bg-amber-50 text-amber-950';
   return 'border-slate-200 bg-slate-50 text-slate-700';
 }
 
-function WorkTrayCard({ row, readOnly, onReview, formatNgn }) {
+function workTrayActionLabel(row, readOnly) {
   const canAct = row.canAct && !readOnly && !row.summaryOnly;
+  return row.summaryOnly ? 'View' : canAct ? 'Review' : 'View';
+}
+
+function WorkTrayCard({ row, readOnly, onReview, formatNgn }) {
+  const amount =
+    row.amountNgn != null && typeof formatNgn === 'function' ? formatNgn(row.amountNgn) : '';
+  const meta = [row.branchName, amount, row.ageLabel || row.status].filter(Boolean).join(' · ');
+
   return (
     <article
-      className={`${EXEC_CARD_ROW} ${
+      className={`${EXEC_CARD_ROW} py-2 ${
         row.approvalTier === EXEC_APPROVAL_TIER_MD_ONLY ? 'border-violet-200/80 bg-violet-50/30' : ''
       }`}
     >
-      <div className="flex items-start gap-2.5">
+      <div className="flex items-center gap-2.5">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5 mb-1">
-            <span className={`${EXEC_CHIP} ${approvalTierChip(row.approvalTier)}`}>
+          <div className="mb-0.5 flex flex-wrap items-center gap-1">
+            <span className={compactChip(approvalTierChip(row.approvalTier))}>
               {row.approvalTierLabel || 'Review'}
             </span>
-            <span className={`${EXEC_CHIP} ${priorityChip(row.priority)}`}>{row.priority}</span>
-            <span className="text-ui-xs font-semibold uppercase tracking-wide text-slate-400">
+            <span className={compactChip(priorityChip(row.priority))}>{row.priority}</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
               {String(row.kind || '').replace(/_/g, ' ')}
             </span>
           </div>
-          <h3 className="text-sm font-bold text-slate-900 leading-snug">{row.title || 'Review'}</h3>
-          <p className="text-xs text-slate-600 mt-1">
-            {row.branchName || '—'}
-            {row.amountNgn != null && typeof formatNgn === 'function'
-              ? ` · ${formatNgn(row.amountNgn)}`
-              : ''}
-          </p>
-          <p className="text-ui-xs text-slate-400 mt-0.5">
-            {row.requestedBy ? `${row.requestedBy} · ` : ''}
-            {row.ageLabel || row.status}
-          </p>
+          <h3 className="truncate text-[13px] font-semibold leading-snug text-slate-900">
+            {row.title || 'Review'}
+          </h3>
+          {meta ? <p className="mt-0.5 truncate text-[11px] text-slate-500">{meta}</p> : null}
         </div>
+        <button
+          type="button"
+          onClick={() => onReview?.(row)}
+          className={EXEC_COMPACT_ACTION_BTN}
+        >
+          {workTrayActionLabel(row, readOnly)}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={() => onReview?.(row)}
-        className={`mt-3 w-full ${EXEC_PRIMARY_BTN}`}
-      >
-        {row.summaryOnly ? 'View' : canAct ? 'Review & approve' : 'View'}
-        <ChevronRight size={16} />
-      </button>
     </article>
   );
 }
 
 /**
- * Executive work tray — Sales-style list frame; cards on mobile, table on lg+.
+ * Executive work tray — compact cards below xl, table on wide screens.
  */
 export function ExecWorkTrayPanel({
   title,
@@ -91,7 +94,7 @@ export function ExecWorkTrayPanel({
       key={id}
       type="button"
       onClick={() => onWorkTrayFilterChange(id)}
-      className={`min-h-[44px] rounded-lg px-3 py-2 text-ui-xs font-bold uppercase tracking-wide ring-1 transition-colors ${
+      className={`min-h-8 rounded-md px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide ring-1 transition-colors ${
         workTrayFilter === id
           ? activeClass
           : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'
@@ -139,7 +142,7 @@ export function ExecWorkTrayPanel({
       {busy && displayItems.length === 0 ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 rounded-lg bg-slate-100 animate-pulse" />
+            <div key={i} className="h-14 rounded-lg bg-slate-100 animate-pulse" />
           ))}
         </div>
       ) : null}
@@ -148,7 +151,7 @@ export function ExecWorkTrayPanel({
         <p className="py-8 text-center text-xs text-slate-500">No pending executive items.</p>
       ) : null}
 
-      <div className="lg:hidden space-y-2">
+      <div className="xl:hidden space-y-1.5">
         {displayItems.map((row) => (
           <WorkTrayCard
             key={row.id}
@@ -160,8 +163,8 @@ export function ExecWorkTrayPanel({
         ))}
       </div>
 
-      <div className="hidden lg:block overflow-x-auto -mx-1">
-        <table className="w-full text-xs min-w-[720px]">
+      <div className="hidden xl:block overflow-x-auto -mx-1">
+        <table className="w-full min-w-[640px] text-xs">
           <thead>
             <tr className="border-b border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-slate-400">
               <th className="py-2 text-left font-bold">Priority</th>
@@ -203,9 +206,9 @@ export function ExecWorkTrayPanel({
                   <button
                     type="button"
                     onClick={() => onReview?.(row)}
-                    className="rounded-lg border border-zarewa-teal/30 bg-zarewa-teal/5 px-3 py-2 text-ui-xs font-semibold uppercase text-zarewa-teal hover:bg-zarewa-teal/10 min-h-[36px]"
+                    className={EXEC_COMPACT_ACTION_BTN}
                   >
-                    {row.summaryOnly ? 'View' : row.canAct && !readOnly ? 'Review' : 'View'}
+                    {workTrayActionLabel(row, readOnly)}
                   </button>
                 </td>
               </tr>

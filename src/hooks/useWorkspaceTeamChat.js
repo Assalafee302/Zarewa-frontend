@@ -367,7 +367,7 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
         const replyBody = [
           ok && data?.ok
             ? String(data.message || '').trim() ||
-              'I could not answer that just now. Try again, or open Zare from the bottom-right button.'
+              'I could not answer that just now. Try sending the question again.'
             : String(data?.error || '').trim() ||
               'I could not reach the help service. Try again in a moment.',
           ...linkLines,

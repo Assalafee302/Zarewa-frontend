@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Compact page chrome: title + tools on one row, section tabs as a slim underline below.
+ * Compact page chrome: title, then wrapping tools, then section tabs.
  * @param {string} [eyebrow] — Quiet module label above the title
  * @param {string} [title] — Visible page heading
  * @param {React.ReactNode} [subtitle]
@@ -28,8 +28,8 @@ export function PageHeader({
 
   return (
     <header className="mb-4 sm:mb-5">
-      <div className="flex min-w-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div className="min-w-0 max-w-full sm:flex-1">
+      <div className="flex min-w-0 flex-col gap-3">
+        <div className="min-w-0 overflow-hidden">
           {eyebrow ? (
             <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
               {eyebrow}
@@ -39,10 +39,10 @@ export function PageHeader({
           {subtitle ? <p className="z-page-subtitle">{subtitle}</p> : null}
         </div>
         {hasSearch || hasTools ? (
-          <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:max-w-[min(100%,36rem)] sm:flex-1 sm:flex-row sm:items-center sm:justify-end">
-            {hasSearch ? <div className="min-w-0 w-full sm:flex-1">{search}</div> : null}
+          <div className="flex min-w-0 w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            {hasSearch ? <div className="min-w-0 w-full sm:flex-1 sm:max-w-md">{search}</div> : null}
             {hasTools ? (
-              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 shrink-0">
+              <div className="flex min-w-0 w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
                 {tools}
               </div>
             ) : null}

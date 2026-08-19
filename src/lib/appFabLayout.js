@@ -1,5 +1,5 @@
 /**
- * Bottom-right launcher stack (AI → Zare → Chat, right to left).
+ * Bottom-right launcher stack (AI → Chat, right to left).
  * Class names are static so Tailwind JIT keeps the arbitrary values.
  */
 export const APP_FAB_SLOT_REM = 4.25;
@@ -20,7 +20,6 @@ export function appFabRightClass(slotsFromRight = 0) {
 export function appFabSlots({ aiDockVisible = false } = {}) {
   return {
     ai: 0,
-    zare: aiDockVisible ? 1 : 0,
-    chat: aiDockVisible ? 2 : 1,
+    chat: aiDockVisible ? 1 : 0,
   };
 }

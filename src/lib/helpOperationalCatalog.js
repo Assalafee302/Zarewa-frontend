@@ -1493,7 +1493,7 @@ const OPERATIONAL_TOPICS = [
     title: 'How to use Zare',
     answer: 'Zare is guide-only — SOPs, steps, approval rules. No posting in chat.',
     steps: [
-      'Click life-ring **Zare** button.',
+      'Open **Chat** and message **Zare**.',
       'Ask how/why questions clearly.',
       'Rate answers with thumbs for learning.',
     ],

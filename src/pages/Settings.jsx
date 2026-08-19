@@ -1410,7 +1410,7 @@ const Settings = () => {
                         </h3>
                         <p className="mt-2 text-sm text-slate-600 leading-relaxed">
                           Replay the step-by-step guide for your role ({currentUser?.roleLabel || currentUser?.roleKey}).
-                          On any screen, open <strong>Zare</strong> and tap <strong>Tour this page</strong> for page coaching.
+                          On any screen, open <strong>Chat</strong> and message <strong>Zare</strong> for page coaching.
                         </p>
                       </div>
                       <button

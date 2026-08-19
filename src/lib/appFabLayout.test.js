@@ -3,9 +3,9 @@ import { appFabRightClass, appFabSlots } from './appFabLayout.js';
 import { TEAM_CHAT_OPEN_EVENT, openTeamChat } from './teamChatEvents.js';
 
 describe('appFabLayout', () => {
-  it('places chat left of Zare, and left of AI when that dock is on', () => {
-    expect(appFabSlots({ aiDockVisible: false })).toEqual({ ai: 0, zare: 0, chat: 1 });
-    expect(appFabSlots({ aiDockVisible: true })).toEqual({ ai: 0, zare: 1, chat: 2 });
+  it('places chat furthest right, and left of AI when that dock is on', () => {
+    expect(appFabSlots({ aiDockVisible: false })).toEqual({ ai: 0, chat: 0 });
+    expect(appFabSlots({ aiDockVisible: true })).toEqual({ ai: 0, chat: 1 });
     expect(appFabRightClass(0)).toContain('right-[max(1.25rem');
     expect(appFabRightClass(1)).toContain('+4.25rem');
     expect(appFabRightClass(2)).toContain('+8.5rem');
