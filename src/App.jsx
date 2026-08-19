@@ -1091,7 +1091,7 @@ function AppShell() {
             <Route
               path="/cashier"
               element={
-                <ModuleRouteGuard moduleKey="finance">
+                <ModuleRouteGuard moduleKey="finance" altModuleKeys={['cashier_desk']}>
                   <FinanceDeskRouteGuard desk="cashier">
                     <CashierDesk />
                   </FinanceDeskRouteGuard>
@@ -1111,7 +1111,7 @@ function AppShell() {
             <Route
               path="/accounts"
               element={
-                <ModuleRouteGuard moduleKey="finance">
+                <ModuleRouteGuard moduleKey="finance" altModuleKeys={['cashier_desk']}>
                   <LegacyAccountsRouteGuard>
                     <AccountRouteErrorBoundary>
                       <Account />

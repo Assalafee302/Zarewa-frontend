@@ -30,12 +30,8 @@ export function userMayAccessLegacyAccountsRoute(roleKey, permissions) {
   if (OVERSIGHT_ROLES.has(rk)) return true;
   if (rk === ROLE_BRANCH_MANAGER) return false;
   if (rk === ROLE_CASHIER) {
-    return (
-      hasPermissionInList(permissions, 'cashier.desk.view') ||
-      hasPermissionInList(permissions, 'finance.pay') ||
-      hasPermissionInList(permissions, 'treasury.manage') ||
-      hasPermissionInList(permissions, 'receipts.post')
-    );
+    // Cashier desk is this role's home. Permission keys gate posting, not opening the page.
+    return true;
   }
   if (rk === ROLE_ACCOUNTANT) {
     return (
@@ -104,7 +100,7 @@ export function resolveLegacyAccountsRedirect(roleKey, permissions, tabId = '') 
   const rk = String(roleKey || '').trim().toLowerCase();
   if (rk === ROLE_BRANCH_MANAGER) return { to: '/manager', reason: 'branch_manager' };
   if (!userMayAccessLegacyAccountsRoute(roleKey, permissions)) {
-    if (rk === ROLE_CASHIER) return { to: '/accounts', reason: 'cashier_finance' };
+    if (rk === ROLE_CASHIER) return { to: '/access-denied', reason: 'cashier_finance' };
     if (rk === ROLE_ACCOUNTANT) return { to: '/accounting', reason: 'accounting_desk' };
     return { to: '/', reason: 'denied' };
   }

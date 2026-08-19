@@ -1500,34 +1500,25 @@ const Account = () => {
     [canPayRequests, ws, showToast]
   );
 
+  const tabParam = searchParams.get('tab');
   useEffect(() => {
-    const t = searchParams.get('tab');
+    const t = tabParam;
     const rk = ws?.session?.user?.roleKey;
     const permissions = ws?.permissions;
     const allowed = getAllowedLegacyAccountTabs(rk, permissions);
     const defaultTab = getDefaultLegacyAccountTab(rk, permissions);
 
-    const applyTab = (tabId) => {
-      setActiveTab(tabId);
-      setSearchParams({ tab: tabId }, { replace: true });
-    };
-
-    if (t && TAB_LABELS[t]) {
+    let next = defaultTab;
+    if (t && (TAB_LABELS[t] || t === 'treasury')) {
       const tabId = t === 'treasury' ? 'desk' : t;
-      if (!allowed.length || allowed.includes(tabId) || t === 'treasury') {
-        applyTab(tabId);
-      } else {
-        applyTab(defaultTab);
-      }
-      return;
+      if (!allowed.length || allowed.includes(tabId) || t === 'treasury') next = tabId;
     }
-    if (!t) {
-      setActiveTab(defaultTab);
-      setSearchParams({ tab: defaultTab }, { replace: true });
-      return;
+
+    setActiveTab((prev) => (prev === next ? prev : next));
+    if (t !== next) {
+      setSearchParams({ tab: next }, { replace: true });
     }
-    applyTab(defaultTab);
-  }, [searchParams, ws?.session?.user?.roleKey, ws?.permissions, setSearchParams]);
+  }, [tabParam, ws?.session?.user?.roleKey, ws?.permissions, setSearchParams]);
 
   const canManageTreasury = Boolean(ws?.hasPermission?.('treasury.manage'));
   const canEditTreasuryTransfer =

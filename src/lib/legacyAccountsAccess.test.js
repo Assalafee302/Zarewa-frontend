@@ -17,6 +17,12 @@ describe('legacyAccountsAccess (client)', () => {
     expect(userMaySeeLegacyAccountsNav('sales_manager', ['finance.approve'])).toBe(false);
   });
 
+  it('cashier role can open Finance desk even without desk permission keys', () => {
+    expect(userMayAccessLegacyAccountsRoute('cashier', [])).toBe(true);
+    expect(userMaySeeLegacyAccountsNav('cashier', [])).toBe(true);
+    expect(resolveLegacyAccountsRedirect('cashier', [])).toBeNull();
+  });
+
   it('cashier sees Cashier desk nav and defaults to desk tab', () => {
     expect(userMaySeeLegacyAccountsNav('cashier', ['cashier.desk.view', 'finance.view'])).toBe(true);
     expect(getDefaultLegacyAccountTab('cashier', ['cashier.desk.view'])).toBe('desk');
