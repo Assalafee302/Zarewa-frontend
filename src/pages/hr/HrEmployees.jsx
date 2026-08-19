@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
+import { canManageHrStaff } from '../../lib/hrAccess';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import HrStaffDirectory from './HrStaffDirectory';
 import HrOrgChart from './HrOrgChart';
@@ -22,6 +24,8 @@ const LEGACY_REDIRECTS = {
 export default function HrEmployees() {
   const { tab, setTab, extra } = useHrUrlTab('directory', TABS.map((t) => t.id));
   const initialRegisterOpen = extra.register === '1';
+  const ws = useWorkspace();
+  const showTalent = canManageHrStaff(ws?.permissions || []);
 
   useEffect(() => {
     if (extra.register === '1' && tab !== 'directory') {
@@ -47,12 +51,22 @@ export default function HrEmployees() {
       }
       hubPageContext={{ employeesTab: tab }}
       actions={
-        <Link
-          to="/hr/employees/registers"
-          className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
-        >
-          Staff registers
-        </Link>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {showTalent ? (
+            <Link
+              to="/hr/talent"
+              className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+            >
+              Talent
+            </Link>
+          ) : null}
+          <Link
+            to="/hr/employees/registers"
+            className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+          >
+            Registers
+          </Link>
+        </div>
       }
     >
       {tab === 'directory' ? (

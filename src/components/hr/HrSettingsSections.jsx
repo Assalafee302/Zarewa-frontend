@@ -8,7 +8,7 @@ import { fetchHrDepartments } from '../../lib/hrMasterData';
 import { downloadBlankStaffRegistrationFormPdf } from '../../lib/hrStaff';
 import { canEditPensionPolicyRates, canManageHrSettings } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, HR_TIME_ABSENCE, hrTabPath } from '../../lib/hrRoutes';
+import { HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, HR_PAYROLL_TAB_STRUCTURE, HR_TIME_ABSENCE, hrTabPath } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
 import { HR_FIELD_CLASS } from './hrFormStyles';
 import { HrAlert, HrCard, HrButton, HrAddButton, HR_BTN_PRIMARY } from './hrPageUi';
@@ -362,9 +362,9 @@ export function HrSettingsRelatedLinks() {
       to: hrTabPath(HR_TIME_ABSENCE, 'holidays'),
     },
     {
-      label: 'Salary matrix',
-      hint: 'Level and step amounts by payroll group',
-      to: hrTabPath(HR_PAYROLL, 'salary-matrix'),
+      label: 'Salary structure',
+      hint: 'Approved monthly amount by job title',
+      to: hrTabPath(HR_PAYROLL, HR_PAYROLL_TAB_STRUCTURE),
     },
     {
       label: 'Pension & statutory reference',
@@ -706,8 +706,8 @@ export function HrOrgGoLiveChecklistSection({ embedded = false }) {
         {completed} of {GO_LIVE_STEPS.length} complete
       </p>
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        <Link to={hrTabPath(HR_PAYROLL, 'salary-matrix')} className="font-semibold text-zarewa-teal hover:underline">
-          Salary matrix & variance →
+        <Link to={hrTabPath(HR_PAYROLL, HR_PAYROLL_TAB_STRUCTURE)} className="font-semibold text-zarewa-teal hover:underline">
+          Salary structure →
         </Link>
         <Link to={HR_EMPLOYEES} className="font-semibold text-zarewa-teal hover:underline">
           Staff directory →

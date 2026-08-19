@@ -546,6 +546,9 @@ export default function HrPayroll() {
           <span className="font-semibold">{formatNgn(totals.grossTotalNgn)}</span>
           {totals.bonusTotalNgn > 0 ? <> · Bonus {formatNgn(totals.bonusTotalNgn)}</> : null} · Net{' '}
           <span className="font-semibold text-teal-800">{formatNgn(totals.netTotalNgn)}</span>
+          <span className="block mt-1 font-medium text-slate-500">
+            Gross is approved salary (or profile fallback). Net = salary − loans − discipline − PAYE − pension.
+          </span>
         </p>
       ) : null}
 
@@ -672,6 +675,9 @@ export default function HrPayroll() {
                   <AppTableTr key={l.userId}>
                     <AppTableTd>
                       <span className="font-medium">{l.displayName || l.userId}</span>
+                      {!l.amountsRedacted && l.paySource === 'profile_fallback' ? (
+                        <p className="text-[11px] font-semibold text-amber-700">Profile fallback — no structure</p>
+                      ) : null}
                     </AppTableTd>
                     <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(l.grossNgn)}</AppTableTd>
                     <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(l.bonusNgn)}</AppTableTd>
@@ -766,7 +772,7 @@ export default function HrPayroll() {
           {canPrepare ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-slate-500 leading-relaxed max-w-xl">
-                One run per calendar month · branch, HQ admin, and mining staff · PAYE per profile · December bonus.
+                One run per calendar month. Gross comes from the approved salary structure. Net = salary − loans − discipline − PAYE − pension.
               </p>
               <HrAddFormButton onClick={() => setStartRunOpen(true)}>Start monthly payroll</HrAddFormButton>
             </div>
@@ -909,7 +915,7 @@ export default function HrPayroll() {
                               type: 'recompute',
                               title: 'Recompute payroll',
                               description:
-                                'Recalculate all lines from current staff profiles, attendance, loans, and policy rates?',
+                                'Recalculate all lines from the approved salary structure (or profile fallback), attendance, loans, discipline, and PAYE/pension?',
                               confirmLabel: 'Recompute',
                             })
                           }

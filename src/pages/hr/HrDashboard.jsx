@@ -33,7 +33,7 @@ import {
   getHrDashboardQuickActions,
   getHrDashboardQueueLines,
 } from '../../lib/hrDashboardUi';
-import { HR_TIME_ABSENCE, HR_TALENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
+import { HR_TIME_ABSENCE, HR_TALENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, HR_PAYROLL_TAB_STRUCTURE, hrTabPath } from '../../lib/hrRoutes';
 import { employeesDirectoryLink, DIRECTORY_QUICK_FROM_ALERT } from '../../lib/hrStaffDirectoryUi';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
 import { HrHubToolbar } from '../../components/hr/HrHubToolbar';
@@ -414,7 +414,7 @@ const ACTION_ALERT_CONFIGS = [
     title: 'Compensation review due',
     borderCls: 'border-yellow-500',
     badgeCls: 'bg-yellow-100 text-yellow-900',
-    linkTo: hrTabPath(HR_PAYROLL, 'salary-matrix'),
+    linkTo: hrTabPath(HR_PAYROLL, HR_PAYROLL_TAB_STRUCTURE),
     countLabel: (n) => `${n} above-matrix pay review${n !== 1 ? 's' : ''} due or overdue`,
     renderItem: (item, i) => (
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
@@ -441,7 +441,7 @@ const ACTION_ALERT_CONFIGS = [
     title: 'Above-matrix pay — undocumented',
     borderCls: 'border-orange-500',
     badgeCls: 'bg-orange-100 text-orange-900',
-    linkTo: hrTabPath(HR_PAYROLL, 'salary-matrix'),
+    linkTo: hrTabPath(HR_PAYROLL, HR_PAYROLL_TAB_STRUCTURE),
     countLabel: (n) => `${n} staff with pay above matrix but no variance documentation`,
     renderItem: (item, i) => (
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">

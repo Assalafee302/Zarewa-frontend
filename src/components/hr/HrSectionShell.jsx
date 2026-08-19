@@ -9,13 +9,13 @@ import { HrSubnav } from './HrSubnav';
  */
 export function HrSectionShell({
   navItems = [],
-  moreNavItems = [],
-  moreNavLabel = 'Programs',
+  secondaryNavItems = [],
   moduleTitle = null,
   moduleSubtitle = null,
   stickySubnav = false,
   compact = false,
   beforeNav = null,
+  afterNav = null,
   children,
   useOutlet = true,
   outletContext,
@@ -31,14 +31,10 @@ export function HrSectionShell({
       ) : null}
       {navItems.length > 0 ? (
         <div className="mb-3">
-          <HrSubnav
-            items={navItems}
-            moreItems={moreNavItems}
-            moreLabel={moreNavLabel}
-            sticky={stickySubnav}
-          />
+          <HrSubnav items={navItems} secondaryItems={secondaryNavItems} sticky={stickySubnav} />
         </div>
       ) : null}
+      {afterNav ? <div className="mb-3">{afterNav}</div> : null}
       <MainPanel className={compact ? '!p-3 sm:!p-5 !min-h-0' : ''}>
         {useOutlet ? <Outlet context={outletContext} /> : children}
       </MainPanel>

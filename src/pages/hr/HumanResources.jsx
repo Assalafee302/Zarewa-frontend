@@ -41,7 +41,7 @@ function LegacyStaffRegisterRedirect() {
 export default function HumanResources() {
   const ws = useWorkspace();
   const showExecutive = ws?.canAccessModule?.('executive_hr');
-  const { navItems, moreNavItems } = useMemo(
+  const { navItems, secondaryNavItems } = useMemo(
     () => buildHrMainNav(ws?.permissions || [], { showExecutive }),
     [ws?.permissions, showExecutive]
   );
@@ -52,9 +52,9 @@ export default function HumanResources() {
         element={
           <HrSectionShell
             navItems={navItems}
-            moreNavItems={moreNavItems}
+            secondaryNavItems={secondaryNavItems}
             moduleTitle="Human Resources"
-            moduleSubtitle="Company-wide HR operations — staff records, payroll, compliance, and approvals."
+            moduleSubtitle="People, time, pay, and records — in five places."
             stickySubnav
             compact
           />

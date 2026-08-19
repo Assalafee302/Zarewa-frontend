@@ -255,6 +255,22 @@ export function canPayPayroll(permissions) {
   return hrHasPermission(permissions, 'hr.payroll.pay');
 }
 
+/** HQ may propose a new designation/branch salary. Branch Manager never can. */
+export function canProposeSalaryStructure(permissions, roleKey) {
+  if (String(roleKey || '').toLowerCase() === 'sales_manager') return false;
+  return (
+    hrHasPermission(permissions, 'hr.settings.manage') ||
+    hrHasPermission(permissions, 'hr.staff.manage') ||
+    hrHasPermission(permissions, 'hr.payroll.manage')
+  );
+}
+
+/** GM HR / MD approve structure versions. Amounts are never edited in place. */
+export function canApproveSalaryStructure(permissions, roleKey) {
+  if (String(roleKey || '').toLowerCase() === 'sales_manager') return false;
+  return hrHasPermission(permissions, 'hr.salary_structure.approve');
+}
+
 /** @param {string[] | undefined} permissions */
 export function canMdApprovePayroll(permissions) {
   return hrHasPermission(permissions, 'hr.payroll.md_approve');

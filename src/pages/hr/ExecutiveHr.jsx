@@ -1,5 +1,5 @@
-import React, { Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import React, { Suspense, useMemo } from 'react';
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import ModuleRouteGuard from '../../components/ModuleRouteGuard';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
 import ExecutiveHrFamilyHub from './ExecutiveHrFamilyHub';
@@ -12,21 +12,54 @@ import {
   ExecutiveHrFamilyLegacyRedirect,
 } from './ExecutiveHrLegacyRedirects';
 import { hrTabPath, HR_SETTINGS } from '../../lib/hrRoutes';
+import { buildHrMainNav } from '../../lib/hrMainNav';
+import { useWorkspace } from '../../context/WorkspaceContext';
 
-const NAV = [
-  { to: '/executive-hr/family', label: 'Family & household' },
+const EXEC_AREAS = [
+  { to: '/executive-hr/family', label: 'Family' },
   { to: '/executive-hr/compensation', label: 'Compensation' },
   { to: '/executive-hr/approvals', label: 'Approvals' },
   { to: '/executive-hr/reports', label: 'Reports' },
-  { to: hrTabPath(HR_SETTINGS, 'policies'), label: 'Leave & loan policy' },
 ];
 
+function ExecAreaSwitch() {
+  return (
+    <nav aria-label="Executive HR areas" className="flex flex-wrap gap-1.5">
+      {EXEC_AREAS.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          className={({ isActive }) =>
+            `rounded-full px-3 py-1 text-xs font-semibold no-underline ${
+              isActive
+                ? 'bg-zarewa-teal text-white'
+                : 'border border-slate-200 bg-white text-slate-600 hover:border-teal-200 hover:text-zarewa-teal'
+            }`
+          }
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
 function ExecutiveShell() {
+  const ws = useWorkspace();
+  const { navItems, secondaryNavItems } = useMemo(
+    () => buildHrMainNav(ws?.permissions || [], { showExecutive: true }),
+    [ws?.permissions]
+  );
+
   return (
     <HrSectionShell
-      navItems={NAV}
+      navItems={navItems}
+      secondaryNavItems={secondaryNavItems}
+      moduleTitle="Human Resources"
+      moduleSubtitle="People, time, pay, and records — in five places."
       stickySubnav
       compact
+      afterNav={<ExecAreaSwitch />}
     />
   );
 }

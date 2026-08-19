@@ -1,10 +1,11 @@
 import { InlineLoader } from '../../components/ui/PageLoader';
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { useToast } from '../../context/ToastContext';
 import { canManageHrSettings } from '../../lib/hrAccess';
-import { hasPermissionInList } from '../../lib/moduleAccess';
+import { hrTabPath, HR_PAYROLL, HR_PAYROLL_TAB_STRUCTURE } from '../../lib/hrRoutes';
 import {
   fetchHrDepartments,
   fetchHrDesignations,
@@ -17,10 +18,8 @@ import {
   MATRIX_STEPS,
   deleteHrDepartment,
   deleteHrDesignation,
-  deleteSalaryMatrixRow,
   fetchSalaryMatrix,
   matrixRowKey,
-  saveSalaryMatrixRow,
   totalMatrixPay,
 } from '../../lib/hrCompensationStructure';
 import { HR_FUNCTIONAL_OFFICES, TITLE_TIERS } from '../../lib/hrOrgConstants';
@@ -29,6 +28,7 @@ import { appConfirm } from '../../lib/appConfirm';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
 import { HrCard, HrEmptyState, HrButton, HrAddButton } from './hrPageUi';
 import { HR_FIELD_CLASS } from './hrFormStyles';
+import { HrSalaryMatrixRetiredBanner } from './HrSalaryMatrixPanel';
 import {
   AppTable,
   AppTableBody,
@@ -68,17 +68,6 @@ const emptyDesig = () => ({
   workingConditions: '',
   salaryRangeNote: '',
   active: true,
-});
-
-const emptyMatrix = () => ({
-  id: '',
-  payrollGroup: 'branch_ops',
-  salaryLevel: '3',
-  salaryStep: '1',
-  baseSalaryNgn: '',
-  housingAllowanceNgn: '',
-  transportAllowanceNgn: '',
-  notes: '',
 });
 
 function SectionTabs({ section, onChange }) {
@@ -673,15 +662,11 @@ function DepartmentsManager({ canEdit }) {
   );
 }
 
-function SalaryMatrixManager({ canEdit }) {
-  const { show: toast } = useToast();
+function SalaryMatrixManager() {
   const [rows, setRows] = useState([]);
   const [group, setGroup] = useState('branch_ops');
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState(emptyMatrix());
-  const [busy, setBusy] = useState(false);
 
-  const { loading, error, reload } = useHrListLoad(async () => {
+  const { loading, error } = useHrListLoad(async () => {
     const { ok, data } = await fetchSalaryMatrix();
     if (!ok || !data?.ok) {
       setRows([]);
@@ -704,75 +689,16 @@ function SalaryMatrixManager({ canEdit }) {
     return [...new Set([...base, ...fromData])].sort((a, b) => a - b);
   }, [groupRows]);
 
-  const openCell = (level, step) => {
-    const existing = byKey.get(`${group}|${level}|${step}`);
-    if (existing) {
-      setForm({
-        id: existing.id,
-        payrollGroup: existing.payrollGroup,
-        salaryLevel: String(existing.salaryLevel),
-        salaryStep: String(existing.salaryStep),
-        baseSalaryNgn: existing.baseSalaryNgn ?? '',
-        housingAllowanceNgn: existing.housingAllowanceNgn ?? '',
-        transportAllowanceNgn: existing.transportAllowanceNgn ?? '',
-        notes: existing.notes || '',
-      });
-    } else {
-      setForm({ ...emptyMatrix(), payrollGroup: group, salaryLevel: String(level), salaryStep: String(step) });
-    }
-    setModal(true);
-  };
-
-  const openNew = () => {
-    setForm({ ...emptyMatrix(), payrollGroup: group });
-    setModal(true);
-  };
-
-  const save = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    const { ok, data } = await saveSalaryMatrixRow({
-      payrollGroup: form.payrollGroup,
-      salaryLevel: Number(form.salaryLevel),
-      salaryStep: Number(form.salaryStep),
-      baseSalaryNgn: Number(form.baseSalaryNgn) || 0,
-      housingAllowanceNgn: Number(form.housingAllowanceNgn) || 0,
-      transportAllowanceNgn: Number(form.transportAllowanceNgn) || 0,
-      notes: form.notes.trim() || null,
-    });
-    setBusy(false);
-    if (!ok || !data?.ok) {
-      toast(data?.error || 'Could not save.', { variant: 'error' });
-      return;
-    }
-    toast('Matrix row saved.', { variant: 'success' });
-    setModal(false);
-    reload();
-  };
-
-  const remove = async () => {
-    if (!form.id) return;
-    if (!(await appConfirm({ message: 'Delete this salary matrix cell?', variant: 'danger' }))) return;
-    setBusy(true);
-    const { ok, data } = await deleteSalaryMatrixRow(form.id);
-    setBusy(false);
-    if (!ok || !data?.ok) {
-      toast(data?.error || 'Could not delete.', { variant: 'error' });
-      return;
-    }
-    toast('Matrix row deleted.', { variant: 'success' });
-    setModal(false);
-    reload();
-  };
-
   const groupMeta = PAYROLL_MATRIX_GROUPS.find((g) => g.value === group);
 
   return (
     <HrCard
-      title="Salary matrix"
-      subtitle="Base pay, housing, and transport by payroll group × level × step. Click a cell to edit."
-      actions={canEdit ? <HrAddFormButton onClick={openNew}>Add / update row</HrAddFormButton> : null}
+      title="Salary matrix (historical)"
+      subtitle="Read-only reference. Payroll no longer uses these cells."
     >
+      <div className="mb-4">
+        <HrSalaryMatrixRetiredBanner />
+      </div>
       <div className="mb-4 flex flex-wrap gap-2">
         {PAYROLL_MATRIX_GROUPS.map((g) => (
           <button
@@ -812,21 +738,12 @@ function SalaryMatrixManager({ canEdit }) {
                       return (
                         <AppTableTd key={step} align="right">
                           {row ? (
-                            <button
-                              type="button"
-                              disabled={!canEdit}
-                              onClick={() => openCell(level, step)}
-                              className={`text-right ${canEdit ? 'hover:underline' : ''}`}
-                            >
+                            <>
                               <span className="block font-semibold text-slate-900">{formatNgn(total)}</span>
                               <span className="block text-ui-xs text-slate-500">
                                 B {formatNgn(row.baseSalaryNgn)} · H {formatNgn(row.housingAllowanceNgn)}
                               </span>
-                            </button>
-                          ) : canEdit ? (
-                            <button type="button" className="text-xs text-slate-400 hover:text-zarewa-teal" onClick={() => openCell(level, step)}>
-                              + Set
-                            </button>
+                            </>
                           ) : (
                             '—'
                           )}
@@ -848,13 +765,12 @@ function SalaryMatrixManager({ canEdit }) {
                   <AppTableTh align="right">Housing</AppTableTh>
                   <AppTableTh align="right">Transport</AppTableTh>
                   <AppTableTh align="right">Total</AppTableTh>
-                  {canEdit ? <AppTableTh /> : null}
               </AppTableThead>
               <AppTableBody>
                 {groupRows.length === 0 ? (
                   <AppTableTr>
-                    <AppTableTd colSpan={canEdit ? 7 : 6} align="center">
-                      <span className="text-slate-500">No rows for this group yet.</span>
+                    <AppTableTd colSpan={6} align="center">
+                      <span className="text-slate-500">No rows for this group on file.</span>
                     </AppTableTd>
                   </AppTableTr>
                 ) : (
@@ -868,11 +784,6 @@ function SalaryMatrixManager({ canEdit }) {
                         <AppTableTd align="right">{formatNgn(r.housingAllowanceNgn)}</AppTableTd>
                         <AppTableTd align="right">{formatNgn(r.transportAllowanceNgn)}</AppTableTd>
                         <AppTableTd align="right" className="font-semibold">{formatNgn(totalMatrixPay(r))}</AppTableTd>
-                        {canEdit ? (
-                          <AppTableTd>
-                            <button type="button" className="text-xs font-bold text-zarewa-teal" onClick={() => openCell(r.salaryLevel, r.salaryStep)}>Edit</button>
-                          </AppTableTd>
-                        ) : null}
                       </AppTableTr>
                     ))
                 )}
@@ -881,65 +792,6 @@ function SalaryMatrixManager({ canEdit }) {
           </AppTableWrap>
         </>
       ) : null}
-
-      <HrFormModal isOpen={modal} onClose={() => setModal(false)} title="Salary matrix cell" size="lg">
-        <form onSubmit={save} className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="block text-xs font-semibold text-slate-600 sm:col-span-3">
-              Payroll group
-              <select className={HR_FIELD_CLASS} value={form.payrollGroup} onChange={(e) => setForm((f) => ({ ...f, payrollGroup: e.target.value }))} disabled={Boolean(form.id)}>
-                {PAYROLL_MATRIX_GROUPS.map((g) => (
-                  <option key={g.value} value={g.value}>{g.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Level
-              <input type="number" min={1} max={7} className={HR_FIELD_CLASS} value={form.salaryLevel} onChange={(e) => setForm((f) => ({ ...f, salaryLevel: e.target.value }))} disabled={Boolean(form.id)} />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Step
-              <input type="number" min={1} max={3} className={HR_FIELD_CLASS} value={form.salaryStep} onChange={(e) => setForm((f) => ({ ...f, salaryStep: e.target.value }))} disabled={Boolean(form.id)} />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Total preview
-              <input
-                className={HR_FIELD_CLASS}
-                readOnly
-                value={formatNgn(
-                  (Number(form.baseSalaryNgn) || 0) +
-                    (Number(form.housingAllowanceNgn) || 0) +
-                    (Number(form.transportAllowanceNgn) || 0)
-                )}
-              />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Base salary ₦
-              <input type="number" className={HR_FIELD_CLASS} value={form.baseSalaryNgn} onChange={(e) => setForm((f) => ({ ...f, baseSalaryNgn: e.target.value }))} />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Housing ₦
-              <input type="number" className={HR_FIELD_CLASS} value={form.housingAllowanceNgn} onChange={(e) => setForm((f) => ({ ...f, housingAllowanceNgn: e.target.value }))} />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Transport ₦
-              <input type="number" className={HR_FIELD_CLASS} value={form.transportAllowanceNgn} onChange={(e) => setForm((f) => ({ ...f, transportAllowanceNgn: e.target.value }))} />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600 sm:col-span-3">
-              Notes
-              <input className={HR_FIELD_CLASS} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <HrButton type="submit" disabled={busy} >{busy ? 'Saving…' : 'Save'}</HrButton>
-            {form.id && canEdit ? (
-              <button type="button" disabled={busy} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-800" onClick={remove}>
-                Delete row
-              </button>
-            ) : null}
-          </div>
-        </form>
-      </HrFormModal>
     </HrCard>
   );
 }
@@ -968,7 +820,7 @@ function PayGradeLadderReference() {
         </AppTable>
       </AppTableWrap>
       <p className="mt-4 text-xs text-slate-500">
-        Each role can set a default level/step and promotion grade. Staff pay rank uses payroll group + level + step from the matrix above.
+        Each role can set a default level/step and promotion grade. Staff pay is set by salary structure versions, not the historical matrix.
       </p>
     </HrCard>
   );
@@ -982,10 +834,6 @@ export function HrExecutiveStructureHub({ defaultSection = 'roles', embedded = f
   const ws = useWorkspace();
   const permissions = ws?.permissions || [];
   const canEdit = canManageHrSettings(permissions);
-  const canEditMatrix =
-    canEdit ||
-    hasPermissionInList(permissions, 'hr.payroll.manage') ||
-    hasPermissionInList(permissions, '*');
   const [section, setSection] = useState(defaultSection);
 
   return (
@@ -994,14 +842,18 @@ export function HrExecutiveStructureHub({ defaultSection = 'roles', embedded = f
         <div className="space-y-2">
           <h2 className="text-lg font-bold text-zarewa-teal">Roles, grades & compensation structure</h2>
           <p className="max-w-3xl text-sm text-slate-600">
-            Manage the full job catalog with terms of reference, department groupings, and the salary matrix that drives pay rank (level × step) across payroll groups.
+            Manage the job catalog with terms of reference and departments. Set monthly salaries on{' '}
+            <Link to={hrTabPath(HR_PAYROLL, HR_PAYROLL_TAB_STRUCTURE)} className="font-semibold text-zarewa-teal hover:underline">
+              Pay → Salary structure
+            </Link>
+            . The matrix here is historical only.
           </p>
         </div>
       ) : null}
       <SectionTabs section={section} onChange={setSection} />
       {section === 'roles' ? <RolesTermsManager canEdit={canEdit} /> : null}
       {section === 'departments' ? <DepartmentsManager canEdit={canEdit} /> : null}
-      {section === 'matrix' ? <SalaryMatrixManager canEdit={canEditMatrix} /> : null}
+      {section === 'matrix' ? <SalaryMatrixManager /> : null}
       {section === 'ladder' ? <PayGradeLadderReference /> : null}
     </div>
   );

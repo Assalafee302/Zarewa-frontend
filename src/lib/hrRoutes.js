@@ -50,6 +50,9 @@ export function hrPayrollRunPath(runId) {
   return hrTabPath(HR_PAYROLL, 'payroll-runs', { runId: String(runId) });
 }
 
+export const HR_PAYROLL_TAB_STRUCTURE = 'salary-structure';
+export const HR_PAYROLL_TAB_OVERVIEW = 'overview';
+
 /** Payroll hub — staff loans & purchase credit tab. */
 export const HR_PAYROLL_TAB_STAFF_CREDIT = 'staff-credit';
 

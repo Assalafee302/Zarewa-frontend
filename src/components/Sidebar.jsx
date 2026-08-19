@@ -87,6 +87,8 @@ const Sidebar = ({
   const hasBranchCommandCentre = userMayAccessBranchCommandCentreClient(roleKey, permissions);
   const showCommandCentreNav = hasExecNav || hasBranchCommandCentre;
 
+  const hasHqHr = ws?.canAccessModule?.('hr') ?? false;
+  const hasExecHr = canAccessExecutiveHr(permissions);
   const hasAccountingDesk = userMayViewAccountingDeskClient(roleKey, permissions);
   const hasLegacyFinanceNav = userMaySeeLegacyAccountsNav(roleKey, permissions);
   const financeNavLabel =
@@ -167,16 +169,12 @@ const Sidebar = ({
     {
       icon: <Users size={18} />,
       label: 'Human Resources',
-      path: '/hr',
-      active: pathMatches(p, '/hr') && !pathMatches(p, '/hr/executive'),
-      visible: ws?.canAccessModule?.('hr') ?? false,
-    },
-    {
-      icon: <ShieldCheck size={18} />,
-      label: 'Executive HR',
-      path: '/executive-hr',
-      active: pathMatches(p, '/executive-hr') || pathMatches(p, '/hr/executive'),
-      visible: canAccessExecutiveHr(permissions),
+      path: hasHqHr ? '/hr' : '/executive-hr',
+      active:
+        (pathMatches(p, '/hr') && !pathMatches(p, '/hr/executive')) ||
+        pathMatches(p, '/executive-hr') ||
+        pathMatches(p, '/hr/executive'),
+      visible: hasHqHr || hasExecHr,
     },
     {
       icon: <UserCircle size={18} />,

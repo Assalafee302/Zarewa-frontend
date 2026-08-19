@@ -319,7 +319,7 @@ export function buildUserProfileActions(ctx = {}) {
     });
   }
 
-  if (canAccessExecutiveHr(permissions)) {
+  if (canAccessExecutiveHr(permissions) && !canAccessMainHrWorkspace(permissions)) {
     actions.push({
       id: 'executive-hr',
       label: 'Executive HR',
