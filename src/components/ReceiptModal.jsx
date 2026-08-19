@@ -472,9 +472,10 @@ const ReceiptModal = ({
   }, [quotationRowForPayments]);
 
   useEffect(() => {
-    if (!isOpen || readOnly || !useLedgerApi || !isAddPayment || isExistingPayment) {
+    if (!isOpen || !useLedgerApi) {
       setRefundCreditInfo(null);
       setApplyRefundCredit(false);
+      setRefundCreditLoading(false);
       return;
     }
     const cid = String(customerID || '').trim();
@@ -482,6 +483,7 @@ const ReceiptModal = ({
     if (!cid || !qid) {
       setRefundCreditInfo(null);
       setApplyRefundCredit(false);
+      setRefundCreditLoading(false);
       return;
     }
     let cancelled = false;
@@ -492,7 +494,14 @@ const ReceiptModal = ({
       );
       if (cancelled) return;
       setRefundCreditLoading(false);
-      if (!ok || !data?.ok || !(Number(data.recommendedApplyNgn) > 0)) {
+      if (!ok || !data?.ok) {
+        setRefundCreditInfo(null);
+        setApplyRefundCredit(false);
+        return;
+      }
+      const hasUsable = Number(data.recommendedApplyNgn) > 0 || Number(data.totalAvailableNgn) > 0;
+      const hasUnavailable = Array.isArray(data.unavailableSources) && data.unavailableSources.length > 0;
+      if (!hasUsable && !hasUnavailable) {
         setRefundCreditInfo(null);
         setApplyRefundCredit(false);
         return;
@@ -508,7 +517,7 @@ const ReceiptModal = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, readOnly, useLedgerApi, isAddPayment, isExistingPayment, customerID, quotationRef, ledgerNonce]);
+  }, [isOpen, useLedgerApi, customerID, quotationRef, ledgerNonce]);
 
   const recommendedCreditApplyNgn = useMemo(() => {
     if (!applyRefundCredit || !refundCreditInfo) return 0;
@@ -1332,15 +1341,15 @@ const ReceiptModal = ({
                     </span>
                   </div>
                 ) : null}
-                {!readOnly && useLedgerApi && isAddPayment && !isExistingPayment && refundCreditLoading ? (
+                {useLedgerApi && refundCreditLoading ? (
                   <p className="sm:col-span-2 text-ui-xs text-slate-500">Checking refund fund…</p>
                 ) : null}
-                {!readOnly &&
-                useLedgerApi &&
-                isAddPayment &&
-                !isExistingPayment &&
+                {useLedgerApi &&
                 refundCreditInfo &&
-                Number(refundCreditInfo.recommendedApplyNgn) > 0 ? (
+                Number(refundCreditInfo.recommendedApplyNgn) > 0 &&
+                !readOnly &&
+                isAddPayment &&
+                !isExistingPayment ? (
                   <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2.5 text-ui-xs text-slate-800 space-y-2">
                     <label className="flex items-start gap-2 cursor-pointer">
                       <input
@@ -1353,7 +1362,7 @@ const ReceiptModal = ({
                         <span className="font-bold text-amber-900">{REFUND_FUND_USE_LABEL}: </span>
                         {formatNgn(refundCreditInfo.recommendedApplyNgn)} from this customer’s refund
                         fund will cover this receipt. That slice is removed from the refund and is not
-                        refundable again. Leftover stays refundable on the older job.
+                        refundable again. Leftover stays refundable.
                       </span>
                     </label>
                     <ul className="pl-6 list-disc text-slate-600 space-y-0.5">
@@ -1361,6 +1370,7 @@ const ReceiptModal = ({
                         <li key={s.id}>
                           {s.label}: {formatNgn(s.availableNgn)}
                           {s.overpaymentOnly ? ' · overpayment (no approval)' : ' · approved refund'}
+                          {s.sameQuotation ? ' · this quotation' : ''}
                         </li>
                       ))}
                     </ul>
@@ -1371,6 +1381,31 @@ const ReceiptModal = ({
                           : 'Refund fund covers this receipt — no cash to collect.'}
                       </p>
                     ) : null}
+                  </div>
+                ) : useLedgerApi && refundCreditInfo ? (
+                  <div className="sm:col-span-2 rounded-lg border border-sky-200 bg-sky-50/80 px-3 py-2.5 text-ui-xs text-sky-950 space-y-1.5">
+                    <p className="font-bold">This customer has a refund</p>
+                    {Number(refundCreditInfo.totalAvailableNgn) > 0 ? (
+                      <p>
+                        Refund fund {formatNgn(refundCreditInfo.totalAvailableNgn)} is on file
+                        {Number(refundCreditInfo.targetDueNgn) > 0
+                          ? ', but this receipt cannot take it automatically yet.'
+                          : ' — this quotation has no remaining balance due, so nothing is deducted on this receipt.'}
+                      </p>
+                    ) : null}
+                    <ul className="pl-4 list-disc space-y-0.5">
+                      {(refundCreditInfo.sources || []).slice(0, 4).map((s) => (
+                        <li key={s.id}>
+                          {s.label}: {formatNgn(s.availableNgn)}
+                        </li>
+                      ))}
+                      {(refundCreditInfo.unavailableSources || []).slice(0, 4).map((s) => (
+                        <li key={s.id}>
+                          {s.refundId || s.sourceQuotationRef}: {s.reason}
+                          {s.availableNgn > 0 ? ` (${formatNgn(s.availableNgn)})` : ''}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 ) : null}
               </div>

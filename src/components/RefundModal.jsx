@@ -124,6 +124,14 @@ function deriveReasonCategoriesFromLines(lines) {
   return Array.from(s);
 }
 
+function productionAlignmentFingerprint(quoteRef, categories) {
+  const cats = (Array.isArray(categories) ? categories : [])
+    .map((c) => String(c || '').trim())
+    .filter(Boolean)
+    .sort();
+  return `${String(quoteRef || '').trim()}\0${cats.join('|')}`;
+}
+
 function refundCategoryTokens(value) {
   if (Array.isArray(value)) return value.map((x) => String(x ?? '').trim()).filter(Boolean);
   const s = String(value ?? '').trim();
@@ -480,6 +488,8 @@ const RefundModal = ({
 
   const productionFingerprintRef = useRef('');
   const previewLoadedForQuoteRef = useRef('');
+  /** Skip a second production-alignment API call when preview already computed the same quote+categories. */
+  const previewAlignmentKeyRef = useRef('');
   /** Monotonic counter so out-of-order `/api/refunds/preview` responses cannot overwrite newer results (e.g. after production accessory correction). */
   const refundsPreviewSeqRef = useRef(0);
   const createPathRef = useRef('full');
@@ -855,6 +865,7 @@ const RefundModal = ({
       setWarnings([]);
       setSubstitutionPerMeterBreakdown([]);
       setSubstitutionBreakdownLineKey('');
+      void fetchIntelligence(quoteRef, seq);
       const subPpm = Number(String(substitutionWorkbookPpmOverride ?? '').replace(/,/g, ''));
       const body = {
         quotationRef: quoteRef,
@@ -1000,8 +1011,10 @@ const RefundModal = ({
         reasonCategory: deriveReasonCategoriesFromLines(breakdownRows),
         amountNgn: initialAmount > 0 ? String(initialAmount) : f.amountNgn,
       }));
-
-      fetchIntelligence(quoteRef, seq);
+      previewAlignmentKeyRef.current = productionAlignmentFingerprint(
+        quoteRef,
+        deriveReasonCategoriesFromLines(breakdownRows)
+      );
     },
     [includeCommissionInPreview, substitutionWorkbookPpmOverride]
   );
@@ -1009,6 +1022,7 @@ const RefundModal = ({
   const resetPreviewStateForQuoteChange = useCallback(() => {
     productionFingerprintRef.current = '';
     previewLoadedForQuoteRef.current = '';
+    previewAlignmentKeyRef.current = '';
     createPathUserTouchedRef.current = false;
     setMoneyContext(null);
     setCategorySuggestedMaxNgn(null);
@@ -1412,6 +1426,11 @@ const RefundModal = ({
       return undefined;
     }
     if (categories.length === 0) {
+      setAlignmentCheckLoading(false);
+      return undefined;
+    }
+    const alignmentKey = productionAlignmentFingerprint(qref, categories);
+    if (previewAlignmentKeyRef.current === alignmentKey) {
       setAlignmentCheckLoading(false);
       return undefined;
     }

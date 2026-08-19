@@ -18,7 +18,6 @@ import { StaffPurchaseCreditQuotationPanel } from './sales/StaffPurchaseCreditQu
 import { ModalFrame } from './layout/ModalFrame';
 import { ModalDeskFooter, DeskFooterButton } from './layout/ModalDeskFooter';
 import { Button } from './ui/button';
-import { QuotationPipelineStepper } from './sales/QuotationPipelineStepper';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
@@ -2082,13 +2081,6 @@ const QuotationModal = ({
   }, [editData?.id, ws?.session?.user?.roleKey, ws?.snapshot?.receipts]);
   const quotationBalanceAfterPaidNgn = Math.max(0, grandTotalNgn - quotationPaidNgn);
 
-  const quotationPayStatusLabel = useMemo(() => {
-    if (!editData?.id) return 'Unpaid';
-    if (grandTotalNgn > 0 && quotationPaidNgn >= Math.round(grandTotalNgn * 0.995)) return 'Paid';
-    if (quotationPaidNgn > 0) return 'Partial';
-    return String(editData.paymentStatus || 'Unpaid').trim() || 'Unpaid';
-  }, [editData?.id, editData?.paymentStatus, grandTotalNgn, quotationPaidNgn]);
-
   const quoteDueNgn = useMemo(() => {
     if (!editData?.id) return 0;
     return Math.max(0, Math.round(grandTotalNgn) - quotationPaidNgn);
@@ -2652,16 +2644,6 @@ const QuotationModal = ({
           ) : null}
 
           {editData?.id ? (
-            <QuotationPipelineStepper
-              status={editData.status}
-              payStatus={quotationPayStatusLabel}
-              quotationId={editData.id}
-            />
-          ) : (
-            <QuotationPipelineStepper status="Pending" payStatus="Unpaid" quotationId="" />
-          )}
-
-          {editData?.id ? (
             <div className="mb-5 p-4 rounded-xl border border-slate-200 bg-slate-50/80">
               <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
                 Quotation status
@@ -2734,10 +2716,10 @@ const QuotationModal = ({
           ) : null}
 
           <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-white">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-4 md:gap-5 md:items-end">
               <div>
             <label className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-2 block">
-              Customer — search by name, phone, staff ID (e.g. ZAPKD004), or tier
+              Customer search
             </label>
             <div className="relative">
               <Search
@@ -2763,11 +2745,11 @@ const QuotationModal = ({
                   scheduleCustomerMenuClose();
                 }}
                 readOnly={readOnly}
-                placeholder="Type name, phone, staff ID (ZAPKD004), or Staff tier…"
+                placeholder="Name, phone, or staff ID…"
                 autoComplete="off"
                 aria-expanded={customerListOpen}
                 aria-controls="quotation-customer-suggestions"
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/10"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2.5 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/10"
               />
               {!readOnly && customerListOpen && filteredCustomers.length > 0 ? (
                 <ul
@@ -2801,31 +2783,22 @@ const QuotationModal = ({
                 No match — use New customer to register without leaving this quote.
               </p>
             ) : null}
-            {!readOnly ? (
-              <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={openFullCustomerForm}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/50 px-3 py-1.5 text-ui-xs font-semibold uppercase tracking-wide text-zarewa-teal hover:bg-teal-50"
-                >
-                  <UserPlus size={14} />
-                  New customer
-                </button>
-                <span className="text-ui-xs text-slate-400">Opens on top — quotation stays open</span>
-              </div>
-            ) : null}
               </div>
 
-              {(selectedCustomerId && (editData?.id || isStaffLinkedCustomer(selectedCustomer))) ? (
-                <div className="sm:col-span-2">
-                  <StaffPurchaseCreditQuotationPanel
-                    quotationRef={editData?.id || ''}
-                    customerId={selectedCustomerId}
-                    customer={selectedCustomer}
-                    readOnly={readOnly}
-                  />
+              {!readOnly ? (
+                <div className="flex md:h-[42px] items-center justify-start md:justify-center">
+                  <button
+                    type="button"
+                    onClick={openFullCustomerForm}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/50 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wide text-zarewa-teal hover:bg-teal-50 whitespace-nowrap"
+                  >
+                    <UserPlus size={14} />
+                    New customer
+                  </button>
                 </div>
-              ) : null}
+              ) : (
+                <div className="hidden md:block" />
+              )}
 
               <div>
             <label className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-2 block">
@@ -2842,6 +2815,16 @@ const QuotationModal = ({
             />
               </div>
             </div>
+            {(selectedCustomerId && (editData?.id || isStaffLinkedCustomer(selectedCustomer))) ? (
+              <div className="mt-4">
+                <StaffPurchaseCreditQuotationPanel
+                  quotationRef={editData?.id || ''}
+                  customerId={selectedCustomerId}
+                  customer={selectedCustomer}
+                  readOnly={readOnly}
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
