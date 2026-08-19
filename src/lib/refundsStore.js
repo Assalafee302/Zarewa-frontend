@@ -40,6 +40,21 @@ export function refundApprovedAmount(r) {
   return 0;
 }
 
+/** Requested cash still waiting on the manager after refund fund was used on a receipt. */
+export function refundLeftoverAwaitingApprovalNgn(r) {
+  const requested = Math.round(Number(r?.amountNgn ?? r?.amount_ngn) || 0);
+  const applied = Math.round(Number(r?.creditAppliedNgn ?? r?.credit_applied_ngn) || 0);
+  return Math.max(0, requested - applied);
+}
+
+/** Default Approved ₦: leftover cash after fund use, else requested / already approved. */
+export function refundDefaultApproveAmountNgn(r) {
+  const requested = Math.round(Number(r?.amountNgn ?? r?.amount_ngn) || 0);
+  const applied = Math.round(Number(r?.creditAppliedNgn ?? r?.credit_applied_ngn) || 0);
+  if (applied > 0) return Math.max(0, requested - applied);
+  return refundApprovedAmount(r) || requested;
+}
+
 export function refundOutstandingAmount(r) {
   const approved = refundApprovedAmount(r);
   const paid = Number(r?.paidAmountNgn) || 0;
@@ -175,7 +190,8 @@ export function hangingRefundOpenAmountNgn(r) {
   if (r.status === 'Pending') {
     const requested = Math.round(Number(r.amountNgn) || 0);
     const paid = Math.round(Number(r.paidAmountNgn) || 0);
-    return Math.max(0, requested - paid);
+    const creditApplied = Math.round(Number(r.creditAppliedNgn) || 0);
+    return Math.max(0, requested - paid - creditApplied);
   }
   return refundOutstandingAmount(r);
 }

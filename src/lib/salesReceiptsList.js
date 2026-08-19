@@ -102,11 +102,60 @@ export function receiptLedgerReceiptTreasurySplits(receiptRow, treasuryMovements
     .map((m) => ({
       movementId: m.id,
       treasuryAccountId: m.treasuryAccountId,
+      accountName: String(m.accountName || '').trim(),
+      accountType: String(m.accountType || '').trim(),
+      bankName: String(m.bankName || m.bank_name || '').trim(),
       accountLabel: [m.accountType, m.accountName].filter(Boolean).join(' — ') || '—',
       amountNgn: Math.round(Number(m.amountNgn) || 0),
       postedAtISO: m.postedAtISO || '',
       reference: m.reference || '',
     }));
+}
+
+/**
+ * Bank / till the customer paid into (treasury account on the receipt split).
+ * Prefers the account's bank name when set.
+ * @param {object} receiptRow
+ * @param {object[]} treasuryMovements
+ * @param {object[]} [treasuryAccounts]
+ * @returns {string[]}
+ */
+export function receiptPaidToBankLabels(receiptRow, treasuryMovements, treasuryAccounts = []) {
+  const splits = receiptLedgerReceiptTreasurySplits(receiptRow, treasuryMovements);
+  const byId = new Map(
+    (Array.isArray(treasuryAccounts) ? treasuryAccounts : []).map((account) => [String(account?.id ?? ''), account])
+  );
+  const labels = [];
+  const seen = new Set();
+  for (const split of splits) {
+    const account = byId.get(String(split.treasuryAccountId ?? ''));
+    let label = '';
+    if (account) {
+      const bankName = String(account.bankName || '').trim();
+      const accountName = String(account.name || '').trim();
+      label = bankName || accountName;
+    }
+    if (!label) label = String(split.bankName || '').trim();
+    if (!label) label = String(split.accountName || '').trim();
+    if (!label) {
+      const raw = String(split.accountLabel || '').trim();
+      if (raw && raw !== '—') {
+        label = raw.replace(/^(Bank|Cash)\s+[—–-]\s+/i, '').trim();
+      }
+    }
+    if (!label && /cash/i.test(String(split.accountType || ''))) label = 'Cash';
+    const key = label.toLowerCase();
+    if (label && !seen.has(key)) {
+      seen.add(key);
+      labels.push(label);
+    }
+  }
+  return labels;
+}
+
+/** Single-line "Paid to …" summary for queue rows. */
+export function receiptPaidToBankSummary(receiptRow, treasuryMovements, treasuryAccounts = []) {
+  return receiptPaidToBankLabels(receiptRow, treasuryMovements, treasuryAccounts).join(' · ');
 }
 
 /** Finance/cashier clearance fields copied from workspace receipt mirror onto ledger rows. */

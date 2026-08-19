@@ -295,7 +295,17 @@ export function BranchManagerCommandInbox(props) {
               {' · '}
               {asRefundReason(row.reason_category || row.reason)}
             </span>
-            <span className="shrink-0 text-ui-xs font-bold tabular-nums">{asMoney(row.amount_ngn)}</span>
+            <span className="shrink-0 text-ui-xs font-bold tabular-nums">
+              {asMoney(
+                Math.round(Number(row.credit_applied_ngn || row.creditAppliedNgn) || 0) > 0
+                  ? Math.max(
+                      0,
+                      Math.round(Number(row.amount_ngn) || 0) -
+                        Math.round(Number(row.credit_applied_ngn || row.creditAppliedNgn) || 0)
+                    )
+                  : row.amount_ngn
+              )}
+            </span>
             <SlaChip kind="refunds" row={row} />
             <ChevronRight size={14} className="shrink-0 text-slate-300" />
           </button>

@@ -22,6 +22,7 @@ import { appConfirm } from '../lib/appConfirm';
 import { printRefundRecord } from '../lib/refundRecordPrint';
 import {
   refundApprovedAmount,
+  refundDefaultApproveAmountNgn,
   refundOutstandingAmount,
   refundStatusIsWithdrawn,
   userMayApproveRefundRequests,
@@ -424,7 +425,7 @@ const RefundModal = ({
   );
   const [approvalDate, setApprovalDate] = useState(() => record?.approvalDate ?? '');
   const [approvedAmountNgn, setApprovedAmountNgn] = useState(() =>
-    String(refundApprovedAmount(record) || Number(record?.amountNgn) || '')
+    String(refundDefaultApproveAmountNgn(record) || '')
   );
   const [managerComments, setManagerComments] = useState(() => record?.managerComments ?? '');
   const [saving, setSaving] = useState(false);
@@ -571,7 +572,7 @@ const RefundModal = ({
     setQuotationServerVerifiedRef('');
     setApprovalStatus(record?.status === 'Rejected' ? 'Rejected' : 'Approved');
     setApprovalDate(record?.approvalDate ?? '');
-    setApprovedAmountNgn(String(refundApprovedAmount(record) || Number(record?.amountNgn) || ''));
+    setApprovedAmountNgn(String(refundDefaultApproveAmountNgn(record) || ''));
     setManagerComments(record?.managerComments ?? '');
     setSaving(false);
     setPreviewLoading(false);
@@ -2015,12 +2016,16 @@ const RefundModal = ({
                 {(() => {
                   if (!record?.refundID) return form.quotationRef || 'Select a quotation';
                   const base = `${record.refundID} · ${record.status}`;
-                  const creditApplied = Math.round(Number(record.creditAppliedNgn) || 0) > 0;
-                  if (!record.creditConfirmationStatus && !creditApplied) return base;
+                  const creditApplied = Math.round(Number(record.creditAppliedNgn) || 0);
+                  if (!record.creditConfirmationStatus && creditApplied <= 0) return base;
                   const dest = String(record.creditAppliedToQuotationRef || '').trim();
-                  return dest
-                    ? `${base} · Refund fund used → ${dest}`
-                    : `${base} · Refund fund used`;
+                  const leftover = Math.max(0, Math.round(Number(record.amountNgn) || 0) - creditApplied);
+                  const used = dest
+                    ? `₦${creditApplied.toLocaleString('en-NG')} applied to ${dest}`
+                    : `₦${creditApplied.toLocaleString('en-NG')} applied to a receipt`;
+                  return leftover > 0
+                    ? `${base} · ${used} · ₦${leftover.toLocaleString('en-NG')} awaits approval`
+                    : `${base} · ${used}`;
                 })()}
               </p>
             </div>
@@ -3670,6 +3675,17 @@ const RefundModal = ({
                             <p className="mt-2 text-ui-xs font-medium text-slate-600 leading-snug">
                               Requested: ₦{approvalMoneyContext.requested.toLocaleString('en-NG')} · Paid on quotation:
                               ₦{approvalMoneyContext.paidNgn.toLocaleString('en-NG')}
+                              {Math.round(Number(record?.creditAppliedNgn) || 0) > 0
+                                ? ` · Refund fund used: ₦${Math.round(Number(record.creditAppliedNgn)).toLocaleString('en-NG')}${
+                                    record.creditAppliedToQuotationRef
+                                      ? ` on ${record.creditAppliedToQuotationRef}`
+                                      : ''
+                                  } · Leftover to approve: ₦${Math.max(
+                                    0,
+                                    Math.round(Number(record.amountNgn) || 0) -
+                                      Math.round(Number(record.creditAppliedNgn) || 0)
+                                  ).toLocaleString('en-NG')}`
+                                : ''}
                               {approvalMoneyContext.paidRefundsNgn > 0
                                 ? ` · Refunds already paid: ₦${approvalMoneyContext.paidRefundsNgn.toLocaleString('en-NG')}`
                                 : ''}{' '}

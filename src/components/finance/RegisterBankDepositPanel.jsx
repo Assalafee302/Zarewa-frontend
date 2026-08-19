@@ -4,6 +4,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { appConfirm } from '../../lib/appConfirm';
 import { formatNgn } from '../../Data/mockData';
 import { bankDepositReclassKindLabel, bankDepositStatusLabel, BANK_DEPOSIT_RECLASS_OPTIONS } from '../../lib/bankDeposits';
+import { useFinanceDepositQuoteMatches } from '../../hooks/useFinanceDepositQuoteMatches.js';
 import {
   treasuryAccountDisplayName,
   treasuryAccountsForWorkspace,
@@ -44,6 +45,7 @@ export function RegisterBankDepositPanel({
   const [filter, setFilter] = useState('open');
   const [actionBusyId, setActionBusyId] = useState('');
   const [reclassDraft, setReclassDraft] = useState({ depositId: '', kind: '', note: '' });
+  const { byDeposit, busyKey, runMatch, canApply, canConfirmPending } = useFinanceDepositQuoteMatches();
 
   const treasuryList = useMemo(() => {
     const raw =
@@ -164,8 +166,8 @@ export function RegisterBankDepositPanel({
         <div>
           <h3 className="text-xs font-bold uppercase tracking-widest text-zarewa-teal">Register bank payment</h3>
           <p className="text-ui-xs text-slate-600 mt-1 max-w-2xl">
-            Record money that hit the bank before Sales knows the customer. Credits treasury once; Sales links when
-            posting receipt or advance.
+            Record money that hit the bank before Sales knows the customer. Credits treasury once; Sales or this
+            panel links it when the amount fits a quotation remaining balance.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -290,12 +292,13 @@ export function RegisterBankDepositPanel({
               <AppTableTh>Status</AppTableTh>
               <AppTableTh>Reference</AppTableTh>
               <AppTableTh>Description</AppTableTh>
+              <AppTableTh>Fits quote</AppTableTh>
               {canPost ? <AppTableTh align="right">Actions</AppTableTh> : null}
             </AppTableThead>
             <AppTableBody>
               {deposits.length === 0 ? (
                 <AppTableTr>
-                  <AppTableTd colSpan={canPost ? 8 : 7} truncate={false} className="text-center text-slate-500">
+                  <AppTableTd colSpan={canPost ? 9 : 8} truncate={false} className="text-center text-slate-500">
                     No bank deposits for this filter.
                   </AppTableTd>
                 </AppTableTr>
@@ -326,6 +329,32 @@ export function RegisterBankDepositPanel({
                         {d.bankReference || '—'}
                       </AppTableTd>
                       <AppTableTd title={d.description || ''}>{d.description || '—'}</AppTableTd>
+                      <AppTableTd truncate={false}>
+                        {(() => {
+                          const match = byDeposit.get(d.id);
+                          if (!match) return <span className="text-ui-xs text-slate-400">—</span>;
+                          const canAct =
+                            match.action === 'confirm_receipt' ? canConfirmPending : canApply;
+                          if (!canAct) {
+                            return (
+                              <span className="text-ui-xs font-semibold text-teal-800">
+                                {match.quotationRef}
+                              </span>
+                            );
+                          }
+                          return (
+                            <button
+                              type="button"
+                              disabled={busyKey === match.key}
+                              onClick={() => void runMatch(match)}
+                              className="rounded border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-ui-xs font-bold uppercase text-teal-900 hover:bg-teal-100 disabled:opacity-50"
+                              title={`${match.quotationRef} · ${match.customer || ''} · ${formatNgn(match.quoteBalanceNgn)}`}
+                            >
+                              {busyKey === match.key ? 'Posting…' : `Fits ${match.quotationRef}`}
+                            </button>
+                          );
+                        })()}
+                      </AppTableTd>
                       {canPost ? (
                         <AppTableTd align="right" truncate={false}>
                           {canAct ? (

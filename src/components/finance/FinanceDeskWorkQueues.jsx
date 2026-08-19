@@ -30,6 +30,7 @@ import {
 import {
   enrichReceiptsWithCuttingListMeta,
   receiptLacksCuttingList,
+  receiptPaidToBankSummary,
 } from "../../lib/salesReceiptsList";
 
 import { SALES_STATUS_CHIP, receiptCuttingListChipClass } from "../../lib/salesStatusUi";
@@ -710,6 +711,11 @@ export function FinanceDeskWorkQueues({
                         findQuotationByRef(ws?.snapshot?.quotations, r.quotationRef)
                       );
                       const dateLabel = receiptDateLabel(r);
+                      const paidToBank = receiptPaidToBankSummary(
+                        r,
+                        treasuryMovements,
+                        treasuryAccounts
+                      );
                       return (
                       <FinanceDeskColoredQueueRow
                         key={r.id}
@@ -734,6 +740,14 @@ export function FinanceDeskWorkQueues({
                             {dateLabel ? (
                               <span className="text-ui-xs font-semibold tabular-nums text-slate-600">
                                 {dateLabel}
+                              </span>
+                            ) : null}
+                            {paidToBank ? (
+                              <span
+                                className="rounded-md border border-sky-200 bg-sky-50/90 px-1.5 py-0.5 text-[10px] font-semibold text-sky-950"
+                                title={`Paid to ${paidToBank}`}
+                              >
+                                Paid to {paidToBank}
                               </span>
                             ) : null}
                             {quoteSpec ? (

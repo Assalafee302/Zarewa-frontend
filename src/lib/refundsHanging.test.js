@@ -67,6 +67,16 @@ describe('hanging refund indicators', () => {
     expect(info?.shortLabel).toMatch(/hanging refunds/i);
     expect(info?.detailLabel).toContain('RF-A');
 
+    const pendingAfterFund = normalizeRefund({
+      refundID: 'RF-CREDIT',
+      customerID: 'CUS-1',
+      status: 'Pending',
+      amountNgn: 40_000,
+      creditAppliedNgn: 30_000,
+      creditAppliedToQuotationRef: 'QT-NEW',
+    });
+    expect(hangingRefundOpenAmountNgn(pendingAfterFund)).toBe(10_000);
+
     const byId = hangingRefundIndicatorsByCustomerId(list);
     expect(byId.get('CUS-1')?.totalOpenNgn).toBe(60_000);
     expect(byId.has('CUS-2')).toBe(true);

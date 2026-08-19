@@ -115,6 +115,10 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
       requested_at_iso: r.requestedAtISO,
       reason_category: r.reasonCategory,
       branch_id: r.branchId || '',
+      credit_applied_ngn: Math.round(Number(r.creditAppliedNgn) || 0),
+      credit_applied_to_quotation_ref: String(r.creditAppliedToQuotationRef || '').trim(),
+      credit_confirmation_status: String(r.creditConfirmationStatus || '').trim(),
+      payment_note: String(r.paymentNote || '').trim(),
     }));
 
   const pendingExpenses = paymentRequests

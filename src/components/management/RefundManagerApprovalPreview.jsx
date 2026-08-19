@@ -3,7 +3,7 @@ import { RefreshCw, CheckCircle2, RotateCcw, AlertTriangle } from 'lucide-react'
 import { flattenQuotationLineItems, formatRefundReasonCategory, ledgerTypeStyle } from '../../lib/managerDashboardCore';
 import { formatActorAttribution } from '../../lib/actorAttribution';
 import { formatPersonName } from '../../lib/formatPersonName';
-import { normalizeRefund } from '../../lib/refundsStore';
+import { normalizeRefund, refundDefaultApproveAmountNgn, refundLeftoverAwaitingApprovalNgn } from '../../lib/refundsStore';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
@@ -253,6 +253,12 @@ export function RefundManagerApprovalPreview({
       reasonCategory: inboxRow.reason_category,
       status: 'Pending',
       requestedAtISO: inboxRow.requested_at_iso,
+      creditAppliedNgn: inboxRow.creditAppliedNgn ?? inboxRow.credit_applied_ngn,
+      creditAppliedToQuotationRef:
+        inboxRow.creditAppliedToQuotationRef ?? inboxRow.credit_applied_to_quotation_ref,
+      creditConfirmationStatus:
+        inboxRow.creditConfirmationStatus ?? inboxRow.credit_confirmation_status,
+      paymentNote: inboxRow.paymentNote ?? inboxRow.payment_note,
     });
   }, [refundRecord, inboxRow]);
 
@@ -490,6 +496,25 @@ export function RefundManagerApprovalPreview({
   );
 
   const requestedAmountNgn = Number(refund?.amountNgn ?? inboxRow?.amount_ngn) || 0;
+  const creditAppliedNgn = Math.round(
+    Number(refund?.creditAppliedNgn ?? inboxRow?.credit_applied_ngn ?? inboxRow?.creditAppliedNgn) || 0
+  );
+  const creditDest = String(
+    refund?.creditAppliedToQuotationRef ||
+      inboxRow?.credit_applied_to_quotation_ref ||
+      inboxRow?.creditAppliedToQuotationRef ||
+      ''
+  ).trim();
+  const leftoverAfterCreditNgn = refundLeftoverAwaitingApprovalNgn({
+    amountNgn: requestedAmountNgn,
+    creditAppliedNgn,
+  });
+  const defaultApproveNgn = refundDefaultApproveAmountNgn({
+    amountNgn: requestedAmountNgn,
+    creditAppliedNgn,
+    approvedAmountNgn: refund?.approvedAmountNgn,
+    status: refund?.status,
+  });
   const paidOnQuoteNgn = Number(sum?.paidNgn ?? intelSum?.bookedOnQuotationNgn) || 0;
   const reservedOtherRefundsNgn = otherRefunds.reduce((s, r) => {
     const st = String(r.status || '').trim().toLowerCase();
@@ -503,7 +528,9 @@ export function RefundManagerApprovalPreview({
     return s + (paidAmt > 0 ? paidAmt : Number(r.amount_ngn ?? r.amountNgn) || 0);
   }, 0);
   const maxApprovableNgn = Math.max(0, paidOnQuoteNgn - reservedOtherRefundsNgn);
-  const requiresMdApproval = requestedAmountNgn > Number(refundExecutiveThresholdNgn) || 0;
+  const requiresMdApproval =
+    (creditAppliedNgn > 0 ? leftoverAfterCreditNgn : requestedAmountNgn) >
+    Number(refundExecutiveThresholdNgn) || 0;
   const orderTotalNgn = Number(sum?.orderTotalNgn) || 0;
   const paymentPct =
     orderTotalNgn > 0 ? Math.round((paidOnQuoteNgn / orderTotalNgn) * 1000) / 10 : null;
@@ -517,11 +544,11 @@ export function RefundManagerApprovalPreview({
   );
 
   useEffect(() => {
-    setApprovedAmountNgn(String(requestedAmountNgn || ''));
+    setApprovedAmountNgn(String(defaultApproveNgn || ''));
     setApprovalAmountError('');
     setManagerComments('');
     setRejectNoteError('');
-  }, [refundId, requestedAmountNgn]);
+  }, [refundId, defaultApproveNgn]);
 
   const runAlignmentCheck = useCallback(async () => {
     const qref = String(refund?.quotationRef ?? inboxRow?.quotation_ref ?? '').trim();
@@ -591,7 +618,23 @@ export function RefundManagerApprovalPreview({
     }
     if (approved > requestedAmountNgn) {
       setApprovalAmountError(
-        `Approved amount cannot exceed the requested ?${requestedAmountNgn.toLocaleString('en-NG')}.`
+        `Approved amount cannot exceed the requested ₦${requestedAmountNgn.toLocaleString('en-NG')}.`
+      );
+      return;
+    }
+    if (creditAppliedNgn > 0 && leftoverAfterCreditNgn <= 0) {
+      setApprovalAmountError(
+        creditDest
+          ? `₦${creditAppliedNgn.toLocaleString('en-NG')} was already applied to ${creditDest}. Nothing is left to approve for cash payout.`
+          : `₦${creditAppliedNgn.toLocaleString('en-NG')} was already applied to a receipt. Nothing is left to approve for cash payout.`
+      );
+      return;
+    }
+    if (creditAppliedNgn > 0 && approved > leftoverAfterCreditNgn) {
+      setApprovalAmountError(
+        `₦${creditAppliedNgn.toLocaleString('en-NG')} was already applied${
+          creditDest ? ` to ${creditDest}` : ' to a receipt'
+        }. Approve at most ₦${leftoverAfterCreditNgn.toLocaleString('en-NG')} leftover.`
       );
       return;
     }
@@ -605,7 +648,13 @@ export function RefundManagerApprovalPreview({
     const lineSum = sumCalcLines(calcLines);
     let linesForDecision = calcLines;
     if (calcLines.length > 0 && Math.abs(lineSum - approved) > 1) {
-      if (Math.abs(lineSum - requestedAmountNgn) <= 1 && approved <= requestedAmountNgn + 1) {
+      if (
+        creditAppliedNgn > 0 &&
+        Math.abs(lineSum - requestedAmountNgn) <= 1 &&
+        approved <= leftoverAfterCreditNgn + 1
+      ) {
+        linesForDecision = calcLines;
+      } else if (Math.abs(lineSum - requestedAmountNgn) <= 1 && approved <= requestedAmountNgn + 1) {
         linesForDecision = scaleRefundCalculationLinesToApprovedAmount(calcLines, approved);
         const scaledSum = sumCalcLines(linesForDecision);
         if (Math.abs(scaledSum - approved) > 1) {
@@ -717,6 +766,21 @@ export function RefundManagerApprovalPreview({
 
   const contextAlerts = useMemo(() => {
     const alerts = [];
+    if (creditAppliedNgn > 0) {
+      alerts.unshift({
+        tone: leftoverAfterCreditNgn > 0 ? 'amber' : 'rose',
+        title: leftoverAfterCreditNgn > 0 ? 'Refund fund already used' : 'Nothing left to approve',
+        body: leftoverAfterCreditNgn > 0
+          ? `${formatNgn(creditAppliedNgn)} was already applied to ${
+              creditDest || 'a receipt'
+            } when the cashier confirmed. That slice is settled. Approve only the leftover ${formatNgn(
+              leftoverAfterCreditNgn
+            )} for cash payout.`
+          : `${formatNgn(creditAppliedNgn)} was already applied to ${
+              creditDest || 'a receipt'
+            }. There is no leftover cash to approve.`,
+      });
+    }
     if (requiresMdApproval) {
       alerts.push({
         tone: 'violet',
@@ -784,6 +848,9 @@ export function RefundManagerApprovalPreview({
     }
     return alerts.filter((a) => a.body);
   }, [
+    creditAppliedNgn,
+    leftoverAfterCreditNgn,
+    creditDest,
     requiresMdApproval,
     refundExecutiveThresholdNgn,
     requestedAmountNgn,
@@ -809,12 +876,24 @@ export function RefundManagerApprovalPreview({
         title={refundId}
         subtitle={formatPersonName(refund?.customer || inboxRow?.customer_name || '?')}
         aside={
-          <>
-            <p className="text-ui-xs font-bold uppercase text-slate-400">Requested</p>
-            <p className="text-lg font-black tabular-nums text-rose-700">
-              {formatNgn(refund?.amountNgn ?? inboxRow?.amount_ngn)}
-            </p>
-          </>
+          creditAppliedNgn > 0 ? (
+            <>
+              <p className="text-ui-xs font-bold uppercase text-slate-400">Still to approve</p>
+              <p className="text-lg font-black tabular-nums text-rose-700">
+                {formatNgn(leftoverAfterCreditNgn)}
+              </p>
+              <p className="mt-0.5 text-ui-xs text-slate-500">
+                of {formatNgn(requestedAmountNgn)} requested
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-ui-xs font-bold uppercase text-slate-400">Requested</p>
+              <p className="text-lg font-black tabular-nums text-rose-700">
+                {formatNgn(refund?.amountNgn ?? inboxRow?.amount_ngn)}
+              </p>
+            </>
+          )
         }
       >
         <p className="mt-1 text-ui-xs text-slate-600">
@@ -1213,6 +1292,21 @@ export function RefundManagerApprovalPreview({
 
           {/* Refund request ? unique detail only */}
           <Panel title="This refund" hint="Breakdown, payee, and other refunds on the quote.">
+            {creditAppliedNgn > 0 ? (
+              <div className="mb-2 grid grid-cols-3 gap-1">
+                <Stat label="Requested" value={formatNgn(requestedAmountNgn)} />
+                <Stat
+                  label={creditDest ? `Used on ${creditDest}` : 'Used on receipt'}
+                  value={formatNgn(creditAppliedNgn)}
+                  accent
+                />
+                <Stat
+                  label="Still to approve"
+                  value={formatNgn(leftoverAfterCreditNgn)}
+                  warn={leftoverAfterCreditNgn > 0}
+                />
+              </div>
+            ) : null}
             {refund?.reason ? (
               <p className="mb-2 text-ui-xs leading-snug text-slate-700">{refund.reason}</p>
             ) : null}
@@ -1333,13 +1427,13 @@ export function RefundManagerApprovalPreview({
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(7rem,9rem)_1fr_auto_auto] lg:items-end">
           <div>
             <label className="text-ui-xs font-bold uppercase text-slate-500" htmlFor="inbox-approved-amount">
-              Approved ₦
+              {creditAppliedNgn > 0 ? 'Approve leftover ₦' : 'Approved ₦'}
             </label>
             <input
               id="inbox-approved-amount"
               type="number"
               min={1}
-              max={requestedAmountNgn || undefined}
+              max={(creditAppliedNgn > 0 ? leftoverAfterCreditNgn : requestedAmountNgn) || undefined}
               value={approvedAmountNgn}
               onChange={(e) => {
                 setApprovedAmountNgn(e.target.value);
@@ -1377,7 +1471,13 @@ export function RefundManagerApprovalPreview({
           </button>
           <button
             type="button"
-            disabled={decisionBusy || loading || alignmentBlocksApprove || lineArithmeticBlocksApprove}
+            disabled={
+              decisionBusy ||
+              loading ||
+              alignmentBlocksApprove ||
+              lineArithmeticBlocksApprove ||
+              (creditAppliedNgn > 0 && leftoverAfterCreditNgn <= 0)
+            }
             onClick={handleApproveClick}
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-emerald-500 disabled:opacity-50"
           >
@@ -1393,6 +1493,7 @@ export function RefundManagerApprovalPreview({
         )}
         {approvedAmountNgn &&
         requestedAmountNgn > 0 &&
+        creditAppliedNgn <= 0 &&
         Math.round(Number(approvedAmountNgn) || 0) < requestedAmountNgn &&
         Math.abs(sumCalcLines(calcLines) - requestedAmountNgn) <= 1 ? (
           <p className="mt-1 text-ui-xs text-teal-800">Lines scale proportionally on partial approval.</p>

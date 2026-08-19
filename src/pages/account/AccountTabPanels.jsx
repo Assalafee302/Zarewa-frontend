@@ -30,6 +30,7 @@ import {
 import { FinanceCashierPayoutsPanel } from '../../components/finance/FinanceCashierPayoutsPanel.jsx';
 import { FinanceDeskWorkQueues } from '../../components/finance/FinanceDeskWorkQueues.jsx';
 import { FinancePartialQuotesPanel } from '../../components/finance/FinancePartialQuotesPanel.jsx';
+import { FinanceDepositQuoteMatchPanel } from '../../components/finance/FinanceDepositQuoteMatchPanel.jsx';
 import { FinanceReceiptsClearanceTable } from '../../components/finance/FinanceReceiptsClearanceTable.jsx';
 import { FinanceTabContextBanner } from '../../components/finance/FinanceTabContextBanner.jsx';
 import { FinanceReceiptsWorkflowStrip } from '../../components/finance/FinanceReceiptsWorkflowStrip.jsx';
@@ -267,6 +268,7 @@ export function AccountTabPanels() {
                   onGoToDesk={() => handleAccountTabChange('desk')}
                 />
                 <FinancePartialQuotesPanel />
+                <FinanceDepositQuoteMatchPanel />
                 <section className="space-y-3">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>

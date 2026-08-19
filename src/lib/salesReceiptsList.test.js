@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
   mergeReceiptRowsForSales,
   salesReceiptMirrorClearanceFields,
+  receiptPaidToBankLabels,
 } from './salesReceiptsList.js';
 import {
   isReceiptCleared,
@@ -56,5 +57,53 @@ describe('salesReceiptsList merge clearance', () => {
   it('treats legacy cleared status without finance timestamp as confirmed', () => {
     const fields = salesReceiptMirrorClearanceFields({ status: 'Cleared' });
     expect(isReceiptCleared({ status: fields.status ?? 'Cleared' })).toBe(true);
+  });
+});
+
+describe('receiptPaidToBankLabels', () => {
+  const receipt = { id: 'RC-2026-010', ledgerEntryId: 'LE-10' };
+  const movements = [
+    {
+      id: 'TM-1',
+      sourceKind: 'LEDGER_RECEIPT',
+      sourceId: 'RC-2026-010',
+      amountNgn: 320_000,
+      treasuryAccountId: 2,
+      accountType: 'Bank',
+      accountName: 'Zenith Production',
+      bankName: 'Zenith Bank',
+    },
+  ];
+
+  it('prefers treasury account bank name', () => {
+    expect(
+      receiptPaidToBankLabels(receipt, movements, [
+        { id: 2, name: 'Zenith Production', bankName: 'Zenith Bank', type: 'Bank' },
+      ])
+    ).toEqual(['Zenith Bank']);
+  });
+
+  it('falls back to movement account name', () => {
+    expect(receiptPaidToBankLabels(receipt, movements, [])).toEqual(['Zenith Bank']);
+  });
+
+  it('uses cash till name when there is no bank name', () => {
+    expect(
+      receiptPaidToBankLabels(
+        { id: 'RC-2' },
+        [
+          {
+            id: 'TM-2',
+            sourceKind: 'LEDGER_RECEIPT',
+            sourceId: 'RC-2',
+            amountNgn: 5_000,
+            treasuryAccountId: 3,
+            accountType: 'Cash',
+            accountName: 'Cash Office (Till)',
+          },
+        ],
+        [{ id: 3, name: 'Cash Office (Till)', bankName: '', type: 'Cash' }]
+      )
+    ).toEqual(['Cash Office (Till)']);
   });
 });
