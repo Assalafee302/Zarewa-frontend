@@ -27,7 +27,6 @@ import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import RegisterCoilModal from '../components/operations/RegisterCoilModal';
 import { OperationsProductionOverview } from '../components/operations/OperationsProductionOverview';
-import OperationsMobileAlertStrip from '../components/operations/OperationsMobileAlertStrip';
 import { normalizeOpsFocusTab } from '../lib/storeClearanceRank';
 import {
   buildCoilSpecBoardRows,
@@ -1984,15 +1983,6 @@ const Operations = () => {
         }
       />
 
-      <OperationsMobileAlertStrip
-        inTransitCount={transitOrdersAll.length}
-        lowStockCount={inventoryStats.lowStock}
-        pendingMexCount={pendingMexCount}
-        onGoInventory={() => goOverviewInventory({ kind: 'coil' })}
-        onGoThinCoils={() => goOverviewInventory({ kind: 'coil' })}
-        onGoMaterialExceptions={() => setActiveTab('materialExceptions')}
-      />
-
       {activeTab === 'inventory' && (!canReceiveInventory || !canAdjustInventory) ? (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-ui-xs font-medium text-amber-950 leading-snug">
           {!canReceiveInventory ? (
@@ -2725,36 +2715,6 @@ const Operations = () => {
 
         {activeTab === 'inventory' ? (
         <div className="col-span-full mb-3 order-1 space-y-2">
-          <div className="rounded-xl border border-slate-200/90 bg-gradient-to-r from-slate-50/90 to-white px-3 py-2.5 sm:px-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
-              On hand · today
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-lg border border-teal-200 bg-teal-50/80 px-2.5 py-1.5 text-ui-xs font-bold text-teal-900">
-                1. Receive GRN
-              </span>
-              <span className="text-slate-300 hidden sm:inline" aria-hidden>
-                →
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveTab('production')}
-                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
-              >
-                2. Register
-              </button>
-              <span className="text-slate-300 hidden sm:inline" aria-hidden>
-                →
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveTab('materialExceptions')}
-                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
-              >
-                3. Exceptions
-              </button>
-            </div>
-          </div>
           <div className="flex flex-wrap items-center gap-2">
             {ws?.canMutate ? (
               <button

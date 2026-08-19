@@ -2213,7 +2213,7 @@ const Sales = () => {
                               ? `Bal ${formatNgn(outstandingAmountNgn)}`
                               : null,
                             refundHasCreditConfirmation(r)
-                              ? `Credit confirmation ${formatNgn(r.creditAppliedNgn || 0)}${
+                              ? `Refund fund used ${formatNgn(r.creditAppliedNgn || 0)}${
                                   r.creditAppliedToQuotationRef ? ` → ${r.creditAppliedToQuotationRef}` : ''
                                 }`
                               : null,
@@ -2241,8 +2241,8 @@ const Sales = () => {
                                         {r.status}
                                       </span>
                                       {refundHasCreditConfirmation(r) ? (
-                                        <span className={`${CHIP} bg-sky-100 text-sky-800`} title="Applied to another quotation">
-                                          Credit confirmation
+                                        <span className={`${CHIP} bg-sky-100 text-sky-800`} title="Deducted from refund fund onto another quotation — not refundable again">
+                                          Refund fund used
                                         </span>
                                       ) : null}
                                       <SalesRowMenu

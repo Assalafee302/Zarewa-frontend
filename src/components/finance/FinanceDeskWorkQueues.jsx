@@ -77,7 +77,8 @@ import { CashierOtPayPanel } from "./CashierOtPayPanel";
 
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
 
-import { HangingCustomerRefundChip } from "./HangingCustomerRefundHint";
+import { HangingCustomerRefundChip, RefundFundAppliedChip } from "./HangingCustomerRefundHint";
+import { refundFundAppliedByQuotationRef } from "../../lib/refundFundApply.js";
 
 import {
   FinanceDeskColoredQueuePanel,
@@ -267,6 +268,18 @@ export function FinanceDeskWorkQueues({
   const hangingRefundByCustomerId = useMemo(
     () => hangingRefundIndicatorsByCustomerId(refunds, ledgerEntries),
     [refunds, ledgerEntries],
+  );
+
+  const refundFundByQuote = useMemo(
+    () =>
+      refundFundAppliedByQuotationRef({
+        ledgerEntries,
+        refunds,
+        applications: Array.isArray(ws?.snapshot?.refundCreditApplications)
+          ? ws.snapshot.refundCreditApplications
+          : [],
+      }),
+    [ledgerEntries, refunds, ws?.snapshot?.refundCreditApplications],
   );
 
   const registerSettlements = useMemo(
@@ -686,6 +699,7 @@ export function FinanceDeskWorkQueues({
                   <ul className="space-y-1.5">
                     {pendingReceipts.map((r) => {
                       const hanging = hangingRefundByCustomerId.get(String(r.customerID || "").trim());
+                      const refundFund = refundFundByQuote.get(String(r.quotationRef || "").trim());
                       const registeredBy = receiptRegisteredByLabel(r, ledgerEntries);
                       const clearanceMeta = receiptClearanceBadgeLabel(r);
                       const cuttingChipLabel =
@@ -734,6 +748,7 @@ export function FinanceDeskWorkQueues({
                               {cuttingChipLabel}
                             </span>
                             {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
+                            {refundFund ? <RefundFundAppliedChip appliedNgn={refundFund.appliedNgn} /> : null}
                           </div>
                         }
                         amount={formatNgn(r.amountNgn)}

@@ -101,10 +101,6 @@ import {
   FINANCE_DESK_TAB_LABEL,
   isCashierRole as userIsCashierRole,
 } from '../lib/legacyAccountsAccess';
-import { FinanceDeskWorkQueues } from '../components/finance/FinanceDeskWorkQueues.jsx';
-import { FinanceTabContextBanner } from '../components/finance/FinanceTabContextBanner.jsx';
-import { FinanceReceiptsWorkflowStrip } from '../components/finance/FinanceReceiptsWorkflowStrip.jsx';
-import { FinanceTreasuryManageAccountsPanel } from '../components/finance/FinanceTreasuryManageAccountsPanel.jsx';
 import { AccountingRegisterSettlementPayModal } from '../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { StaffRecoveryCashierModal } from '../components/finance/StaffRecoveryCashierModal.jsx';
 import { StaffObligationRepaymentModal } from '../components/finance/StaffObligationRepaymentModal.jsx';
@@ -122,6 +118,9 @@ import { AccountBankReconciliationPanel } from '../components/account/AccountBan
 import { RegisterBankDepositPanel } from '../components/finance/RegisterBankDepositPanel.jsx';
 import { BankDepositExceptionPanel } from '../components/finance/BankDepositExceptionPanel.jsx';
 import { HangingCustomerRefundBanner } from '../components/finance/HangingCustomerRefundHint.jsx';
+import { RefundFundClearanceBanner } from '../components/finance/HangingCustomerRefundHint.jsx';
+import { buildRefundFundClearanceSummary } from '../lib/refundFundApply.js';
+import { findQuotationByRef } from '../lib/quotationColourGauge.js';
 import { AccountGlManualJournalCard } from '../components/account/AccountGlManualJournalCard.jsx';
 import {
   openReconciliationListPrint,
@@ -4697,6 +4696,18 @@ const Account = () => {
                       updates treasury, receipt, ledger, and quote paid amount, and clears for delivery unless you hold
                       it below. Revisions after the first save may need manager approval.
                     </div>
+
+                    <RefundFundClearanceBanner
+                      summary={buildRefundFundClearanceSummary({
+                        ledgerEntries: liveLedgerEntries,
+                        refunds: customerRefunds,
+                        applications: ws?.snapshot?.refundCreditApplications,
+                        quotationRef: receiptFinanceRow.quotationRef,
+                        cashOnReceiptNgn: cashTotal,
+                        quoteTotalNgn: findQuotationByRef(liveQuotations, receiptFinanceRow.quotationRef)
+                          ?.totalNgn,
+                      })}
+                    />
 
                     <HangingCustomerRefundBanner
                       hanging={hangingRefundsForCustomer(

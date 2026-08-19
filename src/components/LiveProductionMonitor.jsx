@@ -227,40 +227,6 @@ export function LiveProductionMonitor({
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.coilLots) ? ws.snapshot.coilLots : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.coilLots]
   );
-  const [coilLookupQuery, setCoilLookupQuery] = useState('');
-  const [coilLookupRemote, setCoilLookupRemote] = useState([]);
-
-  useEffect(() => {
-    const q = coilLookupQuery.trim();
-    if (q.length < 2) {
-      setCoilLookupRemote([]);
-      return undefined;
-    }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      void (async () => {
-        const r = await apiFetch(`/api/coil-lots/search?q=${encodeURIComponent(q)}&limit=40`);
-        if (cancelled) return;
-        if (r.ok && r.data?.ok && Array.isArray(r.data.coilLots)) {
-          setCoilLookupRemote(r.data.coilLots);
-        } else {
-          setCoilLookupRemote([]);
-        }
-      })();
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [coilLookupQuery]);
-
-  const coilLotsMerged = useMemo(() => {
-    const byNo = new Map(coilLots.map((lot) => [lot.coilNo, lot]));
-    for (const lot of coilLookupRemote) {
-      if (!byNo.has(lot.coilNo)) byNo.set(lot.coilNo, lot);
-    }
-    return [...byNo.values()];
-  }, [coilLots, coilLookupRemote]);
   const products = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.products) ? ws.snapshot.products : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.products]
@@ -683,8 +649,8 @@ export function LiveProductionMonitor({
   );
   const plannedMetersValue = Number(selectedJob?.plannedMeters || 0);
   const coilByNo = useMemo(
-    () => Object.fromEntries(coilLotsMerged.map((lot) => [lot.coilNo, lot])),
-    [coilLotsMerged]
+    () => Object.fromEntries(coilLots.map((lot) => [lot.coilNo, lot])),
+    [coilLots]
   );
 
   const primaryIncidentCoilNo = useMemo(() => {
@@ -734,7 +700,7 @@ export function LiveProductionMonitor({
 
   const availableCoils = useMemo(() => {
     const selectedCoils = new Set(selectedJobAllocations.map((row) => row.coilNo));
-    return coilLotsMerged
+    return coilLots
       .filter((coil) => {
         const rem = Number(coil.qtyRemaining ?? coil.currentWeightKg ?? 0);
         const empty = !Number.isFinite(rem) || rem <= 0.0001;
@@ -742,7 +708,7 @@ export function LiveProductionMonitor({
         return coil.currentStatus !== 'Consumed' || selectedCoils.has(coil.coilNo);
       })
       .sort(compareCoilsFifo);
-  }, [coilLotsMerged, selectedJobAllocations]);
+  }, [coilLots, selectedJobAllocations]);
   const masterDataForCoilSpec = ws?.snapshot?.masterData ?? null;
 
   const recommendedCoils = useMemo(() => {
@@ -3711,26 +3677,19 @@ export function LiveProductionMonitor({
               <div className="flex items-center gap-2 border-b border-slate-200/50 pb-2">
                 <p className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">Job &amp; target</p>
               </div>
-              <div
-                className={`flex min-w-0 ${
-                  inModal ? 'flex-col gap-2' : 'flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4'
-                }`}
-              >
+              {!inModal ? (
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0 flex-1 space-y-1">
-                  {!inModal ? (
-                    <>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-mono text-base font-black tracking-tight text-zarewa-teal sm:text-[1.05rem]">
-                          {selectedJob.cuttingListId || '—'}
-                        </p>
-                        <span
-                          className={`rounded-md border border-black/5 px-2 py-0.5 text-ui-xs font-bold uppercase shadow-sm ${statusTone(selectedJob.status)}`}
-                        >
-                          {selectedJob.status}
-                        </span>
-                      </div>
-                    </>
-                  ) : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-mono text-base font-black tracking-tight text-zarewa-teal sm:text-[1.05rem]">
+                      {selectedJob.cuttingListId || '—'}
+                    </p>
+                    <span
+                      className={`rounded-md border border-black/5 px-2 py-0.5 text-ui-xs font-bold uppercase shadow-sm ${statusTone(selectedJob.status)}`}
+                    >
+                      {selectedJob.status}
+                    </span>
+                  </div>
                   <p className="text-sm font-semibold leading-snug text-slate-900">{selectedJob.customerName || '—'}</p>
                   <p className="text-xs font-medium leading-snug text-slate-600">
                     {selectedJob.productName || selectedJob.productID || '—'}
@@ -3752,25 +3711,22 @@ export function LiveProductionMonitor({
                       }
                     </p>
                   ) : null}
-                  {!inModal ? (
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {selectedJob.quotationRef ? (
-                        <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-2 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
-                          Quote{' '}
-                          <span className="ml-0.5 font-mono text-zarewa-teal">{selectedJob.quotationRef}</span>
-                        </span>
-                      ) : null}
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {selectedJob.quotationRef ? (
                       <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-2 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
-                        {selectedJob.machineName || 'Line'}
+                        Quote{' '}
+                        <span className="ml-0.5 font-mono text-zarewa-teal">{selectedJob.quotationRef}</span>
                       </span>
-                    </div>
-                  ) : null}
+                    ) : null}
+                    <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-2 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
+                      {selectedJob.machineName || 'Line'}
+                    </span>
+                  </div>
                 </div>
-                {!inModal ? (
-                  <div
-                    className="grid w-full shrink-0 grid-cols-3 gap-1.5 sm:w-auto sm:min-w-[14.5rem]"
-                    aria-label="Live coil weights and output"
-                  >
+                <div
+                  className="grid w-full shrink-0 grid-cols-3 gap-1.5 sm:w-auto sm:min-w-[14.5rem]"
+                  aria-label="Live coil weights and output"
+                >
                     <div
                       className="rounded-lg border border-teal-200/80 bg-white/95 px-2 py-1.5 text-center shadow-sm ring-1 ring-teal-500/10"
                       title="Reserved kg"
@@ -3798,9 +3754,9 @@ export function LiveProductionMonitor({
                         {formatKg(recordedConsumedKg)}
                       </p>
                     </div>
-                  </div>
-                ) : null}
+                </div>
               </div>
+              ) : null}
 
               {inModal ? (
                 <div
@@ -4740,36 +4696,8 @@ export function LiveProductionMonitor({
                 </div>
               ) : null}
               {!stonePureNoCoil &&
-              !completionUsesOffcutMode &&
-              (canCaptureRun || canEditPlannedAllocations || canEditCompletedCoilCorrections) ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 space-y-1">
-                  <label className="flex flex-col gap-0.5">
-                    <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                      Find coil by number
-                    </span>
-                    <input
-                      type="search"
-                      value={coilLookupQuery}
-                      onChange={(e) => setCoilLookupQuery(e.target.value)}
-                      placeholder="e.g. 2043 or CL-26-2043"
-                      className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-mono text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15"
-                    />
-                  </label>
-                  <p className="text-ui-xs text-slate-500 leading-snug">
-                    Searches the server when a coil is missing from the dropdown (e.g. recently received or not in
-                    sync).
-                  </p>
-                </div>
-              ) : null}
-              {!stonePureNoCoil &&
-              !completionUsesOffcutMode &&
               (canCaptureRun || canEditPlannedAllocations || canEditCompletedCoilCorrections) ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700 space-y-2">
-                  <p>
-                    <span className="font-semibold text-zarewa-teal">Metres from offcut stock (optional)</span> — added
-                    to coil metres for this job. Use this for material already held as offcut/scab stock in the yard; it
-                    is <em>not</em> the tail trimmed from the active coil.
-                  </p>
                   <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     Offcut stock metres
                     <input
@@ -4781,10 +4709,6 @@ export function LiveProductionMonitor({
                       className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
                     />
                   </label>
-                  <p className="text-ui-xs leading-snug text-slate-500">
-                    If this is above zero, keep at least one coil line with metres. For runs with no coil at all, use
-                    &ldquo;Produced from offcut / accessories only&rdquo; instead.
-                  </p>
                   <div className="border-t border-slate-100 pt-2 mt-2">
                     <p className="text-ui-xs font-bold uppercase text-zarewa-teal mb-1">Issue from offcut incidents</p>
                     <OffcutIncidentPicker
@@ -4856,38 +4780,6 @@ export function LiveProductionMonitor({
               ) : null}
               {completionUsesOffcutMode && !isAccessoriesOnlyQuote ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-xs text-slate-700 space-y-2">
-                  <p>
-                    Offcut completion — no coil required. Enter offcut stock metres, issue offcut incidents, or enter
-                    output metres — all count as finished goods produced for this job.
-                  </p>
-                  <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                    Offcut stock metres
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={offcutInventoryMetersInput}
-                      onChange={(e) => onOffcutInventoryMetersChange(e.target.value)}
-                      placeholder="e.g. 25"
-                      className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
-                    />
-                  </label>
-                  <div className="border-t border-amber-200/60 pt-2">
-                    <p className="text-ui-xs font-bold uppercase text-zarewa-teal mb-1">Issue from offcut incidents</p>
-                    <OffcutIncidentPicker
-                      gaugeLabel={quotationMaterialSpec?.gaugeLabel}
-                      colour={quotationMaterialSpec?.colour}
-                      value={offcutSupplySelections}
-                      onChange={setOffcutSupplySelections}
-                    />
-                    {offcutSupplySelections.length > 0 ? (
-                      <p className="mt-1 text-ui-xs font-semibold text-emerald-900">
-                        {offcutSupplyMetersTotal.toFixed(2)} m from offcut incidents
-                        {offcutSupplySelections
-                          .map((s) => `${s.materialIncidentId} (${s.meters} m)`)
-                          .join(' · ')}
-                      </p>
-                    ) : null}
-                  </div>
                   <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                     Finished-goods output metres
                     <input
@@ -5490,7 +5382,7 @@ export function LiveProductionMonitor({
       <CoilDamageRecordModal
         isOpen={materialIncidentModalOpen}
         onClose={() => setMaterialIncidentModalOpen(false)}
-        coilLots={coilLotsMerged}
+        coilLots={coilLots}
         defaultCoilNo={primaryIncidentCoilNo}
         defaultBeforeKg={primaryIncidentBeforeKg}
         incidentType="production_error"

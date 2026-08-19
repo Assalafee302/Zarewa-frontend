@@ -28,6 +28,7 @@ import {
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../../lib/accountCore';
 import { FinanceCashierPayoutsPanel } from '../../components/finance/FinanceCashierPayoutsPanel.jsx';
+import { FinanceDeskWorkQueues } from '../../components/finance/FinanceDeskWorkQueues.jsx';
 import { FinancePartialQuotesPanel } from '../../components/finance/FinancePartialQuotesPanel.jsx';
 import { FinanceReceiptsClearanceTable } from '../../components/finance/FinanceReceiptsClearanceTable.jsx';
 import { FinanceTabContextBanner } from '../../components/finance/FinanceTabContextBanner.jsx';
@@ -38,6 +39,7 @@ import { RegisterBankDepositPanel } from '../../components/finance/RegisterBankD
 import { BankDepositExceptionPanel } from '../../components/finance/BankDepositExceptionPanel.jsx';
 import { AccountGlManualJournalCard } from '../../components/account/AccountGlManualJournalCard.jsx';
 import { hangingRefundIndicatorsByCustomerId } from '../../lib/refundsStore.js';
+import { refundFundAppliedByQuotationRef } from '../../lib/refundFundApply.js';
 import {
   treasuryBookBalanceByAccountId,
   treasuryDeskBalanceSplit,
@@ -171,6 +173,18 @@ export function AccountTabPanels() {
   const hangingRefundByCustomerId = useMemo(
     () => hangingRefundIndicatorsByCustomerId(Object.values(refundById || {}), liveLedgerEntries),
     [refundById, liveLedgerEntries]
+  );
+
+  const refundFundByQuote = useMemo(
+    () =>
+      refundFundAppliedByQuotationRef({
+        ledgerEntries: liveLedgerEntries,
+        refunds: Object.values(refundById || {}),
+        applications: Array.isArray(ws?.snapshot?.refundCreditApplications)
+          ? ws.snapshot.refundCreditApplications
+          : [],
+      }),
+    [liveLedgerEntries, refundById, ws?.snapshot?.refundCreditApplications]
   );
 
   const deskAccountBalanceSplit = useMemo(() => {
@@ -363,6 +377,7 @@ export function AccountTabPanels() {
                         liveTreasuryMovements={liveTreasuryMovements}
                         liveLedgerEntries={liveLedgerEntries}
                         hangingRefundByCustomerId={hangingRefundByCustomerId}
+                        refundFundByQuote={refundFundByQuote}
                         canConfirm={Boolean(canFinanceReceiptSettlement && ws?.canMutate)}
                         onConfirm={openReceiptFinance}
                         confirmLabel="Confirm"
@@ -383,6 +398,7 @@ export function AccountTabPanels() {
                         liveTreasuryMovements={liveTreasuryMovements}
                         liveLedgerEntries={liveLedgerEntries}
                         hangingRefundByCustomerId={hangingRefundByCustomerId}
+                        refundFundByQuote={refundFundByQuote}
                         canConfirm={Boolean(canFinanceReceiptSettlement && ws?.canMutate)}
                         onConfirm={openReceiptFinance}
                         confirmLabel={(r) => (r.financeReconciliationSavedAtISO ? 'Revise' : 'Confirm')}

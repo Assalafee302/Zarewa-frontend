@@ -9,7 +9,7 @@ import {
   quotationColourGaugeLabel,
   receiptDateLabel,
 } from '../../lib/quotationColourGauge.js';
-import { HangingCustomerRefundChip } from './HangingCustomerRefundHint.jsx';
+import { HangingCustomerRefundChip, RefundFundAppliedChip } from './HangingCustomerRefundHint.jsx';
 import {
   AppTable,
   AppTableBody,
@@ -35,6 +35,7 @@ export function FinanceReceiptsClearanceTable({
   liveTreasuryMovements,
   liveLedgerEntries,
   hangingRefundByCustomerId,
+  refundFundByQuote,
   canConfirm,
   onConfirm,
   confirmLabel = 'Confirm',
@@ -109,6 +110,7 @@ export function FinanceReceiptsClearanceTable({
                 const cleared = Boolean(r.financeDeliveryClearedAtISO);
                 const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
                 const hanging = hangingRefundByCustomerId?.get(String(r.customerID || '').trim());
+                const refundFund = refundFundByQuote?.get(String(r.quotationRef || '').trim());
                 const registeredBy = receiptRegisteredByLabel(r, liveLedgerEntries);
                 const quote = findQuotationByRef(quotations, r.quotationRef);
                 const spec = quotationColourGaugeLabel(quote);
@@ -138,6 +140,7 @@ export function FinanceReceiptsClearanceTable({
                             {cuttingChipLabel}
                           </span>
                           {hanging ? <HangingCustomerRefundChip indicator={hanging} /> : null}
+                          {refundFund ? <RefundFundAppliedChip appliedNgn={refundFund.appliedNgn} /> : null}
                         </div>
                       </div>
                     </AppTableTd>

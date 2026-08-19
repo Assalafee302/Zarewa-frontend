@@ -1998,8 +1998,8 @@ const RefundModal = ({
                   if (!record.creditConfirmationStatus && !creditApplied) return base;
                   const dest = String(record.creditAppliedToQuotationRef || '').trim();
                   return dest
-                    ? `${base} · Credit confirmation → ${dest}`
-                    : `${base} · Credit confirmation`;
+                    ? `${base} · Refund fund used → ${dest}`
+                    : `${base} · Refund fund used`;
                 })()}
               </p>
             </div>

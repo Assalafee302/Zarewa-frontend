@@ -54,6 +54,12 @@ import {
   receiptSalesPaymentStatusLabel,
   receiptSalesPaymentStatusTitle,
 } from '../lib/receiptClearance';
+import {
+  REFUND_FUND_USE_LABEL,
+  applyRefundFundDeductionToPaymentLines,
+  isRefundFundApplyLedgerEntry,
+  restorePaymentLinesAfterRefundFundUnchecked,
+} from '../lib/refundFundApply.js';
 
 function newLineId() {
   return `pl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -183,6 +189,7 @@ const ReceiptModal = ({
   const [printKind, setPrintKind] = useState('quick');
   const postingRef = useRef(false);
   const lastReceiptHydrateSigRef = useRef('');
+  const lastAutoRefundFundCashDueRef = useRef(null);
   const [isPosting, setIsPosting] = useState(false);
   const [bankDepositId, setBankDepositId] = useState('');
 
@@ -513,6 +520,29 @@ const ReceiptModal = ({
     return Math.max(0, Math.round(Number(dueNgn) || 0) - recommendedCreditApplyNgn);
   }, [dueNgn, recommendedCreditApplyNgn]);
 
+  useEffect(() => {
+    if (!isOpen || readOnly || isExistingPayment || !applyRefundCredit) {
+      lastAutoRefundFundCashDueRef.current = null;
+      return;
+    }
+    if (cashDueAfterCreditNgn == null) return;
+    const cashDue = Math.max(0, Math.round(Number(cashDueAfterCreditNgn) || 0));
+    if (lastAutoRefundFundCashDueRef.current === cashDue) return;
+    lastAutoRefundFundCashDueRef.current = cashDue;
+    setPaymentLines((prev) => applyRefundFundDeductionToPaymentLines(prev, cashDue));
+  }, [isOpen, readOnly, isExistingPayment, applyRefundCredit, cashDueAfterCreditNgn]);
+
+  const handleApplyRefundFundChange = (checked) => {
+    if (!checked && dueNgn != null) {
+      const prevCashDue = cashDueAfterCreditNgn;
+      lastAutoRefundFundCashDueRef.current = null;
+      setPaymentLines((prev) =>
+        restorePaymentLinesAfterRefundFundUnchecked(prev, dueNgn, prevCashDue)
+      );
+    }
+    setApplyRefundCredit(checked);
+  };
+
   const lineTotalNgn = useMemo(
     () => paymentLines.reduce((s, l) => s + parseNum(l.amount), 0),
     [paymentLines]
@@ -567,11 +597,12 @@ const ReceiptModal = ({
     };
   }, [isExistingPayment, editData]);
 
-  /** Max new cash that can be posted on this quote (edit mode: due only — historic voucher amount is already on the ledger). */
+  /** Max new cash that can be posted on this quote after any refund-fund slice. */
   const postingHeadroomNgn = useMemo(() => {
+    if (cashDueAfterCreditNgn != null) return cashDueAfterCreditNgn;
     if (dueNgn == null) return null;
     return Math.max(0, Math.round(Number(dueNgn) || 0));
-  }, [dueNgn]);
+  }, [dueNgn, cashDueAfterCreditNgn]);
 
   const quotationLedgerHold = useMemo(() => {
     if (!selectedQuotation) return null;
@@ -595,9 +626,10 @@ const ReceiptModal = ({
   const balanceAfterNgn = useMemo(() => {
     if (dueNgn == null) return null;
     const due = Math.round(Number(dueNgn) || 0);
+    const credit = Math.round(Number(recommendedCreditApplyNgn) || 0);
     const line = Math.round(Number(lineTotalNgn) || 0);
-    return Math.max(0, due - line);
-  }, [dueNgn, lineTotalNgn]);
+    return Math.max(0, due - credit - line);
+  }, [dueNgn, recommendedCreditApplyNgn, lineTotalNgn]);
 
   /** Receipts + advance applied already booked on this quote (newest first), shown above new voucher lines. */
   const priorRecordedOnQuotation = useMemo(() => {
@@ -635,8 +667,10 @@ const ReceiptModal = ({
         sortIso: (e.atISO || '').slice(0, 10) || '0000-00-00',
         dateLabel: formatDisplayDate((e.atISO || '').slice(0, 10)),
         entryId: e.id,
-        label: 'Overpay applied',
-        sublabel: 'Credit moved from overpayment pool',
+        label: isRefundFundApplyLedgerEntry(e) ? 'Refund fund' : 'Overpay applied',
+        sublabel: isRefundFundApplyLedgerEntry(e)
+          ? 'Deducted from refund fund (not bank clearance)'
+          : 'Credit moved from overpayment pool',
         amountNgn: Math.round(Number(e.amountNgn) || 0),
         detail: e.note || e.bankReference || e.purpose || '—',
       }));
@@ -722,7 +756,7 @@ const ReceiptModal = ({
     }
     if (creditApplyNgn > 0 && cashDueAfterCreditNgn != null && total > cashDueAfterCreditNgn + 1) {
       const proceedOver = await appConfirm({
-        message: `Transferable credit will cover ${formatNgn(creditApplyNgn)}. Cash still needed is about ${formatNgn(cashDueAfterCreditNgn)}, but payment lines total ${formatNgn(total)}.\n\nPost the cash lines anyway?`,
+        message: `Refund fund will cover ${formatNgn(creditApplyNgn)}. Cash still needed is about ${formatNgn(cashDueAfterCreditNgn)}, but payment lines total ${formatNgn(total)}.\n\nPost the cash lines anyway?`,
       });
       if (!proceedOver) return;
     }
@@ -750,14 +784,14 @@ const ReceiptModal = ({
     ];
     if (creditApplyNgn > 0) {
       summaryParts.push(
-        `Transferable credit apply (optional): ${formatNgn(creditApplyNgn)} → Credit confirmation (no bank clearance)`
+        `Use from refund fund: ${formatNgn(creditApplyNgn)} — deducted from refund, not refundable again, no bank clearance`
       );
     }
     summaryParts.push(`Cash receipt total: ${formatNgn(total)}`, '');
     if (paymentBreakdownLines.length > 0) {
       summaryParts.push('Payment breakdown:', ...paymentBreakdownLines);
     } else if (creditApplyNgn > 0) {
-      summaryParts.push('No new cash lines — credit covers the quotation balance.');
+      summaryParts.push('No new cash lines — refund fund covers the quotation balance.');
     }
     if (
       postingHeadroomNgn != null &&
@@ -787,7 +821,7 @@ const ReceiptModal = ({
       : null;
     const paymentMethod =
       validLines.length === 0
-        ? 'Credit apply'
+        ? 'Refund fund'
         : validLines.length === 1 && firstAcc
           ? `${firstAcc.type} — ${firstAcc.name}`
           : `Split (${validLines.length} lines)`;
@@ -818,13 +852,13 @@ const ReceiptModal = ({
           if (!creditRes.ok || !creditRes.data?.ok) {
             setPostingHint(guidanceForLedgerPostFailure(creditRes.data) || null);
             showToast(
-              formatLedgerApiError(creditRes.data, creditRes.status, 'Could not apply transferable credit.'),
+              formatLedgerApiError(creditRes.data, creditRes.status, 'Could not apply refund fund.'),
               { variant: 'error' }
             );
             return;
           }
           showToast(
-            `${formatNgn(creditRes.data.appliedNgn || creditApplyNgn)} credit applied — Credit confirmation (not for bank clearance).`
+            `${formatNgn(creditRes.data.appliedNgn || creditApplyNgn)} deducted from refund fund — not refundable again, not for bank clearance.`
           );
           if (total <= 0) {
             setPostingHint(null);
@@ -1299,7 +1333,7 @@ const ReceiptModal = ({
                   </div>
                 ) : null}
                 {!readOnly && useLedgerApi && isAddPayment && !isExistingPayment && refundCreditLoading ? (
-                  <p className="sm:col-span-2 text-ui-xs text-slate-500">Checking transferable credit…</p>
+                  <p className="sm:col-span-2 text-ui-xs text-slate-500">Checking refund fund…</p>
                 ) : null}
                 {!readOnly &&
                 useLedgerApi &&
@@ -1313,14 +1347,13 @@ const ReceiptModal = ({
                         type="checkbox"
                         className="mt-0.5"
                         checked={applyRefundCredit}
-                        onChange={(e) => setApplyRefundCredit(e.target.checked)}
+                        onChange={(e) => handleApplyRefundFundChange(e.target.checked)}
                       />
                       <span>
-                        <span className="font-bold text-amber-900">Recommendation (optional): </span>
-                        Apply {formatNgn(refundCreditInfo.recommendedApplyNgn)} transferable credit to this
-                        quotation. Leftover stays refundable on the older job. Applied amount is{' '}
-                        <span className="font-semibold">Credit confirmation</span> — not bank clearance, not
-                        refundable again.
+                        <span className="font-bold text-amber-900">{REFUND_FUND_USE_LABEL}: </span>
+                        {formatNgn(refundCreditInfo.recommendedApplyNgn)} from this customer’s refund
+                        fund will cover this receipt. That slice is removed from the refund and is not
+                        refundable again. Leftover stays refundable on the older job.
                       </span>
                     </label>
                     <ul className="pl-6 list-disc text-slate-600 space-y-0.5">
@@ -1333,7 +1366,9 @@ const ReceiptModal = ({
                     </ul>
                     {applyRefundCredit ? (
                       <p className="pl-6 font-semibold text-emerald-800">
-                        Cash still needed after credit: {formatNgn(cashDueAfterCreditNgn ?? 0)}
+                        {cashDueAfterCreditNgn > 0
+                          ? `Cash still needed after refund fund: ${formatNgn(cashDueAfterCreditNgn)}`
+                          : 'Refund fund covers this receipt — no cash to collect.'}
                       </p>
                     ) : null}
                   </div>
@@ -1377,6 +1412,22 @@ const ReceiptModal = ({
                 <div className="col-span-2 sm:col-span-3 text-center">Amount ₦</div>
                 <div className="hidden sm:block sm:col-span-2 text-right">Actions</div>
               </div>
+              {applyRefundCredit && recommendedCreditApplyNgn > 0 ? (
+                <div className="grid grid-cols-12 gap-2.5 items-center bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+                  <p className="col-span-12 sm:col-span-5 text-[12px] font-bold text-amber-950">
+                    {REFUND_FUND_USE_LABEL}
+                  </p>
+                  <p className="col-span-6 sm:col-span-2 text-[12px] font-semibold text-amber-900">
+                    Refund fund
+                  </p>
+                  <p className="col-span-6 sm:col-span-3 text-[12px] text-center font-black text-amber-900 tabular-nums">
+                    {formatNgn(recommendedCreditApplyNgn)}
+                  </p>
+                  <p className="col-span-12 sm:col-span-2 text-[10px] font-semibold text-amber-800 sm:text-right">
+                    Auto-deducted
+                  </p>
+                </div>
+              ) : null}
               {paymentLines.map((line, idx) => {
                 const isLast = idx === paymentLines.length - 1;
                 return (
@@ -1493,12 +1544,26 @@ const ReceiptModal = ({
                   <p className="text-[17px] font-bold leading-none text-sky-700 tabular-nums">{formatNgn(displayPaid)}</p>
                 </div>
                 <div className="rounded-lg border border-zarewa-teal/30 bg-zarewa-teal p-2.5 text-white">
-                  <p className="text-ui-xs font-semibold text-white/50 uppercase mb-1">Balance due (ledger)</p>
+                  <p className="text-ui-xs font-semibold text-white/50 uppercase mb-1">
+                    {applyRefundCredit ? 'Cash still due' : 'Balance due (ledger)'}
+                  </p>
                   <p className="text-[17px] font-bold leading-none text-emerald-200 tabular-nums">{formatNgn(displayBalance)}</p>
+                  {applyRefundCredit && recommendedCreditApplyNgn > 0 ? (
+                    <p className="text-[10px] text-emerald-100/90 mt-1.5 leading-snug">
+                      {formatNgn(recommendedCreditApplyNgn)} deducted from refund fund
+                    </p>
+                  ) : null}
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-2.5">
                   <p className="text-ui-xs font-semibold text-slate-400 uppercase mb-1">This voucher total</p>
-                  <p className="text-[20px] font-black leading-none text-emerald-700 tabular-nums">{formatNgn(lineTotalNgn)}</p>
+                  <p className="text-[20px] font-black leading-none text-emerald-700 tabular-nums">
+                    {formatNgn(lineTotalNgn + (applyRefundCredit ? recommendedCreditApplyNgn : 0))}
+                  </p>
+                  {applyRefundCredit && recommendedCreditApplyNgn > 0 ? (
+                    <p className="text-ui-xs text-slate-500 mt-1">
+                      Cash {formatNgn(lineTotalNgn)} + refund fund {formatNgn(recommendedCreditApplyNgn)}
+                    </p>
+                  ) : null}
                   {balanceAfterNgn != null ? (
                     <p className="text-ui-xs text-slate-500 mt-1">
                       Est. balance after post: <span className="font-bold tabular-nums">{formatNgn(balanceAfterNgn)}</span>
@@ -1526,8 +1591,8 @@ const ReceiptModal = ({
         ) : null}
 
         <ModalDeskFooter
-          totalLabel="Voucher total"
-          totalValue={formatNgn(lineTotalNgn)}
+          totalLabel={applyRefundCredit && recommendedCreditApplyNgn > 0 ? 'Cash + refund fund' : 'Voucher total'}
+          totalValue={formatNgn(lineTotalNgn + (applyRefundCredit ? recommendedCreditApplyNgn : 0))}
           className="bg-emerald-600"
         >
           {isExistingPayment && !readOnly && onDeleteReceipt ? (
