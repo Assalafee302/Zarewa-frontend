@@ -571,7 +571,7 @@ function PrintAuditFooter({ printCount = 0, lastPrintedAtISO = '', lastPrintedBy
 }
 
 function ReceiptPaymentBlock({ receipt, treasuryMovements }) {
-  const splits = receiptLedgerReceiptTreasurySplits(receipt, treasuryMovements);
+  const splits = receipt._refundFund ? [] : receiptLedgerReceiptTreasurySplits(receipt, treasuryMovements);
   const total = receiptCashReceivedNgn(receipt);
   return (
     <div className="cl-factory-receipt-block">
@@ -582,7 +582,11 @@ function ReceiptPaymentBlock({ receipt, treasuryMovements }) {
         <span className="cl-factory-receipt-sep">·</span>
         <span className="cl-factory-receipt-amt tabular-nums">{formatNgn(total)}</span>
         <span className="cl-factory-receipt-sep">·</span>
-        <span className="cl-factory-receipt-bank">{receipt.bankReference || receipt.method || receipt.paymentMethod || '—'}</span>
+        <span className="cl-factory-receipt-bank">
+          {receipt._refundFund
+            ? receipt.method || 'Deducted from refund fund'
+            : receipt.bankReference || receipt.method || receipt.paymentMethod || '—'}
+        </span>
       </div>
       {splits.length > 0 ? (
         <ul className="cl-factory-receipt-splits">
@@ -787,7 +791,7 @@ export default function CuttingListReportPrintView({
                   <div className="cl-factory-receipt-box">
                     <p className="cl-factory-receipt-head">Payment &amp; receipts</p>
                     {receiptsForQuotation.length === 0 ? (
-                      <p className="cl-factory-receipt-empty">No receipts on file.</p>
+                      <p className="cl-factory-receipt-empty">No receipts or refund-fund payments on file.</p>
                     ) : (
                       receiptsForQuotation.map((r) => (
                         <ReceiptPaymentBlock key={r.id} receipt={r} treasuryMovements={treasuryMovements} />

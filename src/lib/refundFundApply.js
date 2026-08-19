@@ -154,6 +154,64 @@ export function refundFundAppliedByQuotationRef({
 }
 
 /**
+ * Receipt-shaped rows so cutting list / printouts show refund-fund payments (no sales_receipt is posted).
+ * @param {{ quotationRef?: string, ledgerEntries?: object[], applications?: object[] }} opts
+ */
+export function refundFundPaymentRowsForQuotation({
+  quotationRef,
+  ledgerEntries = [],
+  applications = [],
+} = {}) {
+  const qid = String(quotationRef || '').trim();
+  if (!qid) return [];
+  const rows = [];
+  const apps = (applications || []).filter((a) => applicationTargetRef(a) === qid);
+  if (apps.length) {
+    for (const a of apps) {
+      const amt = roundNgn(a.amountNgn ?? a.amount_ngn);
+      if (!(amt > 0)) continue;
+      const iso = String(a.createdAtISO || a.created_at_iso || '').slice(0, 10);
+      const id = String(a.applicationId || a.application_id || a.ledgerBankReference || a.ledger_bank_reference || '').trim();
+      rows.push({
+        id: id || `RFUND-${qid}-${iso || rows.length}`,
+        quotationRef: qid,
+        dateISO: iso,
+        date: iso,
+        amountNgn: amt,
+        cashReceivedNgn: amt,
+        method: REFUND_FUND_DEDUCTED_LABEL,
+        paymentMethod: REFUND_FUND_DEDUCTED_LABEL,
+        bankReference: REFUND_FUND_DEDUCTED_LABEL,
+        _refundFund: true,
+      });
+    }
+    return rows;
+  }
+  for (const e of ledgerEntries || []) {
+    if (!isRefundFundApplyLedgerEntry(e)) continue;
+    const ref = String(e.quotationRef || e.quotation_ref || '').trim();
+    if (ref !== qid) continue;
+    const amt = roundNgn(e.amountNgn ?? e.amount_ngn);
+    if (!(amt > 0)) continue;
+    const iso = String(e.atISO || e.at_iso || '').slice(0, 10);
+    const id = String(e.id || e.bankReference || e.bank_reference || '').trim();
+    rows.push({
+      id: id || `RFUND-${qid}-${iso || rows.length}`,
+      quotationRef: qid,
+      dateISO: iso,
+      date: iso,
+      amountNgn: amt,
+      cashReceivedNgn: amt,
+      method: REFUND_FUND_DEDUCTED_LABEL,
+      paymentMethod: REFUND_FUND_DEDUCTED_LABEL,
+      bankReference: REFUND_FUND_DEDUCTED_LABEL,
+      _refundFund: true,
+    });
+  }
+  return rows;
+}
+
+/**
  * @param {{
  *   ledgerEntries?: object[],
  *   refunds?: object[],

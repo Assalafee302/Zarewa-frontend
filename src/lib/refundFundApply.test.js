@@ -6,6 +6,7 @@ import {
   planCashierRefundOffset,
   refundFundAppliedByQuotationRef,
   refundFundAppliedOnQuotation,
+  refundFundPaymentRowsForQuotation,
   restorePaymentLinesAfterRefundFundUnchecked,
 } from './refundFundApply.js';
 
@@ -171,5 +172,23 @@ describe('refund fund apply helpers', () => {
       cashToConfirmNgn: 0,
       leftoverRefundNgn: 50_000,
     });
+  });
+
+  it('builds cutting-list payment rows from refund fund applications', () => {
+    const rows = refundFundPaymentRowsForQuotation({
+      quotationRef: 'QT-NEW',
+      applications: [
+        {
+          applicationId: 'RCA-1',
+          targetQuotationRef: 'QT-NEW',
+          amountNgn: 45_000,
+          createdAtISO: '2026-08-19T12:00:00.000Z',
+        },
+      ],
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]._refundFund).toBe(true);
+    expect(rows[0].cashReceivedNgn).toBe(45_000);
+    expect(rows[0].method).toMatch(/refund fund/i);
   });
 });

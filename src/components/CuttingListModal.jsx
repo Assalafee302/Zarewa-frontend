@@ -43,6 +43,7 @@ import { quotationBelowFloorPendingMdApproval } from '../lib/quotationPriceExcep
 import { validateCuttingListQuotedRoofingAlignment, cuttingListTotalMetresFromLines } from '../lib/refundCuttingListQuotationReconciliation';
 import { assessCuttingListQuotationConsumption } from '../lib/cuttingListBlankConsumption';
 import { quotedRoofingSheetMetresFromLines } from '../lib/refundQuotationMetres';
+import { refundFundPaymentRowsForQuotation } from '../lib/refundFundApply.js';
 
 /** Compare quote / receipt links when pasted refs use en-dash etc. */
 function normQuoteKey(s) {
@@ -697,8 +698,16 @@ const CuttingListModal = ({
   const quoteReceipts = useMemo(() => {
     if (!quotationRef) return [];
     const k = normQuoteKey(quotationRef);
-    return receipts.filter((r) => normQuoteKey(r.quotationRef) === k);
-  }, [receipts, quotationRef]);
+    const cashRows = receipts.filter((r) => normQuoteKey(r.quotationRef) === k);
+    const refundFundRows = refundFundPaymentRowsForQuotation({
+      quotationRef,
+      ledgerEntries,
+      applications: Array.isArray(ws?.snapshot?.refundCreditApplications)
+        ? ws.snapshot.refundCreditApplications
+        : [],
+    });
+    return [...cashRows, ...refundFundRows];
+  }, [receipts, quotationRef, ledgerEntries, ws?.snapshot?.refundCreditApplications]);
 
   const quoteLineSnippet = useMemo(() => {
     const ql = selectedQuotation?.quotationLines;
@@ -2070,14 +2079,17 @@ const CuttingListModal = ({
                 )}
 
                 <div>
-                  <p className="text-ui-xs font-bold text-slate-400 uppercase mb-1">Receipts (this quotation)</p>
+                  <p className="text-ui-xs font-bold text-slate-400 uppercase mb-1">Payments (this quotation)</p>
                   {quoteReceipts.length === 0 ? (
-                    <p className="text-slate-500">No receipts linked.</p>
+                    <p className="text-slate-500">No receipts or refund-fund payments linked.</p>
                   ) : (
                     <ul className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
                       {quoteReceipts.map((r) => (
                         <li key={r.id} className="flex justify-between gap-2 border-b border-slate-100 pb-1 last:border-0">
-                          <span className="text-slate-600">{r.date ?? r.dateISO}</span>
+                          <span className="text-slate-600">
+                            {r.date ?? r.dateISO}
+                            {r._refundFund ? ' · Refund fund' : ''}
+                          </span>
                           <span className="font-semibold text-zarewa-teal tabular-nums">
                             {formatNgn(receiptCashReceivedNgn(r))}
                           </span>

@@ -9,6 +9,7 @@ import {
   receiptSalesPaymentStatusLabel,
 } from './receiptClearance.js';
 import { formatNgn } from './formatNgn.js';
+import { isRefundFundApplyLedgerEntry, REFUND_FUND_DEDUCTED_LABEL } from './refundFundApply.js';
 
 function reversalTargetId(raw) {
   const m = String(raw ?? '').match(/REVERSAL_OF:([A-Za-z0-9-]+)/);
@@ -294,6 +295,19 @@ export function quotationReceiptPrintHistory(quotationId, importedReceipts = [])
       };
     });
 
+  const refundFund = ledgerEntries
+    .filter((e) => isRefundFundApplyLedgerEntry(e) && e.quotationRef === quotationId)
+    .map((e) => ({
+      id: e.id || e.bankReference || `RFUND-${quotationId}`,
+      dateStr: formatPrintDate((e.atISO || '').slice(0, 10)),
+      iso: (e.atISO || '').slice(0, 10),
+      amountNgn: Math.round(Number(e.amountNgn) || 0),
+      source: REFUND_FUND_DEDUCTED_LABEL,
+      detail: e.note || e.bankReference || REFUND_FUND_DEDUCTED_LABEL,
+      cashierStatus: REFUND_FUND_DEDUCTED_LABEL,
+      cashierDetail: 'Not bank clearance',
+    }));
+
   const imported = (importedReceipts || [])
     .filter(
       (r) =>
@@ -314,6 +328,7 @@ export function quotationReceiptPrintHistory(quotationId, importedReceipts = [])
   const byId = new Map();
   imported.forEach((row) => byId.set(row.id, row));
   ledger.forEach((row) => byId.set(row.id, row));
+  refundFund.forEach((row) => byId.set(row.id, row));
   return [...byId.values()].sort((a, b) => String(a.iso || a.dateStr).localeCompare(String(b.iso || b.dateStr)));
 }
 
