@@ -18,9 +18,9 @@ export function HangingCustomerRefundChip({ hanging, overpayCreditNgn = 0, indic
   if (!info) return null;
   const title = [
     info.count > 0
-      ? 'Same customer has an open refund elsewhere.'
+      ? 'Same customer has leftover refund open elsewhere.'
       : 'Same customer has an overpayment credit not applied or requested as a refund yet.',
-    'Overpayment on this receipt may belong against that refund / another receipt — review only; not auto-applied.',
+    'If Add payment used the refund fund on this job, that slice is shown separately and is not cash to confirm.',
     info.detailLabel,
     info.count > 0 ? `Refunds open ${formatNgn(info.totalOpenNgn)}` : '',
     info.overpayCreditNgn > 0 ? `Unapplied credit ${formatNgn(info.overpayCreditNgn)}` : '',
