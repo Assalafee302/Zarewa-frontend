@@ -154,6 +154,26 @@ export function receiptMatchesSalesPaymentFilter(row, filter = 'all') {
   return true;
 }
 
+/** Counts for Sales → Payments status chips (same buckets as cashier pending/confirmed). */
+export function countReceiptSalesPaymentStatuses(rows = []) {
+  const list = Array.isArray(rows) ? rows : [];
+  let awaiting = 0;
+  let confirmed = 0;
+  let reversed = 0;
+  let no_cutting = 0;
+  for (const row of list) {
+    const bucket = receiptSalesPaymentFilterBucket(row);
+    if (bucket === 'awaiting') awaiting += 1;
+    else if (bucket === 'confirmed') confirmed += 1;
+    else if (bucket === 'reversed') reversed += 1;
+    if (bucket !== 'reversed') {
+      const kind = String(row?._cuttingListLinkKind || '').trim();
+      if (kind !== 'linked') no_cutting += 1;
+    }
+  }
+  return { all: list.length - reversed, awaiting, confirmed, reversed, no_cutting };
+}
+
 export function pendingClearanceTotalNgn(receipts = []) {
   return (Array.isArray(receipts) ? receipts : []).reduce((sum, r) => {
     if (!isReceiptPendingClearance(r)) return sum;

@@ -23,7 +23,7 @@ export function OtApprovalDecisionModal({
   onClose,
   onDecisionComplete,
 }) {
-  const { showToast } = useToast();
+  const { show: showToast } = useToast();
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(false);
   const [rateApproved, setRateApproved] = useState('');
@@ -129,7 +129,7 @@ export function OtApprovalDecisionModal({
       description="Review overtime pay request and approve or reject."
       surface="plain"
       closeDisabled={busy}
-    >
+      showCloseButton={false}>
       <div className="z-modal-panel flex max-h-[min(92vh,880px)] w-full max-w-3xl flex-col overflow-hidden p-0">
         <DecisionModalHeader
           title="Overtime pay approval"

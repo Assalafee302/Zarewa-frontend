@@ -4,13 +4,13 @@
 **Department:** Executive Office  
 **System modules:** `/exec`, `/executive-hr/*`, `/manager` (when MD acts as BM)  
 **Primary roles:** `md`, `ceo`, `chairman`  
-**CEO/Chairman:** read-only on transactions; approval authority on sensitive items
+**CEO:** read-only on transactions. **Chairman:** company watch plus the owner’s office (family, household, drawings).
 
 ---
 
 ## 1. PURPOSE AND SCOPE
 
-The Executive Office provides strategic oversight, high-value approval authority, and company-wide performance monitoring. The Managing Director operates the business through the **Command Centre** (`/exec`); CEO and Chairman have read-focused executive views with targeted approval permissions.
+The Executive Office provides strategic oversight, high-value approval authority, and company-wide performance monitoring. The Managing Director operates the business through the **Command Centre** (`/exec`). CEO watches the company (Overview / Insights / Finance). Chairman watches the company **and** runs the owner’s office at `/chairman`.
 
 ---
 
@@ -148,10 +148,29 @@ Export for board meetings and audit.
 
 ### 8.2 Chairman (`chairman`)
 
-- CEO permissions plus:
-- Executive HR family/scholarship accounts
-- `hr.chairman.manage`
-- Exceptional loan approval alongside MD
+Home: **Chairman Office** (`/chairman`). CEO does not use this route. MD and admin may.
+
+| Tab | What |
+|-----|------|
+| Company pulse | Read-only company KPIs (CEO-style Overview). Not MD Today / Decide / Customers / Trace. |
+| Scholarships | Chairman’s children: register, school fees, allowances, bank export, fee requests, expenses, audit. |
+| Household | Household staff: register, salary, bank details, mark paid. ERP login is optional. |
+| Equity & withdrawals | Request owner drawings. Finance pays out to GL **3200 Drawings** (equity, not P&L). |
+| Loans | Company loans to the Chairman or to a named person who is **not staff**. GL **1200 Receivable**. Do not create a fake staff user. |
+
+Every payment request on this desk keeps a trail: who requested, who approved (MD or Finance `finance.approve` on the Accounts desk — cash has not moved), and who paid (cashier `finance.pay` from a named treasury account). Open a row to see the trail.
+
+**Drawings vs loans:** a withdrawal is the owner taking equity (3200). A loan is money the company is owed (1200). Staff payroll loans stay on HR — Chairman Office loans are a separate special lane (`Chairman loan`).
+
+Loan repayments are recorded on Chairman Office (who received the cash and how). That log does **not** post GL; Finance should receipt (Dr treasury / Cr 1200).
+
+The impact strip shows **household and scholarships paid this month** (HR payment rows), pending benefit payouts, drawings YTD, loans outstanding, pending loan disbursements, and treasury cash after pending drawings + benefits + loans. Run-rate salaries/allowances stay as secondary copy.
+
+Do **not** use partner wallet here — that is refunds. Dividends / share register are out of scope.
+
+Scholarships and household staff **are not in HR**. Old routes (`/executive-hr/family`, `/executive-hr/benefits`, `/hr/chairman`) redirect here. Optional ERP logins for a child or household staff still sit on HR staff registers; pay and fees are this desk.
+
+Permissions: CEO bundle plus Executive HR (`hr.chairman.manage`) and exceptional loan approval alongside MD.
 
 ---
 

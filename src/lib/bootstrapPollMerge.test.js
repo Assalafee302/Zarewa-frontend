@@ -64,4 +64,18 @@ describe('mergeDashboardPollIntoSnapshot', () => {
     const merged = mergeDashboardPollIntoSnapshot(prev, poll);
     expect(merged.accountingCreditors.rows).toHaveLength(1);
   });
+
+  it('keeps domain-loaded customers when dashboard poll omits them', () => {
+    const prev = {
+      ok: true,
+      customers: [{ customerID: 'CUS-1', name: 'A' }, { customerID: 'CUS-2', name: 'B' }],
+      expenses: [{ expenseID: 'E1', amountNgn: 10 }],
+      coilLots: [{ coilNo: 'CL-1' }],
+    };
+    const poll = { ok: true, customers: [], expenses: [], coilLots: [] };
+    const merged = mergeDashboardPollIntoSnapshot(prev, poll);
+    expect(merged.customers).toHaveLength(2);
+    expect(merged.expenses).toHaveLength(1);
+    expect(merged.coilLots).toHaveLength(1);
+  });
 });

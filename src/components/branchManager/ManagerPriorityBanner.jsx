@@ -1,45 +1,46 @@
 import React from 'react';
-import { AlertTriangle, ArrowRight, X } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 
 /**
- * Single priority banner — only the #1 urgent item.
+ * Single priority on the morning board — only the #1 urgent item.
  */
 export function ManagerPriorityBanner({ item, onDismiss, onAction }) {
   if (!item) return null;
 
   return (
     <div
-      className="mb-5 flex flex-col gap-3 rounded-zarewa border border-rose-200 bg-rose-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+      className="mb-5 flex overflow-hidden rounded-xl border border-[var(--z-border-subtle)] bg-white shadow-[var(--shadow-zarewa-card)]"
       role="status"
     >
-      <div className="min-w-0 flex items-start gap-2.5">
-        <AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-600" aria-hidden />
+      <div className="w-1.5 shrink-0 bg-rose-800" aria-hidden />
+      <div className="flex min-w-0 flex-1 flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-ui-xs font-black uppercase tracking-wide text-rose-900">{item.title}</p>
-          {item.detail ? <p className="mt-1 text-xs text-rose-900/80 leading-relaxed">{item.detail}</p> : null}
+          <p className="z-label-caps">Priority</p>
+          <p className="mt-1 text-sm font-semibold text-[var(--z-text)]">{item.title}</p>
+          {item.detail ? <p className="mt-1 text-xs leading-relaxed text-[var(--z-text-muted)]">{item.detail}</p> : null}
         </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {item.actionLabel ? (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase tracking-wide text-white hover:brightness-105"
-            onClick={() => onAction?.(item)}
-          >
-            {item.actionLabel}
-            <ArrowRight size={14} aria-hidden />
-          </button>
-        ) : null}
-        {typeof onDismiss === 'function' ? (
-          <button
-            type="button"
-            className="rounded-lg p-2 text-rose-700/70 hover:bg-rose-100 hover:text-rose-900"
-            aria-label="Dismiss priority banner"
-            onClick={onDismiss}
-          >
-            <X size={16} />
-          </button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {item.actionLabel ? (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-sm bg-zarewa-teal px-3 py-2 text-ui-xs font-medium text-white hover:brightness-105"
+              onClick={() => onAction?.(item)}
+            >
+              {item.actionLabel}
+              <ArrowRight size={14} aria-hidden />
+            </button>
+          ) : null}
+          {typeof onDismiss === 'function' ? (
+            <button
+              type="button"
+              className="rounded-sm p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              aria-label="Dismiss priority banner"
+              onClick={onDismiss}
+            >
+              <X size={16} />
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

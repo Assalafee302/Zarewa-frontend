@@ -131,7 +131,7 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
               {bonusRequests.map((b) => (
                 <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs">
                   <span>
-                    <span className="font-bold uppercase">{b.status}</span>
+                    <span className="font-semibold capitalize">{String(b.status || '').replace(/_/g, ' ')}</span>
                     {' · '}
                     {b.bonusType}
                     {b.requestedAtIso ? ` · ${b.requestedAtIso.slice(0, 10)}` : ''}
@@ -232,11 +232,11 @@ function HrPayrollConfirmBonusModal({ isOpen, onClose, busy, onConfirm }) {
 }
 
 function Stat({ label, value, tone }) {
-  const cls = tone === 'amber' ? 'text-amber-800' : 'text-zarewa-teal';
+  const cls = tone === 'amber' ? 'text-amber-900' : 'text-slate-900';
   return (
-    <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className={`mt-1 text-lg font-black tabular-nums ${cls}`}>{value}</p>
+    <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+      <p className="text-ui-xs font-medium text-slate-500">{label}</p>
+      <p className={`z-stencil mt-1 text-lg ${cls}`}>{value}</p>
     </div>
   );
 }

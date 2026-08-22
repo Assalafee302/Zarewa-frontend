@@ -27,15 +27,15 @@ function Panel({ title, subtitle, icon: Icon, children, linkTo, linkLabel }) {
     <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-0 bg-white overflow-hidden">
       <div className="flex items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
         <div>
-          <h3 className="text-sm font-black text-zarewa-teal tracking-tight flex items-center gap-2">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             {Icon ? <Icon size={16} aria-hidden /> : null}
             {title}
           </h3>
           {subtitle ? <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p> : null}
         </div>
         {linkTo ? (
-          <Link to={linkTo} className="text-ui-xs font-bold uppercase text-zarewa-teal no-underline hover:underline">
-            {linkLabel || 'Open →'}
+          <Link to={linkTo} className="text-ui-xs font-medium text-slate-700 no-underline hover:underline">
+            {linkLabel || 'Open'}
           </Link>
         ) : null}
       </div>

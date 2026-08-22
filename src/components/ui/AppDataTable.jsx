@@ -97,10 +97,22 @@ export function AppTableTr({ children, role = 'browse', variant, onClick, classN
       : 'hover:bg-teal-50/40';
   const border = isHeader ? '' : 'border-t border-slate-100';
   const cur = onClick ? 'cursor-pointer' : '';
+  const focus = onClick && !isHeader ? 'focus-visible:outline-none focus-visible:bg-teal-50/60' : '';
   return (
     <tr
-      className={`${border} ${hover} ${cur} ${className}`.trim()}
+      className={`${border} ${hover} ${cur} ${focus} ${className}`.trim()}
       onClick={onClick}
+      onKeyDown={
+        onClick && !isHeader
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick(e);
+              }
+            }
+          : undefined
+      }
+      tabIndex={onClick && !isHeader ? 0 : undefined}
       title={title}
     >
       {children}

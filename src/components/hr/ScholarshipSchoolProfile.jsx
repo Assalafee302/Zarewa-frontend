@@ -199,7 +199,7 @@ export default function ScholarshipSchoolProfile() {
         ) : null}
         {!beneficiaryLinked ? (
           <p className="relative mt-3 rounded-xl border border-amber-300/30 bg-amber-400/15 px-3 py-2 text-xs text-amber-50">
-            Your Executive benefits record is not fully linked yet — payments may take longer to appear. Contact the
+            Your benefits record is not fully linked yet — payments may take longer to appear. Contact the
             office to complete setup.
           </p>
         ) : null}

@@ -26,6 +26,11 @@ import { sanitizeWorkItemForCache } from '../lib/workspaceSanitize.js';
 import { appQueryClient, invalidateAppShellQueries } from '../lib/queryClient';
 import { mergeDashboardPollIntoSnapshot } from '../lib/bootstrapPollMerge';
 import {
+  accessibleWorkspaceDomains,
+  inferLoadedWorkspaceDomains,
+  snapshotHasUsableDomainData,
+} from '../lib/workspaceDomainPrefetch';
+import {
   clearPendingPasswordChange,
   hasPendingPasswordChange,
   markPendingPasswordChange,
@@ -208,10 +213,20 @@ export function WorkspaceProvider({ children }) {
   const bootstrapPollEtagRef = useRef('');
   const bootstrapFullEtagRef = useRef('');
   const workspaceRevisionEtagRef = useRef('');
-  const loadedDomainsRef = useRef(new Set());
+  const loadedDomainsRef = useRef(inferLoadedWorkspaceDomains(initialBootstrap));
+  const domainInflightRef = useRef(new Map());
+  const domainEtagRef = useRef(new Map());
+  const prefetchGenRef = useRef(0);
   const fullBootstrapLoadedRef = useRef(false);
   const lastErrorRef = useRef(null);
   const refreshSeqRef = useRef(0);
+
+  const resetDomainRuntime = useCallback(() => {
+    loadedDomainsRef.current = new Set();
+    domainInflightRef.current = new Map();
+    domainEtagRef.current = new Map();
+    prefetchGenRef.current += 1;
+  }, []);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -248,6 +263,9 @@ export function WorkspaceProvider({ children }) {
     }
     if (mode === 'ok' && merged) {
       writeBootstrapCache(merged);
+      for (const domain of inferLoadedWorkspaceDomains(merged)) {
+        loadedDomainsRef.current.add(domain);
+      }
     }
     if (typeof merged?.staffPurchaseCreditPendingCount === 'number') {
       setStaffPurchaseCreditPendingCount(merged.staffPurchaseCreditPendingCount);
@@ -413,7 +431,7 @@ export function WorkspaceProvider({ children }) {
         setStatus('auth_required');
         setSnapshot(null);
         setLastError(null);
-        loadedDomainsRef.current = new Set();
+        resetDomainRuntime();
         fullBootstrapLoadedRef.current = false;
         workspaceRevisionEtagRef.current = '';
         if (!sessionNoticeShownRef.current) {
@@ -455,12 +473,12 @@ export function WorkspaceProvider({ children }) {
       setStatus('offline');
       setSnapshot(null);
       setLastError(String(e.message || e));
-      loadedDomainsRef.current = new Set();
+      resetDomainRuntime();
       fullBootstrapLoadedRef.current = false;
       workspaceRevisionEtagRef.current = '';
       return null;
     }
-  }, [applySnapshot]);
+  }, [applySnapshot, resetDomainRuntime]);
 
   const ensureDomainLoaded = useCallback(
     async (domain, opts = {}) => {
@@ -468,26 +486,84 @@ export function WorkspaceProvider({ children }) {
       const force = Boolean(opts?.force);
       if (!key) return snapshotRef.current;
       if (!force && loadedDomainsRef.current.has(key)) return snapshotRef.current;
-      try {
-        const r = await fetch(apiUrl(`/api/workspace/${encodeURIComponent(key)}-snapshot`), {
-          method: 'GET',
-          credentials: 'include',
-        });
-        if (r.status === 304) {
+
+      const inflight = domainInflightRef.current.get(key);
+      if (inflight && !force) return inflight;
+
+      const run = (async () => {
+        try {
+          const etag = force ? '' : domainEtagRef.current.get(key) || '';
+          const r = await fetch(apiUrl(`/api/workspace/${encodeURIComponent(key)}-snapshot`), {
+            method: 'GET',
+            credentials: 'include',
+            headers: etag ? { 'If-None-Match': etag } : {},
+          });
+          if (r.status === 304) {
+            loadedDomainsRef.current.add(key);
+            setRefreshEpoch((n) => n + 1);
+            return snapshotRef.current;
+          }
+          const data = await r.json().catch(() => null);
+          if (!r.ok || !data?.ok) return snapshotRef.current;
+          const nextEtag = r.headers.get('ETag') || '';
+          if (nextEtag) domainEtagRef.current.set(key, nextEtag);
           loadedDomainsRef.current.add(key);
+          return mergeSnapshotPatch(data) ?? snapshotRef.current;
+        } catch {
           return snapshotRef.current;
+        } finally {
+          domainInflightRef.current.delete(key);
         }
-        const data = await r.json().catch(() => null);
-        if (!r.ok || !data?.ok) return snapshotRef.current;
-        loadedDomainsRef.current.delete(key);
-        loadedDomainsRef.current.add(key);
-        return mergeSnapshotPatch(data) ?? snapshotRef.current;
-      } catch {
-        return snapshotRef.current;
-      }
+      })();
+
+      domainInflightRef.current.set(key, run);
+      return run;
     },
     [mergeSnapshotPatch]
   );
+
+  const prefetchWorkspaceDomains = useCallback(
+    async (opts = {}) => {
+      const snap = snapshotRef.current;
+      if (!snap?.ok) return;
+      const uid = snap.session?.user?.id;
+      if (uid && hasPendingPasswordChange(uid)) return;
+
+      const perms = snap.permissions ?? snap.session?.permissions ?? [];
+      const roleKey = snap.session?.user?.roleKey;
+      let domains = accessibleWorkspaceDomains(perms, roleKey);
+
+      const priority = String(opts.priorityDomain || '').trim().toLowerCase();
+      if (priority && domains.includes(priority)) {
+        domains = [priority, ...domains.filter((d) => d !== priority)];
+      }
+      if (Array.isArray(opts.only) && opts.only.length) {
+        const only = new Set(opts.only.map((d) => String(d).trim().toLowerCase()));
+        domains = domains.filter((d) => only.has(d));
+      }
+
+      const gen = ++prefetchGenRef.current;
+      const force = Boolean(opts.force);
+      const pending = domains.filter((d) => force || !loadedDomainsRef.current.has(d));
+      if (!pending.length) return;
+
+      if (priority && pending[0] === priority) {
+        if (gen !== prefetchGenRef.current) return;
+        await ensureDomainLoaded(priority, { force });
+        pending.shift();
+      }
+      if (gen !== prefetchGenRef.current || !pending.length) return;
+      await Promise.allSettled(pending.map((d) => ensureDomainLoaded(d, { force })));
+    },
+    [ensureDomainLoaded]
+  );
+
+  const isDomainLoaded = useCallback((domain) => {
+    const key = String(domain || '').trim().toLowerCase();
+    if (!key) return false;
+    if (loadedDomainsRef.current.has(key)) return true;
+    return snapshotHasUsableDomainData(snapshotRef.current, key);
+  }, []);
 
   const ensureFullBootstrap = useCallback(async () => {
     if (fullBootstrapLoadedRef.current) return snapshotRef.current;
@@ -509,21 +585,32 @@ export function WorkspaceProvider({ children }) {
       if (revRes.status === 304) return snapshotRef.current;
       const revEtag = revRes.headers.get('ETag') || '';
       if (revEtag) workspaceRevisionEtagRef.current = revEtag;
-      loadedDomainsRef.current = new Set();
+      const prevLoaded = [...loadedDomainsRef.current];
+      resetDomainRuntime();
       if (!revRes.ok) {
         await refresh({ poll: true, mode: 'dashboard' });
+        if (prevLoaded.length) {
+          void Promise.allSettled(prevLoaded.map((d) => ensureDomainLoaded(d, { force: true })));
+        }
         return snapshotRef.current;
       }
       const revData = await revRes.json().catch(() => null);
       if (!revData?.ok) {
         await refresh({ poll: true, mode: 'dashboard' });
+        if (prevLoaded.length) {
+          void Promise.allSettled(prevLoaded.map((d) => ensureDomainLoaded(d, { force: true })));
+        }
         return snapshotRef.current;
       }
-      return refresh({ poll: true, mode: 'dashboard' });
+      await refresh({ poll: true, mode: 'dashboard' });
+      if (prevLoaded.length) {
+        void Promise.allSettled(prevLoaded.map((d) => ensureDomainLoaded(d, { force: true })));
+      }
+      return snapshotRef.current;
     } catch {
       return snapshotRef.current;
     }
-  }, [refresh]);
+  }, [refresh, ensureDomainLoaded, resetDomainRuntime]);
 
   const login = useCallback(
     async (username, password) => {
@@ -573,7 +660,7 @@ export function WorkspaceProvider({ children }) {
         const needsPasswordChange =
           Boolean(data.user?.mustChangePassword) || hasPendingPasswordChange(data.user?.id);
         if (!needsPasswordChange) {
-          loadedDomainsRef.current = new Set();
+          resetDomainRuntime();
           fullBootstrapLoadedRef.current = false;
           workspaceRevisionEtagRef.current = '';
           bootstrapPollEtagRef.current = '';
@@ -588,6 +675,7 @@ export function WorkspaceProvider({ children }) {
                 'Sign-in succeeded but workspace bootstrap failed. Restart the API and try again.',
             };
           }
+          void prefetchWorkspaceDomains();
         }
         return { ok: true, data };
       } catch (e) {
@@ -601,7 +689,7 @@ export function WorkspaceProvider({ children }) {
         };
       }
     },
-    [applySnapshot, refresh, refreshDashboardSummary]
+    [applySnapshot, refresh, refreshDashboardSummary, prefetchWorkspaceDomains, resetDomainRuntime]
   );
 
   const forgotPassword = useCallback(
@@ -668,7 +756,7 @@ export function WorkspaceProvider({ children }) {
     bootstrapPollEtagRef.current = '';
     bootstrapFullEtagRef.current = '';
     workspaceRevisionEtagRef.current = '';
-    loadedDomainsRef.current = new Set();
+    resetDomainRuntime();
     fullBootstrapLoadedRef.current = false;
     sessionNoticeShownRef.current = false;
     setSnapshot(null);
@@ -676,7 +764,7 @@ export function WorkspaceProvider({ children }) {
     setDashboardSummaryEtag('');
     setLastError(null);
     setStatus('auth_required');
-  }, []);
+  }, [resetDomainRuntime]);
 
   const endSessionForTimeout = useCallback(async () => {
     const mins = Number(snapshot?.session?.sessionTimeoutMinutes) || 120;
@@ -693,7 +781,7 @@ export function WorkspaceProvider({ children }) {
     bootstrapPollEtagRef.current = '';
     bootstrapFullEtagRef.current = '';
     workspaceRevisionEtagRef.current = '';
-    loadedDomainsRef.current = new Set();
+    resetDomainRuntime();
     fullBootstrapLoadedRef.current = false;
     sessionNoticeShownRef.current = false;
     setSnapshot(null);
@@ -703,7 +791,7 @@ export function WorkspaceProvider({ children }) {
     setSessionMessage(`You were signed out after ${mins} minutes of inactivity.`);
     sessionNoticeShownRef.current = true;
     setStatus('auth_required');
-  }, [snapshot?.session?.sessionTimeoutMinutes]);
+  }, [snapshot?.session?.sessionTimeoutMinutes, resetDomainRuntime]);
 
   const touchSessionActivity = useCallback(async () => {
     try {
@@ -800,15 +888,16 @@ export function WorkspaceProvider({ children }) {
       if (!ok || !data?.ok) {
         return { ok: false, error: data?.error || 'Could not update workspace.' };
       }
-      loadedDomainsRef.current = new Set();
+      resetDomainRuntime();
       fullBootstrapLoadedRef.current = false;
       workspaceRevisionEtagRef.current = '';
       bootstrapPollEtagRef.current = '';
       bootstrapFullEtagRef.current = '';
       await refresh({ mode: 'dashboard' });
+      void prefetchWorkspaceDomains({ force: true });
       return { ok: true, data };
     },
-    [refresh]
+    [refresh, prefetchWorkspaceDomains, resetDomainRuntime]
   );
 
   const getUnifiedWorkItemById = useCallback(
@@ -822,6 +911,31 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => {
     void refresh({ mode: 'dashboard' });
   }, [refresh]);
+
+  /** Warm desk snapshots in the background so page navigation does not wait on first open. */
+  useEffect(() => {
+    if (status !== 'ok') return undefined;
+    const uid = snapshotRef.current?.session?.user?.id;
+    if (uid && hasPendingPasswordChange(uid)) return undefined;
+
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) void prefetchWorkspaceDomains();
+    };
+
+    if (typeof requestIdleCallback !== 'undefined') {
+      const id = requestIdleCallback(run, { timeout: 1200 });
+      return () => {
+        cancelled = true;
+        cancelIdleCallback(id);
+      };
+    }
+    const t = window.setTimeout(run, 150);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [status, snapshot?.permissions, snapshot?.session?.permissions, snapshot?.branchScope, prefetchWorkspaceDomains]);
 
   /** Never leave the shell stuck on "Preparing live workspace…" if bootstrap hangs. */
   useEffect(() => {
@@ -985,6 +1099,8 @@ export function WorkspaceProvider({ children }) {
       refreshDashboardSummary,
       pollWorkspaceChanges,
       ensureDomainLoaded,
+      prefetchWorkspaceDomains,
+      isDomainLoaded,
       ensureFullBootstrap,
       refreshEpoch,
       /** Live server reachable — reads and writes go to API. */
@@ -1037,6 +1153,8 @@ export function WorkspaceProvider({ children }) {
       refreshDashboardSummary,
       pollWorkspaceChanges,
       ensureDomainLoaded,
+      prefetchWorkspaceDomains,
+      isDomainLoaded,
       ensureFullBootstrap,
       refreshEpoch,
       hasWorkspaceData,

@@ -135,9 +135,8 @@ export default function MaterialIncidentDetailModal({
       onClose={() => !decisionLocked && onClose?.()}
       title={`Material exception ${incidentId || ''}`}
       surface="plain"
-      showCloseButton={false}
       closeDisabled={decisionLocked}
-    >
+      showCloseButton={false}>
       <div className="mx-auto flex max-h-[min(92dvh,900px)] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
           <DecisionBand

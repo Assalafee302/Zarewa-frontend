@@ -2,7 +2,7 @@
 
 **Zarewa Aluminium and Plastics Ltd — System of Operations v3.0**  
 **Department:** Maintenance  
-**System modules:** Machines registry (via Operations/Settings), Maintenance plans and work orders  
+**System modules:** Machines registry (Branch Manager Expenses → Machines), Maintenance plans and work orders  
 **Primary roles:** Maintenance Manager (`desig_mm`), Maintenance Technician (`desig_mtech`)  
 **Supporting roles:** `finance_manager` (capex, cost posting), `operations_officer`
 
@@ -38,6 +38,8 @@ Maintenance ensures production machinery remains operational, safe, and cost-eff
 
 | Role | Duties |
 |------|--------|
+| Branch Manager (`sales_manager`) | Register machines and contractors on **Expenses → Machines**. Assign, spend, back on line, and close finances on **Approvals → Issues**. |
+| Store (`operations_officer`) | Report faults from Operations Desk. Does not register machines or vendors. |
 | Maintenance Manager (`desig_mm`) | Plans, work order approval, technician assignment |
 | Maintenance Technician (`desig_mtech`) | Execute work orders, log events, parts usage |
 | Production Manager | Report breakdowns; release machine for maintenance window |

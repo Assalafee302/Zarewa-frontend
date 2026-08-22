@@ -16,7 +16,7 @@ export function RefundAdvanceModal({
   formatNgn = (n) => `₦${Math.round(Number(n) || 0).toLocaleString('en-NG')}`,
 }) {
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose} title="Refund customer advance" surface="plain">
+    <ModalFrame isOpen={isOpen} onClose={onClose} title="Refund customer advance" surface="plain" showCloseButton={false}>
       <form
         onSubmit={onSubmit}
         className="z-modal-panel flex w-full max-w-md flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-2xl"

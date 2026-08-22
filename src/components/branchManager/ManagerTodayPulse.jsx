@@ -1,9 +1,16 @@
 import React, { useMemo } from 'react';
+import { Activity, Banknote, Gauge, HeartPulse, Ruler, Wallet } from 'lucide-react';
 import { formatNgn } from '../../lib/formatNgn';
+import { CommandMetricCard } from '../layout/CommandMetricCard';
+import {
+  COMMAND_HERO_CARD,
+  COMMAND_METRIC_GRID,
+  COMMAND_METRIC_LABEL,
+  COMMAND_SECTION_EYEBROW,
+} from '../../lib/execPageUi';
 
 /**
- * Today pulse — period KPIs (sales, collections, open actions, health, metres).
- * Synthetic sparklines removed; live ops posture lives on ManagerOpsStrip above.
+ * Morning board production figures — hero metres tile + overview metric grid.
  */
 export function ManagerTodayPulse({
   salesProduced = 0,
@@ -20,7 +27,6 @@ export function ManagerTodayPulse({
   const salesPct = salesTarget > 0 ? Math.round((salesProduced / salesTarget) * 100) : null;
   const metresPct = metresTarget > 0 ? Math.round((metresProduced / metresTarget) * 100) : null;
   const health = healthScore?.score ?? null;
-  const healthTone = healthScore?.tone || 'emerald';
 
   const sideTiles = useMemo(
     () => [
@@ -29,115 +35,100 @@ export function ManagerTodayPulse({
         label: 'Sales produced',
         value: formatNgn(salesProduced),
         meta: salesPct != null ? `${salesPct}% of target` : periodLabel,
-        tone: 'teal',
+        icon: Wallet,
+        iconTone: 'secondary',
+        badge: salesPct != null ? `${salesPct}%` : null,
       },
       {
         key: 'cash',
         label: 'Collected on quotes',
         value: formatNgn(cashCleared),
         meta: periodLabel,
-        tone: 'teal',
+        icon: Banknote,
+        iconTone: 'tertiary',
       },
       {
         key: 'open',
         label: 'Open actions',
         value: String(openActions),
         meta: openActions > 0 ? 'Needs your decision' : 'Queue clear',
-        tone: openActions > 0 ? 'amber' : 'emerald',
+        warn: openActions > 0,
+        icon: Activity,
+        iconTone: openActions > 0 ? 'warn' : 'neutral',
+        badge: openActions > 0 ? 'Urgent' : null,
       },
       {
         key: 'health',
         label: 'Branch health',
         value: health != null ? String(health) : '—',
         meta: healthScore?.status || 'Working indicator (not SOP policy)',
-        tone: healthTone,
+        icon: HeartPulse,
+        iconTone: 'primary',
       },
     ],
-    [
-      cashCleared,
-      health,
-      healthScore?.status,
-      healthTone,
-      openActions,
-      periodLabel,
-      salesPct,
-      salesProduced,
-    ]
+    [cashCleared, health, healthScore?.status, openActions, periodLabel, salesPct, salesProduced]
   );
 
   return (
-    <section className="mb-5 space-y-3" aria-label="Today pulse">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {sideTiles.map((t) => (
-          <div
-            key={t.key}
-            className="rounded-zarewa border border-slate-200/75 bg-white p-4 shadow-[var(--shadow-sequence)]"
-          >
-            <p className="text-ui-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t.label}</p>
-            <p
-              className={`mt-1.5 text-lg font-black tabular-nums tracking-tight ${
-                t.tone === 'amber'
-                  ? 'text-amber-800'
-                  : t.tone === 'rose'
-                    ? 'text-rose-800'
-                    : t.tone === 'emerald'
-                      ? 'text-emerald-800'
-                      : 'text-zarewa-teal'
-              }`}
-            >
-              {loading ? '…' : t.value}
+    <section className="space-y-4" aria-label="Today pulse">
+      <div className={COMMAND_HERO_CARD}>
+        <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--z-surface-muted)] opacity-50" aria-hidden />
+        <div className="relative z-10 flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zarewa-teal text-white">
+            <Ruler size={20} strokeWidth={2} aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className={COMMAND_SECTION_EYEBROW}>Metres produced · {periodLabel}</p>
+            <p className="z-stencil mt-1 text-3xl text-[var(--z-text)] sm:text-4xl">
+              {loading ? '…' : `${Number(metresProduced || 0).toLocaleString()} m`}
             </p>
-            <p className="mt-0.5 text-ui-xs text-slate-500">{t.meta}</p>
+            {metresPct != null ? (
+              <p className="mt-1 text-ui-xs tabular-nums text-[var(--z-text-muted)]">{metresPct}% of target</p>
+            ) : null}
           </div>
-        ))}
+          {metresPct != null ? (
+            <span className="hidden shrink-0 rounded-md border border-[var(--z-border-subtle)] bg-[var(--z-surface-muted)] px-2 py-1 text-ui-xs font-semibold text-zarewa-teal sm:inline">
+              {metresPct}%
+            </span>
+          ) : null}
+        </div>
+        <div className="relative z-10 mt-4 grid grid-cols-1 gap-4 border-t border-[var(--z-border-subtle)] pt-4 sm:grid-cols-2">
+          <div>
+            <p className={COMMAND_METRIC_LABEL}>Cutting lists (dated in period)</p>
+            <p className="z-stencil mt-1 text-xl text-[var(--z-text)]">
+              {loading ? '…' : `${Number(metresCuttingLists || 0).toLocaleString()} m`}
+            </p>
+          </div>
+          {metresTarget > 0 ? (
+            <div>
+              <div className="mb-1.5 flex justify-between text-ui-xs font-medium text-[var(--z-text-muted)]">
+                <span>Vs target</span>
+                <span className="tabular-nums">{metresPct ?? 0}%</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-sm bg-[var(--z-surface-muted)]">
+                <div
+                  className="h-full bg-zarewa-teal transition-all"
+                  style={{ width: `${Math.min(100, metresPct ?? 0)}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      <div className="rounded-zarewa border border-slate-200/75 bg-white p-4 sm:p-5 shadow-[var(--shadow-sequence)]">
-        <div className="min-w-0">
-          <p className="text-ui-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-            Metres · {periodLabel}
-          </p>
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                Metres produced (completed jobs)
-              </p>
-              <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-zarewa-teal">
-                {loading ? '…' : `${Number(metresProduced || 0).toLocaleString()} m`}
-              </p>
-              {metresPct != null ? (
-                <p className="mt-1 text-ui-xs font-semibold text-slate-500 tabular-nums">
-                  {metresPct}% of target
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                Cutting lists (dated in period)
-              </p>
-              <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-zarewa-teal">
-                {loading ? '…' : `${Number(metresCuttingLists || 0).toLocaleString()} m`}
-              </p>
-              <p className="mt-1 text-ui-xs font-semibold text-slate-500">
-                Metres on cutting lists in this period
-              </p>
-            </div>
-          </div>
-        </div>
-        {metresTarget > 0 ? (
-          <div className="mt-4">
-            <div className="flex justify-between text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5">
-              <span>Production metres vs target</span>
-              <span className="tabular-nums">{metresPct ?? 0}%</span>
-            </div>
-            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-all"
-                style={{ width: `${Math.min(100, metresPct ?? 0)}%` }}
-              />
-            </div>
-          </div>
-        ) : null}
+      <div className={COMMAND_METRIC_GRID}>
+        {sideTiles.map((t) => (
+          <CommandMetricCard
+            key={t.key}
+            label={t.label}
+            value={loading ? '…' : t.value}
+            meta={t.meta}
+            icon={t.icon}
+            iconTone={t.iconTone}
+            badge={t.badge}
+            warn={t.warn}
+          />
+        ))}
       </div>
     </section>
   );

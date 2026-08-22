@@ -343,7 +343,7 @@ export default function PurchaseOrderModal({
       onClose={handleClose}
       title={editPoId ? 'Edit purchase order' : 'New purchase order'}
       description="Coils, stone, accessories, and services (e.g. loading fee at purchase) on one supplier order."
-    >
+      showCloseButton={false}>
       <div className="z-modal-panel max-w-[min(100%,min(96vw,56rem))] w-full max-h-[min(92vh,860px)] flex flex-col mx-auto">
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
           <div>
@@ -379,7 +379,7 @@ export default function PurchaseOrderModal({
               variant="primary"
               disabled={busy || (isNewPo && (poBranchBlocked || !branchConfirmed))}
             >
-              <Save size={14} /> {busy ? 'Saving…' : 'Save'}
+              <Save size={12} /> {busy ? 'Saving…' : 'Save'}
             </DeskFooterButton>
           </ModalDeskFooter>
         </form>

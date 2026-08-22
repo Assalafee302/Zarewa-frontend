@@ -40,6 +40,9 @@ export function employeesDirectoryLink(quickFilter = '', extra = {}) {
   return `/hr/employees?${params.toString()}`;
 }
 
+/** Mill docket chip — sentence case, tight radius. */
+export const STAFF_CHIP = 'inline-flex rounded-sm border px-2 py-0.5 text-ui-xs font-medium';
+
 export const SORT_OPTIONS = [
   { id: 'name', label: 'Name' },
   { id: 'branch', label: 'Branch' },

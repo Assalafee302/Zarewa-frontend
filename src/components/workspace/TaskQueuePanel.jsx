@@ -67,7 +67,7 @@ export default function TaskQueuePanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1" role="tablist">
+      <div className="sticky top-0 z-10 -mx-1 flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1" role="tablist">
         {TASK_QUEUE_TABS.map((tab) => (
           <button
             key={tab.id}

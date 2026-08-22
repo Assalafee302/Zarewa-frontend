@@ -2,32 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { LiveProductionMonitor } from '../LiveProductionMonitor';
-
-function registerStatusTone(status) {
-  switch (status) {
-    case 'Completed':
-      return 'bg-emerald-100 text-emerald-800';
-    case 'Cancelled':
-      return 'bg-slate-200 text-slate-700';
-    case 'Running':
-      return 'bg-sky-100 text-sky-800';
-    default:
-      return 'bg-amber-100 text-amber-900';
-  }
-}
+import { registerStatusTone, PROD_REG } from '../../lib/productionRegisterUi';
 
 /**
- * Operations: modal opened from **Edit register** — coil plan, run log, completion, and post-completion tools.
- * Whether controls are enabled follows the selected production job inside {@link LiveProductionMonitor}
- * (Planned / Running vs Completed / Cancelled), not the queue row’s “closed” chip.
- *
- * @param {{
- *   isOpen: boolean;
- *   onClose: () => void;
- *   cuttingListId?: string | null;
- *   subtitle?: string | null;
- *   initialRecallIntent?: boolean;
- * }} props
+ * Operations: modal opened from **Edit register** — coil plan, run log, completion.
  */
 export function ProductionRegisterEditModal({
   isOpen,
@@ -38,73 +16,46 @@ export function ProductionRegisterEditModal({
 }) {
   const id = cuttingListId != null ? String(cuttingListId).trim() : '';
   const open = Boolean(isOpen);
-  const [registerHeaderMeta, setRegisterHeaderMeta] = useState(null);
+  const [status, setStatus] = useState(null);
 
   useEffect(() => {
-    if (!open) setRegisterHeaderMeta(null);
+    if (!open) setStatus(null);
   }, [open]);
 
   return (
-    <ModalFrame
-      isOpen={open}
-      onClose={onClose}
-      showCloseButton={false}
-      surface="plain"
-      title="Production register"
-      description="Coil allocation and run completion."
-    >
-      <div className="z-modal-panel flex h-[min(92dvh,920px)] w-full min-w-0 max-w-[min(56rem,calc(100dvw-1rem))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:h-[min(90dvh,940px)] sm:max-w-[min(64rem,calc(100dvw-1.5rem))] sm:rounded-[28px]">
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-teal-100/90 bg-gradient-to-r from-teal-50/50 via-white to-white px-3 py-2.5 sm:px-4">
-          <div className="min-w-0 pr-2">
-            <h2 className="text-[15px] font-bold tracking-tight text-zarewa-teal">Production register</h2>
-            <p className="mt-0.5 truncate font-mono text-xs font-semibold text-slate-800" title={id}>
+    <ModalFrame isOpen={open} onClose={onClose} surface="plain" title="" showCloseButton={false}>
+      <div className={PROD_REG.modalPanel}>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--z-border-subtle)] px-2.5 py-2 sm:px-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <h2 className="text-sm font-bold text-[var(--z-text)]">Production register</h2>
+              {status ? (
+                <span
+                  className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${registerStatusTone(status)}`}
+                >
+                  {status}
+                </span>
+              ) : null}
+            </div>
+            <p className="truncate font-mono text-ui-xs font-semibold text-zarewa-teal" title={id}>
               {id || '—'}
+              {subtitle ? (
+                <span className="ml-1.5 font-sans font-normal text-[var(--z-text-muted)]">· {subtitle}</span>
+              ) : null}
             </p>
-            {registerHeaderMeta ? (
-              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-ui-xs text-slate-500">
-                {registerHeaderMeta.status ? (
-                  <span
-                    className={`rounded-md border border-black/5 px-1.5 py-0.5 text-ui-xs font-bold uppercase shadow-sm ${registerStatusTone(registerHeaderMeta.status)}`}
-                  >
-                    {registerHeaderMeta.status}
-                  </span>
-                ) : null}
-                {registerHeaderMeta.quotationRef ? (
-                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
-                    Quote{' '}
-                    <span className="ml-0.5 font-mono text-zarewa-teal">{registerHeaderMeta.quotationRef}</span>
-                  </span>
-                ) : null}
-                {registerHeaderMeta.machineName ? (
-                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-ui-xs font-semibold text-slate-700 shadow-sm">
-                    {registerHeaderMeta.machineName}
-                  </span>
-                ) : null}
-                {registerHeaderMeta.materialLabel ? (
-                  <span className="inline-flex items-center rounded-md border border-teal-200/80 bg-teal-50/90 px-1.5 py-0.5 text-ui-xs font-semibold text-teal-900 shadow-sm">
-                    {registerHeaderMeta.materialLabel}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-            {subtitle ? (
-              <p className="mt-1 line-clamp-2 text-ui-xs font-semibold leading-snug text-slate-800" title={subtitle}>
-                {subtitle}
-              </p>
-            ) : null}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
+            className="shrink-0 rounded-lg p-1.5 text-[var(--z-text-muted)] hover:bg-[var(--z-surface-muted)] hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
             aria-label="Close"
           >
-            <X size={22} />
+            <X size={20} />
           </button>
         </header>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--z-bg)]/30 p-1 sm:p-1.5">
           {!id ? (
-            <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/70 px-3 py-4 text-xs font-semibold leading-snug text-amber-950">
+            <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/80 px-3 py-4 text-sm text-amber-950">
               Missing cutting list id — refresh the workspace and try again.
             </div>
           ) : (
@@ -117,7 +68,7 @@ export function ProductionRegisterEditModal({
               initialRecallIntent={Boolean(initialRecallIntent)}
               onModalClose={onClose}
               showModalCloseButton={false}
-              onRegisterHeaderMeta={setRegisterHeaderMeta}
+              onRegisterHeaderMeta={(meta) => setStatus(meta?.status || null)}
             />
           )}
         </div>

@@ -111,9 +111,9 @@ function GroupedTabBar({ activeTab, onChange }) {
               key={t}
               type="button"
               onClick={() => onChange(t)}
-              className={`rounded-t-lg px-3 py-2 text-xs font-semibold transition-colors ${
+              className={`rounded-t-md px-3 py-2 text-xs font-medium transition-colors ${
                 activeTab === t
-                  ? 'border border-b-white border-slate-200 bg-white text-zarewa-teal -mb-px'
+                  ? 'border border-b-white border-slate-200 bg-white text-slate-900 -mb-px'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
               }`}
             >
@@ -202,7 +202,7 @@ function CompensationTab({ staff, showSensitiveInline }) {
               value: ebp.payChannel === 'executive_stipend' ? 'Monthly allowance' : 'Domestic monthly salary',
             },
             {
-              label: 'Linked in Executive benefits',
+              label: 'Linked in Chairman Office',
               value: ebp.linked ? 'Yes' : 'Not linked yet',
             },
             {
@@ -228,8 +228,8 @@ function CompensationTab({ staff, showSensitiveInline }) {
         <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-4 py-3 text-sm text-teal-950">
           <p>
             HQ payroll runs do not include this person. Manage monthly pay in{' '}
-            <Link to={ebp.managePath || '/executive-hr/benefits'} className="font-bold text-zarewa-teal underline">
-              Executive benefits
+            <Link to={ebp.managePath || '/chairman?tab=scholarships'} className="font-bold text-zarewa-teal underline">
+              Chairman Office
             </Link>
             {ebp.payChannel === 'executive_stipend' ? ' → Monthly allowances' : ' → Domestic Staff'}.
           </p>
@@ -239,7 +239,7 @@ function CompensationTab({ staff, showSensitiveInline }) {
         title="Salary & payroll"
         subtitle={
           ebp
-            ? 'Personnel record — monthly pay is in Executive benefits above'
+            ? 'Personnel record — monthly pay is in Chairman Office above'
             : 'Monthly compensation and payroll grouping'
         }
         rows={[
@@ -650,15 +650,21 @@ export default function HrStaffProfile() {
     <div className="space-y-6">
       <HrContextBreadcrumb items={breadcrumbItems} />
       <PageHeader
+        eyebrow="Personnel file"
         title={staff.displayName || staff.username}
         subtitle={
           <>
-            {staff.employeeNo ? `${staff.employeeNo} · ` : ''}
+            {staff.employeeNo ? (
+              <>
+                <span className="z-stencil text-slate-800">{staff.employeeNo}</span>
+                {' · '}
+              </>
+            ) : null}
             {staff.jobTitle || 'No job title'} · {staff.branchId || staff.normalized?.branchId || '—'}
             {staff.docExpirySummary?.nextExpiryIso ? (
               <span className="mt-1 block text-red-700">
                 Document expiring {staff.docExpirySummary.nextExpiryIso} —{' '}
-                <button type="button" className="font-bold underline" onClick={() => setTab('documents')}>
+                <button type="button" className="font-semibold underline" onClick={() => setTab('documents')}>
                   review documents
                 </button>
               </span>
@@ -682,21 +688,21 @@ export default function HrStaffProfile() {
                   type="button"
                   onClick={downloadRegistrationForm}
                   disabled={formPdfBusy}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-ui-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-1 text-ui-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 >
                   {formPdfBusy ? 'Preparing…' : 'Staff form PDF'}
                 </button>
                 <button
                   type="button"
                   onClick={openIdCardModal}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-ui-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-1 text-ui-xs font-medium text-slate-700 hover:bg-slate-50"
                 >
                   Request ID card
                 </button>
                 <button
                   type="button"
                   onClick={startEdit}
-                  className="rounded-xl border border-zarewa-teal/30 bg-zarewa-teal/5 px-3 py-1 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-zarewa-teal/10"
+                  className="rounded-md bg-zarewa-teal px-3 py-1 text-ui-xs font-medium text-white hover:bg-[#0f3d3a]"
                 >
                   Edit profile
                 </button>
@@ -767,7 +773,7 @@ export default function HrStaffProfile() {
               {leaveBalances.slice(0, 3).map((b) => (
                 <div key={`${b.leaveType}-${b.periodYyyymm}`} className="rounded-xl border border-slate-100 bg-white px-4 py-3">
                   <p className="z-meta-text font-semibold text-slate-500">{b.leaveType} leave</p>
-                  <p className="mt-1 text-2xl font-black tabular-nums text-zarewa-teal">{b.closingDays ?? '—'}</p>
+                  <p className="z-stencil mt-1 text-2xl text-slate-900">{b.closingDays ?? '—'}</p>
                   <p className="text-xs text-slate-500">days remaining · {formatPayrollPeriodLabel(b.periodYyyymm)}</p>
                 </div>
               ))}
@@ -935,7 +941,7 @@ export default function HrStaffProfile() {
           {canManage ? (
             <div className="rounded-2xl border border-slate-100 bg-white p-4 space-y-2">
               <div>
-                <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Severance Preview</p>
+                <p className="text-ui-xs font-medium text-slate-500">Severance preview</p>
                 <p className="text-ui-xs text-slate-400 mt-0.5">Based on handbook policy</p>
               </div>
               {severance ? (
@@ -945,8 +951,8 @@ export default function HrStaffProfile() {
                   <div className="flex justify-between"><span className="text-slate-500">Entitlement</span><span className="font-semibold text-teal-800">{severance.description}</span></div>
                   {severance.severanceNgn > 0 && (
                     <div className="flex justify-between border-t border-slate-100 pt-2 mt-2">
-                      <span className="font-bold text-slate-700">Severance Amount</span>
-                      <span className="font-bold text-lg text-teal-800">₦{severance.severanceNgn?.toLocaleString()}</span>
+                      <span className="font-semibold text-slate-700">Severance amount</span>
+                      <span className="z-stencil text-lg text-slate-900">₦{severance.severanceNgn?.toLocaleString()}</span>
                     </div>
                   )}
                 </div>
@@ -1020,7 +1026,7 @@ export default function HrStaffProfile() {
           )}
           {leaveRequests?.length ? (
             <HrCard className="!p-4">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Recent leave requests</p>
+              <p className="text-ui-xs font-medium text-slate-500">Recent leave requests</p>
               <ul className="mt-2 space-y-2">
                 {leaveRequests.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs">
@@ -1058,11 +1064,11 @@ export default function HrStaffProfile() {
           {loansLoading ? <p className="text-slate-500">Loading obligation balances…</p> : null}
           {moneySummary?.totalOutstandingNgn > 0 ? (
             <HrCard className="!p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Total outstanding</p>
+              <p className="text-xs font-medium text-slate-500">Total outstanding</p>
               {moneySummary.staffBranchId ? (
                 <p className="text-ui-xs text-slate-500 mt-1">Home branch: {moneySummary.staffBranchId}</p>
               ) : null}
-              <p className="text-2xl font-black tabular-nums text-zarewa-teal">{formatNgn(moneySummary.totalOutstandingNgn)}</p>
+              <p className="z-stencil text-2xl text-slate-900">{formatNgn(moneySummary.totalOutstandingNgn)}</p>
             </HrCard>
           ) : null}
           {loanSchedule.length ? (
@@ -1072,7 +1078,7 @@ export default function HrStaffProfile() {
                   <p className="font-bold text-slate-900">{loan.title}</p>
                   <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                     <dt className="text-slate-500">Amount</dt><dd className="font-semibold tabular-nums">{formatNgn(loan.amountNgn)}</dd>
-                    <dt className="text-slate-500">Outstanding</dt><dd className="font-semibold text-zarewa-teal">{formatNgn(loan.outstandingNgn)}</dd>
+                    <dt className="text-slate-500">Outstanding</dt><dd className="font-semibold tabular-nums text-slate-900">{formatNgn(loan.outstandingNgn)}</dd>
                     <dt className="text-slate-500">Monthly</dt><dd>{formatNgn(loan.monthlyDeductionNgn)}</dd>
                     <dt className="text-slate-500">Status</dt><dd className="capitalize">{loan.status?.replace(/_/g, ' ')}</dd>
                   </dl>
@@ -1094,7 +1100,7 @@ export default function HrStaffProfile() {
           ) : null}
           {(moneySummary?.purchases || []).length ? (
             <div className="space-y-2">
-              <h4 className="text-xs font-black uppercase text-zarewa-teal">Purchase credit</h4>
+              <h4 className="text-xs font-medium text-slate-500">Purchase credit</h4>
               <div className="grid gap-3 sm:grid-cols-2">
                 {moneySummary.purchases.map((p) => {
                   const obligation = normalizeObligationForPayback(p, 'purchase');
@@ -1105,7 +1111,7 @@ export default function HrStaffProfile() {
           ) : null}
           {(moneySummary?.recoveries || []).filter((r) => r.principalOutstandingNgn > 0).length ? (
             <div className="space-y-2">
-              <h4 className="text-xs font-black uppercase text-zarewa-teal">Discipline recovery</h4>
+              <h4 className="text-xs font-medium text-slate-500">Discipline recovery</h4>
               <div className="grid gap-3 sm:grid-cols-2">
                 {moneySummary.recoveries
                   .filter((r) => r.principalOutstandingNgn > 0)
@@ -1158,7 +1164,7 @@ export default function HrStaffProfile() {
             <InlineLoader message="Loading transfer records…" />
           ) : staffTransfers.filter((t) => !['completed', 'cancelled', 'rejected'].includes(String(t.status || '').toLowerCase())).length ? (
             <HrCard className="!p-4">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Active transfer requests</p>
+              <p className="text-ui-xs font-medium text-slate-500">Active transfer requests</p>
               <ul className="mt-2 space-y-2">
                 {staffTransfers
                   .filter((t) => !['completed', 'cancelled', 'rejected'].includes(String(t.status || '').toLowerCase()))
@@ -1168,7 +1174,7 @@ export default function HrStaffProfile() {
                         {String(t.transferType || 'transfer').replace(/_/g, ' ')}
                         {t.toBranchId ? ` → ${t.toBranchId}` : ''}
                       </span>
-                      <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-ui-xs font-bold uppercase text-slate-700">
+                      <span className="rounded-sm border border-slate-200 bg-white px-2 py-0.5 text-ui-xs font-medium capitalize text-slate-700">
                         {String(t.status || '—').replace(/_/g, ' ')}
                       </span>
                       <Link
@@ -1275,7 +1281,7 @@ export default function HrStaffProfile() {
 
       {Array.isArray(disciplinary) && disciplinary.length > 0 && tab === 'overview' ? (
         <section className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-          <h3 className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Discipline (summary)</h3>
+          <h3 className="text-ui-xs font-medium text-slate-500">Discipline (summary)</h3>
           <p className="mt-1 text-xs text-slate-600">
             {disciplinary.length} event(s) on file.{' '}
             <Link to="/hr/discipline" className="font-semibold text-zarewa-teal hover:underline">

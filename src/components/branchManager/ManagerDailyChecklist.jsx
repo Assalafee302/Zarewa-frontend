@@ -321,7 +321,7 @@ export function ManagerDailyChecklist({ branchId, actorName = 'Manager' }) {
 
   const renderGroup = (title, items) => (
     <div>
-      <p className="text-ui-xs font-black uppercase tracking-[0.14em] text-slate-500 mb-2">{title}</p>
+      <p className="mb-2 text-ui-xs font-medium text-slate-500">{title}</p>
       <ul className="space-y-1.5">
         {items.map((item) => {
           const done = Boolean(state[item.id]?.done);
@@ -388,7 +388,7 @@ export function ManagerDailyChecklist({ branchId, actorName = 'Manager' }) {
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <CheckSquare size={16} className="text-zarewa-teal" aria-hidden />
-          <h3 className="text-sm font-black text-zarewa-teal tracking-tight">Daily checklist</h3>
+          <h3 className="text-sm font-semibold text-slate-900">Daily checklist</h3>
         </div>
         <span className="text-ui-xs font-bold tabular-nums text-slate-500">{pct}% complete</span>
       </div>
@@ -407,7 +407,7 @@ export function ManagerDailyChecklist({ branchId, actorName = 'Manager' }) {
       </div>
       {shiftNotes.length > 0 ? (
         <div className="mt-4 border-t border-slate-100 pt-3">
-          <p className="text-ui-xs font-black uppercase tracking-wide text-slate-500 mb-2">
+          <p className="mb-2 text-ui-xs font-medium text-slate-500">
             Today&apos;s shift notes (opening &amp; closing)
           </p>
           <ul className="space-y-1">

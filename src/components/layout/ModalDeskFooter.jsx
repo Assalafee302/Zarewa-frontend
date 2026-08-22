@@ -8,23 +8,23 @@ export function ModalDeskFooter({ totalLabel = 'Total', totalValue, children, cl
   return (
     <div
       className={cn(
-        'px-5 py-4 bg-zarewa-teal flex justify-between items-center text-white shrink-0 flex-wrap gap-3',
+        'px-4 py-2 bg-zarewa-teal flex justify-between items-center text-white shrink-0 flex-wrap gap-2',
         className
       )}
     >
       <div>
-        <p className="text-ui-xs font-semibold text-white/50 uppercase tracking-widest mb-0.5">
+        <p className="text-[10px] font-semibold text-white/50 uppercase tracking-widest leading-none mb-0.5">
           {totalLabel}
         </p>
-        <p className="text-2xl font-bold text-white tabular-nums">{totalValue}</p>
+        <p className="text-lg font-bold text-white tabular-nums leading-tight">{totalValue}</p>
       </div>
-      <div className="flex gap-2 flex-wrap justify-end">{children}</div>
+      <div className="flex gap-1.5 flex-wrap justify-end">{children}</div>
     </div>
   );
 }
 
 const deskBtnBase =
-  'px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase tracking-wide inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
+  'h-8 px-2.5 rounded-md text-[11px] font-semibold uppercase tracking-wide inline-flex items-center justify-center gap-1 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
 
 const deskBtnVariants = {
   ghost: 'bg-white/10 border border-white/15 hover:bg-white/20 text-white',

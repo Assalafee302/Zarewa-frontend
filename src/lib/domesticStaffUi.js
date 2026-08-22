@@ -18,10 +18,10 @@ export const DOMESTIC_BENEFITS = {
   navContact: 'Contact office',
 
   hubExplainer:
-    'Your monthly salary is paid through Zarewa Executive benefits — the same channel used for the Chairman and CEO household, separate from branch payroll. The office manages your record on your behalf.',
+    'Your monthly salary is paid from Chairman Office — separate from branch payroll. The office manages your record on your behalf.',
 
   salaryLabel: 'Monthly salary',
-  salaryHint: 'Paid via Executive benefits',
+  salaryHint: 'Paid from Chairman Office',
 
   checklistTitle: 'Your setup checklist',
   checklistSubtitle: 'The office maintains these records for you',
@@ -51,19 +51,19 @@ export const DOMESTIC_BENEFITS = {
   adminRegisterTab: 'Household staff',
   adminRegisterTitle: 'Household staff register',
   adminRegisterHint:
-    'Most household staff do not use the ERP. Add and pay staff in Executive benefits — no login required.',
+    'Most household staff do not use the ERP. Add and pay staff in Chairman Office → Household — no login required.',
   adminRegisterOptionalHint:
-    'Use this register only when a staff member needs their own ERP login. Otherwise manage everything in Executive benefits.',
+    'Use this register only when a staff member needs their own ERP login. Otherwise manage everything in Chairman Office.',
 
   adminDashboardTitle: 'Household staff overview',
   adminDashboardSubtitle:
-    'Manage Chairman and CEO household staff — salary, bank details, and payments. No ERP login required for staff.',
+    'Manage Chairman household staff — salary, bank details, and payments. No ERP login required for staff.',
   adminDashboardEmpty: 'No household staff on record yet.',
-  adminDashboardEmptyHint: 'Add staff in Executive benefits → Household staff. ERP login is optional.',
+  adminDashboardEmptyHint: 'Add staff in Chairman Office → Household. ERP login is optional.',
 
   adminWorkflowTitle: 'How admin manages household staff',
   adminWorkflowSteps: [
-    'Register staff in Executive benefits → Household staff (name, role, salary, bank details).',
+    'Register staff in Chairman Office → Household (name, role, salary, bank details).',
     'Process monthly salary through Payment approvals and Bank export.',
     'Download payment statements for staff from this overview — no staff login needed.',
     'Optional: create an ERP account in the register below only if a staff member will use self-service.',
@@ -75,7 +75,7 @@ export const DOMESTIC_BENEFITS = {
   adminManageAction: 'Manage salary & bank',
 
   staffFormSection: 'Executive household staff',
-  staffFormHint: 'Link the Executive benefits domestic record so monthly salary payments stay accurate.',
+  staffFormHint: 'Link the Chairman Office domestic record so monthly salary payments stay accurate.',
 
   payrollGroupLabel: 'Household staff',
 

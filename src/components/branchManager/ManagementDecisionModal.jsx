@@ -300,7 +300,7 @@ export function ManagementDecisionModal({
     );
 
   return (
-    <ModalFrame isOpen={Boolean(selectedIntel)} onClose={closeIntelModal} closeDisabled={modalBusy}>
+    <ModalFrame isOpen={Boolean(selectedIntel)} onClose={closeIntelModal} closeDisabled={modalBusy} showCloseButton={false}>
       <div className="z-modal-panel w-full max-w-6xl overflow-hidden p-0">
         <Card className="flex max-h-[min(92vh,960px)] flex-col overflow-hidden border-slate-200 bg-white shadow-xl">
           <DecisionModalHeader title={intelModalTitle} onClose={closeIntelModal} busy={modalBusy} icon={History} />

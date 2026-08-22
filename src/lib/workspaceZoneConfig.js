@@ -1,6 +1,7 @@
 import { resolveDeskProfile, DESK_PROFILES } from './workspaceDeskNav.js';
 import { TASK_QUEUE_TABS, isValidTaskQueueTab } from './workspaceTaskQueue.js';
 import { canAccessModuleWithPermissions } from './moduleAccess.js';
+import { userMayAccessChairmanOfficeClient } from './chairmanOfficeAccess.js';
 import {
   WORKSPACE_CATEGORIES,
   workItemMatchesCategory,
@@ -23,6 +24,7 @@ const APP_MODULE_BY_ID = {
   edit_approvals: 'edit_approvals',
   procurement: 'procurement',
   exec: 'office',
+  chairman: 'exec',
   reports: 'reports',
 };
 
@@ -34,6 +36,18 @@ export const WORKSPACE_ZONES = [
   { id: 'records', label: 'Records', shortLabel: 'Records' },
   { id: 'apps', label: 'Apps', shortLabel: 'Apps' },
 ];
+
+/** Digit keys switch zones when focus is not in a field or menu. */
+export const WORKSPACE_ZONE_HOTKEYS = {
+  1: 'activity',
+  2: 'action',
+  3: 'records',
+  4: 'apps',
+};
+
+export const WORKSPACE_ZONE_HOTKEY_BY_ID = Object.fromEntries(
+  Object.entries(WORKSPACE_ZONE_HOTKEYS).map(([key, id]) => [id, key])
+);
 
 /**
  * Action tabs are the task-queue tabs — one source of truth so chip→tab
@@ -109,6 +123,7 @@ const APPS_BY_PROFILE = {
   ],
   [DESK_PROFILES.executive]: [
     { id: 'exec', label: 'Executive Office', path: '/exec' },
+    { id: 'chairman', label: 'Chairman Office', path: '/chairman' },
     { id: 'manager', label: 'Branch view', path: '/manager' },
     { id: 'monitoring', label: 'Monitoring', path: '/workspace/monitoring' },
     { id: 'reports', label: 'Reports', path: '/reports' },
@@ -122,6 +137,7 @@ export function getWorkspaceZoneConfig(ctx = {}) {
   const profile = resolveDeskProfile(ctx);
   const perms = ctx.permissions || [];
   const apps = (APPS_BY_PROFILE[profile] || APPS_BY_PROFILE[DESK_PROFILES.staff]).filter((app) => {
+    if (app.id === 'chairman') return userMayAccessChairmanOfficeClient(ctx.roleKey, perms);
     const moduleKey = APP_MODULE_BY_ID[app.id];
     if (!moduleKey) return Boolean(app.path);
     return canAccessModuleWithPermissions(perms, moduleKey);

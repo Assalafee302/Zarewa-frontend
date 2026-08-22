@@ -1,7 +1,2 @@
-/** Command Centre navigation — merged exec + business intelligence. */
-export const COMMAND_CENTRE_PATH = '/exec';
-export const COMMAND_CENTRE_INTELLIGENCE = '/exec?tab=intelligence';
-export const COMMAND_CENTRE_FINANCE = '/exec?tab=finance';
-
-/** Legacy route; redirects to intelligence when user has exec access. */
-export const LEGACY_BI_PATH = '/analytics';
+/** Canonical module: `src/shared/lib/commandCentreRoutes.js` (`npm run sync:shared`). Do not edit this stub. */
+export * from '../shared/lib/commandCentreRoutes.js';

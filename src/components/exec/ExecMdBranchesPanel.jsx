@@ -13,7 +13,7 @@ export function ExecMdBranchesPanel({ branches, formatNgn, busy, onSelectBranch 
         <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
           <Building2 size={12} /> Branches
         </p>
-        <h3 className="text-sm font-bold text-zarewa-teal">Three-site scorecard</h3>
+        <h3 className="text-sm font-bold text-zarewa-teal">Branch scorecard</h3>
         {highlights.bestOverallBranch ? (
           <p className="text-ui-xs text-slate-500 mt-1">
             Leading: <span className="font-semibold text-slate-700">{highlights.bestOverallBranch}</span>
@@ -24,7 +24,7 @@ export function ExecMdBranchesPanel({ branches, formatNgn, busy, onSelectBranch 
         {!showComparison ? (
           <p className="text-xs text-slate-500">
             {branches?.comparisonEmptyReason === 'single_branch'
-              ? 'Switch to All branches for Kaduna · Yola · Maiduguri comparison.'
+              ? 'Switch to All branches to compare locations.'
               : 'Branch comparison not available for this scope.'}
           </p>
         ) : busy && !rows.length ? (

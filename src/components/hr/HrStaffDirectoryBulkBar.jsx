@@ -57,8 +57,8 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onC
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zarewa-teal/20 bg-teal-50/50 px-4 py-3">
-        <p className="text-xs font-bold uppercase tracking-wide text-zarewa-teal">
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-[#f4f4f2] px-4 py-3">
+        <p className="text-xs font-medium text-slate-700">
           {selectedIds.length} selected
         </p>
         <HrButton type="button" variant="secondary" onClick={() => setManagerOpen(true)} disabled={!!busy}>
@@ -103,7 +103,7 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onC
         <HrButton type="button" variant="secondary" onClick={exportSelectedCsv}>
           Export selected
         </HrButton>
-        <button type="button" className="text-xs font-bold uppercase text-slate-500 hover:underline" onClick={onClear}>
+        <button type="button" className="text-xs font-medium text-slate-600 hover:underline" onClick={onClear}>
           Clear
         </button>
         {err ? <p className="w-full text-xs text-red-700">{err}</p> : null}

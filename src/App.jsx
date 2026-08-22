@@ -1,3 +1,7 @@
+/**
+ * Application shell: providers, auth gates, sidebar, and lazy route table.
+ * Desk UI lives under src/pages/<domain>/ — keep this file as a composer.
+ */
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lazyWithRetry } from './lib/lazyWithRetry';
 import {
@@ -8,20 +12,20 @@ import {
   useLocation,
   Navigate,
 } from 'react-router-dom';
-import Sidebar from './components/Sidebar';
+import Sidebar from './components/layout/Sidebar';
 import LoginScreen from './components/auth/LoginScreen';
 import UserOnboardingGate from './components/auth/UserOnboardingGate';
-import ModuleRouteGuard from './components/ModuleRouteGuard';
-import ManagerRouteGuard from './components/ManagerRouteGuard';
+import ModuleRouteGuard from './components/auth/ModuleRouteGuard';
+import ManagerRouteGuard from './components/auth/ManagerRouteGuard';
 import HrMainRouteGuard from './components/hr/HrMainRouteGuard';
-import FinanceDeskRouteGuard from './components/FinanceDeskRouteGuard';
-import LegacyAccountsRouteGuard from './components/LegacyAccountsRouteGuard';
-import DocumentTitleSync from './components/DocumentTitleSync';
-import { AppErrorBoundary } from './components/AppErrorBoundary';
+import FinanceDeskRouteGuard from './components/auth/FinanceDeskRouteGuard';
+import LegacyAccountsRouteGuard from './components/auth/LegacyAccountsRouteGuard';
+import DocumentTitleSync from './components/layout/DocumentTitleSync';
+import { AppErrorBoundary } from './components/layout/AppErrorBoundary';
 import { canAccessMyProfileHr } from './lib/hrAccess';
 import { HR_SELF_SERVICE_BASE } from './lib/hrSelfServiceRoutes';
 import ProfileRoutesLayout from './components/profile/ProfileRoutesLayout';
-import PrintSessionCleanup from './components/PrintSessionCleanup';
+import PrintSessionCleanup from './components/layout/PrintSessionCleanup';
 import {
   Search,
   Bell,
@@ -47,10 +51,10 @@ import {
   ReportsRouteErrorBoundary,
   SettingsRouteErrorBoundary,
   HrRouteErrorBoundary,
-} from './components/RouteErrorBoundary';
+} from './components/layout/RouteErrorBoundary';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { UnsavedWorkProvider, useUnsavedWorkRegistry, UNSAVED_LEAVE_MESSAGE } from './context/UnsavedWorkContext';
-import { UnsavedWorkNavigationGuard } from './components/UnsavedWorkNavigationGuard';
+import { UnsavedWorkNavigationGuard } from './components/layout/UnsavedWorkNavigationGuard';
 import { useWorkspace } from './context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
 import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
@@ -82,12 +86,16 @@ import {
 } from './shared/lib/workspaceSearchCore.js';
 import { userMayPerformManagerQuotationClearance } from './lib/workspaceGovernanceClient';
 import { formatPersonName } from './lib/formatPersonName';
-const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'), { id: 'Dashboard' });
+const Dashboard = lazyWithRetry(() => import('./pages/workspace/Dashboard'), { id: 'Dashboard' });
 const ManagerDashboard = lazyWithRetry(() => import('./pages/ManagerDashboard'), { id: 'ManagerDashboard' });
 
 const ExecutiveCommandCentre = lazyWithRetry(
-  () => import('./pages/ExecutiveCommandCentre.jsx'),
+  () => import('./pages/exec/ExecutiveCommandCentre.jsx'),
   { id: 'ExecutiveCommandCentre' }
+);
+const ChairmanOffice = lazyWithRetry(
+  () => import('./pages/exec/ChairmanOffice.jsx'),
+  { id: 'ChairmanOffice' }
 );
 
 const AiAssistantDock = lazyWithRetry(
@@ -105,29 +113,29 @@ const WorkspaceCommandPalette = lazyWithRetry(
 
 const Sales = lazyWithRetry(() => import('./pages/Sales'), { id: 'Sales' });
 const Procurement = lazyWithRetry(() => import('./pages/Procurement'), { id: 'Procurement' });
-const MaterialPricingWorkbookPage = lazyWithRetry(() => import('./pages/MaterialPricingWorkbookPage'), {
+const MaterialPricingWorkbookPage = lazyWithRetry(() => import('./pages/procurement/MaterialPricingWorkbookPage'), {
   id: 'MaterialPricingWorkbookPage',
 });
-const SupplierProfile = lazyWithRetry(() => import('./pages/SupplierProfile'), { id: 'SupplierProfile' });
-const TransportAgentProfile = lazyWithRetry(() => import('./pages/TransportAgentProfile'), { id: 'TransportAgentProfile' });
-const CoilProfile = lazyWithRetry(() => import('./pages/CoilProfile'), { id: 'CoilProfile' });
-const Operations = lazyWithRetry(() => import('./pages/Operations'), { id: 'Operations' });
-const OvertimeHub = lazyWithRetry(() => import('./pages/OvertimeHub'), { id: 'OvertimeHub' });
-const Account = lazyWithRetry(() => import('./pages/Account'), { id: 'Account' });
-const CashierDesk = lazyWithRetry(() => import('./pages/CashierDesk'), { id: 'CashierDesk' });
-const AccountingDesk = lazyWithRetry(() => import('./pages/AccountingDesk'), { id: 'AccountingDesk' });
-const Customers = lazyWithRetry(() => import('./pages/Customers'), { id: 'Customers' });
+const SupplierProfile = lazyWithRetry(() => import('./pages/procurement/SupplierProfile'), { id: 'SupplierProfile' });
+const TransportAgentProfile = lazyWithRetry(() => import('./pages/procurement/TransportAgentProfile'), { id: 'TransportAgentProfile' });
+const CoilProfile = lazyWithRetry(() => import('./pages/operations/CoilProfile'), { id: 'CoilProfile' });
+const Operations = lazyWithRetry(() => import('./pages/operations/Operations'), { id: 'Operations' });
+const OvertimeHub = lazyWithRetry(() => import('./pages/operations/OvertimeHub'), { id: 'OvertimeHub' });
+const Account = lazyWithRetry(() => import('./pages/account/Account'), { id: 'Account' });
+const CashierDesk = lazyWithRetry(() => import('./pages/account/CashierDesk'), { id: 'CashierDesk' });
+const AccountingDesk = lazyWithRetry(() => import('./pages/account/AccountingDesk'), { id: 'AccountingDesk' });
+const Customers = lazyWithRetry(() => import('./pages/sales/Customers'), { id: 'Customers' });
 const CustomerDashboard = lazyWithRetry(() => import('./pages/CustomerDashboard'), { id: 'CustomerDashboard' });
-const Reports = lazyWithRetry(() => import('./pages/Reports'), { id: 'Reports' });
-const OfficeDesk = lazyWithRetry(() => import('./pages/OfficeDesk'), { id: 'OfficeDesk' });
-const Settings = lazyWithRetry(() => import('./pages/Settings'), { id: 'Settings' });
-const EditApprovalsPage = lazyWithRetry(() => import('./pages/EditApprovalsPage'), { id: 'EditApprovalsPage' });
-const NotFound = lazyWithRetry(() => import('./pages/NotFound'), { id: 'NotFound' });
-const AccessDenied = lazyWithRetry(() => import('./pages/AccessDenied'), { id: 'AccessDenied' });
-const BusinessIntelligence = lazyWithRetry(() => import('./pages/BusinessIntelligence'), { id: 'BusinessIntelligence' });
-const WorkspaceMonitoring = lazyWithRetry(() => import('./pages/WorkspaceMonitoring'), { id: 'WorkspaceMonitoring' });
-const PriceListAdmin = lazyWithRetry(() => import('./pages/PriceListAdmin'), { id: 'PriceListAdmin' });
-const PricingPolicyAdmin = lazyWithRetry(() => import('./pages/PricingPolicyAdmin'), { id: 'PricingPolicyAdmin' });
+const Reports = lazyWithRetry(() => import('./pages/reports/Reports'), { id: 'Reports' });
+const OfficeDesk = lazyWithRetry(() => import('./pages/office/OfficeDesk'), { id: 'OfficeDesk' });
+const Settings = lazyWithRetry(() => import('./pages/settings/Settings'), { id: 'Settings' });
+const EditApprovalsPage = lazyWithRetry(() => import('./pages/settings/EditApprovalsPage'), { id: 'EditApprovalsPage' });
+const NotFound = lazyWithRetry(() => import('./pages/system/NotFound'), { id: 'NotFound' });
+const AccessDenied = lazyWithRetry(() => import('./pages/system/AccessDenied'), { id: 'AccessDenied' });
+const BusinessIntelligence = lazyWithRetry(() => import('./pages/exec/BusinessIntelligence'), { id: 'BusinessIntelligence' });
+const WorkspaceMonitoring = lazyWithRetry(() => import('./pages/workspace/WorkspaceMonitoring'), { id: 'WorkspaceMonitoring' });
+const PriceListAdmin = lazyWithRetry(() => import('./pages/settings/PriceListAdmin'), { id: 'PriceListAdmin' });
+const PricingPolicyAdmin = lazyWithRetry(() => import('./pages/settings/PricingPolicyAdmin'), { id: 'PricingPolicyAdmin' });
 const HelpChatDockGate = lazyWithRetry(
   () => import('./components/HelpChatDockGate.jsx').then((m) => ({ default: m.HelpChatDockGate })),
   { id: 'HelpChatDockGate' }
@@ -139,7 +147,7 @@ const TeamChatDockGate = lazyWithRetry(
 const HumanResources = lazyWithRetry(() => import('./pages/hr/HumanResources'), { id: 'HumanResources' });
 const MyProfile = lazyWithRetry(() => import('./pages/hr/MyProfile'), { id: 'MyProfile' });
 const TeamHr = lazyWithRetry(() => import('./pages/hr/TeamHr'), { id: 'TeamHr' });
-const UserProfile = lazyWithRetry(() => import('./pages/UserProfile'), { id: 'UserProfile' });
+const UserProfile = lazyWithRetry(() => import('./pages/profile/UserProfile'), { id: 'UserProfile' });
 const ExecutiveHr = lazyWithRetry(() => import('./pages/hr/ExecutiveHr'), { id: 'ExecutiveHr' });
 
 function ExecutiveHrLegacyRedirect() {
@@ -257,14 +265,17 @@ function DegradedWorkspaceLock() {
 function HomeRoute() {
   const ws = useWorkspace();
   const rk = String(ws?.session?.user?.roleKey || '').toLowerCase();
-  if (rk === 'ceo' || rk === 'md' || rk === 'chairman') {
+  if (rk === 'chairman') {
+    return <Navigate to="/chairman" replace />;
+  }
+  if (rk === 'ceo' || rk === 'md') {
     return <Navigate to="/exec" replace />;
   }
   if (rk === 'sales_manager' || rk === 'branch_manager') {
     return <Navigate to="/manager" replace />;
   }
   if (rk === 'cashier') {
-    return <Navigate to="/accounts" replace />;
+    return <Navigate to="/cashier" replace />;
   }
   if (rk === 'finance_manager') {
     return <Navigate to="/accounting" replace />;
@@ -555,7 +566,7 @@ function AppShell() {
   }, [ai, headerSearch, searchHits.length]);
 
   return (
-    <div className="flex min-h-screen min-h-dvh min-w-0 w-full max-w-full z-app-bg font-sans selection:bg-teal-100 selection:text-zarewa-teal">
+    <div className="flex min-h-screen min-h-dvh min-w-0 w-full max-w-full z-app-bg font-sans selection:bg-zarewa-teal-soft selection:text-zarewa-teal">
       <UnsavedWorkNavigationGuard />
       <a
         href="#main-content"
@@ -608,7 +619,7 @@ function AppShell() {
 
         <div className="relative z-30 -mx-4 min-w-0 max-sm:overflow-x-clip sm:sticky sm:top-0 sm:-mx-6 lg:mx-0 mb-3 max-sm:mb-2 sm:mb-4 py-1.5 pl-2 pr-2 max-sm:pl-14 sm:px-0 sm:py-0">
           <div className="flex min-w-0 flex-col gap-1.5 px-2 py-1.5 max-sm:border-0 max-sm:bg-transparent max-sm:shadow-none sm:z-toolbar-shell sm:gap-2 sm:px-3 sm:py-1.5 sm:flex-row sm:items-center sm:justify-between max-sm:pt-1">
-            {ws?.session?.user?.roleKey === 'ceo' ? (
+            {ws?.session?.user?.roleKey === 'ceo' || ws?.session?.user?.roleKey === 'chairman' ? (
               <p className="flex-1 min-w-0 text-[12px] text-gray-500 sm:max-w-[520px] max-sm:order-2">
                 Global search is hidden for the executive read-only role.
               </p>
@@ -969,11 +980,51 @@ function AppShell() {
           <Suspense fallback={<LoadingScreen />}>
           <Routes>
             <Route path="/" element={<HomeRoute />} />
-            <Route path="/workspace/monitoring" element={<WorkspaceMonitoring />} />
-            <Route path="/exec" element={<ExecutiveRouteErrorBoundary><ExecutiveCommandCentre /></ExecutiveRouteErrorBoundary>} />
+            <Route
+              path="/workspace/monitoring"
+              element={
+                <ModuleRouteGuard moduleKey="office">
+                  <WorkspaceMonitoring />
+                </ModuleRouteGuard>
+              }
+            />
+            <Route
+              path="/exec"
+              element={
+                <ModuleRouteGuard moduleKey="exec">
+                  <ExecutiveRouteErrorBoundary>
+                    <ExecutiveCommandCentre />
+                  </ExecutiveRouteErrorBoundary>
+                </ModuleRouteGuard>
+              }
+            />
+            <Route
+              path="/chairman"
+              element={
+                <ModuleRouteGuard moduleKey="exec">
+                  <ExecutiveRouteErrorBoundary>
+                    <ChairmanOffice />
+                  </ExecutiveRouteErrorBoundary>
+                </ModuleRouteGuard>
+              }
+            />
             <Route path="/exec/m" element={<Navigate to="/exec?tab=decide" replace />} />
-            <Route path="/price-list" element={<PriceListAdmin />} />
-            <Route path="/pricing-policy" element={<PricingPolicyAdmin />} />
+            <Route
+              path="/price-list"
+              element={
+                <ModuleRouteGuard moduleKey="procurement" altModuleKeys={['sales']}>
+                  <PriceListAdmin />
+                </ModuleRouteGuard>
+              }
+            />
+            <Route
+              path="/pricing-policy"
+              element={
+                <ModuleRouteGuard moduleKey="procurement" altModuleKeys={['sales']}>
+                  <PricingPolicyAdmin />
+                </ModuleRouteGuard>
+              }
+            />
             <Route
               path="/sales"
               element={
@@ -1043,9 +1094,11 @@ function AppShell() {
             <Route
               path="/operations/overtime"
               element={
-                <OperationsRouteErrorBoundary>
-                  <OvertimeHub />
-                </OperationsRouteErrorBoundary>
+                <ModuleRouteGuard moduleKey="operations">
+                  <OperationsRouteErrorBoundary>
+                    <OvertimeHub />
+                  </OperationsRouteErrorBoundary>
+                </ModuleRouteGuard>
               }
             />
             <Route
@@ -1139,7 +1192,14 @@ function AppShell() {
                 </ModuleRouteGuard>
               }
             />
-            <Route path="/analytics" element={<BusinessIntelligence />} />
+            <Route
+              path="/analytics"
+              element={
+                <ModuleRouteGuard moduleKey="reports" altModuleKeys={['exec']}>
+                  <BusinessIntelligence />
+                </ModuleRouteGuard>
+              }
+            />
             <Route
               path="/office"
               element={

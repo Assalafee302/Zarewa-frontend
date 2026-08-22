@@ -1,8 +1,10 @@
 /**
- * Customer complaint enums (mirror of server/customerComplaintsOps.js).
+ * Customer complaint enums and display labels.
+ * SQL/create/update stay in `server/customerComplaintsOps.js`.
+ * Frontend copies via `npm run sync:shared` → src/shared/customerComplaints.js
  */
 
-export const COMPLAINT_CHANNELS = Object.freeze(['phone', 'whatsapp', 'in_person', 'email']);
+export const COMPLAINT_CHANNELS = Object.freeze(['phone', 'whatsapp', 'in_person', 'email', 'delivery']);
 export const COMPLAINT_CATEGORIES = Object.freeze([
   'product_quality',
   'delivery_delay',
@@ -19,11 +21,14 @@ export const COMPLAINT_STATUSES = Object.freeze([
   'closed',
 ]);
 
+export const COMPLAINT_OPEN_STATUSES = Object.freeze(['open', 'acknowledged', 'in_progress']);
+
 export const COMPLAINT_CHANNEL_LABELS = Object.freeze({
   phone: 'Phone',
   whatsapp: 'WhatsApp',
   in_person: 'In person',
   email: 'Email',
+  delivery: 'Delivery',
 });
 
 export const COMPLAINT_CATEGORY_LABELS = Object.freeze({
@@ -40,6 +45,18 @@ export const COMPLAINT_SEVERITY_LABELS = Object.freeze({
   urgent: 'Urgent',
 });
 
+export const COMPLAINT_STATUS_LABELS = Object.freeze({
+  open: 'Open',
+  acknowledged: 'Acknowledged',
+  in_progress: 'In progress',
+  resolved: 'Resolved',
+  closed: 'Closed',
+});
+
+/**
+ * @param {Record<string, string>} map
+ * @param {string} value
+ */
 export function complaintLabel(map, value) {
   const key = String(value || '')
     .trim()

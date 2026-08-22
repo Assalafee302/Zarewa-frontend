@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react';
 
 /** Optional thin accent — use sparingly (not on every panel). */
 export function ProfileAccentBar({ className = '' }) {
-  return <div className={`h-0.5 shrink-0 bg-gradient-to-r from-teal-400 to-zarewa-teal ${className}`} aria-hidden />;
+  return <div className={`h-px shrink-0 bg-slate-200 ${className}`} aria-hidden />;
 }
 
 /**
@@ -36,14 +36,12 @@ export function ProfileKpiCard({
   highlight = false,
   className = '',
 }) {
-  const shell = highlight
-    ? 'border-teal-200/90 bg-gradient-to-br from-teal-50/50 to-white'
-    : 'border-slate-200/90 bg-white';
+  const shell = highlight ? 'border-slate-300 bg-slate-50' : 'border-slate-200 bg-white';
   const content = value ?? children;
 
   return (
-    <div className={`flex h-full flex-col rounded-xl border p-4 shadow-sm ${shell} ${className}`}>
-      <p className="flex items-center gap-1.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className={`flex h-full flex-col rounded-md border p-4 ${shell} ${className}`}>
+      <p className="flex items-center gap-1.5 text-ui-xs font-medium text-slate-500">
         {Icon ? <Icon size={13} className="text-zarewa-teal" aria-hidden /> : null}
         {label}
       </p>
@@ -52,7 +50,7 @@ export function ProfileKpiCard({
       {to && actionLabel ? (
         <Link
           to={to}
-          className="mt-3 inline-flex min-h-8 items-center gap-0.5 text-xs font-semibold text-zarewa-teal no-underline hover:underline"
+          className="mt-3 inline-flex min-h-8 items-center gap-0.5 text-xs font-medium text-slate-700 no-underline hover:underline"
         >
           {actionLabel}
           <ChevronRight size={14} aria-hidden />
@@ -85,7 +83,7 @@ export function ProfileModuleSection({
             actionTo ? (
               <Link
                 to={actionTo}
-                className="inline-flex min-h-9 items-center gap-0.5 text-xs font-semibold text-zarewa-teal no-underline hover:underline"
+                className="inline-flex min-h-9 items-center gap-0.5 text-xs font-medium text-slate-700 no-underline hover:underline"
               >
                 {actionLabel}
                 <ChevronRight size={14} aria-hidden />
@@ -98,7 +96,7 @@ export function ProfileModuleSection({
         className={
           flush
             ? ''
-            : 'rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 sm:p-5'
+            : 'rounded-md border border-slate-200/80 bg-white p-4 sm:p-5'
         }
       >
         {children}

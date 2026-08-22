@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { UserPlus, X } from 'lucide-react';
-import { ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody } from '../layout';
+import { FormModal, FormModalFooter } from '../layout/FormModal';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 import { CustomerFormFields } from '../customers/CustomerFormFields';
 import { apiFetch } from '../../lib/apiBase';
 import { branchScopedCreateBlockedMessage, isBranchScopedCreateBlocked } from '../../lib/workspaceBranchCreate';
@@ -18,11 +16,15 @@ const emptyForm = {
   tier: 'Regular',
   paymentTerms: 'Net 30',
   linkedStaffUserId: '',
+  customerTitle: '',
+  roleTagsStr: 'customer',
+  bankAccountName: '',
+  bankName: '',
+  bankAccountNo: '',
 };
 
 /**
  * New-customer form in a modal (can stack above Quotation modal).
- * @param {{ isOpen: boolean; onClose: () => void; createdByLabel?: string; onCreated?: (p: { customerID: string; name: string; phoneNumber: string }) => void }} props
  */
 export default function SalesCustomerCreateModal({
   isOpen,
@@ -34,11 +36,6 @@ export default function SalesCustomerCreateModal({
   const ws = useWorkspace();
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const { captureEdited, wrapClose } = useTrackedUnsavedForm('modal-sales-customer-create', {
-    isOpen,
-    hydrateKey: 'new-customer',
-  });
-  const handleClose = wrapClose(onClose);
 
   useEffect(() => {
     if (isOpen) setForm(emptyForm);
@@ -72,6 +69,10 @@ export default function SalesCustomerCreateModal({
         createdAtISO: iso,
         lastActivityISO: iso,
         createdBy: createdByLabel,
+        roleTags: String(rest.roleTagsStr || '')
+          .split(/[,;]+/)
+          .map((x) => x.trim().toLowerCase())
+          .filter(Boolean),
         ...(staffLinked ? { linkedStaffUserId: linkedStaffUserId.trim() } : {}),
       };
 
@@ -100,7 +101,7 @@ export default function SalesCustomerCreateModal({
       try {
         await ws?.refresh?.();
       } catch {
-        /* Customer was saved; refresh can retry on next navigation. */
+        /* refresh optional */
       }
     } catch (err) {
       showToast(err?.message || 'Could not save customer.', { variant: 'error' });
@@ -110,60 +111,42 @@ export default function SalesCustomerCreateModal({
   };
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={handleClose}>
-      <ModalScrollShell size="md">
-        <ModalScrollHeader>
-          <div className="flex justify-between items-start gap-3">
-            <div className="min-w-0">
-              <p className="text-ui-xs font-bold uppercase tracking-widest text-teal-600 mb-1">Sales · CRM</p>
-              <h3 className="text-xl font-black text-zarewa-teal flex items-center gap-2">
-                <UserPlus size={22} className="text-teal-600 shrink-0" />
-                New customer
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Register a buyer or project contact. Staff link is optional.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="p-2 min-h-11 min-w-11 text-slate-400 hover:text-rose-500 rounded-xl hover:bg-rose-50 shrink-0"
-            >
-              <X size={22} />
-            </button>
-          </div>
-        </ModalScrollHeader>
-        <ModalScrollBody>
-          {!ws?.canMutate ? (
-            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900">
-              System offline (read-only). Reconnect and refresh before registering customers.
-            </div>
-          ) : null}
-          <form
-            id="sales-new-customer-form"
-            onSubmit={submitNew}
-            className="space-y-5"
-            onInput={captureEdited}
-            onChange={captureEdited}
-          >
-            <fieldset disabled={!ws?.canMutate || saving} className="space-y-5 disabled:opacity-60">
-              <CustomerFormFields
-                form={form}
-                setForm={setForm}
-                tierOptions={['Regular', 'VIP', 'Wholesale', 'Staff']}
-                paymentTermsOptions={['Due on receipt', 'Net 30']}
-              />
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full min-h-12 rounded-xl bg-zarewa-teal text-white py-3.5 text-xs font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-60"
-              >
-                {saving ? 'Saving…' : 'Save customer'}
-              </button>
-            </fieldset>
-          </form>
-        </ModalScrollBody>
-      </ModalScrollShell>
-    </ModalFrame>
+    <FormModal
+      isOpen={isOpen}
+      onClose={onClose}
+      eyebrow="Sales · CRM"
+      title="New customer"
+      description="Register a buyer or project contact. Staff link is optional."
+      size="md"
+      formId="sales-new-customer-form"
+      onSubmit={submitNew}
+      trackId="modal-sales-customer-create"
+      trackHydrateKey="new-customer"
+      footer={
+        <FormModalFooter
+          onCancel={onClose}
+          confirmType="submit"
+          form="sales-new-customer-form"
+          confirmLabel="Save customer"
+          confirmLoading={saving}
+          confirmLoadingLabel="Saving…"
+          confirmDisabled={!ws?.canMutate}
+        />
+      }
+    >
+      {!ws?.canMutate ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-semibold text-amber-900">
+          System offline (read-only). Reconnect and refresh before registering customers.
+        </div>
+      ) : null}
+      <fieldset disabled={!ws?.canMutate || saving} className="space-y-5 disabled:opacity-60">
+        <CustomerFormFields
+          form={form}
+          setForm={setForm}
+          tierOptions={['Regular', 'VIP', 'Wholesale', 'Staff']}
+          paymentTermsOptions={['Due on receipt', 'Net 30']}
+        />
+      </fieldset>
+    </FormModal>
   );
 }

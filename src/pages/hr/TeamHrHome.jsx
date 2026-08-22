@@ -31,10 +31,10 @@ function TeamDashboardViewBar({ value, onChange }) {
           role="tab"
           aria-selected={value === opt.id}
           onClick={() => onChange(opt.id)}
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+          className={`inline-flex items-center gap-1.5 rounded-sm border px-3 py-1.5 text-xs font-medium transition-colors ${
             value === opt.id
-              ? 'border-zarewa-teal/30 bg-zarewa-teal text-white'
-              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              ? 'border-zarewa-teal bg-zarewa-teal text-white'
+              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
           }`}
         >
           {opt.label}

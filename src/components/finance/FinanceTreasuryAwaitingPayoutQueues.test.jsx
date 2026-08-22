@@ -18,6 +18,14 @@ describe('FinanceTreasuryAwaitingPayoutQueues', () => {
             expenseCategory: 'Fuel & lubricant',
             expenseCategoryLane: 'production',
           },
+          {
+            requestID: 'PR-MWO',
+            description: 'Technician lodging',
+            amountRequestedNgn: 5000,
+            paidAmountNgn: 0,
+            maintenanceWorkOrderId: 'MWO-1',
+            maintenanceCostKind: 'accommodation',
+          },
         ]}
         registerSettlements={[]}
         poTransport={[]}
@@ -33,5 +41,7 @@ describe('FinanceTreasuryAwaitingPayoutQueues', () => {
     expect(screen.getByTestId('finance-refund-awaiting-row-RF-1')).toBeTruthy();
     expect(screen.getByTestId('finance-preq-awaiting-row-PR-1')).toBeTruthy();
     expect(screen.getByText('Fuel & lubricant')).toBeTruthy();
+    expect(screen.getAllByText(/Work order MWO-1/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Accommodation/).length).toBeGreaterThan(0);
   });
 });

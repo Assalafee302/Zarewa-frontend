@@ -1,3 +1,9 @@
+/**
+ * Storekeeper High/Low conversion-reason presets and isomorphic validation.
+ * SQLite persist lives in `server/operations/productionConversionVariancePersist.js`.
+ * Frontend copies via `npm run sync:shared` → src/shared/productionConversionReasons.js
+ */
+
 /** @typedef {{ code: string; label: string; requiresText?: boolean }} ConversionReasonOption */
 
 /** @type {ConversionReasonOption[]} */
@@ -73,4 +79,41 @@ export function conversionVarianceReasonLabel(code, text = '', band = null) {
     return t ? `${base}: ${t}` : base;
   }
   return base;
+}
+
+/**
+ * Require a storekeeper reason when completion posts High/Low conversion.
+ *
+ * @param {{ conversionVarianceReasonCode?: string; conversionVarianceReasonText?: string }} payload
+ * @param {'High'|'Low'|'OK'|'Watch'|'Pending'|string} alertBand
+ */
+export function validateConversionVarianceReason(payload, alertBand) {
+  const band = String(alertBand ?? '').trim();
+  if (band !== 'High' && band !== 'Low') {
+    return { ok: true };
+  }
+  const code = String(payload?.conversionVarianceReasonCode ?? payload?.conversion_variance_reason_code ?? '').trim();
+  if (!code) {
+    return {
+      ok: false,
+      error: `Conversion is ${band.toLowerCase()} — select a reason from the list before completing.`,
+    };
+  }
+  const opt = findConversionReasonOption(code, band);
+  if (!opt) {
+    return {
+      ok: false,
+      error: `Conversion reason "${code}" is not valid for a ${band.toLowerCase()} alert.`,
+    };
+  }
+  if (opt.requiresText) {
+    const text = String(payload?.conversionVarianceReasonText ?? payload?.conversion_variance_reason_text ?? '').trim();
+    if (text.length < 8) {
+      return {
+        ok: false,
+        error: 'For “Other”, enter a short description (at least 8 characters).',
+      };
+    }
+  }
+  return { ok: true, code, band, text: String(payload?.conversionVarianceReasonText ?? '').trim() || null };
 }

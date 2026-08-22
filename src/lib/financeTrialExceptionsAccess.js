@@ -1,6 +1,6 @@
 import { hasPermissionInList } from './moduleAccess.js';
 
-const OVERSIGHT_ROLES = new Set(['md', 'ceo', 'admin']);
+const OVERSIGHT_ROLES = new Set(['md', 'ceo', 'chairman', 'admin']);
 
 export function userMayViewFinanceTrialExceptionsClient(roleKey, permissions) {
   if (hasPermissionInList(permissions, '*')) return true;

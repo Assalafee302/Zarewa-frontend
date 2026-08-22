@@ -16,6 +16,7 @@ import {
   registerSettlementOutstandingNgn,
   registerSettlementPayoutMetaLine,
 } from '../../lib/financeTreasuryPayoutQueueMeta';
+import { maintenanceCostKindLabel } from '../../shared/lib/maintenanceCostEnvelope';
 
 function PaymentRequestCategoryExtra({ req }) {
   if (!req?.expenseCategory && !req?.expenseCategoryLane) return null;
@@ -80,6 +81,12 @@ function PaymentRequestQueueExtra({ req }) {
   return (
     <div className="space-y-0.5">
       <PaymentRequestCategoryExtra req={req} />
+      {req?.maintenanceWorkOrderId || String(req?.requestReference || '').startsWith('MWO') ? (
+        <p className="text-ui-xs font-semibold text-teal-900">
+          Work order {req.maintenanceWorkOrderId || req.requestReference}
+          {req.maintenanceCostKind ? ` · ${maintenanceCostKindLabel(req.maintenanceCostKind)}` : ''}
+        </p>
+      ) : null}
       <PaymentRequestPayeeExtra req={req} />
     </div>
   );
@@ -144,7 +151,7 @@ export function FinanceTreasuryAwaitingPayoutQueues({
       data-testid="finance-payouts-combined"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
-        <h2 className="text-xs font-black uppercase tracking-widest text-slate-800">Pay expenses</h2>
+        <h2 className="text-sm font-semibold text-slate-800">Pay out</h2>
         <span className="text-ui-xs font-bold tabular-nums text-slate-500">{total} open</span>
       </div>
 

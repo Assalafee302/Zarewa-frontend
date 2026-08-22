@@ -9,6 +9,7 @@ import { formatNgn } from '../../Data/mockData';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTable';
 import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
 import { AppTablePager } from '../ui/AppDataTable';
+import { GaugeStamp } from '../ui/MillColourChip.jsx';
 
 const STONE_COATED_GAUGES = ['0.20', '0.22', '0.24'];
 
@@ -34,7 +35,7 @@ function isValidYyyyMmDd(s) {
 }
 
 /**
- * Price list CRUD (₦/m by gauge + design). Used on /price-list and embedded under Procurement → Pricing.
+ * Price list CRUD (₦/m by gauge + design). Used on /price-list.
  * @param {{ embedded?: boolean }} props
  */
 export function PriceListPanel({ embedded = false }) {
@@ -211,15 +212,15 @@ export function PriceListPanel({ embedded = false }) {
   };
 
   const inp = embedded
-    ? 'mt-0.5 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-semibold'
-    : 'mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm';
-  const labelCls = embedded ? 'text-ui-xs font-bold text-slate-500 uppercase block' : 'text-xs font-bold text-slate-700';
+    ? 'mt-0.5 w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs font-medium'
+    : 'mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm';
+  const labelCls = embedded ? 'block text-ui-xs font-medium text-slate-500' : 'text-xs font-medium text-slate-700';
   const formWrap = embedded
-    ? 'space-y-3 rounded-xl border border-slate-200/80 bg-white/90 p-3'
-    : 'mb-8 space-y-4 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm';
+    ? 'space-y-3 rounded-md border border-slate-200 bg-white p-3'
+    : 'mb-8 space-y-4 rounded-md border border-slate-200 bg-white p-6';
   const tableWrap = embedded
-    ? 'z-scroll-x max-w-full overflow-x-auto rounded-xl border border-slate-200/80 bg-white/90 shadow-sm'
-    : 'z-scroll-x max-w-full overflow-x-auto rounded-2xl border border-slate-200/90 bg-white shadow-sm';
+    ? 'z-scroll-x max-w-full overflow-x-auto rounded-md border border-slate-200 bg-white'
+    : 'z-scroll-x max-w-full overflow-x-auto rounded-md border border-slate-200 bg-white';
 
   const exportCsv = async () => {
     try {
@@ -250,8 +251,8 @@ export function PriceListPanel({ embedded = false }) {
           <button
             type="button"
             onClick={() => setListTab('coil')}
-            className={`rounded-lg px-3 py-1.5 text-ui-xs font-black uppercase ${
-              listTab === 'coil' ? 'bg-zarewa-teal text-white' : 'border border-slate-200 bg-white text-slate-600'
+            className={`rounded-sm px-3 py-1.5 text-ui-xs font-medium ${
+              listTab === 'coil' ? 'bg-zarewa-teal text-white' : 'border border-slate-200 bg-white text-slate-700'
             }`}
           >
             Coil / sheet floors
@@ -259,8 +260,8 @@ export function PriceListPanel({ embedded = false }) {
           <button
             type="button"
             onClick={() => setListTab('stone')}
-            className={`rounded-lg px-3 py-1.5 text-ui-xs font-black uppercase ${
-              listTab === 'stone' ? 'bg-zarewa-teal text-white' : 'border border-slate-200 bg-white text-slate-600'
+            className={`rounded-sm px-3 py-1.5 text-ui-xs font-medium ${
+              listTab === 'stone' ? 'bg-zarewa-teal text-white' : 'border border-slate-200 bg-white text-slate-700'
             }`}
           >
             Stone-coated (0.20–0.24)
@@ -292,8 +293,8 @@ export function PriceListPanel({ embedded = false }) {
           disabled={busy}
           className={
             embedded
-              ? 'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold uppercase text-zarewa-teal disabled:opacity-50'
-              : 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase text-zarewa-teal disabled:opacity-50'
+              ? 'inline-flex items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-medium text-slate-800 disabled:opacity-50'
+              : 'inline-flex items-center gap-2 rounded-sm border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-800 disabled:opacity-50'
           }
         >
           <Download size={embedded ? 12 : 14} />
@@ -305,8 +306,8 @@ export function PriceListPanel({ embedded = false }) {
           disabled={busy}
           className={
             embedded
-              ? 'inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold uppercase text-zarewa-teal disabled:opacity-50'
-              : 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase text-zarewa-teal disabled:opacity-50'
+              ? 'inline-flex items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-medium text-slate-800 disabled:opacity-50'
+              : 'inline-flex items-center gap-2 rounded-sm border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-800 disabled:opacity-50'
           }
         >
           <RefreshCw size={embedded ? 12 : 14} className={busy ? 'animate-spin' : ''} />
@@ -341,7 +342,7 @@ export function PriceListPanel({ embedded = false }) {
           <button
             type="button"
             onClick={() => setShowAdvancedManual((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             <Plus size={12} />
             {showAdvancedManual ? 'Hide advanced manual floor' : 'Advanced manual floor'}
@@ -351,7 +352,7 @@ export function PriceListPanel({ embedded = false }) {
 
       {canManage && showAdvancedManual ? (
         <form onSubmit={submit} className={formWrap}>
-          <h2 className={embedded ? 'text-ui-xs font-black uppercase text-zarewa-teal' : 'text-xs font-black uppercase text-zarewa-teal'}>
+          <h2 className={embedded ? 'text-ui-xs font-semibold text-slate-900' : 'text-sm font-semibold text-slate-900'}>
             {embedded ? 'Advanced: add or update floor manually' : 'Add or update row'}
           </h2>
           <div className={`grid gap-3 ${embedded ? 'sm:grid-cols-2' : 'gap-4 sm:grid-cols-2 lg:grid-cols-3'}`}>
@@ -506,8 +507,8 @@ export function PriceListPanel({ embedded = false }) {
             disabled={busy}
             className={
               embedded
-                ? 'inline-flex items-center gap-1.5 rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50'
-                : 'inline-flex items-center gap-2 rounded-xl bg-zarewa-teal px-4 py-2.5 text-xs font-black uppercase text-white disabled:opacity-50'
+                ? 'inline-flex items-center gap-1.5 rounded-sm bg-zarewa-teal px-3 py-2 text-ui-xs font-medium text-white disabled:opacity-50'
+                : 'inline-flex items-center gap-2 rounded-sm bg-zarewa-teal px-4 py-2.5 text-xs font-medium text-white disabled:opacity-50'
             }
           >
             <Plus size={embedded ? 14 : 16} />
@@ -522,7 +523,7 @@ export function PriceListPanel({ embedded = false }) {
 
       <div className={tableWrap}>
         <table className={`min-w-full border-collapse text-left ${embedded ? 'text-sm' : 'text-sm'}`}>
-          <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
             <tr>
               <th className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'}`}>Gauge</th>
               <th className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'}`}>Design</th>
@@ -553,12 +554,12 @@ export function PriceListPanel({ embedded = false }) {
               </tr>
             ) : (
               pricePage.slice.map((it) => (
-                <tr key={it.id} className="border-t border-slate-100 hover:bg-teal-50/30">
+                <tr key={it.id} className="border-t border-slate-100 hover:bg-slate-50">
                   <td
-                    className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'} font-semibold text-slate-900 whitespace-nowrap truncate max-w-0`}
+                    className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'} whitespace-nowrap`}
                     title={it.gaugeKey}
                   >
-                    {it.gaugeKey}
+                    <GaugeStamp gauge={it.gaugeKey} />
                   </td>
                   <td
                     className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'} whitespace-nowrap truncate max-w-0`}
@@ -573,7 +574,7 @@ export function PriceListPanel({ embedded = false }) {
                     {it.materialTypeKey || '—'}
                   </td>
                   <td
-                    className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'} text-slate-600 whitespace-nowrap truncate max-w-0`}
+                    className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'} text-slate-600 whitespace-nowrap`}
                     title={it.colourKey || ''}
                   >
                     {it.colourKey || '—'}
@@ -585,7 +586,7 @@ export function PriceListPanel({ embedded = false }) {
                     {it.profileKey || '—'}
                   </td>
                   <td
-                    className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'} text-right font-mono tabular-nums whitespace-nowrap`}
+                    className={`${embedded ? 'px-2 py-2.5' : 'px-3 py-2.5'} z-stencil text-right text-slate-900 whitespace-nowrap`}
                   >
                     {formatNgn(it.unitPricePerMeterNgn)}
                   </td>

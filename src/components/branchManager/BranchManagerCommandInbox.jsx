@@ -542,6 +542,7 @@ export function BranchManagerCommandInbox(props) {
       search={inboxSearch}
       focusWorkOrderId={focusWorkOrderId}
       onFocusWorkOrderHandled={() => setFocusWorkOrderId?.('')}
+      roleKey={ws?.session?.user?.roleKey || ''}
       onCountChange={(n) => {
         const next = Math.max(0, Number(n) || 0);
         setIssuesCount(next);

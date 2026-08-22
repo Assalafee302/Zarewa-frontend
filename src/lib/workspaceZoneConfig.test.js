@@ -7,6 +7,8 @@ import {
   isValidWorkspaceZone,
   WORKSPACE_ZONES,
   ACTION_TABS,
+  WORKSPACE_ZONE_HOTKEYS,
+  WORKSPACE_ZONE_HOTKEY_BY_ID,
 } from './workspaceZoneConfig.js';
 import { TASK_QUEUE_TABS } from './workspaceTaskQueue.js';
 
@@ -49,6 +51,17 @@ describe('workspaceZoneConfig', () => {
     expect(cfg.defaultZone).toBe('activity');
     expect(cfg.actionChips.some((c) => c.id === 'high_value')).toBe(true);
     expect(cfg.title).toMatch(/Executive/i);
+    expect(cfg.apps.some((a) => a.path === '/chairman')).toBe(true);
+    const chairmanCfg = getWorkspaceZoneConfig({
+      roleKey: 'chairman',
+      permissions: ['exec.dashboard.view', 'office.use'],
+    });
+    expect(chairmanCfg.apps.some((a) => a.path === '/chairman')).toBe(true);
+  });
+
+  it('hides Chairman Office from CEO workspace apps', () => {
+    const ceo = getWorkspaceZoneConfig({ roleKey: 'ceo', permissions: ['exec.dashboard.view', 'office.use'] });
+    expect(ceo.apps.some((a) => a.path === '/chairman')).toBe(false);
   });
 
   it('actionChipToTaskTab returns real queue tab ids', () => {
@@ -87,6 +100,17 @@ describe('workspaceZoneConfig', () => {
     expect(isValidWorkspaceZone('rooms')).toBe(false);
     expect(isValidWorkspaceZone('desk')).toBe(false);
     expect(isValidWorkspaceZone('')).toBe(false);
+  });
+
+  it('maps digit hotkeys 1–4 onto the four zones', () => {
+    expect(WORKSPACE_ZONE_HOTKEYS).toEqual({
+      1: 'activity',
+      2: 'action',
+      3: 'records',
+      4: 'apps',
+    });
+    expect(WORKSPACE_ZONE_HOTKEY_BY_ID.activity).toBe('1');
+    expect(WORKSPACE_ZONE_HOTKEY_BY_ID.apps).toBe('4');
   });
 
   it('getWorkspaceZoneLabel covers all zone ids', () => {

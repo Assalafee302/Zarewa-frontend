@@ -189,6 +189,7 @@ export function RefundManagerApprovalPreview({
       ),
     [ws]
   );
+  const partnerWalletEnabled = Boolean(ws?.snapshot?.partnerWalletPolicy?.enabled);
 
   const effectiveRefundIntel = localIntelPatch || refundIntel;
 
@@ -933,11 +934,11 @@ export function RefundManagerApprovalPreview({
       {loading ? (
         <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-10">
           <RefreshCw className="animate-spin text-zarewa-teal" size={22} />
-          <span className="text-ui-xs font-semibold text-slate-500">Loading context?</span>
+          <span className="text-ui-xs font-semibold text-slate-500">Loading context…</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-          {/* Quotation ? product spec & price comparison */}
+          {/* Quotation — product spec & price comparison */}
           <Panel title="Quotation" hint="Metres/m², unit price, line amount, and floor ₦/m.">
             {!auditData || auditData.ok === false ? (
               <p className="text-ui-xs text-rose-600">{auditData?.error || 'Quotation audit unavailable.'}</p>
@@ -945,6 +946,7 @@ export function RefundManagerApprovalPreview({
               <Fragment>
                 {auditData.quotation?.projectName ? (
                   <p className="mb-1.5 text-ui-xs text-slate-600">
+                    <span className="font-medium text-slate-500">Client · </span>
                     <span className="font-semibold text-slate-800">{auditData.quotation.projectName}</span>
                   </p>
                 ) : null}
@@ -957,7 +959,7 @@ export function RefundManagerApprovalPreview({
                       sum.materialDesign,
                     ]
                       .filter(Boolean)
-                      .join(' ? ')}
+                      .join(' · ')}
                   </p>
                 )}
                 {productRows.length === 0 && lines.filter((l) => l.category === 'products').length === 0 ? (
@@ -1290,7 +1292,7 @@ export function RefundManagerApprovalPreview({
             />
           </Panel>
 
-          {/* Refund request ? unique detail only */}
+          {/* Refund request — unique detail only */}
           <Panel title="This refund" hint="Breakdown, payee, and other refunds on the quote.">
             {creditAppliedNgn > 0 ? (
               <div className="mb-2 grid grid-cols-3 gap-1">
@@ -1335,7 +1337,7 @@ export function RefundManagerApprovalPreview({
                 </div>
                 {lineArithmeticBlocksApprove ? (
                   <p className="mb-2 text-ui-xs font-semibold text-rose-800" role="alert">
-                    Line arithmetic mismatch ? correct before approving.
+                    Line arithmetic mismatch — correct before approving.
                   </p>
                 ) : null}
               </Fragment>
@@ -1347,13 +1349,53 @@ export function RefundManagerApprovalPreview({
               <div className="mb-2 rounded-md border border-teal-200/80 bg-teal-50/40 px-2 py-1.5">
                 <p className="text-ui-xs font-bold uppercase text-teal-800">Pay to</p>
                 <p className="text-ui-xs font-semibold text-slate-900">
-                  {[formatPersonName(refund.payeeName), refund.payeeBankName].filter(Boolean).join(' ? ')}
+                  {[formatPersonName(refund.payeeName), refund.payeeBankName].filter(Boolean).join(' · ')}
                 </p>
                 {refund.payeeAccountNo ? (
                   <p className="font-mono text-ui-xs text-slate-600">{refund.payeeAccountNo}</p>
                 ) : null}
               </div>
             )}
+            {Array.isArray(refund?.splitDistributions) && refund.splitDistributions.length > 0 ? (
+              <div className="mb-2 rounded-md border border-emerald-200/80 bg-emerald-50/50 px-2 py-1.5 space-y-1">
+                <p className="text-ui-xs font-bold uppercase text-emerald-900">Split distribution</p>
+                {refund.splitDistributions.map((s, idx) => {
+                  const name =
+                    s?.payoutAccount?.partyName ||
+                    s?.payoutAccount?.payeeName ||
+                    s?.recipientName ||
+                    s?.recipientAssociatedStaffID ||
+                    s?.recipientCustomerID ||
+                    `Recipient ${idx + 1}`;
+                  const bank = [s?.payoutAccount?.payeeBankName, s?.payoutAccount?.payeeAccountNo]
+                    .filter(Boolean)
+                    .join(' · ');
+                  const kindLabel =
+                    String(s?.recipientKind || s?.payoutAccount?.partyKind || '').toLowerCase() ===
+                    'associated_staff'
+                      ? 'Associated staff'
+                      : 'Customer / staff claim';
+                  return (
+                    <div key={`split-preview-${idx}`} className="flex justify-between gap-2 text-ui-xs">
+                      <span className="min-w-0 text-slate-800">
+                        <span className="font-semibold">{name}</span>
+                        <span className="block text-slate-500">{kindLabel}</span>
+                        {bank ? <span className="block font-mono text-slate-500">{bank}</span> : null}
+                      </span>
+                      <span className="shrink-0 font-bold tabular-nums text-emerald-900">
+                        {formatNgn(Number(s?.amountNgn) || 0)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+            {partnerWalletEnabled ? (
+              <AlertBanner tone="violet" title="Partner wallet">
+                Approval credits the payee’s wallet. Cashier releases full or partial from Finance Desk — no
+                second BM approval.
+              </AlertBanner>
+            ) : null}
             {otherRefunds.length > 0 ? (
               <div className="space-y-1">
                 <p className="text-ui-xs font-bold uppercase text-slate-400">Other on quote ({otherRefunds.length})</p>
@@ -1497,6 +1539,11 @@ export function RefundManagerApprovalPreview({
         Math.round(Number(approvedAmountNgn) || 0) < requestedAmountNgn &&
         Math.abs(sumCalcLines(calcLines) - requestedAmountNgn) <= 1 ? (
           <p className="mt-1 text-ui-xs text-teal-800">Lines scale proportionally on partial approval.</p>
+        ) : null}
+        {partnerWalletEnabled ? (
+          <p className="mt-1 text-ui-xs text-violet-800">
+            Approve → partner wallet. Cashier withdraws later (full or partial, no re-approval).
+          </p>
         ) : null}
 
         {onEditDetails ? (

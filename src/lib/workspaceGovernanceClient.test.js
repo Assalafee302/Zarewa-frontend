@@ -5,6 +5,7 @@ import {
   userMayReleaseQuotationPaymentHold,
   isExecutiveRoleKey,
   userMayReviewPaymentRequests,
+  userMayOverrideProductionAlignment,
 } from './workspaceGovernanceClient.js';
 
 /** Expected parity with shared/workspaceGovernance.js (server source of truth). */
@@ -45,5 +46,11 @@ describe('workspaceGovernance client rules', () => {
     expect(userMayReviewPaymentRequests({ roleKey: 'sales_manager' }, () => false)).toBe(true);
     expect(userMayReviewPaymentRequests({ roleKey: 'sales_staff' }, () => false)).toBe(false);
     expect(userMayReviewPaymentRequests({ roleKey: 'finance_manager' }, (p) => p === 'finance.approve')).toBe(true);
+  });
+
+  it('allows branch manager / executive / admin to override production alignment', () => {
+    expect(userMayOverrideProductionAlignment('sales_manager')).toBe(true);
+    expect(userMayOverrideProductionAlignment('md')).toBe(true);
+    expect(userMayOverrideProductionAlignment('sales_staff')).toBe(false);
   });
 });

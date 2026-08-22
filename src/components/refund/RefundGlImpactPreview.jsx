@@ -25,8 +25,8 @@ export function RefundGlImpactPreview({ calculationLines, hasCompletedProduction
       >
         {open ? <ChevronDown size={14} className="text-slate-400 shrink-0" /> : <ChevronRight size={14} className="text-slate-400 shrink-0" />}
         <BookOpen size={14} className="text-zarewa-teal shrink-0" aria-hidden />
-        <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-600">
-          Accounting notes ({rows.length})
+        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          Accounting ({rows.length})
         </span>
       </button>
       {open ? (

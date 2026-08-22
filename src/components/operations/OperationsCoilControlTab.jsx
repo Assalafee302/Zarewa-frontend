@@ -74,18 +74,11 @@ function kindLabel(k) {
   return KIND_LABELS[k] || k || '—';
 }
 
-function ModalPanel({ title, children, onClose, footer }) {
+function ModalPanel({ title, children, footer }) {
   return (
     <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-4 pr-12">
         <h3 className="text-base font-black uppercase tracking-wide text-zarewa-teal">{title}</h3>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg px-2 py-1 text-xs font-bold text-slate-500 hover:bg-slate-100"
-        >
-          Close
-        </button>
       </div>
       <div className="space-y-4">{children}</div>
       {footer ? <div className="mt-6 flex flex-wrap gap-2">{footer}</div> : null}
@@ -730,7 +723,7 @@ export default function OperationsCoilControlTab() {
       </section>
 
       <ModalFrame isOpen={modal === 'adjust'} onClose={() => !saving && setModal(null)} title="Coil kg adjustment">
-        <ModalPanel title="Coil kg adjustment" onClose={() => !saving && setModal(null)}>
+        <ModalPanel title="Coil kg adjustment">
           <form className="space-y-3" onSubmit={submitAdjust}>
             <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil</label>
             <select
@@ -809,7 +802,7 @@ export default function OperationsCoilControlTab() {
       </ModalFrame>
 
       <ModalFrame isOpen={modal === 'scrap'} onClose={() => !saving && setModal(null)} title="Scrap / offcut">
-        <ModalPanel title="Scrap / offcut" onClose={() => !saving && setModal(null)}>
+        <ModalPanel title="Scrap / offcut">
           <form className="space-y-3" onSubmit={submitScrap}>
             <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil</label>
             <select
@@ -941,7 +934,7 @@ export default function OperationsCoilControlTab() {
       </ModalFrame>
 
       <ModalFrame isOpen={modal === 'returnIn'} onClose={() => !saving && setModal(null)} title="Offcut return pool">
-        <ModalPanel title="Offcut return pool" onClose={() => !saving && setModal(null)}>
+        <ModalPanel title="Offcut return pool">
           <form className="space-y-3" onSubmit={submitReturnIn}>
             <p className="text-ui-xs text-slate-600 leading-snug">
               Gauge and colour must match your quotation rules exactly. Optional source coil is for traceability only.
@@ -1082,7 +1075,7 @@ export default function OperationsCoilControlTab() {
       </ModalFrame>
 
       <ModalFrame isOpen={modal === 'returnOut'} onClose={() => !saving && setModal(null)} title="Return outward">
-        <ModalPanel title="Return outward" onClose={() => !saving && setModal(null)}>
+        <ModalPanel title="Return outward">
           <form className="space-y-3" onSubmit={submitReturnOut}>
             <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil</label>
             <select
@@ -1163,7 +1156,7 @@ export default function OperationsCoilControlTab() {
       </ModalFrame>
 
       <ModalFrame isOpen={modal === 'head'} onClose={() => !saving && setModal(null)} title="Head trim">
-        <ModalPanel title="Open coil — head trim" onClose={() => !saving && setModal(null)}>
+        <ModalPanel title="Open coil — head trim">
           <form className="space-y-3" onSubmit={submitHead}>
             <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil</label>
             <select
@@ -1262,7 +1255,7 @@ export default function OperationsCoilControlTab() {
       </ModalFrame>
 
       <ModalFrame isOpen={modal === 'supplier'} onClose={() => !saving && setModal(null)} title="Supplier defect">
-        <ModalPanel title="Supplier defect on coil" onClose={() => !saving && setModal(null)}>
+        <ModalPanel title="Supplier defect on coil">
           <form className="space-y-3" onSubmit={submitDefect}>
             <label className="block text-ui-xs font-bold text-gray-400 uppercase">Coil</label>
             <select

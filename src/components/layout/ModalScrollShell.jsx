@@ -23,7 +23,7 @@ export function ModalScrollShell({ children, className = '', size = 'md' }) {
 export function ModalScrollHeader({ children, className = '' }) {
   return (
     <div
-      className={`shrink-0 border-b border-slate-100 px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 ${className}`}
+      className={`shrink-0 border-b border-[var(--z-border-subtle)] px-4 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4 ${className}`}
     >
       {children}
     </div>
@@ -43,7 +43,7 @@ export function ModalScrollBody({ children, className = '' }) {
 export function ModalScrollFooter({ children, className = '' }) {
   return (
     <div
-      className={`shrink-0 border-t border-slate-100 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4 ${className}`}
+      className={`shrink-0 border-t border-[var(--z-border-subtle)] bg-[var(--z-surface-muted)]/25 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4 ${className}`}
     >
       {children}
     </div>

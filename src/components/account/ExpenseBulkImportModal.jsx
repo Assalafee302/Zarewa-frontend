@@ -448,7 +448,7 @@ export function ExpenseBulkImportModal({
   if (!open) return null;
 
   return (
-    <ModalFrame isOpen={open} onClose={close} title="Import expenses" closeDisabled={!!busy} surface="plain">
+    <ModalFrame isOpen={open} onClose={close} title="Import expenses" closeDisabled={!!busy} surface="plain" showCloseButton={false}>
       <div className="z-modal-panel z-modal-scroll-y flex max-h-[min(92dvh,960px)] w-full max-w-[min(1100px,calc(100dvw-1.5rem))] flex-col overflow-hidden bg-white">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
           <div>

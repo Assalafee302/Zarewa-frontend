@@ -59,6 +59,8 @@ import { userMayViewFinanceTrialExceptionsClient } from "../../lib/financeTrialE
 
 import { FinanceKpiCard } from "./FinanceKpiCard";
 
+import { FinanceDeskTillStrip } from "./FinanceDeskTillStrip";
+
 import { FinanceDeskCashierGuide } from "./FinanceDeskCashierGuide";
 
 import { isCashierRole as userIsCashierRole } from "../../lib/legacyAccountsAccess";
@@ -74,6 +76,8 @@ import { FinanceMobileAlertStrip } from "./FinanceMobileAlertStrip";
 import { CashierDeskReports } from "./CashierDeskReports";
 
 import { StaffPaymentsCashierPanel } from "./StaffPaymentsCashierPanel";
+import { PartnerWalletCashierPanel } from "./PartnerWalletCashierPanel";
+import { RefundCreditApplicationsPanel } from "./RefundCreditApplicationsPanel";
 import { CashierOtPayPanel } from "./CashierOtPayPanel";
 
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
@@ -134,6 +138,8 @@ export function FinanceDeskWorkQueues({
 
   onPayRefund,
 
+  onViewRefund,
+
   onCancelRefund,
 
   onCancelPaymentRequest,
@@ -147,6 +153,8 @@ export function FinanceDeskWorkQueues({
   onReceiveStaffRecovery,
 
   onReceiveStaffObligation,
+
+  onReverseRefundCredit,
 
   onGoToTab,
 
@@ -292,7 +300,7 @@ export function FinanceDeskWorkQueues({
     [ws?.snapshot?.registerSettlementsAwaitingPayment],
   );
 
-  const pendingReceipts = useMemo(
+  const pendingReceiptsAll = useMemo(
     () =>
       receiptsWithCuttingMeta
         .filter((r) => isReceiptPendingClearance(r))
@@ -302,22 +310,19 @@ export function FinanceDeskWorkQueues({
           const bMiss = receiptLacksCuttingList(b) ? 0 : 1;
           if (aMiss !== bMiss) return aMiss - bMiss;
           return String(b.dateISO || b.date || '').localeCompare(String(a.dateISO || a.date || ''));
-        })
-        .slice(0, 25),
+        }),
     [receiptsWithCuttingMeta],
   );
 
+  const pendingReceipts = useMemo(() => pendingReceiptsAll.slice(0, 25), [pendingReceiptsAll]);
+
   const pendingReceiptsWithoutCuttingList = useMemo(
-    () => pendingReceipts.filter((r) => receiptLacksCuttingList(r)).length,
-    [pendingReceipts],
+    () => pendingReceiptsAll.filter((r) => receiptLacksCuttingList(r)).length,
+    [pendingReceiptsAll],
   );
 
-  const confirmedToday = useMemo(
-    () =>
-      receipts
-        .filter((r) => isReceiptCleared(r) && isToday(r.dateISO))
-        .slice(0, 15),
-
+  const confirmedTodayCount = useMemo(
+    () => receipts.filter((r) => isReceiptCleared(r) && isToday(r.dateISO)).length,
     [receipts],
   );
 
@@ -410,6 +415,11 @@ export function FinanceDeskWorkQueues({
     [ws?.snapshot?.staffObligationsDue],
   );
 
+  const partnerWalletsDue = useMemo(
+    () => (Array.isArray(ws?.snapshot?.partnerWalletsDue) ? ws.snapshot.partnerWalletsDue : []),
+    [ws?.snapshot?.partnerWalletsDue],
+  );
+
   const staffObligationsTotalNgn = useMemo(
     () =>
       staffObligationsDue.reduce(
@@ -434,10 +444,11 @@ export function FinanceDeskWorkQueues({
     approvedPayments.length +
     approvedRefunds.length +
     approvedRegisterSettlements.length +
-    poTransportAwaiting.length;
+    poTransportAwaiting.length +
+    partnerWalletsDue.length;
 
   const moneyInQueueCount =
-    pendingReceipts.length +
+    pendingReceiptsAll.length +
     staffRecoveriesDue.length +
     staffObligationsDue.length;
 
@@ -471,8 +482,8 @@ export function FinanceDeskWorkQueues({
   const trialEx = trialData?.exceptions;
 
   const nextActionSummary = buildNextActionSummary([
-    pendingReceipts.length > 0
-      ? `${pendingReceipts.length} receipt${pendingReceipts.length !== 1 ? "s" : ""} to confirm`
+    pendingReceiptsAll.length > 0
+      ? `${pendingReceiptsAll.length} receipt${pendingReceiptsAll.length !== 1 ? "s" : ""} to confirm`
       : null,
 
     payoutQueueCount > 0
@@ -496,7 +507,19 @@ export function FinanceDeskWorkQueues({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {!hideAccountGrid ? (
+      {isCashier ? <FinanceDeskCashierGuide /> : null}
+
+      {isCashier ? (
+        <FinanceDeskTillStrip
+          bookTotalNgn={liquidity.bookTotalNgn}
+          pendingReceipts={pendingReceiptsAll.length}
+          pendingReceiptsNgn={pendingClearanceTotalNgn(receipts)}
+          payouts={payoutQueueCount}
+          confirmedToday={trialData?.confirmedReceipts?.today ?? confirmedTodayCount}
+        />
+      ) : null}
+
+      {!isCashier && !hideAccountGrid ? (
         <FinanceDeskTreasuryAccountGrid
           accounts={treasuryAccounts}
           bookById={bookById}
@@ -508,28 +531,26 @@ export function FinanceDeskWorkQueues({
         />
       ) : null}
 
-      {isCashier && deskSubTab === "work" ? (
-        <FinanceDeskCashierGuide />
-      ) : null}
-
       <FinanceMobileAlertStrip
-        pendingReceipts={pendingReceipts.length}
+        pendingReceipts={pendingReceiptsAll.length}
         approvedPayments={approvedPayments.length}
         approvedRefunds={approvedRefunds.length}
         registerWithdrawals={approvedRegisterSettlements.length}
         poHaulage={poTransportAwaiting.length}
         staffPayments={staffRecoveriesDue.length + staffObligationsDue.length}
-        bookTotalNgn={liquidity.bookTotalNgn}
+        bookTotalNgn={isCashier ? null : liquidity.bookTotalNgn}
         onOpenStaffPayments={() => setStaffPaymentsExpanded(true)}
       />
 
-      <FinanceTabs
-        tabs={DESK_SUB_TABS}
-        active={deskSubTab}
-        onChange={setDeskSubTab}
-      />
+      {!isCashier ? (
+        <FinanceTabs
+          tabs={DESK_SUB_TABS}
+          active={deskSubTab}
+          onChange={setDeskSubTab}
+        />
+      ) : null}
 
-      {deskSubTab === "reports" ? (
+      {!isCashier && deskSubTab === "reports" ? (
         <CashierDeskReports
           receipts={receipts}
           paymentRequests={paymentRequests}
@@ -538,16 +559,15 @@ export function FinanceDeskWorkQueues({
         />
       ) : null}
 
-      {deskSubTab === "work" ? (
+      {(isCashier || deskSubTab === "work") ? (
         <>
+          {!isCashier ? (
           <section className="space-y-3">
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
               <FinanceKpiCard
                 compact
                 label="Pending receipts"
-                value={
-                  trialEx?.pendingReceiptClearance ?? pendingReceipts.length
-                }
+                value={pendingReceiptsAll.length}
                 hint={formatNgn(pendingClearanceTotalNgn(receipts))}
                 tone="amber"
                 icon={<Banknote size={14} />}
@@ -570,7 +590,7 @@ export function FinanceDeskWorkQueues({
                 compact
                 label="Confirmed today"
                 value={
-                  trialData?.confirmedReceipts?.today ?? confirmedToday.length
+                  trialData?.confirmedReceipts?.today ?? confirmedTodayCount
                 }
                 icon={<CheckCircle2 size={14} />}
               />
@@ -655,6 +675,7 @@ export function FinanceDeskWorkQueues({
               </div>
             ) : null}
           </section>
+          ) : null}
 
           {warnings.length ? (
             <section className="flex flex-wrap gap-2">
@@ -677,24 +698,31 @@ export function FinanceDeskWorkQueues({
               data-testid="desk-confirm-column"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
-                <h2 className="text-xs font-black uppercase tracking-widest text-slate-800">
-                  Confirm payment
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Confirm in
                 </h2>
                 <FinanceActionButton variant="link" onClick={() => onGoToTab("receipts")}>
                   View all
                 </FinanceActionButton>
               </div>
-              {pendingReceipts.length > 0 ? (
+              {pendingReceiptsAll.length > 0 ? (
                 <FinanceDeskColoredQueuePanel
                   sectionId="desk-queue-receipts"
                   theme="amber"
                   title="Confirm payment received"
                   icon={<Banknote size={16} strokeWidth={2} />}
-                  count={pendingReceipts.length}
+                  count={pendingReceiptsAll.length}
                   description={
-                    pendingReceiptsWithoutCuttingList > 0
-                      ? `${pendingReceiptsWithoutCuttingList} without a cutting list (listed first).`
-                      : undefined
+                    [
+                      pendingReceiptsWithoutCuttingList > 0
+                        ? `${pendingReceiptsWithoutCuttingList} without a cutting list (listed first).`
+                        : '',
+                      pendingReceiptsAll.length > pendingReceipts.length
+                        ? `Showing ${pendingReceipts.length} of ${pendingReceiptsAll.length} — open Receipts for the rest.`
+                        : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined
                   }
                 >
                   <ul className="space-y-1.5">
@@ -804,8 +832,8 @@ export function FinanceDeskWorkQueues({
               poTransport={poTransportAwaiting}
               poTransportPanelAction={
                 onViewPoTransport ? (
-                  <FinanceActionButton variant="link" onClick={() => onGoToTab("treasury")}>
-                    Treasury list
+                  <FinanceActionButton variant="link" onClick={() => onGoToTab("movements")}>
+                    Transfers
                   </FinanceActionButton>
                 ) : null
               }
@@ -814,14 +842,23 @@ export function FinanceDeskWorkQueues({
                   <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayRefund(String(r.refundID || ""))}>
                     Payout
                   </FinanceDeskQueueActionButton>
+                  {onViewRefund ? (
+                    <FinanceDeskQueueActionButton
+                      tone="slate"
+                      onClick={() => onViewRefund(String(r.refundID || ""))}
+                    >
+                      View
+                    </FinanceDeskQueueActionButton>
+                  ) : (
+                    <FinanceDeskQueueActionButton tone="slate" to="/sales?tab=refunds">
+                      Review
+                    </FinanceDeskQueueActionButton>
+                  )}
                   {onCancelRefund ? (
                     <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelRefund(r)}>
                       Cancel
                     </FinanceDeskQueueActionButton>
                   ) : null}
-                  <FinanceDeskQueueActionButton tone="slate" to="/sales?tab=refunds">
-                    Review
-                  </FinanceDeskQueueActionButton>
                 </>
               )}
               renderPaymentRequestActions={(req) => (
@@ -864,7 +901,7 @@ export function FinanceDeskWorkQueues({
                   </FinanceDeskQueueActionButton>
                   {onViewPoTransport ? (
                     <FinanceDeskQueueActionButton tone="slate" onClick={() => onViewPoTransport(row)}>
-                      Treasury
+                      View
                     </FinanceDeskQueueActionButton>
                   ) : null}
                 </>
@@ -889,20 +926,66 @@ export function FinanceDeskWorkQueues({
             />
           ) : null}
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-800 mb-1">
-              <ArrowRightLeft size={14} />
-              Treasury movements
+          <RefundCreditApplicationsPanel
+            applications={ws?.snapshot?.refundCreditApplications}
+            canReverse={Boolean(ws?.hasPermission?.('finance.reverse') && onReverseRefundCredit)}
+            onReverse={onReverseRefundCredit}
+          />
+
+          <PartnerWalletCashierPanel
+            balances={partnerWalletsDue}
+            treasuryAccounts={treasuryAccounts}
+            canPay={Boolean(ws?.hasPermission?.('finance.pay'))}
+          />
+
+          {isCashier && !hideAccountGrid ? (
+            <FinanceDeskTreasuryAccountGrid
+              accounts={treasuryAccounts}
+              bookById={bookById}
+              balanceByAccountId={deskBalanceSplit.byAccountId}
+              onGoToTab={onAccountClick ? undefined : onGoToTab}
+              onAccountClick={onAccountClick}
+              cardActionLabel={onAccountClick ? 'View statement' : undefined}
+            />
+          ) : null}
+
+          {isCashier ? (
+            <details className="rounded-md border border-slate-200 bg-white group">
+              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
+                <span className="inline-flex items-center gap-2">
+                  <ChevronDown
+                    size={16}
+                    className="text-slate-500 transition-transform group-open:rotate-180"
+                    aria-hidden
+                  />
+                  Desk reports
+                </span>
+              </summary>
+              <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                <CashierDeskReports
+                  receipts={receipts}
+                  paymentRequests={paymentRequests}
+                  refunds={refunds}
+                  trialData={trialData}
+                />
+              </div>
+            </details>
+          ) : null}
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-800 mb-1">
+              <ArrowRightLeft size={14} aria-hidden />
+              Transfers
             </h2>
-            <p className="text-ui-xs text-slate-600 mb-2 leading-relaxed">
-              Lodgements and internal transfers — use the Movements tab.
+            <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+              Lodgements and internal transfers between accounts.
             </p>
 
             <FinanceActionButton
               variant="primary"
               onClick={() => onGoToTab("movements")}
             >
-              Record treasury movement
+              Record transfer
             </FinanceActionButton>
           </div>
 

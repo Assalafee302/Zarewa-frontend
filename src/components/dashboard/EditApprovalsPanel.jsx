@@ -7,7 +7,7 @@ import { useEditApprovalsPending } from '../../hooks/useEditApprovalsPending';
 
 /**
  * Compact dashboard container for designated roles to approve second-party edit tokens.
- * Mirrors `src/pages/EditApprovalsPage.jsx` without page shell/layout.
+ * Mirrors `src/pages/settings/EditApprovalsPage.jsx` without page shell/layout.
  */
 export default function EditApprovalsPanel() {
   const ws = useWorkspace();

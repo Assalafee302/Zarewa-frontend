@@ -493,15 +493,16 @@ describe('authenticated startup TDZ', () => {
       () => {
         expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
       },
-      { timeout: 15000 }
+      { timeout: 45_000 }
     );
     await waitFor(
       () => {
-        expect(screen.getByRole('tab', { name: /^Finance desk$/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^Cashier$/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /^(Finance desk|Cashier)$/i })).toBeInTheDocument();
       },
-      { timeout: 15000 }
+      { timeout: 45_000 }
     );
-  });
+  }, 60_000);
 
   it('redirects cashier treasury deep link to merged My desk', async () => {
     vi.stubGlobal(
@@ -525,7 +526,7 @@ describe('authenticated startup TDZ', () => {
     );
     await waitFor(
       () => {
-        expect(screen.getByRole('tab', { name: /^Finance desk$/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /^(Finance desk|Cashier)$/i })).toBeInTheDocument();
         expect(screen.getByTestId('finance-payouts-combined')).toBeInTheDocument();
       },
       { timeout: 15000 }

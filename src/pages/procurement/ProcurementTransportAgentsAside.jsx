@@ -4,7 +4,14 @@ import { Truck, Pencil, Trash2 } from 'lucide-react';
 import { CARD_ROW } from './procurementTabShared.js';
 import { PoStatusChip } from '../../components/procurement/PoStatusChip';
 
-export function ProcurementTransportAgentsAside({ agents, onEdit, onRemove, onRegister, transitRows, onPreviewTransitPo }) {
+export function ProcurementTransportAgentsAside({
+  agents,
+  onEdit,
+  onRemove,
+  onRegister,
+  transitRows,
+  onPreviewTransitPo,
+}) {
   return (
     <aside className="w-full lg:w-1/3 lg:max-w-md lg:shrink-0 rounded-xl border border-slate-200/90 bg-white shadow-sm flex flex-col max-h-[min(72vh,680px)] min-h-[240px]">
       <div className="h-1 bg-zarewa-teal rounded-t-xl shrink-0" />

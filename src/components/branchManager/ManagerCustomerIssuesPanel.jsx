@@ -141,7 +141,7 @@ export function ManagerCustomerIssuesPanel({ available = true }) {
     <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-0 bg-white overflow-hidden">
       <div className="flex items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
         <div>
-          <h3 className="text-sm font-black text-zarewa-teal tracking-tight flex items-center gap-2">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             <MessageSquareWarning size={16} aria-hidden />
             Customer issues
             {rows.length > 0 ? (
@@ -160,7 +160,7 @@ export function ManagerCustomerIssuesPanel({ available = true }) {
         {available ? (
           <Link
             to="/customers"
-            className="text-ui-xs font-bold uppercase text-zarewa-teal no-underline hover:underline"
+            className="text-ui-xs font-medium text-slate-700 no-underline hover:underline"
           >
             Customers →
           </Link>
@@ -234,7 +234,7 @@ export function ManagerCustomerIssuesPanel({ available = true }) {
         </div>
       )}
 
-      <ModalFrame isOpen={Boolean(selected)} onClose={() => setSelected(null)} closeDisabled={busy}>
+      <ModalFrame isOpen={Boolean(selected)} onClose={() => setSelected(null)} closeDisabled={busy} showCloseButton={false}>
         {selected ? (
           <div className="z-modal-panel flex max-h-[min(92vh,860px)] w-full max-w-3xl flex-col overflow-hidden p-0">
             <DecisionModalHeader

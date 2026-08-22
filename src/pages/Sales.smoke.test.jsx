@@ -21,7 +21,11 @@ vi.mock('../context/InventoryContext.jsx', () => ({
 }));
 
 vi.mock('../hooks/useWorkspaceDomain.js', () => ({
-  useWorkspaceDomain: () => {},
+  useWorkspaceDomain: () => ({
+    domainReady: true,
+    domainLoading: false,
+    domains: ['sales'],
+  }),
 }));
 
 vi.mock('../context/UnsavedWorkContext.jsx', async () => {

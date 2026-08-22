@@ -1,12 +1,13 @@
 # Sync `src/shared/` with the backend repo
 
-The SPA duplicates a small slice of the backend **`shared/`** tree so this package stays standalone when you use two Git repositories.
+The SPA copies isomorphic modules from backend **`shared/`** so this package stays standalone in a two-repo setup. **Backend is the source of truth.**
 
-| Frontend file | Canonical backend file |
-|----------------|-------------------------|
-| `src/shared/expenseCategories.js` | `shared/expenseCategories.js` |
-| `src/shared/refundConstants.js` | `shared/refundConstants.js` |
-| `src/lib/helpKnowledge.js` | `shared/lib/helpKnowledge.js` |
-| `src/lib/helpOperationalCatalog.js` | `shared/lib/helpOperationalCatalog.js` |
+```
+cd Zarewa-frontend-main
+npm run sync:shared    # copy
+npm run verify:shared  # CI: fail if drifted
+```
 
-Before each release, diff these pairs and copy changes from **backend** into **frontend** so selects, validation, and refund categories stay aligned.
+The pair list lives in `scripts/shared-sync-pairs.mjs`. `src/lib/<name>.js` for those modules is a re-export stub — edit `src/shared/lib/` (or the backend file, then sync).
+
+Do not add a second copy of ledger/PO/payment math in `src/lib`.

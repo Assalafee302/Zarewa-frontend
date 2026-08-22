@@ -87,7 +87,7 @@ export function StockRegisterMonthEndModal({
   const wide = roleMode === 'manager' || roleMode === 'reports' || roleMode === 'procurement';
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose} showCloseButton={false} surface="plain" title={title}>
+    <ModalFrame isOpen={isOpen} onClose={onClose} surface="plain" title={title} showCloseButton={false}>
       <div
         className={`z-modal-panel-lg flex h-[min(96dvh,920px)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-xl ${
           wide ? 'max-w-6xl' : 'max-w-3xl'

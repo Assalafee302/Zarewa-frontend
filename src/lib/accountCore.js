@@ -238,6 +238,8 @@ export const normalizePaymentRequest = (row) => ({
   payeeName: row?.payeeName || '',
   payeeAccountNo: row?.payeeAccountNo || '',
   payeeBankName: row?.payeeBankName || '',
+  maintenanceWorkOrderId: row?.maintenanceWorkOrderId || '',
+  maintenanceCostKind: row?.maintenanceCostKind || '',
 });
 
 export const createRequestPayLine = (defaultAccountId = '', amount = '') => ({

@@ -38,6 +38,9 @@ export function normalizeManagerPageTab(raw) {
   const k = String(raw || '').trim().toLowerCase();
   if (k === 'pac' || k === 'queue' || k === 'inbox' || k === 'approval') return 'approvals';
   if (BRANCH_TAB_ALIASES.has(k)) return 'branch';
+  if (k === 'associated' || k === 'partners' || k === 'associated-staff' || k === 'installer-driver') {
+    return 'branch';
+  }
   if (MANAGER_PAGE_TAB_IDS.includes(k)) return /** @type {any} */ (k);
   if (k === 'expenses' || k === 'expense') return 'spend';
   return 'today';

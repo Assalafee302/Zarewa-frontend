@@ -614,7 +614,11 @@ export default function HrLetters({ embedded = false } = {}) {
   };
 
   const openDraftPreview = (letterId) => {
-    window.open(apiUrl(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/preview`), '_blank');
+    window.open(
+      apiUrl(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/preview`),
+      '_blank',
+      'noopener,noreferrer'
+    );
   };
 
   const tryDownloadPdf = async (letterId, status) => {

@@ -1,0 +1,27 @@
+---
+description: Comments, redundancy, and performance standards for Zarewa frontend
+alwaysApply: true
+---
+
+# Code quality
+
+## Comments
+
+Comment **why** and **invariants**, not what the next line does. Prefer a short file header on modules over 200 lines, and JSDoc on exported public functions. Do not comment JSX structure or restated variable names.
+
+## Redundancy
+
+- One component per concern; extract a hook before copying a fetch/filter block a third time.
+- Desk pages compose domain components — they should not grow into 100KB+ god files.
+- Shared money/ledger math lives in `src/shared/`, not a second copy in `src/lib`.
+
+## Performance
+
+- Route pages stay `lazyWithRetry` from `App.jsx`. Do not eagerly import desk UI into the shell.
+- If you move a file, update `vite.config.js` `manualChunks` so sales/finance/hr chunks do not collapse into `app-shell`.
+- Prefer React Query for server lists; do not fetch the same list in two sibling trees.
+- Do not add new unbounded `.map()` over full workspace snapshots in the shell header.
+
+## Professional bar
+
+Match existing naming (`PascalCase` components, `camelCase` functions). No new `lagacy*` typos. No `debug-*.log` in the repo.

@@ -66,12 +66,12 @@ export function HrStaffActivityStrip({ userId, onOpenTab }) {
           key={item.label}
           type="button"
           onClick={() => item.tab && onOpenTab?.(item.tab)}
-          className={`rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-left text-xs ${
-            item.tab ? 'hover:border-zarewa-teal/30 hover:bg-teal-50/50' : ''
+          className={`rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-xs ${
+            item.tab ? 'hover:border-slate-300 hover:bg-slate-50' : ''
           }`}
         >
-          <p className="font-bold uppercase tracking-wide text-slate-400">{item.label}</p>
-          <p className="mt-0.5 font-medium text-slate-700">{item.value}</p>
+          <p className="font-medium text-slate-500">{item.label}</p>
+          <p className="mt-0.5 font-medium text-slate-800">{item.value}</p>
         </button>
       ))}
     </div>

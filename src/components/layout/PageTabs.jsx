@@ -1,17 +1,34 @@
-import React from 'react';
+import React, { useRef } from 'react';
 
 /**
  * Underline section tabs — one horizontal row, sentence case, no padded pill chrome.
  * tabs: [{ id: string, label: string, title?: string, icon?: ReactNode, badge?: number | string }]
+ * Keyboard: Left/Right, Home/End (roving tabindex). Pass panelId to wire aria-controls.
  */
-export function PageTabs({ tabs, value, onChange, ariaLabel = 'Section', className = '' }) {
+export function PageTabs({ tabs, value, onChange, ariaLabel = 'Section', className = '', panelId }) {
+  const btnRefs = useRef([]);
+
+  const moveFocus = (fromIndex, key) => {
+    const last = tabs.length - 1;
+    let next = fromIndex;
+    if (key === 'ArrowRight') next = fromIndex === last ? 0 : fromIndex + 1;
+    else if (key === 'ArrowLeft') next = fromIndex === 0 ? last : fromIndex - 1;
+    else if (key === 'Home') next = 0;
+    else if (key === 'End') next = last;
+    else return false;
+    onChange(tabs[next].id);
+    queueMicrotask(() => btnRefs.current[next]?.focus());
+    return true;
+  };
+
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={`flex w-full min-w-0 max-w-full items-stretch gap-0.5 overflow-x-auto overscroll-x-contain border-b border-slate-200/90 [-webkit-overflow-scrolling:touch] ${className}`}
+      className={`flex w-full min-w-0 max-w-full items-stretch gap-0.5 overflow-x-auto overscroll-x-contain border-b [-webkit-overflow-scrolling:touch] ${className}`}
+      style={{ borderColor: 'var(--z-border)' }}
     >
-      {tabs.map((tab) => {
+      {tabs.map((tab, i) => {
         const active = value === tab.id;
         const badgeNum = Number(tab.badge);
         const showBadge = Number.isFinite(badgeNum) && badgeNum > 0;
@@ -19,12 +36,21 @@ export function PageTabs({ tabs, value, onChange, ariaLabel = 'Section', classNa
         return (
           <button
             key={tab.id}
+            ref={(el) => {
+              btnRefs.current[i] = el;
+            }}
             type="button"
             role="tab"
+            id={panelId ? `${panelId}-tab-${tab.id}` : undefined}
             title={hint}
             aria-label={tab.title && tab.title !== tab.label ? hint : undefined}
             aria-selected={active}
+            aria-controls={panelId}
+            tabIndex={active ? 0 : -1}
             onClick={() => onChange(tab.id)}
+            onKeyDown={(e) => {
+              if (moveFocus(i, e.key)) e.preventDefault();
+            }}
             className={`relative inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 focus-visible:ring-offset-2 ${
               active
                 ? 'text-zarewa-teal'

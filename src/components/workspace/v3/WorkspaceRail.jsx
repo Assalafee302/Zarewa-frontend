@@ -1,7 +1,9 @@
+/* eslint-disable react-refresh/only-export-components -- zone icons colocated with the rail */
 import React from 'react';
 import { Activity, CheckSquare, FolderOpen, LayoutGrid } from 'lucide-react';
+import { WORKSPACE_ZONE_HOTKEY_BY_ID } from '../../../lib/workspaceZoneConfig';
 
-const ICONS = {
+export const WORKSPACE_ZONE_ICONS = {
   activity: Activity,
   action: CheckSquare,
   records: FolderOpen,
@@ -24,18 +26,20 @@ export default function WorkspaceRail({
       className={`flex shrink-0 flex-col gap-0.5 border-r border-slate-200 bg-white p-2 ${className}`}
     >
       {zones.map((zone) => {
-        const Icon = ICONS[zone.id] || LayoutGrid;
+        const Icon = WORKSPACE_ZONE_ICONS[zone.id] || LayoutGrid;
         const count = Number(unread[zone.id] || 0);
         const active = activeZone === zone.id;
+        const hotkey = WORKSPACE_ZONE_HOTKEY_BY_ID[zone.id];
         return (
           <button
             key={zone.id}
             type="button"
             onClick={() => onZoneChange?.(zone.id)}
-            title={zone.label}
-            aria-label={`${zone.label}${count > 0 ? `, ${count} unread` : ''}`}
+            title={hotkey ? `${zone.label} (${hotkey})` : zone.label}
+            aria-label={`${zone.label}${count > 0 ? `, ${count} unread` : ''}${hotkey ? `, shortcut ${hotkey}` : ''}`}
+            aria-keyshortcuts={hotkey || undefined}
             aria-current={active ? 'page' : undefined}
-            className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2.5 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
+            className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-1 ${
               active
                 ? 'bg-teal-50 text-teal-900 ring-1 ring-teal-100'
                 : 'text-slate-600 hover:bg-slate-50'
@@ -50,6 +54,14 @@ export default function WorkspaceRail({
               ) : null}
             </span>
             <span className="hidden sm:inline">{zone.shortLabel}</span>
+            {hotkey ? (
+              <kbd
+                className="hidden rounded border border-slate-200 bg-slate-50 px-1 font-sans text-ui-xs font-semibold tabular-nums text-slate-600 sm:inline"
+                aria-hidden
+              >
+                {hotkey}
+              </kbd>
+            ) : null}
           </button>
         );
       })}

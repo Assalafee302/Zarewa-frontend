@@ -11,11 +11,11 @@ function SampleChip({ label, sub, onClick, disabled }) {
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`max-w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-left text-ui-xs font-semibold text-slate-800 transition ${
+      className={`max-w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-left text-ui-xs font-semibold text-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 ${
         disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-teal-300 hover:bg-teal-50/40'
       }`}
     >
-      <span className="font-mono text-zarewa-teal">{label}</span>
+      <span className="font-mono text-slate-800">{label}</span>
       {sub ? <span className="block truncate text-ui-xs font-medium text-slate-500">{sub}</span> : null}
     </button>
   );
@@ -35,7 +35,7 @@ export function OperationsInventoryAttentionPanel({
   onOpenProductionTrace,
   onGoProcurement,
 }) {
-  const [open, setOpen] = useState(true);
+  const [expanded, setExpanded] = useState(null);
 
   const summary = useMemo(() => {
     if (!attention?.ok) return null;
@@ -57,20 +57,23 @@ export function OperationsInventoryAttentionPanel({
   const { stuck, invSignals, crossSignals, sp, ic, cm } = summary;
   const th = attention.thresholds || {};
   const hasAnything = stuck > 0 || invSignals > 0 || crossSignals > 0;
+  const open = expanded ?? hasAnything;
 
   if (import.meta.env.PROD && !hasAnything) return null;
 
   return (
-    <section className="rounded-xl border border-amber-200/90 bg-amber-50/35 overflow-hidden">
+    <section className="z-soft-panel overflow-hidden">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left sm:px-4"
+        onClick={() => setExpanded((v) => !(v ?? hasAnything))}
+        aria-expanded={open}
+        aria-controls="ops-attention-body"
+        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left sm:px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/25"
       >
         <div className="flex min-w-0 items-center gap-2">
-          <AlertTriangle size={16} className="shrink-0 text-amber-700" aria-hidden />
+          <AlertTriangle size={16} className="shrink-0 text-amber-800" aria-hidden />
           <div className="min-w-0">
-            <h3 className="text-xs font-black uppercase tracking-wide text-amber-950">
+            <h3 className="text-sm font-semibold tracking-tight text-[var(--z-text)]">
               Production and inventory attention
             </h3>
             <p className="text-ui-xs font-medium text-amber-900/80 truncate">
@@ -80,18 +83,22 @@ export function OperationsInventoryAttentionPanel({
             </p>
           </div>
         </div>
-        {open ? <ChevronUp size={16} className="shrink-0 text-amber-800" /> : <ChevronDown size={16} className="shrink-0 text-amber-800" />}
+        {open ? (
+          <ChevronUp size={16} className="shrink-0 text-amber-800" aria-hidden />
+        ) : (
+          <ChevronDown size={16} className="shrink-0 text-amber-800" aria-hidden />
+        )}
       </button>
 
       {open ? (
-        <div className="border-t border-amber-200/70 px-3 pb-3 sm:px-4 sm:pb-4 space-y-4">
+        <div id="ops-attention-body" className="border-t border-[var(--z-border)] px-3 pb-3 sm:px-4 sm:pb-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-lg border border-white/80 bg-white/90 p-3 shadow-sm">
-              <div className="flex items-center gap-1.5 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal">
+              <div className="flex items-center gap-1.5 text-ui-xs font-semibold text-zarewa-teal">
                 <Scissors size={12} aria-hidden />
                 Stuck or waiting jobs
               </div>
-              <p className="mt-1 text-2xl font-black tabular-nums text-amber-950">{stuck}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-[var(--z-text)]">{stuck}</p>
               <p className="mt-1 text-ui-xs leading-relaxed text-slate-600">
                 Distinct open jobs matching any of: no coil allocated, planned older than {th.stalePlannedDays} days,
                 running longer than {th.staleRunningDays} days on the line, open manager review, or pending coil spec
@@ -137,7 +144,7 @@ export function OperationsInventoryAttentionPanel({
             </div>
 
             <div className="rounded-lg border border-white/80 bg-white/90 p-3 shadow-sm">
-              <div className="flex items-center gap-1.5 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal">
+              <div className="flex items-center gap-1.5 text-ui-xs font-semibold text-zarewa-teal">
                 <Package size={12} aria-hidden />
                 Inventory chain
               </div>
@@ -162,7 +169,7 @@ export function OperationsInventoryAttentionPanel({
             </div>
 
             <div className="rounded-lg border border-white/80 bg-white/90 p-3 shadow-sm">
-              <div className="flex items-center gap-1.5 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal">
+              <div className="flex items-center gap-1.5 text-ui-xs font-semibold text-zarewa-teal">
                 <Link2 size={12} aria-hidden />
                 Procurement / logistics
               </div>
@@ -179,7 +186,7 @@ export function OperationsInventoryAttentionPanel({
               <button
                 type="button"
                 onClick={onGoProcurement}
-                className="mt-3 w-full rounded-lg border border-teal-200 bg-teal-50/80 py-1.5 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal hover:bg-teal-100"
+                className="mt-3 w-full cursor-pointer rounded-md border border-[var(--z-border)] bg-white py-1.5 text-ui-xs font-semibold text-zarewa-teal hover:bg-[var(--z-surface-muted)]"
               >
                 Open procurement
               </button>

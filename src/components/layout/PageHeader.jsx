@@ -31,9 +31,7 @@ export function PageHeader({
       <div className="flex min-w-0 flex-col gap-3">
         <div className="min-w-0 overflow-hidden">
           {eyebrow ? (
-            <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-              {eyebrow}
-            </p>
+            <p className="z-label-caps mb-1">{eyebrow}</p>
           ) : null}
           <h1 className="z-page-title">{a11yTitle}</h1>
           {subtitle ? <p className="z-page-subtitle">{subtitle}</p> : null}

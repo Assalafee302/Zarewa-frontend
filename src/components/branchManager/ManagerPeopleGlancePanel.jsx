@@ -49,7 +49,7 @@ function GlanceRow({ to, title, meta, tone = 'slate' }) {
         <p className="text-xs font-bold text-slate-900 truncate">{title}</p>
         {meta ? <p className="mt-0.5 text-ui-xs text-slate-500 truncate">{meta}</p> : null}
       </div>
-      <span className="shrink-0 text-ui-xs font-bold uppercase text-zarewa-teal/80">Open →</span>
+      <span className="shrink-0 text-ui-xs font-medium text-slate-600">Open</span>
     </Link>
   );
 }
@@ -57,14 +57,14 @@ function GlanceRow({ to, title, meta, tone = 'slate' }) {
 function SectionLabel({ icon: Icon, label, count, href }) {
   return (
     <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
-      <p className="flex items-center gap-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+      <p className="flex items-center gap-1.5 text-ui-xs font-medium text-slate-500">
         {Icon ? <Icon size={12} className="text-zarewa-teal" aria-hidden /> : null}
         {label}
         {count != null ? <span className="tabular-nums text-slate-400">({count})</span> : null}
       </p>
       {href ? (
-        <Link to={href} className="text-ui-xs font-bold uppercase text-zarewa-teal no-underline hover:underline">
-          Team HR →
+        <Link to={href} className="text-ui-xs font-medium text-slate-700 no-underline hover:underline">
+          Team HR
         </Link>
       ) : null}
     </div>
@@ -219,7 +219,7 @@ export function ManagerPeopleGlancePanel({
   if (!available) {
     return (
       <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 bg-white">
-        <h3 className="text-sm font-black text-zarewa-teal tracking-tight">People</h3>
+        <h3 className="text-sm font-semibold text-slate-900">People</h3>
         <p className="mt-2 rounded-lg border border-amber-100 bg-amber-50/80 px-2.5 py-2 text-ui-xs text-amber-900">
           Team HR glance unavailable — attendance / team-view permission missing. Not approximated.
         </p>
@@ -230,7 +230,7 @@ export function ManagerPeopleGlancePanel({
   if (!branchId) {
     return (
       <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-5 bg-white">
-        <h3 className="text-sm font-black text-zarewa-teal tracking-tight">People</h3>
+        <h3 className="text-sm font-semibold text-slate-900">People</h3>
         <p className="mt-2 text-xs text-slate-500">Select a branch to see attendance and team flags.</p>
       </FinanceSequencePanel>
     );
@@ -240,7 +240,7 @@ export function ManagerPeopleGlancePanel({
     <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 p-0 bg-white overflow-hidden">
       <div className="flex items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
         <div>
-          <h3 className="text-sm font-black text-zarewa-teal tracking-tight flex items-center gap-2">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             <Users size={16} aria-hidden />
             People
           </h3>
@@ -248,7 +248,7 @@ export function ManagerPeopleGlancePanel({
         </div>
         <Link
           to={TEAM_HR_ATTENDANCE_PATH}
-          className="text-ui-xs font-bold uppercase text-zarewa-teal no-underline hover:underline"
+          className="text-ui-xs font-medium text-slate-700 no-underline hover:underline"
         >
           My Team →
         </Link>
@@ -322,7 +322,7 @@ export function ManagerPeopleGlancePanel({
               {incidents.length + transfers.length > openFlags.length ? (
                 <Link
                   to={TEAM_HR_TRANSFERS}
-                  className="block px-3 py-2 text-ui-xs font-bold uppercase text-zarewa-teal no-underline hover:bg-slate-50"
+                  className="block px-3 py-2 text-ui-xs font-medium text-slate-700 no-underline hover:bg-slate-50"
                 >
                   View all in Team HR →
                 </Link>
@@ -331,7 +331,7 @@ export function ManagerPeopleGlancePanel({
           )}
 
           <div className="mx-3 mb-3 mt-2 rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2">
-            <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+            <p className="mb-1.5 text-ui-xs font-medium text-slate-500">
               Open WO assignments ({workload.reduce((s, w) => s + w.count, 0)})
             </p>
             {workload.length === 0 ? (
@@ -341,7 +341,7 @@ export function ManagerPeopleGlancePanel({
                 {workload.slice(0, 6).map((w) => (
                   <li key={w.userId || w.name} className="flex justify-between gap-2 text-ui-xs">
                     <span className="font-semibold text-slate-800 truncate">{w.name} <span className="font-normal text-slate-400">· {w.attendance || 'not marked'}</span></span>
-                    <span className="tabular-nums font-black text-zarewa-teal">{w.count}</span>
+                    <span className="z-stencil tabular-nums text-slate-800">{w.count}</span>
                   </li>
                 ))}
               </ul>

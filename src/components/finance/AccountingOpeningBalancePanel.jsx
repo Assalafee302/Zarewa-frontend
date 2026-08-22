@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Plus, RefreshCw, Trash2, XCircle } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
+import { withIdempotencyHeaders } from '../../lib/idempotency';
 import { formatNgn } from '../../Data/mockData';
 import {
   AccountingDeskKpiCard,
@@ -157,14 +158,20 @@ export function AccountingOpeningBalancePanel({
     setBusy(true);
     try {
       const cap = Math.round(Number(String(capitalNgn).replace(/,/g, '')) || 0);
-      const res = await apiFetch('/api/finance/opening-pack/post', {
-        method: 'POST',
-        body: JSON.stringify({
-          capitalNgn: cap || undefined,
-          inventoryPeriodKey: pack.inventoryPeriodKey,
-          branchId: ws.branchScope || ws.session?.currentBranchId || undefined,
-        }),
-      });
+      const res = await apiFetch(
+        '/api/finance/opening-pack/post',
+        withIdempotencyHeaders(
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              capitalNgn: cap || undefined,
+              inventoryPeriodKey: pack.inventoryPeriodKey,
+              branchId: ws.branchScope || ws.session?.currentBranchId || undefined,
+            }),
+          },
+          'opening_pack'
+        )
+      );
       if (!res.ok || !res.data?.ok) {
         showToast?.(res.data?.error || 'Could not post opening pack.', { variant: 'error' });
         return;
@@ -202,10 +209,10 @@ export function AccountingOpeningBalancePanel({
           }))
           .filter((l) => l.accountCode && (l.debitNgn > 0 || l.creditNgn > 0)),
       };
-      const res = await apiFetch('/api/finance/opening-balance', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      const res = await apiFetch(
+        '/api/finance/opening-balance',
+        withIdempotencyHeaders({ method: 'POST', body: JSON.stringify(payload) }, 'opening_balance')
+      );
       if (!res.ok || !res.data?.ok) {
         showToast?.(res.data?.error || 'Could not post opening balance.', { variant: 'error' });
         return;
@@ -436,7 +443,7 @@ export function AccountingOpeningBalancePanel({
                     </thead>
                     <tbody>
                       {(proposed?.lines || []).map((l, i) => (
-                        <tr key={i} className="border-b border-slate-50">
+                        <tr key={`${l.accountCode || 'acct'}-${i}-${l.memo || ''}`} className="border-b border-slate-50">
                           <td className="px-4 py-2 font-mono font-semibold">{l.accountCode}</td>
                           <td className="px-4 py-2 text-slate-600">{l.memo}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{l.debitNgn ? formatNgn(l.debitNgn) : '—'}</td>

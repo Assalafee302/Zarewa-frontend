@@ -78,7 +78,7 @@ export function StockRegisterProcurementModal({
   };
 
   return (
-    <ModalFrame isOpen={open} onClose={onClose} showCloseButton={false} surface="plain" title="Procurement costing">
+    <ModalFrame isOpen={open} onClose={onClose} surface="plain" title="Procurement costing" showCloseButton={false}>
       <div className="z-modal-panel-lg flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
           <div>

@@ -60,7 +60,7 @@ import {
 } from '../../components/profile/profileOverviewUi';
 
 const CARD_ROW =
-  'group relative flex min-w-0 cursor-pointer items-center gap-3 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-3 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-zarewa-teal/25 hover:shadow-md sm:px-4';
+  'group relative flex min-w-0 cursor-pointer items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-3 transition-colors hover:bg-slate-50 sm:px-4';
 
 const ALERT_FILTER_OPTIONS = [
   { id: 'all', label: 'All alerts' },
@@ -474,10 +474,10 @@ function DashboardViewBar({ value, onChange }) {
           role="tab"
           aria-selected={value === opt.id}
           onClick={() => onChange(opt.id)}
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+          className={`inline-flex items-center gap-1.5 rounded-sm border px-3 py-1.5 text-xs font-medium transition-colors ${
             value === opt.id
-              ? 'border-zarewa-teal/30 bg-zarewa-teal text-white'
-              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              ? 'border-zarewa-teal bg-zarewa-teal text-white'
+              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
           }`}
         >
           {opt.label}

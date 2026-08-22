@@ -1,5 +1,6 @@
 import React from 'react';
 import { Activity } from 'lucide-react';
+import { COMMAND_HERO_CARD, COMMAND_SECTION_EYEBROW } from '../../lib/execPageUi';
 
 const TONE = {
   green: 'border-emerald-200/80 bg-emerald-50/80 text-emerald-900',
@@ -11,28 +12,30 @@ function PulseCard({ label, detail, status, estimated }) {
   const tone = TONE[status] || TONE.amber;
   return (
     <div className={`rounded-lg border px-3 py-2.5 min-w-0 ${tone}`}>
-      <p className="text-ui-xs font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1">
+      <p className="text-ui-xs font-semibold uppercase tracking-wide text-[var(--z-text-muted)] flex items-center gap-1">
         {label}
         {estimated ? (
-          <span className="rounded px-1 py-0.5 text-[7px] bg-white/70 border border-slate-200/80">Est.</span>
+          <span className="rounded px-1 py-0.5 text-[7px] bg-white/70 border border-[var(--z-border-subtle)]">
+            Est.
+          </span>
         ) : null}
       </p>
-      <p className="mt-1 text-xs font-bold leading-snug text-slate-900 truncate">{detail}</p>
+      <p className="mt-1 text-xs font-bold leading-snug text-[var(--z-text)] truncate">{detail}</p>
     </div>
   );
 }
 
 /**
- * Five-pulse health strip — Sales section framing.
+ * Five-pulse health strip — executive overview shell.
  */
 export function ExecPulseBar({ pulses, formatNgn, loading }) {
   if (loading && !pulses) {
     return (
-      <section className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden mb-6">
-        <div className="h-1 bg-zarewa-teal" aria-hidden />
+      <section className={`${COMMAND_HERO_CARD} mb-6 overflow-hidden`}>
+        <div className="h-1 rounded-t-xl bg-zarewa-teal" aria-hidden />
         <div className="p-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-14 rounded-lg bg-slate-100 animate-pulse" />
+            <div key={i} className="h-14 rounded-lg bg-[var(--z-surface-muted)] animate-pulse" />
           ))}
         </div>
       </section>
@@ -41,11 +44,11 @@ export function ExecPulseBar({ pulses, formatNgn, loading }) {
 
   const p = pulses || {};
   return (
-    <section className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden mb-6">
-      <div className="h-1 bg-zarewa-teal" aria-hidden />
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+    <section className={`${COMMAND_HERO_CARD} mb-6 overflow-hidden`}>
+      <div className="h-1 rounded-t-xl bg-zarewa-teal" aria-hidden />
+      <div className="flex items-center gap-2 border-b border-[var(--z-border-subtle)] px-4 py-3">
         <Activity size={14} className="text-zarewa-teal shrink-0" strokeWidth={2} />
-        <p className="text-ui-xs font-semibold uppercase tracking-widest text-slate-500">Company pulses</p>
+        <p className={COMMAND_SECTION_EYEBROW}>Company pulses</p>
       </div>
       <div className="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2" aria-label="Company pulses">
         <PulseCard

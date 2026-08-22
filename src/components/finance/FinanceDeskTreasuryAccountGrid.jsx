@@ -27,7 +27,7 @@ export function FinanceDeskTreasuryAccountGrid({
   balanceByAccountId,
   onGoToTab,
   onAccountClick,
-  cardActionLabel,
+  cardActionLabel = 'Open account',
   nextActionSummary,
 }) {
   if (!accounts.length) {
@@ -35,12 +35,12 @@ export function FinanceDeskTreasuryAccountGrid({
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-5 py-10 text-center">
         <p className="text-xs font-bold uppercase tracking-widest text-slate-400">No treasury accounts</p>
         <p className="text-xs text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
-          Register branch bank or till accounts on the Treasury tab.
+          Register branch bank or till accounts from Finance desk, or ask your supervisor.
         </p>
         {onGoToTab ? (
           <div className="mt-3">
-            <FinanceActionButton variant="link" onClick={() => onGoToTab('treasury')}>
-              Open treasury
+            <FinanceActionButton variant="link" onClick={() => onGoToTab('movements')}>
+              Record transfer
             </FinanceActionButton>
           </div>
         ) : null}
@@ -51,13 +51,13 @@ export function FinanceDeskTreasuryAccountGrid({
   return (
     <section id="desk-accounts" className="space-y-3 scroll-mt-20">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-black text-slate-800">
-          <Landmark size={16} className="text-teal-700" />
-          Branch treasury accounts
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <Landmark size={16} className="text-teal-700" aria-hidden />
+          Till and bank accounts
         </h2>
         {onGoToTab && !onAccountClick ? (
-          <FinanceActionButton variant="link" onClick={() => onGoToTab('treasury')}>
-            Manage on treasury
+          <FinanceActionButton variant="link" onClick={() => onGoToTab('movements')}>
+            Record transfer
           </FinanceActionButton>
         ) : null}
       </div>
@@ -84,9 +84,10 @@ export function FinanceDeskTreasuryAccountGrid({
             >
               <button
                 type="button"
+                aria-label={`${cardActionLabel}: ${acc.name || 'account'}`}
                 onClick={() => {
                   if (onAccountClick) onAccountClick(acc);
-                  else onGoToTab?.('treasury');
+                  else onGoToTab?.('movements');
                 }}
                 className="text-left p-2.5 flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zarewa-teal/30 rounded-xl min-w-0"
               >

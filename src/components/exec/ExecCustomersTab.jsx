@@ -156,7 +156,41 @@ export function ExecCustomersTab({
             </div>
           }
         >
-          <div className="overflow-x-auto">
+          {filtered.length === 0 && !busy ? (
+            <p className="py-6 text-center text-sm text-slate-500 md:hidden">No customers match this filter.</p>
+          ) : (
+            <ul className="space-y-3 md:hidden">
+              {filtered.map((c) => (
+                <li key={c.customerId}>
+                  <article className="rounded-md border border-slate-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-slate-900">{c.customerName}</p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      {c.segmentLabel}
+                      {c.primaryAgingBand ? ` · ${c.primaryAgingBand}` : ''}
+                    </p>
+                    <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <dt className="text-ui-xs text-slate-500">Collected</dt>
+                        <dd className="tabular-nums font-semibold">{formatNgn(c.netCollectedNgn ?? 0)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-ui-xs text-slate-500">Outstanding</dt>
+                        <dd className="tabular-nums">{c.debtNgn > 0 ? formatNgn(c.debtNgn) : '—'}</dd>
+                      </div>
+                    </dl>
+                    <button
+                      type="button"
+                      onClick={() => onSelectCustomer?.(c)}
+                      className="mt-3 min-h-9 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-zarewa-teal"
+                    >
+                      View
+                    </button>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-xs min-w-[880px]">
               <thead>
                 <tr className="border-b text-ui-xs font-black uppercase text-slate-500">

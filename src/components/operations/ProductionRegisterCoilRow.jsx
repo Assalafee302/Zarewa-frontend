@@ -1,15 +1,20 @@
 import React, { memo, useCallback, useMemo } from 'react';
 import { AlertTriangle, CircleHelp, Trash2 } from 'lucide-react';
 import { draftRowConversionPreviewReady } from '../../lib/productionRegisterCoilDraft';
+import { PROD_REG } from '../../lib/productionRegisterUi';
+import { Input, Select, FieldLabel } from '../ui/Input';
 
 function formatKg(value) {
   const next = Number(value);
   return Number.isFinite(next) ? `${Math.round(next)} kg` : '—';
 }
 
+const coilInputClass =
+  'z-stencil text-xs font-bold tabular-nums text-zarewa-teal sm:py-1.5 sm:text-xs';
+
 /**
- * Coil `<select>` with recommended / other optgroups — pattern unchanged, memoized so
- * typing in kg/metres fields on other rows does not rebuild every `<option>`.
+ * Coil `<select>` with recommended / other optgroups — memoized so typing in other rows
+ * does not rebuild every `<option>`.
  */
 const ProductionRegisterCoilSelect = memo(function ProductionRegisterCoilSelect({
   rowId,
@@ -32,14 +37,15 @@ const ProductionRegisterCoilSelect = memo(function ProductionRegisterCoilSelect(
   );
 
   return (
-    <select
+    <Select
+      size="compact"
       disabled={disabled}
       title={title}
       value={value}
       onChange={handleChange}
-      className="min-h-11 w-full min-w-0 max-w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-xs font-bold text-zarewa-teal outline-none transition-all focus:border-zarewa-teal/40 focus:ring-1 focus:ring-zarewa-teal/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+      className={`${coilInputClass} font-semibold`}
     >
-      <option value="">Select coil...</option>
+      <option value="">Select coil…</option>
       {recommendedOptions.length > 0 ? (
         <optgroup label="Recommended (matches quotation)">
           {recommendedOptions.map((opt) => (
@@ -58,7 +64,7 @@ const ProductionRegisterCoilSelect = memo(function ProductionRegisterCoilSelect(
           ))}
         </optgroup>
       ) : null}
-    </select>
+    </Select>
   );
 });
 
@@ -105,54 +111,54 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
         String(row.note ?? '').trim()
     );
 
+  const rowBorder = hasUnsavedCoilData
+    ? PROD_REG.coilRowUnsaved
+    : draftRowConversionPreviewReady(row)
+      ? PROD_REG.coilRowPreviewReady
+      : PROD_REG.coilRowBorder;
+
   return (
-    <div
-      className={`rounded-xl border bg-gradient-to-b from-white to-slate-50/40 shadow-sm ${
-        inModal ? 'p-1.5' : 'p-2'
-      } ${
-        hasUnsavedCoilData
-          ? 'border-amber-300/90 ring-2 ring-amber-200/80'
-          : 'border-slate-200/90'
-      } ${draftRowConversionPreviewReady(row) ? 'ring-1 ring-teal-400/35' : ''}`}
-    >
+    <div className={`${inModal ? PROD_REG.coilRowInModal : PROD_REG.coilRow} ${inModal ? '' : 'p-2.5 sm:p-3'} ${rowBorder}`}>
       {hasUnsavedCoilData ? (
         <p
-          className="mb-1.5 flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-ui-xs font-semibold text-amber-950"
+          className="mb-2 flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-ui-xs font-semibold text-amber-950"
           title={
             jobSt === 'Planned'
               ? 'Not saved yet — use Save and start production.'
               : 'Not saved yet — use Save while running.'
           }
         >
-          <AlertTriangle size={12} className="shrink-0" aria-hidden />
-          <span>Unsaved</span>
+          <AlertTriangle size={13} className="shrink-0" aria-hidden />
+          Unsaved — save before completing
         </p>
       ) : null}
+
       <div
-        className={`min-w-0 flex flex-col gap-2 pb-1 lg:grid lg:items-end lg:gap-x-2 lg:overflow-visible lg:pb-0 ${
+        className={`min-w-0 flex flex-col gap-2 pb-0.5 lg:overflow-visible ${
           inModal
-            ? 'lg:grid-cols-[1.25rem_3.25rem_minmax(0,1fr)_minmax(3.25rem,1fr)_minmax(3.25rem,1fr)_minmax(3.25rem,1fr)_minmax(0,1fr)_2.25rem_2rem] lg:gap-x-1.5'
-            : 'lg:grid-cols-[2rem_4rem_minmax(0,1.1fr)_4rem_4rem_4rem_minmax(0,1fr)_2.75rem_2rem]'
+            ? PROD_REG.coilGridRowModal
+            : 'lg:grid lg:items-end lg:gap-x-2 lg:grid-cols-[2rem_4rem_minmax(0,1.1fr)_4rem_4rem_4rem_minmax(0,1fr)_2.75rem_2rem]'
         }`}
       >
         {inModal ? (
           <span
-            className="shrink-0 self-end pb-1 text-right text-xs font-bold tabular-nums text-slate-600 lg:pb-1.5"
+            className="z-stencil shrink-0 self-end pb-1 text-right text-xs font-bold tabular-nums text-[var(--z-text-muted)] lg:pb-1.5"
             title={`Row ${index + 1}`}
           >
             {index + 1}
           </span>
         ) : (
           <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zarewa-teal text-ui-xs font-black text-white lg:h-7 lg:w-7"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zarewa-teal text-ui-xs font-black text-white shadow-sm lg:h-7 lg:w-7"
             title={`Coil line ${index + 1}`}
           >
             {index + 1}
           </span>
         )}
+
         {lot ? (
           <span
-            className="max-w-full truncate text-ui-xs leading-tight text-slate-500 lg:max-w-[4.5rem] lg:shrink-0"
+            className="max-w-full truncate text-ui-xs leading-tight text-[var(--z-text-muted)] lg:max-w-[4.5rem] lg:shrink-0 lg:pb-1.5"
             title={
               lotMat
                 ? `${lot.productID} · ${lotMat} · free ${formatKg(freeKg)}`
@@ -164,10 +170,9 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
         ) : (
           <span className="hidden min-w-0 lg:block" aria-hidden />
         )}
-        <div className="flex min-w-0 flex-1 flex-col gap-px">
-          <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-            Coil
-          </label>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <FieldLabel className="lg:sr-only">Coil</FieldLabel>
           <ProductionRegisterCoilSelect
             rowId={row.id}
             value={row.coilNo}
@@ -181,75 +186,73 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
         </div>
 
         <div className="grid min-w-0 grid-cols-3 gap-2 lg:contents">
-          <div className="flex min-w-0 flex-col gap-px lg:w-[4.25rem] lg:shrink-0">
-            <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-              Open kg
-            </label>
-            <input
+          <div className="flex min-w-0 flex-col gap-1 lg:w-[4.25rem] lg:shrink-0">
+            <FieldLabel className="lg:sr-only">Open kg</FieldLabel>
+            <Input
               type="number"
               min="0"
               step="1"
               inputMode="numeric"
+              size="compact"
               disabled={!canPickCoilAndOpening}
               value={row.openingWeightKg}
               onChange={(e) => onFieldChange(row.id, { openingWeightKg: e.target.value })}
               title="Whole kg only"
-              className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-zarewa-teal outline-none transition-all focus:border-zarewa-teal/40 focus:ring-1 focus:ring-zarewa-teal/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+              className={coilInputClass}
             />
           </div>
 
-          <div className="flex min-w-0 flex-col gap-px lg:w-[4.25rem] lg:shrink-0">
-            <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-              Close kg
-            </label>
-            <input
+          <div className="flex min-w-0 flex-col gap-1 lg:w-[4.25rem] lg:shrink-0">
+            <FieldLabel className="lg:sr-only">Close kg</FieldLabel>
+            <Input
               type="number"
               min="0"
               step="1"
               inputMode="numeric"
+              size="compact"
               disabled={!(canCaptureRun || canEditCompletedCoilCorrections)}
               value={row.closingWeightKg}
               onChange={(e) => onFieldChange(row.id, { closingWeightKg: e.target.value })}
               title="Whole kg only"
-              className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-zarewa-teal outline-none transition-all focus:border-zarewa-teal/40 focus:ring-1 focus:ring-zarewa-teal/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+              className={coilInputClass}
             />
           </div>
 
-          <div className="flex min-w-0 flex-col gap-px lg:w-[4.25rem] lg:shrink-0">
-            <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-              Metres
-            </label>
-            <input
+          <div className="flex min-w-0 flex-col gap-1 lg:w-[4.25rem] lg:shrink-0">
+            <FieldLabel className="lg:sr-only">Metres</FieldLabel>
+            <Input
               type="number"
               min="0"
               step="0.01"
+              size="compact"
               disabled={!(canCaptureRun || canEditCompletedCoilCorrections)}
               value={row.metersProduced}
               onChange={(e) => onFieldChange(row.id, { metersProduced: e.target.value })}
-              className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-zarewa-teal outline-none transition-all focus:border-zarewa-teal/40 focus:ring-1 focus:ring-zarewa-teal/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+              className={coilInputClass}
             />
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-px">
-          <label className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-            Note <span className="font-medium normal-case tracking-normal text-slate-400">(opt.)</span>
-          </label>
-          <input
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <FieldLabel className="lg:sr-only">
+            Note <span className="font-normal normal-case tracking-normal text-[var(--z-text-muted)]">(optional)</span>
+          </FieldLabel>
+          <Input
             type="text"
+            size="compact"
             value={row.note}
             onChange={(e) => onFieldChange(row.id, { note: e.target.value })}
             disabled={(readOnly && !canEditCompletedCoilCorrections) || (jobSt === 'Running' && !draftRow && !canCaptureRun)}
-            placeholder="Optional"
-            className="min-h-10 min-w-0 w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-xs font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-1 focus:ring-slate-200/80 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+            placeholder="Optional note"
+            className="text-xs font-medium sm:py-1.5"
           />
         </div>
 
-        <div className="flex w-full flex-col gap-px text-center lg:w-[3.25rem] lg:shrink-0">
-          <span className="whitespace-nowrap text-ui-xs font-bold uppercase tracking-wide text-teal-800/90">
+        <div className="flex w-full flex-col gap-0.5 text-center lg:w-[3.25rem] lg:shrink-0">
+          <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wide text-zarewa-teal/90 lg:sr-only">
             Used
           </span>
-          <span className="text-xs font-black tabular-nums leading-none text-zarewa-teal">
+          <span className="z-stencil text-sm font-black tabular-nums leading-none text-zarewa-teal">
             {Number(row.openingWeightKg) >= Number(row.closingWeightKg || 0) && row.closingWeightKg !== ''
               ? formatKg(Number(row.openingWeightKg) - Number(row.closingWeightKg || 0))
               : '—'}
@@ -260,7 +263,7 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
           <button
             type="button"
             onClick={() => onRemove(row.id)}
-            className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center self-end rounded-md border border-transparent p-2 text-slate-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 lg:mb-px lg:min-h-0 lg:min-w-0 lg:self-auto lg:p-1"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center self-end rounded-lg border border-transparent text-[var(--z-text-muted)] transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 lg:mb-px lg:min-h-0 lg:min-w-0 lg:self-auto lg:p-1.5"
             aria-label="Remove coil row"
             title={
               draftRow
@@ -272,7 +275,7 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
                     : 'Remove coil line'
             }
           >
-            <Trash2 size={14} />
+            <Trash2 size={16} />
           </button>
         ) : null}
       </div>
@@ -284,19 +287,19 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
       Number(row.closingWeightKg) >= 0 &&
       Number(row.closingWeightKg) < coilTailFinishMaxKg &&
       Number(row.closingWeightKg) <= Number(row.openingWeightKg)) ? (
-        <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md border border-amber-200/90 bg-amber-50/80 px-2 py-2 text-xs font-medium text-amber-950">
+        <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-lg border border-amber-200/90 bg-amber-50/80 px-3 py-2.5 text-xs font-medium text-amber-950">
           <input
             type="checkbox"
             checked={Boolean(row.finishCoil)}
             disabled={Boolean(finishCoilLocked)}
             onChange={(e) => onFieldChange(row.id, { finishCoil: e.target.checked })}
-            className="h-[1.125rem] w-[1.125rem] shrink-0 rounded border-amber-400 text-zarewa-teal focus:ring-2 focus:ring-zarewa-teal/30 disabled:opacity-60"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-amber-400 text-zarewa-teal focus:ring-2 focus:ring-zarewa-teal/30 disabled:opacity-60"
           />
           <span className="min-w-0 flex-1 leading-snug">
             <strong className="font-semibold">Finish roll</strong>
-            <span className="text-amber-900/90"> (&lt;{coilTailFinishMaxKg} kg)</span>
+            <span className="text-amber-900/90"> (&lt;{coilTailFinishMaxKg} kg tail)</span>
             {jobSt === 'Completed' && Number(row.finishCoilTailKg) > 0.05 ? (
-              <span className="mt-0.5 block text-[10px] font-semibold text-amber-900/80">
+              <span className="mt-1 block text-[10px] font-semibold text-amber-900/80">
                 {canUndoFinishRoll
                   ? 'Uncheck to restore the cleared tail (branch manager confirm on Save).'
                   : 'Checked on book — ask a branch manager to uncheck and confirm restore.'}
@@ -315,15 +318,15 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
       ) : null}
 
       {row.specMismatch || specWarn ? (
-        <div className="mt-1 space-y-1 border-t border-slate-100/80 pt-1">
+        <div className="mt-2 space-y-1.5 border-t border-[var(--z-border-subtle)] pt-2">
           {row.specMismatch ? (
-            <p className="flex items-start gap-1 rounded border border-amber-300 bg-amber-100/90 px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide text-amber-950">
+            <p className="flex items-start gap-1.5 rounded-lg border border-amber-300 bg-amber-100/90 px-2.5 py-1 text-ui-xs font-bold uppercase tracking-wide text-amber-950">
               <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
               Saved as spec exception — manager review
             </p>
           ) : null}
           {specWarn ? (
-            <p className="flex items-start gap-1 rounded border border-amber-200 bg-amber-50/90 px-2 py-0.5 text-ui-xs font-semibold text-amber-950">
+            <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50/90 px-2.5 py-1 text-ui-xs font-semibold text-amber-950">
               <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
               {specWarn}
             </p>

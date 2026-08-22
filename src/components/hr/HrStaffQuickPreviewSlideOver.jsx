@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { SlideOverPanel } from '../layout';
-import { contractBadge, docExpiryBadge, probationBadge, profilePct, profilePctBadge, resolveBranchLabel } from '../../lib/hrStaffDirectoryUi';
+import { contractBadge, docExpiryBadge, probationBadge, profilePct, profilePctBadge, resolveBranchLabel, STAFF_CHIP } from '../../lib/hrStaffDirectoryUi';
 import { payrollGroupLabel } from '../../lib/hrFormat';
 import { HrStaffAvatar } from './HrStaffAvatar';
 import { HrStatusBadge } from './HrStatusBadge';
@@ -38,7 +38,7 @@ export function HrStaffQuickPreviewSlideOver({
     <SlideOverPanel isOpen={isOpen} onClose={onClose} title="Staff preview" description="Quick staff summary" maxWidthClass="max-w-md">
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
-          <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">Staff preview</p>
+          <p className="text-ui-xs font-medium text-slate-500">Staff preview</p>
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50" aria-label="Close">
             <X size={16} />
           </button>
@@ -48,7 +48,8 @@ export function HrStaffQuickPreviewSlideOver({
           <div className="flex items-center gap-3">
             <HrStaffAvatar staff={row} size="lg" />
             <div className="min-w-0">
-              <h2 className="truncate text-base font-black text-zarewa-teal">{row.displayName || row.userId}</h2>
+              <h2 className="truncate text-base font-semibold text-slate-900">{row.displayName || row.userId}</h2>
+              {row.employeeNo ? <p className="z-stencil text-xs text-slate-700">{row.employeeNo}</p> : null}
               <p className="text-xs text-slate-600">{row.jobTitle || '—'}</p>
               <HrStatusBadge status={row.status} variant="staff" className="mt-1" />
             </div>
@@ -56,16 +57,16 @@ export function HrStaffQuickPreviewSlideOver({
 
           <div className="flex flex-wrap gap-1">
             {probation ? (
-              <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${probation.cls}`}>{probation.label}</span>
+              <span className={`${STAFF_CHIP} ${probation.cls}`}>{probation.label}</span>
             ) : null}
             {contract ? (
-              <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${contract.cls}`}>{contract.label}</span>
+              <span className={`${STAFF_CHIP} ${contract.cls}`}>{contract.label}</span>
             ) : null}
             {doc ? (
-              <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${doc.cls}`}>{doc.label}</span>
+              <span className={`${STAFF_CHIP} ${doc.cls}`}>{doc.label}</span>
             ) : null}
             {pct < 90 ? (
-              <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${pctBadge.cls}`}>
+              <span className={`${STAFF_CHIP} ${pctBadge.cls}`}>
                 Profile {pctBadge.label}
               </span>
             ) : null}
@@ -82,8 +83,8 @@ export function HrStaffQuickPreviewSlideOver({
               ['Profile complete', `${pct}%`],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between gap-3 border-b border-slate-100 py-1">
-                <dt className="font-bold text-slate-500">{label}</dt>
-                <dd className="text-right font-medium">{value || '—'}</dd>
+                <dt className="font-medium text-slate-500">{label}</dt>
+                <dd className={`text-right font-medium ${label === 'Employee no.' ? 'z-stencil text-slate-800' : ''}`}>{value || '—'}</dd>
               </div>
             ))}
           </dl>

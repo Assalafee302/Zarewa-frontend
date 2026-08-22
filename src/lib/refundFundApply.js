@@ -8,6 +8,11 @@ export const REFUND_FUND_USE_LABEL = 'Use from refund fund';
 export const REFUND_FUND_DEDUCTED_LABEL = 'Deducted from refund fund';
 export const REFUND_FUND_CASHIER_OFFSET_LABEL = 'Use approved refund on this receipt';
 
+export function refundCreditApplicationIsActive(app) {
+  const s = String(app?.status || '').trim().toLowerCase();
+  return s !== 'reversed' && s !== 'cancelled';
+}
+
 function roundNgn(n) {
   return Math.max(0, Math.round(Number(n) || 0));
 }
@@ -104,6 +109,7 @@ export function refundFundAppliedByQuotationRef({
   };
 
   for (const a of applications || []) {
+    if (!refundCreditApplicationIsActive(a)) continue;
     const row = ensure(applicationTargetRef(a));
     if (!row) continue;
     row.origin = 'applications';

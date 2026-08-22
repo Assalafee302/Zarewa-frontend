@@ -100,6 +100,11 @@ export function printProductionFollowUpList({ rows, quotations = [], title }) {
 
   const w = window.open('', '_blank');
   if (!w) return false;
+  try {
+    w.opener = null;
+  } catch {
+    /* ignore */
+  }
 
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${escapeHtml(docTitle)}</title>
 <style>

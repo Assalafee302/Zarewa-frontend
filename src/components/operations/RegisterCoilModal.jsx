@@ -161,7 +161,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
   };
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose}>
+    <ModalFrame isOpen={isOpen} onClose={onClose} showCloseButton={false}>
       <div className="z-modal-panel max-w-lg p-6 sm:p-8 overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold text-zarewa-teal">Register coil</h3>

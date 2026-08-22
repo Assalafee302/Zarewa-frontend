@@ -256,8 +256,7 @@ export default function CoilDamageRecordModal({
       onClose={() => !saving && (savedResult ? handleDone() : onClose())}
       title={`Record ${incidentTypeLabel(activeIncidentType).toLowerCase()}`}
       surface="plain"
-      showCloseButton={false}
-    >
+      showCloseButton={false}>
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-xl max-h-[min(90dvh,880px)] flex flex-col overflow-hidden">
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 shrink-0">
           <div>

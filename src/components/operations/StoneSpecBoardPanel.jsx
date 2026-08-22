@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Layers } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   buildStoneSpecBoardRows,
   buildTransitMByStoneSpec,
@@ -8,9 +8,13 @@ import {
   DEFAULT_STONE_RESTOCK_MIN_M,
 } from '../../lib/storeStoneSpecAggregate';
 import { buildMetresBySpec, pickStoreHeroes, STORE_HERO_PERIODS } from '../../lib/storeHeroEngine';
+import { GaugeStamp } from '../ui/MillColourChip.jsx';
+import { SpecBoardCount, SpecBoardFilterChip, SpecHeroRank } from './SpecBoardChrome.jsx';
+
+const FILTERS = ['all', 'below_min', 'heroes'];
 
 /**
- * On-hand Stone Spec board — Design × Colour × Gauge (metres).
+ * On-hand stone rack — design × colour × gauge in metres.
  */
 export function StoneSpecBoardPanel({
   products = [],
@@ -25,13 +29,15 @@ export function StoneSpecBoardPanel({
   onOpenSku,
 }) {
   const [filter, setFilter] = useState(
-    /** @type {'all'|'below_min'|'heroes'} */ (
-      ['all', 'below_min', 'heroes'].includes(initialFilter) ? initialFilter : 'all'
-    )
+    /** @type {'all'|'below_min'|'heroes'} */ (FILTERS.includes(initialFilter) ? initialFilter : 'all')
   );
   const [period, setPeriod] = useState(/** @type {'quarter'|'half_year'|'year'} */ ('quarter'));
   const [query, setQuery] = useState('');
   const [expandedKey, setExpandedKey] = useState('');
+
+  useEffect(() => {
+    if (FILTERS.includes(initialFilter)) setFilter(initialFilter);
+  }, [initialFilter]);
 
   const transitBySpec = useMemo(
     () => buildTransitMByStoneSpec(transitPurchaseOrders, masterData, isReceivablePo),
@@ -78,65 +84,50 @@ export function StoneSpecBoardPanel({
 
   const summary = useMemo(() => summarizeStoneSpecBoard(allRows), [allRows]);
 
-  const chip = (id, label, active, onClick) => (
-    <button
-      key={id}
-      type="button"
-      onClick={onClick}
-      className={`rounded-md px-2 py-1 text-ui-xs font-bold uppercase tracking-wide transition ${
-        active
-          ? 'bg-zarewa-teal text-white'
-          : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-      }`}
-    >
-      {label}
-    </button>
-  );
-
   return (
-    <div className="rounded-xl border border-slate-200/90 bg-white overflow-hidden mb-3">
-      <header className="border-b border-slate-100 bg-slate-50/90 px-3 py-2.5 sm:px-4">
+    <div className="rounded-md border border-slate-200 bg-white overflow-hidden mb-3" data-testid="ops-stone-spec-board">
+      <header className="border-b border-slate-200 px-3 py-2.5 sm:px-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="text-xs font-black uppercase tracking-widest text-zarewa-teal flex items-center gap-1.5">
-              <Layers size={14} aria-hidden />
-              Stone Spec board
-            </h3>
-            <p className="mt-0.5 text-ui-xs font-medium text-slate-500">
-              Design · Colour · Gauge · free m. Heroes = top metres ({period.replace('_', '-')}). Min{' '}
-              {restockMinM.toLocaleString()} m includes in-transit.
+            <h3 className="text-sm font-semibold text-slate-900">Stone colour × gauge</h3>
+            <p className="mt-0.5 text-ui-xs text-slate-500">
+              Free metres on the rack. In-transit counts toward the restock min ({restockMinM.toLocaleString()} m).
+              Most produced uses {period.replace('_', '-')} metres.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 text-ui-xs font-semibold tabular-nums">
-            <span className="rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-700">
-              {summary.specCount} specs
-            </span>
-            <span className="rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-teal-950">
-              {heroPack.heroes.length} heroes
-            </span>
-            <span
-              className={`rounded-md border px-2 py-1 ${
-                summary.belowMinCount
-                  ? 'border-amber-200 bg-amber-50 text-amber-950'
-                  : 'border-slate-200 bg-white text-slate-700'
-              }`}
-            >
+          <div className="flex flex-wrap gap-1.5">
+            <SpecBoardCount>{summary.specCount} specs</SpecBoardCount>
+            <SpecBoardCount>{heroPack.heroes.length} most produced</SpecBoardCount>
+            <SpecBoardCount tone={summary.belowMinCount ? 'warn' : 'default'}>
               {summary.belowMinCount} below min
-            </span>
+            </SpecBoardCount>
           </div>
         </div>
 
         <div className="mt-2 flex flex-wrap gap-1">
-          {STORE_HERO_PERIODS.map((p) =>
-            chip(p.id, p.label, period === p.id, () => setPeriod(/** @type {any} */ (p.id)))
-          )}
+          {STORE_HERO_PERIODS.map((p) => (
+            <SpecBoardFilterChip
+              key={p.id}
+              label={p.label}
+              active={period === p.id}
+              onClick={() => setPeriod(/** @type {any} */ (p.id))}
+            />
+          ))}
         </div>
 
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-1">
-            {chip('f-all', 'Any', filter === 'all', () => setFilter('all'))}
-            {chip('f-heroes', 'Heroes', filter === 'heroes', () => setFilter('heroes'))}
-            {chip('f-min', 'Below min', filter === 'below_min', () => setFilter('below_min'))}
+            <SpecBoardFilterChip label="Any" active={filter === 'all'} onClick={() => setFilter('all')} />
+            <SpecBoardFilterChip
+              label="Most produced"
+              active={filter === 'heroes'}
+              onClick={() => setFilter('heroes')}
+            />
+            <SpecBoardFilterChip
+              label="Below min"
+              active={filter === 'below_min'}
+              onClick={() => setFilter('below_min')}
+            />
           </div>
           <label className="relative min-w-0 w-full sm:max-w-xs">
             <span className="sr-only">Search stone specs</span>
@@ -145,7 +136,7 @@ export function StoneSpecBoardPanel({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g. milano black 0.40"
-              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 px-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
+              className="w-full rounded-md border border-slate-200 bg-white py-1.5 px-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
             />
           </label>
         </div>
@@ -160,7 +151,7 @@ export function StoneSpecBoardPanel({
           </p>
         ) : (
           <table className="min-w-full text-left text-xs">
-            <thead className="bg-slate-50/80 text-[10px] font-black uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-slate-200 bg-slate-50 text-ui-xs font-medium text-slate-500">
               <tr>
                 <th className="px-3 py-2 w-8" />
                 <th className="px-2 py-2">Design</th>
@@ -179,26 +170,26 @@ export function StoneSpecBoardPanel({
                 return (
                   <React.Fragment key={row.key}>
                     <tr
-                      className={`${row.belowMin ? 'bg-amber-50/40' : row.isHero ? 'bg-teal-50/30' : 'bg-white'} hover:bg-slate-50/80 cursor-pointer`}
+                      className={`${row.belowMin ? 'bg-amber-50/50' : 'bg-white'} hover:bg-slate-50 cursor-pointer`}
                       onClick={() => setExpandedKey(open ? '' : row.key)}
                     >
                       <td className="px-3 py-2 text-slate-400">
                         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </td>
-                      <td className="px-2 py-2 font-bold text-slate-900">
+                      <td className="px-2 py-2 font-medium text-slate-900">
                         {row.design}
-                        {row.isHero ? (
-                          <span className="ml-1 text-[10px] font-black uppercase text-teal-800">
-                            H{row.heroRank}
-                          </span>
-                        ) : null}
+                        <SpecHeroRank rank={row.heroRank} />
                       </td>
-                      <td className="px-2 py-2 font-semibold text-slate-800">{row.colour}</td>
-                      <td className="px-2 py-2 font-mono tabular-nums text-slate-800">{row.gauge}</td>
-                      <td className="px-2 py-2 text-right font-black tabular-nums text-zarewa-teal">
+                      <td className="px-2 py-2">
+                        <span className="font-medium text-slate-800">{row.colour}</span>
+                      </td>
+                      <td className="px-2 py-2">
+                        <GaugeStamp gauge={row.gauge} />
+                      </td>
+                      <td className="px-2 py-2 text-right z-stencil tabular-nums text-slate-900">
                         {Math.round(row.freeM).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2 text-right tabular-nums text-sky-800">
+                      <td className="px-2 py-2 text-right tabular-nums text-slate-600">
                         {Math.round(row.inTransitM).toLocaleString()}
                       </td>
                       <td className="px-2 py-2 text-right tabular-nums text-slate-600">
@@ -206,18 +197,18 @@ export function StoneSpecBoardPanel({
                       </td>
                       <td className="px-2 py-2 text-right">
                         {row.belowMin ? (
-                          <span className="font-bold text-amber-900 tabular-nums">
+                          <span className="font-semibold text-amber-900 tabular-nums">
                             −{Math.round(row.shortfallM).toLocaleString()}
                           </span>
                         ) : (
-                          <span className="font-semibold text-emerald-800">OK</span>
+                          <span className="font-medium text-slate-600">OK</span>
                         )}
                       </td>
                       <td className="px-2 py-2 text-right">
                         {row.belowMin && onRequestRestock ? (
                           <button
                             type="button"
-                            className="rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-[10px] font-black uppercase text-teal-950 hover:bg-teal-100"
+                            className="rounded-sm border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium text-slate-800 hover:bg-slate-50"
                             onClick={(e) => {
                               e.stopPropagation();
                               onRequestRestock({
@@ -239,14 +230,14 @@ export function StoneSpecBoardPanel({
                       </td>
                     </tr>
                     {open ? (
-                      <tr className="bg-slate-50/60">
+                      <tr className="bg-slate-50">
                         <td colSpan={9} className="px-3 py-2">
                           <ul className="space-y-1">
                             {row.skus.map((sku) => (
                               <li key={sku.productID} className="flex flex-wrap items-center justify-between gap-2">
                                 <button
                                   type="button"
-                                  className="text-left font-mono text-ui-xs font-semibold text-zarewa-teal hover:underline"
+                                  className="text-left z-stencil text-ui-xs font-semibold text-slate-800 hover:underline"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     onOpenSku?.(sku);
@@ -255,7 +246,7 @@ export function StoneSpecBoardPanel({
                                   {sku.productID}
                                 </button>
                                 <span className="text-ui-xs text-slate-600 truncate max-w-[40%]">{sku.name}</span>
-                                <span className="tabular-nums text-ui-xs font-bold text-slate-800">
+                                <span className="tabular-nums text-ui-xs text-slate-800">
                                   {Math.round(sku.freeM).toLocaleString()} m free
                                 </span>
                               </li>

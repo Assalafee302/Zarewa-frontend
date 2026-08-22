@@ -8,7 +8,7 @@ import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 
 const SCHOLARSHIP_REQUEST_KINDS = ['scholarship_profile_update', 'scholarship_fee_request'];
 
-export default function ExecutiveHrScholarshipRequests() {
+export default function ExecutiveHrScholarshipRequests({ compact = false }) {
   const ws = useWorkspace();
   const allowedScopes = useMemo(() => {
     const perms = ws?.permissions || [];
@@ -20,19 +20,24 @@ export default function ExecutiveHrScholarshipRequests() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-white p-4 sm:p-5">
-        <p className="text-ui-xs font-black uppercase tracking-widest text-violet-600">
-          {FAMILY_BENEFITS.adminRequestsEyebrow}
-        </p>
-        <h2 className="mt-1 text-lg font-black text-slate-900">{FAMILY_BENEFITS.adminRequestsTitle}</h2>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">
-          {FAMILY_BENEFITS.adminRequestsHint}{' '}
-          <Link to="/executive-hr/benefits?tab=school-fees" className="font-semibold text-violet-800 underline">
-            Executive benefits → School fees
-          </Link>
-          .
-        </p>
-      </div>
+      {compact ? (
+        <p className="text-sm text-slate-600">{FAMILY_BENEFITS.adminRequestsHint}</p>
+      ) : (
+        <div className="rounded-md border border-slate-200 bg-white p-4 sm:p-5">
+          <p className="text-ui-xs font-medium text-slate-500">{FAMILY_BENEFITS.adminRequestsEyebrow}</p>
+          <h2 className="mt-1 text-lg font-semibold text-slate-900">{FAMILY_BENEFITS.adminRequestsTitle}</h2>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+            {FAMILY_BENEFITS.adminRequestsHint}{' '}
+            <Link
+              to="/chairman?tab=scholarships&benefitsTab=school-fees"
+              className="font-medium text-slate-800 underline underline-offset-2"
+            >
+              Chairman Office → School fees
+            </Link>
+            .
+          </p>
+        </div>
+      )}
       <HrRequestsPanel
         allowedScopes={allowedScopes}
         defaultScope="hr_queue"

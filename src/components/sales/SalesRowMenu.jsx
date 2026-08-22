@@ -45,6 +45,8 @@ export function SalesRowMenu({
   openKey,
   setOpenKey,
   onView,
+  /** Visible name used in the kebab aria-label, e.g. "quotation Q-104". */
+  label,
   onEdit = () => {},
   editDisabled = false,
   editTitle = '',
@@ -85,7 +87,7 @@ export function SalesRowMenu({
                 setOpenKey(null);
               }}
             >
-              <Eye size={14} className="text-slate-400 shrink-0" />
+              <Eye size={14} className="text-slate-400 shrink-0" aria-hidden />
               View
             </button>
             {addPaymentHandler && (
@@ -98,7 +100,7 @@ export function SalesRowMenu({
                   setOpenKey(null);
                 }}
               >
-                <ReceiptIcon size={14} className="text-emerald-400 shrink-0" />
+                <ReceiptIcon size={14} className="text-emerald-400 shrink-0" aria-hidden />
                 Add payment
               </button>
             )}
@@ -112,7 +114,7 @@ export function SalesRowMenu({
                   setOpenKey(null);
                 }}
               >
-                <FileText size={14} className="text-slate-400 shrink-0" />
+                <FileText size={14} className="text-slate-400 shrink-0" aria-hidden />
                 Review Audit
               </button>
             )}
@@ -126,7 +128,7 @@ export function SalesRowMenu({
                   setOpenKey(null);
                 }}
               >
-                <Factory size={14} className="text-teal-500 shrink-0" />
+                <Factory size={14} className="text-teal-500 shrink-0" aria-hidden />
                 Push
               </button>
             )}
@@ -144,7 +146,7 @@ export function SalesRowMenu({
                   }
                 }}
               >
-                <PencilLine size={14} className="text-slate-400 shrink-0" />
+                <PencilLine size={14} className="text-slate-400 shrink-0" aria-hidden />
                 Edit
               </button>
             ) : null}
@@ -158,7 +160,7 @@ export function SalesRowMenu({
                   setOpenKey(null);
                 }}
               >
-                <Trash2 size={14} className="text-rose-500 shrink-0" />
+                <Trash2 size={14} className="text-rose-500 shrink-0" aria-hidden />
                 {deleteLabel}
               </button>
             ) : null}
@@ -171,12 +173,13 @@ export function SalesRowMenu({
     <div ref={anchorRef} className="relative shrink-0" data-sales-action-menu>
       <button
         type="button"
+        aria-label={label ? `Actions for ${label}` : 'Row actions'}
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpenKey(open ? null : rowKey)}
-        className="text-slate-400 hover:text-zarewa-teal p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center text-slate-400 hover:text-zarewa-teal p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20"
       >
-        <MoreVertical size={18} strokeWidth={2} />
+        <MoreVertical size={18} strokeWidth={2} aria-hidden />
       </button>
       {menu}
     </div>

@@ -1,15 +1,10 @@
 import React, { useMemo } from 'react';
 import {
-  AlertTriangle,
-  Award,
   Box,
-  ChevronRight,
   Disc3,
   Factory,
   Package,
   ShoppingCart,
-  TrendingUp,
-  ClipboardCheck,
 } from 'lucide-react';
 import {
   buildCoilPurchaseSuggestions,
@@ -17,63 +12,31 @@ import {
   buildPendingProductionsOverview,
   buildSkuStockOverview,
 } from '../../lib/operationsProductionOverviewCore';
-import { MaintenanceVendorsPanel } from './MaintenanceVendorsPanel';
+import { OperationsMachinesPanel } from './OperationsMachinesPanel';
 import { ReportFaultPanel } from './ReportFaultPanel';
 import { RequestSuppliesPanel } from './RequestSuppliesPanel';
 import { DeliveryPodPanel } from './DeliveryPodPanel';
-
-function OverviewCard({ title, hint, icon, children, className = '' }) {
-  return (
-    <section
-      className={`flex flex-col rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden ${className}`}
-    >
-      <header className="shrink-0 border-b border-slate-100 bg-slate-50/90 px-4 py-3">
-        <div className="flex items-start gap-2">
-          {icon ? <span className="mt-0.5 text-zarewa-teal">{icon}</span> : null}
-          <div className="min-w-0">
-            <h3 className="text-xs font-black uppercase tracking-widest text-zarewa-teal">{title}</h3>
-            {hint ? <p className="mt-0.5 text-ui-xs font-medium text-slate-500 leading-snug">{hint}</p> : null}
-          </div>
-        </div>
-      </header>
-      <div className="flex-1 p-4 text-xs text-slate-800">{children}</div>
-    </section>
-  );
-}
-
-function StatPill({ label, value, tone = 'default' }) {
-  const tones = {
-    default: 'border-slate-200 bg-slate-50 text-slate-800',
-    warn: 'border-amber-200 bg-amber-50 text-amber-950',
-    danger: 'border-rose-200 bg-rose-50 text-rose-950',
-    ok: 'border-emerald-200 bg-emerald-50 text-emerald-950',
-  };
-  return (
-    <div className={`rounded-lg border px-2.5 py-2 ${tones[tone] || tones.default}`}>
-      <p className="text-ui-xs font-bold uppercase tracking-wide opacity-80">{label}</p>
-      <p className="mt-0.5 text-sm font-black tabular-nums">{value}</p>
-    </div>
-  );
-}
+import { OperationsInventoryAttentionPanel } from './OperationsInventoryAttentionPanel';
+import { OperationsDeskSection } from './OperationsDeskSection';
+import { OperationsDeskMetric } from './OperationsDeskMetric';
+import { OPS_TEXT_LINK, OPS_TOOL_BTN, OPS_TOOL_BTN_PRIMARY } from './operationsDeskUi';
 
 function CoilFamilyBlock({ label, data }) {
   return (
-    <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <p className="text-ui-xs font-black uppercase tracking-wide text-slate-700">{label}</p>
-        <p className="text-sm font-black tabular-nums text-zarewa-teal">
-          {data.totalKg.toLocaleString()} <span className="text-ui-xs font-semibold">kg</span>
+    <div className="rounded-md bg-[var(--z-surface-muted)]/70 px-3 py-2.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-ui-xs font-semibold text-[var(--z-text)]">{label}</p>
+        <p className="text-sm font-semibold tabular-nums text-zarewa-teal">
+          {data.totalKg.toLocaleString()} <span className="text-ui-xs font-medium">kg</span>
         </p>
       </div>
       {data.lowCount > 0 ? (
-        <p className="text-ui-xs font-semibold text-amber-800 mb-2">
-          {data.lowCount} thin coil(s) under 85 kg
+        <p className="mb-2 text-ui-xs font-medium text-amber-900">
+          {data.lowCount} thin coil{data.lowCount === 1 ? '' : 's'} under 85 kg
         </p>
-      ) : (
-        <p className="text-ui-xs text-slate-500 mb-2">No critically low coils in this family.</p>
-      )}
+      ) : null}
       {data.top.length === 0 ? (
-        <p className="text-ui-xs text-slate-500">No active stock.</p>
+        <p className="text-ui-xs text-[var(--z-text-muted)]">No active stock.</p>
       ) : (
         <ul className="space-y-1">
           {data.top.map((row) => (
@@ -81,11 +44,11 @@ function CoilFamilyBlock({ label, data }) {
               key={`${row.gauge}-${row.colour}`}
               className="flex justify-between gap-2 text-ui-xs tabular-nums"
             >
-              <span className="truncate text-slate-700">
+              <span className="truncate text-[var(--z-text)]">
                 {row.gauge} mm · {row.colour}
-                <span className="text-slate-400"> · {row.coilCount} coil(s)</span>
+                <span className="text-[var(--z-text-muted)]"> · {row.coilCount} coil(s)</span>
               </span>
-              <span className="shrink-0 font-bold text-zarewa-teal">{row.kg.toLocaleString()} kg</span>
+              <span className="shrink-0 font-semibold text-zarewa-teal">{row.kg.toLocaleString()} kg</span>
             </li>
           ))}
         </ul>
@@ -96,41 +59,35 @@ function CoilFamilyBlock({ label, data }) {
 
 function SkuList({ overview, emptyLabel }) {
   if (!overview.totalSkus) {
-    return <p className="text-ui-xs text-slate-500">{emptyLabel}</p>;
+    return <p className="text-ui-xs text-[var(--z-text-muted)]">{emptyLabel}</p>;
   }
   return (
-    <>
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <StatPill label="SKUs on hand" value={overview.totalSkus} />
-        <StatPill
-          label="Below reorder"
-          value={overview.lowCount}
-          tone={overview.lowCount > 0 ? 'warn' : 'ok'}
-        />
-      </div>
-      <ul className="space-y-1.5 max-h-[min(220px,32vh)] overflow-y-auto pr-1 custom-scrollbar">
-        {overview.rows.map((row) => (
-          <li
-            key={row.productID}
-            className={`flex justify-between gap-2 rounded-lg border px-2 py-1.5 ${
-              row.low ? 'border-amber-200 bg-amber-50/70' : 'border-slate-100 bg-slate-50/50'
-            }`}
+    <ul className="custom-scrollbar max-h-[min(220px,32vh)] space-y-1.5 overflow-y-auto pr-1">
+      {overview.rows.map((row) => (
+        <li
+          key={row.productID}
+          className={`flex justify-between gap-2 rounded-md border px-2 py-1.5 ${
+            row.low
+              ? 'border-amber-200/80 bg-amber-50/50'
+              : 'border-[var(--z-border)] bg-[var(--z-surface-muted)]/40'
+          }`}
+        >
+          <span className="min-w-0 truncate font-medium text-[var(--z-text)]" title={row.name}>
+            {row.name}
+          </span>
+          <span
+            className={`shrink-0 tabular-nums font-semibold ${row.low ? 'text-amber-900' : 'text-zarewa-teal'}`}
           >
-            <span className="min-w-0 truncate font-medium text-slate-800" title={row.name}>
-              {row.name}
-            </span>
-            <span className={`shrink-0 tabular-nums font-bold ${row.low ? 'text-amber-900' : 'text-zarewa-teal'}`}>
-              {row.stock.toLocaleString()} {row.unit}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </>
+            {row.stock.toLocaleString()} {row.unit}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
 /**
- * Store & production landing dashboard — stock by family, pending jobs, performance, buy hints.
+ * Store & production landing — pulse first, then stock, plant, and buy hints.
  */
 export function OperationsProductionOverview({
   coilLots,
@@ -145,9 +102,12 @@ export function OperationsProductionOverview({
   onGoInventory,
   onRequestCoils,
   onMonthEndStock,
+  onOpenProductionTrace,
+  onGoProcurement,
+  inventoryAttention,
   roleKey = '',
   branchId = '',
-  branches = [],
+  canMutate = true,
 }) {
   const coilStock = useMemo(() => buildCoilStockOverview(coilLots, masterData), [coilLots, masterData]);
   const stoneStock = useMemo(() => buildSkuStockOverview(inventoryRows, 'stone'), [inventoryRows]);
@@ -174,276 +134,216 @@ export function OperationsProductionOverview({
   );
 
   const workersBlocked = productionQueueStats.noCoil > 0;
+  const attentionCount =
+    Number(productionQueueStats.attention) ||
+    (Number(productionQueueStats.needsReview) || 0) + (Number(productionQueueStats.overdue) || 0);
+  const pendingRegistrations = pendingProductions.filter(
+    (row) => !String(row.reason || '').toLowerCase().includes('coil')
+  );
+  const readOnlyTitle = 'Connect to the live workspace to make changes.';
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200/90 bg-gradient-to-r from-slate-50/90 to-white px-3 py-2.5 sm:px-4">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Store desk</p>
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="z-toolbar-shell flex flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4">
+        <button
+          type="button"
+          onClick={onRequestCoils}
+          disabled={!canMutate}
+          title={!canMutate ? readOnlyTitle : 'Request coils from procurement'}
+          className={OPS_TOOL_BTN_PRIMARY}
+        >
+          Request coils
+        </button>
+        <ReportFaultPanel branchId={branchId} disabled={!canMutate} />
+        <RequestSuppliesPanel branchId={branchId} onGoInventory={onGoInventory} disabled={!canMutate} />
+        {onMonthEndStock ? (
           <button
             type="button"
-            onClick={() => onGoInventory?.('coil')}
-            className="inline-flex items-center rounded-lg border border-teal-200 bg-teal-50/80 px-2.5 py-1.5 text-ui-xs font-bold text-teal-900 hover:bg-teal-100/70"
+            onClick={onMonthEndStock}
+            className={OPS_TOOL_BTN}
+            title="Physical count for period end — print, then send to branch manager"
           >
-            1. Receive / stock
+            Month-end count
           </button>
-          <span className="text-slate-300 hidden sm:inline" aria-hidden>
-            →
-          </span>
-          <button
-            type="button"
-            onClick={onGoProduction}
-            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
-          >
-            2. Production line
-          </button>
-          <span className="text-slate-300 hidden sm:inline" aria-hidden>
-            →
-          </span>
-          <button
-            type="button"
-            onClick={onRequestCoils}
-            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
-          >
-            3. Request coils
-          </button>
-          <span className="text-slate-300 hidden sm:inline" aria-hidden>
-            ·
-          </span>
-          <ReportFaultPanel branchId={branchId} />
-          <RequestSuppliesPanel branchId={branchId} onGoInventory={onGoInventory} />
-        </div>
+        ) : null}
       </div>
 
-      <DeliveryPodPanel branchId={branchId} />
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        <OperationsDeskMetric
+          label="Coil kg"
+          value={coilStock.totalKg.toLocaleString()}
+        />
+        <OperationsDeskMetric
+          label="Low coils"
+          value={coilStock.lowCoilsTotal}
+          tone={coilStock.lowCoilsTotal > 0 ? 'danger' : 'ok'}
+          onClick={() => onGoInventory?.('coil')}
+        />
+        <OperationsDeskMetric
+          label="Jobs without coil"
+          value={productionQueueStats.noCoil}
+          tone={workersBlocked ? 'warn' : 'ok'}
+          onClick={() => onGoProduction?.('no_coil')}
+        />
+        <OperationsDeskMetric
+          label="Waiting"
+          value={productionQueueStats.waiting}
+          onClick={() => onGoProduction?.('planned')}
+        />
+        <OperationsDeskMetric
+          label="Attention"
+          value={attentionCount}
+          tone={attentionCount > 0 ? 'danger' : 'default'}
+          onClick={() => onGoProduction?.('attention')}
+        />
+      </div>
 
-      {onMonthEndStock ? (
-        <OverviewCard
-          title="Month-end stock register"
-          hint="Physical count for period end — print, then send to branch manager (no costing on store copy)."
-          icon={<ClipboardCheck size={16} />}
-          className="border-slate-200 bg-white"
+      {conversionStats.flagged > 0 ? (
+        <button
+          type="button"
+          onClick={() => onGoProduction?.('attention')}
+          className="text-left text-ui-xs font-medium text-amber-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25 rounded-sm"
         >
-          <p className="text-xs text-slate-600 leading-relaxed mb-3">
-            Run the floor count register for month-end (or any period end date). Preview and print without
-            prices; forward to management when the count is complete.
-          </p>
-          <button type="button" onClick={onMonthEndStock} className="z-btn-secondary text-xs">
-            Open month-end stock register
-          </button>
-        </OverviewCard>
+          {conversionStats.flagged} conversion check{conversionStats.flagged === 1 ? '' : 's'} flagged for
+          manager review.
+        </button>
       ) : null}
 
+      <OperationsInventoryAttentionPanel
+        attention={inventoryAttention}
+        hasWorkspaceData={hasWorkspaceData}
+        onOpenProductionTrace={onOpenProductionTrace}
+        onGoProcurement={onGoProcurement}
+      />
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <OverviewCard
+        <OperationsDeskSection
           title="Coil stock"
-          hint="Live aluminium and aluzinc on the floor (excludes consumed coils)."
+          hint="Aluminium and aluzinc on the floor."
           icon={<Disc3 size={16} />}
+          actions={
+            <button type="button" onClick={() => onGoInventory?.('coil')} className={OPS_TEXT_LINK} aria-label="Open coil stock">
+              Open
+            </button>
+          }
         >
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <StatPill label="Total coil kg" value={coilStock.totalKg.toLocaleString()} />
-            <StatPill
-              label="Low coils"
-              value={coilStock.lowCoilsTotal}
-              tone={coilStock.lowCoilsTotal > 0 ? 'danger' : 'ok'}
-            />
-            <StatPill
-              label="Jobs without coil"
-              value={productionQueueStats.noCoil}
-              tone={productionQueueStats.noCoil > 0 ? 'warn' : 'ok'}
-            />
-          </div>
           <div className="space-y-2">
             <CoilFamilyBlock label="Aluminium" data={coilStock.aluminium} />
             <CoilFamilyBlock label="Aluzinc" data={coilStock.aluzinc} />
           </div>
-          <button
-            type="button"
-            onClick={() => onGoInventory?.('coil')}
-            className="mt-3 inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
-          >
-            Open coil stock management <ChevronRight size={12} />
-          </button>
-        </OverviewCard>
+        </OperationsDeskSection>
 
-        <OverviewCard
+        <OperationsDeskSection
           title="Stone-coated stock"
-          hint="Metre SKUs (trim/roofing) and flatsheet m² (STONE-FS-*) — separate tabs in stock management."
+          hint="Metres and flatsheet are separate on-hand views."
           icon={<Package size={16} />}
+          actions={
+            <div className="flex flex-wrap justify-end gap-x-3">
+              <button type="button" onClick={() => onGoInventory?.('stone_meter')} className={OPS_TEXT_LINK} aria-label="Open stone metres">
+                Metres
+              </button>
+              <button type="button" onClick={() => onGoInventory?.('stone_flatsheet')} className={OPS_TEXT_LINK} aria-label="Open stone flatsheet">
+                Flatsheet
+              </button>
+            </div>
+          }
         >
           <SkuList overview={stoneStock} emptyLabel="No stone-coated SKUs in workspace." />
-          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
-            <button
-              type="button"
-              onClick={() => onGoInventory?.('stone_meter')}
-              className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
-            >
-              Stone metres <ChevronRight size={12} />
-            </button>
-            <button
-              type="button"
-              onClick={() => onGoInventory?.('stone_flatsheet')}
-              className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-sky-800 hover:underline"
-            >
-              Stone flatsheet m² <ChevronRight size={12} />
-            </button>
-          </div>
-        </OverviewCard>
+        </OperationsDeskSection>
 
-        <OverviewCard
-          title="Accessories stock"
-          hint="Rivets, screws, silicone, and other issue items."
+        <OperationsDeskSection
+          title="Accessories"
           icon={<Box size={16} />}
+          actions={
+            <button type="button" onClick={() => onGoInventory?.('accessory')} className={OPS_TEXT_LINK} aria-label="Open accessories stock">
+              Open
+            </button>
+          }
         >
           <SkuList overview={accessoryStock} emptyLabel="No accessory SKUs in workspace." />
-          <button
-            type="button"
-            onClick={() => onGoInventory?.('accessory')}
-            className="mt-3 inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
-          >
-            Manage accessories <ChevronRight size={12} />
-          </button>
-        </OverviewCard>
+        </OperationsDeskSection>
 
-        <OverviewCard
-          title="Pending new production"
-          hint="Lists waiting to register or jobs blocked before the line can run."
+        <OperationsDeskSection
+          title="Pending registration"
           icon={<Factory size={16} />}
+          actions={
+            <button type="button" onClick={() => onGoProduction?.()} className={OPS_TEXT_LINK} aria-label="Open production register">
+              Open
+            </button>
+          }
         >
-          {pendingProductions.length === 0 ? (
-            <p className="text-ui-xs text-slate-500">No pending registrations or blocked jobs right now.</p>
+          {pendingRegistrations.length === 0 ? (
+            <p className="text-ui-xs text-[var(--z-text-muted)]">No cutting lists waiting to register.</p>
           ) : (
-            <ul className="space-y-2 max-h-[min(280px,40vh)] overflow-y-auto pr-1 custom-scrollbar">
-              {pendingProductions.map((row) => (
+            <ul className="custom-scrollbar max-h-[min(280px,40vh)] space-y-2 overflow-y-auto pr-1">
+              {pendingRegistrations.map((row) => (
                 <li key={`${row.id}-${row.reason}`}>
                   <button
                     type="button"
-                    onClick={onGoProduction}
-                    className={`w-full text-left rounded-lg border px-3 py-2 transition hover:brightness-[0.99] ${
-                      row.severity === 'critical'
-                        ? 'border-rose-200 bg-rose-50/80'
-                        : row.severity === 'high'
-                          ? 'border-amber-200 bg-amber-50/70'
-                          : 'border-slate-200 bg-slate-50/60'
-                    }`}
+                    onClick={() => onGoProduction?.()}
+                    aria-label={`Open ${row.id}`}
+                    className="w-full cursor-pointer rounded-md border border-[var(--z-border)] bg-[var(--z-surface-muted)]/40 px-3 py-2 text-left transition-colors hover:border-zarewa-teal/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
                   >
                     <div className="flex justify-between gap-2">
-                      <span className="font-mono text-ui-xs font-bold text-slate-900">{row.id}</span>
-                      <span className="text-ui-xs font-black uppercase text-slate-500">{row.reason}</span>
+                      <span className="z-stencil text-ui-xs text-[var(--z-text)]">{row.id}</span>
+                      <span className="text-ui-xs font-medium text-[var(--z-text-muted)]">{row.reason}</span>
                     </div>
-                    <p className="mt-0.5 text-ui-xs font-semibold text-slate-800 truncate">{row.customer}</p>
-                    <p className="text-ui-xs text-slate-500 truncate">{row.label}</p>
+                    <p className="mt-0.5 truncate text-ui-xs font-semibold text-[var(--z-text)]">{row.customer}</p>
+                    <p className="truncate text-ui-xs text-[var(--z-text-muted)]">{row.label}</p>
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          <button
-            type="button"
-            onClick={onGoProduction}
-            className="mt-3 inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
-          >
-            Open production line <ChevronRight size={12} />
-          </button>
-        </OverviewCard>
+        </OperationsDeskSection>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <OverviewCard
-          title="Performance & material readiness"
-          hint="Can shop floor run? Conversion health and queue pressure."
-          icon={<TrendingUp size={16} />}
-        >
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-            <StatPill
-              label="Conversion OK"
-              value={conversionStats.efficiencyPct != null ? `${conversionStats.efficiencyPct}%` : '—'}
-            />
-            <StatPill label="Waiting" value={productionQueueStats.waiting} />
-            <StatPill label="Manager review" value={productionQueueStats.needsReview} tone="warn" />
-            <StatPill label="Overdue" value={productionQueueStats.overdue} tone="danger" />
-          </div>
-          <div
-            className={`rounded-lg border px-3 py-2.5 ${
-              workersBlocked
-                ? 'border-rose-200 bg-rose-50/90 text-rose-950'
-                : 'border-emerald-200 bg-emerald-50/80 text-emerald-950'
-            }`}
-          >
-            <p className="text-ui-xs font-black uppercase tracking-wide flex items-center gap-1.5">
-              {workersBlocked ? <AlertTriangle size={12} /> : <Award size={12} />}
-              Shop floor material
-            </p>
-            <p className="mt-1 text-xs font-medium leading-snug">
-              {workersBlocked
-                ? `${productionQueueStats.noCoil} job(s) have no coil allocated — workers cannot start until store issues or allocates coil.`
-                : 'No planned jobs are waiting on coil allocation. Check coil families above before high-volume runs.'}
-            </p>
-          </div>
-          {conversionStats.flagged > 0 ? (
-            <p className="mt-2 text-ui-xs font-semibold text-amber-900">
-              {conversionStats.flagged} conversion check(s) flagged for manager review.
-            </p>
-          ) : null}
-        </OverviewCard>
-
-        <OverviewCard
-          title="Suggested coil purchases"
-          hint="By material family, gauge, and colour — based on low kg and blocked jobs."
-          icon={<ShoppingCart size={16} />}
-        >
-          {buySuggestions.length === 0 ? (
-            <p className="text-ui-xs text-slate-500">No urgent coil gaps detected from current stock.</p>
-          ) : (
-            <ul className="space-y-2 max-h-[min(260px,38vh)] overflow-y-auto pr-1 custom-scrollbar">
-              {buySuggestions.map((s) => (
-                <li
-                  key={s.key}
-                  className={`rounded-lg border px-3 py-2 ${
-                    s.priority === 'critical'
-                      ? 'border-rose-200 bg-rose-50/80'
-                      : 'border-amber-200/80 bg-amber-50/50'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-bold text-slate-900">{s.family}</span>
-                    {s.kgOnHand != null ? (
-                      <span className="text-ui-xs font-black tabular-nums text-zarewa-teal">
-                        {s.kgOnHand.toLocaleString()} kg on hand
-                      </span>
-                    ) : null}
-                  </div>
-                  {s.gauge !== '—' ? (
-                    <p className="mt-0.5 text-ui-xs text-slate-700">
-                      {s.gauge} mm · {s.colour}
-                      {s.coilCount ? ` · ${s.coilCount} coil(s)` : ''}
-                    </p>
+      <OperationsDeskSection
+        title="Suggested coil purchases"
+        hint="From low kg on hand and jobs waiting for coil."
+        icon={<ShoppingCart size={16} />}
+      >
+        {buySuggestions.length === 0 ? (
+          <p className="text-ui-xs text-[var(--z-text-muted)]">
+            No urgent coil gaps detected from current stock.
+          </p>
+        ) : (
+          <ul className="custom-scrollbar max-h-[min(260px,38vh)] space-y-2 overflow-y-auto pr-1">
+            {buySuggestions.map((s) => (
+              <li
+                key={s.key}
+                className={`rounded-md border px-3 py-2 ${
+                  s.priority === 'critical'
+                    ? 'border-[var(--z-error)]/25 bg-[var(--z-surface)]'
+                    : 'border-amber-200/70 bg-amber-50/35'
+                }`}
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-semibold text-[var(--z-text)]">{s.family}</span>
+                  {s.kgOnHand != null ? (
+                    <span className="text-ui-xs font-semibold tabular-nums text-zarewa-teal">
+                      {s.kgOnHand.toLocaleString()} kg on hand
+                    </span>
                   ) : null}
-                  <p className="mt-1 text-ui-xs text-slate-600 leading-snug">{s.note}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={onRequestCoils} className="z-btn-primary text-ui-xs">
-              Request coils
-            </button>
-            <button
-              type="button"
-              onClick={() => onGoInventory?.('coil')}
-              className="z-btn-secondary text-ui-xs"
-            >
-              Open stock receive
-            </button>
-          </div>
-        </OverviewCard>
+                </div>
+                {s.gauge !== '—' ? (
+                  <p className="mt-0.5 text-ui-xs text-[var(--z-text)]">
+                    {s.gauge} mm · {s.colour}
+                    {s.coilCount ? ` · ${s.coilCount} coil(s)` : ''}
+                  </p>
+                ) : null}
+                <p className="mt-1 text-ui-xs leading-snug text-[var(--z-text-muted)]">{s.note}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </OperationsDeskSection>
+
+      <div id="operations-plant-register" className="grid gap-4" data-testid="operations-plant-register">
+        <OperationsMachinesPanel roleKey={roleKey} />
       </div>
 
-      <MaintenanceVendorsPanel
-        roleKey={roleKey}
-        branchId={branchId}
-        branches={branches}
-      />
+      <DeliveryPodPanel branchId={branchId} />
     </div>
   );
 }

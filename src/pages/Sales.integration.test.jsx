@@ -15,7 +15,11 @@ vi.mock('../lib/lazyWithRetry.js', () => ({
 }));
 
 vi.mock('../hooks/useWorkspaceDomain.js', () => ({
-  useWorkspaceDomain: () => {},
+  useWorkspaceDomain: () => ({
+    domainReady: true,
+    domainLoading: false,
+    domains: ['sales'],
+  }),
 }));
 
 vi.mock('../lib/apiBase', () => ({

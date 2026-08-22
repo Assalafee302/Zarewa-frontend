@@ -2,20 +2,25 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 const TONES = {
-  default: 'border-slate-100 bg-white text-slate-900',
-  teal: 'border-teal-100 bg-teal-50/40 text-teal-950',
-  amber: 'border-amber-100 bg-amber-50/50 text-amber-950',
-  emerald: 'border-emerald-100 bg-emerald-50/40 text-emerald-950',
-  red: 'border-red-100 bg-red-50/40 text-red-950',
+  default: 'text-slate-900',
+  teal: 'text-slate-900',
+  amber: 'text-amber-950',
+  emerald: 'text-slate-900',
+  red: 'text-rose-950',
 };
 
-/** HR KPI card aligned with Finance module styling. */
+/**
+ * Personnel-file count — ink figures, not teal dashboard tiles.
+ */
 export function HrKpiCard({ label, value, hint, tone = 'default', to, onClick }) {
-  const cls = `rounded-2xl border px-4 py-4 shadow-sm block transition-colors ${TONES[tone] || TONES.default} ${to || onClick ? 'hover:border-zarewa-teal/30 cursor-pointer' : ''}`;
+  const valueCls = TONES[tone] || TONES.default;
+  const cls = `rounded-md border border-slate-200 bg-white px-4 py-3 block ${
+    to || onClick ? 'hover:bg-slate-50 cursor-pointer' : ''
+  }`;
   const inner = (
     <>
-      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-black tabular-nums">{value}</p>
+      <p className="text-ui-xs font-medium text-slate-500">{label}</p>
+      <p className={`z-stencil mt-1.5 text-2xl ${valueCls}`}>{value}</p>
       {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </>
   );

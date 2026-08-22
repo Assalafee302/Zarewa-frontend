@@ -19,6 +19,7 @@ import { ZareApprovalHint } from '../../components/ZareApprovalHint';
 import { EditSecondApprovalInline } from '../../components/EditSecondApprovalInline';
 import { formatNgn } from '../../Data/mockData';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance.js';
+import { paymentRequestPayoutMetaLine } from '../../lib/financeTreasuryPayoutQueueMeta';
 import { ExpenseCategoryLaneBadge } from '../../components/office/ExpenseCategoryLaneBadge.jsx';
 import { ExpenseCategoryExceptionBanner } from '../../components/office/ExpenseCategoryExceptionBanner.jsx';
 import {
@@ -83,7 +84,6 @@ export function AccountTabPanels() {
     disbursementsVisiblePayRequests,
     exceptionReportSummary,
     expenseById,
-    expenses,
     exportExceptionsCsv,
     filteredBankAccounts,
     filteredSalesReceipts,
@@ -95,6 +95,8 @@ export function AccountTabPanels() {
     handleDeskConfirmReceipt,
     handleDeskPayPoTransport,
     handleDeskPayRefund,
+    handleDeskViewRefund,
+    handleDeskReverseRefundCredit,
     handleDeskPayRegisterSettlement,
     handleDeskPayRequest,
     handleDeskReceiveStaffObligation,
@@ -227,6 +229,7 @@ export function AccountTabPanels() {
                   onPayRequest={handleDeskPayRequest}
                   onViewPaymentRequest={handleDeskViewPaymentRequest}
                   onPayRefund={handleDeskPayRefund}
+                  onViewRefund={handleDeskViewRefund}
                   onCancelRefund={handleDeskCancelRefund}
                   onCancelPaymentRequest={handleDeskCancelPaymentRequest}
                   onPayRegisterSettlement={handleDeskPayRegisterSettlement}
@@ -234,6 +237,7 @@ export function AccountTabPanels() {
                   onViewPoTransport={handleDeskViewPoTransport}
                   onReceiveStaffRecovery={handleDeskReceiveStaffRecovery}
                   onReceiveStaffObligation={handleDeskReceiveStaffObligation}
+                  onReverseRefundCredit={handleDeskReverseRefundCredit}
                   onGoToTab={handleAccountTabChange}
                   onAccountClick={canManageTreasury ? undefined : setStatementAccount}
                   hideAccountGrid={canManageTreasury}
@@ -1141,17 +1145,9 @@ export function AccountTabPanels() {
                           req.requestID,
                           liveTreasuryMovements
                         );
-                        const requestDate = String(req.requestDate || '').trim().slice(0, 10);
-                        const approvedAt = String(req.approvedAtISO || '').trim().slice(0, 10);
                         const meta2 = [
-                          requestDate ? `Requested ${requestDate}` : null,
-                          approvedAt ? `Approved ${approvedAt}` : null,
-                          req.expenseCategory || null,
-                          req.expenseID ? `Expense ${req.expenseID}` : null,
-                          req.requestReference ? `Ref ${req.requestReference}` : null,
-                          req.branchId ? branchNameById[req.branchId] || req.branchId : null,
+                          paymentRequestPayoutMetaLine(req, branchNameById),
                           req.approvalStatus,
-                          paid > 0 ? `Paid ${formatNgn(paid)}` : null,
                         ]
                           .filter(Boolean)
                           .join(' · ');

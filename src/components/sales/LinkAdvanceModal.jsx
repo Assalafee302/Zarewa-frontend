@@ -10,6 +10,7 @@ import { amountDueOnQuotation, loadLedgerEntries, recordAdvanceAppliedToQuotatio
 import { advanceInRemainingNgnByIdFromEntries } from '../../lib/customerLedgerCore';
 import { formatNgn } from '../../Data/mockData';
 import { apiFetch } from '../../lib/apiBase';
+import { withIdempotencyHeaders } from '../../lib/idempotency';
 import { dismissAdvanceEntryId } from '../../lib/advanceEntryUiStore';
 import { compareSelectLabels } from '../../lib/selectOptionSort';
 
@@ -114,16 +115,22 @@ export default function LinkAdvanceModal({
       return;
     }
     if (useLedgerApi) {
-      const { ok, data } = await apiFetch('/api/ledger/apply-advance', {
-        method: 'POST',
-        body: JSON.stringify({
-          customerID: advanceEntry.customerID,
-          customerName: advanceEntry.customerName ?? '',
-          quotationRef,
-          amountNgn: n,
-          dateISO: applyDateISO,
-        }),
-      });
+      const { ok, data } = await apiFetch(
+        '/api/ledger/apply-advance',
+        withIdempotencyHeaders(
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              customerID: advanceEntry.customerID,
+              customerName: advanceEntry.customerName ?? '',
+              quotationRef,
+              amountNgn: n,
+              dateISO: applyDateISO,
+            }),
+          },
+          'apply_advance'
+        )
+      );
       if (!ok || !data?.ok) {
         setPostingHint(guidanceForLedgerPostFailure(data) || null);
         showToast(data?.error || 'Could not apply advance.', { variant: 'error' });
@@ -153,7 +160,7 @@ export default function LinkAdvanceModal({
   if (!advanceEntry) return null;
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={handleClose}>
+    <ModalFrame isOpen={isOpen} onClose={handleClose} showCloseButton={false}>
       <form
         onSubmit={submit}
         onInput={captureEdited}

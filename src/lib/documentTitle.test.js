@@ -7,10 +7,14 @@ describe('documentTitleForPath', () => {
     expect(documentTitleForPath('/sales')).toContain('Sales');
     expect(documentTitleForPath('/procurement')).toContain('Procurement');
     expect(documentTitleForPath('/operations')).toContain('Operations');
+    expect(documentTitleForPath('/operations/overtime')).toContain('Overtime');
+    expect(documentTitleForPath('/operations/material-exceptions')).toContain('Operations');
     expect(documentTitleForPath('/accounts')).toContain('Finance');
     expect(documentTitleForPath('/reports')).toContain('Reports');
     expect(documentTitleForPath('/edit-approvals')).toContain('Change authorisations');
     expect(documentTitleForPath('/manager')).toContain('Branch manager');
+    expect(documentTitleForPath('/exec')).toContain('Command Centre');
+    expect(documentTitleForPath('/chairman')).toContain('Chairman Office');
   });
 
   it('strips trailing slashes', () => {

@@ -227,14 +227,15 @@ Case types: query, verbal_warning, written_warning, suspension, gross_misconduct
 
 | Section | Content |
 |---------|---------|
-| Family & household | Scholarship, domestic staff, executive benefits |
 | Compensation | Payroll summary for MD sign-off, branch contributions |
 | Approvals | Sensitive HR, exceptional loans |
 | Reports | MD/Chairman HR packs |
 
+**Scholarships and household staff** are not in Executive HR. They live on **Chairman Office** (`/chairman` → Scholarships / Household). `/executive-hr/family` and `/executive-hr/benefits` redirect there.
+
 ### 10.3 Chairman Family Accounts
 
-`hr.chairman.manage` permission:
+`hr.chairman.manage` permission, used on Chairman Office:
 - School fees for dependents
 - Family expense payments
 - Scholarship payments

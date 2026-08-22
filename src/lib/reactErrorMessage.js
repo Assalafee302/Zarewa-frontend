@@ -4,6 +4,11 @@ export function humanizeReactError(error) {
   if (/Failed to fetch dynamically imported module|Loading chunk \d+ failed|Importing a module script failed/i.test(raw)) {
     const url = raw.match(/https?:\/\/[^\s)]+/)?.[0] || '';
     const file = url ? url.split('/').pop() : 'a page script';
+    const srcName = String(file).replace(/\?.*$/, '');
+    // Vite cache-busts source files with ?t= — that is a transform/import failure, not a dist upload miss.
+    if (/\.(jsx?|tsx?)(?:\?|$)/i.test(file) || /[?&]t=\d+/.test(url)) {
+      return `This page failed to load (${srcName}). In local development that is usually a syntax error in the file — check the Vite terminal. After a production deploy, IT must upload the entire dist/ folder in one step.`;
+    }
     return url
       ? `Missing or outdated app file after deploy (${file}). IT must upload the entire dist/ folder in one step — all assets/* plus index.html from the same build.`
       : 'Missing or outdated app file after deploy. IT must upload the entire dist/ folder in one step — all assets/* plus index.html from the same build.';

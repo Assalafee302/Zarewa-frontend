@@ -14,8 +14,9 @@ export function documentTitleForPath(pathname) {
   if (p === '/procurement') return `Procurement | ${DOCUMENT_TITLE_BASE}`;
   if (p.startsWith('/procurement/suppliers/')) return `Supplier | ${DOCUMENT_TITLE_BASE}`;
 
-  if (p === '/operations') return `Operations | ${DOCUMENT_TITLE_BASE}`;
+  if (p === '/operations/overtime') return `Overtime | ${DOCUMENT_TITLE_BASE}`;
   if (p.startsWith('/operations/coils/')) return `Coil profile | ${DOCUMENT_TITLE_BASE}`;
+  if (p === '/operations' || p.startsWith('/operations/')) return `Operations | ${DOCUMENT_TITLE_BASE}`;
 
   if (p === '/deliveries') return `Operations | ${DOCUMENT_TITLE_BASE}`;
   if (p === '/accounts') return `Finance | ${DOCUMENT_TITLE_BASE}`;
@@ -70,6 +71,9 @@ export function documentTitleForPath(pathname) {
     };
     return `My HR – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
   }
+
+  if (p === '/exec' || p.startsWith('/exec/')) return `Command Centre | ${DOCUMENT_TITLE_BASE}`;
+  if (p === '/chairman' || p.startsWith('/chairman/')) return `Chairman Office | ${DOCUMENT_TITLE_BASE}`;
 
   if (p === '/executive-hr' || p.startsWith('/executive-hr/')) {
     return `Executive HR | ${DOCUMENT_TITLE_BASE}`;

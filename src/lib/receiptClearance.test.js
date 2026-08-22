@@ -12,6 +12,7 @@ import {
   receiptSalesPaymentStatusLabel,
   receiptMatchesSalesPaymentFilter,
   receiptEffectiveCashNgn,
+  countReceiptSalesPaymentStatuses,
   SALES_RECEIPT_PAYMENT_STATUS_AWAITING_CASHIER,
   SALES_RECEIPT_PAYMENT_STATUS_CASHIER_CONFIRMED,
 } from './receiptClearance.js';
@@ -93,6 +94,14 @@ describe('receiptClearance', () => {
     expect(receiptMatchesSalesPaymentFilter({ ...cleared, _cuttingListLinkKind: 'linked' }, 'no_cutting')).toBe(
       false
     );
+    expect(
+      countReceiptSalesPaymentStatuses([
+        pending,
+        { ...cleared, _cuttingListLinkKind: 'linked' },
+        { status: 'Reversed' },
+        { ...pending, _cuttingListLinkKind: 'none' },
+      ])
+    ).toEqual({ all: 3, awaiting: 2, confirmed: 1, reversed: 1, no_cutting: 2 });
   });
 
   it('allows official receipt print only when cleared', () => {

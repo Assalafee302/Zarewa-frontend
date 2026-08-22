@@ -64,6 +64,7 @@ export function ManagerSpendTab({
   viewAllBranches = false,
   roleKey = '',
   permissions = [],
+  onOpenWorkOrder,
 }) {
   const [monthKey, setMonthKey] = useState(() => monthKeyFromDate());
   const [filterBranchId, setFilterBranchId] = useState(() => (viewAllBranches ? '' : String(branchId || '')));
@@ -418,6 +419,9 @@ export function ManagerSpendTab({
         filterBranchId={filterBranchId}
         viewAllBranches={viewAllBranches}
         branchNameById={branchNameById}
+        branches={branches}
+        roleKey={roleKey}
+        onOpenWorkOrder={onOpenWorkOrder}
       />
 
       <ModalFrame
@@ -426,7 +430,7 @@ export function ManagerSpendTab({
         title={drill?.title || 'Expenses detail'}
         description={drill?.subtitle}
         surface="plain"
-      >
+        showCloseButton={false}>
         <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
             <div>

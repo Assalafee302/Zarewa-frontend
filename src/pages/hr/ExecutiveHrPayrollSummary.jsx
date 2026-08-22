@@ -81,17 +81,17 @@ export default function ExecutiveHrPayrollSummary() {
         <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{message}</div>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-4 py-3">
-          <p className="text-xs font-black uppercase text-amber-800">Draft</p>
-          <p className="text-2xl font-black tabular-nums">{draft.length}</p>
+        <div className="rounded-md border border-slate-200 bg-white px-4 py-3">
+          <p className="text-xs font-medium text-slate-500">Draft</p>
+          <p className="z-stencil text-2xl text-slate-900">{draft.length}</p>
         </div>
-        <div className="rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3">
-          <p className="text-xs font-black uppercase text-blue-800">Locked</p>
-          <p className="text-2xl font-black tabular-nums">{locked.length}</p>
+        <div className="rounded-md border border-slate-200 bg-white px-4 py-3">
+          <p className="text-xs font-medium text-slate-500">Locked</p>
+          <p className="z-stencil text-2xl text-slate-900">{locked.length}</p>
         </div>
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3">
-          <p className="text-xs font-black uppercase text-emerald-800">Paid</p>
-          <p className="text-2xl font-black tabular-nums">{paid.length}</p>
+        <div className="rounded-md border border-slate-200 bg-white px-4 py-3">
+          <p className="text-xs font-medium text-slate-500">Paid</p>
+          <p className="z-stencil text-2xl text-slate-900">{paid.length}</p>
         </div>
       </div>
 
@@ -148,7 +148,7 @@ export default function ExecutiveHrPayrollSummary() {
                         <button
                           type="button"
                           onClick={() => approveRun(r.id)}
-                          className="rounded-lg bg-purple-800 px-3 py-1.5 text-xs font-bold uppercase text-white hover:bg-purple-900"
+                          className="rounded-md bg-zarewa-teal px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0f3d3a]"
                         >
                           MD approve
                         </button>
@@ -165,7 +165,7 @@ export default function ExecutiveHrPayrollSummary() {
       </AppTableWrap>
 
       {canMd && pendingMd.length > 0 ? (
-        <p className="text-xs text-purple-900">
+        <p className="text-xs text-slate-600">
           {pendingMd.length} draft run{pendingMd.length === 1 ? '' : 's'} awaiting MD sign-off (shown in table above).
         </p>
       ) : null}

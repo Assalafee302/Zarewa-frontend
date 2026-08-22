@@ -55,14 +55,14 @@ export default function HrEmployees() {
           {showTalent ? (
             <Link
               to="/hr/talent"
-              className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+              className="inline-flex rounded-sm border border-slate-200 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-50"
             >
               Talent
             </Link>
           ) : null}
           <Link
             to="/hr/employees/registers"
-            className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+            className="inline-flex rounded-sm border border-slate-200 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-50"
           >
             Registers
           </Link>

@@ -54,6 +54,11 @@ describe('salesReceiptsList merge clearance', () => {
     expect(receiptSalesPaymentStatusLabel(row)).toBe(SALES_RECEIPT_PAYMENT_STATUS_CASHIER_CONFIRMED);
   });
 
+  it('does not invent Draft rows for ledger receipts missing a sales_receipts mirror', async () => {
+    const rows = mergeReceiptRowsForSales([], [{ id: 'QT-1', totalNgn: 100_000 }]);
+    expect(rows).toEqual([]);
+  });
+
   it('treats legacy cleared status without finance timestamp as confirmed', () => {
     const fields = salesReceiptMirrorClearanceFields({ status: 'Cleared' });
     expect(isReceiptCleared({ status: fields.status ?? 'Cleared' })).toBe(true);

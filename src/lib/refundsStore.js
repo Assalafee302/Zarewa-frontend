@@ -167,6 +167,7 @@ export function normalizeRefund(r) {
 }
 
 export function isRefundPayable(r) {
+  if (Math.round(Number(r?.walletOpenNgn) || 0) > 0) return false;
   return (
     r?.status === 'Approved' &&
     refundOutstandingAmount(r) > 0 &&
@@ -274,22 +275,16 @@ export function hangingRefundIndicatorsByCustomerId(list, ledgerEntries) {
 
 export function loadRefunds() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(normalizeRefund);
-      }
-    }
+    localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* ignore */
   }
   return [];
 }
 
-export function saveRefunds(list) {
+export function saveRefunds(_list) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list.map(normalizeRefund)));
+    localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* ignore */
   }

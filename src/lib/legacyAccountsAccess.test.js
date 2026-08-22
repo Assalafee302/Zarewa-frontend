@@ -42,7 +42,7 @@ describe('legacyAccountsAccess (client)', () => {
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('treasury');
     expect(resolveAccountsNavigationTab('treasury', 'cashier', ['cashier.desk.view'])).toBe('desk');
     expect(resolveAccountsNavigationTab('treasury', 'finance_manager', ['accounting.desk.view'])).toBe('desk');
-    expect(legacyAccountTabLabelForRole('desk', 'cashier')).toBe('Desk');
+    expect(legacyAccountTabLabelForRole('desk', 'cashier')).toBe('Cashier');
     expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'treasury')).toBeNull();
   });
 

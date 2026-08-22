@@ -127,10 +127,10 @@ export function ReportsExportCatalog({
                 key={c.id}
                 type="button"
                 onClick={() => setSectionId(c.id)}
-                className={`rounded-lg px-2.5 py-1.5 text-ui-xs font-semibold ${
+                className={`rounded-sm px-2.5 py-1.5 text-ui-xs font-medium ${
                   sectionId === c.id
                     ? 'bg-zarewa-teal text-white'
-                    : 'border border-slate-200 bg-white text-slate-600 hover:border-teal-200'
+                    : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                 }`}
               >
                 {c.label}
@@ -172,7 +172,7 @@ export function ReportsExportCatalog({
       {rows.length === 0 ? (
         <p className="text-sm text-slate-500 py-6 text-center">No reports match your search.</p>
       ) : (
-        <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <ul className="divide-y divide-slate-200 overflow-hidden rounded-md border border-slate-200 bg-white">
           {rows.map((row) =>
             row.type === 'pair' ? (
               <PairExportRow
@@ -221,19 +221,15 @@ function ExportRow({
   anyBusy,
 }) {
   const disabled = !periodValid || anyBusy;
-  const Icon = item.icon;
   const coverage = resolvePrintCoverage(item);
   const showPrintPrimary = coverage === 'full';
 
   return (
-    <li className="relative px-3 py-3 sm:px-4">
+    <li className="relative border-l-2 border-slate-300 px-3 py-3 sm:px-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="hidden sm:flex p-2 rounded-lg bg-slate-50 text-zarewa-teal border border-slate-100 shrink-0">
-          {Icon ? <Icon size={16} strokeWidth={2} /> : <FileSpreadsheet size={16} />}
-        </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+            <p className="z-stencil text-sm text-slate-900">{item.title}</p>
             <span className="text-ui-xs font-medium text-slate-500 rounded border border-slate-200 px-1.5 py-0.5">
               {item.badge}
             </span>
@@ -258,29 +254,29 @@ function ExportRow({
             <p className="text-ui-xs font-semibold text-emerald-700 mt-1">Downloaded · {downloadedAgo}</p>
           ) : null}
         </div>
-        <div className="flex items-center gap-1.5 w-full sm:w-auto">
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onPrimary}
-            className="z-btn-primary !text-xs !py-2 flex-1 sm:flex-none justify-center min-h-10"
-            title={`Export ${item.title}`}
-          >
-            {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-            {busy ? 'Exporting…' : 'Export'}
-          </button>
+        <div className="flex w-full items-center gap-1.5 sm:w-auto">
           {showPrintPrimary ? (
             <button
               type="button"
               disabled={disabled}
               onClick={() => onAction('Print')}
-              className="z-btn-secondary !text-xs !py-2 flex-1 sm:flex-none justify-center min-h-10"
+              className="z-btn-primary !text-xs !py-2 flex-1 sm:flex-none justify-center min-h-10"
               title={`Print ${item.title}`}
             >
-              <Printer size={14} />
-              Print
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+              {busy ? 'Printing…' : 'Print'}
             </button>
           ) : null}
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onPrimary}
+            className={`${showPrintPrimary ? 'z-btn-secondary' : 'z-btn-primary'} !text-xs !py-2 flex-1 sm:flex-none justify-center min-h-10`}
+            title={`Export ${item.title}`}
+          >
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            {busy ? 'Exporting…' : 'Export'}
+          </button>
           <button
             type="button"
             disabled={disabled}
@@ -349,7 +345,7 @@ function PairExportRow({
   now,
   busyId,
 }) {
-  const { official, working, title, desc, icon: Icon } = row;
+  const { official, working, title, desc } = row;
   const disabled = !periodValid || Boolean(busyId);
   const busy = busyId === official.id || busyId === working.id;
   const printItem = printItemForPair(official, working);
@@ -359,14 +355,11 @@ function PairExportRow({
   const workingAgo = formatDownloadedAgo(lastDownloadMap[working.id], now);
 
   return (
-    <li className="relative px-3 py-3 sm:px-4 bg-slate-50/40">
+    <li className="relative border-l-2 border-slate-300 bg-slate-50/40 px-3 py-3 sm:px-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="hidden sm:flex p-2 rounded-lg bg-white text-zarewa-teal border border-slate-100 shrink-0">
-          {Icon ? <Icon size={16} strokeWidth={2} /> : <FileSpreadsheet size={16} />}
-        </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-slate-900">{title}</p>
+            <p className="z-stencil text-sm text-slate-900">{title}</p>
             <span className="text-ui-xs font-medium text-slate-500 rounded border border-slate-200 px-1.5 py-0.5">
               Official + working paper
             </span>
@@ -381,12 +374,24 @@ function PairExportRow({
             {workingAgo ? ` · ${workingAgo}` : ''}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+        <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
+          {showPrintPrimary && printItem ? (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onRequestExport?.(printItem, 'Print')}
+              className="z-btn-primary !text-xs !py-2 flex-1 sm:flex-none justify-center min-h-10"
+              title={`Print ${printItem.title}`}
+            >
+              <Printer size={14} />
+              Print
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={disabled}
             onClick={() => onRequestExport?.(official, 'Excel')}
-            className="z-btn-primary !text-xs !py-2 flex-1 sm:flex-none justify-center min-h-10"
+            className={`${showPrintPrimary ? 'z-btn-secondary' : 'z-btn-primary'} !text-xs !py-2 flex-1 sm:flex-none justify-center min-h-10`}
             title={`Export ${official.title}`}
           >
             {busy && busyId === official.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
@@ -402,18 +407,6 @@ function PairExportRow({
             {busy && busyId === working.id ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
             Working
           </button>
-          {showPrintPrimary && printItem ? (
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => onRequestExport?.(printItem, 'Print')}
-              className="z-btn-secondary !text-xs !py-2 flex-1 sm:flex-none justify-center min-h-10"
-              title={`Print ${printItem.title}`}
-            >
-              <Printer size={14} />
-              Print
-            </button>
-          ) : null}
           <button
             type="button"
             disabled={disabled}

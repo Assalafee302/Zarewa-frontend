@@ -7,16 +7,38 @@ export {
   COIL_STRIP_WIDTH_M,
 } from '../../shared/lib/coilDensityStandard.js';
 
-/** Rows per column for Coil / Stone-coated / Accessories lists on Purchases. */
-export const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
+/** Rows per page on the Purchases desk table. */
+export const PROCUREMENT_PURCHASES_PAGE_SIZE = 15;
 export const PAYABLES_TABLE_PAGE_SIZE = 10;
+
+export const PO_KIND_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'coil', label: 'Coil' },
+  { id: 'stone', label: 'Stone-coated' },
+  { id: 'accessory', label: 'Accessories' },
+  { id: 'mixed', label: 'Mixed' },
+];
+
+export function poKindShortLabel(kind) {
+  if (kind === 'stone') return 'Stone-coated';
+  if (kind === 'accessory') return 'Accessories';
+  if (kind === 'mixed') return 'Mixed';
+  return 'Coil';
+}
+
+export function poKindUnitHint(kind) {
+  if (kind === 'stone') return 'm';
+  if (kind === 'accessory') return 'units';
+  if (kind === 'mixed') return 'mixed';
+  return 'kg';
+}
 
 export const TAB_LABELS = {
   purchases: 'Purchases',
   payables: 'Supplier payables',
   transport: 'Transport reconciliation',
   suppliers: 'Suppliers',
-  conversion: 'Cost & pricing workbook',
+  conversion: 'Pricing workbook',
 };
 
 /** Kg coil SKUs below this on-hand level count as low stock on the Procurement KPI row. */

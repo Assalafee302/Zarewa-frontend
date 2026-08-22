@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   OfficialNoticesPanel,
   DeskSearchPanel,
 } from '../OfficeDeskPanels';
+import { OfficialNoticeCreateDialog } from '../OfficialNoticeCreateDialog';
 
 function RecordList({ items, empty, onOpenItem }) {
   if (!items.length) return <p className="rounded-xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">{empty}</p>;
@@ -35,9 +36,21 @@ export default function RecordsZone({
   items,
   onOpenItem,
   onCreateNotice,
+  noticeBlocked = false,
+  noticeBlockedMessage,
+  composeRequested = false,
+  onComposeConsumed,
 }) {
   const [query, setQuery] = useState('');
   const [noticeVersion, setNoticeVersion] = useState(0);
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  const [noticeBusy, setNoticeBusy] = useState(false);
+
+  useEffect(() => {
+    if (!composeRequested) return;
+    setNoticeOpen(true);
+    onComposeConsumed?.();
+  }, [composeRequested, onComposeConsumed]);
   const tabs = [
     { id: 'notices', label: 'Official notices' },
     { id: 'filing', label: 'Filing' },
@@ -100,16 +113,33 @@ export default function RecordsZone({
               {onCreateNotice ? (
                 <button
                   type="button"
-                  onClick={async () => {
-                    const created = await onCreateNotice();
-                    if (created !== false) setNoticeVersion((value) => value + 1);
-                  }}
-                  className="rounded-lg bg-teal-800 px-3 py-2 text-xs font-semibold text-white"
+                  onClick={() => setNoticeOpen(true)}
+                  className="rounded-lg bg-teal-800 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-900"
                 >
                   Create official notice
                 </button>
               ) : null}
               <OfficialNoticesPanel key={noticeVersion} />
+              <OfficialNoticeCreateDialog
+                open={noticeOpen}
+                onClose={() => { if (!noticeBusy) setNoticeOpen(false); }}
+                busy={noticeBusy}
+                blocked={Boolean(noticeBlocked)}
+                blockedMessage={noticeBlockedMessage}
+                onPublish={async ({ title, content }) => {
+                  setNoticeBusy(true);
+                  try {
+                    const created = await onCreateNotice({ title, content });
+                    if (created === true) {
+                      setNoticeVersion((value) => value + 1);
+                      return true;
+                    }
+                    return created || false;
+                  } finally {
+                    setNoticeBusy(false);
+                  }
+                }}
+              />
             </div>
           ) : null}
           {active === tab.id && tab.id === 'filing' ? (

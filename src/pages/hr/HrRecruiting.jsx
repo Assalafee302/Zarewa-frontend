@@ -212,13 +212,11 @@ export default function HrRecruiting({ embedded = false } = {}) {
           actions={
             <>
               <a
-                href="/careers"
-                target="_blank"
-                rel="noreferrer"
+                href="/hr/talent"
                 className={`${HR_BTN_SECONDARY} inline-flex items-center gap-1.5`}
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                Public careers
+                Talent / recruiting
               </a>
               {canManage ? (
                 <>
@@ -240,13 +238,11 @@ export default function HrRecruiting({ embedded = false } = {}) {
       ) : (
         <div className="flex flex-wrap items-center justify-end gap-2">
           <a
-            href="/careers"
-            target="_blank"
-            rel="noreferrer"
+            href="/hr/talent"
             className={`${HR_BTN_SECONDARY} inline-flex items-center gap-1.5`}
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            Public careers
+            Talent / recruiting
           </a>
           {canManage ? (
             <>

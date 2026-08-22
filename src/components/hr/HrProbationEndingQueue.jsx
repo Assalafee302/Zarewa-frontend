@@ -38,15 +38,15 @@ export function HrProbationEndingQueue() {
   if (!rows.length) return null;
 
   return (
-    <section className="rounded-2xl border border-amber-100 bg-amber-50/50 p-5">
+    <section className="rounded-md border border-amber-200 bg-amber-50/40 p-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="text-xs font-black uppercase tracking-widest text-amber-900">Probation decisions</h2>
-          <p className="mt-1 text-xs text-amber-950/80">{rows.length} staff ending probation within 30 days</p>
+          <h2 className="text-sm font-semibold text-slate-900">Probation decisions</h2>
+          <p className="mt-1 text-xs text-slate-600">{rows.length} staff ending probation within 30 days</p>
         </div>
         <Link
           to={`${HR_EMPLOYEES}?tab=directory&quickFilter=probation-ending`}
-          className="text-xs font-bold uppercase text-zarewa-teal hover:underline"
+          className="text-xs font-medium text-slate-700 hover:underline"
         >
           Directory filter →
         </Link>
@@ -55,13 +55,13 @@ export function HrProbationEndingQueue() {
         {rows.map((s) => (
           <li
             key={s.userId}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/80 bg-white/90 px-3 py-2 text-xs"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs"
           >
             <span className="font-semibold text-slate-800">{s.displayName || s.username}</span>
-            <span className="font-mono text-amber-800">{s.probationEndIso?.slice(0, 10) || '—'}</span>
+            <span className="z-stencil text-slate-800">{s.probationEndIso?.slice(0, 10) || '—'}</span>
             <Link
               to={`${HR_EMPLOYEES}/${encodeURIComponent(s.userId)}?tab=employment`}
-              className="font-bold text-zarewa-teal hover:underline"
+              className="font-medium text-slate-700 hover:underline"
             >
               Confirm / extend →
             </Link>

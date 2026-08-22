@@ -12,6 +12,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout backend for shared sync
+        uses: actions/checkout@v4
+        with:
+          repository: Assalafee302/Zarewa-backend
+          path: .ci/zarewa-backend
+          # Private sibling checkout needs a PAT with repo read on the backend.
+          # Fall back to github.token when both repos are public / same-token accessible.
+          token: ${{ secrets.SHARED_SYNC_TOKEN || github.token }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -20,6 +29,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify shared modules match backend
+        env:
+          ZAREWA_BACKEND_ROOT: ${{ github.workspace }}/.ci/zarewa-backend
+        run: npm run verify:shared
 
       - name: Lint
         run: npm run lint

@@ -120,7 +120,7 @@ export function StockRegisterStoreConfirmModal({
   const ban = disabledMessage(status);
 
   return (
-    <ModalFrame isOpen={open} onClose={onClose} showCloseButton={false} surface="plain" title="Store count confirmation">
+    <ModalFrame isOpen={open} onClose={onClose} surface="plain" title="Store count confirmation" showCloseButton={false}>
       <div className="z-modal-panel-lg flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
           <div>

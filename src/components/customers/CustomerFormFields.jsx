@@ -1,27 +1,12 @@
 import React, { useState } from 'react';
 import { ChevronDown, User, MapPin, Briefcase, Tags } from 'lucide-react';
 import { CustomerStaffLinkField } from '../sales/CustomerStaffLinkField';
+import { FormField } from '../layout/FormLayout';
+import { Input, Select, Textarea } from '../ui/Input';
 import {
-  CUSTOMER_FIELD,
-  CUSTOMER_LABEL,
   CUSTOMER_SECTION,
   CUSTOMER_SECTION_TITLE,
-  CUSTOMER_SELECT,
-  CUSTOMER_TEXTAREA,
 } from './customerUi';
-
-function Field({ label, required, children, hint }) {
-  return (
-    <div className="space-y-1.5">
-      <label className={CUSTOMER_LABEL}>
-        {label}
-        {required ? <span className="text-rose-500 ml-0.5">*</span> : null}
-      </label>
-      {children}
-      {hint ? <p className="text-ui-xs text-slate-500 leading-relaxed">{hint}</p> : null}
-    </div>
-  );
-}
 
 function Section({ title, icon: Icon, children, defaultOpen = true, collapsible = false }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -92,98 +77,113 @@ export function CustomerFormFields({
   return (
     <div className="space-y-5">
       <Section title="Identity" icon={User}>
-        <Field label="Full name" required>
-          <input
+        <FormField label="Full name" required>
+          <Input
             required
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            className={CUSTOMER_FIELD}
             placeholder="Customer or company contact name"
           />
-        </Field>
+        </FormField>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Phone" required={!staffLinked} hint={staffLinked ? 'Optional for staff purchase credit accounts.' : undefined}>
-            <input
+          <FormField
+            label="Phone"
+            required={!staffLinked}
+            hint={staffLinked ? 'Optional for staff purchase credit accounts.' : undefined}
+          >
+            <Input
               required={!staffLinked}
               value={form.phoneNumber}
               onChange={(e) => setForm((f) => ({ ...f, phoneNumber: e.target.value }))}
-              className={CUSTOMER_FIELD}
               placeholder={staffLinked ? 'Optional' : 'e.g. 0803 555 0142'}
             />
-          </Field>
-          <Field label="Email">
-            <input
+          </FormField>
+          <FormField label="Email">
+            <Input
               type="email"
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              className={CUSTOMER_FIELD}
               placeholder="name@example.com"
             />
-          </Field>
+          </FormField>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Title / role label">
+            <Input
+              value={form.customerTitle || ''}
+              onChange={(e) => setForm((f) => ({ ...f, customerTitle: e.target.value }))}
+              placeholder="e.g. Dealer, Installer, Driver"
+            />
+          </FormField>
+          <FormField
+            label="Role tags"
+            hint="Optional. Customers are your commercial accounts; Client/site on the quotation holds the end-client name."
+          >
+            <Input
+              value={form.roleTagsStr || ''}
+              onChange={(e) => setForm((f) => ({ ...f, roleTagsStr: e.target.value }))}
+              placeholder="e.g. dealer"
+            />
+          </FormField>
         </div>
       </Section>
 
       <Section title="Addresses" icon={MapPin}>
-        <Field label="Shipping address">
-          <textarea
+        <FormField label="Shipping address">
+          <Textarea
             rows={2}
             value={form.addressShipping}
             onChange={(e) => setForm((f) => ({ ...f, addressShipping: e.target.value }))}
-            className={CUSTOMER_TEXTAREA}
             placeholder="Site or delivery address"
           />
-        </Field>
+        </FormField>
         {showBilling ? (
-          <Field label="Billing address">
-            <textarea
+          <FormField label="Billing address">
+            <Textarea
               rows={2}
               value={form.addressBilling}
               onChange={(e) => setForm((f) => ({ ...f, addressBilling: e.target.value }))}
-              className={CUSTOMER_TEXTAREA}
               placeholder="Invoice address (leave blank to use shipping)"
             />
-          </Field>
+          </FormField>
         ) : null}
       </Section>
 
       <Section title="Account settings" icon={Briefcase}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="Tier">
-            <select
+          <FormField label="Tier">
+            <Select
               value={form.tier}
               onChange={(e) => setForm((f) => ({ ...f, tier: e.target.value }))}
-              className={CUSTOMER_SELECT}
             >
               {tierOptions.map((t) => (
                 <option key={t} value={t}>
                   {t === 'Staff' ? 'Staff (purchase credit)' : t}
                 </option>
               ))}
-            </select>
-          </Field>
-          <Field label="Payment terms">
-            <select
+            </Select>
+          </FormField>
+          <FormField label="Payment terms">
+            <Select
               value={form.paymentTerms}
               onChange={(e) => setForm((f) => ({ ...f, paymentTerms: e.target.value }))}
-              className={CUSTOMER_SELECT}
             >
               {paymentTermsOptions.map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
               ))}
-            </select>
-          </Field>
-          <Field label="Status">
-            <select
+            </Select>
+          </FormField>
+          <FormField label="Status">
+            <Select
               value={form.status}
               onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-              className={CUSTOMER_SELECT}
             >
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
-            </select>
-          </Field>
+            </Select>
+          </FormField>
         </div>
       </Section>
 
@@ -204,65 +204,85 @@ export function CustomerFormFields({
 
       {showCrm ? (
         <Section title="CRM profiling" icon={Tags}>
-          <Field label="Company / trading name">
-            <input
+          <FormField label="Company / trading name">
+            <Input
               value={form.companyName}
               onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
-              className={CUSTOMER_FIELD}
               placeholder="Optional legal or trading name"
             />
-          </Field>
+          </FormField>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Lead source">
-              <input
+            <FormField label="Lead source">
+              <Input
                 value={form.leadSource}
                 onChange={(e) => setForm((f) => ({ ...f, leadSource: e.target.value }))}
-                className={CUSTOMER_FIELD}
                 placeholder="Referral, walk-in, WhatsApp…"
               />
-            </Field>
-            <Field label="Preferred contact">
-              <select
+            </FormField>
+            <FormField label="Preferred contact">
+              <Select
                 value={form.preferredContact}
                 onChange={(e) => setForm((f) => ({ ...f, preferredContact: e.target.value }))}
-                className={CUSTOMER_SELECT}
               >
                 <option value="Phone">Phone</option>
                 <option value="WhatsApp">WhatsApp</option>
                 <option value="Email">Email</option>
                 <option value="Site visit">Site visit</option>
-              </select>
-            </Field>
+              </Select>
+            </FormField>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Next follow-up">
-              <input
+            <FormField label="Next follow-up">
+              <Input
                 type="date"
                 value={form.followUpISO}
                 onChange={(e) => setForm((f) => ({ ...f, followUpISO: e.target.value }))}
-                className={CUSTOMER_FIELD}
               />
-            </Field>
-            <Field label="Tags">
-              <input
+            </FormField>
+            <FormField label="Tags">
+              <Input
                 value={form.crmTagsStr}
                 onChange={(e) => setForm((f) => ({ ...f, crmTagsStr: e.target.value }))}
-                className={CUSTOMER_FIELD}
                 placeholder="VIP, price sensitive, Kano"
               />
-            </Field>
+            </FormField>
           </div>
-          <Field label="Profile notes">
-            <textarea
+          <FormField label="Profile notes">
+            <Textarea
               rows={3}
               value={form.crmProfileNotes}
               onChange={(e) => setForm((f) => ({ ...f, crmProfileNotes: e.target.value }))}
-              className={CUSTOMER_TEXTAREA}
               placeholder="Preferences, risks, and history for anyone serving this account…"
             />
-          </Field>
+          </FormField>
         </Section>
       ) : null}
+
+      <Section title="Payout account (refunds)" icon={Briefcase}>
+        <FormField label="Account name">
+          <Input
+            value={form.bankAccountName || ''}
+            onChange={(e) => setForm((f) => ({ ...f, bankAccountName: e.target.value }))}
+            placeholder="Name on bank account"
+          />
+        </FormField>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Bank name">
+            <Input
+              value={form.bankName || ''}
+              onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
+              placeholder="e.g. Access Bank"
+            />
+          </FormField>
+          <FormField label="Account number">
+            <Input
+              value={form.bankAccountNo || ''}
+              onChange={(e) => setForm((f) => ({ ...f, bankAccountNo: e.target.value }))}
+              placeholder="Bank account number"
+            />
+          </FormField>
+        </div>
+      </Section>
 
       {children}
     </div>

@@ -36,10 +36,10 @@ export function ManagerBreakEvenCard({ branchId = '' }) {
     <FinanceSequencePanel className="!min-h-0 sm:!min-h-0 bg-white p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-black tracking-tight text-zarewa-teal">Contribution pulse</h3>
+          <h3 className="text-sm font-semibold tracking-tight text-slate-900">Contribution pulse</h3>
           <p className="mt-0.5 text-ui-xs text-slate-500">AP3 management draft · current month</p>
         </div>
-        <button type="button" onClick={() => void load()} className="text-ui-xs font-bold uppercase text-zarewa-teal hover:underline">
+        <button type="button" onClick={() => void load()} className="text-ui-xs font-medium text-slate-700 hover:underline">
           Refresh
         </button>
       </div>
@@ -47,17 +47,17 @@ export function ManagerBreakEvenCard({ branchId = '' }) {
         <p className="py-5 text-xs text-slate-500">No production contribution data yet.</p>
       ) : (
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
-            <p className="text-ui-xs font-bold uppercase text-slate-500">Contribution</p>
-            <p className={`mt-1 text-lg font-black tabular-nums ${contribution > 0 ? 'text-zarewa-teal' : 'text-rose-800'}`}>{formatNgn(contribution)}</p>
+          <div className="rounded-md border border-slate-200 bg-white p-2.5">
+            <p className="text-ui-xs font-medium text-slate-500">Contribution</p>
+            <p className={`z-stencil mt-1 text-lg ${contribution > 0 ? 'text-slate-900' : 'text-rose-800'}`}>{formatNgn(contribution)}</p>
           </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
-            <p className="text-ui-xs font-bold uppercase text-slate-500">Metres</p>
-            <p className="mt-1 text-lg font-black tabular-nums text-zarewa-teal">{metres.toLocaleString('en-NG')}</p>
+          <div className="rounded-md border border-slate-200 bg-white p-2.5">
+            <p className="text-ui-xs font-medium text-slate-500">Metres</p>
+            <p className="z-stencil mt-1 text-lg text-slate-900">{metres.toLocaleString('en-NG')}</p>
           </div>
-          <div className="col-span-2 rounded-lg border border-teal-100 bg-teal-50/50 px-2.5 py-2">
-            <p className="text-ui-xs font-bold uppercase text-slate-500">Break-even proxy</p>
-            <p className="mt-0.5 text-xs font-bold text-slate-800">
+          <div className="col-span-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2">
+            <p className="text-ui-xs font-medium text-slate-500">Break-even proxy</p>
+            <p className="mt-0.5 text-xs font-medium text-slate-800">
               {contribution <= 0 ? 'Below break-even' : perMetre == null ? 'No production metres recorded' : `${formatNgn(perMetre)} contribution per metre`}
             </p>
           </div>

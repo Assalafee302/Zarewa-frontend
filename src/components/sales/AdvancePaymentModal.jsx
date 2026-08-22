@@ -1,0 +1,492 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { X, Wallet, Save, Printer } from 'lucide-react';
+import { ModalFrame } from '../layout/ModalFrame';
+import { PrintModalPortal } from '../layout/PrintModalPortal';
+import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
+import { useCustomers } from '../../context/CustomersContext';
+import { useToast } from '../../context/ToastContext';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { recordAdvancePayment } from '../../lib/customerLedgerStore';
+import { formatNgn } from '../../Data/mockData';
+import { apiFetch } from '../../lib/apiBase';
+import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../../lib/ledgerPostingGuidance';
+import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
+import { compareSelectLabels } from '../../lib/selectOptionSort';
+import { AdvancePaymentPrintView } from '../receipt/ReceiptPrintViews';
+import { BankDepositPicker } from './BankDepositPicker';
+import { bankDepositRemainingNgn } from '../../lib/bankDeposits';
+
+/**
+ * Standalone advance / deposit — no quotation. Liability until applied or refunded.
+ */
+const AdvancePaymentModal = ({
+  isOpen,
+  onClose,
+  onPosted,
+  defaultCustomerID = '',
+  defaultBankDepositId = '',
+  workspaceSnapshot,
+  useLedgerApi = false,
+  handledByLabel = 'Sales',
+}) => {
+  const { customers } = useCustomers();
+  const { show: showToast } = useToast();
+  const ws = useWorkspace();
+  const [customerID, setCustomerID] = useState('');
+  const [amount, setAmount] = useState('');
+  const [treasuryAccountId, setTreasuryAccountId] = useState('');
+  const [dateISO, setDateISO] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reference, setReference] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const [showPrint, setShowPrint] = useState(false);
+  const [postingHint, setPostingHint] = useState(null);
+  const [bankDepositId, setBankDepositId] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
+  const postingRef = useRef(false);
+
+  const depositSnapshot = workspaceSnapshot ?? ws?.snapshot;
+  const linkedDeposit = useMemo(() => {
+    const rows = Array.isArray(depositSnapshot?.bankDeposits) ? depositSnapshot.bankDeposits : [];
+    return rows.find((d) => String(d.id) === String(bankDepositId)) || null;
+  }, [depositSnapshot?.bankDeposits, bankDepositId]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setBankDepositId('');
+      return;
+    }
+    setBankDepositId(String(defaultBankDepositId || ''));
+  }, [isOpen, defaultBankDepositId]);
+
+  const treasuryList = useMemo(() => {
+    const raw =
+      treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
+        branchScope: ws?.branchScope,
+        viewAllBranches: ws?.viewAllBranches,
+      }) || [];
+    return [...raw].sort((a, b) =>
+      compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
+    );
+  }, [
+    ws?.branchScope,
+    ws?.viewAllBranches,
+    ws?.snapshot,
+    ws?.session,
+  ]);
+
+  const customersSorted = useMemo(
+    () => [...(customers || [])].sort((a, b) => compareSelectLabels(a.name, b.name)),
+    [customers]
+  );
+  const periodLocks = useMemo(() => ws?.snapshot?.periodLocks ?? [], [ws?.snapshot?.periodLocks]);
+  const voucherInLockedPeriod = useMemo(
+    () => Boolean(useLedgerApi && isVoucherDateInLockedPeriod(dateISO, periodLocks)),
+    [useLedgerApi, dateISO, periodLocks]
+  );
+
+  const advanceHydrateKey = useMemo(
+    () => (isOpen ? `advance:${String(defaultCustomerID ?? '')}` : ''),
+    [isOpen, defaultCustomerID]
+  );
+
+  const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-advance-payment', {
+    isOpen,
+    blockTracking: false,
+    hydrateKey: advanceHydrateKey,
+  });
+  const handleClose = wrapClose(() => onClose());
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setCustomerID(defaultCustomerID || '');
+    setAmount('');
+    setDateISO(new Date().toISOString().slice(0, 10));
+    setReference('');
+    setPurpose('');
+    setShowPrint(false);
+    setPostingHint(null);
+  }, [isOpen, defaultCustomerID]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setTreasuryAccountId((prev) => {
+      if (prev && treasuryList.some((a) => String(a.id) === String(prev))) return prev;
+      const first = treasuryList[0];
+      return first ? String(first.id) : '';
+    });
+  }, [isOpen, treasuryList]);
+
+
+  const customerName = useMemo(
+    () => customers.find((c) => c.customerID === customerID)?.name ?? '',
+    [customers, customerID]
+  );
+
+  const selectedAccount = useMemo(() => {
+    const id = Number(treasuryAccountId);
+    return treasuryList.find((a) => a.id === id) ?? treasuryList[0] ?? null;
+  }, [treasuryList, treasuryAccountId]);
+
+  const accountLabelForPrint = useMemo(() => {
+    if (!selectedAccount) return '—';
+    return `${selectedAccount.type} — ${selectedAccount.name}${
+      selectedAccount.accNo && selectedAccount.accNo !== 'N/A' ? ` (${selectedAccount.accNo})` : ''
+    }`;
+  }, [selectedAccount]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (postingRef.current) return;
+    if (!customerID) {
+      showToast('Select a customer.', { variant: 'error' });
+      return;
+    }
+    const n = Number(String(amount).replace(/,/g, ''));
+    if (Number.isNaN(n) || n <= 0) {
+      showToast('Enter a valid amount.', { variant: 'error' });
+      return;
+    }
+    const activeBankDepositId =
+      bankDepositId && linkedDeposit && bankDepositRemainingNgn(linkedDeposit) > 0 ? String(bankDepositId) : '';
+    const depositCover = activeBankDepositId && linkedDeposit ? Math.min(n, bankDepositRemainingNgn(linkedDeposit)) : 0;
+    const cashNeeded = Math.max(0, n - depositCover);
+    if (!activeBankDepositId && !selectedAccount) {
+      showToast('Add a treasury account in Finance first.', { variant: 'error' });
+      return;
+    }
+    if (cashNeeded > 0 && !selectedAccount) {
+      showToast('Select treasury account for the portion not covered by the linked deposit.', { variant: 'error' });
+      return;
+    }
+    const paymentMethod = selectedAccount
+      ? `${selectedAccount.type} — ${selectedAccount.name}`
+      : activeBankDepositId
+        ? 'Linked bank deposit'
+        : '—';
+    postingRef.current = true;
+    setIsPosting(true);
+    try {
+      if (useLedgerApi) {
+        const body = {
+          customerID,
+          customerName,
+          amountNgn: n,
+          paymentMethod,
+          bankReference: [reference.trim(), accountLabelForPrint].filter(Boolean).join(' | '),
+          purpose: purpose.trim(),
+          dateISO,
+        };
+        if (activeBankDepositId) body.bankDepositId = activeBankDepositId;
+        if (cashNeeded > 0 && treasuryAccountId) {
+          body.treasuryAccountId = Number(treasuryAccountId);
+          body.paymentLines = [
+            {
+              treasuryAccountId: Number(treasuryAccountId),
+              amountNgn: cashNeeded,
+              reference: reference.trim(),
+              dateISO,
+            },
+          ];
+        }
+        const idempotencyKey =
+          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `adv-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+        const postAdvance = async (payload, key) =>
+          apiFetch('/api/ledger/advance', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Idempotency-Key': key },
+          });
+
+        let { ok, data } = await postAdvance(body, idempotencyKey);
+        if (!ok && data?.code === 'POSSIBLE_DUPLICATE_ADVANCE') {
+          const lines = (data?.duplicateSignals || [])
+            .map((sig) => `- ${sig.message}`)
+            .join('\n');
+          const reason = window.prompt(
+            `Server detected a duplicate-like advance:\n${lines || '- Similar posting exists.'}\n\nIf this is intentional, type reason to continue:`
+          );
+          if (!reason || !reason.trim()) {
+            showToast('Posting cancelled to avoid duplicate entry.', { variant: 'info' });
+            return;
+          }
+          const secondKey =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `adv-dup-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+          ({ ok, data } = await postAdvance(
+            { ...body, forceDuplicatePost: true, duplicateOverrideReason: reason.trim() },
+            secondKey
+          ));
+        }
+        if (!ok || !data?.ok) {
+          setPostingHint(guidanceForLedgerPostFailure(data) || null);
+          showToast(data?.error || 'Could not post advance to server.', { variant: 'error' });
+          return;
+        }
+        setPostingHint(null);
+        if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !activeBankDepositId) {
+          showToast(
+            `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match by amount/date (exact or close) — link next time to avoid duplicate treasury.`,
+            { variant: 'info' }
+          );
+        }
+      } else {
+        const res = recordAdvancePayment({
+          customerID,
+          customerName,
+          amountNgn: n,
+          paymentMethod,
+          bankReference: [reference.trim(), accountLabelForPrint].filter(Boolean).join(' | '),
+          purpose: purpose.trim(),
+          dateISO,
+        });
+        if (!res.ok) {
+          showToast(res.error, { variant: 'error' });
+          return;
+        }
+      }
+      showToast(`Advance ${formatNgn(n)} recorded — not revenue until applied or receipt against a quote.`);
+      await onPosted?.();
+      abandonUnsavedAndRun(() => onClose());
+    } finally {
+      postingRef.current = false;
+      setIsPosting(false);
+    }
+  };
+
+  const openPrintPreview = () => {
+    const n = Number(String(amount).replace(/,/g, ''));
+    if (!customerID || Number.isNaN(n) || n <= 0) {
+      showToast('Select customer and amount to print.', { variant: 'error' });
+      return;
+    }
+    setShowPrint(true);
+  };
+
+  return (
+    <ModalFrame isOpen={isOpen} onClose={handleClose} modal={!showPrint} showCloseButton={false}>
+      <>
+      <form
+        onSubmit={submit}
+        onInput={captureEdited}
+        onChange={captureEdited}
+        className="z-modal-panel max-w-[min(100%,26rem)] w-full min-w-0 max-h-[min(92vh,640px)] flex flex-col bg-white"
+      >
+        <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shrink-0">
+              <Wallet size={20} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-zarewa-teal tracking-tight">Advance payment</h2>
+              <p className="text-ui-xs font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
+                Deposit before quotation — liability, not revenue
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl shrink-0"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {useLedgerApi && voucherInLockedPeriod ? (
+          <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-ui-xs text-amber-950 space-y-1">
+            <p className="font-bold">Date is in a locked accounting period</p>
+            <p className="leading-snug">Choose an open month or ask finance to unlock the period.</p>
+            <Link to="/settings/governance" className="inline-flex font-semibold text-amber-900 underline underline-offset-2">
+              Period controls
+            </Link>
+          </div>
+        ) : null}
+
+        {postingHint ? (
+          <div className="px-5 py-3 bg-rose-50/90 border-b border-rose-200 text-ui-xs text-rose-950 space-y-2">
+            <p className="text-xs font-bold">{postingHint.title}</p>
+            <p className="leading-snug opacity-95">{postingHint.detail}</p>
+            {postingHint.steps?.length ? (
+              <ol className="list-decimal pl-4 space-y-1">
+                {postingHint.steps.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ol>
+            ) : null}
+            {postingHint.links?.length ? (
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {postingHint.links.map((l) => (
+                  <Link key={l.to} to={l.to} className="font-semibold text-rose-900 underline underline-offset-2">
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+          <div>
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
+              Customer
+            </label>
+            <select
+              value={customerID}
+              onChange={(e) => setCustomerID(e.target.value)}
+              required
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-sm font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-amber-500/20"
+            >
+              <option value="">Select customer…</option>
+              {customersSorted.map((c) => (
+                <option key={c.customerID} value={c.customerID}>
+                  {c.name} · {c.phoneNumber}
+                </option>
+              ))}
+            </select>
+          </div>
+          <BankDepositPicker
+            value={bankDepositId}
+            onChange={setBankDepositId}
+            amountNgn={Number(String(amount).replace(/,/g, '')) || 0}
+            bankDateISO={dateISO}
+            bankReference={reference}
+            snapshot={depositSnapshot}
+          />
+          <div>
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
+              Amount paid (₦)
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="e.g. 200000"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-sm font-bold text-zarewa-teal tabular-nums outline-none focus:ring-2 focus:ring-amber-500/20"
+            />
+          </div>
+          <div>
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
+              Received into (treasury)
+            </label>
+            <select
+              value={treasuryAccountId}
+              onChange={(e) => setTreasuryAccountId(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-xs font-semibold text-zarewa-teal outline-none"
+            >
+              {treasuryList.length === 0 ? (
+                <option value="">No accounts — add in Finance</option>
+              ) : (
+                treasuryList.map((a) => (
+                  <option key={a.id} value={String(a.id)}>
+                    {treasuryAccountDisplayName(a)}
+                  </option>
+                ))
+              )}
+            </select>
+            <p className="text-ui-xs text-slate-500 mt-1">Bank or cash till — method is implied by account.</p>
+          </div>
+          <div>
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">Date</label>
+            <input
+              type="date"
+              value={dateISO}
+              onChange={(e) => setDateISO(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-xs font-semibold text-zarewa-teal outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
+              Reference (transfer ID / POS ref)
+            </label>
+            <input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="Optional"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-sm font-medium text-slate-800 outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-ui-xs font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
+              Purpose (optional)
+            </label>
+            <input
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
+              placeholder="e.g. Roofing deposit"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-sm font-medium text-slate-800 outline-none"
+            />
+          </div>
+          <p className="text-ui-xs text-slate-500 leading-relaxed rounded-lg border border-amber-100 bg-amber-50/50 p-3">
+            Ledger row is the audit trail for customer advance balance and quotation application.
+          </p>
+        </div>
+
+        <div className="px-5 py-4 border-t border-slate-100 flex flex-wrap justify-end gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={openPrintPreview}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-amber-300 text-amber-900 text-ui-xs font-semibold uppercase hover:bg-amber-50"
+          >
+            <Printer size={14} /> Print preview
+          </button>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="px-4 py-2.5 rounded-lg text-ui-xs font-semibold uppercase text-slate-600 border border-slate-200 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isPosting || (useLedgerApi && voucherInLockedPeriod)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white text-ui-xs font-semibold uppercase shadow-sm hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <Save size={14} /> {isPosting ? 'Saving…' : 'Save advance'}
+          </button>
+        </div>
+      </form>
+
+      <PrintModalPortal open={showPrint} onClose={() => setShowPrint(false)}>
+        <div className="mx-auto max-w-4xl pb-16">
+          <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
+            <AdvancePaymentPrintView
+              customerName={customerName || customerID || '—'}
+              amountNgn={Number(String(amount).replace(/,/g, '')) || 0}
+              dateStr={dateISO}
+              accountLabel={accountLabelForPrint}
+              reference={reference || '—'}
+              purpose={purpose || '—'}
+              handledBy={handledByLabel}
+            />
+          </div>
+          <div className="no-print mt-4 flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-lg bg-amber-700 px-5 py-2.5 text-ui-xs font-semibold uppercase text-white shadow-lg"
+            >
+              Print / Save PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPrint(false)}
+              className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase text-slate-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </PrintModalPortal>
+      </>
+    </ModalFrame>
+  );
+};
+
+export default AdvancePaymentModal;

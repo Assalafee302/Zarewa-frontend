@@ -5,6 +5,7 @@ import { fetchExecutiveFamilyDashboard } from '../../lib/hrExecutiveBenefits';
 import { formatNgn } from '../../lib/hrFormat';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { HR_EMPLOYEE_REGISTERS } from '../../lib/hrRoutes';
+import { chairmanOfficeHref } from '../../lib/chairmanOfficeHrefs.js';
 import { paymentHealthMeta } from '../../lib/scholarshipUi';
 
 const HEALTH_BORDER = {
@@ -16,45 +17,58 @@ const HEALTH_BORDER = {
 
 function KpiCard({ label, value, hint }) {
   return (
-    <div className="rounded-2xl border border-violet-100 bg-white p-4 shadow-sm">
-      <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
-      <p className="mt-1 text-2xl font-black tabular-nums text-slate-900">{value}</p>
+    <div className="rounded-md border border-slate-200 bg-white p-4">
+      <p className="text-ui-xs font-medium text-slate-500">{label}</p>
+      <p className="z-stencil mt-1 text-2xl text-slate-900">{value}</p>
       {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </div>
   );
 }
 
-function ChildCard({ child }) {
+function benefitsHref(officeManagePath, tab, extra = {}) {
+  if (officeManagePath) {
+    const u = new URL(officeManagePath, 'https://zarewa.local');
+    u.searchParams.set('benefitsTab', tab);
+    for (const [k, v] of Object.entries(extra)) {
+      if (v) u.searchParams.set(k, String(v));
+    }
+    const q = u.searchParams.toString();
+    return q ? `${u.pathname}?${q}` : u.pathname;
+  }
+  return chairmanOfficeHref('scholarships', { benefitsTab: tab, ...extra });
+}
+
+function ChildCard({ child, officeManagePath = '' }) {
   const health = paymentHealthMeta(child.paymentHealth);
   const border = HEALTH_BORDER[child.paymentHealth] || HEALTH_BORDER.on_track;
 
   return (
-    <article className={`rounded-2xl border-2 bg-white p-4 shadow-sm ${border}`}>
+    <article className={`rounded-md border bg-white p-4 ${border}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-lg font-black text-slate-900">{child.displayName}</h3>
+          <h3 className="text-base font-semibold text-slate-900">{child.displayName}</h3>
           <p className="mt-0.5 text-sm text-slate-600">
             {child.schoolName || 'School not set'}
             {child.classLevel ? ` · ${child.classLevel}` : ''}
           </p>
-          {child.linkedExecutiveLabel ? (
-            <p className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-800">
+          {child.linkedExecutiveLabel && !officeManagePath ? (
+            <p className="mt-1 text-xs text-slate-500">
               {child.linkedExecutiveLabel}
               {child.beneficiaryTypeLabel ? ` · ${child.beneficiaryTypeLabel}` : ''}
             </p>
           ) : null}
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${health.className}`}>
+        <span className={`shrink-0 rounded-sm border px-2 py-0.5 text-xs font-medium ${health.className}`}>
           {health.label}
         </span>
       </div>
 
       <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-sky-100 bg-sky-50/50 px-3 py-2.5">
-          <dt className="text-xs font-black uppercase tracking-widest text-sky-700">
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2.5">
+          <dt className="text-ui-xs font-medium text-slate-500">
             {FAMILY_BENEFITS.stipendLabel}
           </dt>
-          <dd className="mt-1 text-base font-black tabular-nums text-slate-900">
+          <dd className="z-stencil mt-1 text-base text-slate-900">
             {child.allowance?.monthlyAmountNgn != null ? formatNgn(child.allowance.monthlyAmountNgn) : '—'}
           </dd>
           <dd className="mt-0.5 text-xs text-slate-600">
@@ -62,8 +76,8 @@ function ChildCard({ child }) {
             {child.allowance?.lastPaidPeriod ? ` · Last ${child.allowance.lastPaidPeriod}` : ''}
           </dd>
         </div>
-        <div className="rounded-xl border border-violet-100 bg-violet-50/50 px-3 py-2.5">
-          <dt className="text-xs font-black uppercase tracking-widest text-violet-700">
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2.5">
+          <dt className="text-ui-xs font-medium text-slate-500">
             {FAMILY_BENEFITS.schoolFeesLabel}
           </dt>
           {child.schoolFees?.pending ? (
@@ -107,7 +121,7 @@ function ChildCard({ child }) {
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {child.staffProfilePath ? (
+        {child.staffProfilePath && !officeManagePath ? (
           <Link
             to={child.staffProfilePath}
             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 no-underline hover:bg-slate-50"
@@ -117,21 +131,21 @@ function ChildCard({ child }) {
         ) : null}
         {child.beneficiaryId ? (
           <Link
-            to={`/executive-hr/benefits?tab=stipends&beneficiary=${encodeURIComponent(child.beneficiaryId)}`}
-            className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-900 no-underline hover:bg-violet-100"
+            to={benefitsHref(officeManagePath, 'stipends', officeManagePath ? {} : { beneficiary: child.beneficiaryId })}
+            className="rounded-sm border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 no-underline hover:bg-slate-50"
           >
             Allowance record
           </Link>
         ) : null}
         {child.beneficiaryId ? (
           <Link
-            to={`/executive-hr/benefits?tab=school-fees&beneficiary=${encodeURIComponent(child.beneficiaryId)}`}
-            className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-800 no-underline hover:bg-violet-50"
+            to={benefitsHref(officeManagePath, 'school-fees', officeManagePath ? {} : { beneficiary: child.beneficiaryId })}
+            className="rounded-sm border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 no-underline hover:bg-slate-50"
           >
             School fees
           </Link>
         ) : null}
-        {!child.hasLogin ? (
+        {!child.hasLogin && !officeManagePath ? (
           <Link
             to={`${HR_EMPLOYEE_REGISTERS}?tab=scholarship`}
             className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 no-underline"
@@ -144,10 +158,15 @@ function ChildCard({ child }) {
   );
 }
 
-export default function ExecutiveHrFamilyDashboard() {
+export default function ExecutiveHrFamilyDashboard({
+  defaultExecutiveFilter = '',
+  lockFilter = false,
+  reloadToken = 0,
+  officeManagePath = '',
+} = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [executiveFilter, setExecutiveFilter] = useState('');
+  const [executiveFilter, setExecutiveFilter] = useState(defaultExecutiveFilter);
   const [data, setData] = useState(null);
 
   const load = useCallback(async () => {
@@ -165,8 +184,8 @@ export default function ExecutiveHrFamilyDashboard() {
   }, [executiveFilter]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    void load();
+  }, [load, reloadToken]);
 
   const summary = data?.summary;
   const children = data?.children || [];
@@ -174,19 +193,19 @@ export default function ExecutiveHrFamilyDashboard() {
 
   return (
     <div className="space-y-6">
-      {data?.periodYyyymm ? (
+      {data?.periodYyyymm && !officeManagePath ? (
         <p className="text-xs text-slate-500">Current period · {formatPayrollPeriodLabel(data.periodYyyymm)}</p>
       ) : null}
 
-      {executives.length > 1 ? (
+      {!lockFilter && executives.length > 1 ? (
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by executive">
           <button
             type="button"
             onClick={() => setExecutiveFilter('')}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+            className={`rounded-sm border px-3 py-1.5 text-xs font-medium ${
               !executiveFilter
-                ? 'border-violet-300 bg-violet-100 text-violet-900'
-                : 'border-slate-200 bg-white text-slate-600'
+                ? 'border-slate-800 bg-slate-800 text-white'
+                : 'border-slate-200 bg-white text-slate-700'
             }`}
           >
             All children
@@ -196,10 +215,10 @@ export default function ExecutiveHrFamilyDashboard() {
               key={exec}
               type="button"
               onClick={() => setExecutiveFilter(exec)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+              className={`rounded-sm border px-3 py-1.5 text-xs font-medium ${
                 executiveFilter === exec
-                  ? 'border-violet-300 bg-violet-100 text-violet-900'
-                  : 'border-slate-200 bg-white text-slate-600'
+                  ? 'border-slate-800 bg-slate-800 text-white'
+                  : 'border-slate-200 bg-white text-slate-700'
               }`}
             >
               {exec}
@@ -212,13 +231,13 @@ export default function ExecutiveHrFamilyDashboard() {
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">{error}</p>
       ) : null}
 
-      {loading ? (
+      {loading && !officeManagePath ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl bg-violet-50" />
+            <div key={i} className="h-24 animate-pulse rounded-md bg-slate-100" />
           ))}
         </div>
-      ) : summary ? (
+      ) : !officeManagePath && summary ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard label="Children" value={summary.childCount} />
           <KpiCard
@@ -240,37 +259,51 @@ export default function ExecutiveHrFamilyDashboard() {
       ) : null}
 
       {!loading && !children.length ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm font-semibold text-slate-800">{FAMILY_BENEFITS.familyDashboardEmpty}</p>
-          <p className="mt-2 text-sm text-slate-500">{FAMILY_BENEFITS.familyDashboardEmptyHint}</p>
-          <Link
-            to={`${HR_EMPLOYEE_REGISTERS}?tab=scholarship`}
-            className="mt-4 inline-flex text-sm font-semibold text-violet-700 underline"
-          >
-            Open Executive family register →
-          </Link>
+        <div className="rounded-md border border-slate-200 bg-white p-6 text-center">
+          <p className="text-sm font-semibold text-slate-800">
+            {officeManagePath ? 'No Chairman family beneficiaries yet.' : FAMILY_BENEFITS.familyDashboardEmpty}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            {officeManagePath
+              ? 'Use Add beneficiary in the register below to add a child, then request school fees or a monthly allowance.'
+              : FAMILY_BENEFITS.familyDashboardEmptyHint}
+          </p>
+          {officeManagePath ? null : (
+            <Link
+              to={`${HR_EMPLOYEE_REGISTERS}?tab=scholarship`}
+              className="mt-4 inline-flex text-sm font-medium text-slate-800 underline underline-offset-2"
+            >
+              Open Executive family register →
+            </Link>
+          )}
         </div>
       ) : null}
 
       {!loading && children.length > 0 ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {children.map((child) => (
-            <ChildCard key={child.userId || child.beneficiaryId || child.displayName} child={child} />
+            <ChildCard
+              key={child.userId || child.beneficiaryId || child.displayName}
+              child={child}
+              officeManagePath={officeManagePath}
+            />
           ))}
         </div>
       ) : null}
 
-      <p className="text-center text-xs text-slate-500">
-        Manage payments in{' '}
-        <Link to="/executive-hr/benefits" className="font-semibold text-violet-700 underline">
-          Executive benefits
-        </Link>
-        {' · '}
-        Review requests in{' '}
-        <Link to="/executive-hr/scholarship-requests" className="font-semibold text-violet-700 underline">
-          Family benefit requests
-        </Link>
-      </p>
+      {officeManagePath ? null : (
+        <p className="text-center text-xs text-slate-500">
+          Manage payments in{' '}
+          <Link to={chairmanOfficeHref('scholarships')} className="font-medium text-slate-800 underline underline-offset-2">
+            Chairman Office → Scholarships
+          </Link>
+          {' · '}
+          Review requests in{' '}
+          <Link to={chairmanOfficeHref('scholarships')} className="font-medium text-slate-800 underline underline-offset-2">
+            School-fee requests
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

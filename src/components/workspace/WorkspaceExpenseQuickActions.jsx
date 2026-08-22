@@ -156,7 +156,7 @@ export function WorkspaceExpenseQuickActions() {
         surface="plain"
         title="Expense request"
         description="Submit a payment request for manager or finance approval."
-      >
+        showCloseButton={false}>
         <div className="z-modal-panel flex max-h-[min(90dvh,760px)] w-full max-w-2xl flex-col overflow-hidden p-0 sm:rounded-2xl">
           <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200/80 px-5 py-4 sm:px-6">
             <div>

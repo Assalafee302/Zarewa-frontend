@@ -1,9 +1,10 @@
 /** HR display helpers. */
 
 export function formatNgn(amount) {
-  const n = Math.round(Number(amount) || 0);
-  if (n === 0 && amount != null && amount !== 0) return '—';
-  return `₦${n.toLocaleString('en-NG')}`;
+  if (amount == null || amount === '') return '—';
+  const num = typeof amount === 'number' ? amount : Number(amount);
+  if (!Number.isFinite(num)) return '—';
+  return `₦${Math.round(num).toLocaleString('en-NG')}`;
 }
 
 export function yearsOfServiceFromIso(dateJoinedIso) {

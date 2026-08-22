@@ -64,7 +64,7 @@ export function HrStaffDirectoryColumnPicker({ visible, showSalary, onChange }) 
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+        className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
         aria-expanded={open}
       >
         <Columns3 size={14} aria-hidden />

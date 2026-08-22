@@ -48,6 +48,8 @@ import { CustomerKpiStrip } from '../components/customers/CustomerKpiStrip';
 import { useCustomers } from '../context/CustomersContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
+import { WorkspaceDeskSyncBanner } from '../components/workspace/WorkspaceDeskSyncBanner';
 import { apiFetch } from '../lib/apiBase';
 import { appConfirm } from '../lib/appConfirm';
 import { setCustomerStaffLink } from '../lib/customerStaffLink';
@@ -215,6 +217,11 @@ const emptyEdit = (c) => ({
   crmTagsStr: Array.isArray(c?.crmTags) ? c.crmTags.join(', ') : '',
   crmProfileNotes: c?.crmProfileNotes ?? '',
   linkedStaffUserId: c?.staffUserId ?? '',
+  customerTitle: c?.customerTitle ?? '',
+  roleTagsStr: Array.isArray(c?.roleTags) ? c.roleTags.join(', ') : '',
+  bankAccountName: c?.bankAccountName ?? '',
+  bankName: c?.bankName ?? '',
+  bankAccountNo: c?.bankAccountNo ?? '',
 });
 
 const CustomerDashboard = () => {
@@ -224,6 +231,7 @@ const CustomerDashboard = () => {
   const { customers, setCustomers, deleteCustomer } = useCustomers();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
+  const { domainLoading, domainReady } = useWorkspaceDomain('sales');
 
   const routeCustomerId = useMemo(() => decodeURIComponent(String(customerId || '')).trim(), [customerId]);
   const allCustomers = useMemo(() => {
@@ -721,7 +729,7 @@ const CustomerDashboard = () => {
         month,
         monthKey: ym,
         amountNgn,
-        amountM: Math.round(amountNgn / 100_000) / 10,
+        amountM: amountNgn / 1_000_000,
       };
     });
   }, [receipts, todayIso]);
@@ -868,6 +876,14 @@ const CustomerDashboard = () => {
           leadSource: editForm.leadSource.trim(),
           preferredContact: editForm.preferredContact,
           followUpISO: editForm.followUpISO.trim(),
+          customerTitle: editForm.customerTitle.trim(),
+          roleTags: editForm.roleTagsStr
+            .split(/[,;]+/)
+            .map((x) => x.trim().toLowerCase())
+            .filter(Boolean),
+          bankAccountName: editForm.bankAccountName.trim(),
+          bankName: editForm.bankName.trim(),
+          bankAccountNo: editForm.bankAccountNo.trim(),
           crmTags: editForm.crmTagsStr
             .split(/[,;]+/)
             .map((x) => x.trim())
@@ -914,6 +930,14 @@ const CustomerDashboard = () => {
               leadSource: editForm.leadSource.trim(),
               preferredContact: editForm.preferredContact,
               followUpISO: editForm.followUpISO.trim(),
+              customerTitle: editForm.customerTitle.trim(),
+              roleTags: editForm.roleTagsStr
+                .split(/[,;]+/)
+                .map((x) => x.trim().toLowerCase())
+                .filter(Boolean),
+              bankAccountName: editForm.bankAccountName.trim(),
+              bankName: editForm.bankName.trim(),
+              bankAccountNo: editForm.bankAccountNo.trim(),
               crmTags: editForm.crmTagsStr
                 .split(/[,;]+/)
                 .map((x) => x.trim())
@@ -1103,6 +1127,7 @@ const CustomerDashboard = () => {
 
   return (
     <PageShell blurred={showEdit || !!detail || showReports || reportPreviewOpen}>
+      <WorkspaceDeskSyncBanner loading={domainLoading && !domainReady} label="customer directory" />
       <Breadcrumbs
         className="mb-4"
         items={[
@@ -2045,7 +2070,7 @@ const CustomerDashboard = () => {
           setShowEdit(false);
           setCustomerEditApprovalId('');
         }}
-      >
+        showCloseButton={false}>
         <ModalScrollShell size="md">
           <ModalScrollHeader>
             <div className="flex justify-between items-start gap-3">
@@ -2096,7 +2121,7 @@ const CustomerDashboard = () => {
         </ModalScrollShell>
       </ModalFrame>
 
-      <ModalFrame isOpen={!!detail} onClose={() => setDetail(null)}>
+      <ModalFrame isOpen={!!detail} onClose={() => setDetail(null)} showCloseButton={false}>
         <div className="z-modal-panel max-w-md p-8">
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-lg font-bold text-zarewa-teal">
@@ -2285,7 +2310,7 @@ const CustomerDashboard = () => {
         </div>
       </ModalFrame>
 
-      <ModalFrame isOpen={showReports} onClose={() => setShowReports(false)}>
+      <ModalFrame isOpen={showReports} onClose={() => setShowReports(false)} showCloseButton={false}>
         <div className="z-modal-panel max-w-lg w-full p-0 overflow-hidden rounded-2xl border border-slate-200/90 shadow-xl bg-white">
           <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-br from-zarewa-teal/[0.07] via-white to-white">
             <div className="flex justify-between items-start gap-3">

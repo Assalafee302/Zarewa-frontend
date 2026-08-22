@@ -30,7 +30,7 @@ export function HrStaffRegisterForm({ defaultBranchId, onSuccess, onCancel }) {
     setError('');
     if (!payrollGroupMayHaveLogin(form.payrollGroup)) {
       setError(
-        'Executive family and household staff do not receive ERP logins. Register them in Chairman Accounts → Executive benefits.'
+        'Executive family and household staff do not receive ERP logins. Register them in Chairman Office → Scholarships or Household.'
       );
       return;
     }

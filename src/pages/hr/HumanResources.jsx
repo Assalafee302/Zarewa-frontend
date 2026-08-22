@@ -54,7 +54,8 @@ export default function HumanResources() {
             navItems={navItems}
             secondaryNavItems={secondaryNavItems}
             moduleTitle="Human Resources"
-            moduleSubtitle="People, time, pay, and records — in five places."
+            moduleSubtitle="People, time, pay, and records."
+            eyebrow="Personnel"
             stickySubnav
             compact
           />
@@ -93,7 +94,7 @@ export default function HumanResources() {
         <Route path="appraisal" element={<Navigate to="/hr/talent?tab=develop&section=appraisals" replace />} />
         <Route path="analytics" element={<Suspense fallback={<PageLoader message="Loading analytics…" className="min-h-[30vh]" />}><HrAnalytics /></Suspense>} />
         <Route path="id-cards" element={<HrTabRedirect base={HR_DOCUMENTS} tab="id-cards" />} />
-        <Route path="chairman" element={<Navigate to="/executive-hr/family?tab=benefits" replace />} />
+        <Route path="chairman" element={<Navigate to="/chairman?tab=scholarships" replace />} />
         <Route path="engagement" element={<Navigate to="/hr/talent?tab=develop&section=engagement" replace />} />
         <Route path="learning" element={<Navigate to="/hr/talent?tab=develop&section=training" replace />} />
         <Route path="recruiting" element={<Navigate to="/hr/talent?tab=recruit" replace />} />

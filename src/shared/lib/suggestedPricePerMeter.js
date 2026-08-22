@@ -1,6 +1,6 @@
 /**
  * Shared suggested ₦/m from workbook economics.
- * Keep in sync with server/materialPricingOps.suggestedPricePerMeterNgn.
+ * Frontend copies via `npm run sync:shared` → src/shared/lib/suggestedPricePerMeter.js
  */
 
 /**

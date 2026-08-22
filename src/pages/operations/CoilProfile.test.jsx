@@ -1,0 +1,152 @@
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import CoilProfile from './CoilProfile.jsx';
+
+const mockUseInventory = vi.fn();
+const mockUseWorkspace = vi.fn();
+const mockToast = vi.fn();
+
+vi.mock('../../context/InventoryContext', () => ({
+  useInventory: () => mockUseInventory(),
+}));
+
+vi.mock('../../context/WorkspaceContext', () => ({
+  useWorkspace: () => mockUseWorkspace(),
+}));
+vi.mock('../../context/ToastContext', () => ({
+  useToast: () => ({ show: mockToast }),
+}));
+
+describe('CoilProfile', () => {
+  beforeEach(() => {
+    mockUseInventory.mockReset();
+    mockUseWorkspace.mockReset();
+    mockToast.mockReset();
+  });
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('renders a coil profile from route param', { timeout: 45_000 }, () => {
+    mockUseInventory.mockReturnValue({
+      coilLots: [
+        {
+          coilNo: 'COIL-001',
+          productID: 'PRD-001',
+          colour: 'Blue',
+          gaugeLabel: '0.45',
+          qtyReceived: 1000,
+          qtyReserved: 100,
+          currentWeightKg: 900,
+        },
+      ],
+      movements: [],
+    });
+    mockUseWorkspace.mockReturnValue({ snapshot: {} });
+
+    render(
+      <MemoryRouter initialEntries={['/operations/coils/COIL-001']}>
+        <Routes>
+          <Route path="/operations/coils/:coilNo" element={<CoilProfile />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('heading', { name: 'COIL-001' })).toBeInTheDocument();
+    expect(screen.getAllByText(/Coil COIL-001/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Conversion history/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /coil control/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /print statement/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /scrap/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /return/i })).toBeInTheDocument();
+  });
+
+  it('matches linked rows case-insensitively and renders safe fallbacks', () => {
+    mockUseInventory.mockReturnValue({
+      coilLots: [
+        {
+          coilNo: 'coil-abc',
+          productID: 'PRD-ALU',
+          colour: '',
+          gaugeLabel: '',
+          qtyReceived: 0,
+          qtyReserved: 0,
+          currentWeightKg: 0,
+          supplierConversionKgPerM: null,
+        },
+      ],
+      movements: [],
+    });
+    mockUseWorkspace.mockReturnValue({
+      snapshot: {
+        productionJobCoils: [
+          {
+            coilNo: 'COIL-ABC',
+            cuttingListId: 'CL-001',
+            openingWeightKg: 500,
+            closingWeightKg: 300,
+            metersProduced: 100,
+          },
+        ],
+        productionConversionChecks: [
+          {
+            id: 'CHK-1',
+            coilNo: 'COIL-ABC',
+            cuttingListId: 'CL-001',
+            actualConversionKgPerM: 2,
+            standardConversionKgPerM: 2.2,
+            supplierConversionKgPerM: 2.1,
+            alertState: 'Watch',
+          },
+        ],
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/operations/coils/coil-abc']}>
+        <Routes>
+          <Route path="/operations/coils/:coilNo" element={<CoilProfile />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getAllByText('CL-001').length).toBeGreaterThan(0);
+    expect(screen.getByText(/kg used:/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Within band|Watch|Critical/i).length).toBeGreaterThan(0);
+    const watchBadge = screen.getAllByText('Watch')[0];
+    expect(watchBadge.className).toMatch(/amber/);
+  });
+
+  it('shows remaining metres when conversion is known', { timeout: 45_000 }, () => {
+    mockUseInventory.mockReturnValue({
+      coilLots: [
+        {
+          coilNo: 'COIL-001',
+          productID: 'PRD-001',
+          colour: 'Nut Brown',
+          gaugeLabel: '0.45',
+          qtyReceived: 1000,
+          qtyReserved: 0,
+          currentWeightKg: 450,
+          supplierConversionKgPerM: 2.25,
+        },
+      ],
+      movements: [],
+    });
+    mockUseWorkspace.mockReturnValue({ snapshot: {} });
+
+    render(
+      <MemoryRouter initialEntries={['/operations/coils/COIL-001']}>
+        <Routes>
+          <Route path="/operations/coils/:coilNo" element={<CoilProfile />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(/200(\.0)? m/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Nut Brown/).length).toBeGreaterThan(0);
+  });
+});
+

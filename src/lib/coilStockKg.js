@@ -1,6 +1,2 @@
-export {
-  coilFreeKg,
-  coilKgUsed,
-  coilOnHandKg,
-  coilReceivedKg,
-} from '../shared/lib/coilStockKg.js';
+/** Canonical module: `src/shared/lib/coilStockKg.js` (`npm run sync:shared`). Do not edit this stub. */
+export * from '../shared/lib/coilStockKg.js';

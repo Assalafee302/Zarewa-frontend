@@ -90,6 +90,28 @@ describe('refund fund apply helpers', () => {
     expect(row.detailLabel).toContain('RF-1');
   });
 
+  it('ignores reversed refund fund applications', () => {
+    const map = refundFundAppliedByQuotationRef({
+      applications: [
+        {
+          applicationId: 'RCA-1',
+          targetQuotationRef: 'QT-NEW',
+          refundId: 'RF-1',
+          amountNgn: 25_000,
+          status: 'Credit confirmation',
+        },
+        {
+          applicationId: 'RCA-2',
+          targetQuotationRef: 'QT-NEW',
+          refundId: 'RF-1',
+          amountNgn: 10_000,
+          status: 'Reversed',
+        },
+      ],
+    });
+    expect(map.get('QT-NEW')?.appliedNgn).toBe(25_000);
+  });
+
   it('auto-deducts cash lines to remaining due after refund fund', () => {
     expect(applyRefundFundDeductionToPaymentLines([{ id: 'a', amount: '' }], 40_000)).toEqual([
       { id: 'a', amount: '40000' },

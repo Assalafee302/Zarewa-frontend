@@ -4,6 +4,8 @@ import { canAccessModuleWithPermissions } from './moduleAccess.js';
 export const WORKSPACE_ROLE_KEYS = [
   'admin',
   'md',
+  'ceo',
+  'chairman',
   'finance_manager',
   'sales_manager',
   'sales_staff',
@@ -46,6 +48,8 @@ export const WORKSPACE_DEPARTMENT_IDS = [...WORKSPACE_ROLE_KEYS, ...Object.keys(
 export const WORKSPACE_DEPARTMENT_LABELS = {
   admin: 'Administrator',
   md: 'Managing director',
+  ceo: 'Chief executive officer',
+  chairman: 'Chairman',
   finance_manager: 'Head of Accounts',
   sales_manager: 'Branch Manager',
   sales_staff: 'Sales officer',
@@ -80,7 +84,7 @@ const DEFAULT_HOME_BY_ROLE = {
   admin: '/settings',
   md: '/exec',
   ceo: '/exec',
-  chairman: '/exec',
+  chairman: '/chairman',
   hr_admin: '/hr',
   gmhr: '/hr',
   finance_manager: '/accounting',
@@ -103,7 +107,12 @@ export function pathToModuleKey(pathname) {
   if (p === '/') return null;
   if (p === '/office' || p.startsWith('/office/')) return 'office';
   if (p === '/manager') return 'sales';
+  if (p === '/exec' || p.startsWith('/exec/')) return 'exec';
+  if (p === '/chairman' || p.startsWith('/chairman/')) return 'exec';
+  if (p === '/analytics' || p.startsWith('/analytics/')) return 'reports';
+  if (p === '/price-list' || p === '/pricing-policy') return 'procurement';
   if (p === '/edit-approvals') return 'edit_approvals';
+  if (p === '/workspace/monitoring' || p.startsWith('/workspace/monitoring')) return 'office';
   if (p === '/sales' || p.startsWith('/customers')) return 'sales';
   if (p === '/procurement' || p.startsWith('/procurement/')) return 'procurement';
   if (p.startsWith('/operations')) return 'operations';
@@ -131,7 +140,12 @@ export function resolvePostLoginPath(user, permissions) {
   if (roleKey === 'hr_portal_only') {
     return '/my-profile';
   }
-  if (roleKey === 'md' || roleKey === 'ceo' || roleKey === 'chairman') {
+  if (roleKey === 'chairman') {
+    const mod = pathToModuleKey('/chairman');
+    if (mod && !canAccessModuleWithPermissions(permissions, mod)) return '/';
+    return '/chairman';
+  }
+  if (roleKey === 'md' || roleKey === 'ceo') {
     const mod = pathToModuleKey('/exec');
     if (mod && !canAccessModuleWithPermissions(permissions, mod)) return '/';
     return '/exec';

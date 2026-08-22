@@ -1,0 +1,1737 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  X,
+  Trash2,
+  Printer,
+  ChevronDown,
+  Save,
+  Landmark,
+  Plus,
+} from 'lucide-react';
+import { ModalFrame } from '../layout/ModalFrame';
+import { ModalDeskFooter, DeskFooterButton } from '../layout/ModalDeskFooter';
+import { PrintModalPortal } from '../layout/PrintModalPortal';
+import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
+import { useCustomers } from '../../context/CustomersContext';
+import { useToast } from '../../context/ToastContext';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import {
+  amountDueOnQuotation,
+  loadLedgerEntries,
+  recordReceiptWithQuotation,
+} from '../../lib/customerLedgerStore';
+import { quotationReceiptPrintHistory } from '../../lib/salesReceiptsList';
+import { formatNgn } from '../../Data/mockData';
+import { apiFetch } from '../../lib/apiBase';
+import { appConfirm } from '../../lib/appConfirm';
+import {
+  formatLedgerApiError,
+  guidanceForLedgerPostFailure,
+  isVoucherDateInLockedPeriod,
+} from '../../lib/ledgerPostingGuidance';
+import {
+  treasuryAccountDisplayName,
+  treasuryAccountIdForApiPayload,
+  treasuryAccountsForWorkspace,
+} from '../../lib/treasuryAccountsStore';
+import { compareSelectLabels } from '../../lib/selectOptionSort';
+import { BankDepositPicker } from './BankDepositPicker';
+import { bankDepositRemainingNgn } from '../../lib/bankDeposits';
+import { bookedPaidNgnForQuotationFromMirrors } from '../../lib/liveAnalytics';
+import {
+  isExistingSalesPaymentRow,
+  isQuotationAddPaymentContext,
+} from '../../lib/quotationPaymentSummary';
+import { ReceiptPrintQuick, ReceiptPrintFull } from '../receipt/ReceiptPrintViews';
+import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
+import { editMutationNeedsSecondApprovalRole } from '../../lib/editApprovalUi';
+import {
+  isReceiptCleared,
+  receiptMayPrint,
+  receiptSalesPaymentStatusChipClass,
+  receiptSalesPaymentStatusDetail,
+  receiptSalesPaymentStatusLabel,
+  receiptSalesPaymentStatusTitle,
+} from '../../lib/receiptClearance';
+import {
+  REFUND_FUND_USE_LABEL,
+  applyRefundFundDeductionToPaymentLines,
+  isRefundFundApplyLedgerEntry,
+  restorePaymentLinesAfterRefundFundUnchecked,
+} from '../../lib/refundFundApply.js';
+
+function newLineId() {
+  return `pl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function emptyPaymentLine(voucherDate, defaultAccountId) {
+  return {
+    id: newLineId(),
+    payeeName: '',
+    treasuryAccountId:
+      defaultAccountId === '' || defaultAccountId == null ? '' : defaultAccountId,
+    lineDate: voucherDate,
+    amount: '',
+  };
+}
+
+/** Resolve snapshot treasury row for a line (IDs may be number or string, e.g. UUID). */
+function treasuryAccountForLine(line, treasuryByIdStr, treasuryList) {
+  const key = String(line?.treasuryAccountId ?? '').trim();
+  if (key && treasuryByIdStr.has(key)) return treasuryByIdStr.get(key);
+  return treasuryList[0] ?? null;
+}
+
+function parseNum(s) {
+  const n = Number(String(s ?? '').replace(/,/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatDisplayDate(iso) {
+  if (!iso || typeof iso !== 'string') return '—';
+  const [y, m, d] = iso.split('-');
+  return d && m && y ? `${d}/${m}/${y}` : iso;
+}
+
+function normalizeRefToken(v) {
+  return String(v || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/** Stable receipt identity — excludes workspace refreshEpoch / ledgerNonce churn. */
+function receiptModalHydrateSignature(editData) {
+  const le = editData?._ledgerEntry;
+  let payKey = '';
+  try {
+    payKey = JSON.stringify({
+      pl: editData?.paymentLines,
+      lepl: le?.paymentLines,
+    });
+  } catch {
+    payKey = '';
+  }
+  return JSON.stringify({
+    id: editData?.id,
+    source: editData?.source,
+    quotationRef: editData?.quotationRef,
+    dateISO: editData?.dateISO,
+    amountNgn: editData?.amountNgn,
+    cashReceivedNgn: editData?.cashReceivedNgn,
+    handledBy: editData?.handledBy,
+    customer: editData?.customer,
+    ledgerEntryId: le?.id,
+    leAtISO: le?.atISO,
+    leAmountNgn: le?.amountNgn,
+    leBankRef: le?.bankReference,
+    leNote: le?.note,
+    payKey,
+  });
+}
+
+const ReceiptModal = ({
+  isOpen,
+  onClose,
+  editData = null,
+  accessMode = 'edit',
+  quotations = [],
+  importedReceiptsForHistory = [],
+  onLedgerChange,
+  ledgerNonce = 0,
+  useLedgerApi = false,
+  handledByLabel = 'Sales',
+  onDeleteReceipt,
+  defaultBankDepositId = '',
+  workspaceSnapshot,
+}) => {
+  const { customers } = useCustomers();
+  const { show: showToast } = useToast();
+  const ws = useWorkspace();
+  const readOnly = accessMode === 'view';
+  const isAddPayment =
+    !readOnly && (accessMode === 'add' || accessMode === 'edit' || !editData?.id);
+  const isExistingPayment = isExistingSalesPaymentRow(editData);
+  const isAddOnQuotation = isQuotationAddPaymentContext(editData);
+  /** @deprecated alias — true when modal opened with any row id (quote or payment). */
+  const isEdit = Boolean(editData?.id);
+  const roleKey = ws?.session?.user?.roleKey;
+  const receiptAmendNeedsApproval =
+    isExistingPayment && isAddPayment && editMutationNeedsSecondApprovalRole(roleKey);
+
+  const modalTitle = readOnly
+    ? 'View payment'
+    : isAddOnQuotation
+      ? 'Add payment'
+      : isExistingPayment
+        ? 'Add payment on quote'
+        : 'Record payment';
+
+  const modalSubtitle = readOnly
+    ? `${editData?.id ?? '—'} · ${editData?.customer ?? 'Customer'}`
+    : isAddOnQuotation
+      ? `${editData?.id ?? '—'} · ${editData?.customer ?? 'Customer'}`
+      : isExistingPayment
+        ? `After ${editData?.id} · ${editData?.customer ?? 'Customer'}`
+        : 'New payment — pick quotation';
+
+  const modeBadgeLabel = readOnly ? 'View only' : 'Post new money';
+
+  const [quotationRef, setQuotationRef] = useState('');
+  const [applyRefundCredit, setApplyRefundCredit] = useState(false);
+  const [refundCreditInfo, setRefundCreditInfo] = useState(null);
+  const [refundCreditLoading, setRefundCreditLoading] = useState(false);
+  const [receiptEditApprovalId, setReceiptEditApprovalId] = useState('');
+  const [voucherDate, setVoucherDate] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [paymentLines, setPaymentLines] = useState([]);
+  const [showPrint, setShowPrint] = useState(false);
+  const [printKind, setPrintKind] = useState('quick');
+  const postingRef = useRef(false);
+  const lastReceiptHydrateSigRef = useRef('');
+  const lastAutoRefundFundCashDueRef = useRef(null);
+  const [isPosting, setIsPosting] = useState(false);
+  const [bankDepositId, setBankDepositId] = useState('');
+
+  const depositSnapshot = workspaceSnapshot ?? ws?.snapshot;
+  const linkedDeposit = useMemo(() => {
+    const rows = Array.isArray(depositSnapshot?.bankDeposits) ? depositSnapshot.bankDeposits : [];
+    return rows.find((d) => String(d.id) === String(bankDepositId)) || null;
+  }, [depositSnapshot?.bankDeposits, bankDepositId]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setBankDepositId('');
+      return;
+    }
+    setBankDepositId(String(defaultBankDepositId || ''));
+  }, [isOpen, defaultBankDepositId]);
+
+  const treasuryList = useMemo(() => {
+    const raw =
+      treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
+        branchScope: ws?.branchScope,
+        viewAllBranches: ws?.viewAllBranches,
+      }) || [];
+    return [...raw].sort((a, b) =>
+      compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
+    );
+  }, [
+    ws?.branchScope,
+    ws?.viewAllBranches,
+    ws?.snapshot,
+    ws?.session,
+  ]);
+
+  const defaultAccountId = treasuryList[0]?.id ?? '';
+
+  const [qSearch, setQSearch] = useState('');
+  const [showQSearch, setShowQSearch] = useState(false);
+  const [postingHint, setPostingHint] = useState(null);
+
+  const periodLocks = useMemo(() => ws?.snapshot?.periodLocks ?? [], [ws?.snapshot?.periodLocks]);
+  const voucherInLockedPeriod = useMemo(
+    () => Boolean(useLedgerApi && isVoucherDateInLockedPeriod(voucherDate, periodLocks)),
+    [useLedgerApi, voucherDate, periodLocks]
+  );
+
+  const receiptHydrateSig = useMemo(
+    () =>
+      isOpen
+        ? receiptModalHydrateSignature({
+            id: editData?.id,
+            source: editData?.source,
+            quotationRef: editData?.quotationRef,
+            dateISO: editData?.dateISO,
+            amountNgn: editData?.amountNgn,
+            cashReceivedNgn: editData?.cashReceivedNgn,
+            handledBy: editData?.handledBy,
+            customer: editData?.customer,
+            paymentLines: editData?.paymentLines,
+            _ledgerEntry: editData?._ledgerEntry,
+          })
+        : '',
+    [
+      isOpen,
+      editData?.id,
+      editData?.source,
+      editData?.quotationRef,
+      editData?.dateISO,
+      editData?.amountNgn,
+      editData?.cashReceivedNgn,
+      editData?.handledBy,
+      editData?.customer,
+      editData?.paymentLines,
+      editData?._ledgerEntry,
+    ]
+  );
+
+  const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-receipt', {
+    isOpen,
+    blockTracking: readOnly,
+    hydrateKey: receiptHydrateSig,
+  });
+  const handleClose = wrapClose(() => onClose());
+
+  useEffect(() => {
+    if (!isOpen) {
+      lastReceiptHydrateSigRef.current = '';
+      return;
+    }
+    if (lastReceiptHydrateSigRef.current === receiptHydrateSig) return;
+    lastReceiptHydrateSigRef.current = receiptHydrateSig;
+
+    const le = editData?._ledgerEntry;
+    const isLedgerRow = editData?.source === 'ledger' && le;
+    const isRc = editData?.id && String(editData.id).startsWith('RC-');
+    /** New receipt opened from a quotation row: object has `id` (QT-…) but not `quotationRef`. */
+    const initialQuotationRef =
+      editData?.quotationRef ??
+      (!isRc && !isLedgerRow && editData?.id && !String(editData.id).startsWith('RC-')
+        ? String(editData.id)
+        : '');
+    const vd = isRc
+      ? editData.dateISO ?? new Date().toISOString().slice(0, 10)
+      : isLedgerRow
+        ? String(le.atISO || '').slice(0, 10) || new Date().toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
+    setVoucherDate(vd);
+    setRemarks(isLedgerRow ? (le.bankReference || le.note || '') : '');
+    setQuotationRef(initialQuotationRef);
+    setQSearch(initialQuotationRef);
+    setShowPrint(false);
+    setShowQSearch(false);
+    setPostingHint(null);
+
+    const sourceIds = new Set(
+      [editData?.id, editData?.ledgerEntryId, le?.id]
+        .map((v) => String(v || '').trim())
+        .filter(Boolean)
+    );
+    const treasuryMovements = Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [];
+    const fromTreasury = treasuryMovements
+      .filter(
+        (mv) =>
+          String(mv?.sourceKind || '').trim() === 'LEDGER_RECEIPT' &&
+          sourceIds.has(String(mv?.sourceId || '').trim()) &&
+          Number(mv?.amountNgn) > 0
+      )
+      .sort((a, b) => String(a?.id || '').localeCompare(String(b?.id || '')))
+      .map((mv) => ({
+        id: newLineId(),
+        payeeName: String(mv?.counterpartyName || editData?.customer || le?.customerName || 'Payer').trim() || 'Payer',
+        treasuryAccountId:
+          mv?.treasuryAccountId != null && String(mv.treasuryAccountId).trim() !== ''
+            ? mv.treasuryAccountId
+            : defaultAccountId,
+        lineDate: String(mv?.postedAtISO || vd).slice(0, 10) || vd,
+        amount: String(Math.round(Number(mv?.amountNgn) || 0)),
+      }));
+
+    const fromPayload = Array.isArray(editData?.paymentLines)
+      ? editData.paymentLines
+          .map((line) => ({
+            id: newLineId(),
+            payeeName: String(editData?.customer || le?.customerName || 'Payer').trim() || 'Payer',
+            treasuryAccountId:
+              line?.treasuryAccountId != null && String(line.treasuryAccountId).trim() !== ''
+                ? line.treasuryAccountId
+                : defaultAccountId,
+            lineDate: vd,
+            amount: String(Math.round(Number(line?.amountNgn) || 0)),
+          }))
+          .filter((line) => parseNum(line.amount) > 0)
+      : [];
+    const fromLedgerPayload = Array.isArray(le?.paymentLines)
+      ? le.paymentLines
+          .map((line) => ({
+            id: newLineId(),
+            payeeName: String(le?.customerName || editData?.customer || 'Payer').trim() || 'Payer',
+            treasuryAccountId:
+              line?.treasuryAccountId != null && String(line.treasuryAccountId).trim() !== ''
+                ? line.treasuryAccountId
+                : defaultAccountId,
+            lineDate: vd,
+            amount: String(Math.round(Number(line?.amountNgn) || 0)),
+          }))
+          .filter((line) => parseNum(line.amount) > 0)
+      : [];
+
+    const hydratedLines =
+      fromTreasury.length > 0 ? fromTreasury : fromPayload.length > 0 ? fromPayload : fromLedgerPayload;
+
+    if (isRc) {
+      const showAmt =
+        editData.cashReceivedNgn != null ? editData.cashReceivedNgn : editData.amountNgn;
+      setPaymentLines(
+        hydratedLines.length > 0
+          ? hydratedLines
+          : [
+              {
+                id: newLineId(),
+                payeeName: editData.handledBy ?? '',
+                treasuryAccountId: defaultAccountId,
+                lineDate: vd,
+                amount: showAmt != null ? String(showAmt) : '',
+              },
+            ]
+      );
+    } else if (isLedgerRow) {
+      setPaymentLines(
+        hydratedLines.length > 0
+          ? hydratedLines
+          : [
+              {
+                id: newLineId(),
+                payeeName: (le.customerName || editData.customer || '').trim() || 'Payer',
+                treasuryAccountId: defaultAccountId,
+                lineDate: vd,
+                amount: le.amountNgn != null ? String(le.amountNgn) : '',
+              },
+            ]
+      );
+    } else {
+      setPaymentLines([emptyPaymentLine(vd, defaultAccountId)]);
+    }
+    setReceiptEditApprovalId('');
+  }, [isOpen, receiptHydrateSig, editData, defaultAccountId, ws?.snapshot?.treasuryMovements]);
+
+  /** Treasury default account arrived after open: fill blank line account ids without full re-hydrate. */
+  useEffect(() => {
+    if (!isOpen || defaultAccountId === '' || defaultAccountId == null) return;
+    setPaymentLines((prev) =>
+      prev.some((line) => line.treasuryAccountId === '' || line.treasuryAccountId == null)
+        ? prev.map((line) =>
+            line.treasuryAccountId === '' || line.treasuryAccountId == null
+              ? { ...line, treasuryAccountId: defaultAccountId }
+              : line
+          )
+        : prev
+    );
+  }, [isOpen, defaultAccountId]);
+
+  const selectedQuotation = useMemo(
+    () => quotations.find((q) => q.id === quotationRef) ?? null,
+    [quotations, quotationRef]
+  );
+
+  /** Same definition as server `syncQuotationPaidFromReceipts` — updates as soon as receipts/ledger in snapshot refresh. */
+  const bookedPaidRollupNgn = useMemo(() => {
+    const qid = String(quotationRef || '').trim();
+    if (!qid || !ws?.hasWorkspaceData) return null;
+    const receipts = Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : [];
+    const ledgerSnap = Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : [];
+    const ledger = ledgerSnap.length > 0 ? ledgerSnap : loadLedgerEntries();
+    return bookedPaidNgnForQuotationFromMirrors(receipts, ledger, qid);
+  }, [
+    quotationRef,
+    ws?.hasWorkspaceData,
+    ws?.snapshot?.receipts,
+    ws?.snapshot?.ledgerEntries,
+  ]);
+
+  const quotationRowForPayments = useMemo(() => {
+    if (!selectedQuotation) return null;
+    const stored = Math.round(Number(selectedQuotation.paidNgn) || 0);
+    let paid = bookedPaidRollupNgn;
+    if (paid == null) paid = stored;
+    else if (paid === 0 && stored > 0) paid = stored;
+    return { ...selectedQuotation, paidNgn: paid };
+  }, [selectedQuotation, bookedPaidRollupNgn]);
+
+  const selectableQuotations = useMemo(
+    () => quotations.filter((qt) => (Number(amountDueOnQuotation(qt)) || 0) > 0.0001),
+    [quotations]
+  );
+
+  const filteredQSearch = useMemo(() => {
+    if (!qSearch.trim()) return selectableQuotations.slice(0, 10);
+    const s = qSearch.toLowerCase();
+    return selectableQuotations.filter(
+      (qt) =>
+        String(qt.id || '').toLowerCase().includes(s) ||
+        String(qt.customer || '').toLowerCase().includes(s) ||
+        String(qt.customerID || '').toLowerCase().includes(s)
+    ).slice(0, 15);
+  }, [selectableQuotations, qSearch]);
+
+  const customerID = selectedQuotation?.customerID ?? '';
+  const customerName = useMemo(() => {
+    if (!customerID) return selectedQuotation?.customer ?? editData?.customer ?? '';
+    return customers.find((c) => c.customerID === customerID)?.name ?? selectedQuotation?.customer ?? '';
+  }, [customers, customerID, selectedQuotation?.customer, editData?.customer]);
+
+  const customerPhone = useMemo(() => {
+    if (!customerID) return '—';
+    return customers.find((c) => c.customerID === customerID)?.phoneNumber ?? '—';
+  }, [customers, customerID]);
+
+  const dueNgn = useMemo(() => {
+    if (!quotationRowForPayments) return null;
+    return amountDueOnQuotation(quotationRowForPayments);
+  }, [quotationRowForPayments]);
+
+  useEffect(() => {
+    if (!isOpen || !useLedgerApi) {
+      setRefundCreditInfo(null);
+      setApplyRefundCredit(false);
+      setRefundCreditLoading(false);
+      return;
+    }
+    const cid = String(customerID || '').trim();
+    const qid = String(quotationRef || '').trim();
+    if (!cid || !qid) {
+      setRefundCreditInfo(null);
+      setApplyRefundCredit(false);
+      setRefundCreditLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setRefundCreditLoading(true);
+    (async () => {
+      const { ok, data } = await apiFetch(
+        `/api/ledger/refund-credit-eligible?customerID=${encodeURIComponent(cid)}&targetQuotationRef=${encodeURIComponent(qid)}`
+      );
+      if (cancelled) return;
+      setRefundCreditLoading(false);
+      if (!ok || !data?.ok) {
+        setRefundCreditInfo(null);
+        setApplyRefundCredit(false);
+        return;
+      }
+      const hasUsable = Number(data.recommendedApplyNgn) > 0 || Number(data.totalAvailableNgn) > 0;
+      const hasUnavailable = Array.isArray(data.unavailableSources) && data.unavailableSources.length > 0;
+      if (!hasUsable && !hasUnavailable) {
+        setRefundCreditInfo(null);
+        setApplyRefundCredit(false);
+        return;
+      }
+      setRefundCreditInfo(data);
+    })().catch(() => {
+      if (!cancelled) {
+        setRefundCreditLoading(false);
+        setRefundCreditInfo(null);
+        setApplyRefundCredit(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, useLedgerApi, customerID, quotationRef, ledgerNonce]);
+
+  const recommendedCreditApplyNgn = useMemo(() => {
+    if (!applyRefundCredit || !refundCreditInfo) return 0;
+    return Math.max(0, Math.round(Number(refundCreditInfo.recommendedApplyNgn) || 0));
+  }, [applyRefundCredit, refundCreditInfo]);
+
+  const cashDueAfterCreditNgn = useMemo(() => {
+    if (dueNgn == null) return null;
+    return Math.max(0, Math.round(Number(dueNgn) || 0) - recommendedCreditApplyNgn);
+  }, [dueNgn, recommendedCreditApplyNgn]);
+
+  useEffect(() => {
+    if (!isOpen || readOnly || isExistingPayment || !applyRefundCredit) {
+      lastAutoRefundFundCashDueRef.current = null;
+      return;
+    }
+    if (cashDueAfterCreditNgn == null) return;
+    const cashDue = Math.max(0, Math.round(Number(cashDueAfterCreditNgn) || 0));
+    if (lastAutoRefundFundCashDueRef.current === cashDue) return;
+    lastAutoRefundFundCashDueRef.current = cashDue;
+    setPaymentLines((prev) => applyRefundFundDeductionToPaymentLines(prev, cashDue));
+  }, [isOpen, readOnly, isExistingPayment, applyRefundCredit, cashDueAfterCreditNgn]);
+
+  const handleApplyRefundFundChange = (checked) => {
+    if (!checked && dueNgn != null) {
+      const prevCashDue = cashDueAfterCreditNgn;
+      lastAutoRefundFundCashDueRef.current = null;
+      setPaymentLines((prev) =>
+        restorePaymentLinesAfterRefundFundUnchecked(prev, dueNgn, prevCashDue)
+      );
+    }
+    setApplyRefundCredit(checked);
+  };
+
+  const lineTotalNgn = useMemo(
+    () => paymentLines.reduce((s, l) => s + parseNum(l.amount), 0),
+    [paymentLines]
+  );
+
+  const activeBankDepositId = useMemo(() => {
+    if (!bankDepositId || !linkedDeposit) return '';
+    return bankDepositRemainingNgn(linkedDeposit) > 0 ? String(bankDepositId) : '';
+  }, [bankDepositId, linkedDeposit]);
+
+  const depositCoverNgn = useMemo(() => {
+    if (!activeBankDepositId || !linkedDeposit) return 0;
+    return Math.min(Math.round(lineTotalNgn), bankDepositRemainingNgn(linkedDeposit));
+  }, [activeBankDepositId, linkedDeposit, lineTotalNgn]);
+
+  const treasuryCashRequiredNgn = Math.max(0, Math.round(lineTotalNgn) - depositCoverNgn);
+
+  /** Ledger / receipt ids for the voucher being edited — excluded from "prior" totals so guards are not self-referential. */
+  const editingReceiptEntryIds = useMemo(() => {
+    const s = new Set();
+    if (!isEdit || !editData) return s;
+    const le = editData?._ledgerEntry;
+    for (const x of [editData.id, editData.ledgerEntryId, le?.id]) {
+      const t = String(x || '').trim();
+      if (t) s.add(t);
+    }
+    return s;
+  }, [isEdit, editData]);
+
+  const treasuryByIdStr = useMemo(() => {
+    const m = new Map();
+    treasuryList.forEach((a) => m.set(String(a.id), a));
+    return m;
+  }, [treasuryList]);
+
+  const quotationPaymentHistory = useMemo(
+    () =>
+      quotationRef
+        ? quotationReceiptPrintHistory(quotationRef, importedReceiptsForHistory)
+        : [],
+    [quotationRef, importedReceiptsForHistory]
+  );
+
+  const receiptCashierPrintStatus = useMemo(() => {
+    const row = isExistingPayment ? editData : null;
+    if (!row) {
+      return { label: receiptSalesPaymentStatusLabel({}), detail: receiptSalesPaymentStatusDetail({}) || '' };
+    }
+    return {
+      label: receiptSalesPaymentStatusLabel(row),
+      detail: receiptSalesPaymentStatusDetail(row) || '',
+    };
+  }, [isExistingPayment, editData]);
+
+  /** Max new cash that can be posted on this quote after any refund-fund slice. */
+  const postingHeadroomNgn = useMemo(() => {
+    if (cashDueAfterCreditNgn != null) return cashDueAfterCreditNgn;
+    if (dueNgn == null) return null;
+    return Math.max(0, Math.round(Number(dueNgn) || 0));
+  }, [dueNgn, cashDueAfterCreditNgn]);
+
+  const quotationLedgerHold = useMemo(() => {
+    if (!selectedQuotation) return null;
+    if (selectedQuotation.managerFlaggedAtISO) {
+      return {
+        kind: 'flagged',
+        detail:
+          selectedQuotation.managerFlagReason?.trim() ||
+          'This quotation is flagged by manager for review.',
+      };
+    }
+    if (selectedQuotation.managerClearedAtISO) {
+      return {
+        kind: 'cleared',
+        detail: 'This quotation has been cleared by manager and is closed for further payments.',
+      };
+    }
+    return null;
+  }, [selectedQuotation]);
+
+  const balanceAfterNgn = useMemo(() => {
+    if (dueNgn == null) return null;
+    const due = Math.round(Number(dueNgn) || 0);
+    const credit = Math.round(Number(recommendedCreditApplyNgn) || 0);
+    const line = Math.round(Number(lineTotalNgn) || 0);
+    return Math.max(0, due - credit - line);
+  }, [dueNgn, recommendedCreditApplyNgn, lineTotalNgn]);
+
+  /** Receipts + advance applied already booked on this quote (newest first), shown above new voucher lines. */
+  const priorRecordedOnQuotation = useMemo(() => {
+    void ledgerNonce;
+    const qid = String(quotationRef || '').trim();
+    if (!qid) return [];
+    const fromReceipts = quotationPaymentHistory
+      .filter((r) => !editingReceiptEntryIds.has(String(r.id || '').trim()))
+      .map((r) => ({
+      key: `rc-${r.id}`,
+      sortIso: String(r.iso || '').slice(0, 10) || '0000-00-00',
+      dateLabel: r.dateStr || formatDisplayDate(String(r.iso || '').slice(0, 10)),
+      entryId: r.id,
+      label: 'Receipt',
+      sublabel: r.source === 'Ledger' ? 'Ledger' : 'Imported',
+      amountNgn: r.amountNgn,
+      detail: r.detail || '—',
+    }));
+    const advanceApplied = loadLedgerEntries()
+      .filter((e) => e.type === 'ADVANCE_APPLIED' && String(e.quotationRef || '').trim() === qid)
+      .map((e) => ({
+        key: `aa-${e.id}`,
+        sortIso: (e.atISO || '').slice(0, 10) || '0000-00-00',
+        dateLabel: formatDisplayDate((e.atISO || '').slice(0, 10)),
+        entryId: e.id,
+        label: 'Advance applied',
+        sublabel: 'Credit to this quote',
+        amountNgn: Math.round(Number(e.amountNgn) || 0),
+        detail: e.note || e.bankReference || e.purpose || '—',
+      }));
+    const overpayAppliedFromPool = loadLedgerEntries()
+      .filter((e) => e.type === 'OVERPAY_APPLIED' && String(e.quotationRef || '').trim() === qid)
+      .map((e) => ({
+        key: `oa-${e.id}`,
+        sortIso: (e.atISO || '').slice(0, 10) || '0000-00-00',
+        dateLabel: formatDisplayDate((e.atISO || '').slice(0, 10)),
+        entryId: e.id,
+        label: isRefundFundApplyLedgerEntry(e) ? 'Refund fund' : 'Overpay applied',
+        sublabel: isRefundFundApplyLedgerEntry(e)
+          ? 'Deducted from refund fund (not bank clearance)'
+          : 'Credit moved from overpayment pool',
+        amountNgn: Math.round(Number(e.amountNgn) || 0),
+        detail: e.note || e.bankReference || e.purpose || '—',
+      }));
+    return [...fromReceipts, ...advanceApplied, ...overpayAppliedFromPool].sort((a, b) => b.sortIso.localeCompare(a.sortIso));
+  }, [quotationPaymentHistory, quotationRef, ledgerNonce, editingReceiptEntryIds]);
+
+  const printLinesPayload = useMemo(() => {
+    return paymentLines
+      .filter((l) => parseNum(l.amount) > 0)
+      .map((l) => {
+        const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
+        const accountLabel = acc
+          ? `${acc.type} — ${acc.name}${acc.accNo && acc.accNo !== 'N/A' ? ` (${acc.accNo})` : ''}`
+          : '—';
+        return {
+          payeeName: l.payeeName.trim() || 'Payer',
+          accountLabel,
+          amount: parseNum(l.amount),
+        };
+      });
+  }, [paymentLines, treasuryByIdStr, treasuryList]);
+
+  const priorRecordedTotalNgn = useMemo(
+    () => priorRecordedOnQuotation.reduce((s, row) => s + (Math.round(Number(row.amountNgn) || 0) || 0), 0),
+    [priorRecordedOnQuotation]
+  );
+
+  const receiptGuardSignals = useMemo(() => {
+    const total = Math.round(Number(lineTotalNgn) || 0);
+    if (total <= 0) return [];
+    const out = [];
+    const normalizedRemarks = normalizeRefToken(remarks);
+    if (priorRecordedTotalNgn > 0 && total === priorRecordedTotalNgn) {
+      out.push(
+        `Entered amount equals already-posted history total (${formatNgn(priorRecordedTotalNgn)}). This can duplicate an earlier payment.`
+      );
+    }
+    const sameAmountHistory = priorRecordedOnQuotation.find((row) => Math.round(Number(row.amountNgn) || 0) === total);
+    if (sameAmountHistory) {
+      out.push(
+        `A prior line with the same amount exists (${sameAmountHistory.entryId}, ${sameAmountHistory.dateLabel}).`
+      );
+    }
+    if (normalizedRemarks) {
+      const refDuplicate = priorRecordedOnQuotation.find((row) => normalizeRefToken(row.detail).includes(normalizedRemarks));
+      if (refDuplicate) {
+        out.push(`Reference/remarks appears similar to previous posting (${refDuplicate.entryId}).`);
+      }
+    }
+    return out;
+  }, [lineTotalNgn, priorRecordedOnQuotation, priorRecordedTotalNgn, remarks]);
+
+  const saveReceipt = async (e) => {
+    e.preventDefault();
+    if (readOnly) return;
+    if (!bankDepositId && treasuryList.length === 0 && recommendedCreditApplyNgn <= 0) {
+      showToast('Configure treasury accounts first.', { variant: 'error' });
+      return;
+    }
+    if (!quotationRef || !selectedQuotation || !quotationRowForPayments) {
+      showToast('Select a quotation — customer is taken from the quote.', { variant: 'error' });
+      return;
+    }
+    if (useLedgerApi && quotationLedgerHold) {
+      setPostingHint(guidanceForLedgerPostFailure({ code: 'LEDGER_POST_BLOCKED', error: quotationLedgerHold.detail }) || null);
+      showToast(quotationLedgerHold.detail, { variant: 'error' });
+      return;
+    }
+    if (!customerID) {
+      showToast('This quotation has no customer on file.', { variant: 'error' });
+      return;
+    }
+    const creditApplyNgn = recommendedCreditApplyNgn;
+    const validLines = paymentLines.filter((l) => parseNum(l.amount) > 0);
+    if (validLines.length === 0 && creditApplyNgn <= 0) {
+      showToast('Enter at least one payment amount.', { variant: 'error' });
+      return;
+    }
+    const total = validLines.reduce((s, l) => s + parseNum(l.amount), 0);
+    if (total <= 0 && creditApplyNgn <= 0) {
+      showToast('Total must be greater than zero.', { variant: 'error' });
+      return;
+    }
+    if (creditApplyNgn > 0 && cashDueAfterCreditNgn != null && total > cashDueAfterCreditNgn + 1) {
+      const proceedOver = await appConfirm({
+        message: `Refund fund will cover ${formatNgn(creditApplyNgn)}. Cash still needed is about ${formatNgn(cashDueAfterCreditNgn)}, but payment lines total ${formatNgn(total)}.\n\nPost the cash lines anyway?`,
+      });
+      if (!proceedOver) return;
+    }
+    if (postingRef.current) return;
+    if (receiptGuardSignals.length > 0 && !readOnly && total > 0) {
+      const proceed = await appConfirm({
+        message: `Potential duplicate or risky posting detected:\n\n- ${receiptGuardSignals.join('\n- ')}\n\nContinue posting anyway?`,
+      });
+      if (!proceed) return;
+    }
+
+    const paymentBreakdownLines = validLines.map((l) => {
+      const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
+      const accLabel = acc ? treasuryAccountDisplayName(acc) : 'Treasury account';
+      const who = (l.payeeName || '').trim();
+      const payerBit = who ? `${who} · ` : '';
+      return `• ${payerBit}${accLabel}: ${formatNgn(parseNum(l.amount))}`;
+    });
+    const summaryParts = [
+      'Save this receipt? Please confirm details:',
+      '',
+      `Customer: ${customerName || '—'}`,
+      `Quotation: ${selectedQuotation?.id || quotationRef || '—'}`,
+      `Voucher date: ${formatDisplayDate(voucherDate)}`,
+    ];
+    if (creditApplyNgn > 0) {
+      summaryParts.push(
+        `Use from refund fund: ${formatNgn(creditApplyNgn)} — deducted from refund, not refundable again, no bank clearance`
+      );
+    }
+    summaryParts.push(`Cash receipt total: ${formatNgn(total)}`, '');
+    if (paymentBreakdownLines.length > 0) {
+      summaryParts.push('Payment breakdown:', ...paymentBreakdownLines);
+    } else if (creditApplyNgn > 0) {
+      summaryParts.push('No new cash lines — refund fund covers the quotation balance.');
+    }
+    if (
+      postingHeadroomNgn != null &&
+      total > Math.round(Number(postingHeadroomNgn) || 0) + 0.5
+    ) {
+      summaryParts.push(
+        '',
+        'The full amount will be recorded on this quotation (paid may exceed the quoted total). Finance can adjust allocation later if needed.'
+      );
+    }
+    if (activeBankDepositId && linkedDeposit) {
+      summaryParts.push('', `Linked bank deposit: ${activeBankDepositId} (₦${depositCoverNgn.toLocaleString('en-NG')} from pool)`);
+      if (treasuryCashRequiredNgn > 0) {
+        summaryParts.push(`Additional treasury cash: ${formatNgn(treasuryCashRequiredNgn)}`);
+      }
+    }
+    if (!(await appConfirm({ message: summaryParts.join('\n') }))) return;
+
+    const refParts = validLines.map((l) => {
+      const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
+      const accBit = acc ? `${acc.type}:${acc.name}` : '';
+      return `${(l.payeeName || 'Payee').trim()} ${formatNgn(parseNum(l.amount))} ${accBit}`.trim();
+    });
+    const bankReference = [refParts.join(' | '), remarks.trim()].filter(Boolean).join(' — ');
+    const firstAcc = validLines.length
+      ? treasuryAccountForLine(validLines[0], treasuryByIdStr, treasuryList)
+      : null;
+    const paymentMethod =
+      validLines.length === 0
+        ? 'Refund fund'
+        : validLines.length === 1 && firstAcc
+          ? `${firstAcc.type} — ${firstAcc.name}`
+          : `Split (${validLines.length} lines)`;
+
+    postingRef.current = true;
+    setIsPosting(true);
+    try {
+      if (useLedgerApi) {
+        if (creditApplyNgn > 0) {
+          const creditKey =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `rca-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+          const creditRes = await apiFetch('/api/ledger/apply-refund-credit', {
+            method: 'POST',
+            body: JSON.stringify({
+              customerID,
+              targetQuotationRef: selectedQuotation.id,
+              quotationRef: selectedQuotation.id,
+              amountNgn: creditApplyNgn,
+              dateISO: voucherDate,
+              sourceIds: Array.isArray(refundCreditInfo?.sources)
+                ? refundCreditInfo.sources.map((s) => s.id).filter(Boolean)
+                : undefined,
+            }),
+            headers: { 'Idempotency-Key': creditKey },
+          });
+          if (!creditRes.ok || !creditRes.data?.ok) {
+            setPostingHint(guidanceForLedgerPostFailure(creditRes.data) || null);
+            showToast(
+              formatLedgerApiError(creditRes.data, creditRes.status, 'Could not apply refund fund.'),
+              { variant: 'error' }
+            );
+            return;
+          }
+          showToast(
+            `${formatNgn(creditRes.data.appliedNgn || creditApplyNgn)} deducted from refund fund — not refundable again, not for bank clearance.`
+          );
+          if (total <= 0) {
+            setPostingHint(null);
+            await onLedgerChange?.();
+            abandonUnsavedAndRun(() => onClose());
+            return;
+          }
+        }
+
+        let linesForTreasury = validLines;
+        const cashNeeded = Math.max(0, total - depositCoverNgn);
+        if (activeBankDepositId && cashNeeded <= 0) {
+          linesForTreasury = [];
+        } else if (activeBankDepositId && cashNeeded > 0 && cashNeeded < total) {
+          linesForTreasury = validLines.map((line, idx) => {
+            const raw = Math.round((parseNum(line.amount) * cashNeeded) / total);
+            return { ...line, amount: String(idx === validLines.length - 1 ? cashNeeded - validLines.slice(0, -1).reduce((s, l) => s + Math.round((parseNum(l.amount) * cashNeeded) / total), 0) : raw) };
+          });
+        }
+        const paymentLinesPayload = linesForTreasury.map((line) => {
+          const acc = treasuryAccountForLine(line, treasuryByIdStr, treasuryList);
+          const tid = acc?.id ?? line.treasuryAccountId;
+          return {
+            treasuryAccountId: treasuryAccountIdForApiPayload(tid),
+            amountNgn: parseNum(line.amount),
+            reference: [line.payeeName?.trim?.(), remarks.trim()].filter(Boolean).join(' — '),
+            dateISO: String(line.lineDate || voucherDate).trim().slice(0, 10) || voucherDate,
+          };
+        });
+        const invalidTreasury = paymentLinesPayload.some(
+          (pl) =>
+            pl.treasuryAccountId === '' ||
+            pl.treasuryAccountId == null ||
+            (typeof pl.treasuryAccountId === 'number' && !Number.isFinite(pl.treasuryAccountId))
+        );
+        if (paymentLinesPayload.length > 0 && invalidTreasury) {
+          showToast('Select a valid treasury account on each payment line.', { variant: 'error' });
+          return;
+        }
+        const branchId = String(ws?.session?.currentBranchId ?? '').trim();
+        const receiptBody = {
+          customerID,
+          customerName,
+          quotationId: selectedQuotation.id,
+          /** Some API builds read `quotationRef` instead of `quotationId` — send both. */
+          quotationRef: selectedQuotation.id,
+          amountNgn: total,
+          paymentMethod,
+          bankReference,
+          dateISO: voucherDate,
+          paymentLines: paymentLinesPayload,
+        };
+        if (branchId) receiptBody.branchId = branchId;
+        receiptBody.fullAmountAsReceipt = true;
+        if (activeBankDepositId) receiptBody.bankDepositId = activeBankDepositId;
+        if (postingHeadroomNgn != null && postingHeadroomNgn <= 0 && total > 0) {
+          receiptBody.confirmSettledQuoteOverpay = true;
+        }
+        if (total >= 100_000) {
+          receiptBody.confirmAmountNgn = total;
+        }
+        const idempotencyKey =
+          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `rc-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+        const { ok, data, status } = await apiFetch('/api/ledger/receipt', {
+          method: 'POST',
+          body: JSON.stringify(receiptBody),
+          headers: { 'Idempotency-Key': idempotencyKey },
+        });
+        if (!ok && data?.code === 'QUOTATION_ALREADY_SETTLED') {
+          const proceed = await appConfirm({
+            message: `${data?.error || 'This quotation is already paid.'}\n\nPost anyway? The full amount will be recorded on this quotation.`,
+          });
+          if (!proceed) {
+            showToast('Posting cancelled.', { variant: 'info' });
+            return;
+          }
+          const settledKey =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `rc-settled-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+          const retrySettled = await apiFetch('/api/ledger/receipt', {
+            method: 'POST',
+            body: JSON.stringify({
+              ...receiptBody,
+              confirmSettledQuoteOverpay: true,
+              fullAmountAsReceipt: true,
+            }),
+            headers: { 'Idempotency-Key': settledKey },
+          });
+          if (!retrySettled.ok || !retrySettled.data?.ok) {
+            setPostingHint(guidanceForLedgerPostFailure(retrySettled.data) || null);
+            showToast(
+              formatLedgerApiError(retrySettled.data, retrySettled.status, 'Could not post receipt.'),
+              { variant: 'error' }
+            );
+            return;
+          }
+          setPostingHint(null);
+          showToast(
+            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.`
+          );
+          await onLedgerChange?.();
+          abandonUnsavedAndRun(() => onClose());
+          return;
+        }
+        if (!ok && data?.code === 'POSSIBLE_DUPLICATE_RECEIPT') {
+          const lines = (data?.duplicateSignals || [])
+            .map((sig) => `- ${sig.message}`)
+            .join('\n');
+          const reason = window.prompt(
+            `Server detected a duplicate-like payment:\n${lines || '- Similar posting exists.'}\n\nIf this is intentional, type reason to continue:`
+          );
+          if (!reason || !reason.trim()) {
+            showToast('Posting cancelled to avoid duplicate entry.', { variant: 'info' });
+            return;
+          }
+          const secondKey =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `rc-retry-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+          const retry = await apiFetch('/api/ledger/receipt', {
+            method: 'POST',
+            body: JSON.stringify({
+              ...receiptBody,
+              forceDuplicatePost: true,
+              duplicateOverrideReason: reason.trim(),
+              confirmSettledQuoteOverpay: true,
+            }),
+            headers: { 'Idempotency-Key': secondKey },
+          });
+          if (!retry.ok || !retry.data?.ok) {
+            setPostingHint(guidanceForLedgerPostFailure(retry.data) || null);
+            showToast(formatLedgerApiError(retry.data, retry.status, 'Could not post receipt.'), { variant: 'error' });
+            return;
+          }
+          setPostingHint(null);
+          showToast(
+            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.`
+          );
+          await onLedgerChange?.();
+          abandonUnsavedAndRun(() => onClose());
+          return;
+        }
+        if (!ok || !data?.ok) {
+          setPostingHint(guidanceForLedgerPostFailure(data) || null);
+          showToast(formatLedgerApiError(data, status, 'Could not post receipt.'), { variant: 'error' });
+          return;
+        }
+        setPostingHint(null);
+        const linkNote = activeBankDepositId ? ` Linked to ${activeBankDepositId}.` : '';
+        showToast(
+          `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.${linkNote}`
+        );
+        if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !activeBankDepositId) {
+          showToast(
+            `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match by amount/date (exact or close) — link next time to avoid duplicate treasury cash.`,
+            { variant: 'info' }
+          );
+        }
+      } else {
+        const res = recordReceiptWithQuotation({
+          customerID,
+          customerName,
+          quotationRow: quotationRowForPayments,
+          amountNgn: total,
+          paymentMethod,
+          bankReference,
+          dateISO: voucherDate,
+          fullAmountAsReceipt: true,
+        });
+        if (!res.ok) {
+          showToast(res.error, { variant: 'error' });
+          return;
+        }
+        if (dueNgn != null && total < dueNgn) {
+          showToast(`Part payment ${formatNgn(total)} posted. Remaining on quote ≈ ${formatNgn(dueNgn - total)}.`);
+        } else {
+          showToast(`Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`);
+        }
+      }
+      await onLedgerChange?.();
+      abandonUnsavedAndRun(() => onClose());
+    } finally {
+      postingRef.current = false;
+      setIsPosting(false);
+    }
+  };
+
+  const label = 'text-ui-xs font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
+  const field =
+    'w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-emerald-500/15';
+
+  const displayTotal = selectedQuotation?.totalNgn ?? 0;
+  const displayPaid = quotationRowForPayments?.paidNgn ?? selectedQuotation?.paidNgn ?? 0;
+  const displayBalance =
+    cashDueAfterCreditNgn != null
+      ? cashDueAfterCreditNgn
+      : dueNgn != null
+        ? dueNgn
+        : Math.max(0, displayTotal - displayPaid);
+
+  const receiptIdPreview = isExistingPayment
+    ? editData.id
+    : `RC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-NEW`;
+
+  const openPrint = (kind) => {
+    if (!ws?.canMutate) {
+      showToast('System offline (read-only). Reconnect and refresh before printing.', { variant: 'error' });
+      return;
+    }
+    if (!isEdit) {
+      showToast('Post and save this receipt first before printing.', { variant: 'error' });
+      return;
+    }
+    if (!receiptMayPrint(editData)) {
+      showToast('Payment is still draft — cashier must clear it before you can print the receipt.', {
+        variant: 'error',
+      });
+      return;
+    }
+    if (!quotationRef) {
+      showToast('Select a quotation before printing.', { variant: 'error' });
+      return;
+    }
+    if (lineTotalNgn <= 0) {
+      showToast('Enter payment amounts to print.', { variant: 'error' });
+      return;
+    }
+    setPrintKind(kind);
+    setShowPrint(true);
+  };
+
+  const updateLine = (id, patch) =>
+    setPaymentLines((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const addLine = () =>
+    setPaymentLines((prev) => [...prev, emptyPaymentLine(voucherDate, defaultAccountId)]);
+  const removeLine = (id) =>
+    setPaymentLines((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)));
+
+  const deleteCurrentReceipt = async () => {
+    if (!isExistingPayment || readOnly || !onDeleteReceipt || isPosting) return;
+    const ok = await onDeleteReceipt(editData);
+    if (ok) abandonUnsavedAndRun(() => onClose());
+  };
+
+  return (
+    <ModalFrame isOpen={isOpen} onClose={handleClose} modal={!showPrint} showCloseButton={false}>
+      <>
+      <form
+        key={editData?.id ?? 'rcpt-new'}
+        onSubmit={saveReceipt}
+        onInput={captureEdited}
+        onChange={captureEdited}
+        className="z-modal-panel max-w-[min(100%,56rem)] w-full min-w-0 max-h-[min(100dvh,820px)] sm:max-h-[min(92vh,820px)] flex flex-col"
+      >
+        <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
+              R
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                <h2 className="text-base font-bold text-zarewa-teal tracking-tight">{modalTitle}</h2>
+                <span
+                  className={`shrink-0 rounded-md px-2 py-0.5 text-ui-xs font-semibold uppercase tracking-wide ${
+                    readOnly
+                      ? 'bg-slate-200 text-slate-700'
+                      : 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-600/20'
+                  }`}
+                >
+                  {modeBadgeLabel}
+                </span>
+                {isExistingPayment ? (
+                  <span
+                    className={`shrink-0 rounded-md border px-2 py-0.5 text-ui-xs font-semibold uppercase tracking-wide ${receiptSalesPaymentStatusChipClass(editData)}`}
+                    title={receiptSalesPaymentStatusTitle(editData)}
+                  >
+                    {receiptSalesPaymentStatusLabel(editData)}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-ui-xs font-semibold text-slate-400 uppercase tracking-widest truncate mt-0.5">
+                {modalSubtitle}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl transition-all shrink-0"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {readOnly ? (
+          <div className="px-5 py-2 bg-slate-50 border-b border-slate-200 text-ui-xs font-medium text-slate-600 space-y-1">
+            <p>
+              {editData?.source === 'ledger'
+                ? isReceiptCleared(editData)
+                  ? 'Posted payment — cleared and print-ready. To fix a mistake, Finance reverses this entry and you post the correct amount again.'
+                  : 'Posted payment — still draft until cashier clears it. Print unlocks after clearance. To fix a mistake, Finance reverses this entry and you post the correct amount again.'
+                : 'View only. Imported history rows are not the live ledger; new money is always a separate post.'}
+            </p>
+            {isExistingPayment ? (
+              <p className="font-semibold text-slate-800">
+                {receiptSalesPaymentStatusDetail(editData) || receiptSalesPaymentStatusLabel(editData)}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {!ws?.canMutate ? (
+          <div className="px-5 py-2 bg-amber-50 border-b border-amber-200 text-ui-xs font-semibold text-amber-900">
+            System offline (read-only). Reconnect and refresh before posting or printing payments.
+          </div>
+        ) : null}
+
+        {!readOnly && useLedgerApi && quotationLedgerHold ? (
+          <div className="px-5 py-3 bg-rose-50/90 border-b border-rose-200 text-ui-xs text-rose-950 space-y-2">
+            <p className="text-xs font-bold">Customer ledger posting is paused</p>
+            <p className="leading-snug opacity-95">{quotationLedgerHold.detail}</p>
+            <p className="leading-snug">
+              {quotationLedgerHold.kind === 'cleared' && (dueNgn ?? 0) > 0
+                ? 'This quote was manager-cleared while money is still due. A manager must use Release for payments on the Manager dashboard before you can post the balance.'
+                : 'Open the Manager dashboard → Transaction Intel, finish or withdraw any refund, then release the hold if payments should continue.'}
+            </p>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              <Link to="/manager" className="font-semibold text-rose-900 underline underline-offset-2">
+                Manager dashboard
+              </Link>
+              <Link to="/sales?tab=customers" className="font-semibold text-rose-900 underline underline-offset-2">
+                Sales — customers
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
+        {!readOnly && useLedgerApi && voucherInLockedPeriod ? (
+          <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-ui-xs text-amber-950 space-y-1">
+            <p className="font-bold">Voucher month is locked for posting</p>
+            <p className="leading-snug">
+              The receipt date falls in a closed accounting period. Change the voucher date to an open month, or ask finance to unlock the
+              period before posting.
+            </p>
+            <Link to="/settings/governance" className="inline-flex font-semibold text-amber-900 underline underline-offset-2">
+              Open period controls
+            </Link>
+          </div>
+        ) : null}
+
+        {!readOnly && postingHint ? (
+          <div className="px-5 py-3 bg-rose-50/90 border-b border-rose-200 text-ui-xs text-rose-950 space-y-2">
+            <p className="text-xs font-bold">{postingHint.title}</p>
+            <p className="leading-snug opacity-95">{postingHint.detail}</p>
+            {postingHint.steps?.length ? (
+              <ol className="list-decimal pl-4 space-y-1">
+                {postingHint.steps.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ol>
+            ) : null}
+            {postingHint.links?.length ? (
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {postingHint.links.map((l) => (
+                  <Link key={l.to} to={l.to} className="font-semibold text-rose-900 underline underline-offset-2">
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="flex-1 overflow-hidden flex flex-col xl:flex-row bg-white min-h-0">
+          <div
+            className={`flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 custom-scrollbar xl:border-r border-slate-100 ${readOnly ? 'pointer-events-none opacity-75' : ''}`}
+          >
+            <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-slate-50/50">
+              <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
+                Voucher & quotation
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={label}>Voucher date</label>
+                  <input
+                    type="date"
+                    value={voucherDate}
+                    onChange={(e) => setVoucherDate(e.target.value)}
+                    className={`${field} cursor-pointer`}
+                  />
+                </div>
+                <div className="relative">
+                  <label className={label}>Link quotation (search ID, customer, etc.)</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={qSearch}
+                      onChange={(e) => {
+                        setQSearch(e.target.value);
+                        setShowQSearch(true);
+                      }}
+                      onFocus={() => setShowQSearch(true)}
+                      placeholder="Type to search quotations…"
+                      className={`${field} pr-10`}
+                    />
+                    {qSearch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQSearch('');
+                          setQuotationRef('');
+                        }}
+                        className="absolute right-8 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
+                  </div>
+                  {showQSearch && (
+                    <div className="absolute z-10 left-0 right-0 mt-1 max-h-[220px] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl custom-scrollbar p-1">
+                      {filteredQSearch.length === 0 ? (
+                        <div className="p-3 text-center text-ui-xs font-semibold text-slate-400 uppercase">
+                          No unpaid quotations found
+                        </div>
+                      ) : (
+                        filteredQSearch.map((qt) => (
+                          <button
+                            key={qt.id}
+                            type="button"
+                            onClick={() => {
+                              setQuotationRef(qt.id);
+                              setQSearch(qt.id);
+                              setShowQSearch(false);
+                            }}
+                            className={`flex w-full flex-col p-2.5 text-left transition-colors rounded-md border border-transparent hover:border-emerald-100 hover:bg-emerald-50 ${
+                              quotationRef === qt.id ? 'bg-emerald-50 border-emerald-100' : ''
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-bold text-zarewa-teal">{qt.id}</span>
+                              <span className="text-ui-xs font-bold text-emerald-700">{formatNgn(qt.totalNgn)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 mt-0.5">
+                              <span className="text-xs font-semibold text-slate-800 truncate">{qt.customer}</span>
+                              <span className="text-ui-xs font-bold text-slate-400 uppercase tracking-tighter shrink-0">{qt.paymentStatus}</span>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                  {showQSearch && (
+                    <div
+                      className="fixed inset-0 z-0"
+                      onClick={() => setShowQSearch(false)}
+                    />
+                  )}
+                </div>
+                {selectedQuotation ? (
+                  <div className="sm:col-span-2 rounded-lg border border-emerald-100 bg-emerald-50/40 px-3 py-2 text-ui-xs text-slate-700 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-bold text-zarewa-teal">{selectedQuotation.id ?? '—'}</span>
+                    <span className="font-medium truncate">{selectedQuotation.customer ?? '—'}</span>
+                    <span className="xl:hidden font-bold text-emerald-700 tabular-nums">
+                      {formatNgn(displayBalance)} due
+                    </span>
+                  </div>
+                ) : null}
+                {useLedgerApi && refundCreditLoading ? (
+                  <p className="sm:col-span-2 text-ui-xs text-slate-500">Checking refund fund…</p>
+                ) : null}
+                {useLedgerApi &&
+                refundCreditInfo &&
+                Number(refundCreditInfo.recommendedApplyNgn) > 0 &&
+                !readOnly &&
+                isAddPayment &&
+                !isExistingPayment ? (
+                  <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2.5 text-ui-xs text-slate-800 space-y-2">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={applyRefundCredit}
+                        onChange={(e) => handleApplyRefundFundChange(e.target.checked)}
+                      />
+                      <span>
+                        <span className="font-bold text-amber-900">{REFUND_FUND_USE_LABEL}: </span>
+                        {formatNgn(refundCreditInfo.recommendedApplyNgn)} from this customer’s refund
+                        fund will cover this receipt. That slice is removed from the refund and is not
+                        refundable again. Leftover stays refundable.
+                      </span>
+                    </label>
+                    <ul className="pl-6 list-disc text-slate-600 space-y-0.5">
+                      {(refundCreditInfo.sources || []).slice(0, 4).map((s) => (
+                        <li key={s.id}>
+                          {s.label}: {formatNgn(s.availableNgn)}
+                          {s.overpaymentOnly ? ' · overpayment (no approval)' : ' · approved refund'}
+                          {s.sameQuotation ? ' · this quotation' : ''}
+                        </li>
+                      ))}
+                    </ul>
+                    {applyRefundCredit ? (
+                      <p className="pl-6 font-semibold text-emerald-800">
+                        {cashDueAfterCreditNgn > 0
+                          ? `Cash still needed after refund fund: ${formatNgn(cashDueAfterCreditNgn)}`
+                          : 'Refund fund covers this receipt — no cash to collect.'}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : useLedgerApi && refundCreditInfo ? (
+                  <div className="sm:col-span-2 rounded-lg border border-sky-200 bg-sky-50/80 px-3 py-2.5 text-ui-xs text-sky-950 space-y-1.5">
+                    <p className="font-bold">This customer has a refund</p>
+                    {Number(refundCreditInfo.totalAvailableNgn) > 0 ? (
+                      <p>
+                        Refund fund {formatNgn(refundCreditInfo.totalAvailableNgn)} is on file
+                        {Number(refundCreditInfo.targetDueNgn) > 0
+                          ? ', but this receipt cannot take it automatically yet.'
+                          : ' — this quotation has no remaining balance due, so nothing is deducted on this receipt.'}
+                      </p>
+                    ) : null}
+                    <ul className="pl-4 list-disc space-y-0.5">
+                      {(refundCreditInfo.sources || []).slice(0, 4).map((s) => (
+                        <li key={s.id}>
+                          {s.label}: {formatNgn(s.availableNgn)}
+                        </li>
+                      ))}
+                      {(refundCreditInfo.unavailableSources || []).slice(0, 4).map((s) => (
+                        <li key={s.id}>
+                          {s.refundId || s.sourceQuotationRef}: {s.reason}
+                          {s.availableNgn > 0 ? ` (${formatNgn(s.availableNgn)})` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mb-3 px-1">
+              <BankDepositPicker
+                value={bankDepositId}
+                onChange={setBankDepositId}
+                amountNgn={lineTotalNgn}
+                bankDateISO={voucherDate}
+                bankReference={remarks}
+                snapshot={depositSnapshot}
+                disabled={readOnly}
+              />
+              {activeBankDepositId && treasuryCashRequiredNgn > 0 ? (
+                <p className="text-ui-xs text-sky-800 mt-1">
+                  Enter treasury lines for the remaining {formatNgn(treasuryCashRequiredNgn)} only.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="mb-3 flex items-center justify-between px-1">
+              <h3 className="text-ui-xs font-semibold text-zarewa-teal uppercase tracking-widest">
+                Payment breakdown
+              </h3>
+            </div>
+
+            {treasuryList.length === 0 ? (
+              <p className="text-ui-xs font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
+                No treasury accounts on file. Add accounts under Finance so receipts can post to bank or cash.
+              </p>
+            ) : null}
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-12 gap-2.5 px-1 text-ui-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <div className="col-span-12 sm:col-span-3">Payee name</div>
+                <div className="col-span-6 sm:col-span-2">Account</div>
+                <div className="col-span-4 sm:col-span-2">Date</div>
+                <div className="col-span-2 sm:col-span-3 text-center">Amount ₦</div>
+                <div className="hidden sm:block sm:col-span-2 text-right">Actions</div>
+              </div>
+              {applyRefundCredit && recommendedCreditApplyNgn > 0 ? (
+                <div className="grid grid-cols-12 gap-2.5 items-center bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+                  <p className="col-span-12 sm:col-span-5 text-[12px] font-bold text-amber-950">
+                    {REFUND_FUND_USE_LABEL}
+                  </p>
+                  <p className="col-span-6 sm:col-span-2 text-[12px] font-semibold text-amber-900">
+                    Refund fund
+                  </p>
+                  <p className="col-span-6 sm:col-span-3 text-[12px] text-center font-black text-amber-900 tabular-nums">
+                    {formatNgn(recommendedCreditApplyNgn)}
+                  </p>
+                  <p className="col-span-12 sm:col-span-2 text-[10px] font-semibold text-amber-800 sm:text-right">
+                    Auto-deducted
+                  </p>
+                </div>
+              ) : null}
+              {paymentLines.map((line, idx) => {
+                const isLast = idx === paymentLines.length - 1;
+                return (
+                  <div
+                    key={line.id}
+                    className="grid grid-cols-12 gap-2.5 items-center bg-white p-2.5 rounded-lg border border-slate-200"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Who paid / depositor"
+                      value={line.payeeName}
+                      onChange={(e) => updateLine(line.id, { payeeName: e.target.value })}
+                      className="col-span-12 sm:col-span-3 border border-slate-200 rounded-lg py-2 px-2.5 text-[12px] font-semibold text-zarewa-teal outline-none"
+                    />
+                    <div className="col-span-6 sm:col-span-2 relative">
+                      <select
+                        value={String(line.treasuryAccountId)}
+                        onChange={(e) =>
+                          updateLine(line.id, {
+                            treasuryAccountId: e.target.value,
+                          })
+                        }
+                        className="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-[12px] font-semibold text-zarewa-teal appearance-none outline-none"
+                      >
+                        {treasuryList.map((a) => (
+                          <option key={a.id} value={String(a.id)}>
+                            {treasuryAccountDisplayName(a)}
+                          </option>
+                        ))}
+                      </select>
+                      <Landmark
+                        size={12}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
+                      />
+                    </div>
+                    <div className="col-span-4 sm:col-span-2">
+                      <input
+                        type="date"
+                        value={line.lineDate}
+                        onChange={(e) => updateLine(line.id, { lineDate: e.target.value })}
+                        className="w-full border border-slate-200 rounded-lg py-2 px-2 text-[12px] font-semibold text-zarewa-teal"
+                      />
+                    </div>
+                    <div className="col-span-2 sm:col-span-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        value={line.amount}
+                        onChange={(e) => updateLine(line.id, { amount: e.target.value })}
+                        className="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-[12px] text-center font-bold text-emerald-700 tabular-nums"
+                      />
+                    </div>
+                    <div className="col-span-12 sm:col-span-2 flex sm:justify-end items-center gap-1.5 sm:pl-3 sm:border-l sm:border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => removeLine(line.id)}
+                        className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg"
+                        title="Remove line"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                      {!readOnly && isLast ? (
+                        <button
+                          type="button"
+                          onClick={addLine}
+                          className="p-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                          title="Add payment line"
+                        >
+                          <Plus size={16} strokeWidth={2.5} />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {lineTotalNgn > 0 && postingHeadroomNgn != null && lineTotalNgn > postingHeadroomNgn ? (
+              <p className="mt-2 text-ui-xs font-medium text-emerald-900">
+                Total is above the remaining balance — the <strong>full amount</strong> is recorded on this quotation.
+                Any receipt vs overpay allocation is done later in Finance if needed.
+              </p>
+            ) : null}
+          </div>
+
+          <div
+            className={`hidden xl:flex xl:w-56 xl:shrink-0 bg-slate-50/90 p-3 flex-col gap-2.5 border-t-0 border-l border-slate-100 min-h-0 overflow-y-auto custom-scrollbar ${readOnly ? 'opacity-85' : ''}`}
+          >
+            <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Linked quote
+            </p>
+            {selectedQuotation ? (
+              <>
+                <div className="rounded-lg border border-slate-200 bg-white p-2.5">
+                  <p className="text-ui-xs font-semibold text-slate-400 uppercase mb-1">Customer (from quote)</p>
+                  <p className="text-[13px] font-bold leading-snug text-zarewa-teal">{customerName}</p>
+                  <p className="text-ui-xs text-slate-500">{customerPhone}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-2.5">
+                  <p className="text-ui-xs font-semibold text-slate-400 uppercase mb-1">Quotation total</p>
+                  <p className="text-[17px] font-bold leading-none text-zarewa-teal tabular-nums">{formatNgn(displayTotal)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-2.5">
+                  <p className="text-ui-xs font-semibold text-slate-400 uppercase mb-0.5">Payment received</p>
+                  <p className="text-[7px] text-slate-500 mb-1 leading-tight">
+                    {quotationPaymentHistory.length === 0
+                      ? 'No payment posts yet on this quote'
+                      : quotationPaymentHistory.length === 1
+                        ? '1 payment posted (cash receipts on this quote)'
+                        : `${quotationPaymentHistory.length} payments posted (cash receipts on this quote)`}
+                  </p>
+                  <p className="text-[17px] font-bold leading-none text-sky-700 tabular-nums">{formatNgn(displayPaid)}</p>
+                </div>
+                <div className="rounded-lg border border-zarewa-teal/30 bg-zarewa-teal p-2.5 text-white">
+                  <p className="text-ui-xs font-semibold text-white/50 uppercase mb-1">
+                    {applyRefundCredit ? 'Cash still due' : 'Balance due (ledger)'}
+                  </p>
+                  <p className="text-[17px] font-bold leading-none text-emerald-200 tabular-nums">{formatNgn(displayBalance)}</p>
+                  {applyRefundCredit && recommendedCreditApplyNgn > 0 ? (
+                    <p className="text-[10px] text-emerald-100/90 mt-1.5 leading-snug">
+                      {formatNgn(recommendedCreditApplyNgn)} deducted from refund fund
+                    </p>
+                  ) : null}
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-2.5">
+                  <p className="text-ui-xs font-semibold text-slate-400 uppercase mb-1">This voucher total</p>
+                  <p className="text-[20px] font-black leading-none text-emerald-700 tabular-nums">
+                    {formatNgn(lineTotalNgn + (applyRefundCredit ? recommendedCreditApplyNgn : 0))}
+                  </p>
+                  {applyRefundCredit && recommendedCreditApplyNgn > 0 ? (
+                    <p className="text-ui-xs text-slate-500 mt-1">
+                      Cash {formatNgn(lineTotalNgn)} + refund fund {formatNgn(recommendedCreditApplyNgn)}
+                    </p>
+                  ) : null}
+                  {balanceAfterNgn != null ? (
+                    <p className="text-ui-xs text-slate-500 mt-1">
+                      Est. balance after post: <span className="font-bold tabular-nums">{formatNgn(balanceAfterNgn)}</span>
+                    </p>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-2.5 text-ui-xs text-amber-950 leading-snug">
+                Select a quotation to load customer, balances, and print-ready totals.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {receiptAmendNeedsApproval ? (
+          <div className="px-5 pt-4 shrink-0">
+            <EditSecondApprovalInline
+              entityKind="sales_receipt"
+              entityId={String(editData.id)}
+              value={receiptEditApprovalId}
+              onChange={setReceiptEditApprovalId}
+            />
+          </div>
+        ) : null}
+
+        <ModalDeskFooter
+          totalLabel={applyRefundCredit && recommendedCreditApplyNgn > 0 ? 'Cash + refund fund' : 'Voucher total'}
+          totalValue={formatNgn(lineTotalNgn + (applyRefundCredit ? recommendedCreditApplyNgn : 0))}
+          className="bg-emerald-600"
+        >
+          {isExistingPayment && !readOnly && onDeleteReceipt ? (
+            <DeskFooterButton type="button" variant="danger" disabled={isPosting} onClick={deleteCurrentReceipt}>
+              <Trash2 size={12} /> Delete payment
+            </DeskFooterButton>
+          ) : null}
+          <DeskFooterButton
+            type="submit"
+            disabled={
+              readOnly ||
+              isPosting ||
+              (useLedgerApi && Boolean(quotationLedgerHold)) ||
+              (useLedgerApi && voucherInLockedPeriod)
+            }
+          >
+            <Save size={12} /> {isPosting ? 'Posting…' : 'Post payment'}
+          </DeskFooterButton>
+          <DeskFooterButton
+            type="button"
+            variant="success"
+            onClick={() => openPrint('quick')}
+            disabled={!ws?.canMutate || !quotationRef || !receiptMayPrint(editData)}
+            title={
+              isExistingPayment && !receiptMayPrint(editData)
+                ? 'Draft until cashier clears payment — printing locked'
+                : undefined
+            }
+          >
+            <Printer size={12} /> Summary (A4)
+          </DeskFooterButton>
+          <DeskFooterButton
+            type="button"
+            variant="primary"
+            onClick={() => openPrint('full')}
+            disabled={!ws?.canMutate || !quotationRef || !receiptMayPrint(editData)}
+            title={
+              isExistingPayment && !receiptMayPrint(editData)
+                ? 'Draft until cashier clears payment — printing locked'
+                : undefined
+            }
+          >
+            <Printer size={12} /> Full detail (A4)
+          </DeskFooterButton>
+        </ModalDeskFooter>
+      </form>
+
+      <PrintModalPortal open={showPrint} onClose={() => setShowPrint(false)}>
+        <div className="mx-auto max-w-4xl pb-16">
+          <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
+            {printKind === 'quick' ? (
+              <ReceiptPrintQuick
+                receiptId={receiptIdPreview}
+                dateStr={formatDisplayDate(voucherDate)}
+                customerName={customerName || '—'}
+                quotationRef={quotationRef || '—'}
+                quotationPaymentHistory={quotationPaymentHistory}
+                highlightReceiptId={isExistingPayment ? String(editData.id) : ''}
+                lines={printLinesPayload}
+                totalNgn={lineTotalNgn}
+                reference={remarks}
+                cashierStatusLabel={receiptCashierPrintStatus.label}
+                cashierStatusDetail={receiptCashierPrintStatus.detail}
+              />
+            ) : (
+              <ReceiptPrintFull
+                receiptId={receiptIdPreview}
+                dateStr={formatDisplayDate(voucherDate)}
+                customerName={customerName || '—'}
+                customerPhone={customerPhone}
+                quotationRef={quotationRef || '—'}
+                projectName={selectedQuotation?.projectName ?? ''}
+                quotationPaymentHistory={quotationPaymentHistory}
+                highlightReceiptId={isExistingPayment ? String(editData.id) : ''}
+                lines={printLinesPayload}
+                totalNgn={lineTotalNgn}
+                reference={remarks}
+                handledBy={handledByLabel}
+                cashierStatusLabel={receiptCashierPrintStatus.label}
+                cashierStatusDetail={receiptCashierPrintStatus.detail}
+              />
+            )}
+          </div>
+          <div className="no-print mt-4 flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-lg bg-emerald-700 px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-white shadow-lg"
+            >
+              Print / Save PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPrint(false)}
+              className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-slate-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </PrintModalPortal>
+      </>
+    </ModalFrame>
+  );
+};
+
+export default ReceiptModal;

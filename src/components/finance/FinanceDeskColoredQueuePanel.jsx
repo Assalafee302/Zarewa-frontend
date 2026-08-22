@@ -143,6 +143,7 @@ export function FinanceDeskQueueActionButton({ children, onClick, to, tone = 'sk
     sky: 'text-sky-800 bg-sky-100 hover:bg-sky-200',
     teal: 'text-teal-900 bg-teal-100 hover:bg-teal-200',
     rose: 'text-rose-800 bg-rose-100 hover:bg-rose-200',
+    violet: 'text-violet-900 bg-violet-100 hover:bg-violet-200',
     slate: 'text-slate-700 bg-slate-100 hover:bg-slate-200',
     primary: 'text-white bg-zarewa-teal hover:bg-[#0f3d3a]',
   };

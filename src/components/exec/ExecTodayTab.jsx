@@ -47,7 +47,7 @@ export function ExecTodayTab({
       {(data?.workTray?.summary?.total ?? 0) > 7 ? (
         <div className="flex justify-center pt-2">
           <button type="button" onClick={onOpenDecide} className={EXEC_PRIMARY_BTN}>
-            Open full Decide queue
+            Open all approvals
             <ArrowRight size={14} />
           </button>
         </div>

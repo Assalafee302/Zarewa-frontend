@@ -15,6 +15,7 @@ import MessageComposer from './MessageComposer';
 import WorkCard from './WorkCard';
 import PresenceAvatar from './PresenceAvatar';
 import { ListEmptyState } from '../../ui/ListEmptyState';
+import { safeAttachmentHref } from '../../../lib/safeUrl';
 
 function formatBubbleTime(iso) {
   if (!iso) return '';
@@ -61,27 +62,70 @@ function MessageAttachments({ attachments, mine }) {
   if (!attachments?.length) return null;
   return (
     <div className={`mt-1.5 flex flex-wrap gap-1.5 ${mine ? 'justify-end' : ''}`}>
-      {attachments.map((a, i) =>
-        a.isImage || String(a.mime || '').startsWith('image/') ? (
+      {attachments.map((a, i) => {
+        const href = safeAttachmentHref(a.dataUrl);
+        const isImage = a.isImage || String(a.mime || '').startsWith('image/');
+        const imgSrc =
+          isImage &&
+          (String(a.dataUrl || '').startsWith('data:image/') ||
+            String(a.dataUrl || '').startsWith('blob:') ||
+            href)
+            ? a.dataUrl || href
+            : null;
+        if (imgSrc) {
+          const openHref = href || (String(imgSrc).startsWith('data:image/') ? null : href);
+          if (openHref) {
+            return (
+              <a
+                key={`${a.name}-${i}`}
+                href={openHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Open image ${a.name}`}
+                className="block overflow-hidden rounded-lg border border-slate-200"
+              >
+                <img
+                  src={imgSrc}
+                  alt={a.name || 'Image attachment'}
+                  loading="lazy"
+                  className="max-h-56 max-w-[16rem] object-contain"
+                />
+              </a>
+            );
+          }
+          return (
+            <div
+              key={`${a.name}-${i}`}
+              className="block overflow-hidden rounded-lg border border-slate-200"
+            >
+              <img
+                src={imgSrc}
+                alt={a.name || 'Image attachment'}
+                loading="lazy"
+                className="max-h-56 max-w-[16rem] object-contain"
+              />
+            </div>
+          );
+        }
+        if (!href) {
+          return (
+            <span
+              key={`${a.name}-${i}`}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium opacity-60 ${
+                mine
+                  ? 'border-teal-700 bg-teal-700/40 text-white'
+                  : 'border-slate-200 bg-white text-slate-700'
+              }`}
+            >
+              <FileText size={14} aria-hidden />
+              <span className="max-w-[10rem] truncate">{a.name || 'Attachment'}</span>
+            </span>
+          );
+        }
+        return (
           <a
             key={`${a.name}-${i}`}
-            href={a.dataUrl}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={`Open image ${a.name}`}
-            className="block overflow-hidden rounded-lg border border-slate-200"
-          >
-            <img
-              src={a.dataUrl}
-              alt={a.name || 'Image attachment'}
-              loading="lazy"
-              className="max-h-56 max-w-[16rem] object-contain"
-            />
-          </a>
-        ) : (
-          <a
-            key={`${a.name}-${i}`}
-            href={a.dataUrl}
+            href={href}
             download={a.name || 'attachment'}
             aria-label={`Download ${a.name}`}
             className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${
@@ -94,8 +138,8 @@ function MessageAttachments({ attachments, mine }) {
             <span className="max-w-[10rem] truncate">{a.name || 'Attachment'}</span>
             <Download size={12} aria-hidden />
           </a>
-        )
-      )}
+        );
+      })}
     </div>
   );
 }

@@ -56,6 +56,24 @@ function isCsrfExemptMutation(path, method) {
   return CSRF_EXEMPT_MUTATION_PATHS.has(pathname);
 }
 
+function isRawFetchBody(value) {
+  if (value == null) return false;
+  if (typeof FormData !== 'undefined' && value instanceof FormData) return true;
+  if (typeof Blob !== 'undefined' && value instanceof Blob) return true;
+  if (typeof URLSearchParams !== 'undefined' && value instanceof URLSearchParams) return true;
+  if (typeof ArrayBuffer !== 'undefined' && value instanceof ArrayBuffer) return true;
+  if (ArrayBuffer.isView(value)) return true;
+  return false;
+}
+
+/** Objects must be JSON.stringify'd; a plain object becomes "[object Object]" on the wire. */
+export function serializeApiRequestBody(rawBody) {
+  if (rawBody == null) return undefined;
+  if (typeof rawBody === 'string') return rawBody;
+  if (isRawFetchBody(rawBody)) return rawBody;
+  return JSON.stringify(rawBody);
+}
+
 function redirectToAppEntryForLogin() {
   if (typeof window === 'undefined') return;
   const base = String(import.meta.env.BASE_URL || '/');
@@ -67,6 +85,8 @@ export async function apiFetch(path, options = {}) {
   const method = String(options.method || 'GET').toUpperCase();
   const needsCsrf = method !== 'GET' && method !== 'HEAD';
   const exempt = isCsrfExemptMutation(path, method);
+  const { body: rawBody, headers: optionHeaders, ...rest } = options;
+  const body = serializeApiRequestBody(rawBody);
 
   const csrfToken = needsCsrf && !exempt ? getZarewaCsrfFromDocumentCookie() : null;
   if (needsCsrf && !exempt && (csrfToken == null || csrfToken === '')) {
@@ -81,19 +101,25 @@ export async function apiFetch(path, options = {}) {
   }
 
   const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
+    ...(isRawFetchBody(rawBody) ? {} : { 'Content-Type': 'application/json' }),
+    ...(optionHeaders || {}),
   };
+  if (typeof FormData !== 'undefined' && body instanceof FormData) {
+    delete headers['Content-Type'];
+  }
   if (needsCsrf && !exempt && csrfToken) {
     headers['X-CSRF-Token'] = csrfToken;
   }
   let r;
   try {
-    r = await fetch(apiUrl(path), {
-      ...options,
+    const init = {
+      ...rest,
+      method,
       credentials: 'include',
       headers,
-    });
+    };
+    if (body !== undefined) init.body = body;
+    r = await fetch(apiUrl(path), init);
   } catch (err) {
     return {
       ok: false,
@@ -116,12 +142,16 @@ export async function apiFetch(path, options = {}) {
     const htmlExpressMissingRoute =
       /<pre>\s*Cannot\s+(POST|GET|PUT|PATCH|DELETE)\s+\//i.test(text || '') ||
       (/Cannot\s+POST\s+\//i.test(text || '') && /<!DOCTYPE\s+html/i.test(text || ''));
+    const htmlExpressBadJson =
+      /<!DOCTYPE\s+html/i.test(text || '') && /not valid JSON/i.test(text || '');
     data = {
       ok: false,
-      code: 'NON_JSON_RESPONSE',
+      code: htmlExpressBadJson ? 'INVALID_JSON' : 'NON_JSON_RESPONSE',
       error: htmlExpressMissingRoute
         ? 'API route not found (server returned an HTML 404). Common causes: (1) API server is an old build — redeploy backend with current routes and restart. (2) VITE_API_BASE ends with /api while the app calls /api/... — set the base to the site origin only (e.g. https://host) not https://host/api. Dev: run the API on port 8787 so Vite can proxy /api, or set VITE_API_BASE to the API origin.'
-        : String(text || 'Invalid JSON').slice(0, 500),
+        : htmlExpressBadJson
+          ? 'The server could not read that request. Refresh and try again.'
+          : String(text || 'Invalid JSON').slice(0, 500),
     };
   }
   return { ok: r.ok, status: r.status, data };

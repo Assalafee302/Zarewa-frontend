@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { Suspense, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Search,
   Truck,
@@ -8,46 +8,53 @@ import {
   Pencil,
   Trash2,
   Info,
-  BookOpen,
   Ruler,
 } from 'lucide-react';
 
 import { MainPanel, ModalFrame } from '../../components/layout';
 import { EditSecondApprovalInline } from '../../components/EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../../lib/editApprovalUi';
-import { CONVERSION_FLAG_RATIO, formatNgn } from '../../Data/mockData';
-import { purchaseOrderOrderedValueNgn } from '../../lib/liveAnalytics';
-import { procurementKindFromPo } from '../../lib/procurementPoKind';
+import { formatNgn } from '../../Data/mockData';
+import { CONVERSION_FLAG_RATIO } from '../../lib/conversionFlagRatio';
 import {
   SalesListSearchInput,
   SalesListSortBar,
   SalesListTableFrame,
 } from '../../components/sales/SalesListTableFrame';
-import { PROCUREMENT_PO_SORT_FIELDS } from '../../lib/procurementPoListSorting';
-import { kgPerMFromStripDensity } from './procurementTabShared.js';
+import { ProcurementPurchasesTable } from '../../components/procurement/ProcurementPurchasesTable';
 import { TransportCatchUpPanel } from '../../components/procurement/TransportCatchUpPanel';
-import { purchaseOrderTransportGapLabel } from '../../lib/purchaseOrderWorkflow';
 import { PAYABLES_SORT_FIELDS } from '../../lib/procurementPayablesSorting';
 import { AppTablePager } from '../../components/ui/AppDataTable';
-import { PoStatusChip } from '../../components/procurement/PoStatusChip';
 import { poStatusDisplayLabel } from '../../lib/procurementStatusUi';
-import { ProcurementFormSection } from '../../components/procurement/ProcurementFormSection';
-import { PriceListPanel } from '../../components/procurement/PriceListPanel';
 import { useProcurementPage } from './ProcurementPageContext.jsx';
 import { ProcurementPayableRow } from './ProcurementPayableRow.jsx';
 import { ProcurementTransportAgentsAside } from './ProcurementTransportAgentsAside.jsx';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   TAB_LABELS,
-  PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
   PAYABLES_TABLE_PAGE_SIZE,
   PROCUREMENT_COIL_MATERIALS,
   STANDARD_COIL_GAUGES_MM,
   procurementCoilMaterialByKey,
-  poLineSummaryLabel,
+  kgPerMFromStripDensity,
   PILL,
   CARD_ROW,
 } from './procurementTabShared.js';
+
+const MaterialPricingWorkbook = React.lazy(() =>
+  import('../../components/procurement/MaterialPricingWorkbookModal.jsx').then((mod) => ({
+    default: mod.MaterialPricingWorkbook,
+  }))
+);
+
+const WORKBOOK_MATERIAL_KEYS = new Set([
+  'alu',
+  'aluzinc',
+  'stone-coated',
+  'stone-flatsheet',
+  'ridge-flashing',
+  'accessories',
+]);
 
 export function ProcurementTabPanels() {
   const ws = useWorkspace();
@@ -90,14 +97,11 @@ export function ProcurementTabPanels() {
     setProcurementPoEditApprovalId,
     poListSort,
     setPoListSort,
-    coilPOsSorted,
-    stonePOsSorted,
-    accessoryPOsSorted,
-    mixedPOsSorted,
-    coilPoPurchasesPage,
-    stonePoPurchasesPage,
-    accessoryPoPurchasesPage,
-    mixedPoPurchasesPage,
+    poKindFilter,
+    setPoKindFilter,
+    purchasesKindCounts,
+    purchasesPage,
+    previewPo,
     poTransportMissingLinkIds,
     poTransportCatchUpRows,
     orphanHaulageRows,
@@ -123,6 +127,13 @@ export function ProcurementTabPanels() {
   } = useProcurementPage();
 
   const [showStandardConversionModal, setShowStandardConversionModal] = useState(false);
+  const [params] = useSearchParams();
+  const workbookMaterialKey = useMemo(() => {
+    const raw = String(params.get('material') || params.get('tab') || 'alu')
+      .trim()
+      .toLowerCase();
+    return WORKBOOK_MATERIAL_KEYS.has(raw) ? raw : 'alu';
+  }, [params]);
 
   return (
         <div className="col-span-full min-w-0 order-2">
@@ -317,8 +328,9 @@ export function ProcurementTabPanels() {
                 </div>
           ) : (
           <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !p-0 overflow-hidden !min-h-0 sm:!min-h-[360px]">
-            <div className="h-1 bg-zarewa-teal" />
-            <div className="p-4 sm:p-5 md:p-6">
+            {activeTab !== 'conversion' ? <div className="h-1 bg-zarewa-teal" /> : null}
+            <div className={activeTab === 'conversion' ? '' : 'p-4 sm:p-5 md:p-6'}>
+              {activeTab !== 'conversion' ? (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
                 <h2 className="text-xl font-bold text-zarewa-teal shrink-0">
                   {TAB_LABELS[activeTab] ?? 'Records'}
@@ -337,7 +349,7 @@ export function ProcurementTabPanels() {
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-zarewa-teal/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/25"
                     />
                   </div>
-                  {activeTab === 'purchases' || activeTab === 'conversion' ? (
+                  {activeTab === 'purchases' ? (
                     <div className="flex justify-end sm:justify-center shrink-0">
                       <details className="relative shrink-0">
                         <summary
@@ -358,6 +370,7 @@ export function ProcurementTabPanels() {
                   ) : null}
                 </div>
               </div>
+              ) : null}
 
               {activeTab === 'purchases' && (
                 <div className="space-y-3">
@@ -464,136 +477,24 @@ export function ProcurementTabPanels() {
                       />
                     </div>
                   ) : null}
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-3 sm:px-4">
-                    <SalesListSortBar
-                      fields={PROCUREMENT_PO_SORT_FIELDS}
-                      field={poListSort.field}
-                      dir={poListSort.dir}
-                      onFieldChange={(field) => setPoListSort((s) => ({ ...s, field }))}
-                      onDirToggle={() =>
-                        setPoListSort((s) => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))
-                      }
-                    />
-                  </div>
-                  <p className="text-ui-xs text-slate-500 leading-snug">
-                    Click a PO row to open the side panel — approve, reject, transport, transport fee, and edit
-                    actions are there (fewer buttons on each row keeps the list lighter).
-                  </p>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 min-w-0">
-                    {[
-                      {
-                        title: 'Coil (kg)',
-                        list: coilPOsSorted,
-                        page: coilPoPurchasesPage,
-                        empty: 'No coil purchase orders.',
-                      },
-                      {
-                        title: 'Stone-coated (m)',
-                        list: stonePOsSorted,
-                        page: stonePoPurchasesPage,
-                        empty: 'No stone-coated POs.',
-                      },
-                      {
-                        title: 'Accessories',
-                        list: accessoryPOsSorted,
-                        page: accessoryPoPurchasesPage,
-                        empty: 'No accessory POs.',
-                      },
-                      {
-                        title: 'Mixed',
-                        list: mixedPOsSorted,
-                        page: mixedPoPurchasesPage,
-                        empty: 'No mixed purchase orders.',
-                      },
-                    ].map((col) => (
-                      <div key={col.title} className="min-w-0 flex flex-col">
-                        <h3 className="text-ui-xs font-bold uppercase tracking-wide text-slate-600 mb-2 border-b border-slate-200 pb-1">
-                          {col.title}
-                        </h3>
-                        {col.list.length === 0 ? (
-                          <p className="text-ui-xs text-slate-400 py-3">{col.empty}</p>
-                        ) : (
-                          <>
-                          <ul className="space-y-1.5 flex-1 min-h-0">
-                            {col.page.slice.map((p) => {
-                              const pk = procurementKindFromPo(p);
-                              const lineCount = Array.isArray(p?.lines) ? p.lines.length : 0;
-                              const meta2 = [
-                                p.orderDateISO,
-                                `${lineCount} ${poLineSummaryLabel(pk)}`,
-                                p.transportAgentName,
-                                p.transportReference ? `Ref ${p.transportReference}` : null,
-                                p.transportTreasuryMovementId ? `Treasury ${p.transportTreasuryMovementId}` : null,
-                                p.transportAmountNgn ? `Transport fee ${formatNgn(p.transportAmountNgn)}` : null,
-                                p.transportPaid ? 'Transport fee paid' : null,
-                                `Supplier paid ${formatNgn(p.supplierPaidNgn || 0)}`,
-                                p.transportNote ? `Note: ${p.transportNote}` : null,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ');
-                              return (
-                        <li
-                          key={p.poID}
-                          className={`${CARD_ROW} cursor-pointer`}
-                          onClick={() => {
-                            setPreviewPo(p);
-                            setPreviewAp(null);
-                          }}
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                            <div className="min-w-0 leading-tight flex-1">
-                              <div className="flex items-center justify-between gap-2 min-w-0">
-                                <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
-                                  <span className="font-mono">{p.poID}</span>
-                                  <span className="font-medium text-slate-600"> · {p.supplierName}</span>
-                                </p>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  {poTransportMissingLinkIds.has(p.poID) ? (
-                                    <span
-                                      className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-900"
-                                      title={purchaseOrderTransportGapLabel(p)}
-                                    >
-                                      Transport
-                                    </span>
-                                  ) : null}
-                                  <span
-                                    className="text-xs font-black text-zarewa-teal tabular-nums"
-                                    title="Ordered value: each line uses ₦/m (stone), ₦/unit or ₦/kg (accessory), or ₦/kg (coil), including legacy rows with only per-kg price."
-                                  >
-                                    {formatNgn(purchaseOrderOrderedValueNgn(p))}
-                                  </span>
-                                  <PoStatusChip status={p.status} />
-                                </div>
-                              </div>
-                              <p
-                                className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2"
-                                title={meta2}
-                              >
-                                {meta2}
-                              </p>
-                            </div>
-                          </div>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                          <div className="mt-2 text-ui-xs text-slate-600 [&_button]:rounded-lg [&_button]:px-2 [&_button]:py-1 [&_button]:text-ui-xs [&_p]:text-ui-xs">
-                            <AppTablePager
-                              showingFrom={col.page.showingFrom}
-                              showingTo={col.page.showingTo}
-                              total={col.page.total}
-                              hasPrev={col.page.hasPrev}
-                              hasNext={col.page.hasNext}
-                              onPrev={col.page.goPrev}
-                              onNext={col.page.goNext}
-                              pageSize={PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE}
-                            />
-                          </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                  <ProcurementPurchasesTable
+                    kindFilter={poKindFilter}
+                    onKindFilterChange={setPoKindFilter}
+                    kindCounts={purchasesKindCounts}
+                    sort={poListSort}
+                    onSortFieldChange={(field) => setPoListSort((s) => ({ ...s, field }))}
+                    onSortDirToggle={() =>
+                      setPoListSort((s) => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))
+                    }
+                    page={purchasesPage}
+                    rows={purchasesPage.slice}
+                    selectedPoId={previewPo?.poID}
+                    missingTransportIds={poTransportMissingLinkIds}
+                    onOpenPo={(p) => {
+                      setPreviewPo(p);
+                      setPreviewAp(null);
+                    }}
+                  />
                 </div>
               )}
 
@@ -682,53 +583,27 @@ export function ProcurementTabPanels() {
               )}
 
               {activeTab === 'conversion' && (
-                <div className="flex flex-col gap-4 min-w-0">
+                <div className="flex flex-col min-w-0">
                   {canAccessPriceList ? (
-                    <div className="rounded-xl border border-zarewa-teal/25 bg-gradient-to-br from-zarewa-teal/[0.07] via-white to-white shadow-sm p-4 sm:p-6 min-w-0">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0 space-y-2">
-                          <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">
-                            Primary pricing desk
-                          </p>
-                          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                            Material pricing workbook
-                          </h2>
-                          <p className="text-ui-xs text-slate-600 leading-relaxed max-w-2xl">
-                            Build floor and list prices from Std / Ref / Hist conversion, cost per kg, overhead,
-                            profit, and commission — then publish floors to the price list used on quotations.
-                          </p>
-                          <p className="text-ui-xs text-slate-500 leading-snug pt-1">
-                            Density/Catalog → Std · Purchases → Ref · Production → Hist · Workbook → Floor ·
-                            Publish → List → Quotes
-                          </p>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
-                          <Link
-                            to="/procurement/pricing"
-                            className="z-btn-primary inline-flex items-center justify-center gap-2 py-3 px-5 text-xs"
-                          >
-                            <BookOpen className="size-4" aria-hidden />
-                            Open pricing workbook
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => setShowStandardConversionModal(true)}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-ui-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800"
-                          >
-                            <Ruler className="size-3.5" aria-hidden />
-                            Standard conversion (density)
-                          </button>
-                        </div>
-                      </div>
-                      {!canManageSettings ? (
-                        <p className="mt-3 text-ui-xs text-amber-800 bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2 leading-relaxed">
-                          Saving density / standard conversion overrides needs a <strong>Settings Manager</strong> role.
-                          You can still open the workbook and view density tables.
-                        </p>
-                      ) : null}
-                    </div>
+                    <Suspense
+                      fallback={
+                        <p className="p-5 text-sm text-slate-500">Loading pricing workbook…</p>
+                      }
+                    >
+                      <MaterialPricingWorkbook
+                        mode="embed"
+                        initialMaterialKey={workbookMaterialKey}
+                        extraMoreItems={[
+                          {
+                            id: 'density',
+                            label: 'Standard conversion (density)',
+                            onClick: () => setShowStandardConversionModal(true),
+                          },
+                        ]}
+                      />
+                    </Suspense>
                   ) : (
-                    <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 shadow-sm p-4 sm:p-5 min-w-0 space-y-3">
+                    <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 shadow-sm p-4 sm:p-5 m-4 min-w-0 space-y-3">
                       <p className="text-ui-xs text-amber-950 leading-relaxed max-w-2xl">
                         Pricing workbook is locked. You need a <strong>Pricing Manager</strong> or{' '}
                         <strong>MD price-exception approver</strong> role to open the workbook and publish selling
@@ -745,20 +620,6 @@ export function ProcurementTabPanels() {
                       </button>
                     </div>
                   )}
-
-                  {canAccessPriceList ? (
-                    <div className="rounded-xl border border-slate-200/90 bg-white/90 shadow-sm p-4 sm:p-5 min-w-0 flex flex-col">
-                      <ProcurementFormSection title="Published selling prices (list ₦/m)" compact>
-                        <p className="text-ui-xs text-slate-600 mb-3 leading-relaxed">
-                          Selling list ₦/m published from the workbook (primary path) or entered here. Quotations below
-                          the workbook <strong className="text-slate-800">floor</strong> (minimum ₦/m) need an MD price
-                          exception before cutting list, production, or refunds — selling below list but at/above floor
-                          is allowed.
-                        </p>
-                        <PriceListPanel embedded />
-                      </ProcurementFormSection>
-                    </div>
-                  ) : null}
 
                   <ModalFrame
                     isOpen={showStandardConversionModal}

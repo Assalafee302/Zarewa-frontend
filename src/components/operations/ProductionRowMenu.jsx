@@ -82,6 +82,8 @@ export function ProductionRowMenu({
   rowKey,
   openKey,
   setOpenKey,
+  /** Visible name used in the kebab aria-label, e.g. "job CL-104". */
+  label,
   onView,
   onEditRegister,
   onRecall,
@@ -145,15 +147,16 @@ export function ProductionRowMenu({
     <div ref={anchorRef} className="relative shrink-0" data-production-action-menu>
       <button
         type="button"
+        aria-label={label ? `Actions for ${label}` : 'Row actions'}
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={(e) => {
           e.stopPropagation();
           setOpenKey(open ? null : rowKey);
         }}
-        className="text-slate-400 hover:text-zarewa-teal p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center text-slate-400 hover:text-zarewa-teal p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20"
       >
-        <MoreVertical size={18} strokeWidth={2} />
+        <MoreVertical size={18} strokeWidth={2} aria-hidden />
       </button>
       {menu}
     </div>

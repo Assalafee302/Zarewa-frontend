@@ -5,16 +5,17 @@
 
 import { REFERENCE_STOCK_CALIBRATION } from './stockReference.js';
 import {
-  LAGACY_CUSTOMER,
-  LAGACY_CUTTING_LIST,
-  LAGACY_QUOTATION,
-  LAGACY_RECEIPT,
-} from './lagacyCuttingListDemo.js';
+  LEGACY_CUSTOMER,
+  LEGACY_CUTTING_LIST,
+  LEGACY_QUOTATION,
+  LEGACY_RECEIPT,
+} from './legacyCuttingListDemo.js';
 
 const { longspanThinQty, aluzinc028Kg, heavyCoilKg, tappingScrewCartons } =
   REFERENCE_STOCK_CALIBRATION;
 
 export { formatNgn } from '../lib/formatNgn.js';
+export { CONVERSION_FLAG_RATIO } from '../lib/conversionFlagRatio.js';
 
 /**
  * Customer records (tblCustomer-shaped for future API).
@@ -72,7 +73,7 @@ export const CUSTOMERS_MOCK = [
     createdAtISO: '2026-01-20',
     lastActivityISO: '2026-03-24',
   },
-  LAGACY_CUSTOMER,
+  LEGACY_CUSTOMER,
   {
     customerID: 'CUS-004',
     name: 'Zaidu Roofing Ltd',
@@ -315,7 +316,7 @@ export const SALES_MOCK = {
       customerFeedback: '',
       handledBy: 'Zainab Yusuf',
     },
-    LAGACY_QUOTATION,
+    LEGACY_QUOTATION,
   ],
   receipts: [
     {
@@ -383,10 +384,10 @@ export const SALES_MOCK = {
       status: 'Posted',
       handledBy: 'Cashier — Hauwa',
     },
-    LAGACY_RECEIPT,
+    LEGACY_RECEIPT,
   ],
   /** Demo legacy pack (QT-2026-027 / CL-2026-1592) — full factory cutting list test. */
-  cuttingLists: [LAGACY_CUTTING_LIST],
+  cuttingLists: [LEGACY_CUTTING_LIST],
   /** Refund requests (Sales → Refunds). */
   refunds: [
     {
@@ -669,9 +670,6 @@ export const PROCUREMENT_COIL_CATALOG = [
     label: 'TB 0.30 — aluminium',
   },
 ];
-
-/** If measured kg/m exceeds standard by this ratio, flag conversion (demo). */
-export const CONVERSION_FLAG_RATIO = 1.08;
 
 /**
  * Stock catalog (Operations — stock entry / adjustment / low stock).

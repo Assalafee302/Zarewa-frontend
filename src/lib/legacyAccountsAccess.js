@@ -149,7 +149,7 @@ export function resolveAccountsNavigationTab(tabOrAlias, roleKey, permissions) {
 /** Role-aware tab labels on Finance → PageTabs. */
 export function legacyAccountTabLabelForRole(tabId, roleKey) {
   const tab = String(tabId || '').trim();
-  if (tab === FINANCE_DESK_TAB_ID) return 'Desk';
+  if (tab === FINANCE_DESK_TAB_ID) return isCashierRole(roleKey) ? 'Cashier' : 'Desk';
   if (isCashierRole(roleKey)) {
     const labels = {
       receipts: 'Receipts',

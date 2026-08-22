@@ -34,7 +34,7 @@ export function FinanceMobileAlertStrip({
       key: 'payments',
       label: `${approvedPayments} payment${approvedPayments !== 1 ? 's' : ''} to pay`,
       tone: 'teal',
-      scrollTo: 'desk-queue-expenses',
+      scrollTo: 'desk-queue-payouts',
     });
   }
   if (approvedRefunds > 0) {

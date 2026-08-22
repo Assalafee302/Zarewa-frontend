@@ -50,14 +50,15 @@ import { HrPayrollNextStepBanner } from '../../components/hr/HrPayrollNextStepBa
 
 /** Touch-friendly payroll action button — 44px min height for mobile. */
 const PAYROLL_BTN =
-  'inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 py-2.5 text-xs font-bold uppercase touch-manipulation active:scale-[0.98] transition-transform';
+  'inline-flex min-h-[44px] items-center justify-center rounded-md px-4 py-2.5 text-xs font-medium touch-manipulation active:scale-[0.98] transition-transform';
 const PAYROLL_BTN_PRIMARY = `${PAYROLL_BTN} bg-zarewa-teal text-white`;
-const PAYROLL_BTN_SECONDARY = `${PAYROLL_BTN} border border-slate-200 bg-white text-zarewa-teal`;
+const PAYROLL_BTN_SECONDARY = `${PAYROLL_BTN} border border-slate-200 bg-white text-slate-700`;
 const PAYROLL_BTN_DANGER = `${PAYROLL_BTN} border border-red-200 bg-red-50 text-red-800`;
-const PAYROLL_BTN_INFO = `${PAYROLL_BTN} border border-sky-200 bg-sky-50 text-sky-800`;
-const PAYROLL_BTN_MD = `${PAYROLL_BTN} bg-purple-800 text-white`;
+const PAYROLL_BTN_INFO = `${PAYROLL_BTN} border border-slate-200 bg-white text-slate-700`;
+const PAYROLL_BTN_MD = `${PAYROLL_BTN} bg-slate-900 text-white`;
 const PAYROLL_BTN_LOCK = `${PAYROLL_BTN} bg-slate-800 text-white`;
-const PAYROLL_BTN_PAID = `${PAYROLL_BTN} bg-emerald-700 text-white w-full sm:w-auto`;
+const PAYROLL_BTN_PAID = `${PAYROLL_BTN} bg-zarewa-teal text-white w-full sm:w-auto`;
+const PIPELINE_LABEL = 'text-ui-xs font-medium text-slate-500';
 
 function MissingBankModal({ runId, onClose }) {
   const [staff, setStaff] = useState([]);
@@ -104,7 +105,7 @@ function MissingBankModal({ runId, onClose }) {
           )}
         </div>
         <div className="flex justify-end border-t border-slate-100 px-5 py-3">
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase">Close</button>
+          <button type="button" onClick={onClose} className="rounded-md border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700">Close</button>
         </div>
       </div>
     </div>
@@ -165,7 +166,7 @@ function VarianceModal({ runId, onClose }) {
           )}
         </div>
         <div className="flex justify-end border-t border-slate-100 px-5 py-3">
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase">Close</button>
+          <button type="button" onClick={onClose} className="rounded-md border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700">Close</button>
         </div>
       </div>
     </div>
@@ -594,7 +595,7 @@ export default function HrPayroll() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-bold text-slate-900 leading-snug">{l.displayName || l.userId}</p>
-                  <p className="shrink-0 text-sm font-black tabular-nums text-teal-800">
+                  <p className="z-stencil shrink-0 text-sm text-slate-900">
                     {l.amountsRedacted ? '—' : formatNgn(l.netNgn)}
                   </p>
                 </div>
@@ -604,35 +605,35 @@ export default function HrPayroll() {
                   <>
                   <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                     <div>
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Gross</dt>
+                      <dt className="font-medium text-slate-500">Gross</dt>
                       <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(l.grossNgn)}</dd>
                     </div>
                     <div>
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Bonus</dt>
+                      <dt className="font-medium text-slate-500">Bonus</dt>
                       <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(l.bonusNgn)}</dd>
                     </div>
                     <div>
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Attendance</dt>
+                      <dt className="font-medium text-slate-500">Attendance</dt>
                       <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(l.attendanceDeductionNgn)}</dd>
                     </div>
                     <div>
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Pension</dt>
+                      <dt className="font-medium text-slate-500">Pension</dt>
                       <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(l.pensionNgn)}</dd>
                     </div>
                     <div>
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Loans</dt>
+                      <dt className="font-medium text-slate-500">Loans</dt>
                       <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(loanFor(l))}</dd>
                     </div>
                     <div>
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Recoveries</dt>
+                      <dt className="font-medium text-slate-500">Recoveries</dt>
                       <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(recoveryFor(l))}</dd>
                     </div>
                     <div>
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Other</dt>
+                      <dt className="font-medium text-slate-500">Other</dt>
                       <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(l.disciplinaryOtherDeductionNgn ?? 0)}</dd>
                     </div>
                     <div>
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">PAYE</dt>
+                      <dt className="font-medium text-slate-500">PAYE</dt>
                       <dd className="mt-0.5">{payeField(l)}</dd>
                     </div>
                   </dl>
@@ -643,7 +644,7 @@ export default function HrPayroll() {
             ))}
             {totals && !totals.amountsRedacted ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold tabular-nums">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Run totals</p>
+                <p className={`${PIPELINE_LABEL} mb-2`}>Run totals</p>
                 <div className="grid grid-cols-2 gap-2">
                   <span>Gross {formatNgn(totals.grossTotalNgn)}</span>
                   <span>Net {formatNgn(totals.netTotalNgn)}</span>
@@ -780,7 +781,7 @@ export default function HrPayroll() {
 
           <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,240px)_1fr] lg:gap-6 lg:space-y-0">
             <div className="space-y-2">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Monthly runs</p>
+              <p className={PIPELINE_LABEL}>Monthly runs</p>
               {loading ? <p className="text-xs text-slate-500">Loading…</p> : null}
 
               <label className="md:hidden block text-xs font-semibold text-slate-600">
@@ -805,8 +806,8 @@ export default function HrPayroll() {
                     key={r.id}
                     type="button"
                     onClick={() => setSelectedId(r.id)}
-                    className={`w-full rounded-xl border px-3 py-3 text-left text-sm min-h-[44px] ${
-                      selectedId === r.id ? 'border-zarewa-teal bg-teal-50/50' : 'border-slate-100 bg-white'
+                    className={`w-full rounded-md border px-3 py-3 text-left text-sm min-h-[44px] ${
+                      selectedId === r.id ? 'border-slate-400 bg-slate-50' : 'border-slate-200 bg-white'
                     }`}
                   >
                     <span className="font-semibold">{formatPayrollPeriodLabel(r.periodYyyymm)}</span>
@@ -845,35 +846,35 @@ export default function HrPayroll() {
 
                 {totals && !totals.amountsRedacted ? (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-                    <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-xs font-semibold text-slate-500">Staff</p>
-                      <p className="mt-1 text-lg font-black tabular-nums text-zarewa-teal">{totals.headcount}</p>
+                    <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                      <p className="text-xs font-medium text-slate-500">Staff</p>
+                      <p className="z-stencil mt-1 text-lg text-slate-900">{totals.headcount}</p>
                     </div>
-                    <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-xs font-semibold text-slate-500">Gross</p>
-                      <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(totals.grossTotalNgn)}</p>
+                    <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                      <p className="text-xs font-medium text-slate-500">Gross</p>
+                      <p className="z-stencil mt-1 text-lg text-slate-900">{formatNgn(totals.grossTotalNgn)}</p>
                     </div>
-                    <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-xs font-semibold text-slate-500">Net payable</p>
-                      <p className="mt-1 text-lg font-black tabular-nums text-teal-800">{formatNgn(totals.netTotalNgn)}</p>
+                    <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                      <p className="text-xs font-medium text-slate-500">Net payable</p>
+                      <p className="z-stencil mt-1 text-lg text-slate-900">{formatNgn(totals.netTotalNgn)}</p>
                     </div>
-                    <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-xs font-semibold text-slate-500">On hold</p>
-                      <p className="mt-1 text-lg font-black tabular-nums text-amber-800">{heldLineCount}</p>
+                    <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                      <p className="text-xs font-medium text-slate-500">On hold</p>
+                      <p className="z-stencil mt-1 text-lg text-amber-900">{heldLineCount}</p>
                     </div>
                     {deductionTotals ? (
                       <>
-                        <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                          <p className="text-xs font-semibold text-slate-500">Loan deductions</p>
-                          <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(deductionTotals.loanTotalNgn)}</p>
+                        <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                          <p className="text-xs font-medium text-slate-500">Loan deductions</p>
+                          <p className="z-stencil mt-1 text-lg text-slate-900">{formatNgn(deductionTotals.loanTotalNgn)}</p>
                         </div>
-                        <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                          <p className="text-xs font-semibold text-slate-500">Recoveries</p>
-                          <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(deductionTotals.recoveryTotalNgn)}</p>
+                        <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                          <p className="text-xs font-medium text-slate-500">Recoveries</p>
+                          <p className="z-stencil mt-1 text-lg text-slate-900">{formatNgn(deductionTotals.recoveryTotalNgn)}</p>
                         </div>
-                        <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                          <p className="text-xs font-semibold text-slate-500">PAYE</p>
-                          <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(deductionTotals.payeTotalNgn)}</p>
+                        <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                          <p className="text-xs font-medium text-slate-500">PAYE</p>
+                          <p className="z-stencil mt-1 text-lg text-slate-900">{formatNgn(deductionTotals.payeTotalNgn)}</p>
                         </div>
                       </>
                     ) : null}
@@ -906,7 +907,7 @@ export default function HrPayroll() {
                 <div className="space-y-3">
                   {run.status === 'draft' && canPrepare ? (
                     <div className="space-y-2">
-                      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Prepare</p>
+                      <p className={PIPELINE_LABEL}>Prepare</p>
                       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                         <button
                           type="button"
@@ -947,7 +948,7 @@ export default function HrPayroll() {
 
                   {run.status === 'draft' && (canGm || canMd) ? (
                     <div className="space-y-2">
-                      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Approve</p>
+                      <p className={PIPELINE_LABEL}>Approve</p>
                       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                         {canGm && !run.gmApprovedAtIso ? (
                           <button
@@ -988,7 +989,7 @@ export default function HrPayroll() {
 
                   {canPrepare && run.status === 'draft' && (run.gmApprovedAtIso || run.mdApprovedAtIso) ? (
                     <div className="space-y-2">
-                      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Lock</p>
+                      <p className={PIPELINE_LABEL}>Lock</p>
                       <button
                         type="button"
                         onClick={() =>
@@ -1009,7 +1010,7 @@ export default function HrPayroll() {
 
                   {canPrepare && run.status === 'locked' ? (
                     <div className="space-y-2">
-                      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Lock</p>
+                      <p className={PIPELINE_LABEL}>Lock</p>
                       <button
                         type="button"
                         onClick={() =>
@@ -1030,7 +1031,7 @@ export default function HrPayroll() {
 
                   {canPay && run.status === 'locked' ? (
                     <div className="space-y-2">
-                      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-400">Pay</p>
+                      <p className={PIPELINE_LABEL}>Pay</p>
                       <button
                         type="button"
                         onClick={() => setMarkPaidOpen(true)}

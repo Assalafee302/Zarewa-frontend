@@ -49,7 +49,7 @@ export function ReportsKpiStrip({ salesKpis, onExportKpi }) {
   ];
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white">
+    <div className="rounded-md border border-slate-200 bg-white">
       <button
         type="button"
         className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
@@ -70,13 +70,13 @@ export function ReportsKpiStrip({ salesKpis, onExportKpi }) {
                 key={t.key}
                 type="button"
                 onClick={() => onExportKpi?.(KPI_EXPORT_MAP[t.key], t.label)}
-                className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-left hover:border-teal-200 transition-colors"
+                className="rounded-md border border-slate-200 bg-white px-3 py-2.5 text-left hover:bg-slate-50"
                 title={`Export report for ${t.label}`}
               >
-                <p className="text-ui-xs font-semibold text-slate-500">{t.label}</p>
+                <p className="text-ui-xs font-medium text-slate-500">{t.label}</p>
                 <p
-                  className={`text-base font-bold tabular-nums mt-0.5 ${
-                    t.empty ? 'text-slate-400' : 'text-zarewa-teal'
+                  className={`z-stencil mt-0.5 text-base ${
+                    t.empty ? 'text-slate-400' : 'text-slate-900'
                   }`}
                 >
                   {t.value}

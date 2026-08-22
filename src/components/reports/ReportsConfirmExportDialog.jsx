@@ -32,8 +32,7 @@ export function ReportsConfirmExportDialog({
       title={title}
       description={description}
       surface="plain"
-      showCloseButton={false}
-    >
+      showCloseButton={false}>
       <div className="z-modal-panel-lg flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <div className="px-5 py-4 border-b border-slate-100">
           <h2 className="text-lg font-bold text-zarewa-teal">{title}</h2>

@@ -1,4 +1,7 @@
-/** Shared workspace quick-search scoring, merge, grouping, and navigation commands. */
+/**
+ * Shared workspace quick-search scoring, merge, grouping, and navigation commands.
+ * Frontend copies via `npm run sync:shared` → src/shared/lib/workspaceSearchCore.js
+ */
 
 /** @typedef {{ kind: string, id: string, label: string, sublabel?: string, path: string, state?: object, _score?: number }} WorkspaceSearchHit */
 
@@ -250,7 +253,9 @@ export function splitSearchHighlight(text, rawQuery) {
   ].filter((s) => s.text);
 }
 
-/** @type {Array<{ kind: 'nav', id: string, label: string, sublabel?: string, path: string, state?: object, keywords: string[], module?: string, permissions?: string[], roleKeys?: string[] }>} */
+/** @typedef {{ kind: 'nav', id: string, label: string, sublabel?: string, path: string, state?: object, keywords: string[], module?: string, permissions?: string[], roleKeys?: string[] }} WorkspaceNavSearchCommand */
+
+/** @type {WorkspaceNavSearchCommand[]} */
 export const WORKSPACE_NAV_SEARCH_COMMANDS = [
   {
     kind: 'nav',

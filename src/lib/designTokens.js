@@ -1,45 +1,83 @@
 /**
- * Canonical design tokens for Zarewa ERP.
- * Use these class strings in new code; legacy z-* CSS classes remain supported.
+ * Canonical design tokens for Zarewa ERP (Industrial Integrity).
+ * CSS variables live in index.css; Tailwind aliases in @theme.
+ * Prefer <Button>, FIELD, SURFACE over ad-hoc class strings.
  */
 
-/** Border radius scale */
+/** Semantic colors — mirror :root in index.css */
+export const COLOR = {
+  accent: '#134e4a',
+  accentHover: '#0f3d39',
+  accentMuted: '#2dd4bf',
+  accentSoft: '#ccfbf1',
+  bg: '#f8f9ff',
+  surface: '#ffffff',
+  surfaceMuted: '#eff4ff',
+  text: '#0b1c30',
+  textMuted: '#404946',
+  border: '#bfc9c5',
+  error: '#ba1a1a',
+};
+
+/** Border radius scale — 8px desk default */
 export const RADIUS = {
-  sm: 'rounded-xl',       // 12px — inputs, buttons, chips
-  md: 'rounded-2xl',      // 16px — cards, modals inner panels
-  lg: 'rounded-[24px]',   // 24px — panels, KPI cards (matches --radius-zarewa)
-  xl: 'rounded-[28px]',   // 28px — hero panels, toolbars
+  sm: 'rounded-sm',
+  md: 'rounded-md',
+  lg: 'rounded-lg',
+  xl: 'rounded-xl',
 };
 
 /** Typography scale */
 export const TEXT = {
-  micro: 'text-ui-micro font-bold uppercase tracking-wider',
-  label: 'text-ui-xs font-bold uppercase tracking-wider text-slate-500',
-  body: 'text-sm leading-relaxed text-slate-700',
-  bodyMuted: 'text-sm leading-relaxed text-slate-500',
-  title: 'text-sm font-black text-slate-900',
+  micro: 'text-ui-micro font-medium text-[var(--z-text-muted)]',
+  label: 'text-ui-xs font-medium text-[var(--z-text-muted)]',
+  labelCaps: 'z-label-caps',
+  body: 'text-sm leading-relaxed text-[var(--z-text)]',
+  bodyMuted: 'text-sm leading-relaxed text-[var(--z-text-muted)]',
+  title: 'text-sm font-semibold text-[var(--z-text)]',
   pageTitle: 'z-page-title',
   pageSubtitle: 'z-page-subtitle',
+  stencil: 'z-stencil',
 };
 
 /** Shadow presets */
 export const SHADOW = {
   card: 'shadow-[var(--shadow-zarewa-card)]',
+  overlay: 'shadow-[var(--shadow-zarewa-overlay)]',
   soft: 'shadow-sequence',
 };
 
 /** Surface presets */
 export const SURFACE = {
-  panel: `${RADIUS.lg} border border-white/80 bg-white/60 backdrop-blur-3xl`,
-  card: `${RADIUS.md} border border-slate-200/90 bg-white shadow-sm`,
-  muted: `${RADIUS.md} border border-dashed border-slate-200 bg-slate-50/80`,
+  panel: 'z-panel',
+  card: `${RADIUS.md} border border-[var(--z-border)] bg-white shadow-[var(--shadow-zarewa-card)]`,
+  muted: `${RADIUS.md} border border-dashed border-[var(--z-border)] bg-[var(--z-surface-muted)]`,
+  kpi: 'z-kpi-card',
+  toolbar: 'z-toolbar-shell',
 };
 
 /** Form field — canonical input styling */
 export const FIELD = {
-  base: 'w-full min-h-11 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-base sm:text-sm font-semibold text-zarewa-teal outline-none transition-all focus:border-teal-500/35 focus:ring-2 focus:ring-zarewa-teal/10 disabled:opacity-50 disabled:cursor-not-allowed',
+  base: 'z-input',
   label: 'z-field-label',
-  compact: 'w-full min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-base sm:text-sm font-semibold text-slate-800 outline-none transition-all focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10',
+  compact:
+    'w-full min-h-11 rounded-md border border-[var(--z-border)] bg-white px-3 py-2.5 text-base sm:text-sm font-medium text-[var(--z-text)] outline-none transition-colors focus:border-zarewa-teal/50 focus:ring-2 focus:ring-zarewa-teal/15',
+};
+
+/** Form layout — modals, drawers, page forms */
+export const FORM = {
+  section:
+    'rounded-lg border border-[var(--z-border-subtle)] bg-[var(--z-surface-muted)]/35 p-4 sm:p-5 space-y-4',
+  sectionFlat: 'space-y-4',
+  sectionTitle: 'text-sm font-semibold text-zarewa-teal flex items-center gap-2',
+  sectionEyebrow: 'z-label-caps mb-1',
+  grid: 'grid grid-cols-1 gap-4 sm:grid-cols-2',
+  gridThree: 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
+  stack: 'flex flex-col gap-4',
+  hint: 'text-ui-xs text-[var(--z-text-muted)] leading-relaxed',
+  error: 'text-ui-xs font-medium text-[var(--z-error)]',
+  modalTitle: 'text-lg font-bold tracking-tight text-[var(--z-text)]',
+  modalSubtitle: 'mt-1 text-sm text-[var(--z-text-muted)] leading-relaxed',
 };
 
 /** Button class aliases — prefer <Button> component over these */
@@ -57,4 +95,5 @@ export const THEME = {
   textMuted: 'text-[var(--z-text-muted)]',
   border: 'border-[var(--z-border)]',
   accent: 'text-[var(--z-accent)]',
+  accentBg: 'bg-zarewa-teal text-white',
 };

@@ -217,6 +217,9 @@ export function mergeReceiptRowsForSales(importedReceipts, quotations, _ledgerEp
       const hint = quotePaymentHint(q);
       const dateISO = (e.atISO || '').slice(0, 10) || '';
       const mirror = regById.get(String(e.id)) || regByLedgerId.get(String(e.id));
+      // Cashier desk confirms sales_receipts rows. Ledger-only RECEIPT entries (no mirror)
+      // were counted as Draft even when the cashier queue had no such payment.
+      if (!mirror) return null;
       const mirrorClearance = salesReceiptMirrorClearanceFields(mirror);
       const alloc = Math.round(Number(e.amountNgn) || 0);
       const extra = companionOverpay.get(String(e.id)) || 0;
@@ -251,7 +254,8 @@ export function mergeReceiptRowsForSales(importedReceipts, quotations, _ledgerEp
         _subLabel: 'From customer ledger',
         _detailNote: e.bankReference || e.note || '',
       };
-    });
+    })
+    .filter(Boolean);
 
   const ledgerIds = new Set(ledgerRows.map((r) => r.id));
 

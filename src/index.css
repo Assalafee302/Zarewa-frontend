@@ -2,19 +2,21 @@
 
 @theme {
   --color-zarewa-teal: #134e4a;
-  --color-zarewa-mint: #2ECC71;
-  --color-sequence-bg: #F9FAFB;
+  --color-zarewa-teal-hover: #0f3d39;
+  --color-zarewa-teal-muted: #2dd4bf;
+  --color-zarewa-teal-soft: #ccfbf1;
+  --color-zarewa-mint: #2ecc71;
+  --color-sequence-bg: #f8f9ff;
   --color-zarewa-surface: #ffffff;
-  --color-zarewa-surface-muted: #f8fafc;
-  --shadow-sequence: 0 18px 50px rgba(15, 23, 42, 0.08);
-  --shadow-zarewa-card:
-    0 20px 60px -32px rgba(15, 23, 42, 0.28),
-    0 10px 24px -18px rgba(20, 83, 45, 0.14);
-  --radius-zarewa: 24px;
-  --radius-zarewa-sm: 12px;
-  --radius-zarewa-md: 16px;
-  --radius-zarewa-lg: 24px;
-  --radius-zarewa-xl: 28px;
+  --color-zarewa-surface-muted: #eff4ff;
+  --shadow-sequence: 0 1px 0 rgba(11, 28, 48, 0.05);
+  --shadow-zarewa-card: 0 2px 8px rgba(19, 78, 74, 0.08);
+  --shadow-zarewa-overlay: 0 10px 24px rgba(19, 78, 74, 0.12);
+  --radius-zarewa: 8px;
+  --radius-zarewa-sm: 4px;
+  --radius-zarewa-md: 8px;
+  --radius-zarewa-lg: 12px;
+  --radius-zarewa-xl: 16px;
   --zarewa-min-ui-text: 11px;
   --z-layer-nav-overlay: 45;
   --z-layer-nav-button: 55;
@@ -34,19 +36,31 @@
    Sequence / ERP chrome stays light even when the OS prefers dark,
    because the product UI is not dark-mode ready. */
 :root {
-  --z-bg: #f9fafb;
+  --z-bg: #f8f9ff;
   --z-surface: #ffffff;
-  --z-surface-muted: #f8fafc;
-  --z-text: #0f172a;
-  --z-text-muted: #64748b;
-  --z-border: #e2e8f0;
+  --z-surface-muted: #eff4ff;
+  --z-surface-raised: #e5eeff;
+  --z-text: #0b1c30;
+  --z-text-muted: #404946;
+  --z-border: #bfc9c5;
+  --z-border-subtle: #dce9ff;
   --z-accent: #134e4a;
+  --z-accent-hover: #0f3d39;
+  --z-accent-muted: #2dd4bf;
+  --z-accent-soft: #ccfbf1;
+  --z-on-accent: #ffffff;
+  --z-nav-bg: #134e4a;
+  --z-nav-active: #2dd4bf;
+  --z-error: #ba1a1a;
+  --z-error-container: #ffdad6;
+  --z-success: #134e4a;
+  --z-warning: #b45309;
 }
 
 /* Keep Sequence page canvas light; do not follow OS dark preference. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-sequence-bg: #f9fafb;
+    --color-sequence-bg: #f8f9ff;
   }
 }
 
@@ -59,7 +73,7 @@
   --z-border: #334155;
   --z-accent: #5eead4;
   /* Explicit .dark class still allowed for future opt-in; Sequence canvas stays light. */
-  --color-sequence-bg: #f9fafb;
+  --color-sequence-bg: #f8f9ff;
 }
 
 @utility text-ui-xs {
@@ -108,7 +122,7 @@ body {
     Segoe UI,
     Roboto,
     sans-serif;
-  color: var(--z-text, #0f172a);
+  color: var(--z-text, #1a1a18);
   text-rendering: optimizeLegibility;
   overflow-x: clip;
   -webkit-tap-highlight-color: rgb(19 78 74 / 0.08);
@@ -140,69 +154,110 @@ summary {
 
 /* Shared field styles — keep list pages visually aligned */
 .z-input-search {
-  @apply w-full rounded-lg border border-slate-200/90 bg-white py-2 pl-9 pr-3 text-sm outline-none transition-all min-h-9;
-  @apply focus:border-teal-500/30 focus:ring-2 focus:ring-zarewa-teal/10;
+  @apply w-full rounded-lg border bg-white py-2 pl-9 pr-3 text-sm outline-none transition-all min-h-9;
+  border-color: var(--z-border);
+  @apply focus:border-zarewa-teal/40 focus:ring-2 focus:ring-zarewa-teal/10;
 }
 
 .z-card-dark {
-  @apply bg-zarewa-teal p-6 rounded-zarewa text-white shadow-xl;
+  @apply bg-zarewa-teal p-6 rounded-zarewa text-white;
 }
 
 .z-card-muted {
-  @apply bg-white/60 backdrop-blur-3xl p-6 rounded-zarewa border border-white/80;
-  box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
+  @apply bg-white p-6 rounded-zarewa border border-slate-200;
 }
 
 .z-section-title-dark {
-  @apply text-xs font-bold text-white/40 uppercase tracking-[0.18em] mb-4;
+  @apply text-xs font-semibold text-white/70 mb-4;
 }
 
 .z-section-title {
-  @apply text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4;
+  @apply text-xs font-semibold text-slate-600 mb-4;
 }
 
 /* Program-wide readability standards (bank-grade baseline) */
 .z-page-title {
-  @apply max-w-full text-base sm:text-lg font-bold tracking-tight text-slate-900;
+  @apply max-w-full text-base sm:text-lg font-bold tracking-tight;
+  color: var(--z-text);
   overflow-wrap: normal;
   word-break: normal;
 }
 
 .z-page-subtitle {
-  @apply mt-0.5 max-w-full text-xs sm:text-[13px] leading-snug text-slate-500;
+  @apply mt-0.5 max-w-full text-xs sm:text-[13px] leading-snug;
+  color: var(--z-text-muted);
   overflow-wrap: break-word;
   word-break: normal;
 }
 
 .z-meta-text {
-  @apply text-xs text-slate-500 leading-relaxed;
+  @apply text-xs leading-relaxed;
+  color: var(--z-text-muted);
 }
 
 .z-chip {
-  @apply inline-flex items-center rounded-md border px-2 py-1 font-semibold uppercase tracking-wide;
+  @apply inline-flex items-center rounded-sm border px-2 py-0.5 font-medium;
   font-size: max(var(--zarewa-min-ui-text), 11px);
   line-height: 1.35;
 }
 
 .z-list-row-compact {
-  @apply rounded-lg border border-slate-200/70 bg-white/70 px-3 py-2 shadow-sm transition-colors hover:bg-white;
+  @apply rounded-lg border bg-white/80 px-3 py-2 shadow-sm transition-colors hover:bg-white;
+  border-color: var(--z-border-subtle);
 }
 
 .z-btn-primary {
-  @apply inline-flex items-center justify-center gap-2 bg-zarewa-teal text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-teal-900/10 hover:brightness-110 transition-all;
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC];
+  @apply inline-flex items-center justify-center gap-2 bg-zarewa-teal text-white px-5 py-2.5 rounded-md font-semibold text-xs transition-colors;
+  @apply hover:bg-zarewa-teal-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/30 focus-visible:ring-offset-2;
+  --tw-ring-offset-color: var(--z-bg);
 }
 
 .z-btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 bg-white border border-gray-100 text-zarewa-teal px-6 py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-gray-50 transition-all;
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC];
+  @apply inline-flex items-center justify-center gap-2 bg-white border text-slate-800 px-5 py-2.5 rounded-md font-semibold text-xs transition-colors;
+  border-color: var(--z-border);
+  @apply hover:bg-[var(--z-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20 focus-visible:ring-offset-2;
+  --tw-ring-offset-color: var(--z-bg);
+}
+
+.z-label-caps {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--z-text-muted);
 }
 
 .z-empty-state {
-  @apply text-center py-16 px-6 rounded-zarewa border border-dashed;
-  background: linear-gradient(180deg, rgb(248 250 252 / 0.95) 0%, rgb(255 255 255 / 0.85) 100%);
-  border-color: rgb(226 232 240 / 0.9);
-  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.8);
+  @apply text-center py-16 px-6 rounded-zarewa border border-dashed bg-white;
+  border-color: var(--z-border);
+}
+
+.z-field-label {
+  @apply block text-xs font-medium mb-1.5;
+  color: var(--z-text-muted);
+}
+
+.z-input {
+  @apply w-full bg-white border rounded-md py-3 min-h-11 px-3 text-base sm:text-sm font-medium outline-none transition-colors;
+  border-color: var(--z-border);
+  color: var(--z-text);
+  @apply focus:border-zarewa-teal/50 focus:ring-2 focus:ring-zarewa-teal/15;
+}
+
+.z-textarea {
+  @apply w-full bg-white border rounded-md py-3 px-3 text-base sm:text-sm font-medium outline-none transition-colors resize-none;
+  border-color: var(--z-border);
+  color: var(--z-text);
+  @apply focus:border-zarewa-teal/50 focus:ring-2 focus:ring-zarewa-teal/15;
+}
+
+.z-select {
+  @apply w-full bg-white border rounded-md py-3 px-3 text-base sm:text-sm font-medium appearance-none outline-none cursor-pointer transition-colors;
+  border-color: var(--z-border);
+  color: var(--z-text);
+  @apply focus:border-zarewa-teal/50 focus:ring-2 focus:ring-zarewa-teal/15;
 }
 
 /* Canonical radius utilities — prefer over ad-hoc rounded-[Npx] */
@@ -219,41 +274,26 @@ summary {
   border-radius: var(--radius-zarewa-xl);
 }
 
-/* Unified form labels — use across modals and pages */
-.z-field-label {
-  @apply block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-0.5;
-}
-
-.z-input {
-  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-3.5 min-h-11 px-4 text-base sm:text-sm font-semibold text-zarewa-teal outline-none transition-all;
-  @apply focus:border-teal-500/35 focus:ring-2 focus:ring-zarewa-teal/10;
-}
-
-.z-textarea {
-  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-base sm:text-sm font-medium text-gray-800 outline-none transition-all resize-none;
-  @apply focus:border-teal-500/35 focus:ring-2 focus:ring-zarewa-teal/10;
-}
-
-.z-select {
-  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-base sm:text-sm font-semibold text-zarewa-teal appearance-none outline-none cursor-pointer transition-all;
-  @apply focus:border-teal-500/35 focus:ring-2 focus:ring-zarewa-teal/10;
-}
-
 /* Modal inner panels (sits inside ModalFrame) */
 .z-modal-panel {
-  @apply w-full max-h-[min(100dvh,920px)] sm:max-h-[min(92dvh,900px)] overflow-hidden flex flex-col rounded-2xl sm:rounded-[32px] bg-white/98 shadow-2xl border border-white/80 pb-[max(0.75rem,env(safe-area-inset-bottom))];
-  box-shadow: var(--shadow-zarewa-card);
+  @apply w-full max-h-[min(100dvh,920px)] sm:max-h-[min(92dvh,900px)] overflow-hidden flex flex-col rounded-xl bg-white border pb-[max(0.75rem,env(safe-area-inset-bottom))];
+  border-color: var(--z-border-subtle);
+  box-shadow: var(--shadow-zarewa-overlay);
 }
 
 /* Finance / treasury modal fields — 16px on phone avoids iOS input zoom */
 .z-finance-field {
-  @apply w-full rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-base sm:text-[11px] font-semibold text-slate-800 outline-none min-h-11;
-  @apply focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10;
+  @apply w-full bg-white border rounded-md py-2.5 min-h-11 px-3 text-base sm:text-[11px] font-semibold outline-none transition-colors;
+  border-color: var(--z-border);
+  color: var(--z-text);
+  @apply focus:border-zarewa-teal/50 focus:ring-2 focus:ring-zarewa-teal/15;
 }
 
 .z-finance-select {
-  @apply w-full rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-base sm:text-[11px] font-semibold text-slate-800 outline-none min-h-11;
-  @apply focus:border-zarewa-teal/35 focus:ring-2 focus:ring-zarewa-teal/10;
+  @apply w-full bg-white border rounded-md py-2.5 px-3 text-base sm:text-[11px] font-semibold appearance-none outline-none cursor-pointer transition-colors;
+  border-color: var(--z-border);
+  color: var(--z-text);
+  @apply focus:border-zarewa-teal/50 focus:ring-2 focus:ring-zarewa-teal/15;
 }
 
 .z-modal-scroll-y {
@@ -265,41 +305,117 @@ summary {
   box-shadow: var(--shadow-zarewa-card);
 }
 
-/* App shell — subtle depth behind content */
+/* App shell — mill-bench paper, not a SaaS glow */
 .z-app-bg {
+  background: var(--z-bg, var(--color-sequence-bg));
+}
+
+.z-panel {
+  @apply rounded-md border bg-white;
+  border-color: var(--z-border);
+  box-shadow: var(--shadow-zarewa-card);
+}
+
+/* Stitch login canvas — Material-style tokens, scoped to the sign-in screen. */
+.z-login-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: #404946;
+}
+
+.z-login-pane {
   background:
-    radial-gradient(1200px 600px at 85% -10%, rgb(45 212 191 / 0.12), transparent 60%),
-    radial-gradient(900px 500px at 0% 100%, rgb(19 78 74 / 0.09), transparent 55%),
-    #f8fafc;
+    radial-gradient(900px 420px at 12% -8%, rgb(19 78 74 / 0.12), transparent 58%),
+    radial-gradient(640px 280px at 100% 0%, rgb(178 238 225 / 0.35), transparent 46%),
+    #f4f7fd;
+}
+
+.z-login-input {
+  width: 100%;
+  height: 3.5rem;
+  border: 0;
+  border-radius: 0.9rem;
+  background: #ffffff;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #0b1c30;
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px #c9d7ea,
+    0 1px 0 rgb(255 255 255 / 0.9);
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.z-login-input::placeholder {
+  color: #8a9692;
+}
+
+.z-login-input:hover {
+  box-shadow:
+    inset 0 0 0 1px #9eb0c8,
+    0 1px 0 rgb(255 255 255 / 0.9);
+}
+
+.z-login-input:focus {
+  background: #ffffff;
+  box-shadow:
+    inset 0 0 0 2px #134e4a,
+    0 10px 28px -16px rgb(19 78 74 / 0.35);
+}
+
+.z-login-shadow {
+  box-shadow: 0 20px 60px -10px rgb(19 78 74 / 0.08);
 }
 
 .z-kpi-card {
-  @apply rounded-[28px] border border-white/80 bg-white/60 backdrop-blur-3xl p-5 text-left transition-all duration-300;
-  box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
-}
-
-.z-kpi-card:hover {
-  @apply -translate-y-0.5 border-slate-200;
+  @apply rounded-md border bg-white p-4 text-left;
+  border-color: var(--z-border);
+  box-shadow: var(--shadow-zarewa-card);
 }
 
 .z-soft-panel {
-  @apply rounded-[28px] border border-white/80 bg-white/60 backdrop-blur-3xl;
-  box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
+  @apply rounded-md border bg-white;
+  border-color: var(--z-border);
+  box-shadow: var(--shadow-zarewa-card);
 }
 
 .z-status-pill {
-  @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.12em];
+  @apply inline-flex items-center rounded-sm border px-2 py-0.5 text-xs font-medium;
+}
+
+/* Coil numbers, quote refs, gauges — mill-ticket type */
+.z-stencil {
+  font-family: 'IBM Plex Sans Condensed', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.z-page-title-stencil {
+  @apply max-w-full text-2xl sm:text-3xl tracking-tight text-slate-900;
+  font-family: 'IBM Plex Sans Condensed', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
 }
 
 .z-toolbar-shell {
-  @apply rounded-2xl border border-white/80 bg-white/80 backdrop-blur-xl;
-  box-shadow: 0 10px 28px -22px rgba(15, 23, 42, 0.18);
+  @apply rounded-md border bg-white;
+  border-color: var(--z-border);
+  box-shadow: var(--shadow-sequence);
 }
 
 .custom-scrollbar,
 .z-modal-scroll-y {
   scrollbar-width: thin;
-  scrollbar-color: rgb(19 78 74 / 0.25) transparent;
+  scrollbar-color: rgb(19 78 74 / 0.22) transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar,
@@ -309,7 +425,7 @@ summary {
 
 .custom-scrollbar::-webkit-scrollbar-thumb,
 .z-modal-scroll-y::-webkit-scrollbar-thumb {
-  background: rgb(19 78 74 / 0.22);
+  background: rgb(19 78 74 / 0.2);
   border-radius: 999px;
 }
 

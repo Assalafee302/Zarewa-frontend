@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
+import { withIdempotencyHeaders } from '../lib/idempotency';
 
 /**
  * @param {{ registerLineId?: string; branchId?: string | null; status?: string; enabled?: boolean }} [opts]
@@ -108,7 +109,7 @@ export function useRegisterSettlementMutations() {
     setError('');
     const { ok, data } = await apiFetch(
       `/api/accounting/settlements/${encodeURIComponent(settlementId)}/pay`,
-      { method: 'POST', body: JSON.stringify(body) }
+      withIdempotencyHeaders({ method: 'POST', body: JSON.stringify(body) }, 'settlement_pay')
     );
     setBusy(false);
     if (!ok || !data?.ok) {

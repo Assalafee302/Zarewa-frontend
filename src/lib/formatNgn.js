@@ -1,4 +1,2 @@
-/** @param {number} n */
-export function formatNgn(n) {
-  return `₦${Number(n).toLocaleString()}`;
-}
+/** Canonical module: `src/shared/lib/formatNgn.js` (`npm run sync:shared`). Do not edit this stub. */
+export * from '../shared/lib/formatNgn.js';

@@ -11,12 +11,13 @@ import { PoStatusChip } from '../procurement/PoStatusChip';
 import { HrStatusBadge } from '../hr/HrStatusBadge';
 import { CustomerStatusChip, CustomerTierChip } from '../customers/CustomerStatusChip';
 import { quoteApprovalChipClass, refundStatusChipClass } from '../../lib/salesStatusUi';
-import { RADIUS, TEXT, THEME } from '../../lib/designTokens';
+import { RADIUS, TEXT, THEME, COLOR, SURFACE, FORM } from '../../lib/designTokens';
+import { FormField, FormSection, FormGrid } from '../layout/FormLayout';
 
 function Section({ title, children }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-black text-zarewa-teal mb-4">{title}</h3>
+    <section className={`${SURFACE.card} p-5`}>
+      <h3 className="text-sm font-bold text-zarewa-teal mb-4">{title}</h3>
       {children}
     </section>
   );
@@ -30,8 +31,9 @@ export default function DesignSystemPanel() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <p className="text-sm text-slate-600 leading-relaxed">
-        Living reference for buttons, badges, forms, loaders, and layout patterns used across the ERP.
+      <p className="text-sm text-[var(--z-text-muted)] leading-relaxed">
+        Living reference for Zarewa Industrial Integrity — buttons, badges, forms, and layout patterns.
+        Full spec: <code className="rounded bg-[var(--z-surface-muted)] px-1">docs/DESIGN.md</code>.
         Prefer these components over one-off class strings in new code.
       </p>
 
@@ -45,6 +47,7 @@ export default function DesignSystemPanel() {
       <PageTabs
         tabs={[
           { id: 'overview', label: 'Overview' },
+          { id: 'forms', label: 'Forms' },
           { id: 'actions', label: 'Actions' },
           { id: 'data', label: 'Data display' },
           { id: 'feedback', label: 'Feedback' },
@@ -56,7 +59,18 @@ export default function DesignSystemPanel() {
 
       {tab === 'overview' ? (
         <div className="grid gap-4 sm:grid-cols-2">
+          <Section title="Color palette">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {Object.entries(COLOR).map(([key, hex]) => (
+                <div key={key} className="rounded-md border border-[var(--z-border)] overflow-hidden">
+                  <div className="h-10" style={{ backgroundColor: hex }} />
+                  <p className="px-2 py-1.5 text-ui-xs font-semibold text-[var(--z-text-muted)]">{key}</p>
+                </div>
+              ))}
+            </div>
+          </Section>
           <Section title="Typography">
+            <p className={TEXT.labelCaps}>Label caps</p>
             <p className={TEXT.pageTitle}>Page title</p>
             <p className={`${TEXT.pageSubtitle} mt-2`}>Page subtitle — supporting copy for module context.</p>
             <p className={`${TEXT.label} mt-4`}>Field label</p>
@@ -83,6 +97,36 @@ export default function DesignSystemPanel() {
               <p className={`${THEME.textMuted} text-xs`}>Muted supporting copy</p>
               <p className={`${THEME.accent} text-xs font-bold`}>Accent label</p>
             </div>
+          </Section>
+        </div>
+      ) : null}
+
+      {tab === 'forms' ? (
+        <div className="space-y-4">
+          <Section title="FormModal pattern">
+            <p className={`${FORM.hint} mb-3`}>
+              Popups use <code className="rounded bg-[var(--z-surface-muted)] px-1">FormModal</code> +{' '}
+              <code className="rounded bg-[var(--z-surface-muted)] px-1">FormModalFooter</code>.
+              Full catalog: <code className="rounded bg-[var(--z-surface-muted)] px-1">docs/FORMS.md</code>.
+            </p>
+          </Section>
+          <Section title="FormField + FormSection">
+            <FormSection title="Contact details">
+              <FormGrid>
+                <FormField label="Customer name" htmlFor="ds-form-name" required hint="Legal or trading name">
+                  <Input id="ds-form-name" placeholder="Acme Ltd" />
+                </FormField>
+                <FormField label="Phone" htmlFor="ds-form-phone">
+                  <Input id="ds-form-phone" type="tel" placeholder="+234 …" />
+                </FormField>
+                <FormField label="Payment terms" htmlFor="ds-form-terms" className="sm:col-span-2">
+                  <Select id="ds-form-terms" defaultValue="30">
+                    <option value="30">Net 30</option>
+                    <option value="receipt">Due on receipt</option>
+                  </Select>
+                </FormField>
+              </FormGrid>
+            </FormSection>
           </Section>
         </div>
       ) : null}

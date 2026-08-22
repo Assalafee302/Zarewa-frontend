@@ -4,6 +4,7 @@ import { formatNgn } from '../../Data/mockData';
 import { approvedRefundsAwaitingPayment } from '../../lib/refundsStore';
 import { registerSettlementsAwaitingPayment } from '../../lib/registerSettlementPay';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance.js';
+import { paymentRequestPayoutMetaLine } from '../../lib/financeTreasuryPayoutQueueMeta';
 import { TREASURY_STATEMENT_TYPE_LABEL } from '../../lib/accountCore';
 import {
   AppTable,
@@ -23,6 +24,7 @@ export function FinanceCashierPayoutsPanel() {
   const {
     handleDeskPayRequest,
     handleDeskPayRefund,
+    handleDeskViewRefund,
     handleDeskPayRegisterSettlement,
     handleDeskPayPoTransport,
     canPayRequests,
@@ -51,6 +53,7 @@ export function FinanceCashierPayoutsPanel() {
         id: String(pr.requestID || pr.id || ''),
         kind: 'Expense request',
         party: pr.payeeName || pr.requestedByName || pr.category || '—',
+        ref: paymentRequestPayoutMetaLine(pr) || String(pr.requestID || pr.id || ''),
         date: String(pr.approvedAtISO || pr.requestDate || '').slice(0, 10),
         amount: due,
         pay: () => handleDeskPayRequest(String(pr.requestID || pr.id || '')),
@@ -64,6 +67,7 @@ export function FinanceCashierPayoutsPanel() {
         date: String(r.approvedAtISO || r.dateISO || '').slice(0, 10),
         amount: Math.round(Number(r.outstandingNgn ?? r.amountNgn) || 0),
         pay: () => handleDeskPayRefund(String(r.refundID || r.id || '')),
+        view: () => handleDeskViewRefund?.(String(r.refundID || r.id || '')),
       });
     }
     for (const s of registerSettlementsAwaitingPayment(snap.registerSettlementsAwaitingPayment || [])) {
@@ -98,6 +102,7 @@ export function FinanceCashierPayoutsPanel() {
     snap.poTransportAwaitingTreasury,
     handleDeskPayRequest,
     handleDeskPayRefund,
+    handleDeskViewRefund,
     handleDeskPayRegisterSettlement,
     handleDeskPayPoTransport,
   ]);
@@ -148,22 +153,33 @@ export function FinanceCashierPayoutsPanel() {
                     <AppTableTd>{row.date || '—'}</AppTableTd>
                     <AppTableTd>{row.kind}</AppTableTd>
                     <AppTableTd title={row.party}>{row.party}</AppTableTd>
-                    <AppTableTd monospace title={row.id}>
-                      {row.id || '—'}
+                    <AppTableTd monospace title={row.ref || row.id}>
+                      {row.ref || row.id || '—'}
                     </AppTableTd>
                     <AppTableTd align="right">{formatNgn(row.amount)}</AppTableTd>
                     <AppTableTd align="right" truncate={false}>
-                      {canPayRequests ? (
-                        <button
-                          type="button"
-                          onClick={row.pay}
-                          className="rounded-md bg-zarewa-teal px-2 py-1 text-[11px] font-semibold text-white hover:brightness-110"
-                        >
-                          Pay
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-slate-400">View only</span>
-                      )}
+                      <div className="inline-flex items-center justify-end gap-1">
+                        {row.view ? (
+                          <button
+                            type="button"
+                            onClick={row.view}
+                            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            View
+                          </button>
+                        ) : null}
+                        {canPayRequests ? (
+                          <button
+                            type="button"
+                            onClick={row.pay}
+                            className="rounded-md bg-zarewa-teal px-2 py-1 text-[11px] font-semibold text-white hover:brightness-110"
+                          >
+                            Pay
+                          </button>
+                        ) : !row.view ? (
+                          <span className="text-[11px] text-slate-400">View only</span>
+                        ) : null}
+                      </div>
                     </AppTableTd>
                   </AppTableTr>
                 ))

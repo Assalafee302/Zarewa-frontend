@@ -4,12 +4,13 @@ import { PageShell, MainPanel } from '../layout';
 import { HrSubnav } from './HrSubnav';
 
 /**
- * Shared chrome for Human Resources, Team HR, and Executive HR routes.
- * Module context lives in the app sidebar; subnav is the only top-level header.
+ * Shared chrome for Human Resources, Team HR, and Executive HR.
+ * Module context lives in the sidebar; subnav is the only top-level header.
  */
 export function HrSectionShell({
   navItems = [],
   secondaryNavItems = [],
+  eyebrow = null,
   moduleTitle = null,
   moduleSubtitle = null,
   stickySubnav = false,
@@ -23,9 +24,10 @@ export function HrSectionShell({
   return (
     <PageShell className="pb-10">
       {beforeNav ? <div className="mb-4">{beforeNav}</div> : null}
-      {moduleTitle || moduleSubtitle ? (
+      {eyebrow || moduleTitle || moduleSubtitle ? (
         <div className="mb-3">
-          {moduleTitle ? <h1 className="z-page-title text-zarewa-teal">{moduleTitle}</h1> : null}
+          {eyebrow ? <p className="mb-0.5 text-[11px] font-medium text-slate-500">{eyebrow}</p> : null}
+          {moduleTitle ? <h1 className="z-page-title">{moduleTitle}</h1> : null}
           {moduleSubtitle ? <p className="z-page-subtitle mt-0.5">{moduleSubtitle}</p> : null}
         </div>
       ) : null}

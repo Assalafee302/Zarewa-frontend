@@ -1,14 +1,11 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Plus,
   FileText,
   Scissors,
   Receipt as ReceiptIcon,
   RotateCcw,
-  RefreshCw,
   Banknote,
-  Wallet,
   Pencil,
   Package,
   ChevronDown,
@@ -21,12 +18,9 @@ import {
 } from 'lucide-react';
 
 import SalesCustomersTab from '../components/sales/SalesCustomersTab';
-import { ListEmptyState } from '../components/ui/ListEmptyState';
 import SalesCustomerCreateModal from '../components/sales/SalesCustomerCreateModal';
 import SalesCuttingListMaterialPanel from '../components/sales/SalesCuttingListMaterialPanel';
-import { SalesRowMenu } from '../components/sales/SalesRowMenu';
 import {
-  ReceiptsTransactionsPanel,
   ReceiptsAdvancesPanel,
   ReceiptsUnlinkedDepositsPanel,
 } from '../components/sales/SalesReceiptsSidebar';
@@ -39,7 +33,6 @@ import {
   paymentCountByQuotationRef,
   quotationDisplayPaymentStatus,
   quotationEffectivePaidNgn,
-  quotationListPaymentMeta,
 } from '../lib/quotationPaymentSummary';
 import { loadLedgerEntries } from '../lib/customerLedgerStore';
 import { dismissAdvanceEntryId } from '../lib/advanceEntryUiStore';
@@ -50,38 +43,24 @@ import { AdvancePaymentPrintView } from '../components/receipt/ReceiptPrintViews
 import { lazyWithRetry } from '../lib/lazyWithRetry';
 import { humanizeReactError } from '../lib/reactErrorMessage.js';
 
-const QuotationModal = lazyWithRetry(() => import('../components/QuotationModal'), { id: 'QuotationModal' });
-const ReceiptModal = lazyWithRetry(() => import('../components/ReceiptModal'), { id: 'ReceiptModal' });
+const QuotationModal = lazyWithRetry(() => import('../components/sales/QuotationModal'), { id: 'QuotationModal' });
+const ReceiptModal = lazyWithRetry(() => import('../components/sales/ReceiptModal'), { id: 'ReceiptModal' });
 import {
+  countReceiptSalesPaymentStatuses,
   receiptMatchesSalesPaymentFilter,
-  receiptSalesPaymentFilterBucket,
-  receiptSalesPaymentStatusChipClass,
-  receiptSalesPaymentStatusLabel,
-  receiptSalesPaymentStatusTitle,
 } from '../lib/receiptClearance.js';
-import {
-  SalesReceiptAwaitingAlert,
-  SalesReceiptPaymentStatusFilter,
-  SalesReceiptPaymentStatusLegend,
-} from '../components/sales/SalesReceiptPaymentUi';
-const AdvancePaymentModal = lazyWithRetry(() => import('../components/AdvancePaymentModal'), {
+import { SalesReceiptAwaitingAlert } from '../components/sales/SalesReceiptPaymentUi';
+const AdvancePaymentModal = lazyWithRetry(() => import('../components/sales/AdvancePaymentModal'), {
   id: 'AdvancePaymentModal',
 });
-const CuttingListModal = lazyWithRetry(() => import('../components/CuttingListModal'), { id: 'CuttingListModal' });
-const RefundModal = lazyWithRetry(() => import('../components/RefundModal'), { id: 'RefundModal' });
+const CuttingListModal = lazyWithRetry(() => import('../components/sales/CuttingListModal'), { id: 'CuttingListModal' });
+const RefundModal = lazyWithRetry(() => import('../components/sales/RefundModal'), { id: 'RefundModal' });
 import { MainPanel, PageHeader, PageShell, PageTabs } from '../components/layout';
 import SalesMobileAlertStrip from '../components/sales/SalesMobileAlertStrip';
 import SalesKpiStrip from '../components/sales/SalesKpiStrip';
-import {
-  SALES_STATUS_CHIP,
-  quoteApprovalChipClass,
-  quotePayChipClass,
-  receiptCuttingListChipClass,
-  receiptSourceChipClass,
-  refundStatusChipClass,
-} from '../lib/salesStatusUi';
+import { SALES_STATUS_CHIP } from '../lib/salesStatusUi';
 import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
-import { AiAskButton } from '../components/AiAskButton';
+import { WorkspaceDeskSyncBanner } from '../components/workspace/WorkspaceDeskSyncBanner';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
 import { useCustomers } from '../context/CustomersContext';
@@ -99,17 +78,19 @@ import {
 import { quotationMeetsRefundPickerFloor } from '../shared/refundConstants.js';
 import { computeCuttingListMaterialReadiness } from '../lib/salesCuttingListMaterialReadiness';
 import {
-  SALES_TABLE_SORT_FIELD_OPTIONS,
   sortQuotationsList,
   sortReceiptsList,
   sortCuttingLists,
   sortRefundsList,
 } from '../lib/salesListSorting';
+import { SalesDeskAside } from '../components/sales/SalesDeskAside';
+import { SalesDeskToolbar } from '../components/sales/SalesDeskToolbar';
 import {
-  SalesListTableFrame,
-  SalesListSearchInput,
-  SalesListSortBar,
-} from '../components/sales/SalesListTableFrame';
+  SalesQuotationsList,
+  SalesReceiptsList,
+  SalesCuttingListsList,
+  SalesRefundsList,
+} from '../components/sales/SalesRecordLists';
 import {
   QUOTATION_FOLLOWUP_START_DAY,
   QUOTATION_VALIDITY_DAYS,
@@ -119,18 +100,12 @@ import {
 import {
   SALES_ROLE_LABELS,
   loadSalesWorkspaceRole,
-  canEditQuotation,
-  quotationEditBlockedReason,
-  canEditCuttingList,
-  cuttingListEditBlockedReason,
 } from '../lib/salesWorkspaceAccess';
 import {
   normalizeRefund,
   refundApprovedAmount,
-  refundOutstandingAmount,
   approvedRefundsAwaitingPayment,
   userMayApproveRefundRequests,
-  refundHasCreditConfirmation,
 } from '../lib/refundsStore';
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
@@ -164,17 +139,11 @@ const TAB_LABELS = {
 };
 
 const REFUND_POTENTIAL_SIDEBAR_CAP = 18;
-
-/** Compact rows — aligned with Stock / Ops / Finance / Procurement */
-const CARD_ROW =
-  'rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm transition-colors hover:bg-white/70';
+const FOLLOWUP_SIDEBAR_CAP = 12;
+/** Phone drawer can inner-scroll; laptop uses the page scroll. */
+const SIDEBAR_INNER_SCROLL = 'overflow-y-auto custom-scrollbar lg:max-h-none lg:overflow-visible';
 
 const CHIP = SALES_STATUS_CHIP;
-
-/** Lift row above following siblings so overflow action menus paint on top (stacking order). */
-function salesListItemClass(rowKey, openKey) {
-  return openKey === rowKey ? `${CARD_ROW} relative z-50` : CARD_ROW;
-}
 
 const Sales = () => {
   const location = useLocation();
@@ -186,11 +155,14 @@ const Sales = () => {
   const wsRefresh = ws?.refresh;
   const wsCanMutate = ws?.canMutate;
   const wsHasPermission = ws?.hasPermission;
-  useWorkspaceDomain('sales');
+  const { domainLoading, domainReady } = useWorkspaceDomain('sales');
 
   const [activeTab, setActiveTab] = useState('quotations');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
+  const [quoteWorkFilter, setQuoteWorkFilter] = useState('all');
+  const [refundWorkFilter, setRefundWorkFilter] = useState('all');
+  const [mobileDeskOpen, setMobileDeskOpen] = useState(false);
 
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -600,13 +572,23 @@ const Sales = () => {
       });
   }, [eligibleRefundQuotations, quotations]);
 
-  const filteredQuotations = useMemo(() => {
+  const quotationWorkRows = useMemo(() => {
     const visible = quotationsSearchFiltered.filter(
       (row) => showArchivedQuotations || !isQuotationArchivedRow(row)
     );
-    const sorted = sortQuotationsList(visible, salesListSort.field, salesListSort.dir);
-    return sorted.slice(0, showCount);
-  }, [quotationsSearchFiltered, showArchivedQuotations, showCount, salesListSort]);
+    const workFiltered =
+      quoteWorkFilter === 'followUp'
+        ? visible.filter((row) => quotationNeedsFollowUpAlert(row))
+        : quoteWorkFilter === 'pendingApproval'
+          ? visible.filter((row) => row.status !== 'Approved')
+          : visible;
+    return sortQuotationsList(workFiltered, salesListSort.field, salesListSort.dir);
+  }, [quotationsSearchFiltered, showArchivedQuotations, salesListSort, quoteWorkFilter]);
+
+  const filteredQuotations = useMemo(
+    () => quotationWorkRows.slice(0, showCount),
+    [quotationWorkRows, showCount]
+  );
 
   const mergedReceiptRows = useMemo(
     () => mergeReceiptRowsForSales(importedReceipts, quotations, ledgerSyncKey),
@@ -683,21 +665,10 @@ const Sales = () => {
     cuttingListsRef.current = cuttingLists;
   }, [quotations, mergedReceiptRows, refunds, cuttingLists]);
 
-  const receiptPaymentStatusCounts = useMemo(() => {
-    const rows = searchFilteredReceiptRows;
-    let awaiting = 0;
-    let confirmed = 0;
-    let reversed = 0;
-    let no_cutting = 0;
-    for (const row of rows) {
-      const bucket = receiptSalesPaymentFilterBucket(row);
-      if (bucket === 'awaiting') awaiting += 1;
-      if (bucket === 'confirmed') confirmed += 1;
-      if (bucket === 'reversed') reversed += 1;
-      if (bucket !== 'reversed' && row._cuttingListLinkKind !== 'linked') no_cutting += 1;
-    }
-    return { all: rows.length - reversed, awaiting, confirmed, reversed, no_cutting };
-  }, [searchFilteredReceiptRows]);
+  const receiptPaymentStatusCounts = useMemo(
+    () => countReceiptSalesPaymentStatuses(mergedReceiptRowsWithCuttingMeta),
+    [mergedReceiptRowsWithCuttingMeta]
+  );
 
   const awaitingCashierReceiptCount = receiptPaymentStatusCounts.awaiting;
 
@@ -732,9 +703,9 @@ const Sales = () => {
     return sorted.slice(0, showCount);
   }, [cuttingLists, productionJobs, debouncedSearchQuery, showCount, salesListSort]);
 
-  const filteredRefunds = useMemo(() => {
+  const refundSearchRows = useMemo(() => {
     const q = debouncedSearchQuery.trim().toLowerCase();
-    const filtered = refunds.filter((row) => {
+    return refunds.filter((row) => {
       if (!q) return true;
       const blob = [
         row.refundID, row.customer, row.quotationRef, row.product, row.reason, row.reasonCategory, row.status, row.amountNgn, row.approvedAmountNgn, row.paidAmountNgn, row.paymentNote, row.managerComments,
@@ -743,9 +714,22 @@ const Sales = () => {
         .toLowerCase();
       return blob.includes(q);
     });
-    const sorted = sortRefundsList(filtered, salesListSort.field, salesListSort.dir);
-    return sorted.slice(0, showCount);
-  }, [refunds, debouncedSearchQuery, showCount, salesListSort]);
+  }, [refunds, debouncedSearchQuery]);
+
+  const refundWorkRows = useMemo(() => {
+    const workFiltered =
+      refundWorkFilter === 'pending'
+        ? refundSearchRows.filter((row) => row.status === 'Pending')
+        : refundWorkFilter === 'awaitingPay'
+          ? approvedRefundsAwaitingPayment(refundSearchRows)
+          : refundSearchRows;
+    return sortRefundsList(workFiltered, salesListSort.field, salesListSort.dir);
+  }, [refundSearchRows, salesListSort, refundWorkFilter]);
+
+  const filteredRefunds = useMemo(
+    () => refundWorkRows.slice(0, showCount),
+    [refundWorkRows, showCount]
+  );
 
   const filteredCustomersCount = useMemo(() => {
     const list = Array.isArray(customerRecords) ? customerRecords : [];
@@ -771,7 +755,7 @@ const Sales = () => {
     () => ({
       quotations: {
         shown: filteredQuotations.length,
-        pendingApproval: filteredQuotations.filter(
+        pendingApproval: quotationsSearchFiltered.filter(
           (x) => x.status !== 'Approved' && !isQuotationArchivedRow(x)
         ).length,
       },
@@ -783,8 +767,8 @@ const Sales = () => {
       cuttinglist: { shown: filteredCuttingLists.length },
       refund: {
         shown: filteredRefunds.length,
-        pending: filteredRefunds.filter((x) => x.status === 'Pending').length,
-        awaitingPay: approvedRefundsAwaitingPayment(filteredRefunds).length,
+        pending: refundSearchRows.filter((x) => x.status === 'Pending').length,
+        awaitingPay: approvedRefundsAwaitingPayment(refundSearchRows).length,
       },
       customers: {
         shown: filteredCustomersCount,
@@ -798,6 +782,8 @@ const Sales = () => {
       awaitingCashierReceiptCount,
       filteredCuttingLists,
       filteredRefunds,
+      refundSearchRows,
+      quotationsSearchFiltered,
       filteredCustomersCount,
       customerRecords,
     ]
@@ -809,6 +795,10 @@ const Sales = () => {
     setCustomerAddOpen(false);
     setShowCount(20);
     setShowArchivedQuotations(false);
+    setQuoteWorkFilter('all');
+    setRefundWorkFilter('all');
+    setReceiptPaymentStatusFilter('all');
+    setMobileDeskOpen(false);
     if (id === 'customers') {
       setSalesListSort({ field: 'customerID', dir: 'desc' });
     } else {
@@ -1337,114 +1327,104 @@ const Sales = () => {
     customerAddOpen ||
     showAdvanceModal;
 
+  const applyQuoteWorkFilter = (filter, { openDesk = true } = {}) => {
+    setQuoteWorkFilter(filter);
+    setMobileDeskOpen(openDesk);
+    setShowCount(20);
+  };
+  const applyRefundWorkFilter = (filter) => {
+    setRefundWorkFilter(filter);
+    setMobileDeskOpen(true);
+    setShowCount(20);
+  };
+  const applyReceiptAwaitingFilter = () => {
+    setReceiptPaymentStatusFilter('awaiting');
+    setMobileDeskOpen(true);
+    setShowCount(20);
+  };
+
   const salesTabs = useMemo(
     () => [
-      { id: 'quotations', icon: <FileText size={16} />, label: 'Quotations' },
-      { id: 'receipts', icon: <ReceiptIcon size={16} />, label: 'Receipts' },
+      {
+        id: 'quotations',
+        icon: <FileText size={16} />,
+        label: 'Quotations',
+        badge: quotationFollowUpRows.length,
+      },
+      {
+        id: 'receipts',
+        icon: <ReceiptIcon size={16} />,
+        label: 'Receipts',
+        badge: awaitingCashierReceiptCount,
+      },
       { id: 'cuttinglist', icon: <Scissors size={16} />, label: 'Cutting lists' },
-      { id: 'refund', icon: <RotateCcw size={16} />, label: 'Refunds' },
+      {
+        id: 'refund',
+        icon: <RotateCcw size={16} />,
+        label: 'Refunds',
+        badge: listStats.refund.pending + listStats.refund.awaitingPay,
+      },
       { id: 'customers', icon: <UserCircle size={16} />, label: 'Customers' },
     ],
-    []
+    [
+      quotationFollowUpRows.length,
+      awaitingCashierReceiptCount,
+      listStats.refund.pending,
+      listStats.refund.awaitingPay,
+    ]
   );
-
-  const primaryActionBtnClass =
-    'inline-flex items-center justify-center gap-2 rounded-lg bg-zarewa-teal text-white px-4 py-2 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/30 focus-visible:ring-offset-2 shrink-0';
 
   return (
     <PageShell blurred={isAnyModalOpen}>
+      <WorkspaceDeskSyncBanner loading={domainLoading && !domainReady} label="sales register" />
       <PageHeader
         title="Sales"
         subtitle="Quotations, receipts, cutting lists, refunds and customers."
-        tabs={<PageTabs tabs={salesTabs} value={salesTab} onChange={handleTabChange} />}
+        tabs={
+          <PageTabs
+            tabs={salesTabs}
+            value={salesTab}
+            onChange={handleTabChange}
+            panelId="sales-records-panel"
+          />
+        }
         toolbar={
-            <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2">
-              <AiAskButton
-                mode="sales"
-                prompt={
-                  salesTab === 'quotations'
-                    ? 'Which quotations need follow-up now, and what should sales do next?'
-                    : salesTab === 'receipts'
-                      ? 'Summarize the receipt and settlement issues visible on this page.'
-                      : salesTab === 'cuttinglist'
-                        ? 'Explain cutting-list readiness and the main blockers for production.'
-                        : salesTab === 'refund'
-                          ? 'Summarize the refund queue and explain what needs action.'
-                          : 'Summarize customer activity and tell me who needs attention.'
-                }
-                pageContext={{
-                  source: 'sales-page',
-                  salesTab,
-                  searchQuery,
-                }}
-                className="inline-flex items-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-teal-100/70"
-              >
-                Ask AI
-              </AiAskButton>
-              {isAdminRole ? (
-                <button
-                  type="button"
-                  disabled={adminSalesReconcileBusy}
-                  onClick={() => void runAdminSalesDerivedReconcile()}
-                  className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wide text-violet-950 shadow-sm hover:bg-violet-100/80 disabled:opacity-50"
-                  title="Admin only: rebuild sales_receipt rows from the customer ledger and recalculate quotation paid for this branch scope."
-                >
-                  <RefreshCw size={14} strokeWidth={2} className={adminSalesReconcileBusy ? 'animate-spin' : ''} />
-                  {adminSalesReconcileBusy ? 'Recalculating…' : 'Recalculate sales data'}
-                </button>
-              ) : null}
-              {salesTab === 'quotations' && (
-                <button
-                  type="button"
-                  onClick={openNewModal}
-                  disabled={ws?.blocksBranchScopedCreate}
-                  title={ws?.blocksBranchScopedCreate ? ws.branchScopedCreateMessage : undefined}
-                  className={`${primaryActionBtnClass}${ws?.blocksBranchScopedCreate ? ' opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <Plus size={16} strokeWidth={2} /> New quotation
-                </button>
-              )}
-              {salesTab === 'receipts' && (
-                <>
-                  <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
-                    <Plus size={16} strokeWidth={2} /> Record payment
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!ws?.canMutate) {
-                        showToast('System offline (read-only). Reconnect, refresh, then try again.', { variant: 'error' });
-                        return;
-                      }
-                      setShowAdvanceModal(true);
-                    }}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-950 px-4 py-2 text-ui-xs font-semibold uppercase tracking-wider shadow-sm hover:bg-amber-100 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 shrink-0"
-                    title="Payment before quotation — customer deposit / liability"
-                  >
-                    <Wallet size={16} strokeWidth={2} /> Advance payment
-                  </button>
-                </>
-              )}
-              {salesTab === 'cuttinglist' && (
-                <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
-                  <Plus size={16} strokeWidth={2} /> New cutting list
-                </button>
-              )}
-              {salesTab === 'refund' && (
-                <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
-                  <Plus size={16} strokeWidth={2} /> New refund
-                </button>
-              )}
-              {salesTab === 'customers' && (
-                <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
-                  <Plus size={16} strokeWidth={2} /> Add customer
-                </button>
-              )}
-            </div>
+          <SalesDeskToolbar
+            salesTab={salesTab}
+            searchQuery={searchQuery}
+            createDisabled={salesTab === 'quotations' && Boolean(ws?.blocksBranchScopedCreate)}
+            createTitle={
+              salesTab === 'quotations' && ws?.blocksBranchScopedCreate
+                ? ws.branchScopedCreateMessage
+                : undefined
+            }
+            onCreate={openNewModal}
+            onAdvance={() => {
+              if (!ws?.canMutate) {
+                showToast('System offline (read-only). Reconnect, refresh, then try again.', {
+                  variant: 'error',
+                });
+                return;
+              }
+              setShowAdvanceModal(true);
+            }}
+            isAdmin={isAdminRole}
+            reconcileBusy={adminSalesReconcileBusy}
+            onReconcile={runAdminSalesDerivedReconcile}
+          />
         }
       />
 
-      <SalesKpiStrip salesTab={salesTab} listStats={listStats} followUpCount={quotationFollowUpRows.length} />
+      <SalesKpiStrip
+        salesTab={salesTab}
+        listStats={listStats}
+        followUpCount={quotationFollowUpRows.length}
+        onFollowUp={() => applyQuoteWorkFilter('followUp')}
+        onPendingApproval={() => applyQuoteWorkFilter('pendingApproval')}
+        onAwaitingCashier={applyReceiptAwaitingFilter}
+        onPendingRefunds={() => applyRefundWorkFilter('pending')}
+        onAwaitingPayRefunds={() => applyRefundWorkFilter('awaitingPay')}
+      />
 
       <SalesMobileAlertStrip
         salesTab={salesTab}
@@ -1453,6 +1433,11 @@ const Sales = () => {
         awaitingPayRefunds={listStats.refund.awaitingPay}
         followUpCount={quotationFollowUpRows.length}
         awaitingCashierReceipts={listStats.receipts.awaitingCashier}
+        onFollowUp={() => applyQuoteWorkFilter('followUp')}
+        onPendingApproval={() => applyQuoteWorkFilter('pendingApproval')}
+        onPendingRefunds={() => applyRefundWorkFilter('pending')}
+        onAwaitingPayRefunds={() => applyRefundWorkFilter('awaitingPay')}
+        onAwaitingCashier={applyReceiptAwaitingFilter}
       />
 
       {salesTab === 'receipts' ? (
@@ -1470,7 +1455,19 @@ const Sales = () => {
 
       <div className="grid grid-cols-1 gap-6 lg:gap-8 min-w-0 lg:grid-cols-4">
         {salesTab !== 'customers' && (
-          <aside className="lg:col-span-1 hidden lg:flex flex-col gap-5 sticky top-6">
+          <SalesDeskAside
+            title={
+              salesTab === 'quotations'
+                ? 'Stock, prices & follow-up'
+                : salesTab === 'receipts'
+                  ? 'Deposits & advances'
+                  : salesTab === 'cuttinglist'
+                    ? 'Material readiness'
+                    : 'Potential refunds'
+            }
+            open={mobileDeskOpen}
+            onOpenChange={setMobileDeskOpen}
+          >
             {salesTab === 'quotations' ? (
               <>
                 {/* Spot prices */}
@@ -1488,16 +1485,15 @@ const Sales = () => {
                           plus other Setup price list lines.
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => navigate('/')}
+                      <Link
+                        to="/procurement/pricing"
                         className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-ui-xs font-semibold uppercase tracking-wide text-zarewa-teal hover:bg-white transition-colors"
                       >
-                        <Pencil size={12} strokeWidth={2} />
+                        <Pencil size={12} strokeWidth={2} aria-hidden />
                         Edit
-                      </button>
+                      </Link>
                     </div>
-                    <div className="max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                    <div className={`max-h-[220px] ${SIDEBAR_INNER_SCROLL} pr-1`}>
                       {spotPrices.length === 0 ? (
                         <p className="text-xs text-slate-500 py-2">No prices found.</p>
                       ) : (
@@ -1532,9 +1528,10 @@ const Sales = () => {
                   </div>
                   <div className="p-4 space-y-3">
                     <div className="space-y-2">
-                       <label className="block text-ui-xs font-semibold text-slate-400 uppercase tracking-wide">Material</label>
+                       <label htmlFor="sales-stock-material" className="block text-ui-xs font-semibold text-slate-400 uppercase tracking-wide">Material</label>
                        <div className="relative">
-                         <select 
+                         <select
+                           id="sales-stock-material"
                            value={stockMatType} 
                            onChange={(e) => setStockMatType(e.target.value)}
                            className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-3 pr-8 text-base sm:text-xs font-semibold text-zarewa-teal focus:ring-2 focus:ring-zarewa-teal/10 focus:border-zarewa-teal/30 outline-none"
@@ -1551,9 +1548,10 @@ const Sales = () => {
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <label className="block text-ui-xs font-semibold text-slate-400 uppercase tracking-wide">Gauge</label>
+                        <label htmlFor="sales-stock-gauge" className="block text-ui-xs font-semibold text-slate-400 uppercase tracking-wide">Gauge</label>
                         <div className="relative">
-                          <select 
+                          <select
+                            id="sales-stock-gauge"
                             value={stockGaugeFilter} 
                             onChange={(e) => setStockGaugeFilter(e.target.value)}
                             className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-xs font-semibold text-zarewa-teal outline-none"
@@ -1569,9 +1567,10 @@ const Sales = () => {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="block text-ui-xs font-semibold text-slate-400 uppercase tracking-wide">Colour</label>
+                        <label htmlFor="sales-stock-colour" className="block text-ui-xs font-semibold text-slate-400 uppercase tracking-wide">Colour</label>
                         <div className="relative">
-                          <select 
+                          <select
+                            id="sales-stock-colour"
                             value={stockColourFilter} 
                             onChange={(e) => setStockColourFilter(e.target.value)}
                             className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-xs font-semibold text-zarewa-teal outline-none"
@@ -1595,7 +1594,8 @@ const Sales = () => {
                       </div>
                     )}
 
-                    <button 
+                    <button
+                      type="button"
                       onClick={() => { setStockMatType(''); setStockGaugeFilter(''); setStockColourFilter(''); }}
                       className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-ui-xs font-black uppercase tracking-widest transition-all"
                     >
@@ -1632,8 +1632,8 @@ const Sales = () => {
                         <p className="text-ui-xs font-bold text-amber-900 uppercase tracking-wider mb-2">
                           Follow-up ({quotationFollowUpRows.length})
                         </p>
-                        <ul className="max-h-[200px] overflow-y-auto custom-scrollbar space-y-1.5">
-                          {quotationFollowUpRows.slice(0, 12).map((q) => (
+                        <ul className={`max-h-[200px] ${SIDEBAR_INNER_SCROLL} space-y-1.5`}>
+                          {quotationFollowUpRows.slice(0, FOLLOWUP_SIDEBAR_CAP).map((q) => (
                             <li key={q.id}>
                               <button
                                 type="button"
@@ -1644,12 +1644,21 @@ const Sales = () => {
                                 }}
                                 className="w-full text-left rounded-md border border-amber-100 bg-amber-50/50 px-2 py-1.5 hover:bg-amber-100/80 transition-colors"
                               >
-                                <span className="text-ui-xs font-bold text-zarewa-teal tabular-nums">{q.id}</span>
+                                <span className="font-mono font-semibold tabular-nums text-slate-800 text-ui-xs">{q.id}</span>
                                 <span className="text-ui-xs text-slate-600 block truncate">{q.customer}</span>
                               </button>
                             </li>
                           ))}
                         </ul>
+                        {quotationFollowUpRows.length > FOLLOWUP_SIDEBAR_CAP ? (
+                          <button
+                            type="button"
+                            onClick={() => applyQuoteWorkFilter('followUp', { openDesk: false })}
+                            className="mt-2 w-full rounded-md border border-amber-200 bg-white px-2 py-1.5 text-ui-xs font-semibold uppercase tracking-wide text-amber-950 hover:bg-amber-50"
+                          >
+                            View all {quotationFollowUpRows.length} in the list
+                          </button>
+                        ) : null}
                       </div>
                     ) : (
                       <p className="text-ui-xs text-amber-800/60 mt-3 italic">No follow-up flags for current search.</p>
@@ -1700,7 +1709,7 @@ const Sales = () => {
                   </p>
                 ) : (
                   <>
-                    <ul className="max-h-[min(280px,42vh)] overflow-y-auto custom-scrollbar space-y-1.5">
+                    <ul className={`max-h-[min(280px,42vh)] ${SIDEBAR_INNER_SCROLL} space-y-1.5`}>
                       {quotationsRefundPotentialRows.slice(0, REFUND_POTENTIAL_SIDEBAR_CAP).map((q) => {
                         const paid = quotationEffectivePaidNgn(q, quotationPayOpts);
                         const payStatus = quotationDisplayPaymentStatus(q, quotationPayOpts);
@@ -1712,7 +1721,7 @@ const Sales = () => {
                               className="w-full text-left rounded-md border border-slate-200/80 bg-white/80 px-2 py-1.5 hover:bg-white hover:border-zarewa-teal/25 transition-colors"
                             >
                               <div className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5">
-                                <span className="text-ui-xs font-bold text-zarewa-teal tabular-nums font-mono">{q.id}</span>
+                                <span className="font-mono font-semibold tabular-nums text-slate-800 text-ui-xs">{q.id}</span>
                               </div>
                               <span className="text-ui-xs text-slate-600 block truncate">{q.customer}</span>
                               <span className="text-ui-xs font-semibold text-slate-700 tabular-nums mt-0.5">
@@ -1735,10 +1744,13 @@ const Sales = () => {
               </section>
             ) : null}
             <WorkspaceExpenseQuickActions />
-          </aside>
+          </SalesDeskAside>
         )}
 
         <div
+          id="sales-records-panel"
+          role="tabpanel"
+          aria-labelledby={`sales-records-panel-tab-${salesTab}`}
           className={
             salesTab === 'customers' ? 'lg:col-span-4 min-w-0' : 'lg:col-span-3 min-w-0'
           }
@@ -1754,7 +1766,7 @@ const Sales = () => {
             <div className="p-5 sm:p-6 md:p-8">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-4">
                 <div className="shrink-0">
-                  <h2 className="text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal">
+                  <h2 className="text-ui-xs font-bold uppercase tracking-widest text-slate-500">
                     {TAB_LABELS[salesTab] ?? 'Records'}
                   </h2>
                   <p className="text-ui-xs font-semibold text-slate-400 mt-1 tabular-nums">
@@ -1795,492 +1807,106 @@ const Sales = () => {
 
               <div className="space-y-2">
                 {salesTab === 'quotations' ? (
-                  <SalesListTableFrame
-                    toolbar={
-                      <>
-                        <SalesListSearchInput
-                          value={searchQuery}
-                          onChange={setSearchQuery}
-                          placeholder="Search ID, customer, date, status…"
-                        />
-                        <SalesListSortBar
-                          fields={SALES_TABLE_SORT_FIELD_OPTIONS.quotations}
-                          field={salesListSort.field}
-                          dir={salesListSort.dir}
-                          onFieldChange={(field) => setSalesListSort((s) => ({ ...s, field }))}
-                          onDirToggle={() =>
-                            setSalesListSort((s) => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))
-                          }
-                        />
-                      </>
-                    }
-                  >
-                    {filteredQuotations.length === 0 ? (
-                      <ListEmptyState
-                        icon={FileText}
-                        title="No quotations match your search"
-                        description="Try clearing filters or create a new quotation."
-                      />
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {filteredQuotations.map((q) => {
-                          const payCount = paymentCountByQuoteRef.get(String(q.id || '').trim()) || 0;
-                          const payStatus = quotationDisplayPaymentStatus(q, quotationPayOpts);
-                          const paidForUi = quotationEffectivePaidNgn(q, quotationPayOpts);
-                          const meta2 = quotationListPaymentMeta(q, payCount, quotationPayOpts);
-                          const qForFollowUp = { ...q, paidNgn: paidForUi, paymentStatus: payStatus };
-                          return (
-                            <li key={q.id} className={salesListItemClass(`q-${q.id}`, actionMenuKey)}>
-                              <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                                <div className="min-w-0 flex-1 leading-tight">
-                                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                                    <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
-                                      <span className="tabular-nums font-mono">{q.id}</span>
-                                      <span className="font-medium text-slate-600"> · {q.customer}</span>
-                                    </p>
-                                    <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                      <span className="text-xs font-black text-zarewa-teal tabular-nums">
-                                        {q.total}
-                                      </span>
-                                      <span className={`${CHIP} ${quoteApprovalChipClass(q.status)}`}>
-                                        {q.status}
-                                      </span>
-                                      <span className={`${CHIP} ${quotePayChipClass(payStatus)}`}>
-                                        {payStatus}
-                                      </span>
-                                      {quotationNeedsFollowUpAlert(qForFollowUp) ? (
-                                        <span
-                                          className={`${CHIP} border-amber-300 bg-amber-100 text-amber-950`}
-                                          title={`Day ${QUOTATION_FOLLOWUP_START_DAY}–${QUOTATION_VALIDITY_DAYS - 1} follow-up — still unpaid on quote`}
-                                        >
-                                          Follow up
-                                        </span>
-                                      ) : null}
-                                      <SalesRowMenu
-                                        rowKey={`q-${q.id}`}
-                                        openKey={actionMenuKey}
-                                        setOpenKey={setActionMenuKey}
-                                        onView={() => {
-                                          setSelectedItem(q);
-                                          setQuotationAccessMode('view');
-                                          setShowQuotationModal(true);
-                                        }}
-                                        onEdit={() => {
-                                          setSelectedItem(q);
-                                          setQuotationAccessMode('edit');
-                                          setShowQuotationModal(true);
-                                        }}
-                                        editDisabled={!canEditQuotation(q, salesRole)}
-                                        editTitle={quotationEditBlockedReason(q, salesRole) ?? ''}
-                                        onAddPayment={() => openAddPaymentForQuotation(q)}
-                                        onReviewAudit={
-                                          ws?.hasPermission?.('manager.audit') ||
-                                          ['admin', 'md', 'ceo'].includes(ws?.session?.user?.roleKey)
-                                            ? () => {
-                                                navigate(`/manager?quoteRef=${encodeURIComponent(q.id)}`);
-                                              }
-                                            : undefined
-                                        }
-                                        onDelete={
-                                          canDeleteSalesRecord ? () => deleteQuotation(String(q.id || '').trim()) : undefined
-                                        }
-                                        deleteLabel="Delete"
-                                      />
-                                    </div>
-                                  </div>
-                                  <p
-                                    className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2 tabular-nums"
-                                    title={meta2}
-                                  >
-                                    {meta2}
-                                  </p>
-                                </div>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                    {quotations.length > showCount && (
-                      <div className="flex justify-center mt-6">
-                        <button
-                          type="button"
-                          onClick={() => setShowCount((c) => c + 20)}
-                          className="px-6 py-2 rounded-lg border border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal hover:bg-slate-50 transition-colors"
-                        >
-                          Show more quotations
-                        </button>
-                      </div>
-                    )}
-                  </SalesListTableFrame>
+                  <SalesQuotationsList
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    quoteWorkFilter={quoteWorkFilter}
+                    setQuoteWorkFilter={setQuoteWorkFilter}
+                    salesListSort={salesListSort}
+                    setSalesListSort={setSalesListSort}
+                    filteredQuotations={filteredQuotations}
+                    quotationWorkRows={quotationWorkRows}
+                    showCount={showCount}
+                    setShowCount={setShowCount}
+                    debouncedSearchQuery={debouncedSearchQuery}
+                    openNewModal={openNewModal}
+                    actionMenuKey={actionMenuKey}
+                    setActionMenuKey={setActionMenuKey}
+                    paymentCountByQuoteRef={paymentCountByQuoteRef}
+                    quotationPayOpts={quotationPayOpts}
+                    salesRole={salesRole}
+                    canDeleteSalesRecord={canDeleteSalesRecord}
+                    ws={ws}
+                    navigate={navigate}
+                    openAddPaymentForQuotation={openAddPaymentForQuotation}
+                    deleteQuotation={deleteQuotation}
+                    setSelectedItem={setSelectedItem}
+                    setQuotationAccessMode={setQuotationAccessMode}
+                    setShowQuotationModal={setShowQuotationModal}
+                  />
                 ) : null}
 
                 {salesTab === 'receipts' ? (
-                  <SalesListTableFrame
-                    toolbar={
-                      <>
-                        <SalesListSearchInput
-                          value={searchQuery}
-                          onChange={setSearchQuery}
-                          placeholder="Search payment ID, customer, quotation, cutting list…"
-                        />
-                        <SalesReceiptPaymentStatusFilter
-                          value={receiptPaymentStatusFilter}
-                          onChange={setReceiptPaymentStatusFilter}
-                          counts={receiptPaymentStatusCounts}
-                        />
-                        <SalesReceiptPaymentStatusLegend />
-                        <SalesListSortBar
-                          fields={SALES_TABLE_SORT_FIELD_OPTIONS.receipts}
-                          field={salesListSort.field}
-                          dir={salesListSort.dir}
-                          onFieldChange={(field) => setSalesListSort((s) => ({ ...s, field }))}
-                          onDirToggle={() =>
-                            setSalesListSort((s) => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))
-                          }
-                        />
-                      </>
-                    }
-                  >
-                    {filteredMergedReceipts.length === 0 ? (
-                      <ListEmptyState
-                        icon={ReceiptIcon}
-                        title={
-                          receiptPaymentStatusFilter === 'all'
-                            ? 'No payments match your search'
-                            : receiptPaymentStatusFilter === 'no_cutting'
-                              ? 'No payments without a cutting list'
-                              : 'No payments match this filter'
-                        }
-                        description="Adjust the status filter or search terms."
-                      />
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {filteredMergedReceipts.map((r) => {
-                          const meta2 = [r.quotationRef, r.date, r._payBadge].filter(Boolean).join(' · ');
-                          const quotePayCount =
-                            paymentCountByQuoteRef.get(String(r.quotationRef || '').trim()) || 0;
-                          const cuttingChipLabel =
-                            r._cuttingListLinkKind === 'linked' && r._cuttingListId
-                              ? `CL ${r._cuttingListId}`
-                              : r._cuttingListLabel;
-                          return (
-                            <li key={r.id} className={salesListItemClass(`rc-${r.id}`, actionMenuKey)}>
-                              <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                                <div className="min-w-0 flex-1 leading-tight">
-                                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                                    <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                                      <span
-                                        className={`${CHIP} whitespace-nowrap ${receiptSourceChipClass(r.source)}`}
-                                        title={r._subLabel || ''}
-                                      >
-                                        {r.source === 'ledger' ? 'Ledger' : 'Imported'}
-                                      </span>
-                                      <p className="text-xs font-bold text-zarewa-teal tabular-nums shrink-0">
-                                        {r.id}
-                                      </p>
-                                      <p className="text-xs font-medium text-slate-600 truncate min-w-0">
-                                        · {r.customer}
-                                      </p>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      <span className="text-xs font-black text-zarewa-teal tabular-nums">
-                                        {r.amount}
-                                      </span>
-                                      <SalesRowMenu
-                                        rowKey={`rc-${r.id}`}
-                                        openKey={actionMenuKey}
-                                        setOpenKey={setActionMenuKey}
-                                        onView={() => {
-                                          setSelectedItem(r);
-                                          setReceiptAccessMode('view');
-                                          setShowReceiptModal(true);
-                                        }}
-                                        showEdit={false}
-                                        onAddPayment={() => openAddPaymentForReceiptRow(r)}
-                                        onDelete={
-                                          canDeleteSalesRecord ? () => deleteReceipt(String(r.id || '').trim()) : undefined
-                                        }
-                                        deleteLabel="Delete"
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5">
-                                    {meta2 ? (
-                                      <p
-                                        className="text-ui-xs text-slate-500 leading-snug truncate min-w-0 flex-1 basis-full sm:basis-auto"
-                                        title={meta2}
-                                      >
-                                        {meta2}
-                                      </p>
-                                    ) : null}
-                                    <span
-                                      className={`${CHIP} ${receiptCuttingListChipClass(r._cuttingListLinkKind)} whitespace-nowrap`}
-                                      title={r._cuttingListTitle}
-                                    >
-                                      {cuttingChipLabel}
-                                    </span>
-                                    {quotePayCount > 1 ? (
-                                      <span
-                                        className={`${CHIP} border-violet-200 bg-violet-50 text-violet-900 whitespace-nowrap`}
-                                        title={`${quotePayCount} payments recorded on quotation ${r.quotationRef} — review for duplicates.`}
-                                      >
-                                        {quotePayCount}× on quote
-                                      </span>
-                                    ) : null}
-                                    <span
-                                      className={`${CHIP} ${receiptSalesPaymentStatusChipClass(r)} shrink-0 whitespace-nowrap`}
-                                      title={receiptSalesPaymentStatusTitle(r)}
-                                    >
-                                      {receiptSalesPaymentStatusLabel(r)}
-                                    </span>
-                                    {r.financeDeliveryClearedAtISO ? (
-                                      <span
-                                        className={`${CHIP} border-emerald-200/70 bg-emerald-50/80 text-emerald-800 shrink-0 whitespace-nowrap`}
-                                        title={r.financeDeliveryClearedAtISO}
-                                      >
-                                        Delivery OK
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                    {paymentFilteredReceiptRows.length > showCount && (
-                      <div className="flex justify-center mt-6">
-                        <button
-                          type="button"
-                          onClick={() => setShowCount((c) => c + 20)}
-                          className="px-6 py-2 rounded-lg border border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal hover:bg-slate-50 transition-colors"
-                        >
-                          Show more payments
-                        </button>
-                      </div>
-                    )}
-                  </SalesListTableFrame>
+                  <SalesReceiptsList
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    receiptPaymentStatusFilter={receiptPaymentStatusFilter}
+                    setReceiptPaymentStatusFilter={setReceiptPaymentStatusFilter}
+                    receiptPaymentStatusCounts={receiptPaymentStatusCounts}
+                    salesListSort={salesListSort}
+                    setSalesListSort={setSalesListSort}
+                    filteredMergedReceipts={filteredMergedReceipts}
+                    paymentFilteredReceiptRows={paymentFilteredReceiptRows}
+                    showCount={showCount}
+                    setShowCount={setShowCount}
+                    debouncedSearchQuery={debouncedSearchQuery}
+                    openNewModal={openNewModal}
+                    actionMenuKey={actionMenuKey}
+                    setActionMenuKey={setActionMenuKey}
+                    paymentCountByQuoteRef={paymentCountByQuoteRef}
+                    canDeleteSalesRecord={canDeleteSalesRecord}
+                    openAddPaymentForReceiptRow={openAddPaymentForReceiptRow}
+                    deleteReceipt={deleteReceipt}
+                    setSelectedItem={setSelectedItem}
+                    setReceiptAccessMode={setReceiptAccessMode}
+                    setShowReceiptModal={setShowReceiptModal}
+                  />
                 ) : null}
 
                 {salesTab === 'cuttinglist' ? (
-                  <SalesListTableFrame
-                    toolbar={
-                      <>
-                        <SalesListSearchInput
-                          value={searchQuery}
-                          onChange={setSearchQuery}
-                          placeholder="Search list ID, customer, date, list status, production line status…"
-                        />
-                        <SalesListSortBar
-                          fields={SALES_TABLE_SORT_FIELD_OPTIONS.cuttinglist}
-                          field={salesListSort.field}
-                          dir={salesListSort.dir}
-                          onFieldChange={(field) => setSalesListSort((s) => ({ ...s, field }))}
-                          onDirToggle={() =>
-                            setSalesListSort((s) => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))
-                          }
-                        />
-                      </>
-                    }
-                  >
-                    {filteredCuttingLists.length === 0 ? (
-                      <ListEmptyState
-                        icon={Scissors}
-                        title="No cutting lists match your search"
-                        description="Cutting lists appear here after you create them from quotations."
-                      />
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {filteredCuttingLists.map((c) => {
-                          const job = pickProductionJobForCuttingList(c.id, productionJobs, cuttingLists);
-                          const lineSt = productionQueueLineStatusPresentation(c, job);
-                          return (
-                          <li key={c.id} className={salesListItemClass(`cl-${c.id}`, actionMenuKey)}>
-                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                              <div className="min-w-0 flex-1 leading-tight">
-                                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                                  <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
-                                    <span className="tabular-nums font-mono">{c.id}</span>
-                                    <span className="font-medium text-slate-600"> · {c.customer}</span>
-                                  </p>
-                                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                    <span className="text-xs font-black text-zarewa-teal tabular-nums">
-                                      {c.total}
-                                    </span>
-                                    <span
-                                      className={`${CHIP} ${lineSt.chipClass}`}
-                                      title={
-                                        c.status
-                                          ? `List status: ${c.status} · Line: ${lineSt.label}`
-                                          : `Production line: ${lineSt.label}`
-                                      }
-                                    >
-                                      {lineSt.label}
-                                    </span>
-                                    <SalesRowMenu
-                                      rowKey={`cl-${c.id}`}
-                                      openKey={actionMenuKey}
-                                      setOpenKey={setActionMenuKey}
-                                      onView={() => {
-                                        setSelectedItem(c);
-                                        setCuttingAccessMode('view');
-                                        setShowCuttingModal(true);
-                                      }}
-                                      onEdit={() => {
-                                        setSelectedItem(c);
-                                        setCuttingAccessMode('edit');
-                                        setShowCuttingModal(true);
-                                      }}
-                                      editDisabled={!canEditCuttingList(c, job, roleKey)}
-                                      editTitle={cuttingListEditBlockedReason(c, job, roleKey) ?? ''}
-                                      onPush={
-                                        !c.productionRegistered &&
-                                        !c.productionEditLocked &&
-                                        String(c.status || '').trim() !== 'Draft'
-                                          ? () => pushCuttingListToProduction(c)
-                                          : undefined
-                                      }
-                                      onDelete={
-                                        canDeleteSalesRecord ? () => deleteCuttingList(String(c.id || '').trim()) : undefined
-                                      }
-                                      deleteLabel="Delete"
-                                    />
-                                  </div>
-                                </div>
-                                <p className="text-ui-xs text-slate-500 mt-0.5 tabular-nums">{c.date}</p>
-                              </div>
-                            </div>
-                          </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                    {cuttingLists.length > showCount && (
-                      <div className="flex justify-center mt-6">
-                        <button
-                          type="button"
-                          onClick={() => setShowCount((c) => c + 20)}
-                          className="px-6 py-2 rounded-lg border border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal hover:bg-slate-50 transition-colors"
-                        >
-                          Show more cutting lists
-                        </button>
-                      </div>
-                    )}
-                  </SalesListTableFrame>
+                  <SalesCuttingListsList
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    salesListSort={salesListSort}
+                    setSalesListSort={setSalesListSort}
+                    filteredCuttingLists={filteredCuttingLists}
+                    cuttingLists={cuttingLists}
+                    productionJobs={productionJobs}
+                    showCount={showCount}
+                    setShowCount={setShowCount}
+                    debouncedSearchQuery={debouncedSearchQuery}
+                    openNewModal={openNewModal}
+                    actionMenuKey={actionMenuKey}
+                    setActionMenuKey={setActionMenuKey}
+                    roleKey={roleKey}
+                    canDeleteSalesRecord={canDeleteSalesRecord}
+                    pushCuttingListToProduction={pushCuttingListToProduction}
+                    deleteCuttingList={deleteCuttingList}
+                    setSelectedItem={setSelectedItem}
+                    setCuttingAccessMode={setCuttingAccessMode}
+                    setShowCuttingModal={setShowCuttingModal}
+                  />
                 ) : null}
 
                 {salesTab === 'refund' ? (
-                  <SalesListTableFrame
-                    toolbar={
-                      <>
-                        <SalesListSearchInput
-                          value={searchQuery}
-                          onChange={setSearchQuery}
-                          placeholder="Search refund ID, customer, quotation, status…"
-                        />
-                        <SalesListSortBar
-                          fields={SALES_TABLE_SORT_FIELD_OPTIONS.refund}
-                          field={salesListSort.field}
-                          dir={salesListSort.dir}
-                          onFieldChange={(field) => setSalesListSort((s) => ({ ...s, field }))}
-                          onDirToggle={() =>
-                            setSalesListSort((s) => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))
-                          }
-                        />
-                      </>
-                    }
-                  >
-                    {filteredRefunds.length === 0 ? (
-                      <ListEmptyState
-                        icon={RotateCcw}
-                        title="No refunds match your search"
-                        description="Refunds are created from settled quotations when returns are approved."
-                      />
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {filteredRefunds.map((r) => {
-                          const approvedAmountNgn = refundApprovedAmount(r);
-                          const paidAmountNgn = Number(r.paidAmountNgn) || 0;
-                          const outstandingAmountNgn = refundOutstandingAmount(r);
-                          const meta2 = [
-                            r.quotationRef || '—',
-                            r.approvalDate,
-                            approvedAmountNgn > 0 ? `Apvd ${formatNgn(approvedAmountNgn)}` : null,
-                            paidAmountNgn > 0 ? `Paid ${formatNgn(paidAmountNgn)}` : null,
-                            r.status === 'Approved' && outstandingAmountNgn > 0
-                              ? `Bal ${formatNgn(outstandingAmountNgn)}`
-                              : null,
-                            refundHasCreditConfirmation(r)
-                              ? `Refund fund used ${formatNgn(r.creditAppliedNgn || 0)}${
-                                  r.creditAppliedToQuotationRef ? ` → ${r.creditAppliedToQuotationRef}` : ''
-                                }`
-                              : null,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ');
-                          return (
-                            <li
-                              key={r.refundID}
-                              data-testid={`refund-row-${r.refundID}`}
-                              className={salesListItemClass(`rf-${r.refundID}`, actionMenuKey)}
-                            >
-                              <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                                <div className="min-w-0 flex-1 leading-tight">
-                                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                                    <p className="text-xs font-bold text-zarewa-teal truncate min-w-0">
-                                      <span className="font-mono tabular-nums">{r.refundID}</span>
-                                      <span className="font-medium text-slate-600"> · {r.customer}</span>
-                                    </p>
-                                    <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                      <span className="text-xs font-black text-zarewa-teal tabular-nums">
-                                        {formatNgn(r.amountNgn)}
-                                      </span>
-                                      <span className={`${CHIP} ${refundStatusChipClass(r.status)}`}>
-                                        {r.status}
-                                      </span>
-                                      {refundHasCreditConfirmation(r) ? (
-                                        <span className={`${CHIP} bg-sky-100 text-sky-800`} title="Deducted from refund fund onto another quotation — not refundable again">
-                                          Refund fund used
-                                        </span>
-                                      ) : null}
-                                      <SalesRowMenu
-                                        rowKey={`rf-${r.refundID}`}
-                                        openKey={actionMenuKey}
-                                        setOpenKey={setActionMenuKey}
-                                        onView={() => openRefundViewOnly(r)}
-                                        onEdit={() => openRefundModal(r)}
-                                        editDisabled={false}
-                                        editTitle=""
-                                      />
-                                    </div>
-                                  </div>
-                                  <p
-                                    className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2 tabular-nums"
-                                    title={meta2}
-                                  >
-                                    {meta2}
-                                  </p>
-                                </div>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                    {refunds.length > showCount && (
-                      <div className="flex justify-center mt-6">
-                        <button
-                          type="button"
-                          onClick={() => setShowCount((c) => c + 20)}
-                          className="px-6 py-2 rounded-lg border border-slate-200 text-ui-xs font-bold uppercase tracking-widest text-zarewa-teal hover:bg-slate-50 transition-colors"
-                        >
-                          Show more refunds
-                        </button>
-                      </div>
-                    )}
-                  </SalesListTableFrame>
+                  <SalesRefundsList
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    refundWorkFilter={refundWorkFilter}
+                    setRefundWorkFilter={setRefundWorkFilter}
+                    salesListSort={salesListSort}
+                    setSalesListSort={setSalesListSort}
+                    filteredRefunds={filteredRefunds}
+                    refundWorkRows={refundWorkRows}
+                    showCount={showCount}
+                    setShowCount={setShowCount}
+                    debouncedSearchQuery={debouncedSearchQuery}
+                    openNewModal={openNewModal}
+                    actionMenuKey={actionMenuKey}
+                    setActionMenuKey={setActionMenuKey}
+                    openRefundViewOnly={openRefundViewOnly}
+                    openRefundModal={openRefundModal}
+                  />
                 ) : null}
 
                 {salesTab === 'customers' ? (
@@ -2384,7 +2010,7 @@ const Sales = () => {
         />
       ) : null}
       {advanceViewEntry ? (
-      <ModalFrame isOpen={Boolean(advanceViewEntry)} onClose={() => setAdvanceViewEntry(null)}>
+      <ModalFrame isOpen={Boolean(advanceViewEntry)} onClose={() => setAdvanceViewEntry(null)} showCloseButton={false}>
         <div className="z-modal-panel max-w-md w-full bg-white rounded-2xl border border-slate-200 p-6 shadow-xl">
           <h3 className="text-base font-bold text-zarewa-teal">Advance payment</h3>
           {advanceViewEntry ? (

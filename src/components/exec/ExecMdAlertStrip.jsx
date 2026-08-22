@@ -2,7 +2,7 @@ import React from 'react';
 import { Bell, ChevronRight } from 'lucide-react';
 
 /**
- * Mobile alert strip — surfaces MD-only queue count; opens Decide tab in-place (no separate route).
+ * Mobile alert strip — MD-only queue count; opens Approvals in-place.
  */
 export function ExecMdAlertStrip({ mdOnlyCount = 0, activeTab, onOpenDecide }) {
   if (!mdOnlyCount || activeTab === 'decide') return null;
@@ -12,17 +12,17 @@ export function ExecMdAlertStrip({ mdOnlyCount = 0, activeTab, onOpenDecide }) {
       <button
         type="button"
         onClick={() => onOpenDecide?.()}
-        className="flex w-full items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50/90 px-4 py-3 text-left shadow-sm transition-colors hover:bg-violet-50"
+        className="flex w-full items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-left hover:bg-slate-50"
       >
         <span className="flex min-w-0 items-center gap-2">
-          <Bell size={14} className="shrink-0 text-violet-700" aria-hidden />
-          <span className="text-xs font-semibold text-violet-950">
+          <Bell size={14} className="shrink-0 text-slate-600" aria-hidden />
+          <span className="text-sm font-semibold text-slate-900">
             {mdOnlyCount} item{mdOnlyCount === 1 ? '' : 's'} need your sign-off
           </span>
         </span>
-        <span className="inline-flex shrink-0 items-center gap-1 text-ui-xs font-bold uppercase text-zarewa-teal">
-          Decide
-          <ChevronRight size={14} />
+        <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-zarewa-teal">
+          Approvals
+          <ChevronRight size={14} aria-hidden />
         </span>
       </button>
     </div>

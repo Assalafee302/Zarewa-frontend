@@ -51,7 +51,7 @@ export function StockRegisterMdApproveModal({
   const total = summary.totalClosingValueNgn;
 
   return (
-    <ModalFrame isOpen={open} onClose={onClose} showCloseButton={false} surface="plain" title="MD stock register approval">
+    <ModalFrame isOpen={open} onClose={onClose} surface="plain" title="MD stock register approval" showCloseButton={false}>
       <div className="z-modal-panel-lg flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
           <div>

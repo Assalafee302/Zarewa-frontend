@@ -85,7 +85,7 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-sm">
+      <div className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm">
         <h3 className="z-section-title flex items-center gap-2">
           <User size={14} /> Your profile
         </h3>
@@ -191,7 +191,7 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
         </form>
       </div>
 
-      <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-sm">
+      <div className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm">
         <h3 className="z-section-title flex items-center gap-2">
           <Shield size={14} /> Access (read-only)
         </h3>
@@ -200,10 +200,10 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
           shortcuts and the team guide.
         </p>
         <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-1">
-          <p className="text-ui-xs font-black uppercase tracking-[0.16em] text-slate-400">Role</p>
-          <p className="text-sm font-black text-zarewa-teal">{currentUser?.roleLabel || 'No active role'}</p>
+          <p className="text-ui-xs font-medium text-slate-500">Role</p>
+          <p className="text-sm font-semibold text-slate-900">{currentUser?.roleLabel || 'No active role'}</p>
           {currentUser?.department ? (
-            <p className="text-xs font-bold uppercase tracking-wide text-teal-800/90 pt-1">
+            <p className="pt-1 text-xs text-slate-600">
               Workspace role:{' '}
               {WORKSPACE_DEPARTMENT_LABELS[currentUser.department] || currentUser.department}
             </p>
@@ -213,7 +213,7 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
           {permissions.map((perm) => (
             <span
               key={perm}
-              className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal"
+              className="rounded-sm border border-slate-200 bg-white px-2 py-0.5 text-ui-xs font-medium text-slate-700"
             >
               {perm}
             </span>

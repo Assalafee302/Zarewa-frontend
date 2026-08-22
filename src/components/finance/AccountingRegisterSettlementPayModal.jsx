@@ -147,7 +147,7 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
   if (!open || !settlement) return null;
 
   return (
-    <ModalFrame isOpen={open} onClose={handleClose}>
+    <ModalFrame isOpen={open} onClose={handleClose} showCloseButton={false}>
       <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-bold text-zarewa-teal flex items-center gap-2">

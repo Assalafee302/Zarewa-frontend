@@ -30,8 +30,9 @@ export default function TeamHr() {
         element={
           <HrSectionShell
             navItems={NAV}
+            eyebrow="Supervisor desk"
             moduleTitle="My team"
-            moduleSubtitle="Everyone in your branch — endorsements, attendance, and team records (no line-manager linking required)."
+            moduleSubtitle="Everyone in your branch — endorsements, attendance, and team records."
             stickySubnav
             compact
           />

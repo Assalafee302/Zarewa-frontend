@@ -1,6 +1,7 @@
 /**
  * Register-first accounting: which module owns each GL control account at cutover and ongoing.
- * Keep in sync with Zarewa-backend-main/shared/lib/accountingSourceOfTruth.js
+ * Used by Opening Pack builders and control tie-out (see docs/ACCOUNTING_SYSTEM_ARCHITECTURE.md).
+ * Frontend copies via `npm run sync:shared` → src/shared/lib/accountingSourceOfTruth.js
  */
 
 /** @typedef {'creditors' | 'debtors' | 'fixed_assets' | 'stock_register' | 'treasury' | 'inter_branch' | 'payroll' | 'ap2_diagnostic' | 'manual' | 'computed'} AccountingSourceModule */
@@ -148,11 +149,15 @@ export const GL_SOURCE_OF_TRUTH = [
   },
 ];
 
+/** GL codes that must not appear on manual opening quick-add (register-first). */
 export const OPENING_MANUAL_EXCLUDED_GL_CODES = GL_SOURCE_OF_TRUTH.filter(
   (m) => !m.allowManualOpeningLine
 ).map((m) => m.glAccountCode);
 
-/** @param {string} code @returns {GlSourceMapping | undefined} */
+/**
+ * @param {string} code
+ * @returns {GlSourceMapping | undefined}
+ */
 export function glSourceMappingForCode(code) {
   const c = String(code || '').trim();
   if (c.startsWith('100') && c.length === 4) {

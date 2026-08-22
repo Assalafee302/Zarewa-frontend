@@ -1,9 +1,9 @@
 import React from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { PlayCircle } from 'lucide-react';
+import { PROD_REG } from '../../lib/productionRegisterUi';
 
 /**
  * Floor-friendly next-step guidance after production has started.
- * @param {{ compact?: boolean; isStoneMeterQuote?: boolean; isOffcutMode?: boolean }} props
  */
 export function ProductionRegisterPostStartBanner({
   compact = false,
@@ -11,27 +11,23 @@ export function ProductionRegisterPostStartBanner({
   isOffcutMode = false,
 }) {
   const textClass = compact ? 'text-xs leading-snug' : 'text-sm leading-snug sm:text-xs';
-  const padClass = compact ? 'px-2.5 py-1.5' : 'px-3 py-2 sm:px-2.5 sm:py-1.5';
 
   let next;
   if (isStoneMeterQuote) {
-    next = 'Enter metres, then Complete.';
+    next = 'Enter metres consumed, then tap Complete.';
   } else if (isOffcutMode) {
-    next = 'Enter offcut / accessory metres, then Complete.';
+    next = 'Enter offcut / accessory metres, then tap Complete.';
   } else {
-    next = 'Enter closing kg & metres, then Complete.';
+    next = 'Enter closing kg and metres on each coil, Save, then Complete.';
   }
 
   return (
-    <div
-      className={`flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 ${padClass}`}
-      role="status"
-      data-testid="production-post-start-banner"
-    >
-      <CheckCircle2 className="size-3.5 shrink-0 text-sky-700" aria-hidden />
-      <p className={`min-w-0 font-medium text-sky-950 ${textClass}`}>
-        <strong className="font-bold">Running.</strong> {next}
-      </p>
+    <div className={PROD_REG.bannerRunning} role="status" data-testid="production-post-start-banner">
+      <PlayCircle className="size-5 shrink-0 text-zarewa-teal" aria-hidden />
+      <div className={`min-w-0 ${textClass}`}>
+        <p className="font-bold text-zarewa-teal">Run in progress</p>
+        <p className="mt-0.5 font-medium text-[var(--z-text-muted)]">{next}</p>
+      </div>
     </div>
   );
 }

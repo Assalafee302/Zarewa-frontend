@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { FinanceDeskWorkQueues } from './FinanceDeskWorkQueues.jsx';
@@ -45,6 +45,14 @@ vi.mock('../../context/ToastContext', () => ({
 }));
 
 describe('FinanceDeskWorkQueues', () => {
+  beforeEach(() => {
+    window.localStorage.setItem('zarewa.cashierDeskGuide.dismissed', '1');
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
   it('renders each treasury account with confirmed, unlinked, and all-total balances', () => {
     render(
       <MemoryRouter>
@@ -58,9 +66,12 @@ describe('FinanceDeskWorkQueues', () => {
         />
       </MemoryRouter>
     );
+    expect(screen.getByRole('region', { name: 'Till now' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Confirm in' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Pay out' })).toBeTruthy();
     expect(screen.getByText(/Main till/i)).toBeTruthy();
     expect(screen.getByText(/Confirmed ₦/)).toBeTruthy();
-    expect(screen.getByText(/Branch treasury accounts/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Till and bank accounts' })).toBeTruthy();
     expect(screen.getByTestId('desk-all-clear')).toBeTruthy();
     expect(screen.getByTestId('desk-confirm-column')).toBeTruthy();
     expect(screen.getByTestId('finance-payouts-combined')).toBeTruthy();

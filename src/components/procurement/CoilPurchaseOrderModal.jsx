@@ -273,7 +273,7 @@ export default function CoilPurchaseOrderModal({
       onClose={onClose}
       title={editPoId ? 'Edit coil purchase order' : 'New coil purchase order'}
       description="Supplier coil purchase: material, colour, gauge, kg, metres, price per kg."
-    >
+      showCloseButton={false}>
       <div className="z-modal-panel max-w-[min(100%,min(96vw,64rem))] w-full max-h-[min(92vh,900px)] flex flex-col mx-auto">
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0 gap-3">
           <div className="flex items-center gap-3 min-w-0">

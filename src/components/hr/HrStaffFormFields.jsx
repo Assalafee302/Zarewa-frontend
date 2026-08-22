@@ -735,7 +735,7 @@ export function HrStaffFormFields({
                 </span>
               ) : beneficiaryOnly ? (
                 <span className="mt-1 block font-normal text-amber-800">
-                  This payroll group does not use ERP logins. Manage the person in Chairman Accounts → Executive benefits.
+                  This payroll group does not use ERP logins. Manage the person in Chairman Office → Scholarships or Household.
                 </span>
               ) : null}
             </Field>

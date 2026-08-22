@@ -1,24 +1,6 @@
 import React from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-
-const FAMILY_TAB_MAP = {
-  'family-dashboard': 'family',
-  'domestic-dashboard': 'domestic',
-  benefits: 'benefits',
-  chairman: 'benefits',
-  'scholarship-requests': 'requests',
-};
-
-const BENEFITS_INNER_TABS = new Set([
-  'beneficiaries',
-  'school-fees',
-  'stipends',
-  'domestic',
-  'payments',
-  'export',
-  'expenses',
-  'audit',
-]);
+import { chairmanOfficeHrefFromLegacyFamily } from '../../lib/chairmanOfficeHrefs.js';
 
 const COMPENSATION_TAB_MAP = {
   payroll: 'payroll',
@@ -37,10 +19,6 @@ function hubRedirect(base, tabMap, segment, defaultTab, searchParams) {
   const hubTab = tabMap[segment] || defaultTab;
   const params = new URLSearchParams();
   params.set('tab', hubTab);
-  const legacyInner = searchParams.get('tab');
-  if (hubTab === 'benefits' && legacyInner && BENEFITS_INNER_TABS.has(legacyInner)) {
-    params.set('benefitsTab', legacyInner);
-  }
   for (const key of ['benefitsTab', 'staff', 'beneficiary']) {
     const v = searchParams.get(key);
     if (v) params.set(key, v);
@@ -50,7 +28,7 @@ function hubRedirect(base, tabMap, segment, defaultTab, searchParams) {
 
 export function ExecutiveHrFamilyLegacyRedirect({ segment }) {
   const [searchParams] = useSearchParams();
-  return <Navigate to={hubRedirect('family', FAMILY_TAB_MAP, segment, 'family', searchParams)} replace />;
+  return <Navigate to={chairmanOfficeHrefFromLegacyFamily(segment, searchParams)} replace />;
 }
 
 export function ExecutiveHrCompensationLegacyRedirect({ segment }) {

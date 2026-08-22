@@ -1,9 +1,13 @@
 /**
- * Repair-vs-replace thresholds (mirror of backend shared/maintenanceRepairReplace.js).
+ * Repair-vs-replace thresholds (machine lifetime maintenance vs asset value).
+ * Frontend copies via `npm run sync:shared` → src/shared/maintenanceRepairReplace.js
  */
 
+/** Lifetime maint ≥ this % of purchase cost → watch. */
 export const REPAIR_WATCH_PCT_OF_COST = 40;
+/** Lifetime maint ≥ this % of purchase cost → replace review. */
 export const REPAIR_REPLACE_PCT_OF_COST = 70;
+/** Lifetime maint ≥ this % of NBV → replace review. */
 export const REPAIR_REPLACE_PCT_OF_NBV = 100;
 
 /**

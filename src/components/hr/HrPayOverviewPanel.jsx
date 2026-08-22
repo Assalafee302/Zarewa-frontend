@@ -82,12 +82,12 @@ export function HrPayOverviewPanel({ onOpenTab }) {
       </div>
 
       <section className={HR_CARD}>
-        <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">How pay works</p>
+        <p className="text-ui-xs font-medium text-slate-500">How pay works</p>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           {STEPS.map((step) => (
-            <div key={step.n} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-              <p className="text-xs font-black text-zarewa-teal">Step {step.n}</p>
-              <p className="mt-1 text-sm font-black text-slate-900">{step.title}</p>
+            <div key={step.n} className="rounded-md border border-slate-200 bg-slate-50/70 p-4">
+              <p className="z-stencil text-xs text-slate-500">Step {step.n}</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{step.title}</p>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.body}</p>
             </div>
           ))}
@@ -99,7 +99,7 @@ export function HrPayOverviewPanel({ onOpenTab }) {
           <div className="flex items-start gap-3">
             <ClipboardList className="mt-0.5 h-5 w-5 text-zarewa-teal" aria-hidden />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-black text-slate-900">This month</p>
+              <p className="text-sm font-semibold text-slate-900">This month</p>
               {latest ? (
                 <>
                   <p className="mt-1 text-sm text-slate-600">
@@ -127,7 +127,7 @@ export function HrPayOverviewPanel({ onOpenTab }) {
               <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" aria-hidden />
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-black text-slate-900">Coverage</p>
+              <p className="text-sm font-semibold text-slate-900">Coverage</p>
               {missing ? (
                 <>
                   <p className="mt-1 text-sm text-slate-600">

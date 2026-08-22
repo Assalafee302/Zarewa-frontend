@@ -63,6 +63,7 @@ export const functions = app ? (fnRegion ? getFunctions(app, fnRegion) : getFunc
 const useEmu =
   firebaseConfigured &&
   !vitest &&
+  import.meta.env.MODE !== 'production' &&
   typeof window !== 'undefined' &&
   String(import.meta.env.VITE_FIREBASE_USE_EMULATORS || '').toLowerCase() === 'true';
 

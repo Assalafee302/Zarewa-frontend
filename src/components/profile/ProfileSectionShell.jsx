@@ -21,6 +21,7 @@ export function ProfileSectionShell({
   return (
     <PageShell className="pb-10">
       <PageHeader
+        eyebrow="My file"
         title={title}
         subtitle={subtitle}
         tabs={<ProfileHubTabs />}

@@ -195,14 +195,14 @@ export function HrStaffDocumentsPanel({
 
       <div className="grid gap-3 sm:grid-cols-4">
         {[
-          { label: 'Required uploaded', value: `${compliance.uploaded}/${compliance.total}`, tone: 'text-zarewa-teal' },
-          { label: 'Verified', value: compliance.verified, tone: 'text-emerald-700' },
-          { label: 'Pending review', value: compliance.pending, tone: 'text-amber-700' },
-          { label: 'Expired', value: compliance.expired, tone: 'text-red-700' },
+          { label: 'Required uploaded', value: `${compliance.uploaded}/${compliance.total}` },
+          { label: 'Verified', value: compliance.verified },
+          { label: 'Pending review', value: compliance.pending },
+          { label: 'Expired', value: compliance.expired },
         ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-            <p className={`text-xl font-black tabular-nums ${s.tone}`}>{s.value}</p>
-            <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mt-1">{s.label}</p>
+          <div key={s.label} className="rounded-md border border-slate-200 bg-white px-4 py-3">
+            <p className="text-ui-xs font-medium text-slate-500">{s.label}</p>
+            <p className="z-stencil mt-1.5 text-xl text-slate-900">{s.value}</p>
           </div>
         ))}
       </div>
@@ -223,8 +223,8 @@ export function HrStaffDocumentsPanel({
         <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{message}</div>
       ) : null}
 
-      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-        <h3 className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">Passport photograph</h3>
+      <section className="rounded-md border border-slate-200 bg-white p-5">
+        <h3 className="text-ui-xs font-medium text-slate-500">Passport photograph</h3>
         <p className="mt-1 text-xs text-slate-500">Used as the staff member&apos;s avatar across the app and ID cards.</p>
         <div className="mt-4 flex flex-wrap items-start gap-4">
           {showAvatar ? (
@@ -239,7 +239,7 @@ export function HrStaffDocumentsPanel({
             </div>
           )}
           {canEdit ? (
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zarewa-teal/30 bg-zarewa-teal/5 px-4 py-2 text-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-zarewa-teal/10">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50">
               <Upload size={14} aria-hidden />
               {avatarBusy ? 'Uploading…' : 'Upload passport photo'}
               <input
@@ -255,7 +255,7 @@ export function HrStaffDocumentsPanel({
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Required documents</h3>
+        <h3 className="text-ui-xs font-medium text-slate-500">Required documents</h3>
         {loading ? <p className="text-sm text-slate-500">Loading documents…</p> : null}
         <ul className="space-y-2">
           {HR_STAFF_DOC_KINDS.map((kind) => {
@@ -273,7 +273,7 @@ export function HrStaffDocumentsPanel({
                     {doc ? (
                       <HrStatusBadge status={status} variant="documentVerify" />
                     ) : (
-                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-ui-xs font-bold uppercase text-amber-800">
+                      <span className="rounded-sm border border-amber-200 bg-amber-50 px-2 py-0.5 text-ui-xs font-medium text-amber-800">
                         Missing
                       </span>
                     )}
@@ -297,7 +297,7 @@ export function HrStaffDocumentsPanel({
                         href={hrStaffDocumentDownloadUrl(userId, doc.id)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-bold uppercase text-zarewa-teal"
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-medium text-slate-700"
                       >
                         <Download size={12} aria-hidden /> View
                       </a>
@@ -306,14 +306,14 @@ export function HrStaffDocumentsPanel({
                           <button
                             type="button"
                             onClick={() => { setVerifyTarget(doc); setRejectReason(''); }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-ui-xs font-bold uppercase text-emerald-800"
+                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-ui-xs font-medium text-emerald-800"
                           >
                             <CheckCircle2 size={12} aria-hidden /> Verify
                           </button>
                           <button
                             type="button"
                             onClick={() => { setVerifyTarget({ ...doc, rejectMode: true }); setRejectReason(''); }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-red-100 bg-red-50 px-3 py-1.5 text-ui-xs font-bold uppercase text-red-800"
+                            className="inline-flex items-center gap-1 rounded-md border border-red-100 bg-red-50 px-3 py-1.5 text-ui-xs font-medium text-red-800"
                           >
                             <XCircle size={12} aria-hidden /> Reject
                           </button>
@@ -323,7 +323,7 @@ export function HrStaffDocumentsPanel({
                         <button
                           type="button"
                           onClick={() => onDeleteDoc(doc.id)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-red-100 bg-red-50 px-3 py-1.5 text-ui-xs font-bold uppercase text-red-800"
+                          className="inline-flex items-center gap-1 rounded-md border border-red-100 bg-red-50 px-3 py-1.5 text-ui-xs font-medium text-red-800"
                         >
                           <Trash2 size={12} aria-hidden /> Remove
                         </button>
@@ -334,7 +334,7 @@ export function HrStaffDocumentsPanel({
                     <a
                       href={GUARANTOR_FORM_TEMPLATE_URL}
                       download="Zarewa-Guarantor-Form.txt"
-                      className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-ui-xs font-bold uppercase text-violet-800"
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-ui-xs font-medium text-slate-700"
                     >
                       <Download size={12} aria-hidden /> Download blank form
                     </a>
@@ -369,7 +369,7 @@ export function HrStaffDocumentsPanel({
                           className="ml-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono"
                         />
                       </label>
-                      <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-zarewa-teal px-3 py-1.5 text-ui-xs font-bold uppercase text-white">
+                      <label className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-zarewa-teal px-3 py-1.5 text-ui-xs font-medium text-white">
                         <Upload size={12} aria-hidden />
                         {isBusy ? '…' : doc ? 'Replace' : 'Upload'}
                         <input

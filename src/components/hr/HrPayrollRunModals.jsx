@@ -32,7 +32,7 @@ export function HrPayrollConfirmModal({
     confirmTone === 'danger'
       ? `${HR_BTN_PRIMARY} bg-red-800 hover:bg-red-900`
       : confirmTone === 'purple'
-        ? `${HR_BTN_PRIMARY} bg-purple-800 hover:bg-purple-900`
+        ? `${HR_BTN_PRIMARY} bg-slate-900 hover:bg-slate-800`
         : HR_BTN_PRIMARY;
 
   return (

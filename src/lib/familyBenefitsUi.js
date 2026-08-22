@@ -18,7 +18,7 @@ export const FAMILY_BENEFITS = {
 
   /** Short explainer shown on the beneficiary hub hero */
   hubExplainer:
-    'Your school fees go directly to your school. Your monthly allowance covers personal expenses — both are managed through Zarewa Executive benefits.',
+    'Your school fees go directly to your school. Your monthly allowance covers personal expenses — both are paid from Chairman Office.',
 
   stipendLabel: 'Monthly allowance',
   stipendHint: 'Personal expenses',
@@ -52,14 +52,14 @@ export const FAMILY_BENEFITS = {
   adminRegisterTab: 'Executive family',
   adminRegisterTitle: 'Executive family register',
   adminRegisterHint:
-    'CEO and Chairman\'s children — school fees and monthly allowance are paid via Executive benefits, not branch payroll.',
+    'CEO and Chairman\'s children — school fees and monthly allowance are paid from Chairman Office, not branch payroll.',
   adminRequestsTitle: 'Family benefit requests',
   adminRequestsEyebrow: 'Review queue',
   adminRequestsHint:
-    'School detail updates and fee requests from executive family beneficiaries. Approved fees go to Executive benefits for payment.',
+    'School detail updates and fee requests from executive family beneficiaries. Approved fees go to Chairman Office for payment.',
 
   staffFormSection: 'Executive family beneficiary',
-  staffFormHint: 'Link the Executive benefits record (EXBEN-…) so school fees and allowance payments stay accurate.',
+  staffFormHint: 'Link the Chairman Office beneficiary record (EXBEN-…) so school fees and allowance payments stay accurate.',
 
   payrollGroupLabel: 'Executive family',
 
@@ -76,7 +76,7 @@ export const FAMILY_BENEFITS = {
   pdfStatementSubtitle: 'Download a record of school fees and monthly allowance payments',
 
   adminExecutiveSubtitle:
-    'CEO and Chairman family benefits — school fees, monthly allowances, domestic staff, and payments separate from branch payroll.',
+    'Chairman family benefits — school fees, monthly allowances, domestic staff, and payments. Managed in Chairman Office, separate from branch payroll.',
   adminStipendsTab: 'Monthly allowances',
   adminBeneficiariesTab: 'Executive family',
   adminActiveAllowances: 'Active allowances',

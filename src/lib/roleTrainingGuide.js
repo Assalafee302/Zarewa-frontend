@@ -283,6 +283,29 @@ const ROLE_TRAINING = {
       { label: 'Reports', path: '/reports' },
     ],
   },
+  chairman: {
+    title: 'Chairman Office guide',
+    subtitle: 'Company pulse, family scholarships, household staff, and owner drawings.',
+    steps: [
+      {
+        heading: 'Chairman Office',
+        body: 'Your home is **Chairman Office** (`/chairman`). Scholarships and household staff are registered and paid here — not under HR. The impact strip shows amounts **actually paid** this month versus treasury cash.',
+      },
+      {
+        heading: 'Command Centre',
+        body: 'Open **Command Centre** for the same company Overview, Insights, and Finance views as the CEO. MD handles daily approvals.',
+      },
+      {
+        heading: 'Withdrawals',
+        body: 'Request drawings from Equity & withdrawals. They post to GL **3200 Drawings** after finance payout — not as an operating expense.',
+      },
+    ],
+    quickLinks: [
+      { label: 'Chairman Office', path: '/chairman' },
+      { label: 'Command Centre', path: '/exec' },
+      { label: 'Scholarships', path: '/chairman?tab=scholarships' },
+    ],
+  },
   viewer: {
     title: 'Viewer guide',
     subtitle: 'Read-only access to the dashboard.',

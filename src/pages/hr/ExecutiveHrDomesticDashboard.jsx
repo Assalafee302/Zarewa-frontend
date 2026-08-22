@@ -5,6 +5,7 @@ import { fetchExecutiveDomesticDashboard, downloadDomesticStatementPdfForStaff }
 import { formatNgn } from '../../lib/hrFormat';
 import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
 import { paymentHealthMeta } from '../../lib/scholarshipUi';
+import { chairmanOfficeHref } from '../../lib/chairmanOfficeHrefs.js';
 
 const HEALTH_BORDER = {
   on_track: 'border-emerald-200',
@@ -15,15 +16,15 @@ const HEALTH_BORDER = {
 
 function KpiCard({ label, value, hint }) {
   return (
-    <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
-      <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
-      <p className="mt-1 text-2xl font-black tabular-nums text-slate-900">{value}</p>
+    <div className="rounded-md border border-slate-200 bg-white p-4">
+      <p className="text-ui-xs font-medium text-slate-500">{label}</p>
+      <p className="z-stencil mt-1 text-2xl text-slate-900">{value}</p>
       {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </div>
   );
 }
 
-function StaffCard({ member }) {
+function StaffCard({ member, officeManagePath = '' }) {
   const health = paymentHealthMeta(member.paymentHealth);
   const border = HEALTH_BORDER[member.paymentHealth] || HEALTH_BORDER.on_track;
   const [statementBusy, setStatementBusy] = useState(false);
@@ -39,14 +40,14 @@ function StaffCard({ member }) {
   };
 
   return (
-    <article className={`rounded-2xl border-2 bg-white p-4 shadow-sm ${border}`}>
+    <article className={`rounded-md border bg-white p-4 ${border}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-black text-slate-900">{member.displayName}</h3>
+            <h3 className="text-base font-semibold text-slate-900">{member.displayName}</h3>
             {!member.hasLogin ? (
               <span
-                className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-900"
+                className="rounded-sm border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900"
                 title={DOMESTIC_BENEFITS.adminManagedHint}
               >
                 {DOMESTIC_BENEFITS.adminManagedBadge}
@@ -69,11 +70,11 @@ function StaffCard({ member }) {
       </div>
 
       <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-3 py-2.5">
-          <dt className="text-xs font-black uppercase tracking-widest text-amber-800">
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2.5">
+          <dt className="text-ui-xs font-medium text-slate-500">
             {DOMESTIC_BENEFITS.salaryLabel}
           </dt>
-          <dd className="mt-1 text-base font-black tabular-nums text-slate-900">
+          <dd className="z-stencil mt-1 text-base text-slate-900">
             {member.salary?.monthlyAmountNgn != null ? formatNgn(member.salary.monthlyAmountNgn) : '—'}
           </dd>
           <dd className="mt-0.5 text-xs text-slate-600">
@@ -81,8 +82,8 @@ function StaffCard({ member }) {
             {member.salary?.lastPaidPeriod ? ` · Last ${member.salary.lastPaidPeriod}` : ''}
           </dd>
         </div>
-        <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2.5">
-          <dt className="text-xs font-black uppercase tracking-widest text-slate-500">In progress</dt>
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2.5">
+          <dt className="text-ui-xs font-medium text-slate-500">In progress</dt>
           {member.pendingPayment ? (
             <>
               <dd className="mt-1 text-sm font-bold text-slate-900">{member.pendingPayment.statusLabel}</dd>
@@ -101,14 +102,21 @@ function StaffCard({ member }) {
       <div className="mt-4 flex flex-wrap gap-2">
         {member.domesticProfileId ? (
           <Link
-            to={`/executive-hr/benefits?tab=domestic&staff=${encodeURIComponent(member.domesticProfileId)}`}
+            to={
+              officeManagePath
+                ? `${officeManagePath}${officeManagePath.includes('?') ? '&' : '?'}benefitsTab=domestic&staff=${encodeURIComponent(member.domesticProfileId)}`
+                : chairmanOfficeHref('household', {
+                    benefitsTab: 'domestic',
+                    staff: member.domesticProfileId,
+                  })
+            }
             className="rounded-lg border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-950 no-underline hover:bg-amber-200"
           >
             {DOMESTIC_BENEFITS.adminManageAction}
           </Link>
-        ) : (
+        ) : officeManagePath ? null : (
           <Link
-            to="/executive-hr/benefits?tab=domestic"
+            to="/chairman?tab=household&benefitsTab=domestic"
             className="rounded-lg border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-950 no-underline hover:bg-amber-200"
           >
             Add salary record
@@ -124,7 +132,7 @@ function StaffCard({ member }) {
             {statementBusy ? 'Downloading…' : DOMESTIC_BENEFITS.adminStatementAction}
           </button>
         ) : null}
-        {member.hasLogin && member.staffProfilePath ? (
+        {member.hasLogin && member.staffProfilePath && !officeManagePath ? (
           <Link
             to={member.staffProfilePath}
             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 no-underline hover:bg-slate-50"
@@ -137,10 +145,15 @@ function StaffCard({ member }) {
   );
 }
 
-export default function ExecutiveHrDomesticDashboard() {
+export default function ExecutiveHrDomesticDashboard({
+  defaultExecutiveFilter = '',
+  lockFilter = false,
+  reloadToken = 0,
+  officeManagePath = '',
+} = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [executiveFilter, setExecutiveFilter] = useState('');
+  const [executiveFilter, setExecutiveFilter] = useState(defaultExecutiveFilter);
   const [data, setData] = useState(null);
 
   const load = useCallback(async () => {
@@ -158,8 +171,8 @@ export default function ExecutiveHrDomesticDashboard() {
   }, [executiveFilter]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    void load();
+  }, [load, reloadToken]);
 
   const summary = data?.summary;
   const staff = data?.staff || [];
@@ -167,17 +180,19 @@ export default function ExecutiveHrDomesticDashboard() {
 
   return (
     <div className="space-y-6">
-      {data?.periodYyyymm ? (
+      {data?.periodYyyymm && !officeManagePath ? (
         <p className="text-xs text-slate-500">Current period · {formatPayrollPeriodLabel(data.periodYyyymm)}</p>
       ) : null}
-      <Link
-        to="/executive-hr/benefits?tab=domestic"
-        className="inline-flex rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-zarewa-teal no-underline hover:bg-slate-50"
-      >
-        Add household staff →
-      </Link>
+      {officeManagePath ? null : (
+        <Link
+          to="/chairman?tab=household&benefitsTab=domestic"
+          className="inline-flex rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-zarewa-teal no-underline hover:bg-slate-50"
+        >
+          Add household staff →
+        </Link>
+      )}
 
-      {executives.length > 1 ? (
+      {!lockFilter && executives.length > 1 ? (
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by executive">
           <button
             type="button"
@@ -211,13 +226,13 @@ export default function ExecutiveHrDomesticDashboard() {
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">{error}</p>
       ) : null}
 
-      {loading ? (
+      {loading && !officeManagePath ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl bg-amber-50" />
+            <div key={i} className="h-24 animate-pulse rounded-md bg-slate-100" />
           ))}
         </div>
-      ) : summary ? (
+      ) : !officeManagePath && summary ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard label="Household staff" value={summary.staffCount} />
           <KpiCard
@@ -239,37 +254,51 @@ export default function ExecutiveHrDomesticDashboard() {
       ) : null}
 
       {!loading && !staff.length ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm font-semibold text-slate-800">{DOMESTIC_BENEFITS.adminDashboardEmpty}</p>
-          <p className="mt-2 text-sm text-slate-500">{DOMESTIC_BENEFITS.adminDashboardEmptyHint}</p>
-          <Link
-            to="/executive-hr/benefits?tab=domestic"
-            className="mt-4 inline-flex text-sm font-semibold text-amber-800 underline"
-          >
-            Add household staff in Executive benefits →
-          </Link>
+        <div className="rounded-md border border-slate-200 bg-white p-6 text-center">
+          <p className="text-sm font-semibold text-slate-800">
+            {officeManagePath ? 'No household staff assigned to the Chairman yet.' : DOMESTIC_BENEFITS.adminDashboardEmpty}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            {officeManagePath
+              ? 'Use Register staff in the desk below. They do not need an ERP login.'
+              : DOMESTIC_BENEFITS.adminDashboardEmptyHint}
+          </p>
+          {officeManagePath ? null : (
+            <Link
+              to={chairmanOfficeHref('household', { benefitsTab: 'domestic' })}
+              className="mt-4 inline-flex text-sm font-semibold text-amber-800 underline"
+            >
+              Add household staff in Chairman Office →
+            </Link>
+          )}
         </div>
       ) : null}
 
       {!loading && staff.length > 0 ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {staff.map((member) => (
-            <StaffCard key={member.userId || member.domesticProfileId || member.displayName} member={member} />
+            <StaffCard
+              key={member.userId || member.domesticProfileId || member.displayName}
+              member={member}
+              officeManagePath={officeManagePath}
+            />
           ))}
         </div>
       ) : null}
 
-      <p className="text-center text-xs text-slate-500">
-        Register and pay staff in{' '}
-        <Link to="/executive-hr/benefits?tab=domestic" className="font-semibold text-amber-800 underline">
-          Executive benefits → Household staff
-        </Link>
-        . ERP login is optional — see{' '}
-        <Link to="/hr/employees/registers?tab=domestic" className="font-semibold text-slate-600 underline">
-          household staff register
-        </Link>{' '}
-        only if self-service is needed.
-      </p>
+      {officeManagePath ? null : (
+        <p className="text-center text-xs text-slate-500">
+          Register and pay staff in{' '}
+          <Link to="/chairman?tab=household&benefitsTab=domestic" className="font-semibold text-amber-800 underline">
+            Chairman Office → Household
+          </Link>
+          . ERP login is optional — see{' '}
+          <Link to="/hr/employees/registers?tab=domestic" className="font-semibold text-slate-600 underline">
+            household staff register
+          </Link>{' '}
+          only if self-service is needed.
+        </p>
+      )}
     </div>
   );
 }

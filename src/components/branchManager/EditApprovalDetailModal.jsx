@@ -154,7 +154,7 @@ export function EditApprovalDetailModal({
   if (!isOpen) return null;
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={() => !busy && onClose?.()} closeDisabled={busy}>
+    <ModalFrame isOpen={isOpen} onClose={() => !busy && onClose?.()} closeDisabled={busy} showCloseButton={false}>
       <div className="z-modal-panel flex max-h-[min(90vh,720px)] w-full max-w-lg flex-col overflow-hidden p-0">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
           <div className="min-w-0 flex-1">

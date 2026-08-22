@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Disc3 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   buildCoilSpecBoardRows,
   buildTransitKgBySpec,
@@ -9,9 +9,13 @@ import {
 } from '../../lib/storeSpecAggregate';
 import { buildLastUsedByCoilNo } from '../../lib/storeIdle';
 import { buildMetresBySpec, pickStoreHeroes, STORE_HERO_PERIODS } from '../../lib/storeHeroEngine';
+import { GaugeStamp } from '../ui/MillColourChip.jsx';
+import { SpecBoardCount, SpecBoardFilterChip, SpecHeroRank } from './SpecBoardChrome.jsx';
+
+const FILTERS = ['all', 'below_min', 'thin', 'idle', 'heroes'];
 
 /**
- * On-hand Spec board — Colour × Gauge × Material (coils).
+ * On-hand coil rack — colour × gauge. Store scans this like a colour card wall.
  */
 export function SpecBoardPanel({
   coilLots = [],
@@ -30,12 +34,16 @@ export function SpecBoardPanel({
   const [family, setFamily] = useState(/** @type {'all'|'aluminium'|'aluzinc'} */ ('all'));
   const [filter, setFilter] = useState(
     /** @type {'all'|'below_min'|'thin'|'idle'|'heroes'} */ (
-      ['all', 'below_min', 'thin', 'idle', 'heroes'].includes(initialFilter) ? initialFilter : 'all'
+      FILTERS.includes(initialFilter) ? initialFilter : 'all'
     )
   );
   const [period, setPeriod] = useState(/** @type {'quarter'|'half_year'|'year'} */ ('quarter'));
   const [query, setQuery] = useState('');
   const [expandedKey, setExpandedKey] = useState('');
+
+  useEffect(() => {
+    if (FILTERS.includes(initialFilter)) setFilter(initialFilter);
+  }, [initialFilter]);
 
   const lastUsedByCoil = useMemo(() => buildLastUsedByCoilNo(movements), [movements]);
 
@@ -81,73 +89,67 @@ export function SpecBoardPanel({
 
   const summary = useMemo(() => summarizeCoilSpecBoard(allRows), [allRows]);
 
-  const chip = (id, label, active, onClick) => (
-    <button
-      key={id}
-      type="button"
-      onClick={onClick}
-      className={`rounded-md px-2 py-1 text-ui-xs font-bold uppercase tracking-wide transition ${
-        active
-          ? 'bg-zarewa-teal text-white'
-          : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-      }`}
-    >
-      {label}
-    </button>
-  );
-
   return (
-    <div className="rounded-xl border border-slate-200/90 bg-white overflow-hidden mb-3">
-      <header className="border-b border-slate-100 bg-slate-50/90 px-3 py-2.5 sm:px-4">
+    <div className="rounded-md border border-slate-200 bg-white overflow-hidden mb-3" data-testid="ops-coil-spec-board">
+      <header className="border-b border-slate-200 px-3 py-2.5 sm:px-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="text-xs font-black uppercase tracking-widest text-zarewa-teal flex items-center gap-1.5">
-              <Disc3 size={14} aria-hidden />
-              Spec board
-            </h3>
-            <p className="mt-0.5 text-ui-xs font-medium text-slate-500">
-              Colour · Gauge · free kg. Heroes = top metres produced ({period.replace('_', '-')}). Min{' '}
-              {restockMinKg.toLocaleString()} kg includes in-transit.
+            <h3 className="text-sm font-semibold text-slate-900">Colour × gauge</h3>
+            <p className="mt-0.5 text-ui-xs text-slate-500">
+              Free kg on the rack. In-transit counts toward the restock min ({restockMinKg.toLocaleString()} kg).
+              Most produced uses {period.replace('_', '-')} metres.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 text-ui-xs font-semibold tabular-nums">
-            <span className="rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-700">
-              {summary.specCount} specs
-            </span>
-            <span className="rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-teal-950">
-              {heroPack.heroes.length} heroes
-            </span>
-            <span
-              className={`rounded-md border px-2 py-1 ${
-                summary.belowMinCount
-                  ? 'border-amber-200 bg-amber-50 text-amber-950'
-                  : 'border-slate-200 bg-white text-slate-700'
-              }`}
-            >
+          <div className="flex flex-wrap gap-1.5">
+            <SpecBoardCount>{summary.specCount} specs</SpecBoardCount>
+            <SpecBoardCount>{heroPack.heroes.length} most produced</SpecBoardCount>
+            <SpecBoardCount tone={summary.belowMinCount ? 'warn' : 'default'}>
               {summary.belowMinCount} below min
-            </span>
+            </SpecBoardCount>
           </div>
         </div>
 
         <div className="mt-2 flex flex-wrap gap-1">
-          {STORE_HERO_PERIODS.map((p) =>
-            chip(p.id, p.label, period === p.id, () => setPeriod(/** @type {any} */ (p.id)))
-          )}
+          {STORE_HERO_PERIODS.map((p) => (
+            <SpecBoardFilterChip
+              key={p.id}
+              label={p.label}
+              active={period === p.id}
+              onClick={() => setPeriod(/** @type {any} */ (p.id))}
+            />
+          ))}
         </div>
 
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-1">
-            {chip('all', 'All', family === 'all', () => setFamily('all'))}
-            {chip('aluzinc', 'Aluzinc', family === 'aluzinc', () => setFamily('aluzinc'))}
-            {chip('aluminium', 'Aluminium', family === 'aluminium', () => setFamily('aluminium'))}
-            <span className="mx-1 hidden sm:inline text-slate-300" aria-hidden>
-              |
-            </span>
-            {chip('f-all', 'Any', filter === 'all', () => setFilter('all'))}
-            {chip('f-heroes', 'Heroes', filter === 'heroes', () => setFilter('heroes'))}
-            {chip('f-min', 'Below min', filter === 'below_min', () => setFilter('below_min'))}
-            {chip('f-thin', 'Thin <85', filter === 'thin', () => setFilter('thin'))}
-            {chip('f-idle', 'Idle', filter === 'idle', () => setFilter('idle'))}
+            <SpecBoardFilterChip label="All" active={family === 'all'} onClick={() => setFamily('all')} />
+            <SpecBoardFilterChip
+              label="Aluzinc"
+              active={family === 'aluzinc'}
+              onClick={() => setFamily('aluzinc')}
+            />
+            <SpecBoardFilterChip
+              label="Aluminium"
+              active={family === 'aluminium'}
+              onClick={() => setFamily('aluminium')}
+            />
+            <SpecBoardFilterChip label="Any" active={filter === 'all'} onClick={() => setFilter('all')} />
+            <SpecBoardFilterChip
+              label="Most produced"
+              active={filter === 'heroes'}
+              onClick={() => setFilter('heroes')}
+            />
+            <SpecBoardFilterChip
+              label="Below min"
+              active={filter === 'below_min'}
+              onClick={() => setFilter('below_min')}
+            />
+            <SpecBoardFilterChip
+              label="Thin (<85 kg)"
+              active={filter === 'thin'}
+              onClick={() => setFilter('thin')}
+            />
+            <SpecBoardFilterChip label="Idle" active={filter === 'idle'} onClick={() => setFilter('idle')} />
           </div>
           <label className="relative min-w-0 w-full sm:max-w-xs">
             <span className="sr-only">Search specs</span>
@@ -156,7 +158,7 @@ export function SpecBoardPanel({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g. 0.28 gray beige"
-              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 px-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
+              className="w-full rounded-md border border-slate-200 bg-white py-1.5 px-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
             />
           </label>
         </div>
@@ -171,13 +173,13 @@ export function SpecBoardPanel({
           </p>
         ) : (
           <table className="min-w-full text-left text-xs">
-            <thead className="bg-slate-50/80 text-[10px] font-black uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-slate-200 bg-slate-50 text-ui-xs font-medium text-slate-500">
               <tr>
                 <th className="px-3 py-2 w-8" />
                 <th className="px-2 py-2">Colour</th>
                 <th className="px-2 py-2">Gauge</th>
                 <th className="px-2 py-2">Material</th>
-                <th className="px-2 py-2 text-right">Free</th>
+                <th className="px-2 py-2 text-right">Free kg</th>
                 <th className="px-2 py-2 text-right">In transit</th>
                 <th className="px-2 py-2 text-right">Metres</th>
                 <th className="px-2 py-2 text-right">vs min</th>
@@ -190,26 +192,26 @@ export function SpecBoardPanel({
                 return (
                   <React.Fragment key={row.key}>
                     <tr
-                      className={`${row.belowMin ? 'bg-amber-50/40' : row.isHero ? 'bg-teal-50/30' : 'bg-white'} hover:bg-slate-50/80 cursor-pointer`}
+                      className={`${row.belowMin ? 'bg-amber-50/50' : 'bg-white'} hover:bg-slate-50 cursor-pointer`}
                       onClick={() => setExpandedKey(open ? '' : row.key)}
                     >
                       <td className="px-3 py-2 text-slate-400">
                         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </td>
-                      <td className="px-2 py-2 font-bold text-slate-900">
-                        {row.colour}
-                        {row.isHero ? (
-                          <span className="ml-1 text-[10px] font-black uppercase text-teal-800">
-                            H{row.heroRank}
-                          </span>
-                        ) : null}
+                      <td className="px-2 py-2">
+                        <span className="font-medium text-slate-900">
+                          {row.colour}
+                          <SpecHeroRank rank={row.heroRank} />
+                        </span>
                       </td>
-                      <td className="px-2 py-2 font-mono tabular-nums text-slate-800">{row.gauge}</td>
+                      <td className="px-2 py-2">
+                        <GaugeStamp gauge={row.gauge} />
+                      </td>
                       <td className="px-2 py-2 text-slate-600">{row.familyLabel}</td>
-                      <td className="px-2 py-2 text-right font-black tabular-nums text-zarewa-teal">
+                      <td className="px-2 py-2 text-right z-stencil tabular-nums text-slate-900">
                         {Math.round(row.freeKg).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2 text-right tabular-nums text-sky-800">
+                      <td className="px-2 py-2 text-right tabular-nums text-slate-600">
                         {Math.round(row.inTransitKg).toLocaleString()}
                       </td>
                       <td className="px-2 py-2 text-right tabular-nums text-slate-600">
@@ -217,19 +219,19 @@ export function SpecBoardPanel({
                       </td>
                       <td className="px-2 py-2 text-right">
                         {row.belowMin ? (
-                          <span className="font-bold text-amber-900 tabular-nums">
+                          <span className="font-semibold text-amber-900 tabular-nums">
                             −{Math.round(row.shortfallKg).toLocaleString()}
                             {row.hasSpecMinOverride ? (
-                              <span className="ml-1 text-[9px] font-black uppercase text-slate-500">
+                              <span className="ml-1 text-[10px] font-medium text-slate-500">
                                 min {Math.round(row.restockMinKg)}
                               </span>
                             ) : null}
                           </span>
                         ) : (
-                          <span className="font-semibold text-emerald-800">
+                          <span className="font-medium text-slate-600">
                             OK
                             {row.hasSpecMinOverride ? (
-                              <span className="ml-1 text-[9px] font-black uppercase text-slate-500">
+                              <span className="ml-1 text-[10px] font-medium text-slate-500">
                                 min {Math.round(row.restockMinKg)}
                               </span>
                             ) : null}
@@ -240,7 +242,7 @@ export function SpecBoardPanel({
                         {row.belowMin && onRequestRestock ? (
                           <button
                             type="button"
-                            className="rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-[10px] font-black uppercase text-teal-950 hover:bg-teal-100"
+                            className="rounded-sm border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium text-slate-800 hover:bg-slate-50"
                             onClick={(e) => {
                               e.stopPropagation();
                               onRequestRestock({
@@ -260,11 +262,9 @@ export function SpecBoardPanel({
                       </td>
                     </tr>
                     {open ? (
-                      <tr className="bg-slate-50/90">
+                      <tr className="bg-slate-50">
                         <td colSpan={9} className="px-3 py-2">
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
-                            Lots (FIFO — oldest first)
-                          </p>
+                          <p className="text-[11px] font-medium text-slate-500 mb-1.5">Lots — oldest first</p>
                           <ul className="space-y-1 max-h-40 overflow-y-auto">
                             {row.lots.map((lot) => (
                               <li key={lot.coilNo}>
@@ -274,17 +274,17 @@ export function SpecBoardPanel({
                                     e.stopPropagation();
                                     onOpenCoil?.(lot.coilNo);
                                   }}
-                                  className={`w-full flex flex-wrap items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left text-ui-xs ${
+                                  className={`w-full flex flex-wrap items-center justify-between gap-2 rounded-sm border px-2 py-1.5 text-left text-ui-xs ${
                                     lot.thin
                                       ? 'border-rose-200 bg-rose-50/80'
-                                      : 'border-slate-200 bg-white hover:border-teal-300'
+                                      : 'border-slate-200 bg-white hover:border-slate-400'
                                   }`}
                                 >
-                                  <span className="font-mono font-bold text-zarewa-teal">{lot.coilNo}</span>
+                                  <span className="z-stencil font-semibold text-slate-900">{lot.coilNo}</span>
                                   <span className="text-slate-500 tabular-nums">
                                     {lot.receivedAtISO ? String(lot.receivedAtISO).slice(0, 10) : '—'}
                                   </span>
-                                  <span className="font-black tabular-nums text-slate-800">
+                                  <span className="tabular-nums text-slate-800">
                                     {Math.round(lot.freeKg).toLocaleString()} kg free
                                     {lot.idleBand === 'critical' || lot.idleBand === 'warn'
                                       ? ` · idle ${lot.idleDays}d`

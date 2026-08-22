@@ -12,6 +12,8 @@ import {
   ManagerFulfillmentPipelinePanel,
   ManagerReceivablesPanel,
 } from './ManagerDeskExtras.jsx';
+import { ManagerShiftExtras } from './ManagerShiftExtras.jsx';
+import { ManagerAssociatedStaffPanel } from './ManagerAssociatedStaffPanel.jsx';
 
 function pctWidth(n) {
   const v = Number(n);
@@ -139,6 +141,11 @@ export function ManagerBranchTab({
   attendancePendingCount = 0,
   onOpenMaterialQueue,
   onOpenStockRegister,
+  branchId,
+  coilRequests = [],
+  onStockApproved,
+  peopleGlanceAvailable = false,
+  customerIssuesAvailable = false,
 }) {
   const { products } = useInventory();
   const [benchmark, setBenchmark] = useState(null);
@@ -317,6 +324,17 @@ export function ManagerBranchTab({
         <ManagerFulfillmentPipelinePanel quotations={quotations} />
         <ManagerReceivablesPanel available={salesAvailable} />
       </div>
+
+      <ManagerAssociatedStaffPanel />
+
+      <ManagerShiftExtras
+        branchId={branchId}
+        coilRequests={coilRequests}
+        onStockApproved={onStockApproved}
+        quotations={quotations}
+        peopleGlanceAvailable={peopleGlanceAvailable}
+        customerIssuesAvailable={customerIssuesAvailable}
+      />
     </div>
   );
 }

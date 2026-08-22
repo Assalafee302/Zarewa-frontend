@@ -110,9 +110,9 @@ export const HR_SETTINGS_MODULE_LINK_GROUPS = [
     title: 'Executive programmes',
     links: [
       {
-        label: 'Executive benefits',
-        hint: 'School fees, allowances, domestic payments',
-        to: '/executive-hr/benefits',
+        label: 'Chairman Office — scholarships & household',
+        hint: 'School fees, allowances, domestic payments, bank export',
+        to: '/chairman?tab=scholarships',
       },
       {
         label: 'Family & household registers',
@@ -126,7 +126,7 @@ export const HR_SETTINGS_MODULE_LINK_GROUPS = [
 export const HR_SETTINGS_PAGE = {
   title: 'HR administration',
   description:
-    'Company master data and policy defaults for branch and HQ employees. Day-to-day payroll, leave, and executive benefits are managed in their own modules.',
+    'Company master data and policy defaults for branch and HQ employees. Day-to-day payroll, leave, and Chairman Office scholarships/household are managed in their own modules.',
   policyOnlyDescription:
     'Company-wide leave and staff loan defaults for branch payroll staff.',
 };

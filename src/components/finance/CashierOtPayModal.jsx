@@ -19,7 +19,7 @@ import {
  */
 export function CashierOtPayModal({ requestId = '', open, onClose, onPaid }) {
   const ws = useWorkspace();
-  const { showToast } = useToast();
+  const { show: showToast } = useToast();
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -172,7 +172,7 @@ export function CashierOtPayModal({ requestId = '', open, onClose, onPaid }) {
   const req = detail?.request;
 
   return (
-    <ModalFrame isOpen={open} onClose={handleClose} closeDisabled={busy} title="Overtime payout">
+    <ModalFrame isOpen={open} onClose={handleClose} closeDisabled={busy} title="Overtime payout" showCloseButton={false}>
       <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
         <div className="mb-6 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-xl font-bold text-zarewa-teal">

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
+import { WorkbookDeskLinks } from '../components/procurement/MaterialPricingWorkbookChrome.jsx';
 import { AiAskButton } from '../components/AiAskButton';
 import PurchaseOrderModal from '../components/procurement/PurchaseOrderModal';
 import { purchaseOrderToUnifiedDraft } from '../lib/purchaseOrderDraft';
@@ -35,6 +36,7 @@ import { useToast } from '../context/ToastContext';
 import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
+import { WorkspaceDeskSyncBanner } from '../components/workspace/WorkspaceDeskSyncBanner';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import { appConfirm } from '../lib/appConfirm';
@@ -72,12 +74,10 @@ import {
   treasuryBookDisplayNgn,
 } from '../lib/financeDeskTreasury';
 
-import { TAB_LABELS, STANDARD_COIL_GAUGES_MM, PROCUREMENT_COIL_MATERIALS, procurementCoilMaterialByKey, kgPerMFromStripDensity } from './procurement/procurementTabShared.js';
+import { TAB_LABELS, STANDARD_COIL_GAUGES_MM, PROCUREMENT_COIL_MATERIALS, procurementCoilMaterialByKey, kgPerMFromStripDensity, PROCUREMENT_PURCHASES_PAGE_SIZE } from './procurement/procurementTabShared.js';
 import { ProcurementPageContext } from './procurement/ProcurementPageContext.jsx';
 import { ProcurementTabPanels } from './procurement/ProcurementTabPanels.jsx';
 
-/** Rows per column for Coil / Stone-coated / Accessories lists on Purchases. */
-const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
 const PAYABLES_TABLE_PAGE_SIZE = 10;
 
 /** Kg coil SKUs below this on-hand level count as low stock on the Procurement KPI row. */
@@ -100,7 +100,7 @@ const Procurement = () => {
   const navigate = useNavigate();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
-  useWorkspaceDomain('procurement');
+  const { domainLoading, domainReady } = useWorkspaceDomain('procurement');
   const {
     purchaseOrders,
     inTransitLoads,
@@ -129,6 +129,7 @@ const Procurement = () => {
   const [previewPo, setPreviewPo] = useState(null);
   const [previewAp, setPreviewAp] = useState(null);
   const [poListSort, setPoListSort] = useState({ field: 'date', dir: 'desc' });
+  const [poKindFilter, setPoKindFilter] = useState('all');
   const [approvedPurchaseWindow, setApprovedPurchaseWindow] = useState('1m');
 
    
@@ -228,7 +229,7 @@ const Procurement = () => {
     const t = location.state?.focusTab;
     if (!t || !TAB_LABELS[t]) return;
     setActiveTab(t);
-    navigate(location.pathname, { replace: true, state: {} });
+    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate]);
 
   const outstandingSupplierNgn = useMemo(
@@ -896,50 +897,38 @@ const Procurement = () => {
     [filteredPOs]
   );
 
-  const coilPOsSorted = useMemo(
-    () => sortPurchaseOrdersList(coilPOsFiltered, poListSort.field, poListSort.dir),
-    [coilPOsFiltered, poListSort]
-  );
-  const stonePOsSorted = useMemo(
-    () => sortPurchaseOrdersList(stonePOsFiltered, poListSort.field, poListSort.dir),
-    [stonePOsFiltered, poListSort]
-  );
-  const accessoryPOsSorted = useMemo(
-    () => sortPurchaseOrdersList(accessoryPOsFiltered, poListSort.field, poListSort.dir),
-    [accessoryPOsFiltered, poListSort]
-  );
-  const mixedPOsSorted = useMemo(
-    () => sortPurchaseOrdersList(mixedPOsFiltered, poListSort.field, poListSort.dir),
-    [mixedPOsFiltered, poListSort]
+  const purchasesKindCounts = useMemo(
+    () => ({
+      all: filteredPOs.length,
+      coil: coilPOsFiltered.length,
+      stone: stonePOsFiltered.length,
+      accessory: accessoryPOsFiltered.length,
+      mixed: mixedPOsFiltered.length,
+    }),
+    [filteredPOs, coilPOsFiltered, stonePOsFiltered, accessoryPOsFiltered, mixedPOsFiltered]
   );
 
-  const coilPoPurchasesPage = useAppTablePaging(
-    coilPOsSorted,
-    PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
-    poListSort.field,
-    poListSort.dir,
-    debouncedSearchQuery
+  const purchasesForKind = useMemo(() => {
+    if (poKindFilter === 'coil') return coilPOsFiltered;
+    if (poKindFilter === 'stone') return stonePOsFiltered;
+    if (poKindFilter === 'accessory') return accessoryPOsFiltered;
+    if (poKindFilter === 'mixed') return mixedPOsFiltered;
+    return filteredPOs;
+  }, [poKindFilter, filteredPOs, coilPOsFiltered, stonePOsFiltered, accessoryPOsFiltered, mixedPOsFiltered]);
+
+  const purchasesSorted = useMemo(
+    () => sortPurchaseOrdersList(purchasesForKind, poListSort.field, poListSort.dir),
+    [purchasesForKind, poListSort]
   );
-  const stonePoPurchasesPage = useAppTablePaging(
-    stonePOsSorted,
-    PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
+
+  const purchasesPage = useAppTablePaging(
+    purchasesSorted,
+    PROCUREMENT_PURCHASES_PAGE_SIZE,
     poListSort.field,
     poListSort.dir,
-    debouncedSearchQuery
-  );
-  const accessoryPoPurchasesPage = useAppTablePaging(
-    accessoryPOsSorted,
-    PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
-    poListSort.field,
-    poListSort.dir,
-    debouncedSearchQuery
-  );
-  const mixedPoPurchasesPage = useAppTablePaging(
-    mixedPOsSorted,
-    PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
-    poListSort.field,
-    poListSort.dir,
-    debouncedSearchQuery
+    debouncedSearchQuery,
+    poKindFilter,
+    poTransportFilter
   );
 
   const filteredSuppliers = useMemo(() => {
@@ -977,7 +966,7 @@ const Procurement = () => {
   const submitUnifiedPo = async (payload) => {
     const workbookReviewAction = {
       label: 'Review workbook pricing',
-      onClick: () => navigate('/procurement/pricing'),
+      onClick: () => navigate('/procurement', { state: { focusTab: 'conversion' } }),
     };
     if (payload.poID) {
       const { poID, ...rest } = payload;
@@ -1190,14 +1179,11 @@ const Procurement = () => {
       setProcurementPoEditApprovalId,
       poListSort,
       setPoListSort,
-      coilPOsSorted,
-      stonePOsSorted,
-      accessoryPOsSorted,
-      mixedPOsSorted,
-      coilPoPurchasesPage,
-      stonePoPurchasesPage,
-      accessoryPoPurchasesPage,
-      mixedPoPurchasesPage,
+      poKindFilter,
+      setPoKindFilter,
+      purchasesKindCounts,
+      purchasesPage,
+      previewPo,
       poTransportMissingLinkIds,
       poTransportCatchUpRows,
       orphanHaulageRows,
@@ -1237,6 +1223,7 @@ const Procurement = () => {
       todayIso,
       branchNameById,
       wsCanMutate,
+      openApPaymentModal,
       poTransportMissingLinkRows,
       poTransportFilter,
       openPoTransportLink,
@@ -1247,14 +1234,10 @@ const Procurement = () => {
       procurementPoForApprovalUi,
       procurementPoEditApprovalId,
       poListSort,
-      coilPOsSorted,
-      stonePOsSorted,
-      accessoryPOsSorted,
-      mixedPOsSorted,
-      coilPoPurchasesPage,
-      stonePoPurchasesPage,
-      accessoryPoPurchasesPage,
-      mixedPoPurchasesPage,
+      poKindFilter,
+      purchasesKindCounts,
+      purchasesPage,
+      previewPo,
       poTransportMissingLinkIds,
       poTransportCatchUpRows,
       orphanHaulageRows,
@@ -1282,6 +1265,7 @@ const Procurement = () => {
   return (
     <ProcurementPageContext.Provider value={pageContextValue}>
     <PageShell blurred={isAnyModalOpen}>
+      <WorkspaceDeskSyncBanner loading={domainLoading && !domainReady} label="procurement register" />
       <PageHeader
         title="Procurement"
         tabs={<PageTabs tabs={procurementTabs} value={activeTab} onChange={setActiveTab} />}
@@ -1291,6 +1275,7 @@ const Procurement = () => {
           activeTab === 'conversion' ||
           newButtonLabel ? (
             <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2">
+              {activeTab === 'conversion' ? <WorkbookDeskLinks /> : null}
               <AiAskButton
                 mode="procurement"
                 prompt={
@@ -1300,6 +1285,8 @@ const Procurement = () => {
                       ? 'Summarize open supplier payables, what is overdue, and what should be paid next.'
                       : activeTab === 'suppliers'
                         ? 'Summarize supplier records, transport agents, and where procurement may need action.'
+                      : activeTab === 'conversion'
+                        ? 'Summarize this pricing workbook: draft floors, unsaved changes, and what to publish next.'
                         : 'Explain the current conversion and material planning issues.'
                 }
                 pageContext={{
@@ -1504,7 +1491,7 @@ const Procurement = () => {
             showToast(`${poID} updated. Buy cost feeds workbook Purchase avg / ₦/kg — review floors if cost moved.`, {
               action: {
                 label: 'Review workbook pricing',
-                onClick: () => navigate('/procurement/pricing'),
+                onClick: () => navigate('/procurement', { state: { focusTab: 'conversion' } }),
               },
             });
             return true;
@@ -1517,7 +1504,7 @@ const Procurement = () => {
           showToast(`${res.poID} created — approve, then assign transport.`, {
             action: {
               label: 'Review workbook pricing',
-              onClick: () => navigate('/procurement/pricing'),
+              onClick: () => navigate('/procurement', { state: { focusTab: 'conversion' } }),
             },
           });
           return true;
@@ -1566,7 +1553,8 @@ const Procurement = () => {
             showToast(`${poID} updated. Review stone floors in the pricing workbook if buy cost moved.`, {
               action: {
                 label: 'Review workbook pricing',
-                onClick: () => navigate('/procurement/pricing?material=stone-coated'),
+                onClick: () =>
+                  navigate('/procurement?material=stone-coated', { state: { focusTab: 'conversion' } }),
               },
             });
             return true;
@@ -1579,7 +1567,8 @@ const Procurement = () => {
           showToast(`${res.poID} created — approve, then assign transport.`, {
             action: {
               label: 'Review workbook pricing',
-              onClick: () => navigate('/procurement/pricing?material=stone-coated'),
+              onClick: () =>
+                navigate('/procurement?material=stone-coated', { state: { focusTab: 'conversion' } }),
             },
           });
           return true;
@@ -1627,7 +1616,8 @@ const Procurement = () => {
             showToast(`${poID} updated.`, {
               action: {
                 label: 'Review accessory defaults',
-                onClick: () => navigate('/procurement/pricing?material=accessories'),
+                onClick: () =>
+                  navigate('/procurement?material=accessories', { state: { focusTab: 'conversion' } }),
               },
             });
             return true;
@@ -1640,7 +1630,8 @@ const Procurement = () => {
           showToast(`${res.poID} created — approve, then assign transport.`, {
             action: {
               label: 'Review accessory defaults',
-              onClick: () => navigate('/procurement/pricing?material=accessories'),
+              onClick: () =>
+                navigate('/procurement?material=accessories', { state: { focusTab: 'conversion' } }),
             },
           });
           return true;
@@ -1652,7 +1643,7 @@ const Procurement = () => {
         onClose={() => setShowTransportModal(false)}
         title="Link transport"
         description="Assign transporter and transport fee; Finance (cashier) records payment and account elsewhere."
-      >
+        showCloseButton={false}>
         <form
           className="z-modal-panel w-full max-w-[min(100%,28rem)] max-h-[min(92vh,760px)] flex flex-col rounded-2xl border border-slate-200/90 bg-white shadow-[0_24px_60px_-28px_rgba(15,23,42,0.35)] overflow-hidden mx-auto"
           onSubmit={async (e) => {
@@ -1848,7 +1839,7 @@ const Procurement = () => {
       <ModalFrame
         isOpen={showApPayModal}
         onClose={resetApPaymentModal}
-      >
+        showCloseButton={false}>
         <div className="z-modal-panel max-w-lg w-full max-h-[min(92vh,820px)] flex flex-col p-0 overflow-hidden">
           <div className="shrink-0 flex justify-between items-center px-6 pt-6 pb-4 border-b border-slate-200">
             <h3 className="text-xl font-bold text-zarewa-teal flex items-center gap-2">
@@ -1994,7 +1985,7 @@ const Procurement = () => {
           setSupplierEditApprovalId('');
           setSupplierPendingFiles([]);
         }}
-      >
+        showCloseButton={false}>
         <div className="z-modal-panel max-w-3xl w-full max-h-[min(92vh,820px)] flex flex-col p-0">
           <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 shrink-0">
             <div>
@@ -2278,6 +2269,7 @@ const Procurement = () => {
                         type="button"
                         className="p-1 text-red-500 hover:bg-red-50 rounded"
                         title="Remove from record"
+                        aria-label="Remove agreement from record"
                         onClick={() =>
                           setSupplierForm((f) => ({
                             ...f,
@@ -2285,7 +2277,7 @@ const Procurement = () => {
                           }))
                         }
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={14} aria-hidden />
                       </button>
                     </div>
                   </div>
@@ -2401,7 +2393,7 @@ const Procurement = () => {
           setEditingAgentId(null);
           setAgentEditApprovalId('');
         }}
-      >
+        showCloseButton={false}>
         <div className="z-modal-panel max-w-lg max-h-[min(92vh,720px)] overflow-y-auto custom-scrollbar p-8">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-zarewa-teal">

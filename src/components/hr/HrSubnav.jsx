@@ -3,17 +3,17 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { hrNavItemIsActive } from '../../lib/hrMainNav';
 
 const primaryClass = (isActive) =>
-  `relative shrink-0 whitespace-nowrap px-2.5 py-2 text-[13px] font-semibold no-underline transition-colors ${
+  `relative shrink-0 whitespace-nowrap px-2.5 py-2 text-[13px] font-medium no-underline transition-colors ${
     isActive
-      ? 'text-zarewa-teal after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-zarewa-teal'
-      : 'text-slate-500 hover:text-zarewa-teal'
+      ? 'text-slate-900 after:absolute after:inset-x-2 after:-bottom-px after:h-px after:bg-slate-800'
+      : 'text-slate-500 hover:text-slate-800'
   }`;
 
 const secondaryClass = (isActive) =>
-  `relative shrink-0 whitespace-nowrap px-2 py-1.5 text-[12px] font-semibold no-underline transition-colors ${
+  `relative shrink-0 whitespace-nowrap px-2 py-1.5 text-[12px] font-medium no-underline transition-colors ${
     isActive
-      ? 'text-zarewa-teal after:absolute after:inset-x-1.5 after:-bottom-px after:h-0.5 after:rounded-full after:bg-zarewa-teal'
-      : 'text-slate-500 hover:text-zarewa-teal'
+      ? 'text-slate-900 after:absolute after:inset-x-1.5 after:-bottom-px after:h-px after:bg-slate-800'
+      : 'text-slate-500 hover:text-slate-800'
   }`;
 
 function NavItems({ items, ariaLabel, linkClass }) {
@@ -46,7 +46,7 @@ export function HrSubnav({ items, secondaryItems = [], sticky = false }) {
       secondaryItems.some((item) => hrNavItemIsActive(item, location.pathname)));
 
   const navCls = sticky
-    ? 'sticky top-[var(--app-header-offset,0px)] z-20 mb-0 bg-[#f8fafc]/95 backdrop-blur-sm py-2 -mx-1 px-1'
+    ? 'sticky top-[var(--app-header-offset,0px)] z-20 mb-0 bg-[#f4f4f2]/95 py-2 -mx-1 px-1'
     : '';
 
   return (

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PrintModalPortal } from '../layout/PrintModalPortal';
-import { ArrowLeft, Plus, Printer, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { ModalFrame, PageHeader, PageShell } from '../layout';
+import { MaterialPricingWorkbookChrome, WorkbookDeskLinks } from './MaterialPricingWorkbookChrome.jsx';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { useUnsavedWorkRegistry, UNSAVED_LEAVE_MESSAGE } from '../../context/UnsavedWorkContext';
@@ -17,15 +18,6 @@ import {
   MaterialWorkbookCustomerPrintView,
   MaterialWorkbookOfficialPrintView,
 } from './MaterialPricingWorkbookPrintViews.jsx';
-
-const MATERIAL_OPTIONS = [
-  { key: 'alu', label: 'Aluminium' },
-  { key: 'aluzinc', label: 'Aluzinc (PPGI)' },
-  { key: 'stone-coated', label: 'Stone-coated' },
-  { key: 'stone-flatsheet', label: 'Stone flatsheet' },
-  { key: 'ridge-flashing', label: 'Ridge / flashing' },
-  { key: 'accessories', label: 'Accessories' },
-];
 
 const WORKBOOK_MATERIAL_KEYS = new Set(['alu', 'aluzinc', 'stone-coated']);
 const RIDGE_GIRTH_COLUMNS_MM = [150, 300, 400, 600];
@@ -282,17 +274,20 @@ function mergeDraftIntoSheet(sheet, workbookLines) {
 
 /**
  * Coil material pricing workbook: conversions, suggested ₦/m, minimum floor, change log.
- * Works as a full page (`mode="page"`) or modal (`mode="modal"`).
- * @param {{ mode?: 'modal' | 'page'; open?: boolean; onClose?: () => void; initialMaterialKey?: string }} props
+ * Works as a full page (`mode="page"`), Procurement tab (`mode="embed"`), or modal (`mode="modal"`).
+ * @param {{ mode?: 'modal' | 'page' | 'embed'; open?: boolean; onClose?: () => void; initialMaterialKey?: string; extraMoreItems?: Array<{ id: string; label: string; onClick?: () => void; disabled?: boolean; title?: string; hidden?: boolean }> }} props
  */
 export function MaterialPricingWorkbook({
   mode = 'modal',
   open = true,
   onClose,
   initialMaterialKey = 'alu',
+  extraMoreItems = [],
 }) {
   const isPage = mode === 'page';
-  const isActive = isPage || Boolean(open);
+  const isEmbed = mode === 'embed';
+  const isDesk = isPage || isEmbed;
+  const isActive = isDesk || Boolean(open);
   const navigate = useNavigate();
   const ws = useWorkspace();
   const { show: showToast } = useToast();
@@ -1332,7 +1327,7 @@ export function MaterialPricingWorkbook({
       onClose={() => !publishing && setPublishPreviewOpen(false)}
       title="Publish to price list"
       description="Rows marked Publish this gauge will write Floor + Commission as live List ₦/m."
-      layer={isPage ? 'default' : 'nested'}
+      layer={isDesk ? 'default' : 'nested'}
       showCloseButton={!publishing}
     >
       <div className="z-modal-panel w-full max-w-2xl p-4 sm:p-5 space-y-3">
@@ -1448,202 +1443,101 @@ export function MaterialPricingWorkbook({
     </ModalFrame>
   );
 
+  /* Menu onClick handlers run after render; compiler flags loadSheet (AbortController ref). */
+  /* eslint-disable react-hooks/refs */
+  const workbookMoreItems = [];
+  if (canPricingManage) {
+    workbookMoreItems.push({
+      id: 'print-official',
+      label: printLoading ? 'Preparing print…' : 'Internal print',
+      title: 'Internal economics print — Pricing Manager only',
+      disabled: busy || !sheet || printLoading,
+      onClick: () => void loadPrintPack('official'),
+    });
+  }
+  workbookMoreItems.push({
+    id: 'print-customer',
+    label: printLoading ? 'Preparing print…' : 'Customer price list',
+    disabled: busy || !sheet || printLoading,
+    onClick: () => void loadPrintPack('customer'),
+  });
+  workbookMoreItems.push({
+    id: 'refresh',
+    label: 'Refresh',
+    disabled: busy,
+    onClick: async () => {
+      if (isDirty) {
+        const ok = await appConfirm({
+          message: 'You have unsaved draft changes. Refresh and discard them?',
+          variant: 'danger',
+          confirmLabel: 'Discard and refresh',
+        });
+        if (!ok) return;
+      }
+      void loadSheet();
+    },
+  });
+  if (Array.isArray(extraMoreItems)) {
+    for (const item of extraMoreItems) {
+      if (item) workbookMoreItems.push(item);
+    }
+  }
+  /* eslint-enable react-hooks/refs */
+
   const workbookPanel = (
       <div
         className={
-          isPage
-            ? 'flex flex-col rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden min-h-[min(70vh,720px)]'
-            : 'z-modal-panel max-w-[min(96vw,1100px)] max-h-[min(90vh,820px)] flex flex-col p-0 overflow-hidden'
+          isEmbed
+            ? 'flex flex-col min-h-[min(70vh,720px)] min-w-0 overflow-hidden'
+            : isPage
+              ? 'flex flex-col rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden min-h-[min(70vh,720px)]'
+              : 'z-modal-panel max-w-[min(96vw,1100px)] max-h-[min(90vh,820px)] flex flex-col p-0 overflow-hidden'
         }
       >
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
-          <div className="min-w-0">
-            <h2 className="text-base font-black text-zarewa-teal">Material pricing workbook</h2>
-            <p className="text-ui-xs text-slate-600 mt-1 max-w-xl leading-relaxed">
-              Build draft floors from conversion and cost, then <strong className="text-slate-800">Publish</strong> to
-              update the selling price list. Save only stores drafts — it does not change quotations until you publish.
-            </p>
-            <p className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-black uppercase tracking-wide">
-              <span className={`rounded-md px-2 py-1 ${isDirty ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-500'}`}>
-                1. Draft{isDirty ? ' · unsaved' : ''}
-              </span>
-              <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-500">2. Save</span>
-              <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-500">3. Publish</span>
-              <span className="rounded-md bg-teal-50 px-2 py-1 text-zarewa-teal">4. Live list → quotes</span>
-            </p>
-            <nav
-              className="mt-2 flex flex-wrap items-center gap-2 text-ui-xs font-semibold"
-              aria-label="Pricing desk"
-            >
-              <span className="rounded-md bg-zarewa-teal px-2 py-1 text-white">Workbook</span>
-              <Link
-                to="/price-list"
-                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-600 hover:border-zarewa-teal hover:text-zarewa-teal"
-              >
-                Published list
-              </Link>
-              <Link
-                to="/pricing-policy"
-                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-600 hover:border-zarewa-teal hover:text-zarewa-teal"
-              >
-                Policy
-              </Link>
-              <Link
-                to="/operations/material-exceptions"
-                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-slate-600 hover:border-zarewa-teal hover:text-zarewa-teal"
-              >
-                Exceptions
-              </Link>
-            </nav>
-            {branchName ? (
-              <p className="mt-2 text-ui-xs font-semibold text-zarewa-teal bg-teal-50/80 border border-teal-100 rounded-lg px-2.5 py-1.5 inline-block">
-                Editing prices for {branchName}
-              </p>
-            ) : null}
-            <details className="mt-2 max-w-xl text-ui-xs text-slate-600">
-              <summary className="cursor-pointer font-semibold text-slate-700 hover:text-zarewa-teal">
-                How pricing works
-              </summary>
-              <ul className="mt-2 space-y-1.5 list-disc pl-4 leading-relaxed">
-                <li>
-                  <strong>Density</strong> — catalog/theory kg/m (read-only).
-                </li>
-                <li>
-                  <strong>Purchase avg</strong> — supplier purchase samples (≈ last {lookbackDays}d coil GRNs).
-                </li>
-                <li>
-                  <strong>Production</strong> — production actual conversion (≈ last {lookbackDays}d jobs).
-                </li>
-                <li>
-                  <strong>Kg used</strong> — average of Density / Purchase / Production, or your override (2 dp).
-                </li>
-                <li>
-                  <strong>Floor</strong> — minimum ₦/m (MD gate); <strong>List</strong> = published round(Floor + Commission) — customer price.
-                </li>
-                <li>
-                  Confidence: <strong>None</strong> / <strong>Low</strong> / <strong>Medium</strong> / <strong>High</strong>{' '}
-                  from Purchase/Production sample depth (and Density). Prefer Medium+ before publishing.
-                </li>
-              </ul>
-            </details>
-          </div>
-          {!isPage ? (
-            <button
-              type="button"
-              onClick={() => void requestClose()}
-              className="rounded-lg p-2 text-slate-500 hover:bg-white hover:text-slate-800 shrink-0"
-              aria-label="Close"
-            >
-              <X size={20} />
-            </button>
-          ) : null}
-        </div>
-
-        <div className="flex flex-wrap items-end gap-3 px-4 py-3 sm:px-5 border-b border-slate-100 bg-white">
-          <div className="min-w-[200px]">
-            <span className="text-ui-xs font-bold uppercase text-slate-500 block mb-1">Material</span>
-            <div
-              className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50/90 p-1"
-              role="group"
-              aria-label="Workbook material"
-            >
-              {MATERIAL_OPTIONS.map((m) => (
-                <button
-                  key={m.key}
-                  type="button"
-                  aria-pressed={materialKey === m.key}
-                  aria-busy={busy && materialKey === m.key}
-                  onClick={() => void requestMaterialKey(m.key)}
-                  className={`rounded-md px-2.5 py-1.5 text-ui-xs font-black uppercase tracking-wide transition-colors ${
-                    materialKey === m.key
-                      ? 'bg-zarewa-teal text-white shadow-sm'
-                      : 'bg-white text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <label className="text-ui-xs font-bold uppercase text-slate-500 block min-w-[180px]">
-            Branch
-            <select
-              className="mt-1 w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-sm font-semibold text-slate-800"
-              value={branchId}
-              onChange={(e) => void requestBranchId(e.target.value)}
-            >
-              {branches.length === 0 ? <option value="">No branches</option> : null}
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name || b.code || b.id}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!isReferenceTab ? (
-            <label
-              className="text-ui-xs font-bold uppercase text-slate-500 block min-w-[160px]"
-              title={`Suggested from weighted average unit cost on coil GRNs (last ${lookbackDays} days, this branch). You may override.`}
-            >
-              ₦/kg (material)
-              <input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                aria-label="Material cost per kilogram, applied to all gauges"
-                placeholder={
-                  materialCostPerKgMixed
-                    ? 'Mixed — set to align'
-                    : recCostLabel != null && Number(recCostLabel) > 0 && !sheet?.isStoneCoatedWorkbook
-                      ? `Avg purchase ~${recCostLabel} (${lookbackDays}d)`
-                      : sheet?.isStoneCoatedWorkbook
-                        ? 'N/A stone'
-                        : ''
-                }
-                disabled={Boolean(sheet?.isStoneCoatedWorkbook)}
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-sm font-semibold text-slate-800 font-mono tabular-nums disabled:opacity-50"
-                value={materialCostPerKgFieldValue}
-                onChange={(e) => setCostPerKgAllLines(e.target.value)}
-              />
-            </label>
-          ) : null}
+        <MaterialPricingWorkbookChrome
+          isPage={isDesk}
+          onClose={!isDesk ? () => void requestClose() : undefined}
+          materialKey={materialKey}
+          onMaterialKey={(key) => void requestMaterialKey(key)}
+          busy={busy}
+          branches={branches}
+          branchId={branchId}
+          onBranchId={(id) => void requestBranchId(id)}
+          isReferenceTab={isReferenceTab}
+          isStoneCoated={Boolean(sheet?.isStoneCoatedWorkbook)}
+          lookbackDays={lookbackDays}
+          recCostLabel={recCostLabel}
+          costKgValue={materialCostPerKgFieldValue}
+          costKgMixed={materialCostPerKgMixed}
+          onCostKgChange={setCostPerKgAllLines}
+          syncAllChecked={syncListAllChecked}
+          onSyncAllChange={setSyncListForAll}
+          moreItems={workbookMoreItems}
+        >
           {!isReferenceTab ? (
             <>
-              <label
-                className="text-ui-xs font-bold uppercase text-slate-500 block min-w-[150px]"
-                title="Marks rows to include when you Publish to price list"
+              <button
+                type="button"
+                disabled={busy || !sheet}
+                onClick={addWorkbookLine}
+                className="inline-flex items-center gap-1 rounded-md border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal disabled:opacity-50"
               >
-                Publish gauges (all)
-                <span className="mt-1 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={syncListAllChecked}
-                    onChange={(e) => setSyncListForAll(e.target.checked)}
-                    aria-label="Mark all workbook rows to publish to price list"
-                  />
-                  Apply to all rows
-                </span>
-              </label>
-              <div className="flex flex-col gap-1">
-                <button
-                  type="button"
-                  disabled={busy || savingAll || !sheet}
-                  onClick={() => void persistAllRows()}
-                  className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
-                >
-                  {savingAll ? 'Saving…' : 'Save drafts'}
-                </button>
-                {isDirty ? (
-                  <span className="text-ui-xs font-semibold text-amber-700 tabular-nums">
-                    {dirtyCount} unsaved change{dirtyCount === 1 ? '' : 's'} — save before publish
-                  </span>
-                ) : null}
-              </div>
+                <Plus size={14} className="shrink-0" aria-hidden />
+                Add line
+              </button>
+              <button
+                type="button"
+                disabled={busy || savingAll || !sheet}
+                onClick={() => void persistAllRows()}
+                className="rounded-md bg-zarewa-teal px-3 py-2 text-ui-xs font-semibold uppercase tracking-wider text-white disabled:opacity-50"
+              >
+                {savingAll ? 'Saving…' : 'Save drafts'}
+              </button>
               <button
                 type="button"
                 disabled={busy || savingAll || publishing || publishPreviewLoading || !sheet || !canPricingManage || isDirty}
                 onClick={() => void openPublishPreview()}
-                className="rounded-lg border border-zarewa-teal/40 bg-teal-50 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
+                className="rounded-md border border-zarewa-teal/40 bg-teal-50 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal disabled:opacity-50"
                 title={
                   !canPricingManage
                     ? 'Publishing requires Pricing Manager'
@@ -1652,7 +1546,7 @@ export function MaterialPricingWorkbook({
                       : 'Push rows marked Publish this gauge to the live price list'
                 }
               >
-                {publishPreviewLoading ? 'Preparing…' : 'Publish to price list'}
+                {publishPreviewLoading ? 'Preparing…' : 'Publish'}
               </button>
             </>
           ) : materialKey === 'ridge-flashing' ? (
@@ -1661,25 +1555,25 @@ export function MaterialPricingWorkbook({
                 type="button"
                 disabled={busy || !sheet || !canPolicyManage}
                 onClick={addRidgePolicyRow}
-                className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1"
+                className="inline-flex items-center gap-1 rounded-md border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal disabled:opacity-50"
               >
                 <Plus size={14} className="shrink-0" aria-hidden />
-                Add add-on rate
+                Add add-on
               </button>
               <button
                 type="button"
                 disabled={busy || !sheet}
                 onClick={addRidgeRow}
-                className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1"
+                className="inline-flex items-center gap-1 rounded-md border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal disabled:opacity-50"
               >
                 <Plus size={14} className="shrink-0" aria-hidden />
-                Add ridge row
+                Add ridge
               </button>
               <button
                 type="button"
                 disabled={busy || savingRidges || !sheet || !canPolicyManage}
                 onClick={() => void saveRidgeRows()}
-                className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
+                className="rounded-md bg-zarewa-teal px-3 py-2 text-ui-xs font-semibold uppercase tracking-wider text-white disabled:opacity-50"
               >
                 {savingRidges ? 'Saving…' : 'Save add-ons'}
               </button>
@@ -1690,7 +1584,7 @@ export function MaterialPricingWorkbook({
                 type="button"
                 disabled={busy || savingStoneFlatsheets || !sheet || !canSetupManage}
                 onClick={addStoneFlatsheetRow}
-                className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1"
+                className="inline-flex items-center gap-1 rounded-md border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal disabled:opacity-50"
               >
                 <Plus size={14} className="shrink-0" aria-hidden />
                 Add length
@@ -1699,9 +1593,9 @@ export function MaterialPricingWorkbook({
                 type="button"
                 disabled={busy || savingStoneFlatsheets || !sheet || !canSetupManage}
                 onClick={() => void saveStoneFlatsheets()}
-                className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
+                className="rounded-md bg-zarewa-teal px-3 py-2 text-ui-xs font-semibold uppercase tracking-wider text-white disabled:opacity-50"
               >
-                {savingStoneFlatsheets ? 'Saving…' : 'Save stone flatsheet'}
+                {savingStoneFlatsheets ? 'Saving…' : 'Save'}
               </button>
             </>
           ) : (
@@ -1710,7 +1604,7 @@ export function MaterialPricingWorkbook({
                 type="button"
                 disabled={busy || savingAccessories || !sheet || !canSetupManage}
                 onClick={addAccessoryRow}
-                className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1"
+                className="inline-flex items-center gap-1 rounded-md border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-semibold uppercase tracking-wider text-zarewa-teal disabled:opacity-50"
               >
                 <Plus size={14} className="shrink-0" aria-hidden />
                 Add accessory
@@ -1719,62 +1613,13 @@ export function MaterialPricingWorkbook({
                 type="button"
                 disabled={busy || savingAccessories || !sheet || !canSetupManage}
                 onClick={() => void saveAccessories()}
-                className="rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-black uppercase text-white disabled:opacity-50"
+                className="rounded-md bg-zarewa-teal px-3 py-2 text-ui-xs font-semibold uppercase tracking-wider text-white disabled:opacity-50"
               >
-                {savingAccessories ? 'Saving…' : 'Save accessories'}
+                {savingAccessories ? 'Saving…' : 'Save'}
               </button>
             </>
           )}
-          {canPricingManage ? (
-            <button
-              type="button"
-              disabled={busy || !sheet || printLoading}
-              onClick={() => void loadPrintPack('official')}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1.5"
-              title="Internal economics print — Pricing Manager only"
-            >
-              <Printer size={14} className="shrink-0" aria-hidden />
-              {printLoading ? 'Preparing print…' : 'Internal (costs — confidential)'}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            disabled={busy || !sheet || printLoading}
-            onClick={() => void loadPrintPack('customer')}
-            className="rounded-lg border border-slate-200 bg-zarewa-teal/10 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
-          >
-            {printLoading ? 'Preparing print…' : 'Customer price list'}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={async () => {
-              if (isDirty) {
-                const ok = await appConfirm({
-                  message: 'You have unsaved draft changes. Refresh and discard them?',
-                  variant: 'danger',
-                  confirmLabel: 'Discard and refresh',
-                });
-                if (!ok) return;
-              }
-              void loadSheet();
-            }}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50"
-          >
-            Refresh
-          </button>
-          {!isReferenceTab ? (
-            <button
-              type="button"
-              disabled={busy || !sheet}
-              onClick={addWorkbookLine}
-              className="rounded-lg border border-dashed border-zarewa-teal/40 bg-teal-50/80 px-3 py-2 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-50 inline-flex items-center gap-1"
-            >
-              <Plus size={14} className="shrink-0" aria-hidden />
-              Add line
-            </button>
-          ) : null}
-        </div>
+        </MaterialPricingWorkbookChrome>
 
         {isDirty && !isReferenceTab ? (
           <div className="sticky top-0 z-[2] flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 sm:px-5">
@@ -1794,7 +1639,7 @@ export function MaterialPricingWorkbook({
           </div>
         ) : null}
 
-        <div className="flex-1 min-h-0 overflow-auto px-2 sm:px-4 py-3">
+        <div id="workbook-material-panel" className="flex-1 min-h-0 overflow-auto px-2 sm:px-4 py-3">
           {materialKey === 'stone-coated' && !isReferenceTab ? (
             <p className="mb-3 text-ui-xs text-slate-600 leading-relaxed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               Stone-coated pricing uses <strong className="text-slate-800">minimum ₦/m (Floor)</strong> and commission
@@ -2854,6 +2699,26 @@ export function MaterialPricingWorkbook({
       </div>
   );
 
+  if (isEmbed) {
+    if (!canAccessWorkbook) {
+      return (
+        <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 p-5 sm:p-6 max-w-xl space-y-2 m-4">
+          <p className="text-sm text-amber-950 leading-relaxed">
+            This workbook is locked for your role. Ask a <strong>Pricing Manager</strong> (or an MD price-exception
+            approver) if you need to edit floors or publish selling prices.
+          </p>
+        </div>
+      );
+    }
+    return (
+      <>
+        {workbookPanel}
+        {publishPreviewModal}
+        {printPortal}
+      </>
+    );
+  }
+
   if (isPage) {
     if (!canAccessWorkbook) {
       return (
@@ -2890,16 +2755,19 @@ export function MaterialPricingWorkbook({
         <PageHeader
           eyebrow="Procurement"
           title="Material pricing workbook"
-          subtitle="Build floors from Std / Ref / Hist, save drafts, then publish to the price list."
+          subtitle="Save keeps drafts. Publish updates the selling list."
           toolbar={
-            <button
-              type="button"
-              onClick={() => void requestBackToProcurement()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <ArrowLeft size={14} aria-hidden />
-              Back to Pricing
-            </button>
+            <>
+              <WorkbookDeskLinks />
+              <button
+                type="button"
+                onClick={() => void requestBackToProcurement()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <ArrowLeft size={14} aria-hidden />
+                Back to Pricing
+              </button>
+            </>
           }
         />
         {workbookPanel}
@@ -2911,7 +2779,11 @@ export function MaterialPricingWorkbook({
 
   return (
     <>
-      <ModalFrame isOpen={open} onClose={() => void requestClose()} modal={!printPreview && !publishPreviewOpen}>
+      <ModalFrame
+        isOpen={open}
+        onClose={() => void requestClose()}
+        modal={!printPreview && !publishPreviewOpen}
+        showCloseButton={false}>
         {workbookPanel}
       </ModalFrame>
       {publishPreviewModal}

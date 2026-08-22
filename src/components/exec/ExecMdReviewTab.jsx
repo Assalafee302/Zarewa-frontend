@@ -214,7 +214,7 @@ export function ExecMdReviewTab({
             onClick={onOpenDecide}
             className="rounded-lg border border-zarewa-teal/20 bg-zarewa-teal/5 px-3 py-1.5 text-ui-xs font-bold uppercase text-zarewa-teal hover:bg-zarewa-teal/10"
           >
-            Open Decide queue
+            Open approvals
           </button>
         ) : null}
         {onOpenCustomers ? (

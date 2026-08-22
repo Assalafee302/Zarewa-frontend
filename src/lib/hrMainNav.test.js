@@ -12,7 +12,7 @@ describe('buildHrMainNav', () => {
     expect(secondaryNavItems.some((i) => i.to === '/hr/analytics')).toBe(true);
     expect(secondaryNavItems.some((i) => i.to === '/executive-hr')).toBe(true);
     expect(hrNavItemIsActive(navItems.find((i) => i.label === 'People'), '/hr/talent')).toBe(true);
-    expect(hrNavItemIsActive(navItems.find((i) => i.label === 'Records'), '/executive-hr/family')).toBe(true);
+    expect(hrNavItemIsActive(navItems.find((i) => i.label === 'Records'), '/executive-hr/compensation')).toBe(true);
   });
 
   it('shows Time for gmhr without HR review permission', () => {

@@ -6,6 +6,7 @@ import {
   buildPaymentRequestBodyFromForm,
   createExpenseRequestLineItem,
 } from '../../lib/expenseRequestFormCore.js';
+import { OPS_TOOL_BTN } from './operationsDeskUi';
 
 const MACHINE_TAGS = ['', 'Generator', 'Forklift', 'Other'];
 
@@ -13,7 +14,7 @@ const MACHINE_TAGS = ['', 'Generator', 'Forklift', 'Other'];
  * Consumables / supplies request — never writes maintenance_cost_lines.
  * In-stock → jump to inventory; buy → payment request (Fuel & lubricant / Accessories).
  */
-export function RequestSuppliesPanel({ branchId = '', onGoInventory }) {
+export function RequestSuppliesPanel({ branchId = '', onGoInventory, disabled = false }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState('buy'); // stock | buy
   const [category, setCategory] = useState('');
@@ -82,6 +83,8 @@ export function RequestSuppliesPanel({ branchId = '', onGoInventory }) {
     <>
       <button
         type="button"
+        disabled={disabled}
+        title={disabled ? 'Connect to the live workspace to request supplies' : undefined}
         onClick={() => {
           setOpen(true);
           setError('');
@@ -90,15 +93,15 @@ export function RequestSuppliesPanel({ branchId = '', onGoInventory }) {
           setCategory('');
           setMachineTag('');
         }}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+        className={OPS_TOOL_BTN}
       >
-        <Package size={14} /> Request supplies
+        <Package size={14} aria-hidden /> Request supplies
       </button>
 
       <ModalFrame isOpen={open} onClose={() => setOpen(false)} title="Request supplies" surface="plain">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
           <div className="border-b border-slate-100 px-4 py-3">
-            <p className="text-sm font-black text-zarewa-teal">Request supplies</p>
+            <p className="text-sm font-semibold tracking-tight text-[var(--z-text)]">Request supplies</p>
             <p className="text-ui-xs text-slate-500">
               Separate from plant faults — never counts toward machine lifetime maintenance.
             </p>

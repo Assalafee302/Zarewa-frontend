@@ -1,0 +1,23 @@
+---
+description: Where new frontend files belong — do not dump onto folder roots
+alwaysApply: true
+---
+
+# Frontend file placement
+
+Put new files in a domain folder. Do not add to `src/pages/`, `src/components/`, or `src/lib/` roots.
+
+| Kind | Put it here |
+|------|-------------|
+| Route page | `src/pages/<domain>/` (`sales`, `finance`, `operations`, `hr`, `office`, `workspace`, `system`, …) |
+| UI for a desk | `src/components/<domain>/` |
+| Shell / chrome | `src/components/layout/` |
+| Auth, login, route guards | `src/components/auth/` |
+| Browser-only helpers | `src/lib/<domain>/` or `src/lib/<topic>.js` |
+| Logic shared with the API | `src/shared/` (copy from backend `shared/` via `npm run sync:shared`) |
+
+Do not duplicate backend `shared/lib` into `src/lib`. Extend `scripts/sync-shared-from-backend.mjs` and import from `src/shared/`.
+
+When moving a file, update every import and `vite.config.js` `manualChunks` paths in the same change. Do not leave compatibility stubs unless a public import must stay stable.
+
+Do not move files that already have unrelated uncommitted edits.

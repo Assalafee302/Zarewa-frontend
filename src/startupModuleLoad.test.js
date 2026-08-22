@@ -7,22 +7,22 @@ describe('startup module graph', () => {
   }, 120_000);
 
   it('loads Dashboard router without TDZ', async () => {
-    const mod = await import('./pages/Dashboard.jsx');
+    const mod = await import('./pages/workspace/Dashboard.jsx');
     expect(typeof mod.default).toBe('function');
   });
 
   it('loads WorkspaceShell without TDZ', async () => {
-    const mod = await import('./pages/WorkspaceShell.jsx');
+    const mod = await import('./pages/workspace/WorkspaceShell.jsx');
     expect(typeof mod.default).toBe('function');
   });
 
   it('loads WorkspaceDesk without TDZ', async () => {
-    const mod = await import('./pages/WorkspaceDesk.jsx');
+    const mod = await import('./pages/workspace/WorkspaceDesk.jsx');
     expect(typeof mod.default).toBe('function');
   });
 
   it('loads ExecutiveCommandCentre without TDZ', async () => {
-    const mod = await import('./pages/ExecutiveCommandCentre.jsx');
+    const mod = await import('./pages/exec/ExecutiveCommandCentre.jsx');
     expect(typeof mod.default).toBe('function');
   });
 
@@ -32,12 +32,12 @@ describe('startup module graph', () => {
   });
 
   it('loads LegacyDashboard without TDZ', async () => {
-    const mod = await import('./pages/LegacyDashboard.jsx');
+    const mod = await import('./pages/workspace/LegacyDashboard.jsx');
     expect(typeof mod.default).toBe('function');
   });
 
   it('loads BusinessIntelligence redirect page without TDZ', async () => {
-    const mod = await import('./pages/BusinessIntelligence.jsx');
+    const mod = await import('./pages/exec/BusinessIntelligence.jsx');
     expect(typeof mod.default).toBe('function');
   });
 

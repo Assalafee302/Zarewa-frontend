@@ -36,8 +36,12 @@ import {
 
 const draftQueueKey = (roomId) => `zarewa.workspace.v3.messageDraft.${roomId}`;
 
-const OPEN_POLL_MS = 15000;
-const IDLE_POLL_MS = 60000;
+/** Fallback poll when SSE is down — dock open (active conversation). */
+const OPEN_POLL_MS = 4000;
+/** Fallback poll when SSE is down — dock closed (unread badges only). */
+const IDLE_POLL_MS = 10000;
+/** Safety net while SSE reports connected (covers multi-instance / missed events). */
+const LIVE_BACKUP_POLL_MS = 20000;
 const HEARTBEAT_MS = 30000;
 
 /**
@@ -70,6 +74,7 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
   const activeRoomIdRef = useRef(activeRoomId);
   const roomsRef = useRef(rooms);
   const showToastRef = useRef(showToast);
+  const openRef = useRef(open);
   const messagesReqIdRef = useRef(0);
   const messagesAbortRef = useRef(null);
   const [zarePreview, setZarePreview] = useState(() => previewFromZareMessages([zareIntroMessage()]));
@@ -79,7 +84,8 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
     activeRoomIdRef.current = activeRoomId;
     roomsRef.current = rooms;
     showToastRef.current = showToast;
-  }, [ws, activeRoomId, rooms, showToast]);
+    openRef.current = open;
+  }, [ws, activeRoomId, rooms, showToast, open]);
 
   const roomsWithZare = useMemo(
     () => injectZareChatRoom(rooms, { lastMessage: zarePreview }),
@@ -249,8 +255,12 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
   }, [open, activeRoomId, loadMessages]);
 
   useEffect(() => {
-    if (realtimeStatus !== 'polling') return undefined;
-    const interval = open ? OPEN_POLL_MS : IDLE_POLL_MS;
+    const interval =
+      realtimeStatus === 'connected'
+        ? LIVE_BACKUP_POLL_MS
+        : open
+          ? OPEN_POLL_MS
+          : IDLE_POLL_MS;
     const t = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       void loadRooms({ silent: true });
@@ -273,7 +283,12 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
         status: document.visibilityState === 'hidden' ? 'away' : 'online',
         deskKey: 'chat',
       });
-      if (document.visibilityState === 'visible') void loadRooms({ silent: true });
+      if (document.visibilityState === 'visible') {
+        void loadRooms({ silent: true });
+        if (activeRoomIdRef.current && !isZareChatRoomId(activeRoomIdRef.current)) {
+          void loadMessages(activeRoomIdRef.current, { silent: true });
+        }
+      }
     };
     const t = setInterval(beat, HEARTBEAT_MS);
     beat();
@@ -282,10 +297,12 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
       clearInterval(t);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [open, loadRooms]);
+  }, [open, loadRooms, loadMessages]);
 
+  // Keep SSE for the whole session so unread + open threads update immediately,
+  // not only while the floating dock is expanded.
   useEffect(() => {
-    if (!userId || !open) {
+    if (!userId) {
       setRealtimeStatus('polling');
       return undefined;
     }
@@ -294,17 +311,19 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
       onEvent: (payload) => {
         setRealtimeStatus('connected');
         if (payload?.type === 'message.created') {
-          if (
+          const dockOpen = openRef.current;
+          const roomOpen =
+            dockOpen &&
             payload.roomId &&
             payload.roomId === activeRoomIdRef.current &&
-            !isZareChatRoomId(payload.roomId)
-          ) {
+            !isZareChatRoomId(payload.roomId);
+          if (roomOpen) {
             void loadMessages(activeRoomIdRef.current, { silent: true });
             void markRoomRead(activeRoomIdRef.current);
           }
           void loadRooms({ silent: true });
         }
-        if (payload?.type === 'presence.changed') void loadPresence();
+        if (payload?.type === 'presence.changed' && openRef.current) void loadPresence();
       },
       onError: () => setRealtimeStatus('polling'),
     });
@@ -316,7 +335,7 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
         /* ignore */
       }
     };
-  }, [userId, open, loadMessages, loadPresence, loadRooms]);
+  }, [userId, loadMessages, loadPresence, loadRooms]);
 
   const handleSend = async (payload) => {
     if (!activeRoomId) return false;

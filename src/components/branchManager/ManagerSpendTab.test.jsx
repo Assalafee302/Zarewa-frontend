@@ -1,8 +1,10 @@
 import React from 'react';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ManagerSpendTab } from './ManagerSpendTab.jsx';
+
+vi.mock('./MaintenanceVendorsPanel', () => ({ MaintenanceVendorsPanel: () => null }));
 
 beforeAll(() => {
   class ResizeObserverStub {

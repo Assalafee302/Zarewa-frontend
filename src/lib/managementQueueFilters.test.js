@@ -26,13 +26,16 @@ describe('managementQueueFilters', () => {
     expect(cuttingListInProductionGate(cl, q)).toBe(true);
   });
 
-  it('treats 99.5% paid quotes as settled for collections overdue', () => {
-    const q = {
-      totalNgn: 1_000_000,
-      paidNgn: 995_000,
+  it('treats a ₦1 residual as settled and a 0.5% shortfall as still overdue', () => {
+    const overdue = {
       paymentStatus: 'Unpaid',
       dueDateISO: '2020-01-01',
     };
-    expect(quotationIsOverdueForCollections(q, '2026-06-10')).toBe(false);
+    expect(
+      quotationIsOverdueForCollections({ ...overdue, totalNgn: 1_000_000, paidNgn: 999_999 }, '2026-06-10')
+    ).toBe(false);
+    expect(
+      quotationIsOverdueForCollections({ ...overdue, totalNgn: 1_000_000, paidNgn: 995_000 }, '2026-06-10')
+    ).toBe(true);
   });
 });

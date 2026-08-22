@@ -2,6 +2,10 @@ import { formatNgn } from '../Data/mockData';
 import { refundApprovedAmount, refundOutstandingAmount } from './refundsStore';
 import { registerSettlementOutstandingNgn } from './registerSettlementPay';
 import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
+import {
+  looksLikeMaintenanceWorkOrderRef,
+  maintenanceCostKindLabel,
+} from '../shared/lib/maintenanceCostEnvelope.js';
 
 /** @param {unknown} value @returns {string} */
 export function formatPayoutQueueDate(value) {
@@ -22,12 +26,19 @@ export function refundPayoutMetaLine(r, branchNameById = {}) {
   const branchId = String(r?.branchId || '').trim();
   const requested = formatPayoutQueueDate(r?.requestedAtISO || r?.requested_at_iso);
   const approved = formatPayoutQueueDate(r?.approvalDate || r?.approvedAtISO);
+  const applied = Math.round(Number(r?.creditAppliedNgn) || 0);
+  const dest = String(r?.creditAppliedToQuotationRef || '').trim();
   return [
     r?.quotationRef ? `Quote ${r.quotationRef}` : 'No quote ref',
     requested ? `Requested ${requested}` : null,
     approved ? `Approved ${approved}` : null,
     r?.approvedBy ? `Approved by ${r.approvedBy}` : null,
     `Aprv ${formatNgn(refundApprovedAmount(r))} · Paid ${formatNgn(Number(r?.paidAmountNgn) || 0)}`,
+    applied > 0
+      ? dest
+        ? `Applied ${formatNgn(applied)} to ${dest}`
+        : `Applied ${formatNgn(applied)} to a receipt`
+      : null,
     branchId ? branchNameById[branchId] || branchId : null,
   ]
     .filter(Boolean)
@@ -40,12 +51,18 @@ export function paymentRequestPayoutMetaLine(req, branchNameById = {}) {
   const branchId = String(req?.branchId || '').trim();
   const requested = formatPayoutQueueDate(req?.requestDate);
   const approved = formatPayoutQueueDate(req?.approvedAtISO);
+  const woId = String(req?.maintenanceWorkOrderId || '').trim();
+  const ref = String(req?.requestReference || '').trim();
+  const workOrderTag = woId || (looksLikeMaintenanceWorkOrderRef(ref) ? ref : '');
+  const costKind = String(req?.maintenanceCostKind || '').trim();
   return [
+    workOrderTag ? `Work order ${workOrderTag}` : null,
+    costKind ? maintenanceCostKindLabel(costKind) : null,
     requested ? `Requested ${requested}` : null,
     approved ? `Approved ${approved}` : null,
     req?.expenseID ? `Linked ${req.expenseID}` : null,
     req?.expenseCategory || null,
-    req?.requestReference ? `Ref ${req.requestReference}` : null,
+    !workOrderTag && ref ? `Ref ${ref}` : null,
     branchId ? branchNameById[branchId] || branchId : null,
     paidAmountNgn > 0 ? `Paid ${formatNgn(paidAmountNgn)}` : null,
   ]

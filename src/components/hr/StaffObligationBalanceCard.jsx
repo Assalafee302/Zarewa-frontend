@@ -70,7 +70,7 @@ export function StaffObligationBalanceCard({ obligation }) {
         ) : null}
         <div className={original > 0 && monthlyNgn > 0 ? '' : 'col-span-2'}>
           <dt className="text-slate-500">Outstanding</dt>
-          <dd className="text-lg font-black tabular-nums text-zarewa-teal">{formatNgn(outstandingNgn)}</dd>
+          <dd className="z-stencil text-lg text-slate-900">{formatNgn(outstandingNgn)}</dd>
         </div>
       </dl>
       {quotationRef ? <p className="mt-1 text-xs text-slate-500">Quote {quotationRef}</p> : null}

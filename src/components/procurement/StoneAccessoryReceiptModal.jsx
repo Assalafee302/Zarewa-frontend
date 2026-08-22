@@ -151,7 +151,7 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
       onClose={onClose}
       title="Emergency stone & accessory receipt"
       description="Direct receipt without a purchase order — for corrections only. Prefer a purchase order for normal buying."
-    >
+      showCloseButton={false}>
       <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white shadow-xl overflow-hidden">
         <div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-ui-xs font-semibold text-amber-950 leading-snug">
           Prefer a purchase order in Procurement, then receive in Operations. Use this form only when stock must be

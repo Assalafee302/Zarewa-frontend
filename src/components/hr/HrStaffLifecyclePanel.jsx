@@ -101,12 +101,12 @@ export function HrStaffLifecyclePanel({ userId, staff, isSelf = false, initialLi
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
+          <h4 className="text-xs font-medium text-slate-500">
             {workflow === 'offboarding' ? 'Offboarding' : 'Onboarding'} tasks
           </h4>
           <span
-            className={`text-ui-xs font-bold uppercase ${
-              block.complete ? 'text-emerald-700' : 'text-amber-700'
+            className={`text-ui-xs font-medium ${
+              block.complete ? 'text-emerald-800' : 'text-amber-800'
             }`}
           >
             {block.complete ? 'Complete' : `${block.pendingCount} pending`}
@@ -162,8 +162,8 @@ export function HrStaffLifecyclePanel({ userId, staff, isSelf = false, initialLi
       {showOffboarding ? renderChecklist(lifecycle.offboarding, 'offboarding') : null}
 
       {canManage ? (
-        <form onSubmit={saveSeparation} className="space-y-4 rounded-2xl border border-slate-100 bg-white p-4">
-          <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">Separation / exit</h4>
+        <form onSubmit={saveSeparation} className="space-y-4 rounded-md border border-slate-200 bg-white p-4">
+          <h4 className="text-xs font-medium text-slate-500">Separation / exit</h4>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-xs font-semibold text-slate-600">
               Status

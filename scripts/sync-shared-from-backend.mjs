@@ -1,28 +1,34 @@
 #!/usr/bin/env node
 /**
- * Copy canonical shared expense-category modules from backend → frontend.
+ * Copy canonical shared modules from backend → frontend src/shared/.
  * Run after backend shared/ changes: npm run sync:shared
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SHARED_SYNC_PAIRS } from './shared-sync-pairs.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(__dirname, '..');
-const backendRoot = path.resolve(frontendRoot, '..', 'Zarewa-backend-main');
 
-const PAIRS = [
-  ['shared/workspaceGovernance.js', 'src/shared/workspaceGovernance.js'],
-  ['shared/expenseCategories.js', 'src/shared/expenseCategories.js'],
-  ['shared/expenseCategoryLanes.js', 'src/shared/expenseCategoryLanes.js'],
-  ['shared/expenseCategoryPolicy.js', 'src/shared/expenseCategoryPolicy.js'],
-  ['shared/lib/expenseCategoryGlMap.js', 'src/shared/lib/expenseCategoryGlMap.js'],
-  ['shared/lib/expenseCategorySuggestions.js', 'src/shared/lib/expenseCategorySuggestions.js'],
-  ['shared/lib/ap3CostingClassification.js', 'src/shared/lib/ap3CostingClassification.js'],
-];
+function resolveBackendRoot() {
+  const fromEnv = String(process.env.ZAREWA_BACKEND_ROOT || '').trim();
+  if (fromEnv) return path.resolve(fromEnv);
+  const candidates = [
+    path.resolve(frontendRoot, '..', 'Zarewa-backend-main'),
+    path.resolve(frontendRoot, '..', 'Zarewa-backend'),
+    path.resolve(frontendRoot, '.ci', 'zarewa-backend'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(path.join(candidate, 'shared'))) return candidate;
+  }
+  return candidates[0];
+}
+
+const backendRoot = resolveBackendRoot();
 
 let copied = 0;
-for (const [fromRel, toRel] of PAIRS) {
+for (const [fromRel, toRel] of SHARED_SYNC_PAIRS) {
   const from = path.join(backendRoot, fromRel);
   const to = path.join(frontendRoot, toRel);
   if (!fs.existsSync(from)) {

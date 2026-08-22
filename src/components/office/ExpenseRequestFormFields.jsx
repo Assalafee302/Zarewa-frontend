@@ -33,6 +33,7 @@ import { RecentPayeeSuggestionChips } from './RecentPayeeSuggestionChips.jsx';
  * @param {{ roleKey?: string; permissions?: string[] } | null | undefined} [props.actor]
  * @param {(perm: string) => boolean} [props.hasPermission]
  * @param {boolean} [props.scrollable] sticky footer + scrollable body (modal layouts)
+ * @param {boolean} [props.hideSubmit] omit the built-in submit button when the parent supplies one
  */
 export function ExpenseRequestFormFields({
   form,
@@ -48,6 +49,7 @@ export function ExpenseRequestFormFields({
   actor = null,
   hasPermission = () => false,
   scrollable = false,
+  hideSubmit = false,
 }) {
   const ws = useWorkspace();
   const [dismissedSuggestionKey, setDismissedSuggestionKey] = useState('');
@@ -411,6 +413,7 @@ export function ExpenseRequestFormFields({
         </div>
       ) : null}
       {hintBeforeSubmit ? <p className="text-ui-xs text-slate-500 leading-snug">{hintBeforeSubmit}</p> : null}
+      {hideSubmit ? null : (
       <button
         type="submit"
         disabled={submitting}
@@ -418,6 +421,7 @@ export function ExpenseRequestFormFields({
       >
         {submitting ? 'Submitting…' : submitLabel}
       </button>
+      )}
     </>
   );
 

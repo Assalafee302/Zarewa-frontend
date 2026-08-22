@@ -4,6 +4,7 @@ dist
 dist-ssr
 .build/
 .claude/
+.cursor/skills/
 *.local
 .env
 coverage

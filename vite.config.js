@@ -75,9 +75,9 @@ export default defineConfig({
           if (inSrc(path, '/src/components/hr/HrMainRouteGuard')) return 'app-shell';
           if (inSrc(path, '/src/components/hr/')) return 'hr-ui';
 
-          // Root sales modals (Sales.jsx lazyWithRetry) — keep with refund/management previews.
+          // Sales desk modals (Sales.jsx lazyWithRetry) — keep with refund/management previews.
           if (
-            /[/]src[/]components[/](QuotationModal|ReceiptModal|CuttingListModal|RefundModal|AdvancePaymentModal)[.]jsx/.test(
+            /[/]src[/]components[/]sales[/](QuotationModal|ReceiptModal|CuttingListModal|RefundModal|AdvancePaymentModal|QuotationPrintView|CuttingListReportPrintView|cuttingListReportConstants|QuotationPriceExceptionPanel)/.test(
               path
             )
           ) {
@@ -109,7 +109,8 @@ export default defineConfig({
             inSrc(path, '/src/lib/helpKnowledge') ||
             inSrc(path, '/src/lib/helpOperationalCatalog') ||
             inSrc(path, '/src/lib/helpRecommend') ||
-            inSrc(path, '/src/lib/helpSynthesize')
+            inSrc(path, '/src/lib/helpSynthesize') ||
+            inSrc(path, '/src/shared/lib/helpSynthesize')
           ) {
             return 'help-chat-ui';
           }

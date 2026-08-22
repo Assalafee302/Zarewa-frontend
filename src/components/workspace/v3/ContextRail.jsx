@@ -36,13 +36,14 @@ export default function ContextRail({
   actionsBusy = false,
   fileBusy = false,
   children,
+  className = '',
 }) {
   const railBusy = Boolean(actionsBusy || fileBusy);
   if (!workItem && !room && !children) {
     return (
       <aside
         aria-label="Workspace context"
-        className="hidden w-72 shrink-0 border-l border-slate-200 bg-slate-50/80 p-4 xl:block"
+        className={`hidden w-72 shrink-0 border-l border-slate-200 bg-slate-50/80 p-4 xl:block ${className}`.trim()}
       >
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Context</p>
         <p className="mt-2 text-sm text-slate-600">Select a work item or room to see people, SLA, and linked ERP records.</p>
@@ -55,12 +56,12 @@ export default function ContextRail({
   const tone = workItem ? slaTone(workItem) : 'slate';
 
   return (
-    <aside aria-label="Workspace context" className="flex w-full shrink-0 flex-col border-l border-slate-200 bg-white xl:w-72">
+    <aside aria-label="Workspace context" className={`flex h-full min-h-0 w-full shrink-0 flex-col border-l border-slate-200 bg-white xl:w-72 ${className}`.trim()}>
       <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Context</p>
         {onClose ? (
-          <button type="button" onClick={onClose} className="rounded p-1 text-slate-500 hover:bg-slate-100 xl:hidden" aria-label="Close context">
-            <X size={16} />
+          <button type="button" onClick={onClose} className="rounded p-2 text-slate-500 hover:bg-slate-100 xl:hidden" aria-label="Close context">
+            <X size={16} aria-hidden />
           </button>
         ) : null}
       </div>

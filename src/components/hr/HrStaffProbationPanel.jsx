@@ -47,17 +47,17 @@ export function HrStaffProbationPanel({ staff, canManage, onUpdated }) {
     >
       <div className="space-y-3 text-sm">
         {badge ? (
-          <span className={`inline-flex rounded-full border px-2.5 py-1 text-ui-xs font-bold uppercase ${badge.cls}`}>
+          <span className={`inline-flex rounded-sm border px-2.5 py-1 text-ui-xs font-medium ${badge.cls}`}>
             {badge.label}
           </span>
         ) : null}
         <dl className="grid gap-2 text-xs sm:grid-cols-2">
           <div>
-            <dt className="font-bold uppercase tracking-wide text-slate-400">Probation end</dt>
-            <dd className="mt-0.5 font-medium text-slate-800">{staff.probationEndIso || '—'}</dd>
+            <dt className="font-medium text-slate-500">Probation end</dt>
+            <dd className="z-stencil mt-0.5 text-slate-800">{staff.probationEndIso || '—'}</dd>
           </div>
           <div>
-            <dt className="font-bold uppercase tracking-wide text-slate-400">Status</dt>
+            <dt className="font-medium text-slate-500">Status</dt>
             <dd className="mt-0.5 font-medium text-slate-800">
               {confirmed ? 'Confirmed' : status === 'extended' ? 'Extended' : onProbation ? 'Active' : 'Ended'}
             </dd>

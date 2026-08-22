@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Banknote, Landmark, UserRound, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Banknote, Landmark, LayoutDashboard, UserRound, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { FinanceActionButton } from './FinanceActionButton';
 
 const STORAGE_KEY = 'zarewa.cashierDeskGuide.dismissed';
@@ -7,8 +7,8 @@ const STORAGE_KEY = 'zarewa.cashierDeskGuide.dismissed';
 const STEPS = [
   {
     icon: Landmark,
-    title: 'Check liquidity first',
-    body: 'Total book balance and each till/bank account appear at the top. Know what you have before paying out.',
+    title: 'Check Till now',
+    body: 'Book balance, receipts to confirm, and payouts to post are on the strip at the top. Tap a tile to jump to that queue.',
   },
   {
     icon: Banknote,
@@ -17,23 +17,23 @@ const STEPS = [
   },
   {
     icon: LayoutDashboard,
-    title: 'Post approved payouts',
-    body: 'Refunds, expenses, register withdrawals, and haulage — all from this tab.',
+    title: 'Pay out approved items',
+    body: 'Refunds, expenses, register withdrawals, and haulage — all from the Pay out column.',
   },
   {
     icon: Landmark,
     title: 'Record bank charges',
-    body: 'When the bank takes COT, stamp duty, or a transfer fee, use Record bank charge — date, amount, and which account. It posts immediately from that account.',
+    body: 'When the bank takes COT, stamp duty, or a transfer fee, use Record bank charge in the page header.',
   },
   {
     icon: UserRound,
     title: 'Staff payments stay private',
-    body: 'Loans and HR recoveries sit in a collapsed section at the bottom — expand only when the employee is at your desk.',
+    body: 'Loans and HR recoveries sit in a collapsed section — expand only when the employee is at your desk.',
   },
   {
     icon: Landmark,
     title: 'View account statements',
-    body: 'Tap any till or bank card below to open movements and balances — all on this page.',
+    body: 'Tap any till or bank card to open movements and balances.',
   },
 ];
 
@@ -65,22 +65,22 @@ export function FinanceDeskCashierGuide() {
 
   return (
     <section
-      className="rounded-2xl border border-teal-200/90 bg-gradient-to-br from-teal-50/90 to-white p-5 shadow-sm"
+      className="rounded-md border border-slate-200 bg-white p-4"
       data-testid="cashier-desk-guide"
       aria-label="Cashier desk quick guide"
     >
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-widest text-zarewa-teal">Start here</p>
+          <p className="text-ui-xs font-medium text-slate-500">Start here</p>
           <p className="text-sm font-semibold text-slate-800 mt-0.5">Your daily cashier workflow</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="inline-flex items-center gap-1 text-ui-xs font-bold uppercase tracking-wide text-slate-500 hover:text-teal-800"
+            className="inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-slate-600 hover:text-teal-800"
           >
-            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {expanded ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
             {expanded ? 'Collapse' : 'Expand'}
           </button>
           <button
@@ -100,16 +100,14 @@ export function FinanceDeskCashierGuide() {
             return (
               <li
                 key={step.title}
-                className="flex gap-3 rounded-xl border border-white/80 bg-white/70 px-3 py-3 shadow-sm"
+                className="flex gap-3 rounded-md border border-slate-200 bg-slate-50/80 px-3 py-3"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-zarewa-teal">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-zarewa-teal ring-1 ring-slate-200">
                   <Icon size={16} aria-hidden />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">
-                    Step {idx + 1}
-                  </p>
-                  <p className="text-sm font-bold text-slate-900">{step.title}</p>
+                  <p className="text-ui-xs font-medium text-slate-500">Step {idx + 1}</p>
+                  <p className="text-sm font-semibold text-slate-900">{step.title}</p>
                   <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">{step.body}</p>
                 </div>
               </li>
@@ -120,9 +118,9 @@ export function FinanceDeskCashierGuide() {
       <div className="mt-4 flex flex-wrap gap-2">
         <FinanceActionButton
           variant="link"
-          onClick={() => document.getElementById('desk-accounts')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          onClick={() => document.getElementById('desk-queue-receipts')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         >
-          Jump to accounts
+          Jump to confirm queue
         </FinanceActionButton>
         <FinanceActionButton variant="link" onClick={dismiss}>
           Got it — hide this guide

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
+import { withIdempotencyHeaders } from '../../lib/idempotency';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -33,14 +34,20 @@ export function AccountGlManualJournalCard({ showToast, onPosted, canPost }) {
     ];
     setBusy(true);
     try {
-      const { ok, data } = await apiFetch('/api/gl/journal', {
-        method: 'POST',
-        body: JSON.stringify({
-          entryDateISO: entryDate,
-          memo: memo.trim() || 'Manual journal',
-          lines,
-        }),
-      });
+      const { ok, data } = await apiFetch(
+        '/api/gl/journal',
+        withIdempotencyHeaders(
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              entryDateISO: entryDate,
+              memo: memo.trim() || 'Manual journal',
+              lines,
+            }),
+          },
+          'gl_journal'
+        )
+      );
       if (!ok || !data?.ok) {
         const msg = data?.error || 'Could not post journal.';
         showToast(data?.code ? `${msg} (${data.code})` : msg, { variant: 'error' });

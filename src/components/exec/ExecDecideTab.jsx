@@ -36,7 +36,7 @@ export function ExecDecideTab({
   return (
     <div className="pb-10">
       <ExecWorkTrayPanel
-        title="Decide"
+        title="Approvals"
         subtitle={
           readOnly
             ? 'Summary and read-only items for executive oversight.'

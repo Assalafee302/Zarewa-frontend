@@ -132,13 +132,13 @@ export function DeliveryPodPanel({ branchId = '', showSalesLink = true }) {
   };
 
   return (
-    <section className="flex flex-col rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
-      <header className="shrink-0 border-b border-slate-100 bg-slate-50/90 px-4 py-3">
+    <section className="z-soft-panel overflow-hidden">
+      <header className="shrink-0 border-b border-[var(--z-border)] bg-[var(--z-surface-muted)]/40 px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2">
             <Truck size={16} className="mt-0.5 text-zarewa-teal" aria-hidden />
             <div>
-              <h3 className="text-xs font-black uppercase tracking-widest text-zarewa-teal">
+              <h3 className="text-sm font-semibold tracking-tight text-[var(--z-text)]">
                 Proof of delivery
               </h3>
               <p className="mt-0.5 text-ui-xs font-medium text-slate-500 leading-snug">

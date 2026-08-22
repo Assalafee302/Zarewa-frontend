@@ -9,7 +9,8 @@ describe('manager command center helpers', () => {
     expect(normalizeManagerPageTab('intelligence')).toBe('branch');
     expect(normalizeManagerPageTab('ops')).toBe('branch');
     expect(normalizeManagerPageTab('performance')).toBe('branch');
-    expect(normalizeManagerPageTab('branch')).toBe('branch');
+    expect(normalizeManagerPageTab('associated')).toBe('branch');
+    expect(normalizeManagerPageTab('partners')).toBe('branch');
     expect(normalizeManagerPageTab('approvals')).toBe('approvals');
     expect(normalizeManagerPageTab('pac')).toBe('approvals');
     expect(normalizeManagerPageTab('')).toBe('today');

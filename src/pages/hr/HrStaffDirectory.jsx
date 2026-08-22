@@ -23,6 +23,7 @@ import {
   QUICK_FILTERS,
   resolveBranchLabel,
   SORT_OPTIONS,
+  STAFF_CHIP,
 } from '../../lib/hrStaffDirectoryUi';
 import {
   AppTable,
@@ -65,7 +66,7 @@ function SortableTh({ label, sortId, sortKey, sortDir, onSort, align }) {
     <AppTableTh align={align}>
       <button
         type="button"
-        className={`font-bold uppercase tracking-wide ${active ? 'text-zarewa-teal' : 'text-slate-500 hover:text-slate-800'}`}
+        className={`font-medium ${active ? 'text-slate-900' : 'text-slate-500 hover:text-slate-800'}`}
         onClick={() => onSort(sortId)}
       >
         {label}
@@ -88,22 +89,22 @@ function StaffBadges({ staff }) {
   return (
     <div className="mt-2 flex flex-wrap gap-1">
       {probation ? (
-        <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${probation.cls}`}>
+        <span className={`${STAFF_CHIP} ${probation.cls}`}>
           {probation.label}
         </span>
       ) : null}
       {contract ? (
-        <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${contract.cls}`}>
+        <span className={`${STAFF_CHIP} ${contract.cls}`}>
           {contract.label}
         </span>
       ) : null}
       {doc ? (
-        <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${doc.cls}`}>
+        <span className={`${STAFF_CHIP} ${doc.cls}`}>
           {doc.label}
         </span>
       ) : null}
       {pct < 90 ? (
-        <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${pctBadge.cls}`}>
+        <span className={`${STAFF_CHIP} ${pctBadge.cls}`}>
           Profile {pctBadge.label}
         </span>
       ) : null}
@@ -449,7 +450,7 @@ export default function HrStaffDirectory({
           <button
             type="button"
             onClick={() => setImportNotice(null)}
-            className="mt-2 text-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
+            className="mt-2 text-xs font-medium text-slate-700 hover:underline"
           >
             Dismiss
           </button>
@@ -457,9 +458,9 @@ export default function HrStaffDirectory({
       ) : null}
 
       {isSpecialList ? (
-        <div className="rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-sm text-violet-950">
-          <p className="font-bold">{listTitle}</p>
-          <p className="mt-1 text-xs text-violet-900/80">
+        <div className="rounded-md border border-slate-200 bg-[#f4f4f2] px-4 py-3 text-sm text-slate-800">
+          <p className="font-semibold">{listTitle}</p>
+          <p className="mt-1 text-xs text-slate-600">
             These people are not branch employees — they do not appear in the main employee directory and are excluded from
             daily attendance.
           </p>
@@ -471,7 +472,7 @@ export default function HrStaffDirectory({
           <p>
             Bulk update: {bulkNotice.updated} updated, {bulkNotice.failed} failed.
           </p>
-          <button type="button" className="mt-1 text-xs font-bold uppercase text-zarewa-teal hover:underline" onClick={() => setBulkNotice(null)}>
+          <button type="button" className="mt-1 text-xs font-medium text-slate-700 hover:underline" onClick={() => setBulkNotice(null)}>
             Dismiss
           </button>
         </div>
@@ -493,13 +494,13 @@ export default function HrStaffDirectory({
 
       {showSavedViews && savedViews.length ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold uppercase text-slate-400">Saved views</span>
+          <span className="text-xs font-medium text-slate-500">Saved views</span>
           {savedViews.map((v) => (
             <span key={v.id || v.name} className="inline-flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => applySavedView(v)}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:border-zarewa-teal/30"
+                className="rounded-sm border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:border-slate-300"
               >
                 {v.name}
               </button>
@@ -528,7 +529,7 @@ export default function HrStaffDirectory({
           <button
             type="button"
             onClick={persistCurrentView}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+            className="rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             Save view
           </button>
@@ -582,7 +583,7 @@ export default function HrStaffDirectory({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name, ID, job, department, manager…"
-              className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm shadow-sm focus:border-zarewa-teal focus:outline-none focus:ring-2 focus:ring-zarewa-teal/15"
+              className="w-full rounded-md border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-medium text-slate-900 outline-none focus:border-zarewa-teal/50 focus:ring-2 focus:ring-zarewa-teal/15"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -594,11 +595,11 @@ export default function HrStaffDirectory({
             <button
               type="button"
               onClick={exportRosterCsv}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center justify-center rounded-md border border-slate-200 px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
               Export CSV
             </button>
-            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600">
+            <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700">
               <input type="checkbox" checked={compactTable} onChange={(e) => setCompactTable(e.target.checked)} />
               Compact
             </label>
@@ -611,8 +612,8 @@ export default function HrStaffDirectory({
                   key={m.id}
                   type="button"
                   onClick={() => setViewMode(m.id)}
-                  className={`rounded-lg px-3 py-2 text-ui-xs font-bold uppercase tracking-wide ${
-                    viewMode === m.id ? 'bg-zarewa-teal text-white' : 'text-slate-600 hover:bg-slate-50'
+                  className={`rounded-md px-3 py-2 text-ui-xs font-medium ${
+                    viewMode === m.id ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   {m.label}
@@ -623,7 +624,7 @@ export default function HrStaffDirectory({
               <button
                 type="button"
                 onClick={() => setBulkOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-zarewa-teal px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-teal-50"
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
               >
                 Bulk register
               </button>
@@ -643,7 +644,7 @@ export default function HrStaffDirectory({
 
       <button
         type="button"
-        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 md:hidden"
+        className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 md:hidden"
         onClick={() => setMobileFiltersOpen((v) => !v)}
       >
         <Filter size={14} aria-hidden />
@@ -657,10 +658,10 @@ export default function HrStaffDirectory({
               key={f.id || 'all'}
               type="button"
               onClick={() => setQuickFilter(f.id)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition ${
+              className={`rounded-sm border px-3 py-1.5 text-xs font-medium transition ${
                 quickFilter === f.id
-                  ? 'border-zarewa-teal bg-zarewa-teal text-white'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                  ? 'border-slate-800 bg-slate-800 text-white'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
               }`}
             >
               {f.label}
@@ -752,7 +753,7 @@ export default function HrStaffDirectory({
           <button
             type="button"
             onClick={clearFilters}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+            className="rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             Clear filters
           </button>
@@ -782,7 +783,7 @@ export default function HrStaffDirectory({
                       Register staff
                     </button>
                   ) : (
-                    <button type="button" onClick={clearFilters} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase text-slate-700">
+                    <button type="button" onClick={clearFilters} className="rounded-md border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700">
                       Clear filters
                     </button>
                   )
@@ -790,7 +791,7 @@ export default function HrStaffDirectory({
               />
             ) : null}
             {pageSlice.map((s) => (
-              <article key={s.userId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <article key={s.userId} className="rounded-md border border-slate-200 bg-white p-4">
                 <div className="flex items-start gap-3">
                   {canBulkManage ? (
                     <input
@@ -806,7 +807,7 @@ export default function HrStaffDirectory({
                 <div className="flex items-start justify-between gap-3">
                   <Link
                     to={`${staffBasePath}/${encodeURIComponent(s.userId)}${s.docExpirySummary?.nextExpiryIso ? '?tab=documents' : ''}`}
-                    className="text-sm font-bold text-zarewa-teal hover:underline"
+                    className="text-sm font-semibold text-slate-900 hover:underline"
                     onClick={(e) => {
                       if (!e.metaKey && !e.ctrlKey) {
                         e.preventDefault();
@@ -823,29 +824,29 @@ export default function HrStaffDirectory({
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                   <div>
-                    <dt className="font-bold uppercase tracking-wide text-slate-400">Staff ID</dt>
-                    <dd className="mt-0.5 font-medium text-slate-800">{s.employeeNo || '—'}</dd>
+                    <dt className="font-medium text-slate-500">Staff ID</dt>
+                    <dd className="z-stencil mt-0.5 text-slate-800">{s.employeeNo || '—'}</dd>
                   </div>
                   <div>
-                    <dt className="font-bold uppercase tracking-wide text-slate-400">Branch</dt>
+                    <dt className="font-medium text-slate-500">Branch</dt>
                     <dd className="mt-0.5 font-medium text-slate-800">{resolveBranchLabel(s, branchNames)}</dd>
                   </div>
                   <div className="col-span-2">
-                    <dt className="font-bold uppercase tracking-wide text-slate-400">Job</dt>
+                    <dt className="font-medium text-slate-500">Job</dt>
                     <dd className="mt-0.5 font-medium text-slate-800">
                       {s.jobTitle || '—'} · {s.department || '—'}
                     </dd>
                   </div>
                   <div className="col-span-2">
-                    <dt className="font-bold uppercase tracking-wide text-slate-400">Line manager</dt>
+                    <dt className="font-medium text-slate-500">Line manager</dt>
                     <dd className="mt-0.5 font-medium text-slate-800">
                       {s.lineManagerDisplayName || s.lineManagerUserId || '—'}
                     </dd>
                   </div>
                   {showSalary ? (
                     <div className="col-span-2">
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Base salary</dt>
-                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">
+                      <dt className="font-medium text-slate-500">Base salary</dt>
+                      <dd className="z-stencil mt-0.5 text-slate-800">
                         {s.compensationRedacted ? '—' : formatNgn(s.baseSalaryNgn)}
                       </dd>
                     </div>
@@ -862,13 +863,15 @@ export default function HrStaffDirectory({
                 <button
                   key={s.userId}
                   type="button"
-                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-zarewa-teal/25 hover:shadow-md"
+                  className="flex w-full items-center gap-3 rounded-md border border-slate-200 bg-white px-4 py-3 text-left hover:bg-slate-50"
                   onClick={() => setPreviewStaff(s)}
                 >
                   <HrStaffAvatar staff={s} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-slate-900">{s.displayName || s.username}</p>
+                    <p className="truncate text-sm font-semibold text-slate-900">{s.displayName || s.username}</p>
                     <p className="truncate text-xs text-slate-600">
+                      {s.employeeNo ? <span className="z-stencil text-slate-800">{s.employeeNo}</span> : null}
+                      {s.employeeNo ? ' · ' : ''}
                       {resolveBranchLabel(s, branchNames)} · {s.jobTitle || '—'}
                     </p>
                     <StaffBadges staff={s} />
@@ -950,13 +953,17 @@ export default function HrStaffDirectory({
                             <button
                               type="button"
                               onClick={() => setPreviewStaff(s)}
-                              className="font-semibold text-zarewa-teal hover:underline text-left"
+                              className="text-left font-semibold text-slate-900 hover:underline"
                             >
                               {s.displayName || s.username}
                             </button>
                           </div>
                         </AppTableTd>
-                        {visibleColumns.has('employeeNo') ? <AppTableTd>{s.employeeNo || '—'}</AppTableTd> : null}
+                        {visibleColumns.has('employeeNo') ? (
+                          <AppTableTd>
+                            <span className="z-stencil text-slate-800">{s.employeeNo || '—'}</span>
+                          </AppTableTd>
+                        ) : null}
                         {visibleColumns.has('branch') ? <AppTableTd>{resolveBranchLabel(s, branchNames)}</AppTableTd> : null}
                         {visibleColumns.has('department') ? <AppTableTd>{s.department || '—'}</AppTableTd> : null}
                         {visibleColumns.has('jobTitle') ? <AppTableTd>{s.jobTitle || '—'}</AppTableTd> : null}
@@ -965,7 +972,7 @@ export default function HrStaffDirectory({
                         ) : null}
                         {visibleColumns.has('profile') ? (
                           <AppTableTd>
-                            <span className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold ${pctBadge.cls}`}>
+                            <span className={`${STAFF_CHIP} ${pctBadge.cls}`}>
                               {pct}%
                             </span>
                           </AppTableTd>
@@ -975,7 +982,7 @@ export default function HrStaffDirectory({
                             {s.docExpirySummary?.nextExpiryIso ? (
                               <Link
                                 to={`${staffBasePath}/${encodeURIComponent(s.userId)}?tab=documents`}
-                                className={`inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${doc?.cls || 'border-red-200 bg-red-50 text-red-900'}`}
+                                className={`${STAFF_CHIP} ${doc?.cls || 'border-red-200 bg-red-50 text-red-900'}`}
                               >
                                 {s.docExpirySummary.nextExpiryIso}
                               </Link>
@@ -995,17 +1002,17 @@ export default function HrStaffDirectory({
                           <AppTableTd truncate={false}>
                             <HrStatusBadge status={s.status} variant="staff" />
                             {probation ? (
-                              <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${probation.cls}`}>
+                              <span className={`ml-1 ${STAFF_CHIP} ${probation.cls}`}>
                                 {probation.label}
                               </span>
                             ) : null}
                             {contract ? (
-                              <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${contract.cls}`}>
+                              <span className={`ml-1 ${STAFF_CHIP} ${contract.cls}`}>
                                 {contract.label}
                               </span>
                             ) : null}
                             {doc ? (
-                              <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-ui-xs font-bold uppercase ${doc.cls}`}>
+                              <span className={`ml-1 ${STAFF_CHIP} ${doc.cls}`}>
                                 {doc.label}
                               </span>
                             ) : null}

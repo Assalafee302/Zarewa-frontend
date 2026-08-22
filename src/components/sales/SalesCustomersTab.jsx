@@ -262,6 +262,7 @@ export default function SalesCustomersTab({
                   value={searchQuery}
                   onChange={onSearchChange}
                   placeholder="Search name, phone, staff ID, tier, notes…"
+                  label="Search customers"
                 />
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <SalesListSortBar

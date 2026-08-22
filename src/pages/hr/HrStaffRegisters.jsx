@@ -37,8 +37,8 @@ export default function HrStaffRegisters() {
         <div className="space-y-3">
           <p className="text-sm text-slate-600">
             {FAMILY_BENEFITS.adminRegisterHint}{' '}
-            <Link to="/executive-hr/family-dashboard" className="font-semibold text-violet-800 underline">
-              Family overview
+            <Link to="/chairman?tab=scholarships" className="font-semibold text-violet-800 underline">
+              Chairman Office — scholarships
             </Link>
             .
           </p>
@@ -50,12 +50,12 @@ export default function HrStaffRegisters() {
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm font-semibold text-amber-950">{DOMESTIC_BENEFITS.adminRegisterHint}</p>
             <p className="mt-2 text-sm text-amber-900/90">
-              <Link to="/executive-hr/domestic-dashboard" className="font-semibold text-amber-800 underline">
-                Household staff overview
+              <Link to="/chairman?tab=household" className="font-semibold text-amber-800 underline">
+                Chairman Office — household
               </Link>
               {' · '}
-              <Link to="/executive-hr/benefits?tab=domestic" className="font-semibold text-zarewa-teal underline">
-                Executive benefits → Domestic staff
+              <Link to="/chairman?tab=household&benefitsTab=domestic" className="font-semibold text-zarewa-teal underline">
+                Household register & pay
               </Link>
             </p>
           </div>

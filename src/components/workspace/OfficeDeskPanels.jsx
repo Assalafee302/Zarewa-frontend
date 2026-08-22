@@ -25,7 +25,7 @@ export function OfficialNoticesPanel() {
   return (
     <div className="space-y-3">
       {notices.length === 0 ? (
-        <p className="text-sm text-slate-500">No official notices.</p>
+        <p className="text-sm text-slate-500">No official notices yet. Publish one when there is a company announcement.</p>
       ) : (
         notices.map((n) => (
           <article key={n.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">

@@ -16,20 +16,6 @@ import { ManagerOpsStrip } from '../components/branchManager/ManagerOpsStrip';
 import { ManagerPeopleGlancePanel } from '../components/branchManager/ManagerPeopleGlancePanel';
 import { ManagerCustomerIssuesPanel } from '../components/branchManager/ManagerCustomerIssuesPanel';
 import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyChecklist';
-import { ManagerBreakEvenCard } from '../components/branchManager/ManagerBreakEvenCard';
-import { ManagerOtBoardPanel } from '../components/branchManager/ManagerOtBoardPanel';
-import { ManagerOtApprovalsPanel } from '../components/branchManager/ManagerOtApprovalsPanel';
-import { ManagerOpsHealthPanel } from '../components/branchManager/ManagerOpsHealthPanel';
-import {
-  ManagerAnnouncementsPanel,
-  ManagerAuditTrailPanel,
-  ManagerDeliveryComplaintsPanel,
-  ManagerPmDuePanel,
-  ManagerPriceExceptionsPanel,
-  ManagerSopLinksPanel,
-  ManagerStockRequestsPanel,
-  ManagerVacanciesPanel,
-} from '../components/branchManager/ManagerDeskExtras';
 import { ManagerBranchTab } from '../components/branchManager/ManagerBranchTab';
 import { ManagerSpendTab } from '../components/branchManager/ManagerSpendTab';
 import { ManagementDecisionModal } from '../components/branchManager/ManagementDecisionModal';
@@ -39,6 +25,8 @@ import {
   ManagementRemarkDialog,
 } from '../components/branchManager/ManagementRemarkDialog';
 import { useBranchManagerWorkstation } from '../hooks/useBranchManagerWorkstation';
+import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
+import { WorkspaceDeskSyncBanner } from '../components/workspace/WorkspaceDeskSyncBanner';
 import { EditApprovalDetailModal } from '../components/branchManager/EditApprovalDetailModal';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import { computeBranchHealthScore } from '../lib/managerBranchHealthScore';
@@ -61,6 +49,7 @@ import { managerRowAgeHours } from '../lib/managerDashboardCore';
  */
 const ManagerDashboard = () => {
   const bm = useBranchManagerWorkstation();
+  const { domainLoading, domainReady } = useWorkspaceDomain('finance');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -271,18 +260,24 @@ const ManagerDashboard = () => {
 
   return (
     <PageShell className="pb-14">
+      <WorkspaceDeskSyncBanner loading={domainLoading && !domainReady} label="finance register" />
       <FinancePilotHeader
+        eyebrow={pageTab === 'today' ? 'Morning board' : 'Branch manager'}
         title={branchLabel}
         subtitle={subtitle}
         search={
           <form onSubmit={handleCommandSearch} className="relative w-full">
+            <label htmlFor="manager-command-search" className="sr-only">
+              Search quotes, POs, refunds, and jobs
+            </label>
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
             <input
+              id="manager-command-search"
               type="search"
               value={commandSearch}
               onChange={(e) => setCommandSearch(e.target.value)}
               placeholder="Search quote, PO, refund, job…"
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
+              className="w-full rounded-md border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-medium text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal focus-visible:ring-offset-1"
             />
           </form>
         }
@@ -334,6 +329,8 @@ const ManagerDashboard = () => {
             loading={bm.loading}
           />
 
+          <ManagerDailyChecklist branchId={bm.mgrBranchId} actorName={actorName} />
+
           <div className="grid gap-4 lg:grid-cols-2">
             <ManagerPeopleGlancePanel
               branchId={bm.mgrBranchId}
@@ -342,31 +339,6 @@ const ManagerDashboard = () => {
             />
             <ManagerCustomerIssuesPanel available={customerIssuesAvailable} />
           </div>
-
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            <ManagerBreakEvenCard branchId={bm.mgrBranchId} />
-            <ManagerOtBoardPanel branchId={bm.mgrBranchId} />
-            <ManagerOpsHealthPanel branchId={bm.mgrBranchId} />
-          </div>
-
-          {/* OT pay approvals — distinct from attendance OT board above */}
-          <ManagerOtApprovalsPanel branchId={bm.mgrBranchId} />
-
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            <ManagerStockRequestsPanel
-              coilRequests={bm.ws?.snapshot?.coilRequests || []}
-              onApproved={() => void bm.ws?.refresh?.()}
-            />
-            <ManagerAnnouncementsPanel />
-            <ManagerAuditTrailPanel />
-            <ManagerPriceExceptionsPanel quotations={bm.ws?.snapshot?.quotations || []} />
-            <ManagerVacanciesPanel available={peopleGlanceAvailable} />
-            <ManagerPmDuePanel />
-            <ManagerSopLinksPanel />
-            <ManagerDeliveryComplaintsPanel available={customerIssuesAvailable} />
-          </div>
-
-          <ManagerDailyChecklist branchId={bm.mgrBranchId} actorName={actorName} />
         </div>
       ) : null}
 
@@ -393,6 +365,11 @@ const ManagerDashboard = () => {
           attendancePendingCount={bm.attendancePendingCount}
           onOpenMaterialQueue={() => jumpToQueue('material')}
           onOpenStockRegister={() => bm.setStockRegisterMgrOpen(true)}
+          branchId={bm.mgrBranchId}
+          coilRequests={bm.ws?.snapshot?.coilRequests || []}
+          onStockApproved={() => void bm.ws?.refresh?.()}
+          peopleGlanceAvailable={peopleGlanceAvailable}
+          customerIssuesAvailable={customerIssuesAvailable}
         />
       ) : null}
 
@@ -404,6 +381,11 @@ const ManagerDashboard = () => {
           viewAllBranches={Boolean(bm.ws?.viewAllBranches)}
           roleKey={bm.ws?.session?.user?.roleKey || bm.managerRoleKey}
           permissions={bm.ws?.permissions}
+          onOpenWorkOrder={(wid) => {
+            setPageTab('approvals');
+            bm.setActiveTab('issues');
+            bm.setFocusWorkOrderId(wid);
+          }}
         />
       ) : null}
 
@@ -513,7 +495,7 @@ const ManagerDashboard = () => {
         onCancel={bm.cancelConfirmDialog}
       />
 
-      <ModalFrame isOpen={bm.showExpenseCorrectionModal} onClose={() => bm.setShowExpenseCorrectionModal(false)}>
+      <ModalFrame isOpen={bm.showExpenseCorrectionModal} onClose={() => bm.setShowExpenseCorrectionModal(false)} showCloseButton={false}>
         <div className="z-modal-panel max-w-2xl p-6 sm:p-8 overflow-y-auto max-h-[90vh]">
           <div className="flex items-center justify-between gap-3 mb-5">
             <h3 className="text-lg font-black text-zarewa-teal">Edit expense request</h3>

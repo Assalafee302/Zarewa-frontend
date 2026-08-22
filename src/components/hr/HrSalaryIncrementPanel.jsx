@@ -143,7 +143,7 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, permissi
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Salary history</h4>
+        <h4 className="text-ui-xs font-medium text-slate-500">Salary history</h4>
         {canViewAmounts ? (
           <HrAddFormButton onClick={() => setModalOpen(true)}>Record adjustment</HrAddFormButton>
         ) : null}
@@ -176,7 +176,7 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, permissi
             </div>
           ) : null}
           {isReduction && canReduce ? (
-            <div className="rounded-xl border border-purple-100 bg-purple-50 px-3 py-2 text-sm text-purple-900">
+            <div className="rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-950">
               Reduction of {formatNgn(Math.abs(delta))} — document a detailed reason (minimum 10 characters).
             </div>
           ) : null}
@@ -284,7 +284,7 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, permissi
               type="button"
               disabled={recomputeBusy}
               onClick={recomputeDrafts}
-              className="mt-2 block rounded-lg bg-zarewa-teal px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+              className="mt-2 block rounded-md bg-zarewa-teal px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
             >
               {recomputeBusy ? 'Recomputing…' : `Recompute ${draftRuns.length} draft payroll run(s)`}
             </button>

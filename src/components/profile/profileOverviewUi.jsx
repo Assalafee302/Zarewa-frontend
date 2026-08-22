@@ -7,10 +7,10 @@ import { ProfileKpiCard, ProfileModuleSection } from './profileDesign';
 import { ProfileOnboardingCompleteChip } from './ProfileOnboardingWizard';
 
 const COHORT_CHIP = {
-  scholarship: 'bg-violet-100 text-violet-800',
-  domestic: 'bg-amber-100 text-amber-900',
-  special: 'bg-sky-100 text-sky-800',
-  employee: 'bg-teal-100 text-teal-900',
+  scholarship: 'border-slate-200 bg-slate-50 text-slate-700',
+  domestic: 'border-slate-200 bg-slate-50 text-slate-700',
+  special: 'border-slate-200 bg-slate-50 text-slate-700',
+  employee: 'border-slate-200 bg-slate-50 text-slate-700',
 };
 
 /** @deprecated Prefer ProfileModuleSection */
@@ -77,15 +77,15 @@ export { ProfileKpiSkeleton as ProfileMetricSkeleton } from './profileDesign';
 
 export function ProfileHeroSkeleton() {
   return (
-    <div className="animate-pulse rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 p-7" aria-busy="true" aria-label="Loading profile">
+    <div className="animate-pulse rounded-md border border-slate-200 bg-white p-6" aria-busy="true" aria-label="Loading profile">
       <div className="flex gap-4">
-        <div className="h-16 w-16 shrink-0 rounded-2xl bg-white/40" />
+        <div className="h-16 w-16 shrink-0 rounded-md bg-slate-100" />
         <div className="min-w-0 flex-1 space-y-3">
-          <div className="h-3 w-20 rounded-full bg-white/40" />
-          <div className="h-7 w-48 max-w-full rounded bg-white/50" />
+          <div className="h-3 w-20 rounded bg-slate-100" />
+          <div className="h-7 w-48 max-w-full rounded bg-slate-100" />
           <div className="flex gap-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-7 w-20 rounded-full bg-white/30" />
+              <div key={i} className="h-7 w-20 rounded bg-slate-100" />
             ))}
           </div>
         </div>
@@ -122,18 +122,18 @@ export function ProfileIdentityStrip({ user, hr, cohort }) {
         <img
           src={hr.photoUrl}
           alt=""
-          className="h-14 w-14 shrink-0 rounded-xl border border-slate-200 object-cover shadow-sm"
+          className="h-14 w-14 shrink-0 rounded-md border border-slate-200 object-cover"
         />
       ) : (
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-zarewa-teal text-lg font-bold text-white shadow-sm">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-lg font-semibold text-slate-800">
           {initials}
         </div>
       )}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate text-lg font-black tracking-tight text-slate-900">{user?.displayName || '—'}</p>
+          <p className="truncate text-lg font-semibold tracking-tight text-slate-900">{user?.displayName || '—'}</p>
           {cohort ? (
-            <span className={`rounded-full px-2.5 py-0.5 text-ui-xs font-bold uppercase ${chipClass}`}>
+            <span className={`rounded-sm border px-2 py-0.5 text-ui-xs font-medium ${chipClass}`}>
               {chipLabel}
             </span>
           ) : null}
@@ -144,7 +144,7 @@ export function ProfileIdentityStrip({ user, hr, cohort }) {
           {hr?.employeeNo ? (
             <span>
               Employee ID{' '}
-              <strong className="font-mono font-semibold tracking-wide text-slate-800">{hr.employeeNo}</strong>
+              <strong className="z-stencil text-slate-800">{hr.employeeNo}</strong>
             </span>
           ) : null}
           {hr?.branchName || hr?.branchId ? (

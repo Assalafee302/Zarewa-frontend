@@ -166,10 +166,16 @@ export function OfficeThreadConversationDrawer({
     const p = t.payload || {};
     const workMeta = selectedThreadWorkItem
       ? [
-          `Work item: ${selectedThreadWorkItem.referenceNo || selectedThreadWorkItem.id}`,
-          selectedThreadWorkItem.documentClass ? `Class: ${selectedThreadWorkItem.documentClass}` : null,
-          selectedThreadWorkItem.responsibleOfficeKey ? `Office: ${selectedThreadWorkItem.responsibleOfficeKey}` : null,
-          selectedThreadWorkItem.keyDecisionSummary ? `Key decision: ${selectedThreadWorkItem.keyDecisionSummary}` : null,
+          `Work item: ${escapeHtml(selectedThreadWorkItem.referenceNo || selectedThreadWorkItem.id)}`,
+          selectedThreadWorkItem.documentClass
+            ? `Class: ${escapeHtml(selectedThreadWorkItem.documentClass)}`
+            : null,
+          selectedThreadWorkItem.responsibleOfficeKey
+            ? `Office: ${escapeHtml(selectedThreadWorkItem.responsibleOfficeKey)}`
+            : null,
+          selectedThreadWorkItem.keyDecisionSummary
+            ? `Key decision: ${escapeHtml(selectedThreadWorkItem.keyDecisionSummary)}`
+            : null,
         ]
           .filter(Boolean)
           .join('<br/>')
@@ -183,10 +189,10 @@ export function OfficeThreadConversationDrawer({
       })
       .join('');
     const meta = [
-      `Thread: ${t.id}`,
+      `Thread: ${escapeHtml(t.id)}`,
       workMeta || null,
-      p.memoDateIso ? `Memo date: ${p.memoDateIso}` : null,
-      p.uploadedAtIso ? `Uploaded: ${new Date(p.uploadedAtIso).toLocaleString()}` : null,
+      p.memoDateIso ? `Memo date: ${escapeHtml(p.memoDateIso)}` : null,
+      p.uploadedAtIso ? `Uploaded: ${escapeHtml(new Date(p.uploadedAtIso).toLocaleString())}` : null,
     ]
       .filter(Boolean)
       .join('<br/>');
@@ -800,12 +806,12 @@ export function OfficeThreadConversationDrawer({
           onClose={() => onDismiss?.()}
           title={title}
           description="Internal correspondence — read, reply, and print"
-        >
+          showCloseButton={false}>
           {threadShell}
         </ModalFrame>
       )}
 
-      <ModalFrame isOpen={convertOpen} onClose={() => setConvertOpen(false)} title="Convert to expense">
+      <ModalFrame isOpen={convertOpen} onClose={() => setConvertOpen(false)} title="Convert to expense" showCloseButton={false}>
         <div className="z-modal-panel max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8">
           <div className="mb-4 flex items-start justify-between gap-3">
             <h3 className="pr-8 text-xl font-bold text-zarewa-teal">Convert to expense payment request</h3>

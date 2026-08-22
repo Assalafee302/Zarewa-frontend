@@ -28,7 +28,7 @@ import { OtPaymentCalcFields } from '../ot/OtPaymentCalcFields';
  */
 export function OpsOtRequestPanel() {
   const ws = useWorkspace();
-  const { showToast } = useToast();
+  const { show: showToast } = useToast();
   const canRequest = Boolean(ws?.hasPermission?.('ot.request') || ws?.hasPermission?.('*'));
   const userId = ws?.session?.user?.id || '';
 

@@ -4,7 +4,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../lib/hrFormat';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
-import { PAYMENT_KIND_ICON, paymentHealthMeta } from '../../lib/scholarshipUi';
+import { paymentHealthMeta } from '../../lib/scholarshipUi';
 import { ProfilePageBody, ProfilePageIntro } from '../profile/profilePageUi';
 import {
   ProfileHeroSkeleton,
@@ -19,25 +19,23 @@ import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { downloadDomesticStatementPdf } from '../../lib/hrDomestic';
 
 function NextUpCard({ item }) {
-  const icon = PAYMENT_KIND_ICON[item.kind] || PAYMENT_KIND_ICON.salary || '💰';
   return (
-    <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm ring-1 ring-amber-50">
+    <div className="rounded-md border border-slate-200 bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 text-ui-xs font-black uppercase tracking-widest text-amber-700">
-            <span aria-hidden>{icon}</span>
+          <p className="text-ui-xs font-medium text-slate-500">
             {DOMESTIC_BENEFITS.salaryLabel}
           </p>
-          <p className="mt-1 text-base font-black text-slate-900">{item.label}</p>
+          <p className="mt-1 text-base font-semibold text-slate-900">{item.label}</p>
           {item.periodYyyymm ? (
             <p className="mt-1 text-xs text-slate-500">{formatPeriodYyyymm(item.periodYyyymm)}</p>
           ) : null}
         </div>
         <div className="text-right">
-          <p className="text-xl font-black tabular-nums text-slate-900">
+          <p className="z-stencil text-xl text-slate-900">
             {item.amountNgn != null ? formatNgn(item.amountNgn) : '—'}
           </p>
-          <p className="mt-1 text-xs font-semibold text-amber-800">{item.statusLabel}</p>
+          <p className="mt-1 text-xs font-medium text-slate-600">{item.statusLabel}</p>
         </div>
       </div>
       {item.tracker && item.status !== 'paid' ? (
@@ -76,7 +74,7 @@ function ChecklistCard({ checklist, checklistPct }) {
   );
 }
 
-/** Executive household staff home — monthly salary via Executive benefits. */
+/** Executive household staff home — monthly salary via Chairman Office. */
 export default function DomesticStaffHub() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -170,7 +168,7 @@ export default function DomesticStaffHub() {
 
         {!benefitsLinked ? (
           <p className="relative mt-3 rounded-xl border border-amber-300/30 bg-amber-400/15 px-3 py-2 text-xs text-amber-50">
-            Your Executive benefits record is not fully linked yet — salary payments may take longer to appear. Contact
+            Your pay record is not fully linked yet — salary payments may take longer to appear. Contact
             the office to complete setup.
           </p>
         ) : null}

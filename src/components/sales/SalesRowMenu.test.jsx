@@ -25,5 +25,18 @@ describe('SalesRowMenu', () => {
     expect(onView).toHaveBeenCalled();
     expect(setOpenKey).toHaveBeenCalledWith(null);
   });
+
+  it('names the kebab for the row', () => {
+    render(
+      <SalesRowMenu
+        rowKey="q-1"
+        openKey={null}
+        setOpenKey={vi.fn()}
+        onView={vi.fn()}
+        label="quotation Q-1"
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Actions for quotation Q-1' })).toBeTruthy();
+  });
 });
 
