@@ -700,6 +700,11 @@ const RefundModal = ({
   const [refundNotesOpen, setRefundNotesOpen] = useState(false);
   /** Non-terminal production still on quote — submit blocked until finished/cancelled. */
   const [openProductionJob, setOpenProductionJob] = useState(null);
+  /** Fresh associated-staff directory for payout allocation (snapshot may lag). */
+  const [payoutAssociatedStaff, setPayoutAssociatedStaff] = useState([]);
+  const [payoutAssociatedStaffLoading, setPayoutAssociatedStaffLoading] = useState(false);
+  const [payoutAssociatedStaffError, setPayoutAssociatedStaffError] = useState('');
+
   const createPathUserTouchedRef = useRef(false);
 
   const productionFingerprintRef = useRef('');
@@ -835,10 +840,19 @@ const RefundModal = ({
     [ws?.snapshot?.customers]
   );
   const partnerWalletPolicyEnabled = Boolean(ws?.snapshot?.partnerWalletPolicy?.enabled);
-  const associatedStaffRows = useMemo(
+  const snapshotAssociatedStaff = useMemo(
     () => (Array.isArray(ws?.snapshot?.associatedStaff) ? ws.snapshot.associatedStaff : []),
     [ws?.snapshot?.associatedStaff]
   );
+  const associatedStaffRows = useMemo(() => {
+    const byId = new Map();
+    for (const row of [...snapshotAssociatedStaff, ...payoutAssociatedStaff]) {
+      const id = String(row?.id || row?.staffID || '').trim();
+      if (!id) continue;
+      byId.set(id, row);
+    }
+    return Array.from(byId.values());
+  }, [snapshotAssociatedStaff, payoutAssociatedStaff]);
   const selectedRefundCustomer = useMemo(
     () => allCustomers.find((c) => String(c.customerID || '').trim() === String(form.customerID || '').trim()) || null,
     [allCustomers, form.customerID]
@@ -855,55 +869,124 @@ const RefundModal = ({
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
     [allCustomers]
   );
-  const associatedStaffWithBank = useMemo(
+  const customersWithBankOptions = useMemo(
+    () =>
+      allCustomers
+        .filter((c) => customerHasBank(c))
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
+    [allCustomers]
+  );
+  const activeAssociatedStaff = useMemo(
     () =>
       associatedStaffRows
-        .filter((s) => String(s?.status || 'Active').toLowerCase() === 'active' && associatedStaffHasBank(s))
+        .filter((s) => String(s?.status || 'Active').toLowerCase() === 'active')
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
     [associatedStaffRows]
   );
+  const associatedStaffWithBank = useMemo(
+    () => activeAssociatedStaff.filter((s) => associatedStaffHasBank(s)),
+    [activeAssociatedStaff]
+  );
   const associatedStaffPayoutOptions = useMemo(
     () =>
-      associatedStaffWithBank.map((s) => {
-        const id = String(s.id || s.staffID || '').trim();
-        const label = `${s.name}${s.staffType ? ` · ${s.staffType}` : ''} · ${s.bankName} ${s.bankAccountNo}`;
-        return {
-          key: `staff:${id}`,
-          label,
-          group: s.staffType ? String(s.staffType) : 'Associated staff',
-          searchText: `${s.name} ${s.staffType || ''} ${s.bankName || ''} ${s.bankAccountNo || ''} ${id}`,
-        };
-      }),
-    [associatedStaffWithBank]
+      [...activeAssociatedStaff]
+        .sort((a, b) => {
+          const aBank = associatedStaffHasBank(a) ? 0 : 1;
+          const bBank = associatedStaffHasBank(b) ? 0 : 1;
+          if (aBank !== bBank) return aBank - bBank;
+          return String(a.name || '').localeCompare(String(b.name || ''));
+        })
+        .map((s) => {
+          const id = String(s.id || s.staffID || '').trim();
+          const hasBank = associatedStaffHasBank(s);
+          const bankBit = hasBank
+            ? `${s.bankName || s.bank_name} ${s.bankAccountNo || s.bank_account_no}`
+            : 'no bank on file';
+          const label = `${s.name}${s.staffType || s.staff_type ? ` · ${s.staffType || s.staff_type}` : ''} · ${bankBit}`;
+          return {
+            key: `staff:${id}`,
+            label,
+            group: String(s.staffType || s.staff_type || 'Associated staff'),
+            searchText: `${s.name} ${s.staffType || s.staff_type || ''} ${s.bankName || ''} ${s.bankAccountNo || ''} ${id}`,
+            disabled: !hasBank,
+            hint: hasBank
+              ? ''
+              : 'Add bank under Branch Manager → Installers & Drivers before selecting.',
+          };
+        }),
+    [activeAssociatedStaff]
   );
   const claimingPayoutOptions = useMemo(() => {
     const opts = [];
+    const seen = new Set();
     for (const c of staffClaimCustomerOptions) {
-      const label = `${c.name} · ${c.bankName} ${c.bankAccountNo}`;
+      const key = `customer:${c.customerID}`;
+      seen.add(key);
       opts.push({
-        key: `customer:${c.customerID}`,
-        label,
+        key,
+        label: `${c.name} · ${c.bankName} ${c.bankAccountNo}`,
         group: 'Staff customer',
+        searchText: `${c.name} ${c.bankName || ''} ${c.bankAccountNo || ''} ${c.customerID || ''}`,
+      });
+    }
+    for (const c of customersWithBankOptions) {
+      const key = `customer:${c.customerID}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      opts.push({
+        key,
+        label: `${c.name} · ${c.bankName} ${c.bankAccountNo}`,
+        group: 'Customer',
         searchText: `${c.name} ${c.bankName || ''} ${c.bankAccountNo || ''} ${c.customerID || ''}`,
       });
     }
     for (const s of associatedStaffPayoutOptions) {
       opts.push({
         ...s,
-        group: 'Associated staff',
+        group: s.disabled ? 'Associated staff (need bank)' : 'Associated staff',
       });
     }
     return opts;
-  }, [staffClaimCustomerOptions, associatedStaffPayoutOptions]);
-  const payoutRecipientsAvailable = associatedStaffWithBank.length > 0 || claimingPayoutOptions.length > 0;
+  }, [staffClaimCustomerOptions, customersWithBankOptions, associatedStaffPayoutOptions]);
+  const payoutRecipientsAvailable =
+    associatedStaffWithBank.length > 0 ||
+    staffClaimCustomerOptions.length > 0 ||
+    customersWithBankOptions.length > 0;
+  const payoutBankReadyCount =
+    associatedStaffWithBank.length + staffClaimCustomerOptions.length + customersWithBankOptions.length;
 
-  // Sales snapshot historically omitted associated staff; refresh when refund allocation needs it.
+  // Prefer live associated-staff API so sales desk does not depend on a stale/empty snapshot.
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
-    if (associatedStaffRows.length > 0) return;
+    let cancelled = false;
+    setPayoutAssociatedStaffLoading(true);
+    setPayoutAssociatedStaffError('');
+    void (async () => {
+      try {
+        const { ok, data } = await apiFetch('/api/associated-staff');
+        if (cancelled) return;
+        if (!ok) {
+          setPayoutAssociatedStaffError(
+            String(data?.error || 'Could not load associated staff for payout.')
+          );
+          return;
+        }
+        const rows = Array.isArray(data?.associatedStaff) ? data.associatedStaff : [];
+        setPayoutAssociatedStaff(rows);
+      } catch (e) {
+        if (!cancelled) {
+          setPayoutAssociatedStaffError(String(e?.message || e || 'Could not load associated staff.'));
+        }
+      } finally {
+        if (!cancelled) setPayoutAssociatedStaffLoading(false);
+      }
+    })();
     void ws.ensureDomainLoaded?.('sales', { force: true });
     void ws.ensureDomainLoaded?.('procurement');
-  }, [isOpen, mode, associatedStaffRows.length, ws]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, mode, ws]);
 
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
@@ -4102,6 +4185,7 @@ const RefundModal = ({
                                 </div>
                                 <RefundPayoutRecipientPicker
                                   disabled={readOnly}
+                                  loading={payoutAssociatedStaffLoading}
                                   value={payoutRowSelectValue(row)}
                                   options={isStaff ? associatedStaffPayoutOptions : claimingPayoutOptions}
                                   placeholder={
@@ -4110,9 +4194,15 @@ const RefundModal = ({
                                       : 'Search claiming staff, driver, or customer…'
                                   }
                                   emptyHint={
-                                    isStaff
-                                      ? 'No associated staff with bank match that search.'
-                                      : 'No payout recipients with bank match that search.'
+                                    payoutAssociatedStaffError
+                                      ? payoutAssociatedStaffError
+                                      : isStaff
+                                        ? associatedStaffRows.length === 0
+                                          ? 'No associated staff registered yet. Add drivers/installers under Branch Manager → Installers & Drivers.'
+                                          : `None of ${activeAssociatedStaff.length} associated staff have bank details yet. Add bank on their profile, then reopen.`
+                                        : payoutBankReadyCount === 0
+                                          ? 'No customers or staff with bank on file yet. Add bank on the recipient profile first.'
+                                          : 'No payout recipients match that search.'
                                   }
                                   onChange={(key) => {
                                     const parsed = parsePayoutSelectValue(key);
@@ -4208,15 +4298,22 @@ const RefundModal = ({
                           ) : null}
                           {!payoutRecipientsAvailable ? (
                             <p className="text-ui-xs text-amber-200/80 leading-snug">
-                              No payout recipients with bank on file yet — add bank details on an associated
-                              staff profile (Procurement → Associated staff) or on a staff-linked customer
-                              record, then reopen this refund.
+                              {payoutAssociatedStaffLoading
+                                ? 'Loading associated staff…'
+                                : `No selectable payout recipient yet. ${associatedStaffWithBank.length} of ${activeAssociatedStaff.length} associated staff have bank. Add bank under Branch Manager → Installers & Drivers (or on a customer profile), then reopen.`}
                             </p>
-                          ) : staffClaimCustomerOptions.length === 0 ? (
+                          ) : (
                             <p className="text-ui-xs text-slate-400 leading-snug">
-                              No staff-linked customer with bank — you can still pay associated staff (driver /
-                              installer) listed above.
+                              Bank-ready now: {associatedStaffWithBank.length} associated staff
+                              {customersWithBankOptions.length
+                                ? ` · ${customersWithBankOptions.length} customers`
+                                : ''}
+                              . People without bank still appear in search but cannot be selected until bank is
+                              added.
                             </p>
+                          )}
+                          {payoutAssociatedStaffError ? (
+                            <p className="text-ui-xs text-rose-300/90 leading-snug">{payoutAssociatedStaffError}</p>
                           ) : null}
                           {partnerWalletPolicyEnabled ? (
                             <p className="text-ui-xs text-slate-400 leading-snug">

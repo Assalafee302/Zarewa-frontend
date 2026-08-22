@@ -6,12 +6,20 @@ import { Search, X } from 'lucide-react';
  * Options use keys like `staff:<id>` or `customer:<id>`.
  *
  * @param {{
- *   options: Array<{ key: string; label: string; group?: string; searchText?: string }>;
+ *   options: Array<{
+ *     key: string;
+ *     label: string;
+ *     group?: string;
+ *     searchText?: string;
+ *     disabled?: boolean;
+ *     hint?: string;
+ *   }>;
  *   value: string;
  *   onChange: (key: string) => void;
  *   disabled?: boolean;
  *   placeholder?: string;
  *   emptyHint?: string;
+ *   loading?: boolean;
  * }} props
  */
 export function RefundPayoutRecipientPicker({
@@ -21,13 +29,14 @@ export function RefundPayoutRecipientPicker({
   disabled = false,
   placeholder = 'Search staff, driver, or customer…',
   emptyHint = 'No matching recipients with bank on file.',
+  loading = false,
 }) {
   const rootRef = useRef(null);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
 
   const selected = useMemo(
-    () => options.find((o) => String(o.key) === String(value)) || null,
+    () => options.find((o) => String(o.key) === String(value) && !o.disabled) || null,
     [options, value]
   );
 
@@ -50,11 +59,15 @@ export function RefundPayoutRecipientPicker({
       .toLowerCase();
     if (!q) return options;
     return options.filter((o) => {
-      const hay = String(o.searchText || o.label || '')
-        .toLowerCase();
+      const hay = String(o.searchText || o.label || '').toLowerCase();
       return hay.includes(q);
     });
   }, [options, query]);
+
+  const selectableCount = useMemo(
+    () => options.filter((o) => !o.disabled).length,
+    [options]
+  );
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -66,8 +79,9 @@ export function RefundPayoutRecipientPicker({
     return Array.from(map.entries());
   }, [filtered]);
 
-  const pick = (key) => {
-    onChange?.(key);
+  const pick = (opt) => {
+    if (opt?.disabled) return;
+    onChange?.(opt.key);
     setOpen(false);
     setQuery('');
   };
@@ -77,6 +91,15 @@ export function RefundPayoutRecipientPicker({
     setQuery('');
     setOpen(false);
   };
+
+  const resolvedEmptyHint = (() => {
+    if (loading) return 'Loading recipients…';
+    if (options.length === 0) return emptyHint;
+    if (filtered.length === 0) {
+      return `No match for “${String(query || '').trim()}”. Clear the search to see ${selectableCount} bank-ready recipient${selectableCount === 1 ? '' : 's'}.`;
+    }
+    return emptyHint;
+  })();
 
   return (
     <div ref={rootRef} className="relative">
@@ -130,8 +153,10 @@ export function RefundPayoutRecipientPicker({
           </div>
           {open && !disabled ? (
             <div className="absolute z-30 mt-1 max-h-[min(16rem,50vh)] w-full overflow-auto rounded-lg border border-slate-600 bg-slate-900 py-1 shadow-xl">
-              {grouped.length === 0 ? (
-                <p className="px-3 py-2 text-ui-xs text-slate-400">{emptyHint}</p>
+              {loading ? (
+                <p className="px-3 py-2 text-ui-xs text-slate-400">Loading recipients…</p>
+              ) : grouped.length === 0 ? (
+                <p className="px-3 py-2 text-ui-xs text-slate-400">{resolvedEmptyHint}</p>
               ) : (
                 grouped.map(([group, rows]) => (
                   <div key={group}>
@@ -140,17 +165,26 @@ export function RefundPayoutRecipientPicker({
                     </p>
                     {rows.map((opt) => {
                       const active = String(opt.key) === String(value);
+                      const rowDisabled = Boolean(opt.disabled);
                       return (
                         <button
                           key={opt.key}
                           type="button"
-                          className={`w-full px-3 py-2 text-left text-xs hover:bg-slate-800 ${
-                            active ? 'bg-slate-800/80 text-sky-200' : 'text-white'
+                          disabled={rowDisabled}
+                          className={`w-full px-3 py-2 text-left text-xs ${
+                            rowDisabled
+                              ? 'cursor-not-allowed text-slate-500'
+                              : active
+                                ? 'bg-slate-800/80 text-sky-200 hover:bg-slate-800'
+                                : 'text-white hover:bg-slate-800'
                           }`}
                           onMouseDown={(ev) => ev.preventDefault()}
-                          onClick={() => pick(opt.key)}
+                          onClick={() => pick(opt)}
                         >
                           <span className="block truncate font-semibold leading-snug">{opt.label}</span>
+                          {opt.hint ? (
+                            <span className="mt-0.5 block text-[10px] text-amber-300/90">{opt.hint}</span>
+                          ) : null}
                         </button>
                       );
                     })}
