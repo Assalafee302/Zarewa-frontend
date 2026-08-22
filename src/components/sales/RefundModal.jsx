@@ -14,6 +14,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { ModalFrame } from '../layout/ModalFrame';
+import { RefundPayoutRecipientPicker } from './RefundPayoutRecipientPicker';
 import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -205,6 +206,38 @@ function associatedStaffHasBank(row) {
 
 function customerHasBank(row) {
   return Boolean(String(row?.bankAccountNo || '').trim() && String(row?.bankName || '').trim());
+}
+
+function payoutRowSelectValue(row) {
+  const kind = String(row?.recipientKind || 'customer').trim().toLowerCase();
+  if (kind === 'associated_staff') {
+    const id = String(row?.recipientAssociatedStaffID || '').trim();
+    return id ? `staff:${id}` : '';
+  }
+  const id = String(row?.recipientCustomerID || '').trim();
+  return id ? `customer:${id}` : '';
+}
+
+function parsePayoutSelectValue(value) {
+  const v = String(value || '').trim();
+  if (!v) {
+    return { recipientKind: 'customer', recipientAssociatedStaffID: '', recipientCustomerID: '' };
+  }
+  if (v.startsWith('staff:')) {
+    return {
+      recipientKind: 'associated_staff',
+      recipientAssociatedStaffID: v.slice(6),
+      recipientCustomerID: '',
+    };
+  }
+  if (v.startsWith('customer:')) {
+    return {
+      recipientKind: 'customer',
+      recipientCustomerID: v.slice(9),
+      recipientAssociatedStaffID: '',
+    };
+  }
+  return { recipientKind: 'customer', recipientCustomerID: v, recipientAssociatedStaffID: '' };
 }
 
 function suggestedLineIsPositiveNonOverpayment(line) {
@@ -829,6 +862,48 @@ const RefundModal = ({
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
     [associatedStaffRows]
   );
+  const associatedStaffPayoutOptions = useMemo(
+    () =>
+      associatedStaffWithBank.map((s) => {
+        const id = String(s.id || s.staffID || '').trim();
+        const label = `${s.name}${s.staffType ? ` · ${s.staffType}` : ''} · ${s.bankName} ${s.bankAccountNo}`;
+        return {
+          key: `staff:${id}`,
+          label,
+          group: s.staffType ? String(s.staffType) : 'Associated staff',
+          searchText: `${s.name} ${s.staffType || ''} ${s.bankName || ''} ${s.bankAccountNo || ''} ${id}`,
+        };
+      }),
+    [associatedStaffWithBank]
+  );
+  const claimingPayoutOptions = useMemo(() => {
+    const opts = [];
+    for (const c of staffClaimCustomerOptions) {
+      const label = `${c.name} · ${c.bankName} ${c.bankAccountNo}`;
+      opts.push({
+        key: `customer:${c.customerID}`,
+        label,
+        group: 'Staff customer',
+        searchText: `${c.name} ${c.bankName || ''} ${c.bankAccountNo || ''} ${c.customerID || ''}`,
+      });
+    }
+    for (const s of associatedStaffPayoutOptions) {
+      opts.push({
+        ...s,
+        group: 'Associated staff',
+      });
+    }
+    return opts;
+  }, [staffClaimCustomerOptions, associatedStaffPayoutOptions]);
+  const payoutRecipientsAvailable = associatedStaffWithBank.length > 0 || claimingPayoutOptions.length > 0;
+
+  // Sales snapshot historically omitted associated staff; refresh when refund allocation needs it.
+  useEffect(() => {
+    if (!isOpen || mode !== 'create') return;
+    if (associatedStaffRows.length > 0) return;
+    void ws.ensureDomainLoaded?.('sales', { force: true });
+    void ws.ensureDomainLoaded?.('procurement');
+  }, [isOpen, mode, associatedStaffRows.length, ws]);
 
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
@@ -969,9 +1044,13 @@ const RefundModal = ({
     )
       .trim()
       .toLowerCase();
-    const claimDefault =
+    const claimCustomerDefault =
       staffClaimCustomerOptions.find((c) => String(c.name || '').toLowerCase().includes(meName) && meName) ||
       staffClaimCustomerOptions[0] ||
+      null;
+    const claimStaffDefault =
+      associatedStaffWithBank.find((s) => String(s.name || '').toLowerCase().includes(meName) && meName) ||
+      associatedStaffWithBank[0] ||
       null;
 
     const next = [];
@@ -1000,13 +1079,31 @@ const RefundModal = ({
     const allocated = next.reduce((s, r) => s + roundMoneyLocal(r.amountNgn), 0);
     const remainder = Math.max(0, amountNgn - allocated);
     if (remainder > 0) {
-      next.push({
-        recipientKind: 'customer',
-        recipientAssociatedStaffID: '',
-        recipientCustomerID: claimDefault ? String(claimDefault.customerID) : '',
-        amountNgn: String(remainder),
-        note: 'Claiming staff',
-      });
+      if (claimCustomerDefault) {
+        next.push({
+          recipientKind: 'customer',
+          recipientAssociatedStaffID: '',
+          recipientCustomerID: String(claimCustomerDefault.customerID),
+          amountNgn: String(remainder),
+          note: 'Claiming staff',
+        });
+      } else if (claimStaffDefault) {
+        next.push({
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: String(claimStaffDefault.id || claimStaffDefault.staffID),
+          recipientCustomerID: '',
+          amountNgn: String(remainder),
+          note: 'Claiming staff',
+        });
+      } else {
+        next.push({
+          recipientKind: 'customer',
+          recipientAssociatedStaffID: '',
+          recipientCustomerID: '',
+          amountNgn: String(remainder),
+          note: 'Claiming staff',
+        });
+      }
     }
 
     setForm((f) => {
@@ -1993,11 +2090,13 @@ const RefundModal = ({
       }
       for (const row of refundSplits) {
         if (row.recipientKind === 'associated_staff' && !row.recipientAssociatedStaffID) {
-          setPreviewError('Select associated staff for each transport/installation allocation.');
+          setPreviewError('Select associated staff or a payout recipient with bank for each allocation.');
           return;
         }
         if (row.recipientKind === 'customer' && !row.recipientCustomerID) {
-          setPreviewError('Select claiming staff (staff customer with bank) for the remaining amount.');
+          setPreviewError(
+            'Select a payout recipient (staff customer or associated staff with bank) for each allocation.'
+          );
           return;
         }
       }
@@ -3111,7 +3210,7 @@ const RefundModal = ({
                         expectedFromLabel != null &&
                         line.include !== false &&
                         lineAmount > 0 &&
-                        Math.abs(lineAmount - expectedFromLabel) > AMOUNT_LINE_TOL;
+                        lineAmount > expectedFromLabel + AMOUNT_LINE_TOL;
                       const included = line.include !== false;
                       return (
                         <div
@@ -4001,15 +4100,22 @@ const RefundModal = ({
                                     Remove
                                   </button>
                                 </div>
-                                <select
+                                <RefundPayoutRecipientPicker
                                   disabled={readOnly}
-                                  value={
+                                  value={payoutRowSelectValue(row)}
+                                  options={isStaff ? associatedStaffPayoutOptions : claimingPayoutOptions}
+                                  placeholder={
                                     isStaff
-                                      ? row.recipientAssociatedStaffID || ''
-                                      : row.recipientCustomerID || ''
+                                      ? 'Search associated staff / driver…'
+                                      : 'Search claiming staff, driver, or customer…'
                                   }
-                                  onChange={(e) => {
-                                    const v = e.target.value;
+                                  emptyHint={
+                                    isStaff
+                                      ? 'No associated staff with bank match that search.'
+                                      : 'No payout recipients with bank match that search.'
+                                  }
+                                  onChange={(key) => {
+                                    const parsed = parsePayoutSelectValue(key);
                                     setForm((f) => ({
                                       ...f,
                                       refundSplits: (Array.isArray(f.refundSplits) ? f.refundSplits : []).map(
@@ -4018,33 +4124,19 @@ const RefundModal = ({
                                             ? {
                                                 ...x,
                                                 _manual: '1',
-                                                recipientKind: isStaff ? 'associated_staff' : 'customer',
-                                                recipientAssociatedStaffID: isStaff ? v : '',
-                                                recipientCustomerID: isStaff ? '' : v,
+                                                recipientKind: isStaff
+                                                  ? 'associated_staff'
+                                                  : parsed.recipientKind,
+                                                recipientAssociatedStaffID: parsed.recipientAssociatedStaffID,
+                                                recipientCustomerID: isStaff
+                                                  ? ''
+                                                  : parsed.recipientCustomerID,
                                               }
                                             : x
                                       ),
                                     }));
                                   }}
-                                  className="w-full bg-slate-800 border border-slate-600 rounded-lg py-2 px-2 text-xs text-white"
-                                >
-                                  <option value="">
-                                    {isStaff ? 'Select associated staff…' : 'Select claiming staff…'}
-                                  </option>
-                                  {isStaff
-                                    ? associatedStaffWithBank.map((s) => (
-                                        <option key={s.id} value={s.id}>
-                                          {s.name}
-                                          {s.staffType ? ` · ${s.staffType}` : ''} · {s.bankName}{' '}
-                                          {s.bankAccountNo}
-                                        </option>
-                                      ))
-                                    : staffClaimCustomerOptions.map((c) => (
-                                        <option key={c.customerID} value={c.customerID}>
-                                          {c.name} · {c.bankName} {c.bankAccountNo}
-                                        </option>
-                                      ))}
-                                </select>
+                                />
                                 <input
                                   type="number"
                                   disabled={readOnly}
@@ -4114,10 +4206,16 @@ const RefundModal = ({
                               </button>
                             </div>
                           ) : null}
-                          {staffClaimCustomerOptions.length === 0 ? (
+                          {!payoutRecipientsAvailable ? (
                             <p className="text-ui-xs text-amber-200/80 leading-snug">
-                              No staff-linked customer with bank yet — add bank on a staff customer profile to
-                              claim remainder.
+                              No payout recipients with bank on file yet — add bank details on an associated
+                              staff profile (Procurement → Associated staff) or on a staff-linked customer
+                              record, then reopen this refund.
+                            </p>
+                          ) : staffClaimCustomerOptions.length === 0 ? (
+                            <p className="text-ui-xs text-slate-400 leading-snug">
+                              No staff-linked customer with bank — you can still pay associated staff (driver /
+                              installer) listed above.
                             </p>
                           ) : null}
                           {partnerWalletPolicyEnabled ? (
