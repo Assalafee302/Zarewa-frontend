@@ -258,31 +258,53 @@ export function CustomerFormFields({
         </Section>
       ) : null}
 
-      <Section title="Payout account (refunds)" icon={Briefcase}>
-        <FormField label="Account name">
-          <Input
-            value={form.bankAccountName || ''}
-            onChange={(e) => setForm((f) => ({ ...f, bankAccountName: e.target.value }))}
-            placeholder="Name on bank account"
-          />
-        </FormField>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="Bank name">
+      {staffLinked ? (
+        <Section title="Payout account (refunds)" icon={Briefcase}>
+          <div className="rounded-xl border border-teal-200 bg-teal-50/80 px-3 py-3 text-sm text-teal-950 leading-snug">
+            <p className="font-semibold">Uses HR payroll bank</p>
+            <p className="mt-1 text-xs text-teal-900/90">
+              This staff-linked customer pays refunds from the employee’s HR bank details (same account as
+              salary). Update bank name and account number in HR staff profile or My Profile — you do not
+              need a separate bank here.
+            </p>
+            {(form.bankName || form.bankAccountNo) && (
+              <p className="mt-2 text-ui-xs text-slate-600">
+                Legacy customer bank fields are ignored when HR bank is on file
+                {form.bankName || form.bankAccountNo
+                  ? ` (was ${[form.bankName, form.bankAccountNo].filter(Boolean).join(' · ')})`
+                  : ''}
+                .
+              </p>
+            )}
+          </div>
+        </Section>
+      ) : (
+        <Section title="Payout account (refunds)" icon={Briefcase}>
+          <FormField label="Account name">
             <Input
-              value={form.bankName || ''}
-              onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
-              placeholder="e.g. Access Bank"
+              value={form.bankAccountName || ''}
+              onChange={(e) => setForm((f) => ({ ...f, bankAccountName: e.target.value }))}
+              placeholder="Name on bank account"
             />
           </FormField>
-          <FormField label="Account number">
-            <Input
-              value={form.bankAccountNo || ''}
-              onChange={(e) => setForm((f) => ({ ...f, bankAccountNo: e.target.value }))}
-              placeholder="Bank account number"
-            />
-          </FormField>
-        </div>
-      </Section>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Bank name">
+              <Input
+                value={form.bankName || ''}
+                onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
+                placeholder="e.g. Access Bank"
+              />
+            </FormField>
+            <FormField label="Account number">
+              <Input
+                value={form.bankAccountNo || ''}
+                onChange={(e) => setForm((f) => ({ ...f, bankAccountNo: e.target.value }))}
+                placeholder="Bank account number"
+              />
+            </FormField>
+          </div>
+        </Section>
+      )}
 
       {children}
     </div>

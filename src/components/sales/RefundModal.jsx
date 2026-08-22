@@ -704,6 +704,10 @@ const RefundModal = ({
   const [payoutAssociatedStaff, setPayoutAssociatedStaff] = useState([]);
   const [payoutAssociatedStaffLoading, setPayoutAssociatedStaffLoading] = useState(false);
   const [payoutAssociatedStaffError, setPayoutAssociatedStaffError] = useState('');
+  /** Company staff with sales customer link — bank from HR (masked). */
+  const [claimingStaffRows, setClaimingStaffRows] = useState([]);
+  const [claimingStaffLoading, setClaimingStaffLoading] = useState(false);
+  const [claimingStaffError, setClaimingStaffError] = useState('');
 
   const createPathUserTouchedRef = useRef(false);
 
@@ -857,22 +861,31 @@ const RefundModal = ({
     () => allCustomers.find((c) => String(c.customerID || '').trim() === String(form.customerID || '').trim()) || null,
     [allCustomers, form.customerID]
   );
+  const selectedCustomerHrPayout = useMemo(() => {
+    const cid = String(form.customerID || '').trim();
+    if (!cid) return null;
+    return claimingStaffRows.find((r) => String(r.customerID || '').trim() === cid && r.hasBank) || null;
+  }, [claimingStaffRows, form.customerID]);
   const payoutAccountReady = Boolean(
-    String(form.payeeName || '').trim() &&
+    (String(form.payeeName || '').trim() &&
       String(form.payeeAccountNo || '').trim() &&
-      String(form.payeeBankName || '').trim()
+      String(form.payeeBankName || '').trim()) ||
+      selectedCustomerHrPayout
   );
-  const staffClaimCustomerOptions = useMemo(
+  const companyStaffClaimOptions = useMemo(
     () =>
-      allCustomers
-        .filter((c) => isStaffLinkedCustomer(c) && customerHasBank(c))
-        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
-    [allCustomers]
+      [...claimingStaffRows].sort((a, b) => {
+        const aBank = a.hasBank ? 0 : 1;
+        const bBank = b.hasBank ? 0 : 1;
+        if (aBank !== bBank) return aBank - bBank;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      }),
+    [claimingStaffRows]
   );
   const customersWithBankOptions = useMemo(
     () =>
       allCustomers
-        .filter((c) => customerHasBank(c))
+        .filter((c) => customerHasBank(c) && !isStaffLinkedCustomer(c))
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
     [allCustomers]
   );
@@ -919,14 +932,22 @@ const RefundModal = ({
   const claimingPayoutOptions = useMemo(() => {
     const opts = [];
     const seen = new Set();
-    for (const c of staffClaimCustomerOptions) {
-      const key = `customer:${c.customerID}`;
+    for (const s of companyStaffClaimOptions) {
+      const key = `customer:${s.customerID}`;
       seen.add(key);
+      const bankBit = s.hasBank
+        ? `${s.bankName} ${s.bankAccountNoMasked || ''}`.trim()
+        : 'no HR bank on file';
+      const emp = s.employeeNo ? ` · ${s.employeeNo}` : '';
       opts.push({
         key,
-        label: `${c.name} · ${c.bankName} ${c.bankAccountNo}`,
-        group: 'Staff customer',
-        searchText: `${c.name} ${c.bankName || ''} ${c.bankAccountNo || ''} ${c.customerID || ''}`,
+        label: `${s.name}${emp} · ${bankBit}`,
+        group: s.hasBank ? 'Company staff (HR bank)' : 'Company staff (need HR bank)',
+        searchText: `${s.name} ${s.employeeNo || ''} ${s.bankName || ''} ${s.customerID || ''} ${s.userId || ''}`,
+        disabled: !s.hasBank,
+        hint: s.hasBank
+          ? 'Uses HR payroll bank'
+          : 'Add bank on the employee HR profile, then reopen.',
       });
     }
     for (const c of customersWithBankOptions) {
@@ -947,38 +968,57 @@ const RefundModal = ({
       });
     }
     return opts;
-  }, [staffClaimCustomerOptions, customersWithBankOptions, associatedStaffPayoutOptions]);
+  }, [companyStaffClaimOptions, customersWithBankOptions, associatedStaffPayoutOptions]);
+  const companyStaffWithBankCount = companyStaffClaimOptions.filter((s) => s.hasBank).length;
   const payoutRecipientsAvailable =
     associatedStaffWithBank.length > 0 ||
-    staffClaimCustomerOptions.length > 0 ||
+    companyStaffWithBankCount > 0 ||
     customersWithBankOptions.length > 0;
   const payoutBankReadyCount =
-    associatedStaffWithBank.length + staffClaimCustomerOptions.length + customersWithBankOptions.length;
+    associatedStaffWithBank.length + companyStaffWithBankCount + customersWithBankOptions.length;
+  const payoutDirectoryLoading = payoutAssociatedStaffLoading || claimingStaffLoading;
 
-  // Prefer live associated-staff API so sales desk does not depend on a stale/empty snapshot.
+  // Prefer live associated-staff + claiming-staff APIs so sales desk does not depend on a stale snapshot.
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
     let cancelled = false;
     setPayoutAssociatedStaffLoading(true);
     setPayoutAssociatedStaffError('');
+    setClaimingStaffLoading(true);
+    setClaimingStaffError('');
     void (async () => {
       try {
-        const { ok, data } = await apiFetch('/api/associated-staff');
+        const [staffRes, claimRes] = await Promise.all([
+          apiFetch('/api/associated-staff'),
+          apiFetch('/api/refunds/claiming-staff'),
+        ]);
         if (cancelled) return;
-        if (!ok) {
+        if (!staffRes.ok) {
           setPayoutAssociatedStaffError(
-            String(data?.error || 'Could not load associated staff for payout.')
+            String(staffRes.data?.error || 'Could not load associated staff for payout.')
           );
-          return;
+        } else {
+          setPayoutAssociatedStaff(
+            Array.isArray(staffRes.data?.associatedStaff) ? staffRes.data.associatedStaff : []
+          );
         }
-        const rows = Array.isArray(data?.associatedStaff) ? data.associatedStaff : [];
-        setPayoutAssociatedStaff(rows);
+        if (!claimRes.ok) {
+          setClaimingStaffError(String(claimRes.data?.error || 'Could not load company staff for claiming.'));
+        } else {
+          setClaimingStaffRows(
+            Array.isArray(claimRes.data?.claimingStaff) ? claimRes.data.claimingStaff : []
+          );
+        }
       } catch (e) {
         if (!cancelled) {
-          setPayoutAssociatedStaffError(String(e?.message || e || 'Could not load associated staff.'));
+          setPayoutAssociatedStaffError(String(e?.message || e || 'Could not load payout recipients.'));
+          setClaimingStaffError(String(e?.message || e || 'Could not load claiming staff.'));
         }
       } finally {
-        if (!cancelled) setPayoutAssociatedStaffLoading(false);
+        if (!cancelled) {
+          setPayoutAssociatedStaffLoading(false);
+          setClaimingStaffLoading(false);
+        }
       }
     })();
     void ws.ensureDomainLoaded?.('sales', { force: true });
@@ -991,11 +1031,21 @@ const RefundModal = ({
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
     if (!selectedRefundCustomer) return;
+    if (selectedCustomerHrPayout) {
+      // Server resolves full HR account at submit; do not send a masked/partial payee.
+      setForm((f) => ({
+        ...f,
+        payeeName: '',
+        payeeBankName: '',
+        payeeAccountNo: '',
+      }));
+      return;
+    }
     const payeeName = String(selectedRefundCustomer.bankAccountName || selectedRefundCustomer.name || '').trim();
     const payeeBankName = String(selectedRefundCustomer.bankName || '').trim();
     const payeeAccountNo = String(selectedRefundCustomer.bankAccountNo || '').trim();
     setForm((f) => ({ ...f, payeeName, payeeBankName, payeeAccountNo }));
-  }, [isOpen, mode, selectedRefundCustomer]);
+  }, [isOpen, mode, selectedRefundCustomer, selectedCustomerHrPayout]);
 
   // When customer has bank, keep the simple path (no allocation rows).
   useEffect(() => {
@@ -1128,8 +1178,8 @@ const RefundModal = ({
       .trim()
       .toLowerCase();
     const claimCustomerDefault =
-      staffClaimCustomerOptions.find((c) => String(c.name || '').toLowerCase().includes(meName) && meName) ||
-      staffClaimCustomerOptions[0] ||
+      companyStaffClaimOptions.find((c) => c.hasBank && String(c.name || '').toLowerCase().includes(meName) && meName) ||
+      companyStaffClaimOptions.find((c) => c.hasBank) ||
       null;
     const claimStaffDefault =
       associatedStaffWithBank.find((s) => String(s.name || '').toLowerCase().includes(meName) && meName) ||
@@ -1211,7 +1261,7 @@ const RefundModal = ({
     form.calculationLines,
     selectedQuotationSnapshot,
     associatedStaffWithBank,
-    staffClaimCustomerOptions,
+    companyStaffClaimOptions,
     ws?.session?.user?.displayName,
     ws?.session?.user?.username,
   ]);
@@ -2156,7 +2206,9 @@ const RefundModal = ({
           (row.recipientCustomerID || row.recipientAssociatedStaffID)
       );
     const splitTotal = refundSplits.reduce((s, row) => s + row.amountNgn, 0);
-    const hasCustomerBank = Boolean(payeeName && payeeAccountNo && payeeBankName);
+    const hasCustomerBank = Boolean(
+      (payeeName && payeeAccountNo && payeeBankName) || selectedCustomerHrPayout
+    );
 
     if (!hasCustomerBank) {
       if (refundSplits.length === 0) {
@@ -2362,9 +2414,9 @@ const RefundModal = ({
       calculationNotes: form.calculationNotes.trim(),
       status: 'Pending',
       previewSnapshot: lastPreviewSnapshot,
-      payeeName,
-      payeeAccountNo,
-      payeeBankName,
+      payeeName: selectedCustomerHrPayout ? '' : payeeName,
+      payeeAccountNo: selectedCustomerHrPayout ? '' : payeeAccountNo,
+      payeeBankName: selectedCustomerHrPayout ? '' : payeeBankName,
       refundSplits,
       productionAlignmentAcknowledgedCodes: ackCodes,
       productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
@@ -2374,8 +2426,8 @@ const RefundModal = ({
       if (result?.error) setPreviewError(String(result.error));
       return;
     }
-    if (result?.ok !== false) {
-      if (hasCustomerBank) {
+      if (result?.ok !== false) {
+      if (hasCustomerBank && !selectedCustomerHrPayout) {
         touchRefundPayeeAccount({
           payeeName,
           payeeAccountNo,
@@ -4118,7 +4170,7 @@ const RefundModal = ({
                         </p>
                         {payoutAccountReady ? (
                           <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
-                            Customer bank
+                            {selectedCustomerHrPayout ? 'HR bank' : 'Customer bank'}
                           </span>
                         ) : (
                           <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
@@ -4130,15 +4182,39 @@ const RefundModal = ({
                       {payoutAccountReady ? (
                         <>
                           <div className="rounded-lg border border-slate-600/80 bg-slate-950/40 px-3 py-3 space-y-1">
-                            <p className="text-sm font-semibold text-white leading-snug">{form.payeeName}</p>
-                            <p className="text-xs text-slate-300">
-                              {[form.payeeBankName, form.payeeAccountNo].filter(Boolean).join(' · ')}
-                            </p>
-                            {form.customerName ? (
-                              <p className="text-ui-xs text-slate-500 pt-1">
-                                Customer · {form.customerName}
-                              </p>
-                            ) : null}
+                            {selectedCustomerHrPayout ? (
+                              <>
+                                <p className="text-sm font-semibold text-white leading-snug">
+                                  {selectedCustomerHrPayout.name}
+                                  {selectedCustomerHrPayout.employeeNo
+                                    ? ` · ${selectedCustomerHrPayout.employeeNo}`
+                                    : ''}
+                                </p>
+                                <p className="text-xs text-slate-300">
+                                  {[
+                                    selectedCustomerHrPayout.bankName,
+                                    selectedCustomerHrPayout.bankAccountNoMasked,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                </p>
+                                <p className="text-ui-xs text-emerald-300/90 pt-1">
+                                  Uses HR payroll bank (update in HR / My Profile)
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm font-semibold text-white leading-snug">{form.payeeName}</p>
+                                <p className="text-xs text-slate-300">
+                                  {[form.payeeBankName, form.payeeAccountNo].filter(Boolean).join(' · ')}
+                                </p>
+                                {form.customerName ? (
+                                  <p className="text-ui-xs text-slate-500 pt-1">
+                                    Customer · {form.customerName}
+                                  </p>
+                                ) : null}
+                              </>
+                            )}
                           </div>
                           {partnerWalletPolicyEnabled ? (
                             <p className="text-ui-xs text-slate-400 leading-snug">
@@ -4154,7 +4230,7 @@ const RefundModal = ({
                         <div className="space-y-3">
                           <p className="text-ui-xs text-amber-100/90 leading-snug">
                             No customer bank on file. Send transport/installation to associated staff, and any
-                            remainder to the claiming staff (staff profile with bank) so they can use it.
+                            remainder to company staff (HR bank) or a customer with bank.
                           </p>
                           {(Array.isArray(form.refundSplits) ? form.refundSplits : []).map((row, idx) => {
                             const isStaff = String(row.recipientKind || '') === 'associated_staff';
@@ -4185,7 +4261,7 @@ const RefundModal = ({
                                 </div>
                                 <RefundPayoutRecipientPicker
                                   disabled={readOnly}
-                                  loading={payoutAssociatedStaffLoading}
+                                  loading={payoutDirectoryLoading}
                                   value={payoutRowSelectValue(row)}
                                   options={isStaff ? associatedStaffPayoutOptions : claimingPayoutOptions}
                                   placeholder={
@@ -4298,13 +4374,16 @@ const RefundModal = ({
                           ) : null}
                           {!payoutRecipientsAvailable ? (
                             <p className="text-ui-xs text-amber-200/80 leading-snug">
-                              {payoutAssociatedStaffLoading
-                                ? 'Loading associated staff…'
-                                : `No selectable payout recipient yet. ${associatedStaffWithBank.length} of ${activeAssociatedStaff.length} associated staff have bank. Add bank under Branch Manager → Installers & Drivers (or on a customer profile), then reopen.`}
+                              {payoutDirectoryLoading
+                                ? 'Loading payout recipients…'
+                                : `No selectable payout recipient yet. Company staff need HR bank + a staff purchase customer link. Drivers/installers need bank under Branch Manager → Installers & Drivers.`}
                             </p>
                           ) : (
                             <p className="text-ui-xs text-slate-400 leading-snug">
-                              Bank-ready now: {associatedStaffWithBank.length} associated staff
+                              Bank-ready now: {companyStaffWithBankCount} company staff (HR)
+                              {associatedStaffWithBank.length
+                                ? ` · ${associatedStaffWithBank.length} associated staff`
+                                : ''}
                               {customersWithBankOptions.length
                                 ? ` · ${customersWithBankOptions.length} customers`
                                 : ''}
@@ -4314,6 +4393,9 @@ const RefundModal = ({
                           )}
                           {payoutAssociatedStaffError ? (
                             <p className="text-ui-xs text-rose-300/90 leading-snug">{payoutAssociatedStaffError}</p>
+                          ) : null}
+                          {claimingStaffError ? (
+                            <p className="text-ui-xs text-rose-300/90 leading-snug">{claimingStaffError}</p>
                           ) : null}
                           {partnerWalletPolicyEnabled ? (
                             <p className="text-ui-xs text-slate-400 leading-snug">
