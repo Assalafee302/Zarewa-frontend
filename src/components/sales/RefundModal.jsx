@@ -882,7 +882,7 @@ const RefundModal = ({
     setAdvancedPricingOpen(false);
 
     if (mode === 'create') {
-      void fetchEligibleQuotes();
+      void fetchEligibleQuotes({ force: true });
     }
   }, [isOpen, record, mode, fetchEligibleQuotes]);
 
@@ -942,6 +942,12 @@ const RefundModal = ({
       ),
     [ws?.snapshot?.orgGovernanceLimits?.refundStaffAllocationDeductionPct]
   );
+  const mayWaiveStaffAllocationCut = useMemo(() => {
+    const rk = String(ws?.user?.roleKey ?? ws?.session?.user?.roleKey ?? '')
+      .trim()
+      .toLowerCase();
+    return rk === 'admin' || isExecutiveRoleKey(rk) || Boolean(ws?.hasPermission?.('*'));
+  }, [ws?.user?.roleKey, ws?.session?.user?.roleKey, ws?.hasPermission]);
   const unclearedFloatByClaimingCustomerId = useMemo(() => {
     const m = new Map();
     for (const s of claimingStaffRows) {
@@ -1175,11 +1181,15 @@ const RefundModal = ({
     (payoutAssociatedStaffLoading || claimingStaffLoading) && activeAssociatedStaff.length === 0;
 
   const openPayoutBankDraft = useCallback((draft) => {
-    if (!draft?.kind || !draft?.id) return;
+    const id = String(draft?.id || '').trim();
+    if (!draft?.kind || !id) {
+      showToast('Select a quotation with a customer first, then add bank details.', { variant: 'error' });
+      return;
+    }
     setPayoutBankError('');
     setPayoutBankDraft({
       kind: draft.kind,
-      id: draft.id,
+      id,
       name: draft.name || '',
       bankAccountName: draft.bankAccountName || draft.name || '',
       bankName: draft.bankName || '',
@@ -1187,7 +1197,7 @@ const RefundModal = ({
       splitIdx: draft.splitIdx ?? null,
       forQuoteCustomer: Boolean(draft.forQuoteCustomer),
     });
-  }, []);
+  }, [showToast]);
 
   const applySavedPayoutBankLocally = useCallback(
     (saved) => {
@@ -2527,6 +2537,12 @@ const RefundModal = ({
         const customerId = String(row?.recipientCustomerID || '').trim();
         const amountNgn = Math.round(Number(row?.amountNgn) || 0);
         const note = String(row?.note || '').trim();
+        const companyCutWaived =
+          mayWaiveStaffAllocationCut &&
+          Boolean(row?.companyCutWaived === true || row?.waiveCompanyCut === true);
+        const companyCutWaiverNote = companyCutWaived
+          ? String(row?.companyCutWaiverNote || '').trim()
+          : '';
         if (kind === 'associated_staff' || (staffId && !customerId)) {
           return {
             recipientKind: 'associated_staff',
@@ -2534,6 +2550,8 @@ const RefundModal = ({
             recipientCustomerID: '',
             amountNgn,
             note,
+            companyCutWaived,
+            companyCutWaiverNote,
           };
         }
         return {
@@ -2542,6 +2560,8 @@ const RefundModal = ({
           recipientAssociatedStaffID: '',
           amountNgn,
           note,
+          companyCutWaived,
+          companyCutWaiverNote,
         };
       })
       .filter(
@@ -2549,6 +2569,17 @@ const RefundModal = ({
           row.amountNgn > 0 &&
           (row.recipientCustomerID || row.recipientAssociatedStaffID)
       );
+    if (mayWaiveStaffAllocationCut) {
+      for (const row of refundSplits) {
+        if (!row.companyCutWaived) continue;
+        if (String(row.companyCutWaiverNote || '').trim().length < 8) {
+          setPreviewError(
+            'Each waived company-cut line needs a short reason (at least 8 characters).'
+          );
+          return;
+        }
+      }
+    }
     const splitTotal = refundSplits.reduce((s, row) => s + row.amountNgn, 0);
     const hasCustomerBank = Boolean(
       (payeeName && payeeAccountNo && payeeBankName) || selectedCustomerHrPayout
@@ -4623,20 +4654,28 @@ const RefundModal = ({
                             bank — select them to add account number here. Remainder can go to company staff or
                             another payee.
                           </p>
-                          {!readOnly && selectedRefundCustomer && !customerHasBank(selectedRefundCustomer) ? (
+                          {!readOnly &&
+                          String(form.customerID || '').trim() &&
+                          !(selectedRefundCustomer && customerHasBank(selectedRefundCustomer)) ? (
                             <button
                               type="button"
                               onClick={() =>
                                 openPayoutBankDraft({
                                   kind: 'customer',
-                                  id: String(selectedRefundCustomer.customerID || ''),
-                                  name: selectedRefundCustomer.name || form.customerName || '',
-                                  bankAccountName:
-                                    selectedRefundCustomer.bankAccountName ||
-                                    selectedRefundCustomer.name ||
+                                  id: String(
+                                    selectedRefundCustomer?.customerID || form.customerID || ''
+                                  ).trim(),
+                                  name:
+                                    selectedRefundCustomer?.name ||
+                                    form.customerName ||
                                     '',
-                                  bankName: selectedRefundCustomer.bankName || '',
-                                  bankAccountNo: selectedRefundCustomer.bankAccountNo || '',
+                                  bankAccountName:
+                                    selectedRefundCustomer?.bankAccountName ||
+                                    selectedRefundCustomer?.name ||
+                                    form.customerName ||
+                                    '',
+                                  bankName: selectedRefundCustomer?.bankName || '',
+                                  bankAccountNo: selectedRefundCustomer?.bankAccountNo || '',
                                   forQuoteCustomer: true,
                                 })
                               }
@@ -4774,6 +4813,66 @@ const RefundModal = ({
                                   placeholder="Amount ₦"
                                   className="w-full bg-slate-800 border border-slate-600 rounded-lg py-2 px-2 text-xs text-white tabular-nums"
                                 />
+                                {mayWaiveStaffAllocationCut && mode === 'create' && !readOnly ? (
+                                  <div className="space-y-1.5 rounded-lg border border-violet-500/30 bg-violet-950/30 px-2 py-1.5">
+                                    <label className="flex items-start gap-2 text-[10px] text-violet-100 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        className="mt-0.5 accent-violet-500"
+                                        checked={Boolean(row.companyCutWaived)}
+                                        onChange={(e) =>
+                                          setForm((f) => ({
+                                            ...f,
+                                            refundSplits: (Array.isArray(f.refundSplits)
+                                              ? f.refundSplits
+                                              : []
+                                            ).map((x, i) =>
+                                              i === idx
+                                                ? {
+                                                    ...x,
+                                                    _manual: '1',
+                                                    companyCutWaived: e.target.checked,
+                                                    companyCutWaiverNote: e.target.checked
+                                                      ? x.companyCutWaiverNote || ''
+                                                      : '',
+                                                  }
+                                                : x
+                                            ),
+                                          }))
+                                        }
+                                      />
+                                      <span>
+                                        Waive company cut for this {isStaff ? 'transporter/installer' : 'claiming staff'}{' '}
+                                        (Admin/MD only)
+                                      </span>
+                                    </label>
+                                    {row.companyCutWaived ? (
+                                      <input
+                                        type="text"
+                                        value={row.companyCutWaiverNote || ''}
+                                        onChange={(e) =>
+                                          setForm((f) => ({
+                                            ...f,
+                                            refundSplits: (Array.isArray(f.refundSplits)
+                                              ? f.refundSplits
+                                              : []
+                                            ).map((x, i) =>
+                                              i === idx
+                                                ? {
+                                                    ...x,
+                                                    _manual: '1',
+                                                    companyCutWaiverNote: e.target.value,
+                                                  }
+                                                : x
+                                            ),
+                                          }))
+                                        }
+                                        placeholder="Waiver reason (required, min 8 characters)"
+                                        className="w-full bg-slate-900 border border-violet-500/40 rounded-md py-1.5 px-2 text-[10px] text-white"
+                                      />
+                                    ) : null}
+                                  </div>
+                                ) : null}
                                 {(() => {
                                   const ded = applyRefundStaffAllocationDeduction(
                                     {
@@ -4790,7 +4889,8 @@ const RefundModal = ({
                                   );
                                   if (
                                     !(ded.companyDeductionNgn > 0) &&
-                                    !(ded.unclearedReceiptOffsetNgn > 0)
+                                    !(ded.unclearedReceiptOffsetNgn > 0) &&
+                                    !ded.companyCutWaived
                                   ) {
                                     return null;
                                   }
@@ -4798,9 +4898,11 @@ const RefundModal = ({
                                   return (
                                     <p className="text-[10px] leading-snug text-amber-200/90">
                                       Gross ₦{(Number(ded.grossNgn) || 0).toLocaleString('en-NG')}
-                                      {ded.companyDeductionNgn > 0
-                                        ? ` · Company ${cutPct}% −₦${(Number(ded.companyDeductionNgn) || 0).toLocaleString('en-NG')}`
-                                        : ''}
+                                      {ded.companyCutWaived
+                                        ? ' · Company cut waived (Admin/MD)'
+                                        : ded.companyDeductionNgn > 0
+                                          ? ` · Company ${cutPct}% −₦${(Number(ded.companyDeductionNgn) || 0).toLocaleString('en-NG')}`
+                                          : ''}
                                       {ded.unclearedReceiptOffsetNgn > 0
                                         ? ` · Uncleared receipts −₦${(Number(ded.unclearedReceiptOffsetNgn) || 0).toLocaleString('en-NG')}`
                                         : ''}

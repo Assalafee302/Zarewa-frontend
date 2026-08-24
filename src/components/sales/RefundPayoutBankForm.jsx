@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, X } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
+import { ModalFrame } from '../layout';
 
 /**
- * Compact modal to capture bank details for a refund recipient.
+ * Compact nested modal to capture bank details for a refund recipient.
+ * Must sit above RefundModal (ModalFrame layer nested) — a plain z-80 overlay
+ * opens behind the refund dialog and looks like “Add bank” does nothing.
  *
  * @param {{
  *   open: boolean;
@@ -36,8 +39,6 @@ export function RefundPayoutBankForm({
     setBankAccountNo(String(initial.bankAccountNo || '').trim());
   }, [open, initial.bankAccountName, initial.bankName, initial.bankAccountNo]);
 
-  if (!open) return null;
-
   const submit = (e) => {
     e.preventDefault();
     void onSave({
@@ -48,7 +49,19 @@ export function RefundPayoutBankForm({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 p-3 sm:items-center">
+    <ModalFrame
+      isOpen={open}
+      onClose={() => {
+        if (saving) return;
+        onClose?.();
+      }}
+      title={title}
+      description={subtitle || 'Save bank details for refund payout.'}
+      layer="nested"
+      surface="plain"
+      showCloseButton={false}
+      closeDisabled={saving}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -63,15 +76,6 @@ export function RefundPayoutBankForm({
             </p>
             {subtitle ? <p className="mt-1 text-ui-xs text-slate-400 leading-snug">{subtitle}</p> : null}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-50"
-            aria-label="Close"
-          >
-            <X size={16} />
-          </button>
         </div>
         <form onSubmit={submit} className="space-y-3 px-4 py-4">
           <label className="block space-y-1">
@@ -125,6 +129,6 @@ export function RefundPayoutBankForm({
           </div>
         </form>
       </div>
-    </div>
+    </ModalFrame>
   );
 }

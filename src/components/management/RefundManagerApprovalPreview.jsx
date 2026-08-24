@@ -1378,6 +1378,7 @@ export function RefundManagerApprovalPreview({
                   const gross = Math.round(Number(s?.amountNgn) || 0);
                   const companyCut = Math.round(Number(s?.companyDeductionNgn) || 0);
                   const unclearedOff = Math.round(Number(s?.unclearedReceiptOffsetNgn) || 0);
+                  const cutWaived = Boolean(s?.companyCutWaived);
                   const net =
                     s?.netPayoutNgn != null
                       ? Math.round(Number(s.netPayoutNgn) || 0)
@@ -1385,29 +1386,37 @@ export function RefundManagerApprovalPreview({
                         ? Math.max(0, gross - companyCut - unclearedOff)
                         : gross;
                   const cutPct = Math.round((Number(s?.deductionRate) || 0) * 100);
+                  const showNetBreakdown = companyCut > 0 || unclearedOff > 0 || cutWaived;
                   return (
                     <div key={`split-preview-${idx}`} className="flex justify-between gap-2 text-ui-xs">
                       <span className="min-w-0 text-slate-800">
                         <span className="font-semibold">{name}</span>
                         <span className="block text-slate-500">{kindLabel}</span>
                         {bank ? <span className="block font-mono text-slate-500">{bank}</span> : null}
-                        {companyCut > 0 || unclearedOff > 0 ? (
+                        {showNetBreakdown ? (
                           <span className="block text-amber-800">
                             Gross {formatNgn(gross)}
-                            {companyCut > 0
-                              ? ` · ${cutPct || 20}% company −${formatNgn(companyCut)}`
-                              : ''}
+                            {cutWaived
+                              ? ' · company cut waived (Admin/MD)'
+                              : companyCut > 0
+                                ? ` · ${cutPct || 20}% company −${formatNgn(companyCut)}`
+                                : ''}
                             {unclearedOff > 0
                               ? ` · uncleared receipts −${formatNgn(unclearedOff)}`
                               : ''}
                             {s?.payoutHeldForUnclearedReceipts
                               ? ' · held until cashier clears'
                               : ` · Net pay ${formatNgn(net)}`}
+                            {cutWaived && s?.companyCutWaiverNote ? (
+                              <span className="block text-violet-800">
+                                Waiver: {String(s.companyCutWaiverNote)}
+                              </span>
+                            ) : null}
                           </span>
                         ) : null}
                       </span>
                       <span className="shrink-0 font-bold tabular-nums text-emerald-900">
-                        {formatNgn(companyCut > 0 || unclearedOff > 0 ? net : gross)}
+                        {formatNgn(showNetBreakdown ? net : gross)}
                       </span>
                     </div>
                   );
@@ -1420,7 +1429,7 @@ export function RefundManagerApprovalPreview({
                 <strong>Staff / partner refund payouts</strong> (not classic Refund payouts). Cashier
                 withdraws there — no second BM approval. Company cut (Admin/MD %) and any uncleared
                 receipts the claiming staff posted are settled at approval and reduce the net wallet
-                credit.
+                credit. Admin/MD may waive the company cut on a line when creating the refund.
               </AlertBanner>
             ) : null}
             {otherRefunds.length > 0 ? (
