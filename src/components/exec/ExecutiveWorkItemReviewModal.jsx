@@ -16,10 +16,11 @@ import { ZareApprovalHint } from '../ZareApprovalHint';
 import { execWorkItemReviewContext, resolveExecReviewView, resolveExecSettlementId } from '../../lib/execWorkItemReview';
 import { canApproveProductionGate, productionGateOverrideNoteValid } from '../../lib/productionGateAccess';
 import { userMayApproveRefundRequests } from '../../lib/refundsStore';
-import { isExecutiveRoleKey, userMayWriteOffReceivableBadDebt } from '../../lib/workspaceGovernanceClient';
+import { isExecutiveRoleKey, userMayPerformManagerQuotationClearance, userMayWriteOffReceivableBadDebt } from '../../lib/workspaceGovernanceClient';
 import { RECEIVABLE_WRITEOFF_NOTE_MIN_LEN } from '../../lib/receivableWriteOffPolicy';
 import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
-import { OfficeThreadConversationDrawer } from '../office/OfficeThreadConversationDrawer';
+import { OtApprovalDecisionModal } from '../branchManager/OtApprovalDecisionModal';
+import { ExecOfficeMemoDecisionBar } from './ExecOfficeMemoDecisionBar';
 import { decideStaffPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
 import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit, canMdApprovePayroll } from '../../lib/hrAccess';
 import { mdApprovePayrollRun } from '../../lib/hrExtended';
@@ -77,6 +78,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     ws?.hasPermission?.('*');
   const canApproveProductionGateOverride = canApproveProductionGate(ws?.session?.user?.roleKey);
   const canWriteOffBadDebt = userMayWriteOffReceivableBadDebt(ws?.session?.user);
+  const canManagerClearance = userMayPerformManagerQuotationClearance(ws?.session?.user);
   const canApproveRefunds = userMayApproveRefundRequests(ws);
   const canApproveStaffCredit = canApproveStaffPurchaseCredit(ws?.session?.user?.roleKey, ws?.permissions);
   const canRejectStaffCredit = canRejectStaffPurchaseCredit(ws?.session?.user?.roleKey, ws?.permissions);
@@ -426,6 +428,54 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     await finish();
   };
 
+  const handleMaterialReject = async () => {
+    const id = review.incidentId;
+    if (!id || readOnly) return;
+    const reason =
+      window.prompt('Why are you rejecting this material incident? (required, at least 3 characters)') ?? '';
+    if (reason.trim().length < 3) {
+      showToast('Rejection reason is required (at least 3 characters).', { variant: 'error' });
+      return;
+    }
+    setBusy(true);
+    const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ note: reason.trim(), reason: reason.trim() }),
+    });
+    setBusy(false);
+    if (!ok || data?.ok === false) {
+      showToast(data?.error || 'Could not reject material incident.', { variant: 'error' });
+      return;
+    }
+    showToast('Material incident rejected.', { variant: 'success' });
+    await ws?.refresh?.();
+    await finish();
+  };
+
+  const handleEditReject = async () => {
+    const id = review.editApprovalId;
+    if (!id || readOnly) return;
+    const reason =
+      window.prompt('Why are you rejecting this edit request? (required, at least 3 characters)') ?? '';
+    if (reason.trim().length < 3) {
+      showToast('Rejection reason is required (at least 3 characters).', { variant: 'error' });
+      return;
+    }
+    setBusy(true);
+    const { ok, data } = await apiFetch(`/api/edit-approvals/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason.trim() }),
+    });
+    setBusy(false);
+    if (!ok || !data?.ok) {
+      showToast(data?.error || 'Could not reject edit.', { variant: 'error' });
+      return;
+    }
+    showToast('Edit request rejected.', { variant: 'success' });
+    await ws?.refresh?.();
+    await finish();
+  };
+
   const handleMaterialApprove = async () => {
     const id = review.incidentId;
     if (!id || readOnly) return;
@@ -650,6 +700,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 cuttingListId={review.cuttingListId || ''}
                 canProductionOverride={canApproveProductionGateOverride}
                 canWriteOffBadDebt={canWriteOffBadDebt}
+                canManagerClearance={!readOnly && canManagerClearance}
                 showReleasePayments={false}
                 onApprove={() => void handleQuotationReview(review.quotationId, 'clear')}
                 onDisapprove={() => {
@@ -920,12 +971,21 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
               />
               {!readOnly && item.canAct !== false ? (
                 <DecisionActionBar>
-                  <DecisionActionTile
-                    variant="brand"
-                    label="Approve incident"
-                    disabled={busy}
-                    onClick={() => void handleMaterialApprove()}
-                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <DecisionActionTile
+                      variant="compactReject"
+                      icon={Flag}
+                      label="Reject"
+                      disabled={busy}
+                      onClick={() => void handleMaterialReject()}
+                    />
+                    <DecisionActionTile
+                      variant="brand"
+                      label="Approve incident"
+                      disabled={busy}
+                      onClick={() => void handleMaterialApprove()}
+                    />
+                  </div>
                 </DecisionActionBar>
               ) : null}
             </div>
@@ -945,15 +1005,60 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
               </DecisionBand>
               {!readOnly && item.canAct !== false ? (
                 <DecisionActionBar>
-                  <DecisionActionTile
-                    variant="brand"
-                    className="!bg-violet-700 hover:!bg-violet-800"
-                    label="Approve edit"
-                    disabled={busy}
-                    onClick={() => void handleEditApproval()}
-                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <DecisionActionTile
+                      variant="compactReject"
+                      icon={Flag}
+                      label="Reject"
+                      disabled={busy}
+                      onClick={() => void handleEditReject()}
+                    />
+                    <DecisionActionTile
+                      variant="brand"
+                      className="!bg-violet-700 hover:!bg-violet-800"
+                      label="Approve edit"
+                      disabled={busy}
+                      onClick={() => void handleEditApproval()}
+                    />
+                  </div>
                 </DecisionActionBar>
               ) : null}
+            </div>
+          ) : null}
+
+          {review.view === 'overtime' && review.otRequestId ? (
+            <OtApprovalDecisionModal
+              variant="inline"
+              isOpen={isOpen}
+              requestId={review.otRequestId}
+              readOnly={readOnly || item.canAct === false}
+              onClose={() => {}}
+              onDecisionComplete={() => void finish()}
+            />
+          ) : null}
+
+          {review.view === 'integrity' ? (
+            <div className="space-y-4">
+              <DecisionBand
+                tone="edit"
+                eyebrow="Integrity / oversight"
+                title={item.title || 'Needs attention'}
+                subtitle={item.branchName || review.branchId || null}
+              >
+                <p className="mt-2 text-xs leading-relaxed text-slate-700">
+                  {review.integrityKind === 'missing_branch_manager'
+                    ? 'This branch has no Branch Manager assigned. Complaints, OT, and other branch workflows fall back without an owner. Assign a sales_manager (Branch Manager) in Settings → Team & access. This item leaves the queue once a BM is assigned.'
+                    : 'This item is on the MD attention list for oversight. Use the linked desk if a further operational action is required.'}
+                </p>
+              </DecisionBand>
+              <DecisionActionBar>
+                <a
+                  href="/settings/team"
+                  className="inline-flex items-center justify-center rounded-lg bg-zarewa-teal px-4 py-2.5 text-ui-xs font-black uppercase tracking-widest text-white hover:brightness-105"
+                >
+                  Open Team &amp; access
+                </a>
+              </DecisionActionBar>
             </div>
           ) : null}
 
@@ -1074,21 +1179,50 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 )}
               </DecisionBand>
               {!readOnly && item.canAct !== false ? (
-                <p className="text-xs text-slate-600 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  Open Procurement → stock register to cost and lock, or Reports audit for reopen if already locked.
-                </p>
+                <a
+                  href="/procurement"
+                  className="inline-flex items-center justify-center rounded-lg border border-zarewa-teal/30 bg-zarewa-teal/5 px-4 py-2.5 text-ui-xs font-black uppercase tracking-widest text-zarewa-teal hover:bg-zarewa-teal/10"
+                >
+                  Open procurement stock register
+                </a>
               ) : null}
             </div>
           ) : null}
 
-          {review.view === 'fallback' ? (
+          {review.view === 'quotation' && !review.quotationId ? (
             <p className="text-xs text-slate-600">
-              Open the linked module to complete this review.
+              This queue item is missing a quotation reference, so Clear / Flag cannot run here. Open Sales to
+              complete the review.
             </p>
+          ) : null}
+
+          {review.view === 'fallback' ? (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600">
+                This item type does not have an in-page decision yet. Open the linked desk to clear, flag, or
+                approve it.
+              </p>
+              {item.route ? (
+                <a
+                  href={item.route}
+                  className="inline-flex items-center justify-center rounded-lg bg-zarewa-teal px-4 py-2.5 text-ui-xs font-black uppercase tracking-widest text-white hover:brightness-105"
+                >
+                  Open linked desk
+                </a>
+              ) : null}
+            </div>
           ) : null}
           </>
           ) : null}
         </div>
+
+        {isOfficeMemo && review.threadId && !readOnly ? (
+          <ExecOfficeMemoDecisionBar
+            threadId={review.threadId}
+            workItemId={review.relatedWorkItemId}
+            onCompleted={() => void finish()}
+          />
+        ) : null}
 
         <div className="border-t border-slate-100 px-5 py-3 flex justify-end gap-2">
           {!isOfficeMemo && review.view === 'fallback' && item.route ? (

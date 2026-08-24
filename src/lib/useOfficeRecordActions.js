@@ -65,7 +65,9 @@ export function useOfficeRecordActions({ workItem, threadId, onRefresh }) {
 
   const postDecision = useCallback(
     async (decisionKey, outcomeStatus, note = '') => {
-      const wid = String(workItem?.id || '').trim();
+      const wid = String(
+        workItem?.id || detail?.workItem?.id || detail?.thread?.relatedWorkItemId || ''
+      ).trim();
       if (!wid) {
         showToast('No work item linked to this record.', { variant: 'error' });
         return false;
@@ -99,7 +101,7 @@ export function useOfficeRecordActions({ workItem, threadId, onRefresh }) {
         setBusy(false);
       }
     },
-    [workItem?.id, ws, showToast, loadThread, onRefresh]
+        [workItem?.id, detail?.workItem?.id, detail?.thread?.relatedWorkItemId, ws, showToast, loadThread, onRefresh]
   );
 
   const endorse = useCallback(() => {
@@ -166,8 +168,10 @@ export function useOfficeRecordActions({ workItem, threadId, onRefresh }) {
   }, [thread, detail, nameByUserId, workItem, showToast]);
 
   const isBranchManager = BRANCH_MANAGER_ROLES.has(roleKey);
-  const canEndorse = isBranchManager && /^(open|submitted|pending|needs.?endorse)/.test(status);
-  const canReturn = isBranchManager && !/^(closed|filed|converted)/.test(status);
+  const isExecApprover = roleKey === 'md' || roleKey === 'admin' || roleKey === 'ceo';
+  const canEndorse =
+    (isBranchManager || isExecApprover) && /^(open|submitted|pending|needs.?endorse)/.test(status);
+  const canReturn = (isBranchManager || isExecApprover) && !/^(closed|filed|converted)/.test(status);
   const canClose = isBranchManager || roleKey === 'admin' || roleKey === 'md';
   const showClose = canClose && !/^(closed|filed)/.test(status);
   const canConvert =

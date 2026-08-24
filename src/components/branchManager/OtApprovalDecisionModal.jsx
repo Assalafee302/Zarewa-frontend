@@ -22,6 +22,8 @@ export function OtApprovalDecisionModal({
   requestId = '',
   onClose,
   onDecisionComplete,
+  variant = 'modal',
+  readOnly = false,
 }) {
   const { show: showToast } = useToast();
   const [detail, setDetail] = useState(null);
@@ -120,24 +122,31 @@ export function OtApprovalDecisionModal({
   };
 
   const req = detail?.request;
+  const showActions = !loading && req && !readOnly;
+  const actions = showActions ? (
+          <DecisionStickyActions hint="Approve locks the payable for cashier. Reject is terminal — store must create a new request.">
+            <div className="grid grid-cols-2 gap-2">
+              <DecisionActionTile
+                variant="reject"
+                icon={X}
+                label="Reject"
+                disabled={busy}
+                onClick={() => void handleReject()}
+              />
+              <DecisionActionTile
+                variant="approve"
+                icon={Check}
+                label="Approve"
+                disabled={busy}
+                onClick={() => void handleApprove()}
+              />
+            </div>
+          </DecisionStickyActions>
+  ) : null;
 
-  return (
-    <ModalFrame
-      isOpen={Boolean(isOpen && requestId)}
-      onClose={() => !busy && onClose?.()}
-      title="Overtime pay approval"
-      description="Review overtime pay request and approve or reject."
-      surface="plain"
-      closeDisabled={busy}
-      showCloseButton={false}>
-      <div className="z-modal-panel flex max-h-[min(92vh,880px)] w-full max-w-3xl flex-col overflow-hidden p-0">
-        <DecisionModalHeader
-          title="Overtime pay approval"
-          onClose={() => !busy && onClose?.()}
-          busy={busy}
-          icon={Banknote}
-        />
-        <DecisionModalBody>
+  const inner = (
+        <>
+        <DecisionModalBody className={variant === 'inline' ? '!px-0 !py-0' : undefined}>
           {loading ? (
             <p className="py-10 text-center text-xs text-slate-500">Loading OT request…</p>
           ) : null}
@@ -263,26 +272,33 @@ export function OtApprovalDecisionModal({
             </div>
           ) : null}
         </DecisionModalBody>
-        {!loading && req ? (
-          <DecisionStickyActions hint="Approve locks the payable for cashier. Reject is terminal — store must create a new request.">
-            <div className="grid grid-cols-2 gap-2">
-              <DecisionActionTile
-                variant="reject"
-                icon={X}
-                label="Reject"
-                disabled={busy}
-                onClick={() => void handleReject()}
-              />
-              <DecisionActionTile
-                variant="approve"
-                icon={Check}
-                label="Approve"
-                disabled={busy}
-                onClick={() => void handleApprove()}
-              />
-            </div>
-          </DecisionStickyActions>
-        ) : null}
+        {actions}
+        </>
+  );
+
+  if (variant === 'inline') {
+    if (!isOpen || !requestId) return null;
+    return <div className="space-y-4">{inner}</div>;
+  }
+
+  return (
+    <ModalFrame
+      isOpen={Boolean(isOpen && requestId)}
+      onClose={() => !busy && onClose?.()}
+      title="Overtime pay approval"
+      description="Review overtime pay request and approve or reject."
+      surface="plain"
+      closeDisabled={busy}
+      showCloseButton={false}
+    >
+      <div className="z-modal-panel flex max-h-[min(92vh,880px)] w-full max-w-3xl flex-col overflow-hidden p-0">
+        <DecisionModalHeader
+          title="Overtime pay approval"
+          onClose={() => !busy && onClose?.()}
+          busy={busy}
+          icon={Banknote}
+        />
+        {inner}
       </div>
     </ModalFrame>
   );

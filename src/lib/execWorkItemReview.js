@@ -3,8 +3,10 @@ const EXEC_IN_MODAL_KINDS = new Set([
   'price_exception',
   'conversions',
   'refunds',
+  'refund_request',
   'register_settlement',
   'payments',
+  'payment_request',
   'clearance',
   'flagged',
   'production',
@@ -16,6 +18,9 @@ const EXEC_IN_MODAL_KINDS = new Set([
   'inter_branch_loan',
   'stock_register',
   'office_memo',
+  'work_item',
+  'overtime',
+  'ot_request',
 ]);
 
 /**
@@ -67,15 +72,24 @@ export function execWorkItemReviewContext(item) {
   const iblMatch = fromId.match(/^ibl:(.+)$/i);
   const stockMatch = fromId.match(/^stockreg:([^:]+):(.+)$/i);
   const officeMatch = fromId.match(/^office:(.+)$/i);
+  const otMatch = fromId.match(/^ot:(.+)$/i);
+  const kind = String(item?.kind || '').trim().toLowerCase();
+  const quoteFromRow =
+    kind === 'overtime' || kind === 'ot_request'
+      ? String(row.quotationRef || row.quotation_ref || '').trim()
+      : String(row.id || row.quotation_ref || '').trim();
   return {
-    quotationRef: String(item?.quotationRef || ctx.quotationRef || row.id || row.quotation_ref || '').trim(),
+    quotationRef: String(item?.quotationRef || ctx.quotationRef || quoteFromRow).trim(),
     jobId: String(ctx.jobId || row.job_id || '').trim(),
     refundId: String(ctx.refundId || row.refund_id || row.refundId || '').trim(),
     settlementId,
     requestId: String(ctx.requestId || row.request_id || '').trim(),
-    cuttingListId: String(ctx.cuttingListId || row.id || '').trim(),
+    cuttingListId: String(ctx.cuttingListId || (kind === 'production' ? row.id : '') || '').trim(),
     materialIncidentId: String(ctx.materialIncidentId || row.id || '').trim(),
     editApprovalId: String(ctx.editApprovalId || row.id || '').trim(),
+    otRequestId: String(ctx.otRequestId || row.id || (otMatch ? otMatch[1] : '') || '').trim(),
+    integrityKind: String(ctx.integrityKind || row.integrityKind || '').trim(),
+    relatedWorkItemId: String(ctx.relatedWorkItemId || row.relatedWorkItemId || row.workItemId || '').trim(),
     accountId: String(ctx.accountId || row.id || (staffCreditMatch ? staffCreditMatch[1] : '') || '').trim(),
     payrollRunId: String(
       ctx.payrollRunId || row.id || row.run_id || (payrollMatch ? payrollMatch[1] : '') || ''
@@ -94,6 +108,12 @@ export function execWorkItemReviewContext(item) {
   };
 }
 
+function compactTitleId(item) {
+  const title = String(item?.title || '').trim();
+  if (!title || /\s/.test(title)) return '';
+  return title;
+}
+
 /**
  * Normalize a work tray row into a review view key for the modal body.
  * @param {object | null | undefined} item
@@ -101,51 +121,64 @@ export function execWorkItemReviewContext(item) {
 export function resolveExecReviewView(item) {
   const kind = String(item?.kind || '').trim().toLowerCase();
   const ctx = execWorkItemReviewContext(item);
+  const quoteId = ctx.quotationRef || compactTitleId(item);
 
   if (kind === 'price_exception') {
-    return { view: 'price_exception', quotationId: ctx.quotationRef };
+    return { view: 'price_exception', quotationId: quoteId };
   }
   if (kind === 'conversions') {
     return { view: 'conversion', jobId: ctx.jobId, row: ctx.row };
   }
-  if (kind === 'refunds') {
+  if (kind === 'refunds' || kind === 'refund_request') {
     return { view: 'refund', refundId: ctx.refundId, row: ctx.row };
   }
   if (kind === 'register_settlement') {
     return { view: 'register_settlement', settlementId: ctx.settlementId || resolveExecSettlementId(item), row: ctx.row };
   }
-  if (kind === 'payments') {
+  if (kind === 'payments' || kind === 'payment_request') {
     return { view: 'payment', requestId: ctx.requestId, row: ctx.row };
   }
   if (kind === 'clearance') {
-    return { view: 'quotation', quotationId: ctx.quotationRef, reviewContext: 'clearance', row: ctx.row };
+    return { view: 'quotation', quotationId: quoteId, reviewContext: 'clearance', row: ctx.row };
   }
   if (kind === 'flagged') {
-    return { view: 'quotation', quotationId: ctx.quotationRef, reviewContext: 'flagged', row: ctx.row };
+    return { view: 'quotation', quotationId: quoteId, reviewContext: 'flagged', row: ctx.row };
   }
   if (kind === 'production') {
     return {
       view: 'quotation',
-      quotationId: ctx.quotationRef,
+      quotationId: quoteId,
       reviewContext: 'production',
       fromProductionGate: true,
       cuttingListId: ctx.cuttingListId,
       row: ctx.row,
     };
   }
+  if (kind === 'overtime' || kind === 'ot_request') {
+    return { view: 'overtime', otRequestId: ctx.otRequestId, row: ctx.row };
+  }
   if (kind === 'governance') {
     if (ctx.refundId) {
       return { view: 'refund', refundId: ctx.refundId, row: ctx.row };
     }
-    if (ctx.quotationRef) {
+    if (quoteId) {
       return {
         view: 'quotation',
-        quotationId: ctx.quotationRef,
+        quotationId: quoteId,
         reviewContext: 'production',
         fromProductionGate: true,
         row: ctx.row,
       };
     }
+    return {
+      view: 'integrity',
+      integrityKind: ctx.integrityKind || ctx.row?.integrityKind || 'governance',
+      branchId: String(item?.branchId || ctx.row?.branchId || '').trim(),
+      row: ctx.row,
+    };
+  }
+  if (kind === 'work_item' && ctx.threadId) {
+    return { view: 'office_memo', threadId: ctx.threadId, relatedWorkItemId: ctx.relatedWorkItemId, row: ctx.row };
   }
   if (kind === 'material') {
     return { view: 'material', incidentId: ctx.materialIncidentId || ctx.row.id, row: ctx.row };
@@ -171,7 +204,12 @@ export function resolveExecReviewView(item) {
     };
   }
   if (kind === 'office_memo') {
-    return { view: 'office_memo', threadId: ctx.threadId, row: ctx.row };
+    return {
+      view: 'office_memo',
+      threadId: ctx.threadId,
+      relatedWorkItemId: ctx.relatedWorkItemId,
+      row: ctx.row,
+    };
   }
   return { view: 'fallback', route: item?.route || '/manager' };
 }
