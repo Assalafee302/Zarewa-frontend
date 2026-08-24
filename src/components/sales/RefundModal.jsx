@@ -2035,11 +2035,13 @@ const RefundModal = ({
       setManualQuotationVerifyError(data?.error || 'Could not verify quotation.');
       return;
     }
-    const allowed =
-      data.wouldAppearInRefundQuotationDropdown === true || data.manualEntryRefundAllowed === true;
+    const allowed = data.wouldAppearInRefundQuotationDropdown === true;
     if (!allowed) {
       const reasons = Array.isArray(data.blockingReasons) ? data.blockingReasons.filter(Boolean).join(' ') : '';
-      setManualQuotationVerifyError(reasons || 'This quotation cannot be used for a refund request.');
+      setManualQuotationVerifyError(
+        reasons ||
+          `This quotation cannot be used for a refund (minimum automatic claim ₦${MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}).`
+      );
       return;
     }
     applyVerifiedQuotationRef(ref);
@@ -2518,6 +2520,12 @@ const RefundModal = ({
     }
     const amountNgn = Number(form.amountNgn);
     if (Number.isNaN(amountNgn) || amountNgn <= 0) return;
+    if (amountNgn < MIN_REFUND_QUOTATION_REMAINING_NGN) {
+      setPreviewError(
+        `Refund amount must be at least ₦${MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} (got ₦${amountNgn.toLocaleString('en-NG')}).`
+      );
+      return;
+    }
     const reasonCategory = deriveReasonCategoriesFromLines(form.calculationLines);
     if (reasonCategory.length === 0) {
       setPreviewError('Include at least one line with a positive amount (check the Include box).');
