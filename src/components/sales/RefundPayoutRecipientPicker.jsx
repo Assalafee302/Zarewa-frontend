@@ -4,6 +4,7 @@ import { Search, X } from 'lucide-react';
 /**
  * Searchable payout recipient picker for refund allocation rows.
  * Options use keys like `staff:<id>` or `customer:<id>`.
+ * Rows with `needsBank` can still be selected — caller opens bank capture.
  *
  * @param {{
  *   options: Array<{
@@ -12,10 +13,11 @@ import { Search, X } from 'lucide-react';
  *     group?: string;
  *     searchText?: string;
  *     disabled?: boolean;
+ *     needsBank?: boolean;
  *     hint?: string;
  *   }>;
  *   value: string;
- *   onChange: (key: string) => void;
+ *   onChange: (key: string, opt?: object) => void;
  *   disabled?: boolean;
  *   placeholder?: string;
  *   emptyHint?: string;
@@ -81,7 +83,7 @@ export function RefundPayoutRecipientPicker({
 
   const pick = (opt) => {
     if (opt?.disabled) return;
-    onChange?.(opt.key);
+    onChange?.(opt.key, opt);
     setOpen(false);
     setQuery('');
   };
@@ -96,7 +98,7 @@ export function RefundPayoutRecipientPicker({
     if (loading) return 'Loading recipients…';
     if (options.length === 0) return emptyHint;
     if (filtered.length === 0) {
-      return `No match for “${String(query || '').trim()}”. Clear the search to see ${selectableCount} bank-ready recipient${selectableCount === 1 ? '' : 's'}.`;
+      return `No match for “${String(query || '').trim()}”. Clear the search to see ${selectableCount} recipient${selectableCount === 1 ? '' : 's'}.`;
     }
     return emptyHint;
   })();
@@ -117,7 +119,9 @@ export function RefundPayoutRecipientPicker({
               </span>
             ) : null}
             <span className="block truncate font-semibold leading-snug">{selected.label}</span>
-            <span className="mt-0.5 block text-[10px] text-slate-400">Click to change</span>
+            <span className="mt-0.5 block text-[10px] text-slate-400">
+              {selected.needsBank ? 'Bank needed — click to change' : 'Click to change'}
+            </span>
           </button>
           {!disabled ? (
             <button
@@ -153,7 +157,7 @@ export function RefundPayoutRecipientPicker({
           </div>
           {open && !disabled ? (
             <div className="absolute z-30 mt-1 max-h-[min(16rem,50vh)] w-full overflow-auto rounded-lg border border-slate-600 bg-slate-900 py-1 shadow-xl">
-              {loading ? (
+              {loading && options.length === 0 ? (
                 <p className="px-3 py-2 text-ui-xs text-slate-400">Loading recipients…</p>
               ) : grouped.length === 0 ? (
                 <p className="px-3 py-2 text-ui-xs text-slate-400">{resolvedEmptyHint}</p>
@@ -182,8 +186,10 @@ export function RefundPayoutRecipientPicker({
                           onClick={() => pick(opt)}
                         >
                           <span className="block truncate font-semibold leading-snug">{opt.label}</span>
-                          {opt.hint ? (
-                            <span className="mt-0.5 block text-[10px] text-amber-300/90">{opt.hint}</span>
+                          {opt.hint || opt.needsBank ? (
+                            <span className="mt-0.5 block text-[10px] text-amber-300/90">
+                              {opt.hint || 'No bank — select to add account number'}
+                            </span>
                           ) : null}
                         </button>
                       );
