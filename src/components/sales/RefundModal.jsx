@@ -253,10 +253,33 @@ function suggestedLineIsPositiveNonOverpayment(line) {
 }
 
 /**
+ * Still-refundable overpayment on this quote (after prior overpay refunds).
+ * Prefer residual from preview — never invent an amount from gross excess alone when residual is 0.
+ */
+export function refundableOverpaymentNgn({
+  overpaymentResidualNgn,
+  overpaymentExcessNgn,
+  suggestedLines,
+} = {}) {
+  if (overpaymentResidualNgn != null && Number.isFinite(Number(overpaymentResidualNgn))) {
+    return Math.max(0, roundMoneyLocal(overpaymentResidualNgn));
+  }
+  const fromSuggested = (Array.isArray(suggestedLines) ? suggestedLines : [])
+    .filter((l) => String(l.category || '').trim() === 'Overpayment')
+    .reduce((sum, l) => sum + roundMoneyLocal(l.amountNgn), 0);
+  if (fromSuggested > 0) return fromSuggested;
+  return Math.max(0, roundMoneyLocal(overpaymentExcessNgn));
+}
+
+/**
  * Auto-select Quick overpay only when overpayment is the sole positive suggested reason.
  * Cancelled jobs and Order cancellation always use Full refund (whole-job cash path).
  */
-export function refundCreatePathFromPreview({ overpaymentExcessNgn, suggestedLines } = {}) {
+export function refundCreatePathFromPreview({
+  overpaymentExcessNgn,
+  overpaymentResidualNgn,
+  suggestedLines,
+} = {}) {
   const lines = Array.isArray(suggestedLines) ? suggestedLines : [];
   const positiveCats = lines
     .filter((l) => roundMoneyLocal(l.amountNgn) > 0)
@@ -265,7 +288,11 @@ export function refundCreatePathFromPreview({ overpaymentExcessNgn, suggestedLin
   if (positiveCats.includes('Order cancellation')) return 'full';
   const hasOverpayLine = positiveCats.includes('Overpayment');
   const hasOtherPositive = lines.some(suggestedLineIsPositiveNonOverpayment);
-  const overpay = roundMoneyLocal(overpaymentExcessNgn);
+  const overpay = refundableOverpaymentNgn({
+    overpaymentResidualNgn,
+    overpaymentExcessNgn,
+    suggestedLines,
+  });
   if (hasOverpayLine && overpay > 0 && !hasOtherPositive) return 'quick';
   if (overpay > 0 && positiveCats.length === 0) return 'quick';
   return 'full';
@@ -274,10 +301,15 @@ export function refundCreatePathFromPreview({ overpaymentExcessNgn, suggestedLin
 /** Quick overpay path is invalid when preview uses cancellation or cancelled production. */
 export function refundQuickOverpayAvailableFromPreview({
   overpaymentExcessNgn,
+  overpaymentResidualNgn,
   suggestedLines,
   hasCancelledProductionJob,
 } = {}) {
-  const overpay = roundMoneyLocal(overpaymentExcessNgn);
+  const overpay = refundableOverpaymentNgn({
+    overpaymentResidualNgn,
+    overpaymentExcessNgn,
+    suggestedLines,
+  });
   if (overpay <= 0) return false;
   if (hasCancelledProductionJob) return false;
   const lines = Array.isArray(suggestedLines) ? suggestedLines : [];
@@ -1780,6 +1812,10 @@ const RefundModal = ({
         quoteTotalNgn: preview.quoteTotalNgn,
         quotationCashInNgn: preview.quotationCashInNgn,
         overpaymentExcessNgn: Number(preview.overpaymentExcessNgn) || 0,
+        overpaymentResidualNgn:
+          preview.overpaymentResidualNgn != null
+            ? Math.max(0, Math.round(Number(preview.overpaymentResidualNgn) || 0))
+            : null,
         hasCancelledProductionJob: Boolean(preview.hasCancelledProductionJob),
         openProductionJob: preview.openProductionJob || null,
       });
@@ -1790,6 +1826,10 @@ const RefundModal = ({
         quotationCashInNgn: Number(preview.quotationCashInNgn) || 0,
         quoteTotalNgn: Number(preview.quoteTotalNgn) || 0,
         overpaymentExcessNgn: Number(preview.overpaymentExcessNgn) || 0,
+        overpaymentResidualNgn:
+          preview.overpaymentResidualNgn != null
+            ? Math.max(0, Math.round(Number(preview.overpaymentResidualNgn) || 0))
+            : null,
         refundHardCapNgn:
           preview.refundHardCapNgn != null
             ? Math.round(Number(preview.refundHardCapNgn))
@@ -1830,10 +1870,15 @@ const RefundModal = ({
         appliesToCategories: s.appliesToCategories,
       }));
 
-      const overpayAmtForPath = Math.round(Number(preview.overpaymentExcessNgn) || 0);
+      const overpayAmtForPath = refundableOverpaymentNgn({
+        overpaymentResidualNgn: preview.overpaymentResidualNgn,
+        overpaymentExcessNgn: preview.overpaymentExcessNgn,
+        suggestedLines: preview.suggestedLines,
+      });
       if (!createPathUserTouchedRef.current) {
         const nextPath = refundCreatePathFromPreview({
-          overpaymentExcessNgn: overpayAmtForPath,
+          overpaymentExcessNgn: preview.overpaymentExcessNgn,
+          overpaymentResidualNgn: preview.overpaymentResidualNgn,
           suggestedLines: preview.suggestedLines,
         });
         createPathRef.current = nextPath;
@@ -1842,6 +1887,7 @@ const RefundModal = ({
 
       const quickOverpayAllowed = refundQuickOverpayAvailableFromPreview({
         overpaymentExcessNgn: preview.overpaymentExcessNgn,
+        overpaymentResidualNgn: preview.overpaymentResidualNgn,
         suggestedLines: preview.suggestedLines,
         hasCancelledProductionJob: preview.hasCancelledProductionJob,
       });
@@ -1851,16 +1897,15 @@ const RefundModal = ({
       }
       if (createPathRef.current === 'quick' && quickOverpayAllowed) {
         const overpayRows = breakdownRows.filter((r) => String(r.category || '').trim() === 'Overpayment');
-        const overpayAmt = Math.round(Number(preview.overpaymentExcessNgn) || 0);
         if (overpayRows.length > 0) {
           breakdownRows = overpayRows;
-        } else if (overpayAmt > 0) {
+        } else if (overpayAmtForPath > 0) {
           breakdownRows = [
             {
               lineKey: `p-quick-overpay-${Date.now()}`,
               include: true,
               label: 'Overpayment — cash received above quote total on this quotation',
-              amountNgn: String(overpayAmt),
+              amountNgn: String(overpayAmtForPath),
               category: 'Overpayment',
             },
           ];
@@ -2578,7 +2623,11 @@ const RefundModal = ({
       }
     }
 
-    const overpayMax = moneyContext?.overpaymentExcessNgn ?? 0;
+    const overpayMax = refundableOverpaymentNgn({
+      overpaymentResidualNgn: moneyContext?.overpaymentResidualNgn,
+      overpaymentExcessNgn: moneyContext?.overpaymentExcessNgn,
+      suggestedLines: lastPreviewSnapshot?.suggestedLines,
+    });
     const overpayLine = (form.calculationLines || []).find(
       (l) => l.include !== false && String(l.category || '').trim() === 'Overpayment'
     );
@@ -2840,7 +2889,11 @@ const RefundModal = ({
     const cash = Math.round(Number(moneyContext?.quotationCashInNgn) || 0);
     return cash > 0 ? cash : null;
   }, [refundHardCapNgn, moneyContext?.quotationCashInNgn]);
-  const overpayMaxNgn = moneyContext?.overpaymentExcessNgn ?? 0;
+  const overpayMaxNgn = refundableOverpaymentNgn({
+    overpaymentResidualNgn: moneyContext?.overpaymentResidualNgn,
+    overpaymentExcessNgn: moneyContext?.overpaymentExcessNgn,
+    suggestedLines: lastPreviewSnapshot?.suggestedLines,
+  });
   const overpayLineAmountNgn = (form.calculationLines || []).reduce((sum, row) => {
     if (row.include === false) return sum;
     if (String(row.category || '').trim() !== 'Overpayment') return sum;
@@ -2883,6 +2936,7 @@ const RefundModal = ({
     mode === 'create' &&
     refundQuickOverpayAvailableFromPreview({
       overpaymentExcessNgn: moneyContext?.overpaymentExcessNgn ?? refundMoneyBreakdown.overpay,
+      overpaymentResidualNgn: moneyContext?.overpaymentResidualNgn,
       suggestedLines: lastPreviewSnapshot?.suggestedLines,
       hasCancelledProductionJob: lastPreviewSnapshot?.hasCancelledProductionJob,
     });

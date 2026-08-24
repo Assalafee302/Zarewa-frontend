@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RefundModal, {
+  refundableOverpaymentNgn,
   refundCreatePathFromPreview,
   refundQuickOverpayAvailableFromPreview,
   refundRecordSubtitle,
@@ -126,14 +127,46 @@ async function clickApproveWhenReady(user) {
   await user.click(approveBtn);
 }
 
+describe('refundableOverpaymentNgn', () => {
+  it('prefers residual so settled overpayment is not re-offered', () => {
+    expect(
+      refundableOverpaymentNgn({
+        overpaymentExcessNgn: 151_330,
+        overpaymentResidualNgn: 0,
+        suggestedLines: [],
+      })
+    ).toBe(0);
+  });
+
+  it('uses residual when some overpayment remains', () => {
+    expect(
+      refundableOverpaymentNgn({
+        overpaymentExcessNgn: 151_330,
+        overpaymentResidualNgn: 20_000,
+      })
+    ).toBe(20_000);
+  });
+});
+
 describe('refundCreatePathFromPreview', () => {
   it('uses Quick overpay only when overpayment is the sole positive reason', () => {
     expect(
       refundCreatePathFromPreview({
         overpaymentExcessNgn: 2000,
+        overpaymentResidualNgn: 2000,
         suggestedLines: [{ category: 'Overpayment', amountNgn: 2000 }],
       })
     ).toBe('quick');
+  });
+
+  it('keeps Full refund when residual overpayment is already settled', () => {
+    expect(
+      refundCreatePathFromPreview({
+        overpaymentExcessNgn: 151_330,
+        overpaymentResidualNgn: 0,
+        suggestedLines: [],
+      })
+    ).toBe('full');
   });
 
   it('keeps Full refund when other calculated reasons exist alongside overpayment', () => {
@@ -187,10 +220,22 @@ describe('refundQuickOverpayAvailableFromPreview', () => {
     ).toBe(false);
   });
 
+  it('blocks quick overpay when residual is zero even if gross excess remains', () => {
+    expect(
+      refundQuickOverpayAvailableFromPreview({
+        overpaymentExcessNgn: 151_330,
+        overpaymentResidualNgn: 0,
+        suggestedLines: [],
+        hasCancelledProductionJob: false,
+      })
+    ).toBe(false);
+  });
+
   it('allows quick overpay for overpayment-only preview', () => {
     expect(
       refundQuickOverpayAvailableFromPreview({
         overpaymentExcessNgn: 5_000,
+        overpaymentResidualNgn: 5_000,
         suggestedLines: [{ category: 'Overpayment', amountNgn: 5_000 }],
         hasCancelledProductionJob: false,
       })
