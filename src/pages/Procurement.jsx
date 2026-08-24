@@ -41,6 +41,7 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import { appConfirm } from '../lib/appConfirm';
 import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
+import { purchaseOrderOpenCommitmentNgn } from '../lib/poLineTypes.js';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { buildTransitDisplayRows, shouldShowPoInTransit } from '../lib/inTransitVisibility.js';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
@@ -244,10 +245,7 @@ const Procurement = () => {
   );
 
   const openCommitmentsNgn = useMemo(
-    () =>
-      purchaseOrders
-        .filter((p) => !['Received', 'Rejected'].includes(p.status))
-        .reduce((s, p) => s + purchaseOrderOrderedValueNgn(p), 0),
+    () => purchaseOrders.reduce((s, p) => s + purchaseOrderOpenCommitmentNgn(p), 0),
     [purchaseOrders]
   );
 
@@ -1354,6 +1352,7 @@ const Procurement = () => {
                 <Package size={12} /> Open commitments
               </p>
               <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">{formatNgn(openCommitmentsNgn)}</p>
+              <p className="mt-1 text-ui-xs text-slate-500">Unreceived remaining — short coil GRNs do not hang</p>
               <div className="mt-2 border-t border-slate-100 pt-2 space-y-1 text-ui-xs">
                 <p className="flex items-center justify-between text-slate-600">
                   <span>On road / loading</span>

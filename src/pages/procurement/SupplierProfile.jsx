@@ -18,6 +18,7 @@ import {
   FileText,
   Building2,
   Users,
+  Scale,
 } from 'lucide-react';
 import { PageHeader, PageShell, MainPanel, ModalFrame, Breadcrumbs } from '../../components/layout';
 import { ProcurementStatementPrintBlock } from '../../components/procurement/ProcurementStatementPrintBlock';
@@ -35,6 +36,11 @@ import {
   procurementKindFromPo,
 } from '../../lib/procurementPoKind';
 import { safeHttpUrl } from '../../lib/safeUrl';
+import { buildSupplierCoilReceiptVariance } from '../../lib/supplierCoilReceiptVariance.js';
+import {
+  SupplierCoilShortfallCard,
+  SupplierCoilShortfallList,
+} from '../../components/procurement/SupplierCoilShortfallCard';
 
 function isoDaysBetween(startISO, endISO) {
   const a = new Date(String(startISO || ''));
@@ -46,6 +52,7 @@ function isoDaysBetween(startISO, endISO) {
 const SupplierProfile = () => {
   const NAV = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'shortfall', label: 'Coil shortfall', icon: Scale },
     { id: 'profile', label: 'Profile', icon: Anchor },
     { id: 'history', label: 'Purchase history', icon: Package },
     { id: 'mix', label: 'Material mix', icon: ScrollText },
@@ -57,7 +64,7 @@ const SupplierProfile = () => {
   };
 
   const { supplierId } = useParams();
-  const { purchaseOrders } = useInventory();
+  const { purchaseOrders, coilLots } = useInventory();
   const ws = useWorkspace();
   const [selectedPo, setSelectedPo] = useState(null);
 
@@ -123,6 +130,16 @@ const SupplierProfile = () => {
     }, 0);
     return { spend, volumeSummary, gaugePrices, outstanding };
   }, [orders]);
+
+  const coilReceiptVariance = useMemo(
+    () =>
+      buildSupplierCoilReceiptVariance({
+        purchaseOrders: orders,
+        coilLots,
+        supplierId,
+      }),
+    [orders, coilLots, supplierId]
+  );
 
   const insights = useMemo(() => {
     const byStatus = { Pending: 0, Approved: 0, 'On loading': 0, 'In Transit': 0, Received: 0, Rejected: 0 };
@@ -190,10 +207,16 @@ const SupplierProfile = () => {
     const materialTop = [...materialMix.values()]
       .sort((a, b) => b.orderedQty - a.orderedQty)
       .slice(0, 8);
+    if (coilReceiptVariance.orderedKg > 0) {
+      coilOrd = coilReceiptVariance.orderedKg;
+      coilRec = coilReceiptVariance.landedKg;
+    }
     const kindsWithQty = [coilOrd > 0, stoneOrd > 0, accOrd > 0].filter(Boolean).length;
     let fulfillmentPct = 0;
     if (kindsWithQty === 1) {
-      if (coilOrd > 0) fulfillmentPct = Math.round((coilRec / coilOrd) * 100);
+      if (coilOrd > 0) fulfillmentPct = coilReceiptVariance.orderedKg > 0
+        ? coilReceiptVariance.fulfillmentPct
+        : Math.round((coilRec / coilOrd) * 100);
       else if (stoneOrd > 0) fulfillmentPct = Math.round((stoneRec / stoneOrd) * 100);
       else if (accOrd > 0) fulfillmentPct = Math.round((accRec / accOrd) * 100);
     }
@@ -224,7 +247,7 @@ const SupplierProfile = () => {
       latestPODate,
       materialTop,
     };
-  }, [orders, stats.spend]);
+  }, [orders, stats.spend, coilReceiptVariance]);
 
   const profile = supplier?.supplierProfile && typeof supplier.supplierProfile === 'object' ? supplier.supplierProfile : {};
   const banks = Array.isArray(profile.bankAccounts) ? profile.bankAccounts : [];
@@ -329,6 +352,7 @@ const SupplierProfile = () => {
                 <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Outstanding</p>
                 <p className="text-lg font-black text-amber-800 tabular-nums">{formatNgn(stats.outstanding)}</p>
               </div>
+              <SupplierCoilShortfallCard variance={coilReceiptVariance} />
               <div className="rounded-lg border border-slate-200/90 bg-slate-50/40 px-3 py-3">
                 <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Quality score</p>
                 <p className="text-lg font-black text-zarewa-teal">{supplier.qualityScore ?? '—'}</p>
@@ -366,6 +390,8 @@ const SupplierProfile = () => {
               </div>
             </div>
           </section>
+
+          <SupplierCoilShortfallList variance={coilReceiptVariance} />
 
           <section id="sp-profile" className="rounded-zarewa border border-zarewa-teal/15 bg-zarewa-teal/[0.03] p-5 mb-8 scroll-mt-28">
             <p className="text-ui-xs font-black text-zarewa-teal uppercase tracking-widest mb-3">
