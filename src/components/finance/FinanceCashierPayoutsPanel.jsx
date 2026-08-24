@@ -25,6 +25,7 @@ export function FinanceCashierPayoutsPanel() {
     handleDeskPayRequest,
     handleDeskPayRefund,
     handleDeskViewRefund,
+    handleDeskViewPaymentRequest,
     handleDeskPayRegisterSettlement,
     handleDeskPayPoTransport,
     canPayRequests,
@@ -57,6 +58,7 @@ export function FinanceCashierPayoutsPanel() {
         date: String(pr.approvedAtISO || pr.requestDate || '').slice(0, 10),
         amount: due,
         pay: () => handleDeskPayRequest(String(pr.requestID || pr.id || '')),
+        view: () => handleDeskViewPaymentRequest?.(String(pr.requestID || pr.id || '')),
       });
     }
     for (const r of approvedRefundsAwaitingPayment(snap.refunds || [])) {
@@ -103,6 +105,7 @@ export function FinanceCashierPayoutsPanel() {
     handleDeskPayRequest,
     handleDeskPayRefund,
     handleDeskViewRefund,
+    handleDeskViewPaymentRequest,
     handleDeskPayRegisterSettlement,
     handleDeskPayPoTransport,
   ]);
@@ -212,24 +215,47 @@ export function FinanceCashierPayoutsPanel() {
                 <AppTableTh>Description</AppTableTh>
                 <AppTableTh>Account</AppTableTh>
                 <AppTableTh align="right">Amount</AppTableTh>
+                <AppTableTh align="right"> </AppTableTh>
               </AppTableThead>
               <AppTableBody>
                 {paidSlice.length === 0 ? (
                   <AppTableTr>
-                    <AppTableTd colSpan={5} truncate={false} className="text-center text-slate-500">
+                    <AppTableTd colSpan={6} truncate={false} className="text-center text-slate-500">
                       No paid lines in this view.
                     </AppTableTd>
                   </AppTableTr>
                 ) : (
-                  paidSlice.map((row, idx) => (
+                  paidSlice.map((row, idx) => {
+                    const canViewExpense =
+                      row.sourceKind === 'PAYMENT_REQUEST' || row.sourceKind === 'EXPENSE';
+                    return (
                     <AppTableTr key={row.movementId || `paid-${idx}`}>
                       <AppTableTd>{String(row.postedAtISO || '').slice(0, 10) || '—'}</AppTableTd>
                       <AppTableTd>{TREASURY_STATEMENT_TYPE_LABEL[row.type] || row.type}</AppTableTd>
                       <AppTableTd title={row.description}>{row.description || '—'}</AppTableTd>
                       <AppTableTd title={row.accountName}>{row.accountName || '—'}</AppTableTd>
                       <AppTableTd align="right">{formatNgn(row.amountAbs)}</AppTableTd>
+                      <AppTableTd align="right" truncate={false}>
+                        {canViewExpense ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDeskViewPaymentRequest?.(
+                                row.sourceKind === 'PAYMENT_REQUEST' ? row.sourceId : '',
+                                { expenseId: row.sourceKind === 'EXPENSE' ? row.sourceId : '' }
+                              )
+                            }
+                            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            View
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-slate-400">—</span>
+                        )}
+                      </AppTableTd>
                     </AppTableTr>
-                  ))
+                    );
+                  })
                 )}
               </AppTableBody>
             </AppTable>

@@ -1211,6 +1211,14 @@ export function AccountTabPanels() {
                                   {formatNgn(Number(req.amountRequestedNgn) || 0)}
                                 </span>
                                 <div className="flex flex-wrap justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeskViewPaymentRequest(req.requestID)}
+                                    className="text-ui-xs font-semibold uppercase tracking-wide text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md"
+                                    title="Open memo, lines, payee, and similar requests"
+                                  >
+                                    View
+                                  </button>
                                   {req.approvalStatus === 'Approved' &&
                                   effectiveOutstandingNgn(Number(req.amountRequestedNgn) || 0, paid) > 0 &&
                                   canPayRequests &&

@@ -109,6 +109,8 @@ import {
 } from '../../lib/legacyAccountsAccess';
 import { AccountingRegisterSettlementPayModal } from '../../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { RefundCashierDetailModal } from '../../components/finance/RefundCashierDetailModal.jsx';
+import { ExpenseCashierDetailModal } from '../../components/finance/ExpenseCashierDetailModal.jsx';
+import { resolveExpenseCashierTarget } from '../../lib/expenseCashierDetail.js';
 import { StaffRecoveryCashierModal } from '../../components/finance/StaffRecoveryCashierModal.jsx';
 import { StaffObligationRepaymentModal } from '../../components/finance/StaffObligationRepaymentModal.jsx';
 import { CashierBankChargeModal } from '../../components/finance/CashierBankChargeModal.jsx';
@@ -215,6 +217,7 @@ const Account = () => {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [refundPayTarget, setRefundPayTarget] = useState(null);
   const [refundViewTarget, setRefundViewTarget] = useState(null);
+  const [expenseViewTarget, setExpenseViewTarget] = useState(null);
   const [refundPaidBy, setRefundPaidBy] = useState('');
   const [refundPayLines, setRefundPayLines] = useState([]);
   const [refundPaymentNote, setRefundPaymentNote] = useState('');
@@ -570,6 +573,7 @@ const Account = () => {
     showTransferModal ||
     showRefundPayModal ||
     refundViewTarget != null ||
+    expenseViewTarget != null ||
     statementAccount != null ||
     receiptFinanceRow != null ||
     reclassifyTarget != null;
@@ -1526,12 +1530,21 @@ const Account = () => {
   }, [showToast, ws]);
 
   const handleDeskViewPaymentRequest = useCallback(
-    (requestId) => {
-      const id = String(requestId || '').trim();
-      handleAccountTabChange('disbursements');
-      if (id) setDisbursementsSearch(id);
+    (requestId, opts = {}) => {
+      const target = resolveExpenseCashierTarget({
+        requestId,
+        expenseId: opts.expenseId,
+        paymentRequests: payRequests,
+        expenses,
+      });
+      if (target) {
+        setExpenseViewTarget(target);
+        return;
+      }
+      const id = String(requestId || opts.expenseId || '').trim();
+      showToast(id ? `Expense ${id} is not on this desk.` : 'No expense selected.', { variant: 'info' });
     },
-    [handleAccountTabChange]
+    [payRequests, expenses, showToast]
   );
 
   const handleDeskPayPoTransport = useCallback(
@@ -4013,6 +4026,20 @@ const Account = () => {
           setRegisterSettlementPayTarget(null);
         }}
         onPaid={() => void handleRegisterSettlementPaid()}
+      />
+
+      <ExpenseCashierDetailModal
+        request={expenseViewTarget}
+        isOpen={Boolean(expenseViewTarget)}
+        onClose={() => setExpenseViewTarget(null)}
+        onPay={
+          canPayRequests
+            ? (row) => {
+                setExpenseViewTarget(null);
+                openRequestPayment(row);
+              }
+            : undefined
+        }
       />
 
       <RefundCashierDetailModal

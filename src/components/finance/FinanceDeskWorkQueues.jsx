@@ -879,7 +879,7 @@ export function FinanceDeskWorkQueues({
                       tone="slate"
                       onClick={() => onViewPaymentRequest(String(req.requestID || req.id || ""))}
                     >
-                      Register
+                      View
                     </FinanceDeskQueueActionButton>
                   ) : null}
                 </>
