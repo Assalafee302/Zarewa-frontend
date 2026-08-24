@@ -89,6 +89,7 @@ import {
 import {
   quotationBelowFloorExceptionApproved,
   quotationBelowFloorPendingMdApproval,
+  quotationHasPaymentForMdBelowFloorQueue,
 } from '../../lib/quotationPriceException';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../../lib/ledgerPostingGuidance';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
@@ -2607,6 +2608,12 @@ const QuotationModal = ({
       });
       return;
     }
+    if (!quotationHasPaymentForMdBelowFloorQueue(quotationPaidNgn)) {
+      showToast('Post a customer receipt before asking the Managing Director to approve below-floor pricing.', {
+        variant: 'error',
+      });
+      return;
+    }
     if (
       !(await appConfirm({
         message: 'Approve below-floor pricing for this quotation? Cutting lists and production may proceed after this step.',
@@ -2736,7 +2743,9 @@ const QuotationModal = ({
               <p className="text-ui-xs text-amber-950/90 leading-relaxed">
                 {quotationBelowFloorExceptionApproved(editData)
                   ? 'MD below-floor approval is on file — cutting lists and production may proceed if other gates are satisfied.'
-                  : 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and production stay blocked until the Managing Director or an administrator approves a below-floor price exception.'}
+                  : quotationHasPaymentForMdBelowFloorQueue(quotationPaidNgn)
+                    ? 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and production stay blocked until the Managing Director or an administrator approves a below-floor price exception.'
+                    : 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and production stay blocked. MD approval is requested only after a customer receipt is posted.'}
               </p>
               {(() => {
                 const totalGap = pricingViolationsList.reduce((sum, v) => {
@@ -2799,6 +2808,7 @@ const QuotationModal = ({
               ws?.canMutate &&
               canApproveMdPriceException &&
               editData?.id &&
+              quotationHasPaymentForMdBelowFloorQueue(quotationPaidNgn) &&
               !quotationBelowFloorExceptionApproved(editData) ? (
                 <button
                   type="button"
@@ -2812,9 +2822,18 @@ const QuotationModal = ({
               {useQuotationApi &&
               editData?.id &&
               quotationBelowFloorPendingMdApproval(editData) &&
+              quotationHasPaymentForMdBelowFloorQueue(quotationPaidNgn) &&
               !canApproveMdPriceException ? (
                 <p className="text-ui-xs text-amber-900/85 mt-2">
                   Awaiting Managing Director or administrator approval before cutting list or production.
+                </p>
+              ) : null}
+              {useQuotationApi &&
+              editData?.id &&
+              quotationBelowFloorPendingMdApproval(editData) &&
+              !quotationHasPaymentForMdBelowFloorQueue(quotationPaidNgn) ? (
+                <p className="text-ui-xs text-amber-900/85 mt-2">
+                  Not on the MD desk until a receipt is posted.
                 </p>
               ) : null}
             </div>

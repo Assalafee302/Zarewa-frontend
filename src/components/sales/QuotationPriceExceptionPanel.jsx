@@ -6,6 +6,7 @@ import { ZareApprovalHint } from '../ZareApprovalHint';
 import {
   quotationBelowFloorExceptionApproved,
   quotationBelowFloorPendingMdApproval,
+  quotationHasPaymentForMdBelowFloorQueue,
 } from '../../lib/quotationPriceException';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
@@ -93,6 +94,8 @@ export function QuotationPriceExceptionPanel({
   }, [qid, quotation?.pricingViolations, mergeQuote]);
 
   const mdApproved = quotationBelowFloorExceptionApproved(quoteRow);
+  const paidForMdQueue = quotationHasPaymentForMdBelowFloorQueue(quoteRow);
+  const showMdApproveAction = paidForMdQueue && !mdApproved;
   const showPanel = hasFloorRows && violations.length > 0;
   if (!qid || !showPanel) return null;
 
@@ -103,6 +106,12 @@ export function QuotationPriceExceptionPanel({
     }
     if (!canApproveMdPriceException) {
       showToast('Only the Managing Director or an administrator may approve a below-floor price exception.', {
+        variant: 'error',
+      });
+      return;
+    }
+    if (!quotationHasPaymentForMdBelowFloorQueue(quoteRow)) {
+      showToast('Post a customer receipt before asking the Managing Director to approve below-floor pricing.', {
         variant: 'error',
       });
       return;
@@ -150,7 +159,9 @@ export function QuotationPriceExceptionPanel({
       <p className="text-ui-xs text-amber-950/90 leading-relaxed">
         {mdApproved
           ? 'MD below-floor approval is on file — cutting lists and production may proceed if other gates are satisfied.'
-          : 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and production are blocked until the Managing Director or an administrator approves this exception.'}
+          : paidForMdQueue
+            ? 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and production are blocked until the Managing Director or an administrator approves this exception.'
+            : 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and production stay blocked. MD approval is requested only after a customer receipt is posted.'}
       </p>
       {totalGapNgn > 0 && !mdApproved ? (
         <p className="text-ui-xs font-semibold text-amber-950 bg-amber-100/80 border border-amber-200 rounded-lg px-2 py-1.5">
@@ -200,7 +211,7 @@ export function QuotationPriceExceptionPanel({
           );
         })}
       </ul>
-      {ws?.canMutate && canApproveMdPriceException && !mdApproved ? (
+      {ws?.canMutate && canApproveMdPriceException && showMdApproveAction ? (
         <button
           type="button"
           onClick={() => void onMdPriceExceptionApprove()}
@@ -226,8 +237,10 @@ export function QuotationPriceExceptionPanel({
       ) : null}
       {mdApproved ? (
         <p className="text-ui-xs text-emerald-900/90 font-medium">MD approval on file.</p>
-      ) : quotationBelowFloorPendingMdApproval(quoteRow) ? (
+      ) : quotationBelowFloorPendingMdApproval(quoteRow) && paidForMdQueue ? (
         <p className="text-ui-xs text-amber-900/85">Awaiting MD or administrator approval.</p>
+      ) : quotationBelowFloorPendingMdApproval(quoteRow) && !paidForMdQueue ? (
+        <p className="text-ui-xs text-amber-900/85">Not on the MD desk until a receipt is posted.</p>
       ) : null}
     </div>
   );
