@@ -910,7 +910,7 @@ const CORE_HELP_ARTICLES = [
       'Re-post from the correct branch treasury account.',
       'Verify treasury balance and AP status after correction.',
     ],
-    links: [{ label: 'Finance — Payouts & expenses', to: '/accounts?tab=disbursements' }],
+    links: [{ label: 'Finance — Payment register', to: '/accounts?tab=disbursements' }],
   },
   {
     id: 'manager-payment-hold-clearance',

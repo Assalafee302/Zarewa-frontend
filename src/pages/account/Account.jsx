@@ -175,7 +175,7 @@ const Account = () => {
   const [activeTab, setActiveTab] = useState('desk');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
-  /** In-tab filter for Payouts & expenses tab (also falls back to header search). */
+  /** In-tab filter for Payment register (also falls back to header search). */
   const [disbursementsSearch, setDisbursementsSearch] = useState('');
   const [disbursementsPayRequestQueue, setDisbursementsPayRequestQueue] = useState('all');
   const [reclassifyTarget, setReclassifyTarget] = useState(null);
@@ -2792,7 +2792,18 @@ const Account = () => {
     const qq = (disbursementsSearch.trim() || debouncedSearchQuery.trim()).toLowerCase();
     if (!qq) return expenses;
     return expenses.filter((ex) => {
-      const blob = [ex.expenseID, ex.category, ex.expenseType, ex.reference, ex.paymentMethod, ex.branchId, ex.date]
+      const blob = [
+        ex.expenseID,
+        ex.category,
+        ex.expenseType,
+        ex.reference,
+        ex.paymentMethod,
+        ex.branchId,
+        ex.date,
+        ex.payeeName,
+        ex.payee_name,
+        ex.staffDisplayName,
+      ]
         .join(' ')
         .toLowerCase();
       return blob.includes(qq);
@@ -2818,6 +2829,9 @@ const Account = () => {
         req.paidBy,
         req.requestDate,
         req.attachmentName,
+        req.payeeName,
+        req.payee_name,
+        req.staffDisplayName,
       ]
         .join(' ')
         .toLowerCase();
@@ -2953,25 +2967,35 @@ const Account = () => {
 
   const paymentsTableRowsSorted = useMemo(() => {
     const q = (disbursementsSearch.trim() || debouncedSearchQuery.trim()).toLowerCase();
-    let rows = paymentOutflowBaseRows.filter((r) =>
-      !q
-        ? true
-        : [
-            r.movementId,
-            r.type,
-            r.sourceKind,
-            r.sourceId,
-            r.description,
-            r.accountName,
-            r.reference,
-            r.counterpartyName,
-            String(r.amountAbs),
-            String(r.postedAtISO || '').slice(0, 10),
-          ]
-            .join(' ')
-            .toLowerCase()
-            .includes(q)
-    );
+    let rows = paymentOutflowBaseRows.filter((r) => {
+      if (!q) return true;
+      const pr = r.sourceKind === 'PAYMENT_REQUEST' ? payRequestById[r.sourceId] : null;
+      const ex = r.sourceKind === 'EXPENSE' ? expenseById[r.sourceId] : null;
+      const rf = r.sourceKind === 'REFUND' ? refundById[r.sourceId] : null;
+      return [
+        r.movementId,
+        r.type,
+        r.sourceKind,
+        r.sourceId,
+        r.description,
+        r.accountName,
+        r.reference,
+        r.counterpartyName,
+        pr?.payeeName,
+        pr?.payee_name,
+        pr?.staffDisplayName,
+        ex?.payeeName,
+        ex?.payee_name,
+        rf?.payeeName,
+        rf?.customerName,
+        rf?.customer,
+        String(r.amountAbs),
+        String(r.postedAtISO || '').slice(0, 10),
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(q);
+    });
     const mult = paymentsTableSortDir === 'asc' ? 1 : -1;
     rows = [...rows].sort((a, b) => {
       if (paymentsTableSortKey === 'amount') {
@@ -3002,6 +3026,9 @@ const Account = () => {
     return rows;
   }, [
     paymentOutflowBaseRows,
+    payRequestById,
+    expenseById,
+    refundById,
     disbursementsSearch,
     debouncedSearchQuery,
     paymentsTableSortKey,
@@ -3018,6 +3045,11 @@ const Account = () => {
     const to = Math.min(start + PAYMENTS_PAGE_SIZE, total);
     return { total, pageCount, safePage, slice, from, to };
   }, [paymentsTableRowsSorted, paymentsTablePage]);
+
+  const paymentsRegisterTotalNgn = useMemo(
+    () => paymentsTableRowsSorted.reduce((sum, row) => sum + (Math.round(Number(row.amountAbs) || 0)), 0),
+    [paymentsTableRowsSorted]
+  );
 
   useEffect(() => {
     setPaymentsTablePage(0);
@@ -3324,7 +3356,7 @@ const Account = () => {
     }
     if (!isCashierRole) {
       if (activeTab === 'disbursements') {
-        return 'Posted treasury outflows and corrections — pay new items from Finance desk.';
+        return 'Posted outflows, expense requests, and corrections. Pay new items from Desk.';
       }
       return 'Treasury, customer receipt settlement, and approvals';
     }
@@ -3417,6 +3449,7 @@ const Account = () => {
       PAYMENTS_PAGE_SIZE,
       paymentsApprovalEntity,
       paymentsListWindow,
+      paymentsRegisterTotalNgn,
       paymentsMutateApprovalId,
       paymentsTableSortDir,
       paymentsTableSortKey,
@@ -3544,6 +3577,7 @@ const Account = () => {
       PAYMENTS_PAGE_SIZE,
       paymentsApprovalEntity,
       paymentsListWindow,
+      paymentsRegisterTotalNgn,
       paymentsMutateApprovalId,
       paymentsTableSortDir,
       paymentsTableSortKey,

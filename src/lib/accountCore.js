@@ -4,7 +4,7 @@ export const ACCOUNT_TAB_LABELS = {
   receipts: 'Receipts & bank reconciliation',
   cashier: 'Confirm receipts',
   movements: 'Internal transfers',
-  disbursements: 'Payouts & expenses',
+  disbursements: 'Payment register',
   audit: 'Audit & reconciliation',
 };
 

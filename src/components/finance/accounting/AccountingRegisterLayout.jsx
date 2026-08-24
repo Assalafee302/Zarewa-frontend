@@ -3,7 +3,7 @@ import { formatNgn } from '../../../Data/mockData';
 
 /**
  * Compact section switcher — one row, no nested PageTabs.
- * @param {{ sections: Array<{ id: string; title: string; count?: number; subtotalNgn?: number }>; value: string; onChange: (id: string) => void }} props
+ * @param {{ sections: Array<{ id: string; title: string; count?: number; subtotalNgn?: number; unit?: string; unitPlural?: string }>; value: string; onChange: (id: string) => void }} props
  */
 export function AccountingSectionNav({ sections, value, onChange }) {
   if (!sections.length) return null;
@@ -35,7 +35,11 @@ export function AccountingSectionNav({ sections, value, onChange }) {
                 active ? 'text-white/85' : 'text-slate-500'
               }`}
             >
-              {formatNgn(s.subtotalNgn ?? 0)} · {s.count ?? 0} line{(s.count ?? 0) === 1 ? '' : 's'}
+              {Number.isFinite(s.subtotalNgn) ? `${formatNgn(s.subtotalNgn)} · ` : ''}
+              {s.count ?? 0}{' '}
+              {(s.count ?? 0) === 1
+                ? s.unit || 'line'
+                : s.unitPlural || `${s.unit || 'line'}s`}
               {(s.unlinkedLegacyCount ?? 0) > 0 ? (
                 <span className={active ? ' text-amber-200' : ' text-amber-700'}>
                   {' '}

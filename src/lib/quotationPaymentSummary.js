@@ -1,6 +1,13 @@
 import { formatNgn } from '../Data/mockData.js';
 import { bookedPaidNgnForQuotationFromMirrors } from './liveAnalytics.js';
 import { isEffectivelyFullyPaid } from './paymentOutstandingTolerance.js';
+import {
+  receiptEffectiveCashNgn,
+  receiptSalesPaymentStatusLabel,
+} from './receiptClearance.js';
+
+/** Finance desk hides leftover crumbs so cashiers collect balances still worth chasing. */
+export const PARTIAL_QUOTE_DESK_MIN_BALANCE_NGN = 999;
 
 /** Count live/imported payment rows per quotation (excludes rows without a quote link). */
 export function paymentCountByQuotationRef(mergedReceipts) {
@@ -43,12 +50,33 @@ export function quotationDisplayPaymentStatus(q, opts = {}) {
 
 const SKIP_PARTIAL_QUOTE_STATUSES = new Set(['cancelled', 'rejected', 'void']);
 
+function quoteRefOf(row) {
+  return String(row?.quotationRef || row?.quotation_ref || '').trim();
+}
+
+function moneyDateOf(row) {
+  return String(row?.dateISO || row?.date || row?.atISO || row?.postedAtISO || '').slice(0, 10);
+}
+
+function ledgerKindLabel(type) {
+  return String(type || 'Ledger')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isQuoteMoneyLedgerType(type) {
+  const t = String(type || '').toUpperCase();
+  return /RECEIPT|ADVANCE|OVERPAY|REFUND|CREDIT/.test(t);
+}
+
 /**
  * Live quotations with a remaining customer balance after a partial payment.
  * @param {object[]} quotations
- * @param {{ salesReceipts?: object[]; ledgerEntries?: object[] }} [payOpts]
+ * @param {{ salesReceipts?: object[]; ledgerEntries?: object[]; minBalanceNgn?: number }} [payOpts]
  */
 export function quotationsStillToBalanceRows(quotations = [], payOpts = {}) {
+  const minBalanceNgn = Math.round(Number(payOpts.minBalanceNgn) || 0);
   return (Array.isArray(quotations) ? quotations : [])
     .filter((q) => {
       const status = String(q?.status || '').trim().toLowerCase();
@@ -69,7 +97,74 @@ export function quotationsStillToBalanceRows(quotations = [], payOpts = {}) {
         balance: Math.max(0, total - paid),
       };
     })
+    .filter((row) => row.balance > minBalanceNgn)
     .sort((a, b) => b.balance - a.balance);
+}
+
+/**
+ * Receipts and quote-linked money ledger for a partial-balance popup.
+ * @param {{ quotationId?: string, receipts?: object[], ledgerEntries?: object[] }} opts
+ */
+export function quotationBalanceTransactions({ quotationId, receipts = [], ledgerEntries = [] } = {}) {
+  const qid = String(quotationId || '').trim();
+  if (!qid) return [];
+
+  const reversedIds = new Set(
+    (Array.isArray(ledgerEntries) ? ledgerEntries : [])
+      .filter((e) => String(e.type || '').toUpperCase() === 'RECEIPT_REVERSAL')
+      .map((e) => {
+        const m = String(e.bankReference || e.note || '').match(/REVERSAL_OF:([A-Za-z0-9-]+)/);
+        return m ? m[1] : String(e.reversesEntryId || e.reverses_entry_id || '').trim();
+      })
+      .filter(Boolean)
+  );
+
+  const receiptRows = (Array.isArray(receipts) ? receipts : [])
+    .filter((r) => quoteRefOf(r) === qid)
+    .filter((r) => String(r.status || '').toLowerCase() !== 'reversed')
+    .filter((r) => !reversedIds.has(String(r.id || r.ledgerEntryId || '').trim()))
+    .map((r) => ({
+      key: `rc-${r.id || r.receiptID || moneyDateOf(r)}`,
+      kind: 'receipt',
+      id: String(r.id || r.receiptID || '—'),
+      date: moneyDateOf(r),
+      label: 'Receipt',
+      detail: [r.method, r.bankReference || r.reference || r.note].filter(Boolean).join(' · ') || 'Customer payment',
+      amountNgn: receiptEffectiveCashNgn(r),
+      statusLabel: receiptSalesPaymentStatusLabel(r),
+      receipt: r,
+    }));
+
+  const shownIds = new Set(receiptRows.flatMap((r) => [r.id, String(r.receipt?.ledgerEntryId || '').trim()].filter(Boolean)));
+
+  const ledgerRows = (Array.isArray(ledgerEntries) ? ledgerEntries : [])
+    .filter((e) => quoteRefOf(e) === qid && isQuoteMoneyLedgerType(e.type))
+    .filter((e) => {
+      const id = String(e.id || '').trim();
+      if (shownIds.has(id)) return false;
+      if (String(e.type || '').toUpperCase() === 'RECEIPT' && shownIds.has(id)) return false;
+      return true;
+    })
+    .map((e) => {
+      const t = String(e.type || '').toUpperCase();
+      const amount = Math.round(Number(e.amountNgn) || 0);
+      const isOut = /REVERSAL|REFUND|OUT/.test(t) && !/APPLIED|CREDIT/.test(t);
+      return {
+        key: `le-${e.id || t}-${moneyDateOf(e)}`,
+        kind: 'ledger',
+        id: String(e.id || '—'),
+        date: moneyDateOf(e),
+        label: ledgerKindLabel(e.type),
+        detail: String(e.note || e.bankReference || e.purpose || '').trim() || 'Ledger',
+        amountNgn: isOut ? -Math.abs(amount) : amount,
+        statusLabel: ledgerKindLabel(e.type),
+        receipt: null,
+      };
+    });
+
+  return [...receiptRows, ...ledgerRows].sort(
+    (a, b) => String(b.date).localeCompare(String(a.date)) || String(b.id).localeCompare(String(a.id))
+  );
 }
 
 /**
