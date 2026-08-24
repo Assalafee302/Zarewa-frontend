@@ -33,8 +33,10 @@ import {
 import {
   REFUND_STAFF_ALLOCATION_DEDUCTION_RATE,
   applyRefundStaffAllocationDeduction,
+  normalizeRefundStaffAllocationDeductionRate,
   sumRefundStaffCompanyDeductionNgn,
   sumRefundStaffNetPayoutNgn,
+  sumRefundStaffUnclearedOffsetNgn,
 } from '../../shared/lib/refundStaffAllocationDeduction.js';
 import { flattenQuotationLineItems } from '../../lib/managerDashboardCore';
 import {
@@ -932,6 +934,23 @@ const RefundModal = ({
       }),
     [claimingStaffRows]
   );
+  const staffAllocationDeductionRate = useMemo(
+    () =>
+      normalizeRefundStaffAllocationDeductionRate(
+        ws?.snapshot?.orgGovernanceLimits?.refundStaffAllocationDeductionPct ??
+          REFUND_STAFF_ALLOCATION_DEDUCTION_RATE
+      ),
+    [ws?.snapshot?.orgGovernanceLimits?.refundStaffAllocationDeductionPct]
+  );
+  const unclearedFloatByClaimingCustomerId = useMemo(() => {
+    const m = new Map();
+    for (const s of claimingStaffRows) {
+      const cid = String(s.customerID || '').trim();
+      if (!cid) continue;
+      m.set(cid, Math.round(Number(s.unclearedReceiptFloatNgn) || 0));
+    }
+    return m;
+  }, [claimingStaffRows]);
   const customersWithBankOptions = useMemo(
     () =>
       allCustomers
@@ -1036,15 +1055,22 @@ const RefundModal = ({
         ? `${s.bankName} ${s.bankAccountNoMasked || ''}`.trim()
         : 'no HR bank on file';
       const emp = s.employeeNo ? ` · ${s.employeeNo}` : '';
+      const uncleared = Math.round(Number(s.unclearedReceiptFloatNgn) || 0);
+      const unclearedBit =
+        uncleared > 0
+          ? ` · ₦${uncleared.toLocaleString('en-NG')} uncleared receipts`
+          : '';
       opts.push({
         key,
-        label: `${s.name}${emp} · ${bankBit}`,
+        label: `${s.name}${emp} · ${bankBit}${unclearedBit}`,
         group: s.hasBank ? 'Company staff (HR bank)' : 'Company staff (add bank)',
         searchText: `${s.name} ${s.employeeNo || ''} ${s.bankName || ''} ${s.customerID || ''} ${s.userId || ''}`,
         needsBank: !s.hasBank,
-        hint: s.hasBank
-          ? 'Uses HR payroll bank'
-          : 'Select to add bank on the staff customer account',
+        hint: uncleared > 0
+          ? `Has ₦${uncleared.toLocaleString('en-NG')} uncleared receipts — offset from net payout`
+          : s.hasBank
+            ? 'Uses HR payroll bank'
+            : 'Select to add bank on the staff customer account',
         meta: {
           kind: 'customer',
           id: s.customerID,
@@ -1052,6 +1078,7 @@ const RefundModal = ({
           bankAccountName: s.name || '',
           bankName: s.bankName || '',
           bankAccountNo: '',
+          unclearedReceiptFloatNgn: uncleared,
         },
       });
     }
@@ -4753,15 +4780,33 @@ const RefundModal = ({
                                       ...row,
                                       amountNgn: roundMoneyLocal(row.amountNgn),
                                     },
-                                    form.customerID
+                                    form.customerID,
+                                    {
+                                      deductionRate: staffAllocationDeductionRate,
+                                      unclearedReceiptHoldNgn: unclearedFloatByClaimingCustomerId.get(
+                                        String(row.recipientCustomerID || '').trim()
+                                      ),
+                                    }
                                   );
-                                  if (!(ded.companyDeductionNgn > 0)) return null;
+                                  if (
+                                    !(ded.companyDeductionNgn > 0) &&
+                                    !(ded.unclearedReceiptOffsetNgn > 0)
+                                  ) {
+                                    return null;
+                                  }
+                                  const cutPct = Math.round((ded.deductionRate || 0) * 100);
                                   return (
                                     <p className="text-[10px] leading-snug text-amber-200/90">
-                                      Gross ₦{ded.grossNgn.toLocaleString('en-NG')} · Company{' '}
-                                      {Math.round(REFUND_STAFF_ALLOCATION_DEDUCTION_RATE * 100)}% −₦
-                                      {ded.companyDeductionNgn.toLocaleString('en-NG')} · Pay staff ₦
-                                      {ded.netPayoutNgn.toLocaleString('en-NG')}
+                                      Gross ₦{(Number(ded.grossNgn) || 0).toLocaleString('en-NG')}
+                                      {ded.companyDeductionNgn > 0
+                                        ? ` · Company ${cutPct}% −₦${(Number(ded.companyDeductionNgn) || 0).toLocaleString('en-NG')}`
+                                        : ''}
+                                      {ded.unclearedReceiptOffsetNgn > 0
+                                        ? ` · Uncleared receipts −₦${(Number(ded.unclearedReceiptOffsetNgn) || 0).toLocaleString('en-NG')}`
+                                        : ''}
+                                      {ded.payoutHeldForUnclearedReceipts
+                                        ? ' · Held until cashier clears receipts'
+                                        : ` · Pay staff ₦${(Number(ded.netPayoutNgn) || 0).toLocaleString('en-NG')}`}
                                     </p>
                                   );
                                 })()}
@@ -4774,17 +4819,30 @@ const RefundModal = ({
                             const enriched = splitRows.map((r) =>
                               applyRefundStaffAllocationDeduction(
                                 { ...r, amountNgn: roundMoneyLocal(r.amountNgn) },
-                                form.customerID
+                                form.customerID,
+                                {
+                                  deductionRate: staffAllocationDeductionRate,
+                                  unclearedReceiptHoldNgn: unclearedFloatByClaimingCustomerId.get(
+                                    String(r.recipientCustomerID || '').trim()
+                                  ),
+                                }
                               )
                             );
                             const companyCut = sumRefundStaffCompanyDeductionNgn(enriched);
+                            const unclearedOff = sumRefundStaffUnclearedOffsetNgn(enriched);
                             const netPay = sumRefundStaffNetPayoutNgn(enriched);
-                            if (companyCut <= 0) return null;
+                            const cutPct = Math.round(staffAllocationDeductionRate * 100);
+                            if (companyCut <= 0 && unclearedOff <= 0) return null;
                             return (
                               <p className="text-[10px] text-amber-100/90 rounded-lg border border-amber-500/30 bg-amber-950/40 px-2.5 py-1.5">
-                                Staff allocation company cut {Math.round(REFUND_STAFF_ALLOCATION_DEDUCTION_RATE * 100)}%
-                                : −₦{companyCut.toLocaleString('en-NG')}. Finance pays net ₦
-                                {netPay.toLocaleString('en-NG')} (via Partner withdrawals after approval).
+                                {companyCut > 0
+                                  ? `Company cut ${cutPct}%: −₦${companyCut.toLocaleString('en-NG')}. `
+                                  : ''}
+                                {unclearedOff > 0
+                                  ? `Uncleared receipts offset: −₦${unclearedOff.toLocaleString('en-NG')} (cashier clear holds or this reduces payout). `
+                                  : ''}
+                                Finance pays net ₦{netPay.toLocaleString('en-NG')} via Staff / partner refund
+                                payouts after approval.
                               </p>
                             );
                           })()}

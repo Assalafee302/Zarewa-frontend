@@ -395,6 +395,7 @@ const Settings = () => {
     othersFinanceReviewThresholdNgn: 50_000,
     ap3UnclassifiedAlertThresholdNgn: 100_000,
     othersBranchCoachThresholdPct: 15,
+    refundStaffAllocationDeductionPct: 20,
   });
   const [govLimitsBusy, setGovLimitsBusy] = useState(false);
 
@@ -466,6 +467,10 @@ const Settings = () => {
           othersFinanceReviewThresholdNgn: Number(data.limits.othersFinanceReviewThresholdNgn) || 50_000,
           ap3UnclassifiedAlertThresholdNgn: Number(data.limits.ap3UnclassifiedAlertThresholdNgn) || 100_000,
           othersBranchCoachThresholdPct: Number(data.limits.othersBranchCoachThresholdPct) || 15,
+          refundStaffAllocationDeductionPct:
+            data.limits.refundStaffAllocationDeductionPct != null
+              ? Number(data.limits.refundStaffAllocationDeductionPct)
+              : 20,
         });
       }
     })();
@@ -486,6 +491,7 @@ const Settings = () => {
           othersFinanceReviewThresholdNgn: Number(govLimitsForm.othersFinanceReviewThresholdNgn),
           ap3UnclassifiedAlertThresholdNgn: Number(govLimitsForm.ap3UnclassifiedAlertThresholdNgn),
           othersBranchCoachThresholdPct: Number(govLimitsForm.othersBranchCoachThresholdPct),
+          refundStaffAllocationDeductionPct: Number(govLimitsForm.refundStaffAllocationDeductionPct),
         }),
       });
       if (!ok || !data?.ok) {
@@ -1053,6 +1059,27 @@ const Settings = () => {
                               }))
                             }
                           />
+                        </div>
+                        <div>
+                          <label className="z-field-label">Staff refund company cut (%)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={99}
+                            step={1}
+                            className="z-input"
+                            value={govLimitsForm.refundStaffAllocationDeductionPct}
+                            onChange={(e) =>
+                              setGovLimitsForm((p) => ({
+                                ...p,
+                                refundStaffAllocationDeductionPct: Number(e.target.value),
+                              }))
+                            }
+                          />
+                          <p className="mt-1 text-[11px] text-slate-500 leading-snug">
+                            Applied to associated / claiming-staff allocations (not the quote customer). 0
+                            disables the cut. Default 20.
+                          </p>
                         </div>
                       </div>
                       <div className="mt-6 rounded-md border border-slate-200 bg-slate-50 p-5">

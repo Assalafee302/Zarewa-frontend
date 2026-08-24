@@ -1377,27 +1377,37 @@ export function RefundManagerApprovalPreview({
                       : 'Customer / staff claim';
                   const gross = Math.round(Number(s?.amountNgn) || 0);
                   const companyCut = Math.round(Number(s?.companyDeductionNgn) || 0);
+                  const unclearedOff = Math.round(Number(s?.unclearedReceiptOffsetNgn) || 0);
                   const net =
                     s?.netPayoutNgn != null
                       ? Math.round(Number(s.netPayoutNgn) || 0)
-                      : companyCut > 0
-                        ? Math.max(0, gross - companyCut)
+                      : companyCut > 0 || unclearedOff > 0
+                        ? Math.max(0, gross - companyCut - unclearedOff)
                         : gross;
+                  const cutPct = Math.round((Number(s?.deductionRate) || 0) * 100);
                   return (
                     <div key={`split-preview-${idx}`} className="flex justify-between gap-2 text-ui-xs">
                       <span className="min-w-0 text-slate-800">
                         <span className="font-semibold">{name}</span>
                         <span className="block text-slate-500">{kindLabel}</span>
                         {bank ? <span className="block font-mono text-slate-500">{bank}</span> : null}
-                        {companyCut > 0 ? (
+                        {companyCut > 0 || unclearedOff > 0 ? (
                           <span className="block text-amber-800">
-                            Gross {formatNgn(gross)} · 20% company −{formatNgn(companyCut)} · Net pay{' '}
-                            {formatNgn(net)}
+                            Gross {formatNgn(gross)}
+                            {companyCut > 0
+                              ? ` · ${cutPct || 20}% company −${formatNgn(companyCut)}`
+                              : ''}
+                            {unclearedOff > 0
+                              ? ` · uncleared receipts −${formatNgn(unclearedOff)}`
+                              : ''}
+                            {s?.payoutHeldForUnclearedReceipts
+                              ? ' · held until cashier clears'
+                              : ` · Net pay ${formatNgn(net)}`}
                           </span>
                         ) : null}
                       </span>
                       <span className="shrink-0 font-bold tabular-nums text-emerald-900">
-                        {formatNgn(companyCut > 0 ? net : gross)}
+                        {formatNgn(companyCut > 0 || unclearedOff > 0 ? net : gross)}
                       </span>
                     </div>
                   );
@@ -1408,8 +1418,9 @@ export function RefundManagerApprovalPreview({
               <AlertBanner tone="violet" title="Partner wallet — pay in Finance">
                 After approval, staff/claiming-staff net amounts appear on Finance Desk under{' '}
                 <strong>Staff / partner refund payouts</strong> (not classic Refund payouts). Cashier
-                withdraws there — no second BM approval. Company 20% cut on staff allocations is retained
-                at approval.
+                withdraws there — no second BM approval. Company cut (Admin/MD %) and any uncleared
+                receipts the claiming staff posted are settled at approval and reduce the net wallet
+                credit.
               </AlertBanner>
             ) : null}
             {otherRefunds.length > 0 ? (
