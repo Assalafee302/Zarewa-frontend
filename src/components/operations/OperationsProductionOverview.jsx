@@ -14,6 +14,7 @@ import {
 } from '../../lib/operationsProductionOverviewCore';
 import { OperationsMachinesPanel } from './OperationsMachinesPanel';
 import { ReportFaultPanel } from './ReportFaultPanel';
+import { RequestDieselPanel } from './RequestDieselPanel';
 import { RequestSuppliesPanel } from './RequestSuppliesPanel';
 import { DeliveryPodPanel } from './DeliveryPodPanel';
 import { OperationsInventoryAttentionPanel } from './OperationsInventoryAttentionPanel';
@@ -155,6 +156,7 @@ export function OperationsProductionOverview({
           Request coils
         </button>
         <ReportFaultPanel branchId={branchId} disabled={!canMutate} />
+        <RequestDieselPanel branchId={branchId} disabled={!canMutate} />
         <RequestSuppliesPanel branchId={branchId} onGoInventory={onGoInventory} disabled={!canMutate} />
         {onMonthEndStock ? (
           <button

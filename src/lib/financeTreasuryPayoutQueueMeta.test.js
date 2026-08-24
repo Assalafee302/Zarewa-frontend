@@ -50,6 +50,19 @@ describe('financeTreasuryPayoutQueueMeta', () => {
     expect(meta).not.toContain('Ref MWO-26-0041');
   });
 
+  it('tags diesel payouts with the plant file when there is no work order', () => {
+    const meta = paymentRequestPayoutMetaLine(
+      {
+        expenseID: 'E-4',
+        maintenanceMachineId: 'MACH-DEMO-GEN1-BR-KD',
+        maintenanceCostKind: 'fuel',
+      },
+      {}
+    );
+    expect(meta).toContain('Plant MACH-DEMO-GEN1-BR-KD');
+    expect(meta).toContain('Diesel / fuel');
+  });
+
   it('includes request and approval dates on payment request meta', () => {
     const meta = paymentRequestPayoutMetaLine(
       {

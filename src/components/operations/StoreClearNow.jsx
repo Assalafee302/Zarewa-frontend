@@ -18,6 +18,7 @@ import { buildStoreClearanceRows, buildStorePulseCounts } from '../../lib/storeC
 import { buildIdleClearanceRows, buildLastUsedByCoilNo, IDLE_CLEAR_NOW_MAX } from '../../lib/storeIdle';
 import { DeliveryPodPanel } from './DeliveryPodPanel';
 import { ReportFaultPanel } from './ReportFaultPanel';
+import { RequestDieselPanel } from './RequestDieselPanel';
 import { RequestSuppliesPanel } from './RequestSuppliesPanel';
 
 function severityBorder(sev) {
@@ -406,6 +407,7 @@ export function StoreClearNow({
             Request stock
           </button>
           <ReportFaultPanel branchId={branchId} />
+          <RequestDieselPanel branchId={branchId} />
           <RequestSuppliesPanel
             branchId={branchId}
             onGoInventory={(kind) => openOnHand(typeof kind === 'string' ? { kind } : kind || { kind: 'coil' })}

@@ -240,6 +240,7 @@ export const normalizePaymentRequest = (row) => ({
   payeeBankName: row?.payeeBankName || '',
   maintenanceWorkOrderId: row?.maintenanceWorkOrderId || '',
   maintenanceCostKind: row?.maintenanceCostKind || '',
+  maintenanceMachineId: row?.maintenanceMachineId || '',
 });
 
 export const createRequestPayLine = (defaultAccountId = '', amount = '') => ({

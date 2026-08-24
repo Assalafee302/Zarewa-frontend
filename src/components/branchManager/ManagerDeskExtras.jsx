@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   ClipboardList,
@@ -361,8 +361,11 @@ export function ManagerVacanciesPanel({ available = true }) {
 
 /** PM due this week / overdue from maintenance_plans. */
 export function ManagerPmDuePanel() {
+  const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -378,6 +381,27 @@ export function ManagerPmDuePanel() {
       cancelled = true;
     };
   }, []);
+
+  const openJob = useCallback(
+    async (planId) => {
+      const id = String(planId || '').trim();
+      if (!id) return;
+      setBusyId(id);
+      setError('');
+      const res = await apiFetch(`/api/maintenance/plans/${encodeURIComponent(id)}/open-work-order`, {
+        method: 'POST',
+        body: {},
+      }).catch(() => ({ ok: false }));
+      setBusyId('');
+      if (!res.ok || res.data?.ok === false) {
+        setError(res.data?.error || 'Could not open the service job.');
+        return;
+      }
+      const workOrderId = String(res.data?.workOrderId || '').trim();
+      navigate('/manager?inbox=issues', { state: { inbox: 'issues', workOrderId } });
+    },
+    [navigate]
+  );
 
   const due = useMemo(() => {
     const today = new Date();
@@ -401,8 +425,9 @@ export function ManagerPmDuePanel() {
   }, [plans]);
 
   return (
-    <Panel title="Preventive maintenance due" subtitle="From plan next_due_date — not a full scheduler" icon={Wrench}>
+    <Panel title="Preventive maintenance due" subtitle="Generator, forklift, and other plant service plans" icon={Wrench}>
       {loading ? <Empty text="Loading plans…" /> : null}
+      {error ? <p className="px-1 py-1 text-ui-xs font-semibold text-amber-900">{error}</p> : null}
       {!loading && due.length === 0 ? <Empty text="Nothing due this week or overdue." /> : null}
       {due.slice(0, 8).map((p) => (
         <div key={p.id} className="border-b border-slate-50 py-1.5 last:border-0 flex justify-between gap-2">
@@ -410,17 +435,29 @@ export function ManagerPmDuePanel() {
             <p className="text-xs font-semibold text-slate-800 truncate">
               {p.machineName || p.machineId || p.title || p.id}
             </p>
-            <p className="text-ui-xs text-slate-500">{p.planKind || 'preventive'} · due {p.dueIso}</p>
+            <p className="text-ui-xs text-slate-500">
+              {p.summary || p.planKind || 'preventive'} · due {p.dueIso}
+            </p>
           </div>
-          <span
-            className={`shrink-0 rounded-md border px-1.5 py-0.5 text-ui-xs font-black uppercase ${
-              p.tone === 'overdue'
-                ? 'border-rose-200 bg-rose-50 text-rose-900'
-                : 'border-amber-200 bg-amber-50 text-amber-900'
-            }`}
-          >
-            {p.tone === 'overdue' ? 'Overdue' : 'This week'}
-          </span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span
+              className={`rounded-md border px-1.5 py-0.5 text-ui-xs font-black uppercase ${
+                p.tone === 'overdue'
+                  ? 'border-rose-200 bg-rose-50 text-rose-900'
+                  : 'border-amber-200 bg-amber-50 text-amber-900'
+              }`}
+            >
+              {p.tone === 'overdue' ? 'Overdue' : 'This week'}
+            </span>
+            <button
+              type="button"
+              className="rounded-md border border-slate-200 px-1.5 py-0.5 text-ui-xs font-semibold text-zarewa-teal hover:bg-slate-50 disabled:opacity-50"
+              disabled={busyId === p.id}
+              onClick={() => openJob(p.id)}
+            >
+              Open job
+            </button>
+          </div>
         </div>
       ))}
     </Panel>

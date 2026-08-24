@@ -57,6 +57,7 @@ export function paymentRequestPayoutMetaLine(req, branchNameById = {}) {
   const costKind = String(req?.maintenanceCostKind || '').trim();
   return [
     workOrderTag ? `Work order ${workOrderTag}` : null,
+    req?.maintenanceMachineId && !workOrderTag ? `Plant ${req.maintenanceMachineId}` : null,
     costKind ? maintenanceCostKindLabel(costKind) : null,
     requested ? `Requested ${requested}` : null,
     approved ? `Approved ${approved}` : null,

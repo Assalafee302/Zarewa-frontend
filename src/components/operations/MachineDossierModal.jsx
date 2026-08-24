@@ -6,7 +6,6 @@ import { SURFACE, TEXT } from '../../lib/designTokens';
 import { ModalFrame, ModalScrollBody, ModalScrollFooter, ModalScrollHeader, ModalScrollShell } from '../layout';
 import { Button } from '../ui/button';
 import { MaintenanceEnvelopeStrip } from './MaintenanceEnvelopeStrip';
-import { MACHINE_STATUS_LABELS } from '../../shared/maintenanceRegistry';
 import {
   MAINTENANCE_COST_KIND_LABELS,
   MAINTENANCE_WO_KIND_LABELS,
@@ -16,7 +15,7 @@ import {
   maintenancePriorityLabel,
   maintenanceWorkOrderStatusLabel,
 } from '../../shared/lib/maintenanceCostEnvelope';
-import { MACHINE_TYPE_LABELS, userMayEditMaintenanceVendors } from '../../shared/maintenanceRegistry';
+import { MACHINE_STATUS_LABELS, MACHINE_TYPE_LABELS, isFuelConsumingMachineType, userMayEditMaintenanceVendors } from '../../shared/maintenanceRegistry';
 import { repairReplaceLabel } from '../../shared/maintenanceRepairReplace';
 
 function flagToneClass(flag) {
@@ -35,6 +34,26 @@ function formatWhen(iso) {
   const ms = Date.parse(String(iso || '').trim());
   if (!Number.isFinite(ms)) return '';
   return new Date(ms).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function formatDay(iso) {
+  const day = String(iso || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return '';
+  return day;
+}
+
+function planDueTone(nextDueDateIso) {
+  const dueIso = formatDay(nextDueDateIso);
+  if (!dueIso) return '';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(today);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  const dueDate = new Date(`${dueIso}T12:00:00`);
+  if (Number.isNaN(dueDate.getTime())) return '';
+  if (dueDate < today) return 'overdue';
+  if (dueDate <= weekEnd) return 'due_week';
+  return '';
 }
 
 function Fact({ label, value }) {
@@ -77,6 +96,8 @@ export function MachineDossierModal({
   const [pack, setPack] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [planBusy, setPlanBusy] = useState('');
+  const [planNote, setPlanNote] = useState('');
 
   const load = useCallback(async () => {
     const id = String(machineId || '').trim();
@@ -117,12 +138,54 @@ export function MachineDossierModal({
     onActOnWorkOrder(wid);
   };
 
+  const openServiceJob = async (planId) => {
+    const id = String(planId || '').trim();
+    if (!id) return;
+    setPlanBusy(id);
+    setPlanNote('');
+    const res = await apiFetch(`/api/maintenance/plans/${encodeURIComponent(id)}/open-work-order`, {
+      method: 'POST',
+      body: {},
+    }).catch(() => ({ ok: false }));
+    setPlanBusy('');
+    if (!res.ok || res.data?.ok === false) {
+      setPlanNote(res.data?.error || 'Could not open the service job.');
+      return;
+    }
+    const wid = String(res.data?.workOrderId || '').trim();
+    if (wid && onActOnWorkOrder) {
+      onClose?.();
+      onActOnWorkOrder(wid);
+      return;
+    }
+    await load();
+  };
+
+  const markServiced = async (planId) => {
+    const id = String(planId || '').trim();
+    if (!id) return;
+    setPlanBusy(id);
+    setPlanNote('');
+    const res = await apiFetch(`/api/maintenance/plans/${encodeURIComponent(id)}/complete-service`, {
+      method: 'POST',
+      body: {},
+    }).catch(() => ({ ok: false }));
+    setPlanBusy('');
+    if (!res.ok || res.data?.ok === false) {
+      setPlanNote(res.data?.error || 'Could not stamp the service.');
+      return;
+    }
+    await load();
+  };
+
   const machine = pack?.machine || {};
   const insight = pack?.insight || {};
   const workOrders = Array.isArray(pack?.workOrders) ? pack.workOrders : [];
   const currentFaults = Array.isArray(pack?.currentFaults) ? pack.currentFaults : [];
   const events = Array.isArray(pack?.events) ? pack.events : [];
   const nextActions = Array.isArray(pack?.nextActions) ? pack.nextActions : [];
+  const fuelLogs = Array.isArray(pack?.fuelLogs) ? pack.fuelLogs : [];
+  const servicePlans = Array.isArray(pack?.servicePlans) ? pack.servicePlans : [];
   const costByKind = pack?.costByKind || {};
   const spendKinds = Object.entries(MAINTENANCE_COST_KIND_LABELS).filter(([key]) => Number(costByKind[key] || 0) > 0);
   const linkedAsset = Array.isArray(machine.linkedAssets) ? machine.linkedAssets[0] : null;
@@ -220,6 +283,111 @@ export function MachineDossierModal({
                 </div>
                 {machine.notes ? <p className={`mt-3 ${TEXT.label}`}>{machine.notes}</p> : null}
               </div>
+
+              {servicePlans.length > 0 || isFuelConsumingMachineType(machine.machineType) ? (
+                <div>
+                  <p className={`mb-2 ${TEXT.labelCaps}`}>Service schedule</p>
+                  {planNote ? (
+                    <p className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs font-semibold text-amber-950">
+                      {planNote}
+                    </p>
+                  ) : null}
+                  {servicePlans.length === 0 ? (
+                    <p className={`${SURFACE.muted} px-3 py-4 text-sm text-[var(--z-text)]`}>
+                      No service plan on file. Branch Manager can add one from Expenses → Machines.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {servicePlans.map((plan) => {
+                        const tone = planDueTone(plan.nextDueDateIso);
+                        return (
+                          <li key={plan.id} className={`${SURFACE.card} p-3`}>
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-[var(--z-text)]">{plan.summary}</p>
+                                <p className={`mt-0.5 ${TEXT.label}`}>
+                                  {[
+                                    formatDay(plan.nextDueDateIso) ? `Next due ${formatDay(plan.nextDueDateIso)}` : 'No next due date',
+                                    formatDay(plan.lastServiceAtIso)
+                                      ? `Last service ${formatDay(plan.lastServiceAtIso)}`
+                                      : 'Not serviced yet',
+                                    plan.calendarIntervalDays ? `Every ${plan.calendarIntervalDays} days` : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                </p>
+                              </div>
+                              {tone ? (
+                                <span
+                                  className={`shrink-0 rounded-md border px-1.5 py-0.5 text-ui-xs font-black uppercase ${
+                                    tone === 'overdue'
+                                      ? 'border-rose-200 bg-rose-50 text-rose-900'
+                                      : 'border-amber-200 bg-amber-50 text-amber-900'
+                                  }`}
+                                >
+                                  {tone === 'overdue' ? 'Overdue' : 'This week'}
+                                </span>
+                              ) : null}
+                            </div>
+                            {canAct ? (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={planBusy === plan.id}
+                                  onClick={() => openServiceJob(plan.id)}
+                                >
+                                  Open service job
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={planBusy === plan.id}
+                                  onClick={() => markServiced(plan.id)}
+                                >
+                                  Mark serviced
+                                </Button>
+                              </div>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              ) : null}
+
+              {fuelLogs.length > 0 || isFuelConsumingMachineType(machine.machineType) ? (
+                <div>
+                  <p className={`mb-2 ${TEXT.labelCaps}`}>Diesel log</p>
+                  {fuelLogs.length === 0 ? (
+                    <p className={`${SURFACE.muted} px-3 py-4 text-sm text-[var(--z-text)]`}>
+                      No diesel requests on this file. Store uses Request diesel on Operations Desk.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-[var(--z-border-subtle)] rounded-md border border-[var(--z-border)] bg-white">
+                      {fuelLogs.slice(0, 12).map((log) => (
+                        <li key={log.id} className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2">
+                          <p className="text-xs text-[var(--z-text)]">
+                            <span className="font-semibold">{log.litres} L</span>
+                            <span className="ml-2 capitalize text-[var(--z-text-muted)]">{log.fuelKind || 'diesel'}</span>
+                            {log.payeeName ? (
+                              <span className="ml-2 text-[var(--z-text-muted)]">{log.payeeName}</span>
+                            ) : null}
+                          </p>
+                          <p className="z-stencil text-ui-xs font-semibold text-[var(--z-text)]">
+                            {formatNgn(log.amountNgn)}
+                            {formatWhen(log.postedAtIso) ? (
+                              <span className={`ml-2 font-medium ${TEXT.micro}`}>{formatWhen(log.postedAtIso)}</span>
+                            ) : null}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : null}
 
               <div>
                 <p className={`mb-2 ${TEXT.labelCaps}`}>What’s wrong now</p>

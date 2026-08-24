@@ -103,7 +103,8 @@ export function RequestSuppliesPanel({ branchId = '', onGoInventory, disabled = 
           <div className="border-b border-slate-100 px-4 py-3">
             <p className="text-sm font-semibold tracking-tight text-[var(--z-text)]">Request supplies</p>
             <p className="text-ui-xs text-slate-500">
-              Separate from plant faults — never counts toward machine lifetime maintenance.
+              Consumables and accessories only. Diesel for the generator or forklift uses Request diesel so it posts
+              to the machine file.
             </p>
           </div>
           <div className="space-y-3 p-4">

@@ -39,7 +39,7 @@ Maintenance ensures production machinery remains operational, safe, and cost-eff
 | Role | Duties |
 |------|--------|
 | Branch Manager (`sales_manager`) | Register machines and contractors on **Expenses → Machines**. Assign, spend, back on line, and close finances on **Approvals → Issues**. |
-| Store (`operations_officer`) | Report faults from Operations Desk. Does not register machines or vendors. |
+| Store (`operations_officer`) | Report faults and **Request diesel** from Operations Desk. Does not register machines or vendors. |
 | Maintenance Manager (`desig_mm`) | Plans, work order approval, technician assignment |
 | Maintenance Technician (`desig_mtech`) | Execute work orders, log events, parts usage |
 | Production Manager | Report breakdowns; release machine for maintenance window |
@@ -63,8 +63,20 @@ Recurring scheduled maintenance:
 
 1. Create **Maintenance Plan** linked to machine.
 2. Set frequency, checklist items, estimated duration.
-3. System generates **Work Orders** when due.
-4. MM assigns technician; tracks completion.
+3. System generates **Work Orders** when due — Branch Manager uses **Shift → Preventive maintenance due → Open job**, or **Open service job** on the machine file.
+4. MM assigns technician; tracks completion. **Back on line** on a preventive job stamps last service and rolls the next due date.
+
+### 3.2 Generator and forklift
+
+Generator and forklift are plant-register machines (type `generator` / `forklift`), not a separate module.
+
+| Need | Who | Where |
+|------|-----|--------|
+| Diesel top-up | Store | Operations Desk → **Request diesel** (litres + amount against that machine). Creates a Fuel & lubricant payment request. Cashier pays after BM approval. The litres stay on the machine file. |
+| Service due | Branch Manager | **Shift → Preventive maintenance due**, or the machine file on **Expenses → Machines**. Open a preventive work order; spend hangs off that job as usual. |
+| Register the plant file | Branch Manager | **Expenses → Machines** |
+
+Do not use Request supplies for generator/forklift diesel — that path does not bind to the plant file.
 
 ---
 

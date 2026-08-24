@@ -6,6 +6,7 @@ import { OperationsProductionOverview } from './OperationsProductionOverview';
 
 vi.mock('./DeliveryPodPanel', () => ({ DeliveryPodPanel: () => null }));
 vi.mock('./ReportFaultPanel', () => ({ ReportFaultPanel: () => null }));
+vi.mock('./RequestDieselPanel', () => ({ RequestDieselPanel: () => null }));
 vi.mock('./RequestSuppliesPanel', () => ({ RequestSuppliesPanel: () => null }));
 vi.mock('./OperationsMachinesPanel', () => ({ OperationsMachinesPanel: () => null }));
 vi.mock('./OperationsInventoryAttentionPanel', () => ({
