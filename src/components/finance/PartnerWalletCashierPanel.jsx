@@ -128,7 +128,7 @@ export function PartnerWalletCashierPanel({
       ) : null}
       <FinanceDeskColoredQueuePanel
         theme="violet"
-        title="Partner withdrawals"
+        title="Staff / partner refund payouts"
         icon={<Wallet size={16} strokeWidth={2} />}
         count={balances.length}
         testId="finance-partner-wallets-awaiting"
@@ -144,10 +144,14 @@ export function PartnerWalletCashierPanel({
       >
         {!expanded ? (
           <p className="text-ui-xs text-slate-500 px-1 py-2">
-            {balances.length} balance{balances.length === 1 ? '' : 's'} ready — BM approved; release full or partial.
+            {balances.length} staff/partner balance{balances.length === 1 ? '' : 's'} ready after BM approval
+            (net of 20% company cut where applicable).
           </p>
         ) : balances.length === 0 ? (
-          <p className="text-ui-xs text-slate-500 px-1 py-3 text-center">No partner balances waiting for payout.</p>
+          <p className="text-ui-xs text-slate-500 px-1 py-3 text-center">
+            No staff/partner refund balances waiting. Approved customer refunds without wallet still appear under
+            Refund payouts above.
+          </p>
         ) : (
           <ul className="space-y-1.5">
             {balances.map((row) => (
@@ -167,7 +171,7 @@ export function PartnerWalletCashierPanel({
                 meta={[row.payeeBankName, row.payeeAccountNo].filter(Boolean).join(' · ') || 'No bank on file'}
                 extra={
                   <p className="text-[11px] text-slate-500">
-                    {row.payeeName || '—'} · no re-approval needed
+                    {row.payeeName || '—'} · staff allocation refund · withdraw net amount
                   </p>
                 }
                 amount={formatNgn(row.balanceNgn)}
@@ -189,9 +193,10 @@ export function PartnerWalletCashierPanel({
           <div className="flex items-start gap-2 mb-4">
             <Users className="text-violet-700 shrink-0 mt-0.5" size={22} />
             <div>
-              <h3 className="text-xl font-bold text-zarewa-teal">Release partner wallet</h3>
+              <h3 className="text-xl font-bold text-zarewa-teal">Release staff / partner refund</h3>
               <p className="text-ui-xs text-slate-500 mt-1">
-                BM already approved. Withdraw full or partial — no second approval.
+                BM already approved. Amount is net of any 20% company cut on staff allocations — no second
+                approval.
               </p>
             </div>
           </div>

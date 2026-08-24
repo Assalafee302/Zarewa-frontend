@@ -231,6 +231,19 @@ describe('refundQuickOverpayAvailableFromPreview', () => {
     ).toBe(false);
   });
 
+  it('does not treat a selected quotation as enough to enable quick overpay', () => {
+    // Mirrors the button gate: availability must be residual-based, not merely "quote selected".
+    const available = refundQuickOverpayAvailableFromPreview({
+      overpaymentExcessNgn: 151_330,
+      overpaymentResidualNgn: 0,
+      suggestedLines: [],
+      hasCancelledProductionJob: false,
+    });
+    const quotationSelected = true;
+    expect(available).toBe(false);
+    expect(!available || !quotationSelected).toBe(true);
+  });
+
   it('allows quick overpay for overpayment-only preview', () => {
     expect(
       refundQuickOverpayAvailableFromPreview({

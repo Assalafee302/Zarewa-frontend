@@ -152,11 +152,19 @@ export function FinanceTreasuryAwaitingPayoutQueues({
     >
       <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
         <h2 className="text-sm font-semibold text-slate-800">Pay out</h2>
-        <span className="text-ui-xs font-bold tabular-nums text-slate-500">{total} open</span>
+        <span className="text-ui-xs font-bold tabular-nums text-slate-500">
+          {total}
+          {hasChildren ? '+' : ''} open
+        </span>
       </div>
 
-      {total === 0 ? (
+      {total === 0 && !hasChildren ? (
         <p className="py-6 text-center text-xs text-slate-500">No expenses waiting to pay.</p>
+      ) : null}
+      {total === 0 && hasChildren ? (
+        <p className="text-ui-xs text-slate-500 px-0.5">
+          Classic refund/expense rows are clear — check staff/partner refund payouts below when present.
+        </p>
       ) : null}
 
       <div className="space-y-3">

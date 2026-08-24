@@ -643,9 +643,12 @@ export function FinanceDeskWorkQueues({
                   compact
                   label="Refund payouts"
                   value={
-                    trialEx?.approvedUnpaidRefunds ?? approvedRefunds.length
+                    (trialEx?.approvedUnpaidRefunds ?? approvedRefunds.length) +
+                    partnerWalletsDue.length
                   }
-                  tone={approvedRefunds.length > 0 ? "rose" : "default"}
+                  tone={
+                    approvedRefunds.length + partnerWalletsDue.length > 0 ? "rose" : "default"
+                  }
                   icon={<RotateCcw size={14} />}
                 />
 
@@ -912,6 +915,11 @@ export function FinanceDeskWorkQueues({
                 canAccessProcurement={Boolean(ws?.canAccessModule?.("procurement"))}
               />
               <CashierOtPayPanel embedded />
+              <PartnerWalletCashierPanel
+                balances={partnerWalletsDue}
+                treasuryAccounts={treasuryAccounts}
+                canPay={Boolean(ws?.hasPermission?.("finance.pay"))}
+              />
             </FinanceTreasuryAwaitingPayoutQueues>
           </div>
 
@@ -930,12 +938,6 @@ export function FinanceDeskWorkQueues({
             applications={ws?.snapshot?.refundCreditApplications}
             canReverse={Boolean(ws?.hasPermission?.('finance.reverse') && onReverseRefundCredit)}
             onReverse={onReverseRefundCredit}
-          />
-
-          <PartnerWalletCashierPanel
-            balances={partnerWalletsDue}
-            treasuryAccounts={treasuryAccounts}
-            canPay={Boolean(ws?.hasPermission?.('finance.pay'))}
           />
 
           {isCashier && !hideAccountGrid ? (

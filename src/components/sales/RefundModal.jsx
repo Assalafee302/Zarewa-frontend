@@ -30,6 +30,12 @@ import {
   refundStatusIsWithdrawn,
   userMayApproveRefundRequests,
 } from '../../lib/refundsStore';
+import {
+  REFUND_STAFF_ALLOCATION_DEDUCTION_RATE,
+  applyRefundStaffAllocationDeduction,
+  sumRefundStaffCompanyDeductionNgn,
+  sumRefundStaffNetPayoutNgn,
+} from '../../shared/lib/refundStaffAllocationDeduction.js';
 import { flattenQuotationLineItems } from '../../lib/managerDashboardCore';
 import {
   quotationLinesJsonShapeForGauge,
@@ -3087,26 +3093,30 @@ const RefundModal = ({
                   <button
                     type="button"
                     onClick={() => {
+                      if (!quickOverpayAvailable) return;
                       createPathUserTouchedRef.current = true;
                       createPathRef.current = 'quick';
                       setCreatePath('quick');
                       const r = String(form.quotationRef || '').trim();
                       if (r) void generatePreview(r, false);
                     }}
-                    disabled={!quickOverpayAvailable && !form.quotationRef}
+                    disabled={!quickOverpayAvailable}
                     title={
                       quickOverpayAvailable
                         ? 'Cash received above quote total only'
                         : lastPreviewSnapshot?.hasCancelledProductionJob
                           ? 'Cancelled job — use Full refund (Order cancellation includes any overpayment)'
-                          : form.quotationRef
-                            ? 'No overpayment on this quotation'
-                            : 'Select a quotation with overpayment first'
+                          : moneyContext?.overpaymentResidualNgn === 0 &&
+                              Number(moneyContext?.overpaymentExcessNgn) > 0
+                            ? 'Overpayment already refunded on this quotation'
+                            : form.quotationRef
+                              ? 'No refundable overpayment on this quotation'
+                              : 'Select a quotation with overpayment first'
                     }
                     className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
                       createPath === 'quick'
                         ? 'bg-rose-600 text-white shadow-md shadow-rose-200'
-                        : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-40'
+                        : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed'
                     }`}
                   >
                     Quick overpay
@@ -3134,7 +3144,24 @@ const RefundModal = ({
                 <p className="text-xs font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2" role="status">
                   {lastPreviewSnapshot?.hasCancelledProductionJob
                     ? 'Cancelled production job — use Full refund. Order cancellation covers the full refundable cash, including any amount above the quote.'
-                    : 'No overpayment — switch to Full refund.'}
+                    : moneyContext?.overpaymentResidualNgn === 0 &&
+                        Number(moneyContext?.overpaymentExcessNgn) > 0
+                      ? 'Overpayment on this quotation is already fully refunded. Quick overpay is not available.'
+                      : 'No refundable overpayment — switch to Full refund.'}
+                </p>
+              ) : null}
+              {mode === 'create' &&
+              form.quotationRef &&
+              moneyContext?.overpaymentResidualNgn === 0 &&
+              Number(moneyContext?.overpaymentExcessNgn) > 0 &&
+              (previewRemainingNgn == null || previewRemainingNgn <= 0) ? (
+                <p
+                  className="text-xs font-medium text-amber-900 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2"
+                  role="status"
+                >
+                  Prior refunds already covered the ₦
+                  {Number(moneyContext.overpaymentExcessNgn).toLocaleString('en-NG')} overpayment. Do not
+                  create another overpay refund for this quotation.
                 </p>
               ) : null}
               {createPath === 'quick' && otherCalculatedReasonsAvailable ? (
@@ -4099,11 +4126,26 @@ const RefundModal = ({
                       {refundMoneyBreakdown.overpay > 0 ? (
                         <div className="pt-2 border-t border-slate-700/80">
                           <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <p className="text-ui-xs font-bold text-slate-500 uppercase">Overpayment</p>
+                            <p className="text-ui-xs font-bold text-slate-500 uppercase">
+                              {moneyContext?.overpaymentResidualNgn === 0
+                                ? 'Original overpayment'
+                                : 'Overpayment'}
+                            </p>
                             <p className="text-sm font-black text-amber-300 tabular-nums">
                               ₦{refundMoneyBreakdown.overpay.toLocaleString()}
                             </p>
                           </div>
+                          {moneyContext?.overpaymentResidualNgn === 0 ? (
+                            <p className="mt-1 text-[10px] leading-snug text-emerald-300/90">
+                              Already settled by prior refunds — residual ₦0.
+                            </p>
+                          ) : moneyContext?.overpaymentResidualNgn != null &&
+                            moneyContext.overpaymentResidualNgn < refundMoneyBreakdown.overpay ? (
+                            <p className="mt-1 text-[10px] leading-snug text-slate-400">
+                              Still refundable as overpay: ₦
+                              {Number(moneyContext.overpaymentResidualNgn).toLocaleString('en-NG')}
+                            </p>
+                          ) : null}
                           {overpayIncludedInOrderCancellation ? (
                             <p className="mt-1 text-[10px] leading-snug text-slate-400">
                               Cash above quote — included in the Order cancellation refund line, not added
@@ -4705,9 +4747,47 @@ const RefundModal = ({
                                   placeholder="Amount ₦"
                                   className="w-full bg-slate-800 border border-slate-600 rounded-lg py-2 px-2 text-xs text-white tabular-nums"
                                 />
+                                {(() => {
+                                  const ded = applyRefundStaffAllocationDeduction(
+                                    {
+                                      ...row,
+                                      amountNgn: roundMoneyLocal(row.amountNgn),
+                                    },
+                                    form.customerID
+                                  );
+                                  if (!(ded.companyDeductionNgn > 0)) return null;
+                                  return (
+                                    <p className="text-[10px] leading-snug text-amber-200/90">
+                                      Gross ₦{ded.grossNgn.toLocaleString('en-NG')} · Company{' '}
+                                      {Math.round(REFUND_STAFF_ALLOCATION_DEDUCTION_RATE * 100)}% −₦
+                                      {ded.companyDeductionNgn.toLocaleString('en-NG')} · Pay staff ₦
+                                      {ded.netPayoutNgn.toLocaleString('en-NG')}
+                                    </p>
+                                  );
+                                })()}
                               </div>
                             );
                           })}
+                          {(() => {
+                            const splitRows = Array.isArray(form.refundSplits) ? form.refundSplits : [];
+                            if (!splitRows.length) return null;
+                            const enriched = splitRows.map((r) =>
+                              applyRefundStaffAllocationDeduction(
+                                { ...r, amountNgn: roundMoneyLocal(r.amountNgn) },
+                                form.customerID
+                              )
+                            );
+                            const companyCut = sumRefundStaffCompanyDeductionNgn(enriched);
+                            const netPay = sumRefundStaffNetPayoutNgn(enriched);
+                            if (companyCut <= 0) return null;
+                            return (
+                              <p className="text-[10px] text-amber-100/90 rounded-lg border border-amber-500/30 bg-amber-950/40 px-2.5 py-1.5">
+                                Staff allocation company cut {Math.round(REFUND_STAFF_ALLOCATION_DEDUCTION_RATE * 100)}%
+                                : −₦{companyCut.toLocaleString('en-NG')}. Finance pays net ₦
+                                {netPay.toLocaleString('en-NG')} (via Partner withdrawals after approval).
+                              </p>
+                            );
+                          })()}
                           {!readOnly ? (
                             <div className="flex flex-wrap gap-2">
                               <button
