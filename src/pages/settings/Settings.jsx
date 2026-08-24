@@ -671,7 +671,7 @@ const Settings = () => {
                     <div className="border-t border-slate-100 pt-6">
                       <h3 className="z-section-title mb-1">Store restock mins</h3>
                       <p className="text-xs text-slate-500 mb-4 max-w-xl leading-relaxed">
-                        Spec board and Clear now alert when free + in-transit stock falls below these mins.
+                        On-hand desk and Clear now alert when free + in-transit stock falls below these mins.
                         Admin / MD with settings.manage can save. Defaults: 700 kg coils · 400 m stone.
                         Optional per-spec overrides win over the coil default.
                       </p>
@@ -710,7 +710,7 @@ const Settings = () => {
                         </h4>
                         {storeSpecOverrides.length === 0 ? (
                           <p className="text-xs text-slate-500 mb-2 leading-relaxed">
-                            No per-spec overrides — Spec board uses the coil default above.
+                            No per-spec overrides — restock alerts use the coil default above.
                           </p>
                         ) : null}
                         <div className="space-y-2">

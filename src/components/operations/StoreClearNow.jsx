@@ -228,7 +228,7 @@ export function StoreClearNow({
             Desk clear
           </p>
           <p className="mt-0.5 text-xs font-medium text-emerald-900/80">
-            No urgent register, receive, POD, restock, or idle items. Optional: review Spec board on On hand.
+            No urgent register, receive, POD, restock, or idle items. Optional: review On hand stock.
           </p>
         </div>
       )}
@@ -280,7 +280,7 @@ export function StoreClearNow({
                 r?.restock?.unit === 'm' ||
                 String(r?.id || '').includes('stone')
             );
-            // Prefer coil Spec board when both exist (primary buy path); else stone.
+            // Prefer coil on-hand when both exist (primary buy path); else stone.
             openOnHand({
               kind: hasCoil || !hasStone ? 'coil' : 'stone_meter',
               specBoardFilter: 'below_min',

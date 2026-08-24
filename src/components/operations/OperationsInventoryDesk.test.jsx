@@ -3,30 +3,14 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { OperationsInventoryDesk } from './OperationsInventoryDesk';
 
-vi.mock('./SpecBoardPanel.jsx', () => ({
-  SpecBoardPanel: () => <div>Spec board</div>,
-}));
-vi.mock('./StoneSpecBoardPanel.jsx', () => ({
-  StoneSpecBoardPanel: () => <div>Stone spec board</div>,
-}));
-
 afterEach(() => cleanup());
 
 const emptyDeskProps = {
   stockReceiveKind: 'coil',
   setStockReceiveKind: vi.fn(),
-  coilLots: [],
-  setupMasterData: {},
-  movements: [],
-  productionJobs: [],
-  workspaceQuotations: [],
-  transitOrdersAll: [],
   coilRestockMinKg: 85,
-  specMinOverrides: {},
-  specBoardFilter: 'all',
   navigate: vi.fn(),
   openRequestStock: vi.fn(),
-  inventoryRows: [],
   stoneRestockMinM: 10,
   anyReceivablePo: false,
   inTransitLoads: [],
@@ -83,5 +67,7 @@ describe('OperationsInventoryDesk', () => {
     expect(screen.getByRole('radiogroup', { name: /stock category/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /request stock/i })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /^receive$/i })).toBeTruthy();
+    expect(screen.queryByTestId('ops-coil-spec-board')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Colour × gauge' })).toBeNull();
   });
 });

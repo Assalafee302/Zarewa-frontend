@@ -9,18 +9,15 @@ import {
   Search,
   Truck,
 } from 'lucide-react';
-import { SpecBoardPanel } from './SpecBoardPanel.jsx';
-import { StoneSpecBoardPanel } from './StoneSpecBoardPanel.jsx';
 import { OperationsStockKindSwitch } from './OperationsStockKindSwitch';
 import { OperationsDeskMetric } from './OperationsDeskMetric';
 import { OPS_SECTION_TITLE, OPS_TOOL_BTN, OPS_TOOL_BTN_PRIMARY } from './operationsDeskUi';
 import { procurementKindFromPo } from '../../lib/procurementPoKind';
 import { poLineIsOpenForReceiving, poLineOpenQtyForReceiving } from '../../lib/poLineTypes.js';
 import { liveCoilWeightKgForOverview as liveCoilWeightKg } from '../../lib/operationsProductionOverviewCore.js';
-import { shouldShowPoInTransit } from '../../lib/inTransitVisibility.js';
 
 /**
- * On-hand desk: stock-kind switch, spec boards, receive/GRN, live lots, KPIs, and stock tools.
+ * On-hand desk: stock-kind switch, receive/GRN, live lots, KPIs, and stock tools.
  */
 
 function CoilReceiptSortTh({ label, sortKey: columnKey, sort, onToggle, className = '' }) {
@@ -41,18 +38,9 @@ function CoilReceiptSortTh({ label, sortKey: columnKey, sort, onToggle, classNam
 export function OperationsInventoryDesk({
   stockReceiveKind,
   setStockReceiveKind,
-  coilLots,
-  setupMasterData,
-  movements,
-  productionJobs,
-  workspaceQuotations,
-  transitOrdersAll,
   coilRestockMinKg,
-  specMinOverrides,
-  specBoardFilter,
   navigate,
   openRequestStock,
-  inventoryRows,
   stoneRestockMinM,
   anyReceivablePo,
   inTransitLoads,
@@ -171,35 +159,6 @@ export function OperationsInventoryDesk({
         </div>
 
         <div className="col-span-full w-full order-2">
-          {stockReceiveKind === 'coil' ? (
-            <SpecBoardPanel
-              coilLots={coilLots}
-              masterData={setupMasterData}
-              movements={movements}
-              productionJobs={productionJobs}
-              quotations={workspaceQuotations}
-              transitPurchaseOrders={transitOrdersAll}
-              isReceivablePo={shouldShowPoInTransit}
-              restockMinKg={coilRestockMinKg}
-              specMinOverrides={specMinOverrides}
-              initialFilter={specBoardFilter}
-              onOpenCoil={(coilNo) => navigate(`/operations/coils/${encodeURIComponent(coilNo)}`)}
-              onRequestRestock={openRequestStock}
-            />
-          ) : null}
-          {stockReceiveKind === 'stone_meter' ? (
-            <StoneSpecBoardPanel
-              products={inventoryRows}
-              masterData={setupMasterData}
-              productionJobs={productionJobs}
-              quotations={workspaceQuotations}
-              transitPurchaseOrders={transitOrdersAll}
-              isReceivablePo={shouldShowPoInTransit}
-              restockMinM={stoneRestockMinM}
-              initialFilter={specBoardFilter === 'thin' || specBoardFilter === 'idle' ? 'all' : specBoardFilter}
-              onRequestRestock={openRequestStock}
-            />
-          ) : null}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8 lg:items-start">
             <section className="z-soft-panel overflow-hidden w-full min-w-0 flex flex-col lg:col-span-1">
             <div className="p-3 sm:p-4 flex flex-col">

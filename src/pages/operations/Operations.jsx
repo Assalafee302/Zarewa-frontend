@@ -737,9 +737,6 @@ const Operations = () => {
   const [stockReceiveKind, setStockReceiveKind] = useState(
     () => /** @type {'coil'|'stone_meter'|'stone_flatsheet'|'accessory'} */ ('coil')
   );
-  const [specBoardFilter, setSpecBoardFilter] = useState(
-    () => /** @type {'all'|'below_min'|'thin'|'idle'|'heroes'} */ ('all')
-  );
   const [productMovementModal, setProductMovementModal] = useState(null);
   const [productMovementsLoading, setProductMovementsLoading] = useState(false);
   const [productMovementsRows, setProductMovementsRows] = useState([]);
@@ -1251,9 +1248,6 @@ const Operations = () => {
         setStockReceiveKind('coil');
       } else if (!invSku && boardFilter === 'below_min' && st.opsFamily === 'stone') {
         setStockReceiveKind('stone_meter');
-      }
-      if (['all', 'below_min', 'thin', 'idle', 'heroes'].includes(boardFilter)) {
-        setSpecBoardFilter(boardFilter);
       }
       if (st.openStockAdjust && canAdjustInventory) {
         setStockAdjustMaterialFamily(null);
@@ -2002,18 +1996,9 @@ const Operations = () => {
           <OperationsInventoryDesk
             stockReceiveKind={stockReceiveKind}
             setStockReceiveKind={setStockReceiveKind}
-            coilLots={coilLots}
-            setupMasterData={setupMasterData}
-            movements={movements}
-            productionJobs={productionJobs}
-            workspaceQuotations={workspaceQuotations}
-            transitOrdersAll={transitOrdersAll}
             coilRestockMinKg={coilRestockMinKg}
-            specMinOverrides={specMinOverrides}
-            specBoardFilter={specBoardFilter}
             navigate={navigate}
             openRequestStock={openRequestStock}
-            inventoryRows={inventoryRows}
             stoneRestockMinM={stoneRestockMinM}
             anyReceivablePo={anyReceivablePo}
             inTransitLoads={inTransitLoads}
