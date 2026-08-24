@@ -55,7 +55,7 @@ export function workspaceDomainsForPath(pathname) {
     return ['finance', 'sales'];
   }
   if (p.startsWith('/reports')) return ['finance', 'operations'];
-  if (p.startsWith('/manager')) return ['finance'];
+  if (p.startsWith('/manager')) return ['finance', 'sales', 'operations'];
   return [];
 }
 

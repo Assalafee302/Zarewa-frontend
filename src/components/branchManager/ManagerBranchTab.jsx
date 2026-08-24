@@ -14,6 +14,7 @@ import {
 } from './ManagerDeskExtras.jsx';
 import { ManagerShiftExtras } from './ManagerShiftExtras.jsx';
 import { ManagerAssociatedStaffPanel } from './ManagerAssociatedStaffPanel.jsx';
+import { ManagerWatchGlance } from './ManagerWatchTab.jsx';
 
 function pctWidth(n) {
   const v = Number(n);
@@ -146,6 +147,8 @@ export function ManagerBranchTab({
   onStockApproved,
   peopleGlanceAvailable = false,
   customerIssuesAvailable = false,
+  watchModel = null,
+  onOpenWatch,
 }) {
   const { products } = useInventory();
   const [benchmark, setBenchmark] = useState(null);
@@ -207,6 +210,8 @@ export function ManagerBranchTab({
           })}
         </div>
       </div>
+
+      <ManagerWatchGlance model={watchModel} onOpenWatch={onOpenWatch} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-3">

@@ -13,6 +13,9 @@ describe('manager command center helpers', () => {
     expect(normalizeManagerPageTab('partners')).toBe('branch');
     expect(normalizeManagerPageTab('approvals')).toBe('approvals');
     expect(normalizeManagerPageTab('pac')).toBe('approvals');
+    expect(normalizeManagerPageTab('watch')).toBe('watch');
+    expect(normalizeManagerPageTab('queues')).toBe('watch');
+    expect(normalizeManagerPageTab('waiting')).toBe('watch');
     expect(normalizeManagerPageTab('')).toBe('today');
   });
 

@@ -40,6 +40,10 @@ describe('workspaceDomainPrefetch', () => {
     expect(workspaceDomainsForPath('/accounts?tab=desk')).toEqual(['finance', 'sales']);
   });
 
+  it('workspaceDomainsForPath warms manager watch queues', () => {
+    expect(workspaceDomainsForPath('/manager')).toEqual(['finance', 'sales', 'operations']);
+  });
+
   it('workspaceDomainSyncLabel joins multi-domain labels', () => {
     expect(workspaceDomainSyncLabel(['finance', 'sales'])).toBe('finance register & sales register');
   });

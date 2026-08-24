@@ -4,6 +4,7 @@ export const MANAGER_PAGE_TABS = [
   { id: 'today', label: 'Today' },
   { id: 'approvals', label: 'Approvals' },
   { id: 'branch', label: 'Branch' },
+  { id: 'watch', label: 'Watch' },
   { id: 'spend', label: 'Expenses' },
 ];
 
@@ -32,7 +33,7 @@ export const MANAGER_PAC_TABS = [
 
 /**
  * @param {string | null | undefined} raw
- * @returns {'today' | 'approvals' | 'branch' | 'spend'}
+ * @returns {'today' | 'approvals' | 'branch' | 'watch' | 'spend'}
  */
 export function normalizeManagerPageTab(raw) {
   const k = String(raw || '').trim().toLowerCase();
@@ -40,6 +41,9 @@ export function normalizeManagerPageTab(raw) {
   if (BRANCH_TAB_ALIASES.has(k)) return 'branch';
   if (k === 'associated' || k === 'partners' || k === 'associated-staff' || k === 'installer-driver') {
     return 'branch';
+  }
+  if (k === 'watch' || k === 'queues' || k === 'waiting' || k === 'follow-up' || k === 'chase' || k === 'aging') {
+    return 'watch';
   }
   if (MANAGER_PAGE_TAB_IDS.includes(k)) return /** @type {any} */ (k);
   if (k === 'expenses' || k === 'expense') return 'spend';

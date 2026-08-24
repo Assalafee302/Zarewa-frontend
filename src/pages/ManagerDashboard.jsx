@@ -18,6 +18,7 @@ import { ManagerCustomerIssuesPanel } from '../components/branchManager/ManagerC
 import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyChecklist';
 import { ManagerBranchTab } from '../components/branchManager/ManagerBranchTab';
 import { ManagerSpendTab } from '../components/branchManager/ManagerSpendTab';
+import { ManagerWatchTab } from '../components/branchManager/ManagerWatchTab';
 import { ManagementDecisionModal } from '../components/branchManager/ManagementDecisionModal';
 import { OtApprovalDecisionModal } from '../components/branchManager/OtApprovalDecisionModal';
 import {
@@ -43,13 +44,16 @@ import {
 import { canMarkHrAttendance, hrHasPermission } from '../lib/hrAccess';
 import { formatPersonName } from '../lib/formatPersonName';
 import { managerRowAgeHours } from '../lib/managerDashboardCore';
+import { buildManagerWatchModel } from '../lib/managerWatchQueues';
 
 /**
- * Branch manager command center — Today, Approvals, Branch, Expenses.
+ * Branch manager command center — Today, Approvals, Branch, Watch, Expenses.
  */
+const MANAGER_DESK_DOMAINS = ['finance', 'sales', 'operations'];
+
 const ManagerDashboard = () => {
   const bm = useBranchManagerWorkstation();
-  const { domainLoading, domainReady } = useWorkspaceDomain('finance');
+  const { domainLoading, domainReady } = useWorkspaceDomain(MANAGER_DESK_DOMAINS);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -250,17 +254,35 @@ const ManagerDashboard = () => {
     bm.ws?.session?.user?.displayName || bm.ws?.session?.user?.name || bm.ws?.session?.user?.email || 'Manager'
   );
 
+  const watchModel = useMemo(
+    () => buildManagerWatchModel(bm.ws?.snapshot, { session: bm.ws?.session }),
+    [bm.ws?.snapshot, bm.ws?.session]
+  );
+
+  const openWatch = useCallback(
+    (section) => {
+      setPageTab('watch');
+      if (!section) return;
+      queueMicrotask(() => {
+        document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    },
+    [setPageTab]
+  );
+
   const managerTabs = useMemo(
     () =>
-      MANAGER_PAGE_TABS.map((t) =>
-        t.id === 'approvals' ? { ...t, badge: bm.totalOpenActions } : t
-      ),
-    [bm.totalOpenActions]
+      MANAGER_PAGE_TABS.map((t) => {
+        if (t.id === 'approvals') return { ...t, badge: bm.totalOpenActions };
+        if (t.id === 'watch') return { ...t, badge: watchModel.totals.waitingCount };
+        return t;
+      }),
+    [bm.totalOpenActions, watchModel.totals.waitingCount]
   );
 
   return (
     <PageShell className="pb-14">
-      <WorkspaceDeskSyncBanner loading={domainLoading && !domainReady} label="finance register" />
+      <WorkspaceDeskSyncBanner loading={domainLoading && !domainReady} label="branch desk" />
       <FinancePilotHeader
         eyebrow={pageTab === 'today' ? 'Morning board' : 'Branch manager'}
         title={branchLabel}
@@ -370,8 +392,12 @@ const ManagerDashboard = () => {
           onStockApproved={() => void bm.ws?.refresh?.()}
           peopleGlanceAvailable={peopleGlanceAvailable}
           customerIssuesAvailable={customerIssuesAvailable}
+          watchModel={watchModel}
+          onOpenWatch={openWatch}
         />
       ) : null}
+
+      {pageTab === 'watch' ? <ManagerWatchTab model={watchModel} loading={bm.loading} /> : null}
 
       {pageTab === 'spend' ? (
         <ManagerSpendTab
