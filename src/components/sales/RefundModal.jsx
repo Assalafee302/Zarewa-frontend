@@ -591,9 +591,56 @@ function sumLinesByCategory(lines) {
 
 const AMOUNT_LINE_TOL = 1;
 
-/** Sales staff who prepared the quotation (`handled_by` in DB). */
 function quotationPreparedByLabel(q) {
   return String(q?.handled_by ?? q?.handledBy ?? '').trim();
+}
+
+function quotationAgentCustomerId(q) {
+  return String(q?.agent_customer_id ?? q?.agentCustomerID ?? '').trim();
+}
+
+function quotationAgentCustomerName(q) {
+  return String(q?.agent_customer_name ?? q?.agentCustomerName ?? '').trim();
+}
+
+function namesLikelySamePerson(a, b) {
+  const left = String(a || '')
+    .trim()
+    .toLowerCase();
+  const right = String(b || '')
+    .trim()
+    .toLowerCase();
+  if (!left || !right) return false;
+  if (left === right) return true;
+  if (left.includes(right) || right.includes(left)) return true;
+  const leftParts = left.split(/\s+/).filter((p) => p.length > 1);
+  const rightParts = right.split(/\s+/).filter((p) => p.length > 1);
+  if (!leftParts.length || !rightParts.length) return false;
+  const shared = leftParts.filter((p) => rightParts.includes(p));
+  return shared.length >= Math.min(2, leftParts.length, rightParts.length);
+}
+
+/**
+ * Claiming-staff default must be the quotation agent / preparer — not the person filing the refund.
+ * Prefer agent_customer_id, then name match on agent / handled_by against HR claiming-staff directory.
+ */
+function resolveQuotationLinkedClaimingStaff(quotation, pickRow, claimingStaffOptions) {
+  const rows = Array.isArray(claimingStaffOptions) ? claimingStaffOptions : [];
+  if (!rows.length) return null;
+  const sources = [quotation, pickRow].filter(Boolean);
+  const agentId = sources.map(quotationAgentCustomerId).find(Boolean) || '';
+  if (agentId) {
+    const byId = rows.find((c) => String(c.customerID || '').trim() === agentId);
+    if (byId) return byId;
+  }
+  const labels = [
+    ...sources.map(quotationAgentCustomerName),
+    ...sources.map(quotationPreparedByLabel),
+  ]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean);
+  const matchLabel = (c) => labels.some((label) => namesLikelySamePerson(c?.name, label));
+  return rows.find((c) => c.hasBank && matchLabel(c)) || rows.find(matchLabel) || null;
 }
 
 /** API rows use snake_case; workspace snapshot uses camelCase — unify for the quotation dropdown. */
@@ -622,8 +669,8 @@ function normalizeQuoteForRefundSelect(q, { skipPickerFloor = false } = {}) {
     id: String(q.id),
     customer_name: q.customer_name ?? q.customer ?? '—',
     handled_by: quotationPreparedByLabel(q),
-    agent_customer_id: String(q.agent_customer_id ?? q.agentCustomerID ?? '').trim(),
-    agent_customer_name: String(q.agent_customer_name ?? q.agentCustomerName ?? '').trim(),
+    agent_customer_id: quotationAgentCustomerId(q),
+    agent_customer_name: quotationAgentCustomerName(q),
     paid_ngn: paid,
     cash_in_ngn: cashIn,
     total_ngn: total,
@@ -1053,9 +1100,26 @@ const RefundModal = ({
     const opts = [];
     const seen = new Set();
     const quoteCustomerId = String(form.customerID || '').trim();
+    const quoteRef = String(form.quotationRef || '').trim();
+    const quoteSnap = quoteRef
+      ? quotations.find((x) => String(x.id) === quoteRef) ?? null
+      : null;
+    const pickRow = quoteRef
+      ? normalizeQuoteForRefundSelect(
+          eligibleQuotes.find((x) => String(x.id).trim() === quoteRef) || quoteSnap,
+          { skipPickerFloor: true }
+        )
+      : null;
+    const linkedClaimStaff = resolveQuotationLinkedClaimingStaff(
+      quoteSnap,
+      pickRow,
+      companyStaffClaimOptions
+    );
+    const linkedCustomerId = String(linkedClaimStaff?.customerID || '').trim();
 
-    for (const s of companyStaffClaimOptions) {
+    const pushCompanyStaff = (s, { pinned = false } = {}) => {
       const key = `customer:${s.customerID}`;
+      if (seen.has(key)) return;
       seen.add(key);
       const bankBit = s.hasBank
         ? `${s.bankName} ${s.bankAccountNoMasked || ''}`.trim()
@@ -1069,14 +1133,20 @@ const RefundModal = ({
       opts.push({
         key,
         label: `${s.name}${emp} · ${bankBit}${unclearedBit}`,
-        group: s.hasBank ? 'Company staff (HR bank)' : 'Company staff (add bank)',
+        group: pinned
+          ? 'Quotation sales staff'
+          : s.hasBank
+            ? 'Company staff (HR bank)'
+            : 'Company staff (add bank)',
         searchText: `${s.name} ${s.employeeNo || ''} ${s.bankName || ''} ${s.customerID || ''} ${s.userId || ''}`,
         needsBank: !s.hasBank,
-        hint: uncleared > 0
-          ? `Has ₦${uncleared.toLocaleString('en-NG')} uncleared receipts — offset from net payout`
-          : s.hasBank
-            ? 'Uses HR payroll bank'
-            : 'Select to add bank on the staff customer account',
+        hint: pinned
+          ? 'Agent / preparer on this quotation'
+          : uncleared > 0
+            ? `Has ₦${uncleared.toLocaleString('en-NG')} uncleared receipts — offset from net payout`
+            : s.hasBank
+              ? 'Uses HR payroll bank'
+              : 'Select to add bank on the staff customer account',
         meta: {
           kind: 'customer',
           id: s.customerID,
@@ -1087,6 +1157,12 @@ const RefundModal = ({
           unclearedReceiptFloatNgn: uncleared,
         },
       });
+    };
+
+    if (linkedClaimStaff) pushCompanyStaff(linkedClaimStaff, { pinned: true });
+    for (const s of companyStaffClaimOptions) {
+      if (linkedCustomerId && String(s.customerID) === linkedCustomerId) continue;
+      pushCompanyStaff(s);
     }
 
     for (const c of staffLinkedCustomers) {
@@ -1168,6 +1244,9 @@ const RefundModal = ({
     customersWithBankOptions,
     associatedStaffPayoutOptions,
     form.customerID,
+    form.quotationRef,
+    quotations,
+    eligibleQuotes,
     selectedRefundCustomer,
   ]);
 
@@ -1494,7 +1573,7 @@ const RefundModal = ({
     return quotations.find((x) => String(x.id) === ref) ?? null;
   }, [form.quotationRef, quotations]);
 
-  // No customer bank → suggest transport/install → assignees, remainder → claiming staff.
+  // No customer bank → suggest transport/install → assignees, remainder → quotation agent/preparer.
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
     if (payoutAccountReady) return;
@@ -1508,19 +1587,12 @@ const RefundModal = ({
       String(c).toLowerCase().includes('install')
     );
     const { transporterId, installerId } = quotationServiceAssignees(selectedQuotationSnapshot);
-    const meName = String(
-      ws?.session?.user?.displayName || ws?.session?.user?.username || ''
-    )
-      .trim()
-      .toLowerCase();
-    const claimCustomerDefault =
-      companyStaffClaimOptions.find((c) => c.hasBank && String(c.name || '').toLowerCase().includes(meName) && meName) ||
-      companyStaffClaimOptions.find((c) => c.hasBank) ||
-      null;
-    const claimStaffDefault =
-      associatedStaffWithBank.find((s) => String(s.name || '').toLowerCase().includes(meName) && meName) ||
-      associatedStaffWithBank[0] ||
-      null;
+    // Link remainder to quotation agent / preparer — never default to the logged-in refund requester.
+    const claimCustomerDefault = resolveQuotationLinkedClaimingStaff(
+      selectedQuotationSnapshot,
+      selectedQuoteMoneyRow,
+      companyStaffClaimOptions
+    );
 
     const next = [];
     if (transportAmt > 0) {
@@ -1558,15 +1630,7 @@ const RefundModal = ({
           recipientAssociatedStaffID: '',
           recipientCustomerID: String(claimCustomerDefault.customerID),
           amountNgn: String(remainder),
-          note: 'Claiming staff',
-        });
-      } else if (claimStaffDefault) {
-        next.push({
-          recipientKind: 'associated_staff',
-          recipientAssociatedStaffID: String(claimStaffDefault.id || claimStaffDefault.staffID),
-          recipientCustomerID: '',
-          amountNgn: String(remainder),
-          note: 'Claiming staff',
+          note: 'Quotation sales staff',
         });
       } else {
         next.push({
@@ -1574,7 +1638,7 @@ const RefundModal = ({
           recipientAssociatedStaffID: '',
           recipientCustomerID: '',
           amountNgn: String(remainder),
-          note: 'Claiming staff',
+          note: 'Quotation sales staff',
         });
       }
     }
@@ -1600,11 +1664,9 @@ const RefundModal = ({
     form.amountNgn,
     form.calculationLines,
     selectedQuotationSnapshot,
-    associatedStaffWithBank,
+    selectedQuoteMoneyRow,
     activeAssociatedStaff,
     companyStaffClaimOptions,
-    ws?.session?.user?.displayName,
-    ws?.session?.user?.username,
   ]);
 
   const selectedQuotationRefundsBlocked = useMemo(() => {
@@ -4659,8 +4721,8 @@ const RefundModal = ({
                         <div className="space-y-3">
                           <p className="text-ui-xs text-amber-100/90 leading-snug">
                             No customer bank on file. Quotation transporter/installer appear below even without
-                            bank — select them to add account number here. Remainder can go to company staff or
-                            another payee.
+                            bank — select them to add account number here. Remainder goes to the quotation agent
+                            / preparer (who filed the quote), not the person submitting this refund.
                           </p>
                           {!readOnly &&
                           String(form.customerID || '').trim() &&
@@ -4993,14 +5055,14 @@ const RefundModal = ({
                                         recipientAssociatedStaffID: '',
                                         recipientCustomerID: '',
                                         amountNgn: '',
-                                        note: 'Claiming staff',
+                                        note: 'Quotation sales staff',
                                       },
                                     ],
                                   }))
                                 }
                                 className="text-ui-xs font-semibold text-sky-300 hover:text-sky-200"
                               >
-                                + Claiming staff
+                                + Quotation sales staff
                               </button>
                             </div>
                           ) : null}
@@ -5019,7 +5081,7 @@ const RefundModal = ({
                               {quotationAssigneeIds.transporterId || quotationAssigneeIds.installerId
                                 ? ' · quotation assignees pinned at top'
                                 : ''}
-                              . People without bank can be selected — a form opens to add account number.
+                              . Remainder defaults to the quotation agent / preparer (not who is filing this refund). People without bank can be selected — a form opens to add account number.
                             </p>
                           )}
                           {payoutAssociatedStaffError ? (
