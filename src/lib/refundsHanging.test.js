@@ -9,6 +9,31 @@ import {
 } from './refundsStore.js';
 
 describe('hanging refund indicators', () => {
+  it('preserves refundSplits so create allocation reaches the API', () => {
+    const splits = [
+      {
+        recipientKind: 'customer',
+        recipientCustomerID: 'CUS-CLAIM',
+        recipientAssociatedStaffID: '',
+        amountNgn: 19525,
+        note: 'Claiming staff',
+      },
+    ];
+    const n = normalizeRefund({
+      refundID: 'RF-NEW',
+      customerID: 'CUS-NOBANK',
+      amountNgn: 19525,
+      status: 'Pending',
+      refundSplits: splits,
+      productionAlignmentAcknowledgedCodes: ['x'],
+      productionAlignmentOverrideNote: 'ok',
+    });
+    expect(n.refundSplits).toEqual(splits);
+    expect(n.splitDistributions).toEqual(splits);
+    expect(n.productionAlignmentAcknowledgedCodes).toEqual(['x']);
+    expect(n.productionAlignmentOverrideNote).toBe('ok');
+  });
+
   it('treats Pending and unpaid Approved as hanging', () => {
     expect(isRefundHanging(normalizeRefund({ refundID: 'RF-1', status: 'Pending', amountNgn: 10_000 }))).toBe(
       true

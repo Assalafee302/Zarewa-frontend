@@ -150,6 +150,21 @@ export function normalizeRefund(r) {
     payeeName: formatPersonName(String(r.payeeName ?? r.payee_name ?? '').trim()),
     payeeAccountNo: String(r.payeeAccountNo ?? r.payee_account_no ?? '').trim(),
     payeeBankName: String(r.payeeBankName ?? r.payee_bank_name ?? '').trim(),
+    // Create/submit allocation — must survive Sales persist → POST /api/refunds.
+    refundSplits: Array.isArray(r.refundSplits)
+      ? r.refundSplits
+      : Array.isArray(r.splitDistributions)
+        ? r.splitDistributions
+        : [],
+    splitDistributions: Array.isArray(r.splitDistributions)
+      ? r.splitDistributions
+      : Array.isArray(r.refundSplits)
+        ? r.refundSplits
+        : [],
+    productionAlignmentAcknowledgedCodes: Array.isArray(r.productionAlignmentAcknowledgedCodes)
+      ? r.productionAlignmentAcknowledgedCodes
+      : [],
+    productionAlignmentOverrideNote: String(r.productionAlignmentOverrideNote ?? '').trim(),
     payoutHistory: Array.isArray(r.payoutHistory) ? r.payoutHistory.map(normalizePayoutLine) : [],
     outstandingAmountNgn: effectiveOutstandingNgn(approvedAmountNgn, paidAmountNgn),
     creditAppliedNgn: Math.round(Number(r.creditAppliedNgn ?? r.credit_applied_ngn) || 0),
