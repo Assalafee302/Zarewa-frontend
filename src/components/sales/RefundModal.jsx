@@ -174,39 +174,172 @@ function sumIncludedRefundLinesByCategoryMatch(lines, matchFn) {
 }
 
 function quotationServiceAssignees(quotation) {
-  const shape =
-    quotation?.quotationLines ||
-    quotation?.lines ||
-    (typeof quotation?.lines_json === 'string'
-      ? (() => {
-          try {
-            return JSON.parse(quotation.lines_json);
-          } catch {
-            return null;
-          }
-        })()
-      : quotation?.lines_json) ||
-    {};
-  const services = Array.isArray(shape?.services) ? shape.services : [];
-  let transporterId = '';
-  let transporterName = '';
-  let installerId = '';
-  let installerName = '';
-  for (const line of services) {
-    const name = String(line?.name || '').toLowerCase();
-    const staffId = String(line?.assigneeAssociatedStaffID || line?.assigneeCustomerID || '').trim();
-    const staffName = String(line?.assigneeName || '').trim();
-    if (!staffId) continue;
-    if (!transporterId && name.includes('transport')) {
-      transporterId = staffId;
-      transporterName = staffName;
-    }
-    if (!installerId && name.includes('install')) {
-      installerId = staffId;
-      installerName = staffName;
+  const people = quotationTransactionPeople(quotation);
+  const transporter = people.find((p) => p.role === 'driver');
+  const installer = people.find((p) => p.role === 'installer');
+  return {
+    transporterId: transporter?.id || '',
+    transporterName: transporter?.name || '',
+    installerId: installer?.id || '',
+    installerName: installer?.name || '',
+  };
+}
+
+/** Parse products/services shape from snapshot or eligible-list `lines_json`. */
+function parseQuotationLinesShape(source) {
+  if (!source || typeof source !== 'object') return null;
+  if (source.quotationLines && typeof source.quotationLines === 'object') return source.quotationLines;
+  if (
+    source.lines &&
+    typeof source.lines === 'object' &&
+    (Array.isArray(source.lines.services) || Array.isArray(source.lines.products))
+  ) {
+    return source.lines;
+  }
+  const raw = source.lines_json;
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const j = JSON.parse(raw);
+      return j && typeof j === 'object' ? j : null;
+    } catch {
+      return null;
     }
   }
-  return { transporterId, transporterName, installerId, installerName };
+  if (raw && typeof raw === 'object') return raw;
+  return null;
+}
+
+function quotationLinesHaveServiceAssignees(shape) {
+  const services = Array.isArray(shape?.services) ? shape.services : [];
+  return services.some(
+    (line) =>
+      String(line?.assigneeAssociatedStaffID || line?.assigneeCustomerID || '').trim() ||
+      String(line?.assigneeName || '').trim()
+  );
+}
+
+/**
+ * Workspace snapshot + eligible-list row (keeps `lines_json` — normalize strips it).
+ * Prefer the shape that still has transporter/installer assignees.
+ */
+function mergeQuotationForPayoutPeople(quoteSnap, eligibleRaw, normalizedPick) {
+  const snapShape = parseQuotationLinesShape(quoteSnap);
+  const eligibleShape = parseQuotationLinesShape(eligibleRaw);
+  const linesShape =
+    (quotationLinesHaveServiceAssignees(eligibleShape) && eligibleShape) ||
+    (quotationLinesHaveServiceAssignees(snapShape) && snapShape) ||
+    eligibleShape ||
+    snapShape ||
+    null;
+  return {
+    ...(quoteSnap || {}),
+    ...(normalizedPick || {}),
+    quotationLines: linesShape,
+    lines_json: eligibleRaw?.lines_json || quoteSnap?.lines_json || null,
+    handled_by:
+      normalizedPick?.handled_by ||
+      quoteSnap?.handled_by ||
+      quoteSnap?.handledBy ||
+      eligibleRaw?.handled_by ||
+      '',
+    handledBy: quoteSnap?.handledBy || normalizedPick?.handled_by || eligibleRaw?.handled_by || '',
+    agentCustomerID:
+      quoteSnap?.agentCustomerID ||
+      normalizedPick?.agent_customer_id ||
+      eligibleRaw?.agent_customer_id ||
+      '',
+    agent_customer_id:
+      normalizedPick?.agent_customer_id ||
+      eligibleRaw?.agent_customer_id ||
+      quoteSnap?.agent_customer_id ||
+      quoteSnap?.agentCustomerID ||
+      '',
+    agentCustomerName:
+      quoteSnap?.agentCustomerName ||
+      normalizedPick?.agent_customer_name ||
+      eligibleRaw?.agent_customer_name ||
+      '',
+    agent_customer_name:
+      normalizedPick?.agent_customer_name ||
+      eligibleRaw?.agent_customer_name ||
+      quoteSnap?.agent_customer_name ||
+      quoteSnap?.agentCustomerName ||
+      '',
+  };
+}
+
+/**
+ * Everyone named on the quotation for payout: service assignees + agent + preparer.
+ * Assignees are associated-staff ids (QuotationModal stores them in assigneeAssociatedStaffID).
+ */
+function quotationTransactionPeople(quotation) {
+  if (!quotation) return [];
+  const shape = parseQuotationLinesShape(quotation) || {};
+  const services = Array.isArray(shape?.services) ? shape.services : [];
+  const people = [];
+  const seen = new Set();
+  const push = (entry) => {
+    const id = String(entry?.id || '').trim();
+    const name = String(entry?.name || '').trim();
+    if (!id && !name) return;
+    const key = id ? `id:${id}` : `name:${name.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    people.push({
+      id,
+      name,
+      role: String(entry?.role || '').trim(),
+      label: String(entry?.label || '').trim(),
+    });
+  };
+
+  for (const line of services) {
+    const serviceName = String(line?.name || '').trim();
+    const lower = serviceName.toLowerCase();
+    const id = String(line?.assigneeAssociatedStaffID || line?.assigneeCustomerID || '').trim();
+    const name = String(line?.assigneeName || '').trim();
+    if (!id && !name) continue;
+    let role = String(line?.assigneeRole || '').trim().toLowerCase();
+    if (!role) {
+      if (lower.includes('transport')) role = 'driver';
+      else if (lower.includes('install')) role = 'installer';
+      else role = 'service';
+    }
+    push({
+      id,
+      name,
+      role,
+      label:
+        role === 'driver'
+          ? 'Quotation transporter'
+          : role === 'installer'
+            ? 'Quotation installer'
+            : serviceName || 'Quotation assignee',
+    });
+  }
+
+  const agentId = quotationAgentCustomerId(quotation);
+  const agentName = quotationAgentCustomerName(quotation);
+  if (agentId || agentName) {
+    push({
+      id: agentId,
+      name: agentName,
+      role: 'agent',
+      label: 'Quotation agent',
+    });
+  }
+
+  const preparedBy = quotationPreparedByLabel(quotation);
+  if (preparedBy && !people.some((p) => namesLikelySamePerson(p.name, preparedBy))) {
+    push({
+      id: '',
+      name: preparedBy,
+      role: 'preparer',
+      label: 'Prepared by',
+    });
+  }
+
+  return people;
 }
 
 function associatedStaffHasBank(row) {
@@ -802,6 +935,8 @@ const RefundModal = ({
   const [payoutBankError, setPayoutBankError] = useState('');
   /** Local bank patches after inline save (before sales snapshot refresh). */
   const [customerBankOverrides, setCustomerBankOverrides] = useState({});
+  /** Full quotation (with service assignees) when snapshot/eligible list is thin. */
+  const [payoutQuoteDetail, setPayoutQuoteDetail] = useState(null);
 
   const createPathUserTouchedRef = useRef(false);
 
@@ -1031,34 +1166,251 @@ const RefundModal = ({
   );
   const quotationAssigneeIds = useMemo(() => {
     const ref = String(form.quotationRef || '').trim();
-    const quote = ref ? quotations.find((x) => String(x.id) === ref) ?? null : null;
-    const { transporterId, installerId } = quotationServiceAssignees(quote);
+    const quoteSnap =
+      (ref && payoutQuoteDetail && String(payoutQuoteDetail.id || '').trim() === ref
+        ? payoutQuoteDetail
+        : null) || (ref ? quotations.find((x) => String(x.id) === ref) ?? null : null);
+    const eligibleRaw = ref
+      ? eligibleQuotes.find((x) => String(x.id).trim() === ref) || null
+      : null;
+    const { transporterId, installerId } = quotationServiceAssignees(
+      mergeQuotationForPayoutPeople(quoteSnap, eligibleRaw, null)
+    );
     return {
       transporterId: String(transporterId || '').trim(),
       installerId: String(installerId || '').trim(),
     };
-  }, [form.quotationRef, quotations]);
+  }, [form.quotationRef, quotations, eligibleQuotes, payoutQuoteDetail]);
+
+  const quotationLinkedPayees = useMemo(() => {
+    const ref = String(form.quotationRef || '').trim();
+    const quoteSnap =
+      (ref && payoutQuoteDetail && String(payoutQuoteDetail.id || '').trim() === ref
+        ? payoutQuoteDetail
+        : null) || (ref ? quotations.find((x) => String(x.id) === ref) ?? null : null);
+    const eligibleRaw = ref
+      ? eligibleQuotes.find((x) => String(x.id).trim() === ref) || null
+      : null;
+    const pickRow = normalizeQuoteForRefundSelect(eligibleRaw || quoteSnap, {
+      skipPickerFloor: true,
+    });
+    return quotationTransactionPeople(
+      mergeQuotationForPayoutPeople(quoteSnap, eligibleRaw, pickRow)
+    );
+  }, [form.quotationRef, quotations, eligibleQuotes, payoutQuoteDetail]);
+
+  /** Resolve quote-linked people into picker options (associated staff and/or claiming customers). */
+  const quotationLinkedPayoutOptions = useMemo(() => {
+    const opts = [];
+    const seen = new Set();
+    for (const person of quotationLinkedPayees) {
+      const id = String(person.id || '').trim();
+      const name = String(person.name || '').trim();
+      const role = String(person.role || '').trim().toLowerCase();
+      const roleHint = person.label || person.role || 'On quotation';
+      const preferCustomerDirectory = role === 'agent' || role === 'preparer';
+
+      const findAssociated = () =>
+        id
+          ? activeAssociatedStaff.find((s) => String(s.id || s.staffID || '').trim() === id)
+          : name
+            ? activeAssociatedStaff.find((s) => namesLikelySamePerson(s.name, name))
+            : null;
+      const findClaim = () =>
+        id
+          ? companyStaffClaimOptions.find((c) => String(c.customerID || '').trim() === id)
+          : name
+            ? companyStaffClaimOptions.find((c) => namesLikelySamePerson(c.name, name))
+            : null;
+      const findCustomer = () =>
+        (id && allCustomers.find((c) => String(c.customerID || '').trim() === id)) ||
+        (name && allCustomers.find((c) => namesLikelySamePerson(c.name, name))) ||
+        null;
+
+      const asRow = preferCustomerDirectory ? null : findAssociated();
+      if (asRow) {
+        const sid = String(asRow.id || asRow.staffID || '').trim();
+        const key = `staff:${sid}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const hasBank = associatedStaffHasBank(asRow);
+          opts.push({
+            key,
+            label: `${asRow.name}${asRow.staffType || asRow.staff_type ? ` · ${asRow.staffType || asRow.staff_type}` : ''} · ${roleHint}${
+              hasBank
+                ? ` · ${asRow.bankName || asRow.bank_name} ${asRow.bankAccountNo || asRow.bank_account_no}`
+                : ' · no bank on file'
+            }`,
+            group: 'On this quotation',
+            searchText: `${asRow.name} ${roleHint} ${asRow.staffType || ''} ${sid}`,
+            needsBank: !hasBank,
+            hint: hasBank ? roleHint : `${roleHint} — select to add bank`,
+            meta: {
+              kind: 'associated_staff',
+              id: sid,
+              name: asRow.name,
+              bankAccountName: asRow.bankAccountName || asRow.bank_account_name || asRow.name || '',
+              bankName: asRow.bankName || asRow.bank_name || '',
+              bankAccountNo: asRow.bankAccountNo || asRow.bank_account_no || '',
+            },
+          });
+        }
+        continue;
+      }
+
+      const claimRow = findClaim();
+      if (claimRow) {
+        const cid = String(claimRow.customerID || '').trim();
+        const key = `customer:${cid}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          opts.push({
+            key,
+            label: `${claimRow.name}${claimRow.employeeNo ? ` · ${claimRow.employeeNo}` : ''} · ${roleHint}${
+              claimRow.hasBank
+                ? ` · ${claimRow.bankName} ${claimRow.bankAccountNoMasked || ''}`
+                : ' · no HR bank on file'
+            }`,
+            group: 'On this quotation',
+            searchText: `${claimRow.name} ${roleHint} ${claimRow.employeeNo || ''} ${cid}`,
+            needsBank: !claimRow.hasBank,
+            hint: claimRow.hasBank ? roleHint : `${roleHint} — select to add bank`,
+            meta: {
+              kind: 'customer',
+              id: cid,
+              name: claimRow.name,
+              bankAccountName: claimRow.name || '',
+              bankName: claimRow.bankName || '',
+              bankAccountNo: '',
+            },
+          });
+        }
+        continue;
+      }
+
+      const cust = findCustomer();
+      if (cust) {
+        const cid = String(cust.customerID || '').trim();
+        const key = `customer:${cid}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const hasBank = customerHasBank(cust);
+          opts.push({
+            key,
+            label: `${cust.name} · ${roleHint}${hasBank ? ` · ${cust.bankName} ${cust.bankAccountNo}` : ' · no bank on file'}`,
+            group: 'On this quotation',
+            searchText: `${cust.name} ${roleHint} ${cid}`,
+            needsBank: !hasBank,
+            hint: hasBank ? roleHint : `${roleHint} — select to add bank`,
+            meta: {
+              kind: 'customer',
+              id: cid,
+              name: cust.name,
+              bankAccountName: cust.bankAccountName || cust.name || '',
+              bankName: cust.bankName || '',
+              bankAccountNo: cust.bankAccountNo || '',
+            },
+          });
+        }
+        continue;
+      }
+
+      // Agent/preparer may still match associated staff by name if no customer link.
+      if (preferCustomerDirectory) {
+        const asFallback = findAssociated();
+        if (asFallback) {
+          const sid = String(asFallback.id || asFallback.staffID || '').trim();
+          const key = `staff:${sid}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            const hasBank = associatedStaffHasBank(asFallback);
+            opts.push({
+              key,
+              label: `${asFallback.name}${asFallback.staffType || asFallback.staff_type ? ` · ${asFallback.staffType || asFallback.staff_type}` : ''} · ${roleHint}${
+                hasBank
+                  ? ` · ${asFallback.bankName || asFallback.bank_name} ${asFallback.bankAccountNo || asFallback.bank_account_no}`
+                  : ' · no bank on file'
+              }`,
+              group: 'On this quotation',
+              searchText: `${asFallback.name} ${roleHint} ${sid}`,
+              needsBank: !hasBank,
+              hint: hasBank ? roleHint : `${roleHint} — select to add bank`,
+              meta: {
+                kind: 'associated_staff',
+                id: sid,
+                name: asFallback.name,
+                bankAccountName:
+                  asFallback.bankAccountName || asFallback.bank_account_name || asFallback.name || '',
+                bankName: asFallback.bankName || asFallback.bank_name || '',
+                bankAccountNo: asFallback.bankAccountNo || asFallback.bank_account_no || '',
+              },
+            });
+          }
+          continue;
+        }
+      }
+
+      // Still surface the quote person even if directories have not loaded them yet.
+      if (id) {
+        const asStaff = role === 'driver' || role === 'installer' || role === 'service';
+        const key = asStaff ? `staff:${id}` : `customer:${id}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          opts.push({
+            key,
+            label: `${name || id} · ${roleHint} · add bank`,
+            group: 'On this quotation',
+            searchText: `${name} ${roleHint} ${id}`,
+            needsBank: true,
+            hint: `${roleHint} — select to add bank`,
+            meta: {
+              kind: asStaff ? 'associated_staff' : 'customer',
+              id,
+              name: name || id,
+              bankAccountName: name || '',
+              bankName: '',
+              bankAccountNo: '',
+            },
+          });
+        }
+        continue;
+      }
+
+      if (name) {
+        const key = `unresolved:${role || 'person'}:${name.toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          opts.push({
+            key,
+            label: `${name} · ${roleHint} · not in staff directory`,
+            group: 'On this quotation',
+            searchText: `${name} ${roleHint}`,
+            disabled: true,
+            hint: 'Name is on the quotation but not linked to associated/company staff yet',
+          });
+        }
+      }
+    }
+    return opts;
+  }, [
+    quotationLinkedPayees,
+    activeAssociatedStaff,
+    companyStaffClaimOptions,
+    allCustomers,
+  ]);
 
   const associatedStaffPayoutOptions = useMemo(() => {
-    const quoteIds = new Set(
-      [quotationAssigneeIds.transporterId, quotationAssigneeIds.installerId].filter(Boolean)
-    );
-    return [...activeAssociatedStaff]
-      .sort((a, b) => {
-        const aId = String(a.id || a.staffID || '');
-        const bId = String(b.id || b.staffID || '');
-        const aQ = quoteIds.has(aId) ? 0 : 1;
-        const bQ = quoteIds.has(bId) ? 0 : 1;
-        if (aQ !== bQ) return aQ - bQ;
-        const aBank = associatedStaffHasBank(a) ? 0 : 1;
-        const bBank = associatedStaffHasBank(b) ? 0 : 1;
-        if (aBank !== bBank) return aBank - bBank;
-        return String(a.name || '').localeCompare(String(b.name || ''));
-      })
+    const seen = new Set(quotationLinkedPayoutOptions.map((o) => o.key));
+    const rest = activeAssociatedStaff
       .map((s) => {
         const id = String(s.id || s.staffID || '').trim();
+        if (!id) return null;
+        const key = `staff:${id}`;
+        if (seen.has(key)) return null;
+        seen.add(key);
         const hasBank = associatedStaffHasBank(s);
-        const onQuote = quoteIds.has(id);
+        const onQuote =
+          id === quotationAssigneeIds.transporterId || id === quotationAssigneeIds.installerId;
         const roleBit =
           id === quotationAssigneeIds.transporterId
             ? ' · Quotation transporter'
@@ -1068,10 +1420,9 @@ const RefundModal = ({
         const bankBit = hasBank
           ? `${s.bankName || s.bank_name} ${s.bankAccountNo || s.bank_account_no}`
           : 'no bank on file';
-        const label = `${s.name}${s.staffType || s.staff_type ? ` · ${s.staffType || s.staff_type}` : ''}${roleBit} · ${bankBit}`;
         return {
-          key: `staff:${id}`,
-          label,
+          key,
+          label: `${s.name}${s.staffType || s.staff_type ? ` · ${s.staffType || s.staff_type}` : ''}${roleBit} · ${bankBit}`,
           group: onQuote
             ? 'On this quotation'
             : hasBank
@@ -1079,11 +1430,7 @@ const RefundModal = ({
               : 'Associated staff (add bank)',
           searchText: `${s.name} ${s.staffType || s.staff_type || ''} ${s.bankName || ''} ${s.bankAccountNo || ''} ${id}`,
           needsBank: !hasBank,
-          hint: hasBank
-            ? onQuote
-              ? 'Assigned on quotation'
-              : ''
-            : 'Select to add account number now',
+          hint: hasBank ? (onQuote ? 'Assigned on quotation' : '') : 'Select to add account number now',
           meta: {
             kind: 'associated_staff',
             id,
@@ -1093,29 +1440,15 @@ const RefundModal = ({
             bankAccountNo: s.bankAccountNo || s.bank_account_no || '',
           },
         };
-      });
-  }, [activeAssociatedStaff, quotationAssigneeIds]);
+      })
+      .filter(Boolean);
+    return [...quotationLinkedPayoutOptions.filter((o) => String(o.key).startsWith('staff:')), ...rest];
+  }, [activeAssociatedStaff, quotationAssigneeIds, quotationLinkedPayoutOptions]);
 
   const claimingPayoutOptions = useMemo(() => {
-    const opts = [];
-    const seen = new Set();
+    const opts = [...quotationLinkedPayoutOptions];
+    const seen = new Set(opts.map((o) => o.key));
     const quoteCustomerId = String(form.customerID || '').trim();
-    const quoteRef = String(form.quotationRef || '').trim();
-    const quoteSnap = quoteRef
-      ? quotations.find((x) => String(x.id) === quoteRef) ?? null
-      : null;
-    const pickRow = quoteRef
-      ? normalizeQuoteForRefundSelect(
-          eligibleQuotes.find((x) => String(x.id).trim() === quoteRef) || quoteSnap,
-          { skipPickerFloor: true }
-        )
-      : null;
-    const linkedClaimStaff = resolveQuotationLinkedClaimingStaff(
-      quoteSnap,
-      pickRow,
-      companyStaffClaimOptions
-    );
-    const linkedCustomerId = String(linkedClaimStaff?.customerID || '').trim();
 
     const pushCompanyStaff = (s, { pinned = false } = {}) => {
       const key = `customer:${s.customerID}`;
@@ -1159,9 +1492,7 @@ const RefundModal = ({
       });
     };
 
-    if (linkedClaimStaff) pushCompanyStaff(linkedClaimStaff, { pinned: true });
     for (const s of companyStaffClaimOptions) {
-      if (linkedCustomerId && String(s.customerID) === linkedCustomerId) continue;
       pushCompanyStaff(s);
     }
 
@@ -1235,22 +1566,36 @@ const RefundModal = ({
     }
 
     for (const s of associatedStaffPayoutOptions) {
+      if (seen.has(s.key)) continue;
+      seen.add(s.key);
       opts.push(s);
     }
     return opts;
   }, [
+    quotationLinkedPayoutOptions,
     companyStaffClaimOptions,
     staffLinkedCustomers,
     customersWithBankOptions,
     associatedStaffPayoutOptions,
     form.customerID,
-    form.quotationRef,
-    quotations,
-    eligibleQuotes,
     selectedRefundCustomer,
   ]);
 
+  /** One combined directory so every allocation row can pick any quote-linked or directory payee. */
+  const payoutRecipientOptions = useMemo(() => {
+    const opts = [];
+    const seen = new Set();
+    for (const o of [...quotationLinkedPayoutOptions, ...associatedStaffPayoutOptions, ...claimingPayoutOptions]) {
+      const key = String(o?.key || '').trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      opts.push(o);
+    }
+    return opts;
+  }, [quotationLinkedPayoutOptions, associatedStaffPayoutOptions, claimingPayoutOptions]);
+
   const payoutRecipientsAvailable =
+    quotationLinkedPayoutOptions.length > 0 ||
     activeAssociatedStaff.length > 0 ||
     companyStaffClaimOptions.length > 0 ||
     staffLinkedCustomers.length > 0 ||
@@ -1444,6 +1789,30 @@ const RefundModal = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, mode]);
 
+  // Load full quotation lines so transporter/installer/agent all appear in the payee picker.
+  useEffect(() => {
+    if (!isOpen || mode !== 'create') {
+      setPayoutQuoteDetail(null);
+      return undefined;
+    }
+    const ref = String(form.quotationRef || '').trim();
+    if (!ref) {
+      setPayoutQuoteDetail(null);
+      return undefined;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(ref)}`);
+      if (cancelled) return;
+      if (ok && data?.ok && data?.quotation) {
+        setPayoutQuoteDetail(data.quotation);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, mode, form.quotationRef]);
+
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
     if (!selectedRefundCustomer) return;
@@ -1573,6 +1942,17 @@ const RefundModal = ({
     return quotations.find((x) => String(x.id) === ref) ?? null;
   }, [form.quotationRef, quotations]);
 
+  const selectedQuotationForPayoutPeople = useMemo(() => {
+    const ref = String(form.quotationRef || '').trim();
+    if (!ref) return null;
+    const detail =
+      payoutQuoteDetail && String(payoutQuoteDetail.id || '').trim() === ref
+        ? payoutQuoteDetail
+        : null;
+    const eligibleRaw = eligibleQuotes.find((x) => String(x.id).trim() === ref) || null;
+    return mergeQuotationForPayoutPeople(detail || selectedQuotationSnapshot, eligibleRaw, null);
+  }, [form.quotationRef, selectedQuotationSnapshot, eligibleQuotes, payoutQuoteDetail]);
+
   // No customer bank → suggest transport/install → assignees, remainder → quotation agent/preparer.
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
@@ -1586,10 +1966,10 @@ const RefundModal = ({
     const installAmt = sumIncludedRefundLinesByCategoryMatch(form.calculationLines, (c) =>
       String(c).toLowerCase().includes('install')
     );
-    const { transporterId, installerId } = quotationServiceAssignees(selectedQuotationSnapshot);
+    const { transporterId, installerId } = quotationServiceAssignees(selectedQuotationForPayoutPeople);
     // Link remainder to quotation agent / preparer — never default to the logged-in refund requester.
     const claimCustomerDefault = resolveQuotationLinkedClaimingStaff(
-      selectedQuotationSnapshot,
+      selectedQuotationForPayoutPeople,
       selectedQuoteMoneyRow,
       companyStaffClaimOptions
     );
@@ -1663,7 +2043,7 @@ const RefundModal = ({
     payoutAccountReady,
     form.amountNgn,
     form.calculationLines,
-    selectedQuotationSnapshot,
+    selectedQuotationForPayoutPeople,
     selectedQuoteMoneyRow,
     activeAssociatedStaff,
     companyStaffClaimOptions,
@@ -4757,7 +5137,7 @@ const RefundModal = ({
                           {(Array.isArray(form.refundSplits) ? form.refundSplits : []).map((row, idx) => {
                             const isStaff = String(row.recipientKind || '') === 'associated_staff';
                             const selectedKey = payoutRowSelectValue(row);
-                            const selectedOpt = (isStaff ? associatedStaffPayoutOptions : claimingPayoutOptions).find(
+                            const selectedOpt = payoutRecipientOptions.find(
                               (o) => o.key === selectedKey
                             );
                             return (
@@ -4767,7 +5147,7 @@ const RefundModal = ({
                               >
                                 <div className="flex items-center justify-between gap-2">
                                   <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                                    {row.note || (isStaff ? 'Associated staff' : 'Claiming staff')}
+                                    {row.note || (isStaff ? 'Associated staff' : 'Quotation sales staff')}
                                   </p>
                                   <button
                                     type="button"
@@ -4789,19 +5169,13 @@ const RefundModal = ({
                                   disabled={readOnly}
                                   loading={payoutDirectoryLoading}
                                   value={selectedKey}
-                                  options={isStaff ? associatedStaffPayoutOptions : claimingPayoutOptions}
-                                  placeholder={
-                                    isStaff
-                                      ? 'Search associated staff / driver…'
-                                      : 'Search claiming staff, driver, or customer…'
-                                  }
+                                  options={payoutRecipientOptions}
+                                  placeholder="Search quotation staff, driver, installer, or customer…"
                                   emptyHint={
                                     payoutAssociatedStaffError
                                       ? payoutAssociatedStaffError
-                                      : isStaff
-                                        ? associatedStaffRows.length === 0
-                                          ? 'No associated staff registered yet. Add drivers/installers under Branch Manager → Installers & Drivers.'
-                                          : 'No associated staff match that search.'
+                                      : payoutRecipientOptions.length === 0
+                                        ? 'No payout recipients loaded yet. Associated staff and company staff appear when directories load.'
                                         : 'No payout recipients match that search.'
                                   }
                                   onChange={(key, opt) => {
@@ -4832,13 +5206,9 @@ const RefundModal = ({
                                             ? {
                                                 ...x,
                                                 _manual: '1',
-                                                recipientKind: isStaff
-                                                  ? 'associated_staff'
-                                                  : parsed.recipientKind,
+                                                recipientKind: parsed.recipientKind || 'customer',
                                                 recipientAssociatedStaffID: parsed.recipientAssociatedStaffID,
-                                                recipientCustomerID: isStaff
-                                                  ? ''
-                                                  : parsed.recipientCustomerID,
+                                                recipientCustomerID: parsed.recipientCustomerID,
                                               }
                                             : x
                                       ),
@@ -5074,14 +5444,17 @@ const RefundModal = ({
                             </p>
                           ) : (
                             <p className="text-ui-xs text-slate-400 leading-snug">
-                              Ready now: {activeAssociatedStaff.length} associated staff
+                              Ready now: {payoutRecipientOptions.length} payees
+                              {quotationLinkedPayoutOptions.length
+                                ? ` · ${quotationLinkedPayoutOptions.length} on this quotation`
+                                : ''}
+                              {activeAssociatedStaff.length
+                                ? ` · ${activeAssociatedStaff.length} associated staff`
+                                : ''}
                               {companyStaffClaimOptions.length
                                 ? ` · ${companyStaffClaimOptions.length} company staff`
                                 : ''}
-                              {quotationAssigneeIds.transporterId || quotationAssigneeIds.installerId
-                                ? ' · quotation assignees pinned at top'
-                                : ''}
-                              . Remainder defaults to the quotation agent / preparer (not who is filing this refund). People without bank can be selected — a form opens to add account number.
+                              . Click a row to search — quote transporter, installer, and sales staff are listed first.
                             </p>
                           )}
                           {payoutAssociatedStaffError ? (
