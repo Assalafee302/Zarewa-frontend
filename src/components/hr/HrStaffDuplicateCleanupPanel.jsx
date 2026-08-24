@@ -66,11 +66,11 @@ export function HrStaffDuplicateCleanupPanel({ onCleaned }) {
         <div className="flex gap-2">
           <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
           <div>
-            <p className="font-bold text-amber-950">Fix duplicate staff from failed imports</p>
+            <p className="font-bold text-amber-950">Fix duplicate staff logins</p>
             <p className="mt-1 text-xs text-amber-900/90">
-              Failed uploads may have created extra logins (e.g. <code className="text-ui-xs">surname.51</code>,{' '}
-              <code className="text-ui-xs">surname.52</code>) or accounts without HR profiles. This tool keeps one
-              account per employee number and removes the rest.
+              Extra accounts come from failed imports (e.g. <code className="text-ui-xs">surname.51</code>) or from
+              registering a new login when the person already had one. Scan keeps the original ERP username, copies
+              employment details onto it, and removes the extra login.
             </p>
           </div>
         </div>

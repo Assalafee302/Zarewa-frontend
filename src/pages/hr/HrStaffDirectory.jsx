@@ -137,7 +137,7 @@ export default function HrStaffDirectory({
   const [savedViews, setSavedViews] = useState([]);
   const [viewName, setViewName] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
+  const [pageSize] = useState(50);
   const [total, setTotal] = useState(0);
   const [serverKpis, setServerKpis] = useState(null);
   const [facets, setFacets] = useState({ departments: [], employmentTypes: [], managers: [] });
@@ -440,7 +440,7 @@ export default function HrStaffDirectory({
         }}
       />
 
-      {canBulkImport ? (
+      {canBulkImport || canRegister ? (
         <HrStaffDuplicateCleanupPanel
           onCleaned={async () => {
             setImportNotice(null);
@@ -494,6 +494,25 @@ export default function HrStaffDirectory({
             className="mt-2 text-xs font-semibold text-zarewa-teal hover:underline disabled:opacity-50"
           >
             {linkUnlinkedBusy ? 'Linking…' : 'Link missing profiles'}
+          </button>
+        </div>
+      ) : null}
+
+      {!teamMode && kpis.incomplete > 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-bold">
+            {kpis.incomplete} staff file{kpis.incomplete === 1 ? '' : 's'} still need job title, department, or join date
+          </p>
+          <p className="mt-0.5 text-xs text-amber-900/90">
+            Linked logins from Team & access appear here even when the employment file is incomplete. Open the profile
+            to finish it, or click Incomplete profiles above.
+          </p>
+          <button
+            type="button"
+            onClick={() => setQuickFilter('incomplete')}
+            className="mt-2 text-xs font-semibold text-zarewa-teal hover:underline"
+          >
+            Show incomplete files
           </button>
         </div>
       ) : null}

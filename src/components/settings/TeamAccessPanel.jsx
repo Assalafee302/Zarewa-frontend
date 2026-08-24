@@ -1,5 +1,5 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, LockOpen, Settings2, Trash2, UserPlus } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
@@ -19,6 +19,7 @@ import { ensureHrProfileForUser, ensureHrProfilesForUnlinkedUsers } from '../../
  * @param {{ appUsers: object[]; currentUserId?: string; onRefresh?: () => Promise<unknown> }} props
  */
 export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) {
+  const navigate = useNavigate();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const branches = useMemo(
@@ -87,6 +88,26 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     () => sortedAppUsers.filter((u) => u.hasHrProfile !== true),
     [sortedAppUsers]
   );
+  const duplicateNameGroups = useMemo(() => {
+    const byName = new Map();
+    for (const u of sortedAppUsers) {
+      const key = String(u.displayName || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+      if (!key) continue;
+      if (!byName.has(key)) byName.set(key, []);
+      byName.get(key).push(u);
+    }
+    return [...byName.values()].filter((g) => g.length > 1);
+  }, [sortedAppUsers]);
+  const duplicateNameIds = useMemo(() => {
+    const ids = new Set();
+    for (const g of duplicateNameGroups) {
+      for (const u of g) ids.add(u.id);
+    }
+    return ids;
+  }, [duplicateNameGroups]);
 
   const [passwordModalUser, setPasswordModalUser] = useState(null);
   const [passwordModalValue, setPasswordModalValue] = useState('');
@@ -175,8 +196,13 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
         showToast(data?.error || 'Could not create HR profile.', { variant: 'error' });
         return;
       }
-      showToast(data.created ? 'HR profile created. Complete employment details in HR → Employees.' : 'This login already has an HR profile.');
+      showToast(
+        data.created
+          ? 'HR profile created — opening the employment file to finish details.'
+          : 'This login already has an HR profile.'
+      );
       await refresh();
+      navigate(hrEmployeeProfilePath(user.id));
     } finally {
       setHrLinkBusyId('');
     }
@@ -631,6 +657,32 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           </div>
         ) : null}
 
+        {duplicateNameGroups.length > 0 ? (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-bold">
+              {duplicateNameGroups.length} display name{duplicateNameGroups.length === 1 ? '' : 's'} appear on more
+              than one login
+            </p>
+            <p className="mt-0.5 text-xs text-amber-900/90">
+              Usually one is the original ERP login and another was created by Register staff. Keep the original
+              username, then merge extras in{' '}
+              <Link to="/hr/employees" className="font-semibold text-zarewa-teal underline">
+                HR → Employees
+              </Link>{' '}
+              (Scan duplicates).
+            </p>
+            <ul className="mt-2 space-y-1 text-xs">
+              {duplicateNameGroups.slice(0, 8).map((g) => (
+                <li key={g[0].id}>
+                  <span className="font-semibold">{g[0].displayName}</span>
+                  {' — '}
+                  {g.map((u) => u.username).join(', ')}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         {appUsers.length === 0 ? (
           <p className="text-sm text-slate-500">No users in the directory snapshot.</p>
         ) : (
@@ -667,6 +719,11 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                         {user.isAccountLocked ? (
                           <span className="ml-1 rounded bg-rose-100 px-1.5 py-0.5 text-ui-xs font-bold text-rose-900">
                             Locked
+                          </span>
+                        ) : null}
+                        {duplicateNameIds.has(user.id) ? (
+                          <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-ui-xs font-bold text-amber-900">
+                            Duplicate name
                           </span>
                         ) : null}
                       </td>

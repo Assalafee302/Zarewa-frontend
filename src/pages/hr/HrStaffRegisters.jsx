@@ -63,7 +63,13 @@ export default function HrStaffRegisters() {
         </div>
       ) : null}
       {tab === 'hq-special' ? (
-        <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="hq_special" listTitle="HQ administrative & mining" />
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            HQ administrative and mining staff also appear in the main Employees directory. This register is a focused
+            list of those payroll groups only.
+          </p>
+          <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="hq_special" listTitle="HQ administrative & mining" />
+        </div>
       ) : null}
     </HrTabbedPage>
   );

@@ -103,6 +103,8 @@ export function profilePct(staff) {
 
 export function isIncompleteProfile(staff) {
   if ((staff?.criticalMissing || []).length > 0) return true;
+  const job = String(staff?.jobTitle || '').trim();
+  if (/^pending hr setup$/i.test(job)) return true;
   return profilePct(staff) < 60;
 }
 

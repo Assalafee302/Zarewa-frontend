@@ -88,6 +88,14 @@ export function HrStaffRegisterForm({ defaultBranchId, onSuccess, onCancel }) {
     setBusy(false);
     if (!ok || !data?.ok) {
       setError(data?.error || 'Registration failed.');
+      if (data?.code === 'DUPLICATE_DISPLAY_NAME' && data?.existingUserId) {
+        setMode('existing');
+        setForm((f) => ({
+          ...f,
+          existingUserId: data.existingUserId,
+          password: '',
+        }));
+      }
       return;
     }
     onSuccess(data.userId);
