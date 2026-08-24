@@ -76,6 +76,7 @@ export function emptyStaffForm(defaultBranchId = '') {
     displayName: '',
     password: '',
     roleKey: 'sales_staff',
+    existingUserId: '',
     branchId: defaultBranchId,
     employeeNo: '',
     jobTitle: '',

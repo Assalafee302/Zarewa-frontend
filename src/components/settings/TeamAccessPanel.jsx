@@ -1,4 +1,5 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, LockOpen, Settings2, Trash2, UserPlus } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
@@ -10,6 +11,8 @@ import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTa
 import { AppTablePager } from '../ui/AppDataTable';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
+import { hrEmployeeProfilePath } from '../../lib/hrRoutes';
+import { ensureHrProfileForUser, ensureHrProfilesForUnlinkedUsers } from '../../lib/hrStaff';
 
 /**
  * Admin UI: assign role, status, and granular permissions (settings.view).
@@ -78,6 +81,12 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const canManagePasswords = ['admin', 'md', 'hr_admin'].includes(roleKey);
   const canManageSettings = Boolean(ws?.hasPermission?.('settings.manage'));
+  const [hrLinkBusyId, setHrLinkBusyId] = useState('');
+  const [hrLinkAllBusy, setHrLinkAllBusy] = useState(false);
+  const unlinkedHrUsers = useMemo(
+    () => sortedAppUsers.filter((u) => u.hasHrProfile !== true),
+    [sortedAppUsers]
+  );
 
   const [passwordModalUser, setPasswordModalUser] = useState(null);
   const [passwordModalValue, setPasswordModalValue] = useState('');
@@ -154,6 +163,50 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
       await onRefresh?.();
     } catch {
       /* ignore */
+    }
+  };
+
+  const linkHrProfile = async (user) => {
+    if (!user?.id) return;
+    setHrLinkBusyId(user.id);
+    try {
+      const { ok, data } = await ensureHrProfileForUser(user.id);
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not create HR profile.', { variant: 'error' });
+        return;
+      }
+      showToast(data.created ? 'HR profile created. Complete employment details in HR → Employees.' : 'This login already has an HR profile.');
+      await refresh();
+    } finally {
+      setHrLinkBusyId('');
+    }
+  };
+
+  const linkAllHrProfiles = async () => {
+    if (
+      !(await appConfirm({
+        message: `Create an HR staff file for ${unlinkedHrUsers.length} login(s) that do not have one? Usernames stay the same.`,
+      }))
+    ) {
+      return;
+    }
+    setHrLinkAllBusy(true);
+    try {
+      const { ok, data } = await ensureHrProfilesForUnlinkedUsers();
+      if (!ok || data?.ok === false) {
+        showToast(data?.error || 'Could not link HR profiles.', { variant: 'error' });
+        return;
+      }
+      const created = Number(data?.created) || 0;
+      const failed = Array.isArray(data?.failed) ? data.failed.length : 0;
+      showToast(
+        failed
+          ? `Linked ${created} HR profile(s). ${failed} could not be created.`
+          : `Linked ${created} HR profile(s). Complete remaining details in HR → Employees.`
+      );
+      await refresh();
+    } finally {
+      setHrLinkAllBusy(false);
     }
   };
 
@@ -501,7 +554,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
         return;
       }
       showToast(
-        'User created. Share the temporary password securely—they must change it on first sign-in, then complete the role training guide.'
+        'User created with an HR staff profile. Share the temporary password securely—they must change it on first sign-in. Complete employment details in HR → Employees.'
       );
       setCreateOpen(false);
       setCreateForm({
@@ -536,7 +589,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           typing their username (same safety rules as suspending privileged admins apply). Changing a role clears
           custom permission overrides and applies that role’s template. The team role is the same value stored as
           workspace “department” for routing shortcuts. New users sign in with the temporary password you set here;
-          they choose a new password on first sign-in. Use <strong>Set password</strong> to reset a login (passwords
+          they choose a new password on first sign-in. Every login must have an HR staff profile. Use <strong>Set password</strong> to reset a login (passwords
           are never displayed here).
         </p>
 
@@ -555,7 +608,28 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           >
             <UserPlus size={16} /> Create user
           </button>
+          {canManageSettings && unlinkedHrUsers.length > 0 ? (
+            <button
+              type="button"
+              disabled={hrLinkAllBusy}
+              onClick={() => void linkAllHrProfiles()}
+              className="z-btn-secondary gap-2 !text-xs"
+            >
+              Link {unlinkedHrUsers.length} missing HR profile{unlinkedHrUsers.length === 1 ? '' : 's'}
+            </button>
+          ) : null}
         </div>
+
+        {unlinkedHrUsers.length > 0 ? (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-bold">
+              {unlinkedHrUsers.length} login{unlinkedHrUsers.length === 1 ? '' : 's'} have no HR staff file
+            </p>
+            <p className="mt-0.5 text-xs text-amber-900/90">
+              They can sign in, but they will not appear in the employee directory until an HR profile is linked.
+            </p>
+          </div>
+        ) : null}
 
         {appUsers.length === 0 ? (
           <p className="text-sm text-slate-500">No users in the directory snapshot.</p>
@@ -568,6 +642,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                   <th className="px-3 py-2.5">Branch</th>
                   <th className="px-3 py-2.5">Role</th>
                   <th className="px-3 py-2.5">Status</th>
+                  <th className="px-3 py-2.5">HR profile</th>
                   <th className="px-3 py-2.5">Permissions</th>
                 </tr>
               </thead>
@@ -650,6 +725,27 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                         </select>
                       </td>
                       <td className="px-3 py-3 align-middle whitespace-nowrap">
+                        {user.hasHrProfile === true ? (
+                          <Link
+                            to={hrEmployeeProfilePath(user.id)}
+                            className="text-xs font-semibold text-zarewa-teal no-underline hover:underline"
+                          >
+                            Open profile
+                          </Link>
+                        ) : canManageSettings ? (
+                          <button
+                            type="button"
+                            disabled={busy || hrLinkBusyId === user.id || hrLinkAllBusy}
+                            onClick={() => void linkHrProfile(user)}
+                            className="z-btn-secondary !px-3 !py-1.5 !text-ui-xs"
+                          >
+                            {hrLinkBusyId === user.id ? 'Linking…' : 'Create HR profile'}
+                          </button>
+                        ) : (
+                          <span className="text-xs font-medium text-amber-800">Missing</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 align-middle whitespace-nowrap">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <button
                             type="button"
@@ -700,7 +796,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                       </tr>
                       <tr className="bg-slate-50/80">
                         <td
-                          colSpan={5}
+                          colSpan={6}
                           className="px-3 py-2 border-b border-slate-100"
                         >
                           <EditSecondApprovalInline
@@ -860,7 +956,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
         })}
         closeDisabled={createBusy}
         title="Create app user"
-        description="Creates a login with a temporary password. Password must be at least 8 characters with mixed case, a number, and a special character."
+        description="Creates a login with a temporary password and an HR staff profile. Password must be at least 8 characters with mixed case, a number, and a special character."
       >
         <form
           onSubmit={submitCreateUser}

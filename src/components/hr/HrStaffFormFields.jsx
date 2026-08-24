@@ -57,11 +57,12 @@ export function HrStaffFormFields({
   canViewFullBank = false,
   editUserId = '',
   initialTab = 'personal',
+  existingLogin = false,
 }) {
   const set = (key, value) =>
     setForm((f) => {
       const next = { ...f, [key]: value };
-      if (mode === 'register' && key === 'employeeNo') {
+      if (mode === 'register' && !existingLogin && key === 'employeeNo') {
         const login = String(value || '')
           .trim()
           .toLowerCase()
@@ -131,13 +132,16 @@ export function HrStaffFormFields({
       isRegister ? HR_PAYROLL_GROUPS.filter((g) => payrollGroupMayHaveLogin(g.value)) : HR_PAYROLL_GROUPS,
     [isRegister]
   );
-  const registerableRoles = useMemo(
-    () =>
-      erpRestricted
-        ? HR_REGISTERABLE_ROLES.filter((r) => r.value === 'hr_portal_only')
-        : HR_REGISTERABLE_ROLES.filter((r) => r.value !== 'hr_portal_only'),
-    [erpRestricted]
-  );
+  const registerableRoles = useMemo(() => {
+    const base = erpRestricted
+      ? HR_REGISTERABLE_ROLES.filter((r) => r.value === 'hr_portal_only')
+      : HR_REGISTERABLE_ROLES.filter((r) => r.value !== 'hr_portal_only');
+    const current = String(form.roleKey || '').trim();
+    if (current && !base.some((r) => r.value === current)) {
+      return [{ value: current, label: current.replace(/_/g, ' ') }, ...base];
+    }
+    return base;
+  }, [erpRestricted, form.roleKey]);
 
   useEffect(() => {
     if (!isRegister) return;
@@ -305,16 +309,25 @@ export function HrStaffFormFields({
     <div className="space-y-8">
       {mode === 'register' ? (
         <section className="space-y-4">
-          <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Login account</h3>
+          <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">
+            {existingLogin ? 'Login (existing)' : 'Login account'}
+          </h3>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Login username" hint="Same as employee ID — used to sign in. Auto-filled when you enter employee ID.">
+            <Field
+              label="Login username"
+              hint={
+                existingLogin
+                  ? 'Kept from the selected account — not changed.'
+                  : 'Same as employee ID — used to sign in. Auto-filled when you enter employee ID.'
+              }
+            >
               <input
                 className={fieldCls}
                 value={form.username}
                 onChange={(e) => set('username', e.target.value)}
                 autoComplete="off"
-                readOnly={Boolean(String(form.employeeNo || '').trim())}
-                required
+                readOnly={existingLogin || Boolean(String(form.employeeNo || '').trim())}
+                required={!existingLogin}
               />
             </Field>
             <Field label="Display name">
@@ -325,16 +338,18 @@ export function HrStaffFormFields({
                 required
               />
             </Field>
-            <Field label="Temporary password" hint="Staff should change on first login.">
-              <input
-                type="password"
-                className={fieldCls}
-                value={form.password}
-                onChange={(e) => set('password', e.target.value)}
-                required
-                minLength={8}
-              />
-            </Field>
+            {existingLogin ? null : (
+              <Field label="Temporary password" hint="Staff should change on first login.">
+                <input
+                  type="password"
+                  className={fieldCls}
+                  value={form.password}
+                  onChange={(e) => set('password', e.target.value)}
+                  required
+                  minLength={8}
+                />
+              </Field>
+            )}
             <Field label="System role">
               <select
                 className={fieldCls}
@@ -349,6 +364,9 @@ export function HrStaffFormFields({
                   </option>
                 ))}
               </select>
+              {existingLogin ? (
+                <p className="mt-1 text-xs text-slate-500">Leave this as-is unless HR needs to change their desk role.</p>
+              ) : null}
               {erpRestricted ? (
                 <p className="mt-1 text-xs text-amber-800">
                   Mining division staff cannot access sales, finance, or operations — HR portal and My Profile only.

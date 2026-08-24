@@ -307,19 +307,45 @@ export async function submitMyHrProfile() {
 
 /** @param {object} form */
 export function formToRegisterBody(form) {
+  const existingUserId = String(form.existingUserId || '').trim();
   const employeeLogin = String(form.employeeNo || '')
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9._-]/g, '');
   const body = {
-    username: employeeLogin || String(form.username || '').trim().toLowerCase(),
     displayName: String(form.displayName || '').trim(),
-    password: form.password,
     roleKey: form.roleKey,
     ...formToProfilePatch(form),
   };
+  if (existingUserId) {
+    body.existingUserId = existingUserId;
+    body.username = String(form.username || '').trim().toLowerCase();
+  } else {
+    body.username = employeeLogin || String(form.username || '').trim().toLowerCase();
+    body.password = form.password;
+  }
   if (form.applicantId) body.applicantId = String(form.applicantId).trim();
   return body;
+}
+
+export async function fetchHrUnlinkedUsers(q = '') {
+  const params = new URLSearchParams();
+  const query = String(q || '').trim();
+  if (query) params.set('q', query);
+  const qs = params.toString();
+  return apiFetch(`/api/hr/staff/unlinked-users${qs ? `?${qs}` : ''}`);
+}
+
+export async function ensureHrProfileForUser(userId) {
+  return apiFetch(`/api/users/${encodeURIComponent(userId)}/ensure-hr-profile`, { method: 'POST' });
+}
+
+export async function ensureHrProfilesForUnlinkedUsers() {
+  return apiFetch('/api/users/ensure-hr-profiles', { method: 'POST' });
+}
+
+export async function ensureHrProfilesFromHrDesk() {
+  return apiFetch('/api/hr/staff/ensure-unlinked', { method: 'POST' });
 }
 
 export async function registerHrStaff(body) {

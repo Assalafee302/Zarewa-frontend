@@ -11,6 +11,7 @@ import { HrBulkStaffImportModal } from '../../components/hr/HrBulkStaffImportMod
 import { HrStaffDuplicateCleanupPanel } from '../../components/hr/HrStaffDuplicateCleanupPanel';
 import { formatNgn, payrollGroupLabel } from '../../lib/hrFormat';
 import { fetchHrDepartments } from '../../lib/hrMasterData';
+import { ensureHrProfilesFromHrDesk, fetchHrUnlinkedUsers } from '../../lib/hrStaff';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import {
   branchNameMap,
@@ -129,6 +130,8 @@ export default function HrStaffDirectory({
   const canBulkManage = teamMode ? false : canManageHrStaff(perms);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [importNotice, setImportNotice] = useState(null);
+  const [unlinkedCount, setUnlinkedCount] = useState(0);
+  const [linkUnlinkedBusy, setLinkUnlinkedBusy] = useState(false);
   const [bulkNotice, setBulkNotice] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [savedViews, setSavedViews] = useState([]);
@@ -249,6 +252,22 @@ export default function HrStaffDirectory({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!canRegister) {
+      setUnlinkedCount(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await fetchHrUnlinkedUsers();
+      if (cancelled) return;
+      setUnlinkedCount(ok && data?.ok ? (data.users || []).length : 0);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canRegister, staff.length]);
 
   const departments = useMemo(() => {
     const names = new Set([
@@ -395,7 +414,7 @@ export default function HrStaffDirectory({
       <HrFormModal
         isOpen={registerOpen}
         onClose={() => setRegisterOpen(false)}
-        title="Register new staff"
+        title="Register staff"
         size="xl"
       >
         <HrStaffRegisterForm
@@ -428,6 +447,55 @@ export default function HrStaffDirectory({
             await reload({ forceSpinner: true });
           }}
         />
+      ) : null}
+
+      {canRegister && unlinkedCount > 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-bold">
+            {unlinkedCount} login{unlinkedCount === 1 ? '' : 's'} have no HR staff profile
+          </p>
+          <p className="mt-0.5 text-xs text-amber-900/90">
+            Create stub employment files now, then complete details on each profile. Usernames stay the same.
+          </p>
+          <button
+            type="button"
+            disabled={linkUnlinkedBusy}
+            onClick={async () => {
+              if (
+                !(await appConfirm({
+                  message: `Create an HR profile for ${unlinkedCount} login(s) that do not have one?`,
+                }))
+              ) {
+                return;
+              }
+              setLinkUnlinkedBusy(true);
+              const { ok, data } = await ensureHrProfilesFromHrDesk();
+              setLinkUnlinkedBusy(false);
+              if (!ok || !data?.ok) {
+                setImportNotice({
+                  ok: false,
+                  imported: 0,
+                  updated: 0,
+                  failed: Array.isArray(data?.failed) ? data.failed.length : 1,
+                  total: 0,
+                });
+                return;
+              }
+              setUnlinkedCount(0);
+              await reload({ forceSpinner: true });
+              setImportNotice({
+                ok: true,
+                imported: Number(data.created) || 0,
+                updated: Number(data.skipped) || 0,
+                failed: Array.isArray(data.failed) ? data.failed.length : 0,
+                total: Number(data.created) || 0,
+              });
+            }}
+            className="mt-2 text-xs font-semibold text-zarewa-teal hover:underline disabled:opacity-50"
+          >
+            {linkUnlinkedBusy ? 'Linking…' : 'Link missing profiles'}
+          </button>
+        </div>
       ) : null}
 
       {importNotice ? (
