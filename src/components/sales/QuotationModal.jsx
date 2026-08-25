@@ -1085,6 +1085,7 @@ const QuotationModal = ({
   const [customerQuery, setCustomerQuery] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [handledByStaff, setHandledByStaff] = useState('');
+  const [handledByUserId, setHandledByUserId] = useState('');
   const [handleOnBehalfOf, setHandleOnBehalfOf] = useState(false);
   const [pickedCustomerInline, setPickedCustomerInline] = useState(null);
   const [customerListOpen, setCustomerListOpen] = useState(false);
@@ -1144,21 +1145,30 @@ const QuotationModal = ({
     const u = ws?.session?.user;
     return String(u?.displayName || u?.fullName || u?.name || u?.username || '').trim();
   }, [ws?.session?.user]);
+  const currentUserId = useMemo(
+    () => String(ws?.session?.user?.id || ws?.user?.id || '').trim(),
+    [ws?.session?.user?.id, ws?.user?.id]
+  );
   const appUsers = useMemo(
     () => (Array.isArray(ws?.snapshot?.appUsers) ? ws.snapshot.appUsers : []),
     [ws?.snapshot?.appUsers]
   );
   const staffHandledByOptions = useMemo(() => {
-    const names = appUsers
-      .map((u) => String(u?.displayName || u?.fullName || u?.name || '').trim())
-      .filter(Boolean);
-    const set = new Set(names);
-    if (currentUserHandledByLabel) set.add(currentUserHandledByLabel);
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [appUsers, currentUserHandledByLabel]);
+    const byId = new Map();
+    for (const u of appUsers) {
+      const id = String(u?.id || '').trim();
+      const name = String(u?.displayName || u?.fullName || u?.name || u?.username || '').trim();
+      if (!id || !name) continue;
+      byId.set(id, { id, name });
+    }
+    if (currentUserId && currentUserHandledByLabel && !byId.has(currentUserId)) {
+      byId.set(currentUserId, { id: currentUserId, name: currentUserHandledByLabel });
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [appUsers, currentUserId, currentUserHandledByLabel]);
   const otherStaffHandledByOptions = useMemo(
-    () => staffHandledByOptions.filter((n) => n !== currentUserHandledByLabel),
-    [staffHandledByOptions, currentUserHandledByLabel]
+    () => staffHandledByOptions.filter((u) => u.id !== currentUserId),
+    [staffHandledByOptions, currentUserId]
   );
   const [ridgeAddOnsFallback, setRidgeAddOnsFallback] = useState([]);
   const ridgeAddOnsEffective = useMemo(
@@ -1873,12 +1883,26 @@ const QuotationModal = ({
     const cid = editData?.customerID ?? '';
     setSelectedCustomerId(cid);
     const savedHandledBy = String(editData?.handledBy ?? '').trim();
+    const savedHandledByUserId = String(editData?.handledByUserId ?? editData?.handled_by_user_id ?? '').trim();
     const me = currentUserHandledByLabel || String(quotedByStaff || '').trim();
-    if (editData?.id && savedHandledBy) {
-      setHandledByStaff(savedHandledBy);
-      setHandleOnBehalfOf(Boolean(me) && savedHandledBy !== me);
+    if (editData?.id && (savedHandledByUserId || savedHandledBy)) {
+      const byId = savedHandledByUserId
+        ? staffHandledByOptions.find((u) => u.id === savedHandledByUserId)
+        : null;
+      const byName = !byId && savedHandledBy
+        ? staffHandledByOptions.find((u) => u.name === savedHandledBy)
+        : null;
+      const picked = byId || byName;
+      setHandledByStaff(picked?.name || savedHandledBy || me);
+      setHandledByUserId(picked?.id || savedHandledByUserId || '');
+      setHandleOnBehalfOf(
+        Boolean(picked?.id || savedHandledByUserId)
+          ? Boolean(currentUserId) && (picked?.id || savedHandledByUserId) !== currentUserId
+          : Boolean(me) && savedHandledBy !== me
+      );
     } else {
       setHandledByStaff(me);
+      setHandledByUserId(currentUserId);
       setHandleOnBehalfOf(false);
     }
     const match = customers.find((x) => x.customerID === cid);
@@ -1910,7 +1934,16 @@ const QuotationModal = ({
       setAccessoryRows([emptyOrderLine()]);
       setServiceRows([emptyOrderLine()]);
     }
-  }, [isOpen, quotationHydrateSig, editData, quotedByStaff, customers, currentUserHandledByLabel]);
+  }, [
+    isOpen,
+    quotationHydrateSig,
+    editData,
+    quotedByStaff,
+    customers,
+    currentUserHandledByLabel,
+    currentUserId,
+    staffHandledByOptions,
+  ]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -2430,7 +2463,7 @@ const QuotationModal = ({
       showToast('Enter client name / site (required).', { variant: 'error' });
       return;
     }
-    if (handleOnBehalfOf && !String(handledByStaff || '').trim()) {
+    if (handleOnBehalfOf && !String(handledByUserId || handledByStaff || '').trim()) {
       showToast('Select the staff you are entering this quotation for.', { variant: 'error' });
       return;
     }
@@ -2477,6 +2510,10 @@ const QuotationModal = ({
           materialColor,
           materialDesign,
           handledBy: preparedByLabel,
+          handledByUserId:
+            String(handledByUserId || '').trim() ||
+            (!handleOnBehalfOf ? currentUserId : '') ||
+            undefined,
           status: editData?.status || 'Pending',
           customerFeedback: editData?.customerFeedback,
           approvalDate: editData?.approvalDate,
@@ -3052,10 +3089,11 @@ const QuotationModal = ({
                       onClick={() => {
                         setHandleOnBehalfOf(true);
                         if (
-                          currentUserHandledByLabel &&
-                          String(handledByStaff || '').trim() === currentUserHandledByLabel
+                          currentUserId &&
+                          String(handledByUserId || '').trim() === currentUserId
                         ) {
                           setHandledByStaff('');
+                          setHandledByUserId('');
                         }
                       }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-ui-xs font-semibold text-slate-600 hover:border-zarewa-teal/40 hover:text-zarewa-teal"
@@ -3070,16 +3108,23 @@ const QuotationModal = ({
                 <div className="space-y-2">
                   <select
                     value={
-                      otherStaffHandledByOptions.includes(handledByStaff) ? handledByStaff : ''
+                      otherStaffHandledByOptions.some((u) => u.id === handledByUserId)
+                        ? handledByUserId
+                        : ''
                     }
-                    onChange={(e) => setHandledByStaff(e.target.value)}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const picked = otherStaffHandledByOptions.find((u) => u.id === id);
+                      setHandledByUserId(picked?.id || '');
+                      setHandledByStaff(picked?.name || '');
+                    }}
                     disabled={readOnly}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2.5 px-3 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/10 disabled:opacity-60"
                   >
                     <option value="">Select staff…</option>
-                    {otherStaffHandledByOptions.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
+                    {otherStaffHandledByOptions.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
                       </option>
                     ))}
                   </select>
@@ -3089,6 +3134,7 @@ const QuotationModal = ({
                       onClick={() => {
                         setHandleOnBehalfOf(false);
                         setHandledByStaff(currentUserHandledByLabel || quotedByStaff || '');
+                        setHandledByUserId(currentUserId);
                       }}
                       className="text-ui-xs font-semibold text-slate-500 hover:text-zarewa-teal"
                     >
@@ -3096,7 +3142,8 @@ const QuotationModal = ({
                     </button>
                   ) : null}
                   <p className="text-ui-xs text-slate-500 leading-snug">
-                    Defaults to you. Choose another staff only when entering the job for them.
+                    Defaults to you. Choose another staff only when entering the job for them —
+                    their HR bank is used for refund staff payout when the customer has no bank.
                   </p>
                 </div>
               )}

@@ -243,6 +243,17 @@ function mergeQuotationForPayoutPeople(quoteSnap, eligibleRaw, normalizedPick) {
       eligibleRaw?.handled_by ||
       '',
     handledBy: quoteSnap?.handledBy || normalizedPick?.handled_by || eligibleRaw?.handled_by || '',
+    handledByUserId:
+      quoteSnap?.handledByUserId ||
+      normalizedPick?.handled_by_user_id ||
+      eligibleRaw?.handled_by_user_id ||
+      '',
+    handled_by_user_id:
+      normalizedPick?.handled_by_user_id ||
+      eligibleRaw?.handled_by_user_id ||
+      quoteSnap?.handled_by_user_id ||
+      quoteSnap?.handledByUserId ||
+      '',
     agentCustomerID:
       quoteSnap?.agentCustomerID ||
       normalizedPick?.agent_customer_id ||
@@ -330,13 +341,18 @@ function quotationTransactionPeople(quotation) {
   }
 
   const preparedBy = quotationPreparedByLabel(quotation);
-  if (preparedBy && !people.some((p) => namesLikelySamePerson(p.name, preparedBy))) {
-    push({
-      id: '',
-      name: preparedBy,
-      role: 'preparer',
-      label: 'Prepared by',
-    });
+  const preparedByUserId = String(
+    quotation?.handled_by_user_id ?? quotation?.handledByUserId ?? ''
+  ).trim();
+  if (preparedBy || preparedByUserId) {
+    if (!people.some((p) => (preparedByUserId && p.id === preparedByUserId) || namesLikelySamePerson(p.name, preparedBy))) {
+      push({
+        id: preparedByUserId,
+        name: preparedBy,
+        role: 'preparer',
+        label: 'Prepared by',
+      });
+    }
   }
 
   return people;
@@ -816,8 +832,10 @@ function matchClaimingStaffForPerson(person, claimRows, { branchId = '' } = {}) 
   const name = String(person?.name || '').trim();
   const quoteBranch = String(branchId || '').trim();
   if (id) {
-    const byId = rows.find((c) => String(c.customerID || '').trim() === id);
-    if (byId) return byId;
+    const byCustomer = rows.find((c) => String(c.customerID || '').trim() === id);
+    if (byCustomer) return byCustomer;
+    const byUser = rows.find((c) => String(c.userId || '').trim() === id);
+    if (byUser) return byUser;
   }
   if (!name) return null;
 
@@ -888,13 +906,22 @@ function matchCustomerForPerson(person, customers) {
 }
 
 /**
- * Claiming-staff default must be the quotation agent / preparer — not the person filing the refund.
- * Prefer agent_customer_id, then name/alias/role-title match against HR claiming-staff directory.
+ * Claiming-staff default must be the quotation maker / selected handled-by staff — not the person filing the refund.
+ * Prefer handled_by_user_id → HR sales customer, then agent_customer_id, then name/role-title fallback.
  */
 function resolveQuotationLinkedClaimingStaff(quotation, pickRow, claimingStaffOptions) {
   const rows = Array.isArray(claimingStaffOptions) ? claimingStaffOptions : [];
   if (!rows.length) return null;
   const sources = [quotation, pickRow].filter(Boolean);
+
+  const handledByUserId = sources
+    .map((q) => String(q?.handled_by_user_id ?? q?.handledByUserId ?? '').trim())
+    .find(Boolean);
+  if (handledByUserId) {
+    const byUser = rows.find((c) => String(c.userId || '').trim() === handledByUserId);
+    if (byUser) return byUser;
+  }
+
   const agentId = sources.map(quotationAgentCustomerId).find(Boolean) || '';
   if (agentId) {
     const byId = rows.find((c) => String(c.customerID || '').trim() === agentId);
@@ -947,6 +974,7 @@ function normalizeQuoteForRefundSelect(q, { skipPickerFloor = false } = {}) {
     id: String(q.id),
     customer_name: q.customer_name ?? q.customer ?? '—',
     handled_by: quotationPreparedByLabel(q),
+    handled_by_user_id: String(q.handled_by_user_id ?? q.handledByUserId ?? '').trim(),
     agent_customer_id: quotationAgentCustomerId(q),
     agent_customer_name: quotationAgentCustomerName(q),
     paid_ngn: paid,
