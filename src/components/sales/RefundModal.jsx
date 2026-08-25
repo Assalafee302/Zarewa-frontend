@@ -810,20 +810,65 @@ function matchAssociatedStaffForPerson(person, staffRows) {
   );
 }
 
-function matchClaimingStaffForPerson(person, claimRows) {
+function matchClaimingStaffForPerson(person, claimRows, { branchId = '' } = {}) {
   const rows = Array.isArray(claimRows) ? claimRows : [];
   const id = String(person?.id || '').trim();
   const name = String(person?.name || '').trim();
+  const quoteBranch = String(branchId || '').trim();
   if (id) {
     const byId = rows.find((c) => String(c.customerID || '').trim() === id);
     if (byId) return byId;
   }
   if (!name) return null;
-  return (
-    rows.find((c) => namesLikelySamePerson(c.name, name)) ||
-    rows.find((c) => namesLooselySamePerson(c.name, name)) ||
-    null
-  );
+
+  const labelMatchesRow = (c, label) => {
+    if (!label) return false;
+    const candidates = [c?.name, c?.customerName, c?.username, c?.employeeNo];
+    return candidates.some(
+      (cand) => namesLikelySamePerson(cand, label) || namesLooselySamePerson(cand, label)
+    );
+  };
+
+  const byAlias =
+    rows.find((c) => labelMatchesRow(c, name) && c.hasBank) ||
+    rows.find((c) => labelMatchesRow(c, name));
+  if (byAlias) return byAlias;
+
+  // Legacy quotes stored role titles as handled_by (e.g. "Branch Manager") before the
+  // profile display name was updated to the person's real name.
+  const roleKeys = roleKeysForPreparedByLabel(name);
+  if (!roleKeys.length) return null;
+  const byRole = rows.filter((c) => roleKeys.includes(String(c.roleKey || '').trim().toLowerCase()));
+  if (!byRole.length) return null;
+  const sameBranch = quoteBranch
+    ? byRole.filter((c) => String(c.branchId || '').trim() === quoteBranch)
+    : [];
+  const pool = sameBranch.length ? sameBranch : byRole;
+  return pool.find((c) => c.hasBank) || pool[0] || null;
+}
+
+/** Labels that were often saved as handled_by before users set a real display name. */
+function roleKeysForPreparedByLabel(label) {
+  const n = String(label || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ');
+  if (!n) return [];
+  if (
+    n === 'branch manager' ||
+    n === 'bm' ||
+    n === 'sales manager' ||
+    n === 'branch mgr' ||
+    n === 'b.manager' ||
+    n === 'b manager'
+  ) {
+    return ['sales_manager', 'branch_manager'];
+  }
+  if (n === 'sales' || n === 'sales staff' || n === 'salesperson' || n === 'sales officer') {
+    return ['sales_staff', 'sales'];
+  }
+  return [];
 }
 
 function matchCustomerForPerson(person, customers) {
@@ -844,7 +889,7 @@ function matchCustomerForPerson(person, customers) {
 
 /**
  * Claiming-staff default must be the quotation agent / preparer — not the person filing the refund.
- * Prefer agent_customer_id, then name match on agent / handled_by against HR claiming-staff directory.
+ * Prefer agent_customer_id, then name/alias/role-title match against HR claiming-staff directory.
  */
 function resolveQuotationLinkedClaimingStaff(quotation, pickRow, claimingStaffOptions) {
   const rows = Array.isArray(claimingStaffOptions) ? claimingStaffOptions : [];
@@ -855,17 +900,25 @@ function resolveQuotationLinkedClaimingStaff(quotation, pickRow, claimingStaffOp
     const byId = rows.find((c) => String(c.customerID || '').trim() === agentId);
     if (byId) return byId;
   }
+  const branchId = String(
+    quotation?.branchId ||
+      quotation?.branch_id ||
+      pickRow?.branch_id ||
+      pickRow?.branchId ||
+      ''
+  ).trim();
   const labels = [
     ...sources.map(quotationAgentCustomerName),
     ...sources.map(quotationPreparedByLabel),
   ]
     .map((s) => String(s || '').trim())
     .filter(Boolean);
-  const matchLabel = (c) =>
-    labels.some(
-      (label) => namesLikelySamePerson(c?.name, label) || namesLooselySamePerson(c?.name, label)
-    );
-  return rows.find((c) => c.hasBank && matchLabel(c)) || rows.find(matchLabel) || null;
+
+  for (const label of labels) {
+    const hit = matchClaimingStaffForPerson({ name: label }, rows, { branchId });
+    if (hit) return hit;
+  }
+  return null;
 }
 
 /** API rows use snake_case; workspace snapshot uses camelCase — unify for the quotation dropdown. */
@@ -1295,6 +1348,15 @@ const RefundModal = ({
   const quotationLinkedPayoutOptions = useMemo(() => {
     const opts = [];
     const seen = new Set();
+    const quoteBranchId = String(
+      payoutQuoteDetail?.branchId ||
+        payoutQuoteDetail?.branch_id ||
+        quotations.find((x) => String(x.id) === String(form.quotationRef || '').trim())?.branchId ||
+        quotations.find((x) => String(x.id) === String(form.quotationRef || '').trim())?.branch_id ||
+        eligibleQuotes.find((x) => String(x.id).trim() === String(form.quotationRef || '').trim())
+          ?.branch_id ||
+        ''
+    ).trim();
     // Include inactive in matching — quote may still name them; prefer Active when tying.
     const staffPool = [...associatedStaffRows].sort((a, b) => {
       const aActive = String(a?.status || 'Active').toLowerCase() === 'active' ? 0 : 1;
@@ -1332,7 +1394,7 @@ const RefundModal = ({
       return true;
     };
 
-    const pushCustomerLike = (row, roleHint, { fromClaim = false } = {}) => {
+    const pushCustomerLike = (row, roleHint, { fromClaim = false, quoteLabel = '' } = {}) => {
       const cid = String(row.customerID || '').trim();
       if (!cid) return false;
       const key = `customer:${cid}`;
@@ -1346,13 +1408,23 @@ const RefundModal = ({
         : hasBank
           ? `${row.bankName} ${row.bankAccountNo}`
           : 'no bank on file';
+      const renamed =
+        quoteLabel &&
+        row.name &&
+        !namesLikelySamePerson(row.name, quoteLabel) &&
+        !namesLooselySamePerson(row.name, quoteLabel);
+      const renamedBit = renamed ? ` · was “${quoteLabel}” on quote` : '';
       opts.push({
         key,
-        label: `${row.name}${row.employeeNo ? ` · ${row.employeeNo}` : ''} · ${roleHint} · ${bankBit}`,
+        label: `${row.name}${row.employeeNo ? ` · ${row.employeeNo}` : ''} · ${roleHint}${renamedBit} · ${bankBit}`,
         group: 'On this quotation',
-        searchText: `${row.name} ${roleHint} ${row.employeeNo || ''} ${cid}`,
+        searchText: `${row.name} ${row.customerName || ''} ${row.username || ''} ${quoteLabel} ${roleHint} ${row.employeeNo || ''} ${cid}`,
         needsBank: !hasBank,
-        hint: hasBank ? roleHint : `${roleHint} — select to add bank`,
+        hint: renamed
+          ? `${roleHint} — same person as “${quoteLabel}” on the quotation`
+          : hasBank
+            ? roleHint
+            : `${roleHint} — select to add bank`,
         meta: {
           kind: 'customer',
           id: cid,
@@ -1377,11 +1449,14 @@ const RefundModal = ({
         if (asRow && pushAssociated(asRow, roleHint)) continue;
       }
 
-      const claimRow = matchClaimingStaffForPerson(person, companyStaffClaimOptions);
-      if (claimRow && pushCustomerLike(claimRow, roleHint, { fromClaim: true })) continue;
+      const claimRow = matchClaimingStaffForPerson(person, companyStaffClaimOptions, {
+        branchId: quoteBranchId,
+      });
+      if (claimRow && pushCustomerLike(claimRow, roleHint, { fromClaim: true, quoteLabel: name }))
+        continue;
 
       const cust = matchCustomerForPerson(person, allCustomers);
-      if (cust && pushCustomerLike(cust, roleHint)) continue;
+      if (cust && pushCustomerLike(cust, roleHint, { quoteLabel: name })) continue;
 
       if (preferCustomerDirectory) {
         const asFallback = matchAssociatedStaffForPerson(person, staffPool);
@@ -1452,6 +1527,10 @@ const RefundModal = ({
     associatedStaffRows,
     companyStaffClaimOptions,
     allCustomers,
+    form.quotationRef,
+    payoutQuoteDetail,
+    quotations,
+    eligibleQuotes,
   ]);
 
   const associatedStaffPayoutOptions = useMemo(() => {
@@ -1526,7 +1605,7 @@ const RefundModal = ({
           : s.hasBank
             ? 'Company staff (HR bank)'
             : 'Company staff (add bank)',
-        searchText: `${s.name} ${s.employeeNo || ''} ${s.bankName || ''} ${s.customerID || ''} ${s.userId || ''}`,
+        searchText: `${s.name} ${s.customerName || ''} ${s.username || ''} ${s.employeeNo || ''} ${s.bankName || ''} ${s.customerID || ''} ${s.userId || ''}`,
         needsBank: !s.hasBank,
         hint: pinned
           ? 'Agent / preparer on this quotation'
