@@ -1045,6 +1045,13 @@ const RefundModal = ({
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const canApproveRefunds = userMayApproveRefundRequests(ws);
+  const workspaceBranchId = String(
+    ws?.session?.currentBranchId ||
+      ws?.session?.branchId ||
+      ws?.workspaceBranchId ||
+      ws?.branchScope ||
+      ''
+  ).trim();
   const [form, setForm] = useState(() => initFormFromRecord(record));
   const [eligibleQuotes, setEligibleQuotes] = useState([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
@@ -1118,7 +1125,7 @@ const RefundModal = ({
   const [payoutAssociatedStaff, setPayoutAssociatedStaff] = useState([]);
   const [payoutAssociatedStaffLoading, setPayoutAssociatedStaffLoading] = useState(false);
   const [payoutAssociatedStaffError, setPayoutAssociatedStaffError] = useState('');
-  /** Company staff with sales customer link — bank from HR (masked). */
+  /** Branch staff with sales customer link — bank from HR (masked). */
   const [claimingStaffRows, setClaimingStaffRows] = useState([]);
   const [claimingStaffLoading, setClaimingStaffLoading] = useState(false);
   const [claimingStaffError, setClaimingStaffError] = useState('');
@@ -1567,7 +1574,7 @@ const RefundModal = ({
             disabled: true,
             hint:
               role === 'agent' || role === 'preparer'
-                ? 'Sales staff on this quote — choose them from Company staff below (or link their HR sales customer)'
+                ? 'Sales staff on this quote — choose them from Branch staff below (or link their HR sales customer)'
                 : 'Name is on the quotation — choose the matching associated staff from the list below',
           });
         }
@@ -1669,10 +1676,10 @@ const RefundModal = ({
         group: pinned
           ? 'Default · quotation handled by'
           : needsLink
-            ? 'Company staff (link HR)'
+            ? 'Branch staff (link HR)'
             : s.hasBank
-              ? 'Company staff (HR bank)'
-              : 'Company staff (add bank)',
+              ? 'Branch staff (HR bank)'
+              : 'Branch staff (add bank)',
         searchText: `${s.name} ${s.customerName || ''} ${s.username || ''} ${s.employeeNo || ''} ${s.bankName || ''} ${cid} ${uid}`,
         needsBank: !s.hasBank,
         hint: pinned
@@ -1741,7 +1748,7 @@ const RefundModal = ({
    * Slim payee directory:
    * 1) Default quotation handled-by (HR)
    * 2) Quote transporter/installer (associated staff)
-   * 3) Other company staff
+   * 3) Other branch staff
    * 4) Associated staff directory
    * No dump of every banked customer / fuzzy name guessing.
    */
@@ -1895,38 +1902,38 @@ const RefundModal = ({
     if (!isOpen || mode !== 'create') return;
     let cancelled = false;
     const needStaffApi = snapshotAssociatedStaff.length === 0;
-    const needClaimApi = claimingStaffRows.length === 0;
-    if (needStaffApi) setPayoutAssociatedStaffLoading(true);
-    if (needClaimApi) setClaimingStaffLoading(true);
+    setPayoutAssociatedStaffLoading(true);
+    setClaimingStaffLoading(true);
     setPayoutAssociatedStaffError('');
     setClaimingStaffError('');
     void (async () => {
       try {
         const tasks = [];
-        if (needStaffApi || true) {
-          tasks.push(
-            apiFetch('/api/associated-staff').then((staffRes) => {
-              if (cancelled) return;
-              if (!staffRes.ok) {
-                if (needStaffApi) {
-                  setPayoutAssociatedStaffError(
-                    String(staffRes.data?.error || 'Could not load associated staff for payout.')
-                  );
-                }
-                return;
-              }
-              setPayoutAssociatedStaff(
-                Array.isArray(staffRes.data?.associatedStaff) ? staffRes.data.associatedStaff : []
-              );
-            })
-          );
-        }
         tasks.push(
-          apiFetch('/api/refunds/claiming-staff').then((claimRes) => {
+          apiFetch('/api/associated-staff').then((staffRes) => {
+            if (cancelled) return;
+            if (!staffRes.ok) {
+              if (needStaffApi) {
+                setPayoutAssociatedStaffError(
+                  String(staffRes.data?.error || 'Could not load associated staff for payout.')
+                );
+              }
+              return;
+            }
+            setPayoutAssociatedStaff(
+              Array.isArray(staffRes.data?.associatedStaff) ? staffRes.data.associatedStaff : []
+            );
+          })
+        );
+        const claimQs = workspaceBranchId
+          ? `?branchId=${encodeURIComponent(workspaceBranchId)}`
+          : '';
+        tasks.push(
+          apiFetch(`/api/refunds/claiming-staff${claimQs}`).then((claimRes) => {
             if (cancelled) return;
             if (!claimRes.ok) {
               setClaimingStaffError(
-                String(claimRes.data?.error || 'Could not load company staff for claiming.')
+                String(claimRes.data?.error || 'Could not load branch staff for claiming.')
               );
               return;
             }
@@ -1951,9 +1958,7 @@ const RefundModal = ({
     return () => {
       cancelled = true;
     };
-    // Intentionally only when modal opens — avoid refetch loops from ws identity churn.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, mode]);
+  }, [isOpen, mode, workspaceBranchId, snapshotAssociatedStaff.length]);
 
   // Load full quotation lines so transporter/installer/agent all appear in the payee picker.
   useEffect(() => {
@@ -2003,7 +2008,7 @@ const RefundModal = ({
       if (ok && data?.ok && data.payee?.customerID) {
         setDefaultRefundPayee(data.payee);
         setDefaultRefundPayeeHint(String(data.hint || ''));
-        // Ensure the prepared-by person appears in Company staff even if the list was loaded before ensure.
+        // Ensure the prepared-by person appears in Branch staff even if the list was loaded before ensure.
         setClaimingStaffRows((rows) => {
           const cid = String(data.payee.customerID).trim();
           if (!cid) return rows;
@@ -5421,7 +5426,7 @@ const RefundModal = ({
                                     payoutAssociatedStaffError
                                       ? payoutAssociatedStaffError
                                       : payoutRecipientOptions.length === 0
-                                        ? 'No payout recipients loaded yet. Associated staff and company staff appear when directories load.'
+                                        ? 'No payout recipients loaded yet. Associated staff and branch staff appear when directories load.'
                                         : 'No payout recipients match that search.'
                                   }
                                   onChange={(key, opt) => {
@@ -5758,7 +5763,7 @@ const RefundModal = ({
                                 : 'Default: quotation handled-by staff when linked in HR'}
                               {` · ${payoutRecipientOptions.length} payees`}
                               {companyStaffClaimOptions.length
-                                ? ` · ${companyStaffClaimOptions.length} company staff`
+                                ? ` · ${companyStaffClaimOptions.length} branch staff`
                                 : ''}
                               {activeAssociatedStaff.length
                                 ? ` · ${activeAssociatedStaff.length} drivers/installers`
