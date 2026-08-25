@@ -58,6 +58,7 @@ export function HrStaffFormFields({
   editUserId = '',
   initialTab = 'personal',
   existingLogin = false,
+  allowedPayrollGroups,
 }) {
   const set = (key, value) =>
     setForm((f) => {
@@ -127,11 +128,20 @@ export function HrStaffFormFields({
   const isRegister = mode === 'register';
   const beneficiaryOnly = isBeneficiaryOnlyPayrollGroup(form.payrollGroup);
   const erpRestricted = isErpAccessRestrictedPayrollGroup(form.payrollGroup);
-  const payrollGroupOptions = useMemo(
-    () =>
-      isRegister ? HR_PAYROLL_GROUPS.filter((g) => payrollGroupMayHaveLogin(g.value)) : HR_PAYROLL_GROUPS,
-    [isRegister]
-  );
+  const payrollGroupOptions = useMemo(() => {
+    const allow = Array.isArray(allowedPayrollGroups) && allowedPayrollGroups.length
+      ? new Set(allowedPayrollGroups.map((g) => String(g)))
+      : null;
+    let list = HR_PAYROLL_GROUPS;
+    if (allow) list = list.filter((g) => allow.has(g.value));
+    else if (isRegister) list = list.filter((g) => payrollGroupMayHaveLogin(g.value) && g.value !== 'mining_div');
+    const current = String(form.payrollGroup || '').trim();
+    if (current && !list.some((g) => g.value === current)) {
+      const extra = HR_PAYROLL_GROUPS.find((g) => g.value === current);
+      if (extra) list = [extra, ...list];
+    }
+    return list;
+  }, [allowedPayrollGroups, isRegister, form.payrollGroup]);
   const registerableRoles = useMemo(() => {
     const base = erpRestricted
       ? HR_REGISTERABLE_ROLES.filter((r) => r.value === 'hr_portal_only')
