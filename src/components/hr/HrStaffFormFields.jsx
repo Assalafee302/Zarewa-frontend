@@ -21,7 +21,7 @@ import { HrCompensationExtrasPanel } from './HrCompensationExtrasPanel';
 import { HrManagerPicker } from './HrManagerPicker';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { apiFetch } from '../../lib/apiBase';
-import { isBranchEmployee, isBeneficiaryOnlyPayrollGroup, isErpAccessRestrictedPayrollGroup, payrollGroupMayHaveLogin } from '../../shared/hrStaffCohorts';
+import { isBranchEmployee, isBeneficiaryOnlyPayrollGroup, isErpAccessRestrictedPayrollGroup, isPayrollRunEligible, payrollGroupMayHaveLogin } from '../../shared/hrStaffCohorts';
 
 const fieldCls =
   'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-zarewa-teal focus:outline-none focus:ring-2 focus:ring-zarewa-teal/15';
@@ -990,9 +990,9 @@ export function HrStaffFormFields({
           <div>
             <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">Tax, pension & NHIS</h3>
             <p className="mt-1 text-xs text-slate-500">
-              {isBranchEmployee(form.payrollGroup)
-                ? 'Monthly PAYE deduction (₦) is entered manually per staff. Pension is deducted from payroll using company policy rates for eligible branch staff.'
-                : 'Domestic, executive family, mining, and HQ special staff are not on branch payroll — no PAYE or pension deductions.'}
+              {isPayrollRunEligible(form.payrollGroup)
+                ? 'Monthly PAYE deduction (₦) is entered manually per staff. Pension is deducted from payroll using company policy rates for eligible payroll-run staff.'
+                : 'Household and executive family are paid from Chairman Office — not company payroll, so no PAYE or pension on this file.'}
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

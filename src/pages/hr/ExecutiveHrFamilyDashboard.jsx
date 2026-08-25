@@ -4,7 +4,6 @@ import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
 import { fetchExecutiveFamilyDashboard } from '../../lib/hrExecutiveBenefits';
 import { formatNgn } from '../../lib/hrFormat';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
-import { HR_EMPLOYEE_REGISTERS } from '../../lib/hrRoutes';
 import { chairmanOfficeHref } from '../../lib/chairmanOfficeHrefs.js';
 import { paymentHealthMeta } from '../../lib/scholarshipUi';
 

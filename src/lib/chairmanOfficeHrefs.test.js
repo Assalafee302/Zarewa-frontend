@@ -33,4 +33,12 @@ describe('chairmanOfficeHrefFromLegacyFamily', () => {
     expect(chairmanOfficeHref('scholarships')).toBe('/chairman?tab=scholarships');
     expect(chairmanOfficeHrefFromLegacyFamily('family')).toBe('/chairman?tab=scholarships');
   });
+
+  it('sends mining and old HQ-special registers to Chairman mining', () => {
+    expect(chairmanOfficeHrefFromLegacyFamily('mining')).toBe('/chairman?tab=mining');
+    expect(chairmanOfficeHrefFromLegacyFamily('hq-special')).toBe('/chairman?tab=mining');
+    expect(chairmanOfficeHrefFromLegacyFamily('benefits', new URLSearchParams('tab=hq-special'))).toBe(
+      '/chairman?tab=mining'
+    );
+  });
 });
