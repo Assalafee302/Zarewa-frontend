@@ -1,4 +1,4 @@
-import { HR_DOCUMENTS, HR_EMPLOYEE_REGISTERS, HR_TIME_ABSENCE, HR_PAYROLL, HR_SETTINGS, hrTabPath } from './hrRoutes';
+import { HR_DOCUMENTS, HR_TIME_ABSENCE, HR_PAYROLL, HR_SETTINGS, hrTabPath } from './hrRoutes';
 
 /** Copy for each HR Settings tab — aligned with branch/HQ employee operations. */
 export const HR_SETTINGS_TABS = [
