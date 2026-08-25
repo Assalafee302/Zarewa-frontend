@@ -68,3 +68,24 @@ export function bulkDeleteHrStaffPermanently(payload) {
     }),
   });
 }
+
+/** Logins for the absorb-into-admin picker (includes accounts with no HR file). */
+export function fetchHrStaffMergeCandidates() {
+  return apiFetch('/api/hr/staff?allUsers=1&includeInactive=1');
+}
+
+/**
+ * Absorb one login into another. The keep login stays (including admin/MD). The extra login is removed.
+ * @param {{ fromUserId: string; toUserId: string }} payload
+ */
+export function mergeHrStaffInto({ fromUserId, toUserId }) {
+  const from = String(fromUserId || '').trim();
+  const to = String(toUserId || '').trim();
+  if (!from || !to) {
+    return Promise.resolve({ ok: false, data: { ok: false, error: 'Select both logins.' } });
+  }
+  return apiFetch('/api/hr/staff/merge', {
+    method: 'POST',
+    body: JSON.stringify({ fromUserId: from, toUserId: to }),
+  });
+}

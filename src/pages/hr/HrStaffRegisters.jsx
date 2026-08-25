@@ -1,76 +1,12 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { Navigate } from 'react-router-dom';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
-import { HR_EMPLOYEES, HR_EMPLOYEE_REGISTERS } from '../../lib/hrRoutes';
-import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
-import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
-import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
-import HrStaffDirectory from './HrStaffDirectory';
+import { chairmanOfficeHrefFromLegacyFamily } from '../../lib/chairmanOfficeHrefs';
 
-const TABS = [
-  { id: 'scholarship', label: FAMILY_BENEFITS.adminRegisterTab },
-  { id: 'domestic', label: DOMESTIC_BENEFITS.adminRegisterTab },
-  { id: 'hq-special', label: 'HQ & mining' },
-];
+const TABS = ['scholarship', 'domestic', 'hq-special', 'mining'];
 
+/** Household, scholarships, and mining are Chairman Office — not company HR. */
 export default function HrStaffRegisters() {
-  const { tab, setTab } = useHrUrlTab('scholarship', TABS.map((t) => t.id));
-
-  return (
-    <HrTabbedPage
-      title="Staff registers"
-      tabs={TABS}
-      tab={tab}
-      onTabChange={setTab}
-      actions={
-        <Link
-          to={HR_EMPLOYEES}
-          className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
-        >
-          <ArrowLeft size={14} aria-hidden />
-          Branch employees
-        </Link>
-      }
-    >
-      {tab === 'scholarship' ? (
-        <div className="space-y-3">
-          <p className="text-sm text-slate-600">
-            {FAMILY_BENEFITS.adminRegisterHint}{' '}
-            <Link to="/chairman?tab=scholarships" className="font-semibold text-violet-800 underline">
-              Chairman Office — scholarships
-            </Link>
-            .
-          </p>
-          <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="scholarship" listTitle={FAMILY_BENEFITS.adminRegisterTitle} />
-        </div>
-      ) : null}
-      {tab === 'domestic' ? (
-        <div className="space-y-3">
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm font-semibold text-amber-950">{DOMESTIC_BENEFITS.adminRegisterHint}</p>
-            <p className="mt-2 text-sm text-amber-900/90">
-              <Link to="/chairman?tab=household" className="font-semibold text-amber-800 underline">
-                Chairman Office — household
-              </Link>
-              {' · '}
-              <Link to="/chairman?tab=household&benefitsTab=domestic" className="font-semibold text-zarewa-teal underline">
-                Household register & pay
-              </Link>
-            </p>
-          </div>
-          <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="domestic" listTitle={DOMESTIC_BENEFITS.adminRegisterTitle} />
-        </div>
-      ) : null}
-      {tab === 'hq-special' ? (
-        <div className="space-y-3">
-          <p className="text-sm text-slate-600">
-            HQ administrative and mining staff also appear in the main Employees directory. This register is a focused
-            list of those payroll groups only.
-          </p>
-          <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="hq_special" listTitle="HQ administrative & mining" />
-        </div>
-      ) : null}
-    </HrTabbedPage>
-  );
+  const { tab } = useHrUrlTab('scholarship', TABS);
+  return <Navigate to={chairmanOfficeHrefFromLegacyFamily(tab)} replace />;
 }

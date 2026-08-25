@@ -5,7 +5,12 @@ import { HrUnlinkedUserPicker } from './HrUnlinkedUserPicker';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formToRegisterBody, registerHrStaff } from '../../lib/hrStaff';
 import { emptyStaffForm } from '../../lib/hrStaffConstants';
-import { payrollGroupMayHaveLogin } from '../../shared/hrStaffCohorts';
+import {
+  EMPLOYEE_DIRECTORY_GROUPS,
+  HR_PAYROLL_GROUPS as COHORT_KEYS,
+  isCompanyHrPayrollGroup,
+  payrollGroupMayHaveLogin,
+} from '../../shared/hrStaffCohorts';
 
 function splitDisplayName(displayName) {
   const parts = String(displayName || '')
@@ -20,7 +25,7 @@ function splitDisplayName(displayName) {
 /**
  * @param {{ defaultBranchId?: string; onSuccess: (userId: string) => void; onCancel?: () => void }} props
  */
-export function HrStaffRegisterForm({ defaultBranchId, onSuccess, onCancel }) {
+export function HrStaffRegisterForm({ defaultBranchId, defaultPayrollGroup, onSuccess, onCancel }) {
   const ws = useWorkspace();
   const branches = useMemo(() => {
     const list = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
@@ -30,9 +35,13 @@ export function HrStaffRegisterForm({ defaultBranchId, onSuccess, onCancel }) {
   const branch =
     defaultBranchId ||
     String(ws?.session?.workspaceBranchId || ws?.snapshot?.workspaceBranchId || branches[0]?.id || '').trim();
+  const payrollGroup =
+    String(defaultPayrollGroup || '').trim() || COHORT_KEYS.BRANCH_OPS;
+  const allowedPayrollGroups =
+    payrollGroup === COHORT_KEYS.MINING ? [COHORT_KEYS.MINING] : [...EMPLOYEE_DIRECTORY_GROUPS];
 
   const [mode, setMode] = useState('new');
-  const [form, setForm] = useState(() => emptyStaffForm(branch));
+  const [form, setForm] = useState(() => ({ ...emptyStaffForm(branch), payrollGroup }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -41,7 +50,7 @@ export function HrStaffRegisterForm({ defaultBranchId, onSuccess, onCancel }) {
     setError('');
     setForm((f) => ({
       ...emptyStaffForm(branch),
-      payrollGroup: f.payrollGroup,
+      payrollGroup: f.payrollGroup || payrollGroup,
       branchId: f.branchId || branch,
       existingUserId: '',
       username: '',
@@ -81,6 +90,14 @@ export function HrStaffRegisterForm({ defaultBranchId, onSuccess, onCancel }) {
       setError(
         'Executive family and household staff do not receive ERP logins. Register them in Chairman Office → Scholarships or Household.'
       );
+      return;
+    }
+    if (payrollGroup === COHORT_KEYS.MINING && form.payrollGroup !== COHORT_KEYS.MINING) {
+      setError('Mining staff must be registered as Mining division on Chairman Office.');
+      return;
+    }
+    if (payrollGroup !== COHORT_KEYS.MINING && !isCompanyHrPayrollGroup(form.payrollGroup)) {
+      setError('Household, mining, and scholarships are registered on Chairman Office, not company HR.');
       return;
     }
     setBusy(true);
@@ -136,6 +153,7 @@ export function HrStaffRegisterForm({ defaultBranchId, onSuccess, onCancel }) {
         existingLogin={existingLogin}
         showCompensation
         canViewFullBank
+        allowedPayrollGroups={allowedPayrollGroups}
       />
       <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
         <HrButton type="submit" disabled={busy || (existingLogin && !form.existingUserId)}>

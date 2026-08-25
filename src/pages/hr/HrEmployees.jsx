@@ -13,11 +13,12 @@ const TABS = [
   { id: 'org-chart', label: 'Org chart' },
 ];
 
-/** Legacy tab URLs → new locations */
+/** Legacy tab URLs → Chairman Office (these people are not company HR) */
 const LEGACY_REDIRECTS = {
-  scholarship: '/hr/employees/registers?tab=scholarship',
-  domestic: '/hr/employees/registers?tab=domestic',
-  'hq-special': '/hr/employees/registers?tab=hq-special',
+  scholarship: '/chairman?tab=scholarships',
+  domestic: '/chairman?tab=household',
+  'hq-special': '/chairman?tab=mining',
+  mining: '/chairman?tab=mining',
   'id-cards': '/hr/documents?tab=id-cards',
 };
 
@@ -61,10 +62,10 @@ export default function HrEmployees() {
             </Link>
           ) : null}
           <Link
-            to="/hr/employees/registers"
+            to="/chairman?tab=scholarships"
             className="inline-flex rounded-sm border border-slate-200 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-50"
           >
-            Registers
+            Chairman Office
           </Link>
         </div>
       }

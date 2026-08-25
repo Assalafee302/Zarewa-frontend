@@ -1,9 +1,11 @@
 import { HrButton } from '../../components/hr/hrPageUi';
-import React, { useMemo, useState } from 'react';
-import { AlertTriangle, Trash2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, GitMerge, Trash2 } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
-import { HR_BTN_SECONDARY } from './hrFormStyles';
+import { HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 import { HrStaffBulkDeleteModal } from './HrStaffBulkDeleteModal';
+import { fetchHrStaffMergeCandidates, mergeHrStaffInto } from '../../lib/hrStaffExtras';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   AppTable,
   AppTableBody,
@@ -30,11 +32,34 @@ const NAME_REASON = {
   shared_name_parts: 'Shared name parts',
 };
 
+const PROTECTED_ROLES = new Set(['admin', 'md']);
+
 function memberKey(userId, extra) {
   return `${userId}:${extra || ''}`;
 }
 
-export function HrStaffDuplicateCleanupPanel({ onCleaned }) {
+function asLogin(row) {
+  const id = String(row?.userId || row?.id || '').trim();
+  if (!id) return null;
+  return {
+    id,
+    username: String(row?.username || '').trim(),
+    displayName: String(row?.displayName || row?.display_name || '').trim(),
+    roleKey: String(row?.roleKey || row?.role_key || '').trim(),
+  };
+}
+
+function loginOptionLabel(u) {
+  const name = u.displayName || u.username || u.id;
+  const role = PROTECTED_ROLES.has(u.roleKey) ? ' · keep this login' : '';
+  return `${name} (${u.username || u.id}${role})`;
+}
+
+export function HrStaffDuplicateCleanupPanel({ staff = [], onCleaned }) {
+  const ws = useWorkspace();
+  const me = ws?.session?.user || null;
+  const myId = String(me?.id || '').trim();
+  const appUsers = ws?.snapshot?.appUsers || [];
   const [report, setReport] = useState(null);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState('');
@@ -42,6 +67,56 @@ export function HrStaffDuplicateCleanupPanel({ onCleaned }) {
   const [confirm, setConfirm] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [mergeUsers, setMergeUsers] = useState([]);
+  const [fromUserId, setFromUserId] = useState('');
+  const [toUserId, setToUserId] = useState(myId);
+  const [confirmKeep, setConfirmKeep] = useState('');
+  const [mergeResult, setMergeResult] = useState(null);
+
+  useEffect(() => {
+    if (myId && !toUserId) setToUserId(myId);
+  }, [myId, toUserId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchHrStaffMergeCandidates().then(({ ok, data }) => {
+      if (cancelled || !ok || !data?.ok) return;
+      setMergeUsers(Array.isArray(data.staff) ? data.staff : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const logins = useMemo(() => {
+    const byId = new Map();
+    const add = (row) => {
+      const u = asLogin(row);
+      if (!u) return;
+      const prev = byId.get(u.id);
+      byId.set(u.id, {
+        ...prev,
+        ...u,
+        username: u.username || prev?.username || '',
+        displayName: u.displayName || prev?.displayName || '',
+        roleKey: u.roleKey || prev?.roleKey || '',
+      });
+    };
+    for (const row of mergeUsers) add(row);
+    for (const row of staff) add(row);
+    for (const row of appUsers) add(row);
+    if (me) add({ userId: me.id, username: me.username, displayName: me.displayName, roleKey: me.roleKey });
+    return [...byId.values()].sort((a, b) =>
+      String(a.displayName || a.username).localeCompare(String(b.displayName || b.username))
+    );
+  }, [mergeUsers, staff, appUsers, me]);
+
+  const keepLogins = logins;
+  const extraLogins = logins.filter((u) => u.id !== myId && !PROTECTED_ROLES.has(u.roleKey));
+  const keepLogin = keepLogins.find((u) => u.id === toUserId);
+  const extraLogin = extraLogins.find((u) => u.id === fromUserId);
+  const keepUsername = String(keepLogin?.username || me?.username || '').trim();
+  const confirmOk = confirmKeep.trim().toLowerCase() === keepUsername.toLowerCase() && Boolean(keepUsername);
 
   const scan = async () => {
     setBusy('scan');
@@ -79,6 +154,32 @@ export function HrStaffDuplicateCleanupPanel({ onCleaned }) {
     setReport(null);
     await onCleaned?.();
     await scan();
+  };
+
+  const runMerge = async () => {
+    if (!fromUserId || !toUserId) {
+      setError('Choose the extra login and the login to keep.');
+      return;
+    }
+    if (!confirmOk) {
+      setError(`Type ${keepUsername || 'the keep username'} to confirm.`);
+      return;
+    }
+    setBusy('merge');
+    setError('');
+    setMergeResult(null);
+    const { ok, data } = await mergeHrStaffInto({ fromUserId, toUserId });
+    setBusy('');
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not merge the two logins.');
+      return;
+    }
+    setMergeResult(data);
+    setFromUserId('');
+    setConfirmKeep('');
+    const list = await fetchHrStaffMergeCandidates();
+    if (list.ok && list.data?.ok) setMergeUsers(Array.isArray(list.data.staff) ? list.data.staff : []);
+    await onCleaned?.();
   };
 
   const summary = report?.summary;
@@ -145,6 +246,90 @@ export function HrStaffDuplicateCleanupPanel({ onCleaned }) {
             </button>
           ) : null}
         </div>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-teal-200 bg-white/90 p-3">
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-teal-900">
+          <GitMerge size={14} aria-hidden />
+          Merge two logins
+        </p>
+        <p className="mt-1 text-xs text-slate-600">
+          If you sign in as <strong>admin</strong> and also have a staff file under your real name, keep{' '}
+          <strong>admin</strong> and absorb the named login. You will still sign in as admin; the extra login is
+          removed and its HR file moves onto admin. You cannot delete or absorb the admin login itself.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="text-xs font-medium text-slate-700">
+            Absorb (extra login)
+            <select
+              className={HR_FIELD_CLASS}
+              value={fromUserId}
+              onChange={(e) => setFromUserId(e.target.value)}
+              disabled={Boolean(busy)}
+            >
+              <option value="">Select the named extra login…</option>
+              {extraLogins.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {loginOptionLabel(u)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-medium text-slate-700">
+            Keep (this login stays)
+            <select
+              className={HR_FIELD_CLASS}
+              value={toUserId}
+              onChange={(e) => {
+                setToUserId(e.target.value);
+                setConfirmKeep('');
+              }}
+              disabled={Boolean(busy)}
+            >
+              <option value="">Select the login to keep…</option>
+              {keepLogins.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {loginOptionLabel(u)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <label className="mt-3 block text-xs font-medium text-slate-700">
+          Type <span className="font-mono">{keepUsername || 'the keep username'}</span> to confirm
+          <input
+            className={HR_FIELD_CLASS}
+            value={confirmKeep}
+            onChange={(e) => setConfirmKeep(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            disabled={Boolean(busy) || !keepUsername}
+            placeholder={keepUsername || 'username'}
+          />
+        </label>
+        <div className="mt-3">
+          <HrButton
+            type="button"
+            disabled={Boolean(busy) || !fromUserId || !toUserId || !confirmOk}
+            onClick={() => void runMerge()}
+          >
+            {busy === 'merge' ? 'Merging…' : 'Merge into keep login'}
+          </HrButton>
+        </div>
+        {extraLogin && keepLogin ? (
+          <p className="mt-2 text-xs text-slate-600">
+            {extraLogin.displayName || extraLogin.username} (<span className="font-mono">{extraLogin.username}</span>)
+            will be removed. Keep signing in as{' '}
+            <span className="font-mono">{keepLogin.username}</span>
+            {keepLogin.displayName ? ` (${keepLogin.displayName})` : ''}.
+          </p>
+        ) : null}
+        {mergeResult?.ok ? (
+          <p className="mt-2 text-xs font-semibold text-emerald-900">
+            Absorbed {mergeResult.fromUsername} into {mergeResult.toUsername}. Keep signing in as{' '}
+            {mergeResult.toUsername}.
+          </p>
+        ) : null}
       </div>
 
       {error ? <p className="mt-3 text-xs font-semibold text-red-800">{error}</p> : null}

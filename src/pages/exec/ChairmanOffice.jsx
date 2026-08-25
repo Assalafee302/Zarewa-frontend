@@ -1,6 +1,6 @@
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { BarChart3, GraduationCap, Home, Landmark, Banknote } from 'lucide-react';
+import { BarChart3, GraduationCap, Home, Landmark, Banknote, Factory } from 'lucide-react';
 import { MainPanel, PageHeader, PageShell, PageTabs } from '../../components/layout';
 import { InlineLoader } from '../../components/ui/PageLoader';
 import { ChairmanImpactStrip } from '../../components/exec/ChairmanImpactStrip';
@@ -12,6 +12,7 @@ import {
   CHAIRMAN_HOUSEHOLD_TABS,
   CHAIRMAN_SCHOLARSHIP_TABS,
 } from '../../lib/chairmanOfficeHrefs';
+import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { userMayAccessChairmanOfficeClient } from '../../lib/chairmanOfficeAccess';
 import {
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'pulse', label: 'Company pulse', icon: <BarChart3 size={14} /> },
   { id: 'scholarships', label: 'Scholarships', icon: <GraduationCap size={14} /> },
   { id: 'household', label: 'Household', icon: <Home size={14} /> },
+  { id: 'mining', label: 'Mining', icon: <Factory size={14} /> },
   { id: 'withdrawals', label: 'Equity & withdrawals', icon: <Landmark size={14} /> },
   { id: 'loans', label: 'Loans', icon: <Banknote size={14} /> },
 ];
@@ -32,6 +34,7 @@ const TAB_SUBTITLES = {
   pulse: 'Company health this month — sales, cash, and alerts. MD still owns daily approvals.',
   scholarships: "School fees and monthly allowances for the Chairman's children.",
   household: 'Household staff salaries — separate from branch payroll. ERP login is optional.',
+  mining: 'Mining division people — registered here, not in company HR.',
   withdrawals: 'Owner drawings (GL 3200). Not an operating expense, and not partner wallet.',
   loans: 'Company loans to the Chairman or to someone who is not staff (GL 1200 receivable). Not drawings.',
 };
@@ -39,6 +42,7 @@ const TAB_SUBTITLES = {
 const FamilyDashboard = React.lazy(() => import('../hr/ExecutiveHrFamilyDashboard'));
 const DomesticDashboard = React.lazy(() => import('../hr/ExecutiveHrDomesticDashboard'));
 const BenefitsHub = React.lazy(() => import('../hr/HrChairmanAccounts'));
+const MiningDirectory = React.lazy(() => import('../hr/HrStaffDirectory'));
 
 function DeskSection({ eyebrow, title, subtitle, children }) {
   return (
@@ -209,6 +213,23 @@ export default function ChairmanOffice() {
                       />
                     </DeskSection>
                   </div>
+                </Suspense>
+              ) : null}
+              {activeTab === 'mining' ? (
+                <Suspense fallback={<InlineLoader message="Loading mining staff…" />}>
+                  <DeskSection
+                    eyebrow="Register"
+                    title="Mining division"
+                    subtitle="These people are not company employees. Register and maintain files here. Monthly pay still posts with HQ payroll (PAYE and pension)."
+                  >
+                    <MiningDirectory
+                      staffBasePath={HR_EMPLOYEES}
+                      cohort="mining"
+                      listTitle="Mining staff"
+                      companyHrTools={false}
+                      defaultPayrollGroup="mining_div"
+                    />
+                  </DeskSection>
                 </Suspense>
               ) : null}
               {activeTab === 'withdrawals' ? (

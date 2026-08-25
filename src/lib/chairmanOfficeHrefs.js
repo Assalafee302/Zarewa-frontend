@@ -15,6 +15,8 @@ export const CHAIRMAN_SCHOLARSHIP_TABS = [
 
 export const CHAIRMAN_HOUSEHOLD_TABS = ['domestic', 'payments'];
 
+export const CHAIRMAN_MINING_TABS = ['directory'];
+
 const HOUSEHOLD_INNER = new Set(['domestic']);
 const SCHOLARSHIP_INNER = new Set(CHAIRMAN_SCHOLARSHIP_TABS);
 
@@ -52,6 +54,16 @@ export function chairmanOfficeHrefFromLegacyFamily(segment = '', searchParams) {
     staff: get('staff') || undefined,
     beneficiary: get('beneficiary') || undefined,
   };
+
+  const wantsMining =
+    segmentKey === 'mining' ||
+    segmentKey === 'hq-special' ||
+    queryTab === 'mining' ||
+    queryTab === 'hq-special' ||
+    inner === 'mining';
+  if (wantsMining) {
+    return chairmanOfficeHref('mining');
+  }
 
   const wantsHousehold =
     segmentKey === 'domestic-dashboard' ||

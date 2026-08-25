@@ -120,13 +120,15 @@ export default function HrStaffDirectory({
   initialRegisterOpen = false,
   initialQuickFilter = '',
   teamMode = false,
+  companyHrTools = true,
+  defaultPayrollGroup = '',
 } = {}) {
   const navigate = useNavigate();
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
   const showSalary = teamMode ? false : canViewOrgSensitiveHr(perms);
   const canRegister = teamMode ? false : canManageHrStaff(perms);
-  const canBulkImport = teamMode ? false : canBulkImportStaff(perms);
+  const canBulkImport = teamMode || !companyHrTools ? false : canBulkImportStaff(perms);
   const canBulkManage = teamMode ? false : canManageHrStaff(perms);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [importNotice, setImportNotice] = useState(null);
@@ -418,6 +420,7 @@ export default function HrStaffDirectory({
         size="xl"
       >
         <HrStaffRegisterForm
+          defaultPayrollGroup={defaultPayrollGroup || (cohort === 'mining' ? 'mining_div' : 'branch_ops')}
           onSuccess={(newUserId) => {
             setRegisterOpen(false);
             navigate(`${staffBasePath}/${encodeURIComponent(newUserId)}`);
@@ -440,11 +443,13 @@ export default function HrStaffDirectory({
         }}
       />
 
-      {canBulkImport || canRegister ? (
+      {companyHrTools && (canBulkImport || canRegister) ? (
         <HrStaffDuplicateCleanupPanel
+          staff={staff}
           onCleaned={async () => {
             setImportNotice(null);
             await reload({ forceSpinner: true });
+            await ws?.refresh?.();
           }}
         />
       ) : null}
