@@ -373,19 +373,35 @@ function payoutRowSelectValue(row) {
     return id ? `staff:${id}` : '';
   }
   const id = String(row?.recipientCustomerID || '').trim();
-  return id ? `customer:${id}` : '';
+  if (id) return `customer:${id}`;
+  const uid = String(row?.recipientUserId || '').trim();
+  return uid ? `user:${uid}` : '';
 }
 
 function parsePayoutSelectValue(value) {
   const v = String(value || '').trim();
   if (!v) {
-    return { recipientKind: 'customer', recipientAssociatedStaffID: '', recipientCustomerID: '' };
+    return {
+      recipientKind: 'customer',
+      recipientAssociatedStaffID: '',
+      recipientCustomerID: '',
+      recipientUserId: '',
+    };
   }
   if (v.startsWith('staff:')) {
     return {
       recipientKind: 'associated_staff',
       recipientAssociatedStaffID: v.slice(6),
       recipientCustomerID: '',
+      recipientUserId: '',
+    };
+  }
+  if (v.startsWith('user:')) {
+    return {
+      recipientKind: 'customer',
+      recipientCustomerID: '',
+      recipientAssociatedStaffID: '',
+      recipientUserId: v.slice(5),
     };
   }
   if (v.startsWith('customer:')) {
@@ -393,9 +409,15 @@ function parsePayoutSelectValue(value) {
       recipientKind: 'customer',
       recipientCustomerID: v.slice(9),
       recipientAssociatedStaffID: '',
+      recipientUserId: '',
     };
   }
-  return { recipientKind: 'customer', recipientCustomerID: v, recipientAssociatedStaffID: '' };
+  return {
+    recipientKind: 'customer',
+    recipientCustomerID: v,
+    recipientAssociatedStaffID: '',
+    recipientUserId: '',
+  };
 }
 
 function suggestedLineIsPositiveNonOverpayment(line) {
@@ -840,23 +862,16 @@ function matchClaimingStaffForPerson(person, claimRows, { branchId = '' } = {}) 
 
   const labelMatchesRow = (c, label) => {
     if (!label) return false;
-    const candidates = [c?.name, c?.customerName, c?.username, c?.employeeNo];
-    return candidates.some((cand) => String(cand || '').trim().toLowerCase() === label.toLowerCase());
+    const target = label.toLowerCase();
+    const candidates = [c?.name, c?.customerName, c?.username];
+    return candidates.some((cand) => String(cand || '').trim().toLowerCase() === target);
   };
 
-  const byExact =
-    rows.find((c) => labelMatchesRow(c, name) && c.hasBank) ||
-    rows.find((c) => labelMatchesRow(c, name));
-  if (byExact) return byExact;
-
-  // Prefer same-branch exact-ish display match only (no role-title lottery).
-  const quoteBranch = String(branchId || '').trim();
-  const pool = quoteBranch
-    ? rows.filter((c) => String(c.branchId || '').trim() === quoteBranch)
-    : rows;
+  // Exact display/username only — fuzzy matching wrongly pinned Suleiman / Abdulrahman.
+  void branchId;
   return (
-    pool.find((c) => namesLikelySamePerson(c.name, name) && c.hasBank) ||
-    pool.find((c) => namesLikelySamePerson(c.name, name)) ||
+    rows.find((c) => labelMatchesRow(c, name) && c.hasBank) ||
+    rows.find((c) => labelMatchesRow(c, name)) ||
     null
   );
 }
@@ -877,28 +892,78 @@ function matchCustomerForPerson(person, customers) {
   );
 }
 
+function namesAgreeForHandledBy(a, b) {
+  const left = String(a || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  const right = String(b || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const lp = left.split(' ').filter(Boolean);
+  const rp = right.split(' ').filter(Boolean);
+  const [shorter, longer] = lp.length <= rp.length ? [lp, rp] : [rp, lp];
+  if (shorter.length < 2) return false;
+  return shorter.every((t) => longer.includes(t));
+}
+
 /**
  * Prefer server default payee (handled_by_user_id → HR), then agent_customer_id, then exact userId in list.
- * No fuzzy / role-title guessing — that picked the wrong Branch Manager.
+ * Never keep a default that disagrees with Prepared by (stale Suleiman/Abdulrahman backfills).
  */
 function resolveQuotationLinkedClaimingStaff(quotation, pickRow, claimingStaffOptions, defaultPayee) {
-  if (defaultPayee?.customerID) return defaultPayee;
   const rows = Array.isArray(claimingStaffOptions) ? claimingStaffOptions : [];
-  if (!rows.length) return null;
   const sources = [quotation, pickRow].filter(Boolean);
+  const preparedLabel =
+    quotationPreparedByLabel(quotation) || quotationPreparedByLabel(pickRow) || '';
+
+  if (defaultPayee?.customerID || defaultPayee?.userId) {
+    const agrees =
+      !preparedLabel ||
+      preparedLabel.toLowerCase() === 'sales' ||
+      namesAgreeForHandledBy(defaultPayee.name, preparedLabel);
+    if (agrees && defaultPayee.customerID) return defaultPayee;
+    if (agrees && defaultPayee.userId) {
+      const byUser = rows.find((c) => String(c.userId || '').trim() === String(defaultPayee.userId).trim());
+      if (byUser?.customerID) return byUser;
+      if (defaultPayee.customerID) return defaultPayee;
+    }
+  }
+
+  if (!rows.length) return null;
 
   const handledByUserId = sources
     .map((q) => String(q?.handled_by_user_id ?? q?.handledByUserId ?? '').trim())
     .find(Boolean);
   if (handledByUserId) {
     const byUser = rows.find((c) => String(c.userId || '').trim() === handledByUserId);
-    if (byUser) return byUser;
+    if (byUser) {
+      const agrees =
+        !preparedLabel ||
+        preparedLabel.toLowerCase() === 'sales' ||
+        namesAgreeForHandledBy(byUser.name, preparedLabel);
+      if (agrees) return byUser;
+    }
+  }
+
+  if (preparedLabel) {
+    const byName = matchClaimingStaffForPerson({ name: preparedLabel }, rows);
+    if (byName) return byName;
   }
 
   const agentId = sources.map(quotationAgentCustomerId).find(Boolean) || '';
   if (agentId) {
     const byId = rows.find((c) => String(c.customerID || '').trim() === agentId);
-    if (byId) return byId;
+    if (byId) {
+      const agrees =
+        !preparedLabel ||
+        preparedLabel.toLowerCase() === 'sales' ||
+        namesAgreeForHandledBy(byId.name, preparedLabel);
+      if (agrees) return byId;
+    }
   }
   return null;
 }
@@ -1573,9 +1638,20 @@ const RefundModal = ({
 
     const pushCompanyStaff = (s, { pinned = false } = {}) => {
       const cid = String(s.customerID || '').trim();
-      if (!cid) return;
-      const key = `customer:${cid}`;
-      if (seen.has(key)) return;
+      const uid = String(s.userId || '').trim();
+      // Prefer customer key; fall back to user key until ensure links a sales customer.
+      const key = cid ? `customer:${cid}` : uid ? `user:${uid}` : '';
+      if (!key) return;
+      if (cid && seen.has(`customer:${cid}`)) return;
+      if (!cid && uid && seen.has(`user:${uid}`)) return;
+      // Upgrade a prior user-only entry once the sales customer is known.
+      if (cid && uid && seen.has(`user:${uid}`)) {
+        const priorIdx = opts.findIndex((o) => o.key === `user:${uid}`);
+        if (priorIdx >= 0) opts.splice(priorIdx, 1);
+        seen.delete(`user:${uid}`);
+      }
+      if (cid) seen.add(`customer:${cid}`);
+      if (uid) seen.add(`user:${uid}`);
       seen.add(key);
       const bankBit = s.hasBank
         ? `${s.bankName} ${s.bankAccountNoMasked || ''}`.trim()
@@ -1586,36 +1662,43 @@ const RefundModal = ({
         uncleared > 0
           ? ` · ₦${uncleared.toLocaleString('en-NG')} uncleared receipts`
           : '';
+      const needsLink = Boolean(s.needsSalesCustomer) || !cid;
       opts.push({
         key,
         label: `${s.name}${emp} · ${bankBit}${unclearedBit}`,
         group: pinned
           ? 'Default · quotation handled by'
-          : s.hasBank
-            ? 'Company staff (HR bank)'
-            : 'Company staff (add bank)',
-        searchText: `${s.name} ${s.customerName || ''} ${s.username || ''} ${s.employeeNo || ''} ${s.bankName || ''} ${cid} ${s.userId || ''}`,
+          : needsLink
+            ? 'Company staff (link HR)'
+            : s.hasBank
+              ? 'Company staff (HR bank)'
+              : 'Company staff (add bank)',
+        searchText: `${s.name} ${s.customerName || ''} ${s.username || ''} ${s.employeeNo || ''} ${s.bankName || ''} ${cid} ${uid}`,
         needsBank: !s.hasBank,
         hint: pinned
-          ? 'Quotation maker — HR payroll bank'
-          : uncleared > 0
-            ? `Has ₦${uncleared.toLocaleString('en-NG')} uncleared receipts — offset from net payout`
-            : s.hasBank
-              ? 'Uses HR payroll bank'
-              : 'Select to add bank on the staff customer account',
+          ? 'Quotation Prepared by / Handled by — HR payroll bank'
+          : needsLink
+            ? 'Select to link HR sales customer for payout'
+            : uncleared > 0
+              ? `Has ₦${uncleared.toLocaleString('en-NG')} uncleared receipts — offset from net payout`
+              : s.hasBank
+                ? 'Uses HR payroll bank'
+                : 'Select to add bank on the staff HR profile',
         meta: {
           kind: 'customer',
           id: cid,
+          userId: uid,
           name: s.name,
           bankAccountName: s.name || '',
           bankName: s.bankName || '',
           bankAccountNo: '',
           unclearedReceiptFloatNgn: uncleared,
+          needsSalesCustomer: needsLink,
         },
       });
     };
 
-    if (defaultRefundPayee?.customerID) {
+    if (defaultRefundPayee?.customerID || defaultRefundPayee?.userId) {
       pushCompanyStaff(defaultRefundPayee, { pinned: true });
     }
 
@@ -1681,7 +1764,7 @@ const RefundModal = ({
 
   const payoutRecipientsAvailable =
     payoutRecipientOptions.length > 0 ||
-    Boolean(defaultRefundPayee?.customerID) ||
+    Boolean(defaultRefundPayee?.customerID || defaultRefundPayee?.userId) ||
     Boolean(selectedRefundCustomer);
   const payoutDirectoryLoading =
     (payoutAssociatedStaffLoading || claimingStaffLoading || defaultRefundPayeeLoading) &&
@@ -5264,7 +5347,7 @@ const RefundModal = ({
                             . Transporter/installer from the quote can be selected separately. Not the person
                             filing this refund.
                           </p>
-                          {defaultRefundPayeeHint && !defaultRefundPayee?.customerID ? (
+                          {defaultRefundPayeeHint && !(defaultRefundPayee?.customerID || defaultRefundPayee?.userId) ? (
                             <p className="text-ui-xs text-rose-200/90 leading-snug">{defaultRefundPayeeHint}</p>
                           ) : null}
                           {!readOnly &&
@@ -5353,6 +5436,7 @@ const RefundModal = ({
                                                   _manual: '1',
                                                   recipientAssociatedStaffID: '',
                                                   recipientCustomerID: '',
+                                                  recipientUserId: '',
                                                 }
                                               : x
                                         ),
@@ -5361,21 +5445,83 @@ const RefundModal = ({
                                     }
                                     const parsed = parsePayoutSelectValue(key);
                                     const needsBank = Boolean(opt?.needsBank);
-                                    setForm((f) => ({
-                                      ...f,
-                                      refundSplits: (Array.isArray(f.refundSplits) ? f.refundSplits : []).map(
-                                        (x, i) =>
-                                          i === idx
-                                            ? {
-                                                ...x,
-                                                _manual: '1',
-                                                recipientKind: parsed.recipientKind || 'customer',
-                                                recipientAssociatedStaffID: parsed.recipientAssociatedStaffID,
-                                                recipientCustomerID: parsed.recipientCustomerID,
-                                              }
-                                            : x
-                                      ),
-                                    }));
+                                    const needsLink =
+                                      Boolean(opt?.meta?.needsSalesCustomer) ||
+                                      Boolean(parsed.recipientUserId);
+                                    const applySplit = (patch) => {
+                                      setForm((f) => ({
+                                        ...f,
+                                        refundSplits: (Array.isArray(f.refundSplits) ? f.refundSplits : []).map(
+                                          (x, i) =>
+                                            i === idx
+                                              ? {
+                                                  ...x,
+                                                  _manual: '1',
+                                                  recipientKind: parsed.recipientKind || 'customer',
+                                                  recipientAssociatedStaffID: parsed.recipientAssociatedStaffID,
+                                                  recipientCustomerID: parsed.recipientCustomerID,
+                                                  recipientUserId: parsed.recipientUserId || '',
+                                                  ...patch,
+                                                }
+                                              : x
+                                        ),
+                                      }));
+                                    };
+                                    applySplit({});
+                                    if (needsLink && opt?.meta?.userId) {
+                                      void (async () => {
+                                        const { ok, data } = await apiFetch(
+                                          '/api/refunds/claiming-staff/ensure',
+                                          {
+                                            method: 'POST',
+                                            body: JSON.stringify({ userId: opt.meta.userId }),
+                                          }
+                                        );
+                                        if (!ok || !data?.payee?.customerID) {
+                                          showToast(
+                                            String(
+                                              data?.error ||
+                                                'Could not link this staff login for payout.'
+                                            ),
+                                            { variant: 'error' }
+                                          );
+                                          return;
+                                        }
+                                        const payee = data.payee;
+                                        setClaimingStaffRows((rows) => {
+                                          const uid = String(payee.userId || opt.meta.userId).trim();
+                                          const next = Array.isArray(rows) ? [...rows] : [];
+                                          const i = next.findIndex(
+                                            (r) =>
+                                              String(r.userId || '').trim() === uid ||
+                                              String(r.customerID || '').trim() ===
+                                                String(payee.customerID).trim()
+                                          );
+                                          if (i >= 0) next[i] = { ...next[i], ...payee, needsSalesCustomer: false };
+                                          else next.push({ ...payee, needsSalesCustomer: false });
+                                          return next;
+                                        });
+                                        if (defaultRefundPayee?.userId === opt.meta.userId) {
+                                          setDefaultRefundPayee(payee);
+                                        }
+                                        applySplit({
+                                          recipientCustomerID: String(payee.customerID),
+                                          recipientUserId: '',
+                                        });
+                                        if (!payee.hasBank) {
+                                          openPayoutBankDraft({
+                                            kind: 'customer',
+                                            id: payee.customerID,
+                                            name: payee.name,
+                                            bankAccountName: payee.name || '',
+                                            bankName: payee.bankName || '',
+                                            bankAccountNo: '',
+                                            splitIdx: idx,
+                                          });
+                                        }
+                                      })();
+                                      return;
+                                    }
                                     if (needsBank && opt?.meta) {
                                       openPayoutBankDraft({
                                         ...opt.meta,
