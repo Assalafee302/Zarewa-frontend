@@ -77,6 +77,7 @@ import { CashierDeskReports } from "./CashierDeskReports";
 
 import { StaffPaymentsCashierPanel } from "./StaffPaymentsCashierPanel";
 import { PartnerWalletCashierPanel } from "./PartnerWalletCashierPanel";
+import { CompanyRetentionPanel } from "./CompanyRetentionPanel";
 import { RefundCreditApplicationsPanel } from "./RefundCreditApplicationsPanel";
 import { CashierOtPayPanel } from "./CashierOtPayPanel";
 
@@ -919,6 +920,18 @@ export function FinanceDeskWorkQueues({
                 balances={partnerWalletsDue}
                 treasuryAccounts={treasuryAccounts}
                 canPay={Boolean(ws?.hasPermission?.("finance.pay"))}
+              />
+              <CompanyRetentionPanel
+                treasuryAccounts={treasuryAccounts}
+                canPay={Boolean(ws?.hasPermission?.("finance.pay"))}
+                canApprove={Boolean(
+                  ws?.hasPermission?.("refunds.approve") || ws?.hasPermission?.("finance.approve")
+                )}
+                canRequest={Boolean(
+                  ws?.hasPermission?.("finance.pay") ||
+                    ws?.hasPermission?.("refunds.approve") ||
+                    ws?.hasPermission?.("finance.approve")
+                )}
               />
             </FinanceTreasuryAwaitingPayoutQueues>
           </div>

@@ -10,6 +10,7 @@ import {
 } from '../../lib/managerSpendInsights';
 import { FinanceSequencePanel, ModalFrame } from '../layout';
 import { ManagerSpendMachinesPanel } from './ManagerSpendMachinesPanel';
+import { CompanyRetentionPanel } from '../finance/CompanyRetentionPanel';
 
 function PanelShell({ title, subtitle, children, disclaimer }) {
   return (
@@ -244,6 +245,18 @@ export function ManagerSpendTab({
           <p className="mt-0.5 text-ui-xs text-slate-500">Paid cash {formatNgn(insights.paidNgn)}</p>
         </button>
       </div>
+
+      <PanelShell
+        title="Company cut retention"
+        subtitle="Staff refund % cuts accumulate here. After the hold period, request withdrawal — you approve, Finance pays."
+      >
+        <CompanyRetentionPanel
+          embedded
+          canApprove
+          canRequest
+          canPay={false}
+        />
+      </PanelShell>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <PanelShell title="How are expenses performing?" subtitle="Weekly trend this month">
