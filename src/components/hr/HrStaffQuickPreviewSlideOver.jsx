@@ -8,6 +8,7 @@ import { payrollGroupLabel } from '../../lib/hrFormat';
 import { HrStaffAvatar } from './HrStaffAvatar';
 import { HrStatusBadge } from './HrStatusBadge';
 import { HR_BTN_SECONDARY } from './hrFormStyles';
+import { HrStaffBulkDeleteModal } from './HrStaffBulkDeleteModal';
 
 /**
  * Mini staff preview from directory — open full profile without leaving list context.
@@ -18,12 +19,19 @@ export function HrStaffQuickPreviewSlideOver({
   branchNames = new Map(),
   isOpen,
   onClose,
+  canDelete = false,
+  onDeleted,
 }) {
   const [row, setRow] = useState(staff);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
     setRow(staff);
   }, [staff]);
+
+  useEffect(() => {
+    if (!isOpen) setDeleteOpen(false);
+  }, [isOpen]);
 
   if (!row) return null;
 
@@ -35,6 +43,7 @@ export function HrStaffQuickPreviewSlideOver({
   const profilePath = `${staffBasePath}/${encodeURIComponent(row.userId)}`;
 
   return (
+    <>
     <SlideOverPanel isOpen={isOpen} onClose={onClose} title="Staff preview" description="Quick staff summary" maxWidthClass="max-w-md">
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
@@ -94,8 +103,26 @@ export function HrStaffQuickPreviewSlideOver({
           <Link to={profilePath} className={`${HR_BTN_SECONDARY} no-underline`} onClick={onClose}>
             Open full profile
           </Link>
+          {canDelete ? (
+            <HrButton type="button" variant="destructive" onClick={() => setDeleteOpen(true)}>
+              Delete permanently
+            </HrButton>
+          ) : null}
         </div>
       </div>
     </SlideOverPanel>
+    <HrStaffBulkDeleteModal
+      isOpen={deleteOpen}
+      staff={row ? [row] : []}
+      selectedIds={row?.userId ? [row.userId] : []}
+      layer="nested"
+      onClose={() => setDeleteOpen(false)}
+      onDone={(data) => {
+        setDeleteOpen(false);
+        onClose();
+        onDeleted?.(data);
+      }}
+    />
+    </>
   );
 }

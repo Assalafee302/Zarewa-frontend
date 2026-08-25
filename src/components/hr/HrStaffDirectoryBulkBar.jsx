@@ -5,6 +5,7 @@ import { HrManagerPicker } from './HrManagerPicker';
 import { appConfirm } from '../../lib/appConfirm';
 import { bulkUpdateHrStaff } from '../../lib/hrStaffExtras';
 import { HR_FIELD_CLASS } from './hrFormStyles';
+import { HrStaffBulkDeleteModal } from './HrStaffBulkDeleteModal';
 
 /**
  * @param {{
@@ -18,6 +19,7 @@ import { HR_FIELD_CLASS } from './hrFormStyles';
 export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onClear, onDone }) {
   const [managerOpen, setManagerOpen] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [managerId, setManagerId] = useState('');
   const [branchId, setBranchId] = useState('');
   const [busy, setBusy] = useState('');
@@ -100,6 +102,9 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onC
         >
           Reactivate
         </HrButton>
+        <HrButton type="button" variant="destructive" disabled={!!busy} onClick={() => setDeleteOpen(true)}>
+          Delete permanently
+        </HrButton>
         <HrButton type="button" variant="secondary" onClick={exportSelectedCsv}>
           Export selected
         </HrButton>
@@ -159,6 +164,17 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onC
           </div>
         </div>
       </HrFormModal>
+
+      <HrStaffBulkDeleteModal
+        isOpen={deleteOpen}
+        staff={staff}
+        selectedIds={selectedIds}
+        onClose={() => setDeleteOpen(false)}
+        onDone={(data) => {
+          setDeleteOpen(false);
+          onDone(data);
+        }}
+      />
     </>
   );
 }

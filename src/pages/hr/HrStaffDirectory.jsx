@@ -557,8 +557,19 @@ export default function HrStaffDirectory({
       {bulkNotice ? (
         <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
           <p>
-            Bulk update: {bulkNotice.updated} updated, {bulkNotice.failed} failed.
+            {bulkNotice.deleted != null
+              ? `Deleted ${bulkNotice.deleted} staff${bulkNotice.failed ? `, ${bulkNotice.failed} could not be deleted.` : '.'}`
+              : `Bulk update: ${bulkNotice.updated} updated, ${bulkNotice.failed} failed.`}
           </p>
+          {Array.isArray(bulkNotice.errors) && bulkNotice.errors.length ? (
+            <ul className="mt-2 space-y-1 text-xs text-red-800">
+              {bulkNotice.errors.slice(0, 6).map((err) => (
+                <li key={err.userId}>
+                  {err.userId}: {err.error}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <button type="button" className="mt-1 text-xs font-medium text-slate-700 hover:underline" onClick={() => setBulkNotice(null)}>
             Dismiss
           </button>
@@ -1137,6 +1148,13 @@ export default function HrStaffDirectory({
         branchNames={branchNames}
         isOpen={Boolean(previewStaff)}
         onClose={() => setPreviewStaff(null)}
+        canDelete={canBulkManage && !isSpecialList}
+        onDeleted={async (data) => {
+          setBulkNotice(data);
+          setPreviewStaff(null);
+          setSelectedIds((ids) => ids.filter((id) => id !== previewStaff?.userId));
+          await reload({ forceSpinner: true });
+        }}
       />
     </div>
   );

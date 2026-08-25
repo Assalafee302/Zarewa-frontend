@@ -47,3 +47,24 @@ export function deleteHrStaffPermanently(userId, payload) {
     body: JSON.stringify(payload),
   });
 }
+
+/**
+ * Permanently delete several staff logins. Irreversible — prefer separation for leavers.
+ * @param {{ userIds: string[]; reason: string; confirmPhrase: string }} payload
+ */
+export function bulkDeleteHrStaffPermanently(payload) {
+  const userIds = Array.isArray(payload?.userIds)
+    ? payload.userIds.map((id) => String(id || '').trim()).filter(Boolean)
+    : [];
+  if (!userIds.length) {
+    return Promise.resolve({ ok: false, data: { ok: false, error: 'Select at least one staff member.' } });
+  }
+  return apiFetch('/api/hr/staff/bulk-delete', {
+    method: 'POST',
+    body: JSON.stringify({
+      userIds,
+      reason: payload?.reason,
+      confirmPhrase: payload?.confirmPhrase,
+    }),
+  });
+}

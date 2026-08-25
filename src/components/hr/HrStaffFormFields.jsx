@@ -440,10 +440,10 @@ export function HrStaffFormFields({
                 ))}
               </select>
             </Field>
-            <Field label="Phone">
+            <Field label="Phone" hint="Must be unique to this staff member.">
               <input className={fieldCls} value={form.phone || ''} onChange={(e) => set('phone', e.target.value)} />
             </Field>
-            <Field label="Email">
+            <Field label="Email" hint="Must be unique to this staff member.">
               <input type="email" className={fieldCls} value={form.personalEmail || ''} onChange={(e) => set('personalEmail', e.target.value)} />
             </Field>
             <Field label="Residential address">
@@ -458,7 +458,7 @@ export function HrStaffFormFields({
             <Field label="Nationality">
               <input className={fieldCls} value={form.nationality || 'Nigerian'} onChange={(e) => set('nationality', e.target.value)} />
             </Field>
-            <Field label="NIN (11 digits)">
+            <Field label="NIN (11 digits)" hint="Cannot match another staff file.">
               <input
                 className={fieldCls}
                 value={form.ninNumber}
@@ -466,7 +466,7 @@ export function HrStaffFormFields({
                 inputMode="numeric"
               />
             </Field>
-            <Field label="BVN (11 digits)">
+            <Field label="BVN (11 digits)" hint="Cannot match another staff file.">
               <input
                 className={fieldCls}
                 value={form.bvnNumber || ''}
@@ -506,7 +506,7 @@ export function HrStaffFormFields({
               />
             </Field>
           ) : null}
-          <Field label="Employee ID" hint="Branch format e.g. ZAPKD006, ZAPYL002 — leave blank to auto-assign on save">
+          <Field label="Employee ID" hint="Must be unique. Branch format e.g. ZAPKD006, ZAPYL002 — leave blank to auto-assign on save">
             <input
               className={fieldCls}
               value={form.employeeNo}
@@ -948,7 +948,7 @@ export function HrStaffFormFields({
             </Field>
             {canViewFullBank ? (
               <>
-                <Field label="Full account no. (payroll export)">
+                <Field label="Full account no. (payroll export)" hint="Cannot match another staff file.">
                   <input
                     className={fieldCls}
                     value={form.bankAccountNo || ''}

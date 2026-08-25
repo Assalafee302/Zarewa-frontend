@@ -19,6 +19,7 @@ export function HrFormModal({
   footer,
   formId,
   onSubmit,
+  layer = 'default',
 }) {
   return (
     <FormModal
@@ -35,6 +36,7 @@ export function HrFormModal({
       formId={formId}
       onSubmit={onSubmit}
       eyebrow="Human resources"
+      layer={layer}
     >
       {children}
     </FormModal>

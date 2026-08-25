@@ -52,6 +52,7 @@ export const SHARED_SYNC_PAIRS = [
   ['shared/lib/commandCentreRoutes.js', 'src/shared/lib/commandCentreRoutes.js'],
   ['shared/lib/quotationPriceException.js', 'src/shared/lib/quotationPriceException.js'],
   ['shared/lib/hrLegalDisplayName.js', 'src/shared/lib/hrLegalDisplayName.js'],
+  ['shared/lib/hrStaffIdentity.js', 'src/shared/lib/hrStaffIdentity.js'],
   ['shared/lib/hrRoleCompliance.js', 'src/shared/lib/hrRoleCompliance.js'],
   ['shared/lib/productionGateAccess.js', 'src/shared/lib/productionGateAccess.js'],
   ['shared/lib/inTransitVisibility.js', 'src/shared/lib/inTransitVisibility.js'],
