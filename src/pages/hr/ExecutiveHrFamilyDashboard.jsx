@@ -147,10 +147,10 @@ function ChildCard({ child, officeManagePath = '' }) {
         ) : null}
         {!child.hasLogin && !officeManagePath ? (
           <Link
-            to={`${HR_EMPLOYEE_REGISTERS}?tab=scholarship`}
+            to="/chairman?tab=scholarships"
             className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 no-underline"
           >
-            No login — register in Executive family
+            No login — register in Chairman Office
           </Link>
         ) : null}
       </div>
@@ -270,10 +270,10 @@ export default function ExecutiveHrFamilyDashboard({
           </p>
           {officeManagePath ? null : (
             <Link
-              to={`${HR_EMPLOYEE_REGISTERS}?tab=scholarship`}
+              to="/chairman?tab=scholarships"
               className="mt-4 inline-flex text-sm font-medium text-slate-800 underline underline-offset-2"
             >
-              Open Executive family register →
+              Open Chairman Office scholarships →
             </Link>
           )}
         </div>

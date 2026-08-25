@@ -292,11 +292,11 @@ export default function ExecutiveHrDomesticDashboard({
           <Link to="/chairman?tab=household&benefitsTab=domestic" className="font-semibold text-amber-800 underline">
             Chairman Office → Household
           </Link>
-          . ERP login is optional — see{' '}
-          <Link to="/hr/employees/registers?tab=domestic" className="font-semibold text-slate-600 underline">
-            household staff register
-          </Link>{' '}
-          only if self-service is needed.
+          . ERP login is optional — household files live in{' '}
+          <Link to="/chairman?tab=household" className="font-semibold text-slate-600 underline">
+            Chairman Office → Household
+          </Link>
+          .
         </p>
       )}
     </div>
