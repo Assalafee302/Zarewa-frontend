@@ -44,7 +44,7 @@ export const HR_SETTINGS_SCOPE = {
   elsewhere: [
     'Payroll runs, salary matrix, pension rates → Payroll',
     'Public holidays and leave balances → Time & Absence',
-    'Executive family & household staff → Executive HR',
+    'Executive family & household staff → Chairman Office',
     'Letters workflow and HR exports → Documents',
   ],
 };
@@ -110,14 +110,9 @@ export const HR_SETTINGS_MODULE_LINK_GROUPS = [
     title: 'Executive programmes',
     links: [
       {
-        label: 'Chairman Office — scholarships & household',
-        hint: 'School fees, allowances, domestic payments, bank export',
+        label: 'Chairman Office — scholarships, household & mining',
+        hint: 'School fees, household pay, mining register — not company HR',
         to: '/chairman?tab=scholarships',
-      },
-      {
-        label: 'Family & household registers',
-        hint: 'Executive family and optional domestic ERP records',
-        to: `${HR_EMPLOYEE_REGISTERS}?tab=scholarship`,
       },
     ],
   },

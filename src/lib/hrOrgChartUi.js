@@ -5,7 +5,7 @@ export const ORG_CHART_VIEWS = [
   { id: 'hierarchy', label: 'Reporting lines', hint: 'Full company tree from line managers' },
   { id: 'department', label: 'By department', hint: 'Functional departments and their teams' },
   { id: 'branch', label: 'By branch', hint: 'Branch locations and local reporting' },
-  { id: 'unit', label: 'Company units', hint: 'HQ, mining, household, and branch cohorts' },
+  { id: 'unit', label: 'Company units', hint: 'Branch and HQ staff — mining, household, and scholarships are on Chairman Office' },
 ];
 
 /** Relationship types available in organogram link editor. */
