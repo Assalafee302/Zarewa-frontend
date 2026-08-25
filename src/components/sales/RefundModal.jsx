@@ -38,6 +38,11 @@ import {
   sumRefundStaffNetPayoutNgn,
   sumRefundStaffUnclearedOffsetNgn,
 } from '../../shared/lib/refundStaffAllocationDeduction.js';
+import {
+  isBranchManagerPreparedByLabel,
+  preparedByRoleTitleAgreesWithPayee,
+  roleKeysForPreparedByLabel,
+} from '../../shared/lib/preparedByRoleAlias.js';
 import { flattenQuotationLineItems } from '../../lib/managerDashboardCore';
 import {
   quotationLinesJsonShapeForGauge,
@@ -867,13 +872,26 @@ function matchClaimingStaffForPerson(person, claimRows, { branchId = '' } = {}) 
     return candidates.some((cand) => String(cand || '').trim().toLowerCase() === target);
   };
 
-  // Exact display/username only — fuzzy matching wrongly pinned Suleiman / Abdulrahman.
-  void branchId;
-  return (
+  const byExact =
     rows.find((c) => labelMatchesRow(c, name) && c.hasBank) ||
-    rows.find((c) => labelMatchesRow(c, name)) ||
-    null
-  );
+    rows.find((c) => labelMatchesRow(c, name));
+  if (byExact) return byExact;
+
+  // Legacy quotes: "Branch Manager" → unique sales_manager on that branch (not fuzzy name match).
+  const roleKeys = roleKeysForPreparedByLabel(name);
+  if (!roleKeys.length) return null;
+  const byRole = rows.filter((c) => roleKeys.includes(String(c.roleKey || '').trim().toLowerCase()));
+  if (!byRole.length) return null;
+  const quoteBranch = String(branchId || '').trim();
+  const sameBranch = quoteBranch
+    ? byRole.filter((c) => String(c.branchId || '').trim() === quoteBranch)
+    : [];
+  if (sameBranch.length === 1) return sameBranch[0];
+  if (sameBranch.length > 1) {
+    const banked = sameBranch.filter((c) => c.hasBank);
+    return banked.length === 1 ? banked[0] : null;
+  }
+  return byRole.length === 1 ? byRole[0] : null;
 }
 
 function matchCustomerForPerson(person, customers) {
@@ -910,21 +928,32 @@ function namesAgreeForHandledBy(a, b) {
   return shorter.every((t) => longer.includes(t));
 }
 
+function handledByLabelAgreesWithPayee(label, payee) {
+  if (!label || String(label).trim().toLowerCase() === 'sales') return true;
+  if (namesAgreeForHandledBy(payee?.name, label)) return true;
+  if (preparedByRoleTitleAgreesWithPayee(label, payee)) return true;
+  return false;
+}
+
 /**
  * Prefer server default payee (handled_by_user_id → HR), then agent_customer_id, then exact userId in list.
- * Never keep a default that disagrees with Prepared by (stale Suleiman/Abdulrahman backfills).
+ * Legacy "Branch Manager" labels agree with the BM-role login (e.g. Suleiman), not fuzzy name guessing.
  */
 function resolveQuotationLinkedClaimingStaff(quotation, pickRow, claimingStaffOptions, defaultPayee) {
   const rows = Array.isArray(claimingStaffOptions) ? claimingStaffOptions : [];
   const sources = [quotation, pickRow].filter(Boolean);
   const preparedLabel =
     quotationPreparedByLabel(quotation) || quotationPreparedByLabel(pickRow) || '';
+  const quoteBranchId = String(
+    quotation?.branchId ||
+      quotation?.branch_id ||
+      pickRow?.branch_id ||
+      pickRow?.branchId ||
+      ''
+  ).trim();
 
   if (defaultPayee?.customerID || defaultPayee?.userId) {
-    const agrees =
-      !preparedLabel ||
-      preparedLabel.toLowerCase() === 'sales' ||
-      namesAgreeForHandledBy(defaultPayee.name, preparedLabel);
+    const agrees = handledByLabelAgreesWithPayee(preparedLabel, defaultPayee);
     if (agrees && defaultPayee.customerID) return defaultPayee;
     if (agrees && defaultPayee.userId) {
       const byUser = rows.find((c) => String(c.userId || '').trim() === String(defaultPayee.userId).trim());
@@ -940,29 +969,26 @@ function resolveQuotationLinkedClaimingStaff(quotation, pickRow, claimingStaffOp
     .find(Boolean);
   if (handledByUserId) {
     const byUser = rows.find((c) => String(c.userId || '').trim() === handledByUserId);
-    if (byUser) {
-      const agrees =
-        !preparedLabel ||
-        preparedLabel.toLowerCase() === 'sales' ||
-        namesAgreeForHandledBy(byUser.name, preparedLabel);
-      if (agrees) return byUser;
-    }
+    if (byUser && handledByLabelAgreesWithPayee(preparedLabel, byUser)) return byUser;
   }
 
   if (preparedLabel) {
-    const byName = matchClaimingStaffForPerson({ name: preparedLabel }, rows);
+    const byName = matchClaimingStaffForPerson({ name: preparedLabel }, rows, {
+      branchId: quoteBranchId,
+    });
     if (byName) return byName;
   }
 
   const agentId = sources.map(quotationAgentCustomerId).find(Boolean) || '';
   if (agentId) {
-    const byId = rows.find((c) => String(c.customerID || '').trim() === agentId);
-    if (byId) {
-      const agrees =
-        !preparedLabel ||
-        preparedLabel.toLowerCase() === 'sales' ||
-        namesAgreeForHandledBy(byId.name, preparedLabel);
-      if (agrees) return byId;
+    const byId = rows.find((c) => String(c.customerID || '').trim() === agentId) || null;
+    if (byId && handledByLabelAgreesWithPayee(preparedLabel, byId)) return byId;
+    if (
+      byId &&
+      isBranchManagerPreparedByLabel(preparedLabel) &&
+      isBranchManagerPreparedByLabel(quotationAgentCustomerName(quotation) || quotationAgentCustomerName(pickRow))
+    ) {
+      return byId;
     }
   }
   return null;
