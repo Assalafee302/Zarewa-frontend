@@ -177,41 +177,44 @@ export function CompanyRetentionPanel({
       {pending.length ? (
         <div className="space-y-1.5">
           <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Withdrawal queue</p>
-          {pending.map((w) => (
-            <FinanceDeskColoredQueueRow
-              key={w.id}
-              title={w.id}
-              subtitle={`${w.status === 'pending_bm' ? 'Awaiting BM' : 'Approved · pay'} · ${w.requestedByName || '—'}`}
-              amount={formatNgn(w.amountNgn)}
-              actions={
-                <>
-                  {canApprove && w.status === 'pending_bm' ? (
-                    <>
-                      <FinanceDeskQueueActionButton tone="emerald" onClick={() => void decide(w.id, 'approve')}>
-                        Approve
+          <ul className="space-y-1.5">
+            {pending.map((w) => (
+              <FinanceDeskColoredQueueRow
+                key={w.id}
+                theme="violet"
+                title={w.id}
+                meta={`${w.status === 'pending_bm' ? 'Awaiting BM' : 'Approved · pay'} · ${w.requestedByName || '—'}`}
+                amount={formatNgn(w.amountNgn)}
+                actions={
+                  <>
+                    {canApprove && w.status === 'pending_bm' ? (
+                      <>
+                        <FinanceDeskQueueActionButton tone="teal" onClick={() => void decide(w.id, 'approve')}>
+                          Approve
+                        </FinanceDeskQueueActionButton>
+                        <FinanceDeskQueueActionButton tone="rose" onClick={() => void decide(w.id, 'reject')}>
+                          Reject
+                        </FinanceDeskQueueActionButton>
+                      </>
+                    ) : null}
+                    {canPay && w.status === 'approved' ? (
+                      <FinanceDeskQueueActionButton
+                        tone="sky"
+                        onClick={() => {
+                          setPayTarget(w);
+                          setTreasuryAccountId(accounts[0]?.id != null ? String(accounts[0].id) : '');
+                          setReference('');
+                          setNote('');
+                        }}
+                      >
+                        Pay
                       </FinanceDeskQueueActionButton>
-                      <FinanceDeskQueueActionButton tone="rose" onClick={() => void decide(w.id, 'reject')}>
-                        Reject
-                      </FinanceDeskQueueActionButton>
-                    </>
-                  ) : null}
-                  {canPay && w.status === 'approved' ? (
-                    <FinanceDeskQueueActionButton
-                      tone="sky"
-                      onClick={() => {
-                        setPayTarget(w);
-                        setTreasuryAccountId(accounts[0]?.id != null ? String(accounts[0].id) : '');
-                        setReference('');
-                        setNote('');
-                      }}
-                    >
-                      Pay
-                    </FinanceDeskQueueActionButton>
-                  ) : null}
-                </>
-              }
-            />
-          ))}
+                    ) : null}
+                  </>
+                }
+              />
+            ))}
+          </ul>
         </div>
       ) : null}
 
@@ -256,10 +259,10 @@ export function CompanyRetentionPanel({
         body
       ) : (
         <FinanceDeskColoredQueuePanel
+          theme="violet"
           title="Company cut retention"
-          subtitle={`Staff refund % cuts accumulate here. After ${holdDays} days, withdraw with Branch Manager approval.`}
-          icon={Landmark}
-          tone="violet"
+          description={`Staff refund % cuts accumulate here. After ${holdDays} days, withdraw with Branch Manager approval.`}
+          icon={<Landmark size={16} strokeWidth={2} />}
           testId="finance-company-retention"
           count={pending.length || (total > 0 ? 1 : 0)}
         >
