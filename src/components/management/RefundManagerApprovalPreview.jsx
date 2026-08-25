@@ -847,6 +847,48 @@ export function RefundManagerApprovalPreview({
         body: `Quoted ${Number(productionFulfillment.quotedMeters || 0).toLocaleString()} m roofing is fully produced (${Number(productionFulfillment.producedMetersForUnproduced || 0).toLocaleString()} m output${Number(productionFulfillment.offcutFgMeters || 0) > 0 ? `, including ${Number(productionFulfillment.offcutFgMeters).toLocaleString()} m from offcut/accessories` : ''}). Reject or send back unless another category applies.`,
       });
     }
+
+    // Overpayment is customer cash — should not land as a staff claim (company cut / uncleared hold).
+    const overpayOnly =
+      currentCategories.length > 0 &&
+      currentCategories.every((c) => String(c).trim().toLowerCase() === 'overpayment');
+    if (overpayOnly) {
+      const quoteCustomerId = String(
+        refund?.customerID ||
+          refund?.customerId ||
+          refund?.customer_id ||
+          auditData?.quotation?.customerID ||
+          auditData?.quotation?.customer_id ||
+          inboxRow?.customer_id ||
+          ''
+      ).trim();
+      const splits = Array.isArray(refund?.splitDistributions) ? refund.splitDistributions : [];
+      const staffClaimSplits = splits.filter((s) => {
+        const kind = String(s?.recipientKind || '').trim().toLowerCase();
+        if (kind === 'associated_staff') return true;
+        const rid = String(s?.recipientCustomerID || s?.payoutAccount?.partyId || '').trim();
+        if (!rid) return Boolean(s?.recipientAssociatedStaffID);
+        if (quoteCustomerId && rid === quoteCustomerId) return false;
+        return true;
+      });
+      if (staffClaimSplits.length > 0) {
+        const names = staffClaimSplits
+          .map(
+            (s) =>
+              s?.payoutAccount?.partyName ||
+              s?.payoutAccount?.payeeName ||
+              s?.recipientName ||
+              'staff'
+          )
+          .filter(Boolean);
+        alerts.push({
+          tone: 'rose',
+          title: 'Overpayment paid to staff claim',
+          body: `This overpayment is allocated to ${names.join(', ') || 'claiming staff'} (company cut / uncleared holds may apply). Reject and ask Sales to resubmit paying the quote customer instead.`,
+        });
+      }
+    }
+
     return alerts.filter((a) => a.body);
   }, [
     creditAppliedNgn,
@@ -867,6 +909,13 @@ export function RefundManagerApprovalPreview({
     productionSuggested,
     productionFulfillment,
     currentHasUnproduced,
+    refund?.splitDistributions,
+    refund?.customerID,
+    refund?.customerId,
+    refund?.customer_id,
+    auditData?.quotation?.customerID,
+    auditData?.quotation?.customer_id,
+    inboxRow?.customer_id,
   ]);
 
   return (
@@ -903,9 +952,9 @@ export function RefundManagerApprovalPreview({
           ) : (
             '?'
           )}
-          <span className="text-slate-400"> � </span>
+          <span className="text-slate-400"> · </span>
           {formatRefundReasonCategory(refund?.reasonCategory ?? inboxRow?.reason_category)}
-          <span className="text-slate-400"> � </span>
+          <span className="text-slate-400"> · </span>
           {formatActorAttribution(refund?.requestedBy, refund?.requestedAtISO || inboxRow?.requested_at_iso) ||
             (inboxRow?.requested_at_iso || '').slice(0, 16).replace('T', ' ')}
         </p>

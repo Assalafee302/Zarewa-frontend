@@ -2165,7 +2165,8 @@ const RefundModal = ({
     return mergeQuotationForPayoutPeople(detail || selectedQuotationSnapshot, eligibleRaw, null);
   }, [form.quotationRef, selectedQuotationSnapshot, eligibleQuotes, payoutQuoteDetail]);
 
-  // No customer bank → suggest transport/install → assignees, remainder → quotation agent/preparer.
+  // No customer bank → transport/install to assignees; overpayment → quote customer;
+  // other remainder → quotation handled-by (HR), never the person filing this refund.
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
     if (payoutAccountReady) return;
@@ -2178,15 +2179,19 @@ const RefundModal = ({
     const installAmt = sumIncludedRefundLinesByCategoryMatch(form.calculationLines, (c) =>
       String(c).toLowerCase().includes('install')
     );
+    const overpayAmt = sumIncludedRefundLinesByCategoryMatch(
+      form.calculationLines,
+      (c) => String(c).trim() === 'Overpayment'
+    );
     const assignees = quotationServiceAssignees(selectedQuotationForPayoutPeople);
     const { transporterId, installerId, transporterName, installerName } = assignees;
-    // Link remainder to quotation maker (handled-by → HR) — never the person filing this refund.
     const claimCustomerDefault = resolveQuotationLinkedClaimingStaff(
       selectedQuotationForPayoutPeople,
       selectedQuoteMoneyRow,
       companyStaffClaimOptions,
       defaultRefundPayee
     );
+    const quoteCustomerId = String(form.customerID || '').trim();
 
     const next = [];
     if (transportAmt > 0) {
@@ -2234,9 +2239,23 @@ const RefundModal = ({
       });
     }
     const allocated = next.reduce((s, r) => s + roundMoneyLocal(r.amountNgn), 0);
-    const remainder = Math.max(0, amountNgn - allocated);
+    let remainder = Math.max(0, amountNgn - allocated);
+
+    // Overpayment is the customer's money — route to quote customer (no staff cut / uncleared hold).
+    const overpayToCustomer = Math.min(remainder, overpayAmt);
+    if (overpayToCustomer > 0 && quoteCustomerId) {
+      next.push({
+        recipientKind: 'customer',
+        recipientAssociatedStaffID: '',
+        recipientCustomerID: quoteCustomerId,
+        amountNgn: String(overpayToCustomer),
+        note: 'Overpayment · quote customer',
+      });
+      remainder = Math.max(0, remainder - overpayToCustomer);
+    }
+
     if (remainder > 0) {
-      if (claimCustomerDefault) {
+      if (claimCustomerDefault?.customerID) {
         next.push({
           recipientKind: 'customer',
           recipientAssociatedStaffID: '',
@@ -2282,6 +2301,7 @@ const RefundModal = ({
     mode,
     payoutAccountReady,
     form.amountNgn,
+    form.customerID,
     form.calculationLines,
     selectedQuotationForPayoutPeople,
     selectedQuoteMoneyRow,
