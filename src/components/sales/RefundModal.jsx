@@ -1600,8 +1600,8 @@ const RefundModal = ({
             disabled: true,
             hint:
               role === 'agent' || role === 'preparer'
-                ? 'Sales staff on this quote — choose them from Branch staff below (or link their HR sales customer)'
-                : 'Name is on the quotation — choose the matching associated staff from the list below',
+                ? 'Sales staff on this quote — ensure their HR profile is linked (Handled by / Prepared by)'
+                : 'Name is on the quotation — assign transporter/installer on the quotation, then reopen refund',
           });
         }
       }
@@ -1618,18 +1618,20 @@ const RefundModal = ({
     eligibleQuotes,
   ]);
 
+  /** Drivers/installers assigned on this quotation only — not the full associated-staff directory. */
   const associatedStaffPayoutOptions = useMemo(() => {
     const seen = new Set(quotationLinkedPayoutOptions.map((o) => o.key));
-    const rest = activeAssociatedStaff
+    const assigneeIds = new Set(
+      [quotationAssigneeIds.transporterId, quotationAssigneeIds.installerId].filter(Boolean)
+    );
+    return activeAssociatedStaff
       .map((s) => {
         const id = String(s.id || s.staffID || '').trim();
-        if (!id) return null;
+        if (!id || !assigneeIds.has(id)) return null;
         const key = `staff:${id}`;
         if (seen.has(key)) return null;
         seen.add(key);
         const hasBank = associatedStaffHasBank(s);
-        const onQuote =
-          id === quotationAssigneeIds.transporterId || id === quotationAssigneeIds.installerId;
         const roleBit =
           id === quotationAssigneeIds.transporterId
             ? ' · Quotation transporter'
@@ -1642,14 +1644,10 @@ const RefundModal = ({
         return {
           key,
           label: `${s.name}${s.staffType || s.staff_type ? ` · ${s.staffType || s.staff_type}` : ''}${roleBit} · ${bankBit}`,
-          group: onQuote
-            ? 'On this quotation'
-            : hasBank
-              ? String(s.staffType || s.staff_type || 'Associated staff')
-              : 'Associated staff (add bank)',
+          group: 'On this quotation',
           searchText: `${s.name} ${s.staffType || s.staff_type || ''} ${s.bankName || ''} ${s.bankAccountNo || ''} ${id}`,
           needsBank: !hasBank,
-          hint: hasBank ? (onQuote ? 'Assigned on quotation' : '') : 'Select to add account number now',
+          hint: hasBank ? 'Assigned on quotation' : 'Select to add account number now',
           meta: {
             kind: 'associated_staff',
             id,
@@ -1661,9 +1659,9 @@ const RefundModal = ({
         };
       })
       .filter(Boolean);
-    return [...quotationLinkedPayoutOptions.filter((o) => String(o.key).startsWith('staff:')), ...rest];
   }, [activeAssociatedStaff, quotationAssigneeIds, quotationLinkedPayoutOptions]);
 
+  /** Quotation handled-by + quote customer only — not every branch HR login. */
   const claimingPayoutOptions = useMemo(() => {
     const opts = [];
     const seen = new Set();
@@ -1672,12 +1670,10 @@ const RefundModal = ({
     const pushCompanyStaff = (s, { pinned = false } = {}) => {
       const cid = String(s.customerID || '').trim();
       const uid = String(s.userId || '').trim();
-      // Prefer customer key; fall back to user key until ensure links a sales customer.
       const key = cid ? `customer:${cid}` : uid ? `user:${uid}` : '';
       if (!key) return;
       if (cid && seen.has(`customer:${cid}`)) return;
       if (!cid && uid && seen.has(`user:${uid}`)) return;
-      // Upgrade a prior user-only entry once the sales customer is known.
       if (cid && uid && seen.has(`user:${uid}`)) {
         const priorIdx = opts.findIndex((o) => o.key === `user:${uid}`);
         if (priorIdx >= 0) opts.splice(priorIdx, 1);
@@ -1699,13 +1695,7 @@ const RefundModal = ({
       opts.push({
         key,
         label: `${s.name}${emp} · ${bankBit}${unclearedBit}`,
-        group: pinned
-          ? 'Default · quotation handled by'
-          : needsLink
-            ? 'Branch staff (link HR)'
-            : s.hasBank
-              ? 'Branch staff (HR bank)'
-              : 'Branch staff (add bank)',
+        group: pinned ? 'Default · quotation handled by' : 'On this quotation',
         searchText: `${s.name} ${s.customerName || ''} ${s.username || ''} ${s.employeeNo || ''} ${s.bankName || ''} ${cid} ${uid}`,
         needsBank: !s.hasBank,
         hint: pinned
@@ -1735,10 +1725,6 @@ const RefundModal = ({
       pushCompanyStaff(defaultRefundPayee, { pinned: true });
     }
 
-    for (const s of companyStaffClaimOptions) {
-      pushCompanyStaff(s);
-    }
-
     if (quoteCustomerId && selectedRefundCustomer && !seen.has(`customer:${quoteCustomerId}`)) {
       const c = selectedRefundCustomer;
       const hasBank = customerHasBank(c);
@@ -1763,35 +1749,25 @@ const RefundModal = ({
     }
 
     return opts;
-  }, [
-    defaultRefundPayee,
-    companyStaffClaimOptions,
-    form.customerID,
-    selectedRefundCustomer,
-  ]);
+  }, [defaultRefundPayee, form.customerID, selectedRefundCustomer]);
 
   /**
-   * Slim payee directory:
-   * 1) Default quotation handled-by (HR)
-   * 2) Quote transporter/installer (associated staff)
-   * 3) Other branch staff
-   * 4) Associated staff directory
-   * No dump of every banked customer / fuzzy name guessing.
+   * Payee picker = people already on this quotation only:
+   * handled-by, transporter/installer, other quote-linked names, quote customer.
    */
   const payoutRecipientOptions = useMemo(() => {
     const opts = [];
     const seen = new Set();
     const push = (o) => {
       const key = String(o?.key || '').trim();
-      if (!key || seen.has(key)) return;
+      if (!key || seen.has(key) || o?.disabled) return;
       seen.add(key);
       opts.push(o);
     };
     for (const o of claimingPayoutOptions.filter((x) => x.group?.startsWith('Default'))) push(o);
-    for (const o of quotationLinkedPayoutOptions.filter((x) => String(x.key).startsWith('staff:')))
-      push(o);
-    for (const o of claimingPayoutOptions) push(o);
+    for (const o of quotationLinkedPayoutOptions) push(o);
     for (const o of associatedStaffPayoutOptions) push(o);
+    for (const o of claimingPayoutOptions.filter((x) => x.group === 'Quote customer')) push(o);
     return opts;
   }, [claimingPayoutOptions, quotationLinkedPayoutOptions, associatedStaffPayoutOptions]);
 
@@ -5800,21 +5776,16 @@ const RefundModal = ({
                             <p className="text-ui-xs text-amber-200/80 leading-snug">
                               {payoutDirectoryLoading
                                 ? 'Loading payout recipients…'
-                                : 'No recipients found yet. Quotation assignees and staff will appear when associated staff / claiming staff directories load. You can also add bank for the quote customer above.'}
+                                : 'No recipients linked on this quotation yet. Handled-by staff, transporter/installer assignees, and the quote customer appear here when the quotation is selected.'}
                             </p>
                           ) : (
                             <p className="text-ui-xs text-slate-400 leading-snug">
                               {defaultRefundPayee?.name
                                 ? `Default: ${defaultRefundPayee.name} (quotation handled by)`
                                 : 'Default: quotation handled-by staff when linked in HR'}
-                              {` · ${payoutRecipientOptions.length} payees`}
-                              {companyStaffClaimOptions.length
-                                ? ` · ${companyStaffClaimOptions.length} branch staff`
-                                : ''}
-                              {activeAssociatedStaff.length
-                                ? ` · ${activeAssociatedStaff.length} drivers/installers`
-                                : ''}
-                              .
+                              {` · ${payoutRecipientOptions.length} payee${
+                                payoutRecipientOptions.length === 1 ? '' : 's'
+                              } from this quotation only.`}
                             </p>
                           )}
                           {payoutAssociatedStaffError ? (
