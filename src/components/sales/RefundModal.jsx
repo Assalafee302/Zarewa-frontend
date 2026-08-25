@@ -1920,6 +1920,13 @@ const RefundModal = ({
       if (ok && data?.ok && data.payee?.customerID) {
         setDefaultRefundPayee(data.payee);
         setDefaultRefundPayeeHint(String(data.hint || ''));
+        // Ensure the prepared-by person appears in Company staff even if the list was loaded before ensure.
+        setClaimingStaffRows((rows) => {
+          const cid = String(data.payee.customerID).trim();
+          if (!cid) return rows;
+          if ((rows || []).some((r) => String(r.customerID || '').trim() === cid)) return rows;
+          return [data.payee, ...(Array.isArray(rows) ? rows : [])];
+        });
       } else {
         setDefaultRefundPayee(null);
         setDefaultRefundPayeeHint(String(data?.hint || data?.error || ''));
@@ -2147,15 +2154,23 @@ const RefundModal = ({
           recipientAssociatedStaffID: '',
           recipientCustomerID: String(claimCustomerDefault.customerID),
           amountNgn: String(remainder),
-          note: 'Quotation sales staff',
+          note: claimCustomerDefault.name
+            ? `Quotation sales staff · ${claimCustomerDefault.name}`
+            : 'Quotation sales staff',
         });
       } else {
+        const preparedLabel =
+          quotationPreparedByLabel(selectedQuoteMoneyRow) ||
+          quotationPreparedByLabel(selectedQuotationForPayoutPeople) ||
+          '';
         next.push({
           recipientKind: 'customer',
           recipientAssociatedStaffID: '',
           recipientCustomerID: '',
           amountNgn: String(remainder),
-          note: 'Quotation sales staff',
+          note: preparedLabel
+            ? `Quotation sales staff · pick ${preparedLabel}`
+            : 'Quotation sales staff',
         });
       }
     }
