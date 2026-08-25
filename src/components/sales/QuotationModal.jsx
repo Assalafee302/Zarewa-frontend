@@ -1087,6 +1087,8 @@ const QuotationModal = ({
   const [handledByStaff, setHandledByStaff] = useState('');
   const [handledByUserId, setHandledByUserId] = useState('');
   const [handleOnBehalfOf, setHandleOnBehalfOf] = useState(false);
+  /** Active HR staff for Handled by — not settings-gated appUsers. */
+  const [handledByStaffDirectory, setHandledByStaffDirectory] = useState([]);
   const [pickedCustomerInline, setPickedCustomerInline] = useState(null);
   const [customerListOpen, setCustomerListOpen] = useState(false);
   const customerBlurTimer = useRef(null);
@@ -1149,27 +1151,42 @@ const QuotationModal = ({
     () => String(ws?.session?.user?.id || ws?.user?.id || '').trim(),
     [ws?.session?.user?.id, ws?.user?.id]
   );
-  const appUsers = useMemo(
-    () => (Array.isArray(ws?.snapshot?.appUsers) ? ws.snapshot.appUsers : []),
-    [ws?.snapshot?.appUsers]
-  );
   const staffHandledByOptions = useMemo(() => {
     const byId = new Map();
-    for (const u of appUsers) {
+    for (const u of handledByStaffDirectory) {
       const id = String(u?.id || '').trim();
-      const name = String(u?.displayName || u?.fullName || u?.name || u?.username || '').trim();
+      const name = String(u?.name || u?.displayName || '').trim();
       if (!id || !name) continue;
-      byId.set(id, { id, name });
+      byId.set(id, { id, name, hasSalesCustomer: Boolean(u.hasSalesCustomer) });
     }
     if (currentUserId && currentUserHandledByLabel && !byId.has(currentUserId)) {
-      byId.set(currentUserId, { id: currentUserId, name: currentUserHandledByLabel });
+      byId.set(currentUserId, { id: currentUserId, name: currentUserHandledByLabel, hasSalesCustomer: true });
     }
     return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [appUsers, currentUserId, currentUserHandledByLabel]);
+  }, [handledByStaffDirectory, currentUserId, currentUserHandledByLabel]);
   const otherStaffHandledByOptions = useMemo(
     () => staffHandledByOptions.filter((u) => u.id !== currentUserId),
     [staffHandledByOptions, currentUserId]
   );
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    let cancelled = false;
+    const branchId = String(
+      quotationBranchId || ws?.session?.currentBranchId || ws?.session?.branchId || ''
+    ).trim();
+    const q = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
+    void (async () => {
+      const { ok, data } = await apiFetch(`/api/quotations/handled-by-staff${q}`);
+      if (cancelled) return;
+      if (ok && data?.ok && Array.isArray(data.staff)) {
+        setHandledByStaffDirectory(data.staff);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, quotationBranchId, ws?.session?.currentBranchId, ws?.session?.branchId]);
   const [ridgeAddOnsFallback, setRidgeAddOnsFallback] = useState([]);
   const ridgeAddOnsEffective = useMemo(
     () => (pricingRidgeAddOns.length ? pricingRidgeAddOns : ridgeAddOnsFallback),
