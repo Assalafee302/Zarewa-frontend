@@ -127,5 +127,99 @@ describe('salesPaymentsReceivedRows', () => {
     const rows = salesPaymentsReceivedRows(receipts, [], [], '2026-03-01', '2026-03-31', []);
     expect(rows).toHaveLength(1);
     expect(rows[0].receiptId).toBe('SR-IN');
+    expect(rows[0].group).toBe('Materials not produced in period');
+  });
+
+  it('keeps paid-but-unproduced cash as credit in the payment month', () => {
+    const receipts = [
+      {
+        id: 'SR-JAN',
+        customer: 'Deferred',
+        quotationRef: 'QT-DEF',
+        dateISO: '2026-01-20',
+        amountNgn: 200_000,
+      },
+    ];
+    const jan = salesPaymentsReceivedRows(receipts, [], [], '2026-01-01', '2026-01-31', []);
+    expect(jan).toHaveLength(1);
+    expect(jan[0].group).toBe('Materials not produced in period');
+    expect(jan[0].amountPaidNgn).toBe(200_000);
+  });
+
+  it('recognizes prior-month credit as produced sales in the production month', () => {
+    const receipts = [
+      {
+        id: 'SR-JAN',
+        customer: 'Deferred',
+        quotationRef: 'QT-DEF',
+        dateISO: '2026-01-20',
+        amountNgn: 200_000,
+      },
+    ];
+    const jobs = [
+      {
+        quotationRef: 'QT-DEF',
+        status: 'Completed',
+        completedAtISO: '2026-02-05T14:00:00.000Z',
+        actualMeters: 100,
+      },
+    ];
+    const jan = salesPaymentsReceivedRows(receipts, jobs, [], '2026-01-01', '2026-01-31', []);
+    expect(jan).toHaveLength(1);
+    expect(jan[0].group).toBe('Materials not produced in period');
+
+    const feb = salesPaymentsReceivedRows(receipts, jobs, [], '2026-02-01', '2026-02-28', []);
+    expect(feb).toHaveLength(1);
+    expect(feb[0].group).toBe('Materials produced in period');
+    expect(feb[0].amountPaidNgn).toBe(200_000);
+    expect(feb[0].firstProductionDateISO).toBe('2026-02-05');
+
+    const mar = salesPaymentsReceivedRows(receipts, jobs, [], '2026-03-01', '2026-03-31', []);
+    expect(mar).toHaveLength(0);
+  });
+
+  it('attributes same-month pay-and-produce to produced sales once', () => {
+    const receipts = [
+      {
+        id: 'SR-SAME',
+        customer: 'Same',
+        quotationRef: 'QT-SAME',
+        dateISO: '2026-03-10',
+        amountNgn: 75_000,
+      },
+    ];
+    const jobs = [
+      {
+        quotationRef: 'QT-SAME',
+        status: 'Completed',
+        completedAtISO: '2026-03-18T10:00:00.000Z',
+        actualMeters: 50,
+      },
+    ];
+    const rows = salesPaymentsReceivedRows(receipts, jobs, [], '2026-03-01', '2026-03-31', []);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].group).toBe('Materials produced in period');
+  });
+
+  it('omits cash collected this period on quotes produced in a prior period', () => {
+    const receipts = [
+      {
+        id: 'SR-LATE',
+        customer: 'AR',
+        quotationRef: 'QT-AR',
+        dateISO: '2026-03-12',
+        amountNgn: 60_000,
+      },
+    ];
+    const jobs = [
+      {
+        quotationRef: 'QT-AR',
+        status: 'Completed',
+        completedAtISO: '2026-02-01T10:00:00.000Z',
+        actualMeters: 40,
+      },
+    ];
+    const rows = salesPaymentsReceivedRows(receipts, jobs, [], '2026-03-01', '2026-03-31', []);
+    expect(rows).toHaveLength(0);
   });
 });

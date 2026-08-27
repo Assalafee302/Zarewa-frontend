@@ -619,28 +619,38 @@ export function quotationHasCompletedProductionByEndDate(quotationRef, productio
   return false;
 }
 
-function quotationHasCompletedProductionInRange(quotationRef, productionJobs, startDateISO, endDateISO) {
+/**
+ * Earliest completed production output date for a quotation (YYYY-MM-DD), or ''.
+ * Sales recognition uses this so paid-then-produced cash is attributed once to the production month.
+ */
+export function earliestCompletedProductionDateISO(quotationRef, productionJobs = []) {
   const ref = String(quotationRef || '').trim();
-  if (!ref) return false;
+  if (!ref) return '';
+  let min = '';
   for (const j of productionJobs || []) {
     if (String(j.status || '').trim() !== 'Completed') continue;
     if (String(j.quotationRef || '').trim() !== ref) continue;
     const d = productionOutputDateISO(j);
     if (!d) continue;
-    if (startDateISO && d < startDateISO) continue;
-    if (endDateISO && d > endDateISO) continue;
-    return true;
+    if (!min || d < min) min = d;
   }
-  return false;
+  return min;
 }
 
 /**
- * Payments received in period from sales receipts (cash actually recorded), grouped by production
- * completion timing within the selected period.
+ * Payments / sales recognition for the selected period.
  *
- * Uses the same cash basis as the receipts register / desk (`receiptEffectiveCashNgn`), not bare
- * ledger RECEIPT allocation — finance confirmation may shrink ledger RECEIPT while keeping full
- * cash on `sales_receipts`.
+ * Accounting rule (production recognizes sales):
+ * - **Materials produced in period** — quote’s *first* completed production falls in the period,
+ *   and the receipt was recorded on or before period end (includes cash paid in a prior month
+ *   that was still credit until production).
+ * - **Materials not produced in period** — cash received in this period whose quote is still
+ *   unproduced at period end (customer credit / deferred sales).
+ *
+ * Cash collected in this period on quotes already produced before the period is omitted
+ * (prior-period sales; collection only).
+ *
+ * Cash basis matches the receipts register (`receiptEffectiveCashNgn`).
  *
  * @param {object[]} salesReceipts
  * @param {object[]} [productionJobs]
@@ -664,29 +674,51 @@ export function salesPaymentsReceivedRows(
     (ledgerEntries || []).map((e) => [String(e.id || '').trim(), e]).filter(([k]) => k)
   );
   const companion = companionOverpayNgnByReceiptId(ledgerEntries);
+  const firstProdByQuote = new Map();
   const rows = [];
   for (const r of salesReceipts || []) {
     if (isReceiptReversed(r)) continue;
     const iso = toIsoDate(r.dateISO || r.date || r.atISO);
     if (!iso) continue;
-    if (startDate && iso < startDate) continue;
-    if (endDate && iso > endDate) continue;
 
     const rid = String(r.id || '').trim();
     const lid = r.ledgerEntryId != null ? String(r.ledgerEntryId).trim() : '';
     const le = (lid && ledgerById.get(lid)) || (rid && ledgerById.get(rid)) || null;
-    const extra =
-      companion.get(rid) || (lid ? companion.get(lid) : 0) || 0;
-    // Prefer desk-enriched cashReceivedNgn; else allocation + companion / bank-authoritative cash.
+    const extra = companion.get(rid) || (lid ? companion.get(lid) : 0) || 0;
     const amount = receiptEffectiveCashNgn(r, { companionOverpayNgn: extra });
     if (amount <= 0) continue;
 
     const qref = String(r.quotationRef || '').trim();
-    const producedInPeriod = qref
-      ? quotationHasCompletedProductionInRange(qref, productionJobs, startDate, endDate)
-      : false;
+    let firstProd = '';
+    if (qref) {
+      if (!firstProdByQuote.has(qref)) {
+        firstProdByQuote.set(qref, earliestCompletedProductionDateISO(qref, productionJobs));
+      }
+      firstProd = firstProdByQuote.get(qref) || '';
+    }
+
+    const paidInPeriod =
+      (!startDate || iso >= startDate) && (!endDate || iso <= endDate);
+    const firstProdInPeriod =
+      Boolean(firstProd) &&
+      (!startDate || firstProd >= startDate) &&
+      (!endDate || firstProd <= endDate);
+    const stillUnproducedAtPeriodEnd = !firstProd || (endDate && firstProd > endDate);
+
+    let group = '';
+    if (firstProdInPeriod && (!endDate || iso <= endDate)) {
+      // Sales recognized in the production month (prior-month credit becomes this month’s sales).
+      group = 'Materials produced in period';
+    } else if (paidInPeriod && stillUnproducedAtPeriodEnd) {
+      // Cash in this period still sitting as credit at period end.
+      group = 'Materials not produced in period';
+    } else {
+      // e.g. paid this period on a quote produced before the period — collection, not new sales.
+      continue;
+    }
+
     rows.push({
-      group: producedInPeriod ? 'Materials produced in period' : 'Materials not produced in period',
+      group,
       paymentDateISO: iso,
       customerName:
         r.customer || r.customerName || le?.customerName || le?.customerID || quoteCustomer.get(qref) || '',
@@ -696,6 +728,7 @@ export function salesPaymentsReceivedRows(
       bankReference: le?.bankReference || r.bankReference || '',
       ledgerEntryId: lid || rid || '',
       receiptId: rid || '',
+      firstProductionDateISO: firstProd || '',
     });
   }
   rows.sort(

@@ -371,8 +371,8 @@ export function useReportsExport({
           },
           summaryLines: [
             { label: 'Rows', value: String(s.rowCount) },
-            { label: 'Total payment received', value: formatNgn(s.totalReceivedNgn) },
-            { label: 'Materials produced in period', value: formatNgn(s.producedNgn) },
+            { label: 'Total in report', value: formatNgn(s.totalReceivedNgn) },
+            { label: 'Materials produced in period (sales)', value: formatNgn(s.producedNgn) },
             { label: 'Materials not produced in period (credit)', value: formatNgn(s.notProducedNgn) },
           ],
         };
@@ -646,6 +646,7 @@ export function useReportsExport({
       ).map((r) => ({
         category: r.group,
         paymentDateISO: r.paymentDateISO,
+        firstProductionDateISO: r.firstProductionDateISO || '',
         customerName: r.customerName,
         quotationRef: r.quotationRef,
         amountPaidNgn: r.amountPaidNgn,

@@ -454,7 +454,7 @@ export const EXPORT_SECTIONS = [
         kind: 'pack',
         pack: PACK_SALES_CUSTOMER,
         title: 'Customer payments',
-        desc: 'Payments received in period, grouped by materials produced vs not produced.',
+        desc: 'Sales by production month: produced sales (incl. prior-month credit realized) vs cash still unproduced (credit).',
         icon: Table2,
         formats: ['Excel', 'CSV'],
         printCoverage: 'full',
