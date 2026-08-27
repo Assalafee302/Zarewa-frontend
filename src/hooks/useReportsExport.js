@@ -115,18 +115,22 @@ export function useReportsExport({
           startDate,
           endDate,
           ledgerEntries
-        ).map((r) => ({
-          reportSection: 'Payments received (period)',
-          category: r.group,
-          ledgerType: 'RECEIPT',
-          dateISO: r.paymentDateISO,
-          recordId: r.ledgerEntryId || r.receiptId,
-          customer: r.customerName,
-          quotationRef: r.quotationRef,
-          amountNgn: r.amountPaidNgn,
-          paymentMethod: r.paymentMethod,
-          remarks: r.bankReference,
-        }));
+        ).map((r) => {
+          const isDebt = r.group === 'Outstanding balance (debtors)';
+          return {
+            reportSection: isDebt ? 'Outstanding balance (debtors)' : 'Payments received (period)',
+            category: r.group,
+            ledgerType: isDebt ? 'AR_OPEN' : 'RECEIPT',
+            dateISO: r.paymentDateISO,
+            recordId: r.ledgerEntryId || r.receiptId || r.quotationRef,
+            customer: r.customerName,
+            quotationRef: r.quotationRef,
+            amountNgn: isDebt ? r.outstandingBalanceNgn : r.amountPaidNgn,
+            outstandingBalanceNgn: r.outstandingBalanceNgn,
+            paymentMethod: r.paymentMethod,
+            remarks: r.bankReference,
+          };
+        });
       }
       if (name === PACK_REFUND_PERIOD) {
         return refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate).map((r) => ({
@@ -339,24 +343,30 @@ export function useReportsExport({
           ledgerEntries
         );
         const s = salesPaymentsReceivedSummary(raw);
-        const rows = raw.map((r) => ({
-          group: r.group,
-          paymentDateISO: r.paymentDateISO || 'â€”',
-          customerName: r.customerName || 'â€”',
-          quotationRef: displayDocNumber(r.quotationRef) || r.quotationRef || 'â€”',
-          amountPaidNgn: formatNgn(r.amountPaidNgn),
-          paymentMethod: r.paymentMethod || 'â€”',
-          bankReference: r.bankReference || 'â€”',
-          _amountPaidNgn: Number(r.amountPaidNgn) || 0,
-        }));
+        const rows = raw.map((r) => {
+          const isDebt = r.group === 'Outstanding balance (debtors)';
+          const reportAmt = isDebt ? Number(r.outstandingBalanceNgn) || 0 : Number(r.amountPaidNgn) || 0;
+          return {
+            group: r.group,
+            paymentDateISO: r.paymentDateISO || '—',
+            customerName: r.customerName || '—',
+            quotationRef: displayDocNumber(r.quotationRef) || r.quotationRef || '—',
+            amountPaidNgn: isDebt ? '—' : formatNgn(r.amountPaidNgn),
+            outstandingBalanceNgn: formatNgn(r.outstandingBalanceNgn || 0),
+            paymentMethod: r.paymentMethod || '—',
+            bankReference: r.bankReference || '—',
+            _amountPaidNgn: reportAmt,
+          };
+        });
         return {
           title: PACK_SALES_CUSTOMER,
           columns: [
             { key: 'group', label: 'Category' },
-            { key: 'paymentDateISO', label: 'Payment date' },
+            { key: 'paymentDateISO', label: 'Date' },
             { key: 'customerName', label: 'Customer' },
             { key: 'quotationRef', label: 'Quotation' },
             { key: 'amountPaidNgn', label: 'Amount paid' },
+            { key: 'outstandingBalanceNgn', label: 'Balance outstanding' },
             { key: 'paymentMethod', label: 'Method' },
             { key: 'bankReference', label: 'Reference' },
           ],
@@ -367,13 +377,17 @@ export function useReportsExport({
             subtotalColumnKey: 'amountPaidNgn',
             groupLabel: 'Category',
             subtotalLabel: 'Subtotal',
-            totalLabel: 'Total received',
+            totalLabel: 'Total',
           },
           summaryLines: [
             { label: 'Rows', value: String(s.rowCount) },
-            { label: 'Total in report', value: formatNgn(s.totalReceivedNgn) },
+            { label: 'Cash in report', value: formatNgn(s.totalReceivedNgn) },
             { label: 'Materials produced in period (sales)', value: formatNgn(s.producedNgn) },
             { label: 'Materials not produced in period (credit)', value: formatNgn(s.notProducedNgn) },
+            {
+              label: 'Outstanding balance (debtors)',
+              value: `${formatNgn(s.outstandingNgn)} · ${s.outstandingQuoteCount} quote(s)`,
+            },
           ],
         };
       }
@@ -650,6 +664,7 @@ export function useReportsExport({
         customerName: r.customerName,
         quotationRef: r.quotationRef,
         amountPaidNgn: r.amountPaidNgn,
+        outstandingBalanceNgn: Number(r.outstandingBalanceNgn) || 0,
         paymentMethod: r.paymentMethod,
         bankReference: r.bankReference,
         ledgerEntryId: r.ledgerEntryId,

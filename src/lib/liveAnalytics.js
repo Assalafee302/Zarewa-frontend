@@ -1,8 +1,10 @@
 import {
   companionOverpayNgnByReceiptId,
   firstProductionDateISO,
+  quotationWaivedBalanceNgn,
   receivableDueOnQuotationFromEntries,
 } from './customerLedgerCore.js';
+import { registerReceivableOutstandingNgn } from './receivableWriteOffPolicy.js';
 import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
 import { refundOutstandingAmount, isRefundPayable, approvedRefundsAwaitingPayment } from './refundsStore.js';
 import { isReceiptReversed, receiptEffectiveCashNgn } from './receiptClearance.js';
@@ -637,6 +639,88 @@ export function earliestCompletedProductionDateISO(quotationRef, productionJobs 
   return min;
 }
 
+/** Cash + applied credits on a quotation dated on or before asAtISO (period-end debtors). */
+export function quotationPaidNgnAsOf(quotationRef, salesReceipts = [], ledgerEntries = [], asAtISO = '') {
+  const qref = String(quotationRef || '').trim();
+  if (!qref) return 0;
+  const asAt = toIsoDate(asAtISO);
+  const companion = companionOverpayNgnByReceiptId(ledgerEntries);
+  let paid = 0;
+  for (const r of salesReceipts || []) {
+    if (isReceiptReversed(r)) continue;
+    if (String(r.quotationRef || '').trim() !== qref) continue;
+    const iso = toIsoDate(r.dateISO || r.date || r.atISO);
+    if (!iso) continue;
+    if (asAt && iso > asAt) continue;
+    const rid = String(r.id || '').trim();
+    const lid = r.ledgerEntryId != null ? String(r.ledgerEntryId).trim() : '';
+    const extra = companion.get(rid) || (lid ? companion.get(lid) : 0) || 0;
+    paid += receiptEffectiveCashNgn(r, { companionOverpayNgn: extra });
+  }
+  for (const e of ledgerEntries || []) {
+    const t = String(e.type || '').trim();
+    if (t !== 'ADVANCE_APPLIED' && t !== 'OVERPAY_APPLIED' && t !== 'STAFF_PURCHASE_CREDIT') continue;
+    if (String(e.quotationRef || '').trim() !== qref) continue;
+    const iso = toIsoDate(e.atISO);
+    if (!iso) continue;
+    if (asAt && iso > asAt) continue;
+    paid += Math.round(Number(e.amountNgn) || 0);
+  }
+  return Math.round(paid);
+}
+
+export const SALES_REPORT_GROUP_PRODUCED = 'Materials produced in period';
+export const SALES_REPORT_GROUP_NOT_PRODUCED = 'Materials not produced in period';
+export const SALES_REPORT_GROUP_OUTSTANDING = 'Outstanding balance (debtors)';
+
+/**
+ * Quotes with completed production by period end and unpaid balance as-of that date.
+ * Shown every month so debtors remain visible even with no payment activity in the period.
+ */
+export function salesOutstandingBalanceRows(
+  quotations = [],
+  productionJobs = [],
+  salesReceipts = [],
+  ledgerEntries = [],
+  endDate
+) {
+  const asAt = toIsoDate(endDate);
+  if (!asAt) return [];
+  const rows = [];
+  for (const q of quotations || []) {
+    const qref = String(q.id || '').trim();
+    if (!qref) continue;
+    const firstProd = earliestCompletedProductionDateISO(qref, productionJobs);
+    if (!firstProd || firstProd > asAt) continue;
+    const total = Math.round(Number(q.totalNgn ?? q.total_ngn) || 0);
+    if (total <= 0) continue;
+    const paid = quotationPaidNgnAsOf(qref, salesReceipts, ledgerEntries, asAt);
+    const due = registerReceivableOutstandingNgn(total, paid, quotationWaivedBalanceNgn(q));
+    if (due <= 0) continue;
+    rows.push({
+      group: SALES_REPORT_GROUP_OUTSTANDING,
+      paymentDateISO: asAt,
+      customerName: q.customer || q.customerName || '',
+      quotationRef: qref,
+      amountPaidNgn: 0,
+      outstandingBalanceNgn: due,
+      quoteTotalNgn: total,
+      paidToDateNgn: paid,
+      paymentMethod: '',
+      bankReference: '',
+      ledgerEntryId: '',
+      receiptId: '',
+      firstProductionDateISO: firstProd,
+    });
+  }
+  rows.sort(
+    (a, b) =>
+      (Number(b.outstandingBalanceNgn) || 0) - (Number(a.outstandingBalanceNgn) || 0) ||
+      String(a.quotationRef).localeCompare(String(b.quotationRef))
+  );
+  return rows;
+}
+
 /**
  * Payments / sales recognition for the selected period.
  *
@@ -646,9 +730,11 @@ export function earliestCompletedProductionDateISO(quotationRef, productionJobs 
  *   that was still credit until production).
  * - **Materials not produced in period** — cash received in this period whose quote is still
  *   unproduced at period end (customer credit / deferred sales).
+ * - **Outstanding balance (debtors)** — produced by period end with unpaid balance as-of that date
+ *   (listed every month while the balance remains).
  *
  * Cash collected in this period on quotes already produced before the period is omitted
- * (prior-period sales; collection only).
+ * (prior-period sales; collection only) from the cash groups, but still affects debtor balances.
  *
  * Cash basis matches the receipts register (`receiptEffectiveCashNgn`).
  *
@@ -670,11 +756,34 @@ export function salesPaymentsReceivedRows(
   const quoteCustomer = new Map(
     (quotations || []).map((q) => [String(q.id || '').trim(), q.customer || q.customerName || ''])
   );
+  const quoteById = new Map((quotations || []).map((q) => [String(q.id || '').trim(), q]));
   const ledgerById = new Map(
     (ledgerEntries || []).map((e) => [String(e.id || '').trim(), e]).filter(([k]) => k)
   );
   const companion = companionOverpayNgnByReceiptId(ledgerEntries);
   const firstProdByQuote = new Map();
+  const outstandingByQuote = new Map();
+  const asAt = toIsoDate(endDate);
+
+  const outstandingFor = (qref) => {
+    if (!qref || !asAt) return 0;
+    if (outstandingByQuote.has(qref)) return outstandingByQuote.get(qref);
+    const q = quoteById.get(qref);
+    if (!firstProdByQuote.has(qref)) {
+      firstProdByQuote.set(qref, earliestCompletedProductionDateISO(qref, productionJobs));
+    }
+    const firstProd = firstProdByQuote.get(qref) || '';
+    if (!q || !firstProd || firstProd > asAt) {
+      outstandingByQuote.set(qref, 0);
+      return 0;
+    }
+    const total = Math.round(Number(q.totalNgn ?? q.total_ngn) || 0);
+    const paid = quotationPaidNgnAsOf(qref, salesReceipts, ledgerEntries, asAt);
+    const due = registerReceivableOutstandingNgn(total, paid, quotationWaivedBalanceNgn(q));
+    outstandingByQuote.set(qref, due);
+    return due;
+  };
+
   const rows = [];
   for (const r of salesReceipts || []) {
     if (isReceiptReversed(r)) continue;
@@ -707,13 +816,10 @@ export function salesPaymentsReceivedRows(
 
     let group = '';
     if (firstProdInPeriod && (!endDate || iso <= endDate)) {
-      // Sales recognized in the production month (prior-month credit becomes this month’s sales).
-      group = 'Materials produced in period';
+      group = SALES_REPORT_GROUP_PRODUCED;
     } else if (paidInPeriod && stillUnproducedAtPeriodEnd) {
-      // Cash in this period still sitting as credit at period end.
-      group = 'Materials not produced in period';
+      group = SALES_REPORT_GROUP_NOT_PRODUCED;
     } else {
-      // e.g. paid this period on a quote produced before the period — collection, not new sales.
       continue;
     }
 
@@ -724,6 +830,7 @@ export function salesPaymentsReceivedRows(
         r.customer || r.customerName || le?.customerName || le?.customerID || quoteCustomer.get(qref) || '',
       quotationRef: qref,
       amountPaidNgn: amount,
+      outstandingBalanceNgn: outstandingFor(qref),
       paymentMethod: r.method || r.paymentMethod || le?.paymentMethod || '',
       bankReference: le?.bankReference || r.bankReference || '',
       ledgerEntryId: lid || rid || '',
@@ -731,6 +838,16 @@ export function salesPaymentsReceivedRows(
       firstProductionDateISO: firstProd || '',
     });
   }
+
+  const debtorRows = salesOutstandingBalanceRows(
+    quotations,
+    productionJobs,
+    salesReceipts,
+    ledgerEntries,
+    endDate
+  );
+  rows.push(...debtorRows);
+
   rows.sort(
     (a, b) =>
       String(a.group).localeCompare(String(b.group)) ||
@@ -743,18 +860,26 @@ export function salesPaymentsReceivedRows(
 }
 
 export function salesPaymentsReceivedSummary(rows = []) {
-  const totalReceivedNgn = rows.reduce((s, r) => s + (Number(r.amountPaidNgn) || 0), 0);
-  const producedNgn = rows
-    .filter((r) => r.group === 'Materials produced in period')
+  const cashRows = (rows || []).filter((r) => r.group !== SALES_REPORT_GROUP_OUTSTANDING);
+  const outstandingRows = (rows || []).filter((r) => r.group === SALES_REPORT_GROUP_OUTSTANDING);
+  const totalReceivedNgn = cashRows.reduce((s, r) => s + (Number(r.amountPaidNgn) || 0), 0);
+  const producedNgn = cashRows
+    .filter((r) => r.group === SALES_REPORT_GROUP_PRODUCED)
     .reduce((s, r) => s + (Number(r.amountPaidNgn) || 0), 0);
-  const notProducedNgn = rows
-    .filter((r) => r.group === 'Materials not produced in period')
+  const notProducedNgn = cashRows
+    .filter((r) => r.group === SALES_REPORT_GROUP_NOT_PRODUCED)
     .reduce((s, r) => s + (Number(r.amountPaidNgn) || 0), 0);
+  const outstandingNgn = outstandingRows.reduce(
+    (s, r) => s + (Number(r.outstandingBalanceNgn) || 0),
+    0
+  );
   return {
     rowCount: rows.length,
     totalReceivedNgn,
     producedNgn,
     notProducedNgn,
+    outstandingNgn,
+    outstandingQuoteCount: outstandingRows.length,
   };
 }
 

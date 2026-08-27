@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { salesPaymentsReceivedRows, salesPaymentsReceivedSummary } from './liveAnalytics.js';
+import {
+  salesOutstandingBalanceRows,
+  salesPaymentsReceivedRows,
+  salesPaymentsReceivedSummary,
+} from './liveAnalytics.js';
 
 describe('salesPaymentsReceivedRows', () => {
   it('uses sales-receipt cash, not shrunk ledger RECEIPT after finance overpay split', () => {
@@ -220,6 +224,110 @@ describe('salesPaymentsReceivedRows', () => {
       },
     ];
     const rows = salesPaymentsReceivedRows(receipts, jobs, [], '2026-03-01', '2026-03-31', []);
-    expect(rows).toHaveLength(0);
+    expect(rows.filter((r) => r.group !== 'Outstanding balance (debtors)')).toHaveLength(0);
+  });
+
+  it('lists outstanding debtor balances as-of period end each month', () => {
+    const quotations = [
+      { id: 'QT-DEBT', customer: 'Debtor Co', totalNgn: 500_000, paidNgn: 200_000 },
+    ];
+    const receipts = [
+      {
+        id: 'SR-PART',
+        customer: 'Debtor Co',
+        quotationRef: 'QT-DEBT',
+        dateISO: '2026-01-10',
+        amountNgn: 200_000,
+      },
+    ];
+    const jobs = [
+      {
+        quotationRef: 'QT-DEBT',
+        status: 'Completed',
+        completedAtISO: '2026-01-15T10:00:00.000Z',
+        actualMeters: 80,
+      },
+    ];
+
+    const jan = salesPaymentsReceivedRows(
+      receipts,
+      jobs,
+      quotations,
+      '2026-01-01',
+      '2026-01-31',
+      []
+    );
+    const janDebt = jan.filter((r) => r.group === 'Outstanding balance (debtors)');
+    expect(janDebt).toHaveLength(1);
+    expect(janDebt[0].outstandingBalanceNgn).toBe(300_000);
+    expect(janDebt[0].paymentDateISO).toBe('2026-01-31');
+
+    const feb = salesPaymentsReceivedRows(
+      receipts,
+      jobs,
+      quotations,
+      '2026-02-01',
+      '2026-02-28',
+      []
+    );
+    const febDebt = feb.filter((r) => r.group === 'Outstanding balance (debtors)');
+    expect(febDebt).toHaveLength(1);
+    expect(febDebt[0].outstandingBalanceNgn).toBe(300_000);
+
+    const febCash = feb.filter((r) => r.group !== 'Outstanding balance (debtors)');
+    expect(febCash).toHaveLength(0);
+
+    const s = salesPaymentsReceivedSummary(feb);
+    expect(s.outstandingNgn).toBe(300_000);
+    expect(s.outstandingQuoteCount).toBe(1);
+  });
+
+  it('drops debtor row once balance is cleared by period end', () => {
+    const quotations = [
+      { id: 'QT-CLR', customer: 'Cleared', totalNgn: 100_000, paidNgn: 100_000 },
+    ];
+    const receipts = [
+      {
+        id: 'SR-A',
+        customer: 'Cleared',
+        quotationRef: 'QT-CLR',
+        dateISO: '2026-01-05',
+        amountNgn: 40_000,
+      },
+      {
+        id: 'SR-B',
+        customer: 'Cleared',
+        quotationRef: 'QT-CLR',
+        dateISO: '2026-02-10',
+        amountNgn: 60_000,
+      },
+    ];
+    const jobs = [
+      {
+        quotationRef: 'QT-CLR',
+        status: 'Completed',
+        completedAtISO: '2026-01-20T10:00:00.000Z',
+        actualMeters: 20,
+      },
+    ];
+
+    const jan = salesOutstandingBalanceRows(
+      quotations,
+      jobs,
+      receipts,
+      [],
+      '2026-01-31'
+    );
+    expect(jan).toHaveLength(1);
+    expect(jan[0].outstandingBalanceNgn).toBe(60_000);
+
+    const feb = salesOutstandingBalanceRows(
+      quotations,
+      jobs,
+      receipts,
+      [],
+      '2026-02-28'
+    );
+    expect(feb).toHaveLength(0);
   });
 });
