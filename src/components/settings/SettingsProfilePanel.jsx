@@ -238,7 +238,7 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
         {!embedInMyProfile ? (
           <div className="mt-4">
             <Link
-              to="/settings/security"
+              to="/me/account#security"
               className="inline-flex items-center gap-2 text-xs font-semibold text-zarewa-teal hover:underline"
             >
               <Lock size={14} /> Change password

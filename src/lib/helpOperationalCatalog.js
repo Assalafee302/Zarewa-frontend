@@ -897,7 +897,7 @@ const OPERATIONAL_TOPICS = [
       'Generate/set temporary password.',
       'Tell user to update under **Security**.',
     ],
-    links: [{ label: 'Settings — Security', to: '/settings/security' }],
+    links: [{ label: 'Account — Password & security', to: '/me/account#security' }],
     extraKeywords: ['password', 'reset login', 'forgot password admin'],
   },
   {
@@ -975,7 +975,7 @@ const OPERATIONAL_TOPICS = [
       'Settings → **Security** for password.',
       'Enable practices per company policy.',
     ],
-    links: [{ label: 'Settings', to: '/settings/security' }],
+    links: [{ label: 'Account — Password & security', to: '/me/account#security' }],
     extraKeywords: ['profile', 'my password', 'security'],
   },
   {

@@ -114,13 +114,20 @@ export function documentTitleForPath(pathname) {
   }
 
   if (p.startsWith('/settings')) {
-    const sec = p.split('/')[2] || 'profile';
+    const sec = p.split('/')[2] || 'overview';
     const labels = {
-      profile: 'Profile',
+      overview: 'Overview',
+      team: 'Team',
+      organization: 'Organization',
+      catalog: 'Catalog',
       governance: 'Governance',
-      data: 'Master data',
-      team: 'Team access',
-      guide: 'Workspace guide',
+      help: 'Help',
+      system: 'System',
+      // Legacy paths (redirected) still get a sensible title if seen briefly
+      profile: 'Overview',
+      data: 'Catalog',
+      guide: 'Help',
+      preferences: 'Organization',
     };
     const label = labels[sec] || 'Settings';
     return `Settings – ${label} | ${DOCUMENT_TITLE_BASE}`;

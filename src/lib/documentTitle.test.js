@@ -41,9 +41,10 @@ describe('documentTitleForPath', () => {
   });
 
   it('maps settings sections', () => {
-    expect(documentTitleForPath('/settings/profile')).toContain('Profile');
+    expect(documentTitleForPath('/settings/overview')).toContain('Overview');
     expect(documentTitleForPath('/settings/governance')).toContain('Governance');
-    expect(documentTitleForPath('/settings/data')).toContain('Master data');
+    expect(documentTitleForPath('/settings/catalog')).toContain('Catalog');
+    expect(documentTitleForPath('/settings/data')).toContain('Catalog');
   });
 
   it('includes base suffix', () => {

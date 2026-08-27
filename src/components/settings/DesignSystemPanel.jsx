@@ -39,7 +39,7 @@ export default function DesignSystemPanel() {
 
       <Breadcrumbs
         items={[
-          { label: 'Settings', to: '/settings/profile' },
+          { label: 'Settings', to: '/settings/system' },
           { label: 'Design system' },
         ]}
       />

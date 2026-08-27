@@ -297,10 +297,10 @@ export function buildUserProfileActions(ctx = {}) {
 
   if (canModule('settings')) {
     actions.push({
-      id: 'preferences',
-      label: 'Dashboard preferences',
-      description: 'Home layout and targets',
-      to: '/settings/preferences',
+      id: 'admin-settings',
+      label: 'Administration settings',
+      description: 'Team, organization, catalog, and governance',
+      to: '/settings/overview',
       category: 'workspace',
       tone: 'slate',
       icon: 'settings',

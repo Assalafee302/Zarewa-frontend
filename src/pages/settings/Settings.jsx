@@ -1,124 +1,45 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, Route, Routes, useMatch, useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useMemo } from 'react';
+import { Navigate, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Save,
-  Shield,
-  BadgeDollarSign,
   Users,
-  ShoppingCart,
-  Package,
-  Factory,
-  Truck,
-  Landmark,
-  BarChart3,
-  LifeBuoy,
-  ChevronRight,
-  User,
   Database,
   Scale,
   BookOpen,
-  Lock,
+  Building2,
+  LayoutGrid,
   SlidersHorizontal,
-  RotateCcw,
-  Tags,
-  Library,
-  Palette,
 } from 'lucide-react';
 import { PageHeader, PageShell, MainPanel, PageTabs } from '../../components/layout';
-import MasterDataWorkbench from '../../components/settings/MasterDataWorkbench';
-import CoilRegisterImportPanel from '../../components/settings/CoilRegisterImportPanel';
-import TeamAccessPanel from '../../components/settings/TeamAccessPanel';
+import SettingsOverviewPanel from '../../components/settings/SettingsOverviewPanel';
+import OrganizationSettingsPanel from '../../components/settings/OrganizationSettingsPanel';
+import CatalogSettingsPanel from '../../components/settings/CatalogSettingsPanel';
+import GovernanceSettingsPanel from '../../components/settings/GovernanceSettingsPanel';
+import HelpSettingsPanel from '../../components/settings/HelpSettingsPanel';
+import SystemSettingsPanel from '../../components/settings/SystemSettingsPanel';
 import LoginSecurityPanel from '../../components/settings/LoginSecurityPanel';
 import CustomPermissionOverridesPanel from '../../components/settings/CustomPermissionOverridesPanel';
-import SettingsProfilePanel from '../../components/settings/SettingsProfilePanel';
-import AdminDataResetPanel from '../../components/settings/AdminDataResetPanel';
-import QuotationLineIntegrityPanel from '../../components/settings/QuotationLineIntegrityPanel';
-import { SettingsIntegrationApiPanel } from '../../components/settings/SettingsIntegrationApiPanel';
-import { ZareIntelligencePanel } from '../../components/settings/ZareIntelligencePanel';
-import { KnowledgeCenterPanel } from '../../components/settings/KnowledgeCenterPanel';
-import DesignSystemPanel from '../../components/settings/DesignSystemPanel';
-import {
-  DEFAULT_MANAGER_TARGETS_PER_MONTH,
-  mergeDashboardPrefs,
-  persistDashboardPrefsToServer,
-  dashboardPrefsShallowEqual,
-} from '../../lib/dashboardPrefs';
-import { WORKSPACE_GUIDE_ENTRIES } from '../../lib/departmentWorkspace';
-import { trainingGuideForRole } from '../../lib/roleTrainingGuide';
-import { apiFetch, apiUrl } from '../../lib/apiBase';
-import { useToast } from '../../context/ToastContext';
+import TeamAccessPanel from '../../components/settings/TeamAccessPanel';
 import { useWorkspace } from '../../context/WorkspaceContext';
-
-const DEPT_GUIDE_ICONS = {
-  customer: Users,
-  sales: ShoppingCart,
-  inventory: Package,
-  production: Factory,
-  purchase: Truck,
-  finance: Landmark,
-  reports: BarChart3,
-  it: LifeBuoy,
-};
-
-const DEPARTMENT_GUIDE = WORKSPACE_GUIDE_ENTRIES.map((e) => ({
-  ...e,
-  icon: DEPT_GUIDE_ICONS[e.id] || Users,
-}));
 
 function useSettingsSection() {
   const { pathname } = useLocation();
   const m = pathname.match(/^\/settings\/([^/]+)\/?$/);
-  return m?.[1] ?? 'profile';
+  return m?.[1] ?? 'overview';
 }
 
 const Settings = () => {
   const navigate = useNavigate();
-  const { show: showToast } = useToast();
   const ws = useWorkspace();
-  const wsRefresh = ws?.refresh;
   const activeSection = useSettingsSection();
-  const governanceMatch = useMatch({ path: '/settings/governance', end: true });
 
-  const [prefs, setPrefs] = useState(() => mergeDashboardPrefs());
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-  const [periodForm, setPeriodForm] = useState({
-    periodKey: new Date().toISOString().slice(0, 7),
-    reason: '',
-  });
-  const [branchAudit, setBranchAudit] = useState(null);
-  const [branchAuditBusy, setBranchAuditBusy] = useState(false);
-  const [orgMtNaira, setOrgMtNaira] = useState('');
-  const [orgMtMeters, setOrgMtMeters] = useState('');
-  const [orgMtBusy, setOrgMtBusy] = useState(false);
-  const [storeCoilMinKg, setStoreCoilMinKg] = useState('700');
-  const [storeStoneMinM, setStoreStoneMinM] = useState('400');
-  const [storeSpecOverrides, setStoreSpecOverrides] = useState(
-    /** @type {{ family: string, colour: string, gauge: string, minKg: string }[]} */ ([])
-  );
-  const [storeRestockBusy, setStoreRestockBusy] = useState(false);
   const currentUser = ws?.session?.user;
   const permissions = ws?.permissions ?? [];
-  const periodLocks = ws?.snapshot?.periodLocks ?? [];
-  const auditLog = ws?.snapshot?.auditLog ?? [];
   const appUsers = ws?.snapshot?.appUsers ?? [];
-  const masterData = ws?.snapshot?.masterData ?? {
-    quoteItems: [],
-    colours: [],
-    gauges: [],
-    materialTypes: [],
-    profiles: [],
-    priceList: [],
-    expenseCategories: [],
-    procurementCatalog: [],
-  };
 
   const showTeamTab = Boolean(ws?.hasPermission?.('settings.view'));
-  const canEditOrgTargets = Boolean(ws?.hasPermission?.('settings.view'));
-  const showIntegrationApiPanel = showTeamTab;
+  const showOrganization = Boolean(ws?.hasPermission?.('settings.view'));
+  const showSystemTab = showTeamTab;
+  const showIntegrationApi = showTeamTab;
   const showAdminDataReset = String(currentUser?.roleKey || '').toLowerCase() === 'admin';
   const showZareIntelligence =
     permissions.includes('*') ||
@@ -126,394 +47,55 @@ const Settings = () => {
     permissions.includes('audit.view');
 
   const settingsTabs = useMemo(() => {
-    const tabs = [
-      { id: 'profile', label: 'Profile', icon: <User size={14} /> },
-      { id: 'security', label: 'Security', icon: <Lock size={14} /> },
-      { id: 'preferences', label: 'Preferences', icon: <SlidersHorizontal size={14} /> },
-    ];
+    const tabs = [{ id: 'overview', label: 'Overview', icon: <LayoutGrid size={14} /> }];
     if (showTeamTab) {
-      tabs.push({ id: 'team', label: 'Team & access', icon: <Users size={14} /> });
-      tabs.push({ id: 'design-system', label: 'Design system', icon: <Palette size={14} /> });
+      tabs.push({ id: 'team', label: 'Team', icon: <Users size={14} /> });
     }
-    if (showZareIntelligence) {
-      tabs.push({ id: 'zare-intelligence', label: 'Zare intelligence', icon: <LifeBuoy size={14} /> });
-      tabs.push({ id: 'knowledge-center', label: 'AI Knowledge Center', icon: <Library size={14} /> });
+    if (showOrganization) {
+      tabs.push({ id: 'organization', label: 'Organization', icon: <Building2 size={14} /> });
     }
     tabs.push(
-      { id: 'data', label: 'Data & catalog', icon: <Database size={14} /> },
-      ...(showAdminDataReset
-        ? [{ id: 'admin-reset', label: 'Admin data reset', icon: <RotateCcw size={14} /> }]
-        : []),
+      { id: 'catalog', label: 'Catalog', icon: <Database size={14} /> },
       { id: 'governance', label: 'Governance', icon: <Scale size={14} /> },
-      { id: 'guide', label: 'Team guide', icon: <BookOpen size={14} /> }
+      { id: 'help', label: 'Help', icon: <BookOpen size={14} /> }
     );
+    if (showSystemTab) {
+      tabs.push({ id: 'system', label: 'System', icon: <SlidersHorizontal size={14} /> });
+    }
     return tabs;
-  }, [showTeamTab, showAdminDataReset, showZareIntelligence]);
+  }, [showTeamTab, showOrganization, showSystemTab]);
 
   const allowedSections = useMemo(() => new Set(settingsTabs.map((t) => t.id)), [settingsTabs]);
 
   useEffect(() => {
-    const next = mergeDashboardPrefs(ws?.snapshot?.dashboardPrefs);
-    setPrefs((prev) => (dashboardPrefsShallowEqual(prev, next) ? prev : next));
-  }, [ws?.snapshot?.dashboardPrefs, ws?.refreshEpoch]);
-
-  useEffect(() => {
-    const o = ws?.snapshot?.orgManagerTargets;
-    setOrgMtNaira(o?.nairaTargetPerMonth != null ? String(o.nairaTargetPerMonth) : '');
-    setOrgMtMeters(o?.meterTargetPerMonth != null ? String(o.meterTargetPerMonth) : '');
-  }, [ws?.snapshot?.orgManagerTargets, ws?.refreshEpoch]);
-
-  useEffect(() => {
-    const s = ws?.snapshot?.orgStoreRestock;
-    setStoreCoilMinKg(s?.coilRestockMinKg != null ? String(s.coilRestockMinKg) : '700');
-    setStoreStoneMinM(s?.stoneRestockMinM != null ? String(s.stoneRestockMinM) : '400');
-    const overrides = Array.isArray(s?.specMinOverrides) ? s.specMinOverrides : [];
-    setStoreSpecOverrides(
-      overrides.map((r) => ({
-        family: r.family === 'aluminium' ? 'aluminium' : 'aluzinc',
-        colour: String(r.colour || ''),
-        gauge: String(r.gauge || ''),
-        minKg: String(r.minKg ?? ''),
-      }))
-    );
-  }, [ws?.snapshot?.orgStoreRestock, ws?.refreshEpoch]);
-
-  /** If URL is /settings/foo and foo is not a valid section (e.g. team without permission), normalize. */
-  useEffect(() => {
     if (!allowedSections.has(activeSection)) {
-      navigate('/settings/profile', { replace: true });
+      // Legacy personal / renamed sections are handled by explicit Redirect routes.
+      const legacy = new Set([
+        'profile',
+        'security',
+        'preferences',
+        'data',
+        'admin-reset',
+        'guide',
+        'zare-intelligence',
+        'knowledge-center',
+        'design-system',
+      ]);
+      if (!legacy.has(activeSection)) {
+        navigate('/settings/overview', { replace: true });
+      }
     }
   }, [activeSection, allowedSections, navigate]);
-
-  // If user lost permission for /settings/team, bounce off team URL.
-  useEffect(() => {
-    if (activeSection === 'team' && !showTeamTab) {
-      navigate('/settings/profile', { replace: true });
-    }
-  }, [activeSection, showTeamTab, navigate]);
-
-  useEffect(() => {
-    if (activeSection === 'admin-reset' && !showAdminDataReset) {
-      navigate('/settings/profile', { replace: true });
-    }
-  }, [activeSection, showAdminDataReset, navigate]);
-
-  const persist = async () => {
-    try {
-      await persistDashboardPrefsToServer(prefs);
-      showToast('Preferences saved. Returning to dashboard.');
-      await wsRefresh?.();
-      navigate('/', { replace: true });
-    } catch (e) {
-      showToast(String(e.message || e), { variant: 'error' });
-    }
-  };
-
-  const persistOrgManagerTargets = async () => {
-    setOrgMtBusy(true);
-    try {
-      const nRaw = orgMtNaira.trim() === '' ? null : Number(String(orgMtNaira).replace(/,/g, ''));
-      const mRaw = orgMtMeters.trim() === '' ? null : Number(String(orgMtMeters).replace(/,/g, ''));
-      const { ok, data } = await apiFetch('/api/setup/org-manager-targets', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          nairaTargetPerMonth: nRaw,
-          meterTargetPerMonth: mRaw,
-        }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not save company targets.', { variant: 'error' });
-        return;
-      }
-      showToast('Company manager targets saved.');
-      await ws?.refresh?.();
-    } catch (e) {
-      showToast(String(e.message || e), { variant: 'error' });
-    } finally {
-      setOrgMtBusy(false);
-    }
-  };
-
-  const clearOrgManagerTargets = async () => {
-    setOrgMtBusy(true);
-    try {
-      const { ok, data } = await apiFetch('/api/setup/org-manager-targets', {
-        method: 'PATCH',
-        body: JSON.stringify({ clear: true }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not clear company targets.', { variant: 'error' });
-        return;
-      }
-      showToast('Company manager targets cleared.');
-      setOrgMtNaira('');
-      setOrgMtMeters('');
-      await ws?.refresh?.();
-    } catch (e) {
-      showToast(String(e.message || e), { variant: 'error' });
-    } finally {
-      setOrgMtBusy(false);
-    }
-  };
-
-  const persistOrgStoreRestock = async () => {
-    setStoreRestockBusy(true);
-    try {
-      const coil = Number(String(storeCoilMinKg).replace(/,/g, ''));
-      const stone = Number(String(storeStoneMinM).replace(/,/g, ''));
-      const specMinOverrides = storeSpecOverrides
-        .map((r) => ({
-          family: r.family === 'aluminium' ? 'aluminium' : 'aluzinc',
-          colour: String(r.colour || '').trim(),
-          gauge: String(r.gauge || '').trim(),
-          minKg: Number(String(r.minKg).replace(/,/g, '')),
-        }))
-        .filter((r) => r.colour && r.gauge && Number.isFinite(r.minKg) && r.minKg > 0);
-      const { ok, data } = await apiFetch('/api/setup/org-store-restock', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          coilRestockMinKg: coil,
-          stoneRestockMinM: stone,
-          specMinOverrides,
-        }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not save store restock mins.', { variant: 'error' });
-        return;
-      }
-      showToast('Store restock mins saved.');
-      await ws?.refresh?.();
-    } catch (e) {
-      showToast(String(e.message || e), { variant: 'error' });
-    } finally {
-      setStoreRestockBusy(false);
-    }
-  };
-
-  const downloadAuditNdjson = async () => {
-    try {
-      const r = await fetch(apiUrl('/api/audit/export.ndjson'), { credentials: 'include' });
-      if (!r.ok) {
-        showToast('Could not download audit export.', { variant: 'error' });
-        return;
-      }
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'zarewa-audit-export.ndjson';
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast('Audit export downloaded.');
-    } catch {
-      showToast('Audit export failed.', { variant: 'error' });
-    }
-  };
-
-  const changePassword = async (e) => {
-    e.preventDefault();
-    if (!passwordForm.currentPassword || !passwordForm.newPassword) return;
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      showToast('New password and confirmation do not match.', { variant: 'error' });
-      return;
-    }
-    const r = await ws?.changePassword?.(passwordForm.currentPassword, passwordForm.newPassword);
-    if (!r?.ok) {
-      showToast(r?.error || 'Could not change password.', { variant: 'error' });
-      return;
-    }
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    showToast('Password updated.');
-  };
-
-  const lockPeriod = async (e) => {
-    e.preventDefault();
-    const periodKey = periodForm.periodKey.trim();
-    if (!periodKey) return;
-    const { ok, data } = await apiFetch('/api/controls/period-locks', {
-      method: 'POST',
-      body: JSON.stringify({
-        periodKey,
-        reason: periodForm.reason.trim(),
-      }),
-    });
-    if (!ok || !data?.ok) {
-      showToast(data?.error || 'Could not lock period.', { variant: 'error' });
-      return;
-    }
-    await ws?.refresh?.();
-    setPeriodForm((prev) => ({ ...prev, reason: '' }));
-    showToast(`Period ${periodKey} locked.`);
-  };
-
-  const unlockPeriod = async (periodKey) => {
-    const { ok, data } = await apiFetch(`/api/controls/period-locks/${encodeURIComponent(periodKey)}`, {
-      method: 'DELETE',
-      body: JSON.stringify({ reason: 'Unlocked from Settings' }),
-    });
-    if (!ok || !data?.ok) {
-      showToast(data?.error || 'Could not unlock period.', { variant: 'error' });
-      return;
-    }
-    await ws?.refresh?.();
-    showToast(`Period ${periodKey} unlocked.`);
-  };
-
-  const showPeriodControls = Boolean(ws?.hasPermission?.('period.manage'));
-  // Annex D §D.5.4: full export is admin-only (`audit.export`); viewing stays on `audit.view`.
-  const showAuditExport = permissions.includes('*') || permissions.includes('audit.export');
-  const showBranchAudit = permissions.includes('*') || permissions.includes('settings.view');
-  const showCuttingThresholdControl = permissions.includes('*') || permissions.includes('settings.view');
-  const showGovernanceLimitsControl = permissions.includes('*') || permissions.includes('settings.view');
-  const showQuotationLineIntegrityAudit =
-    permissions.includes('*') ||
-    permissions.includes('settings.view') ||
-    permissions.includes('finance.approve') ||
-    permissions.includes('refunds.approve') ||
-    permissions.includes('quotations.manage');
-  const governanceHasContent =
-    showPeriodControls ||
-    showAuditExport ||
-    showBranchAudit ||
-    showCuttingThresholdControl ||
-    showGovernanceLimitsControl ||
-    showQuotationLineIntegrityAudit ||
-    showIntegrationApiPanel ||
-    auditLog.length > 0;
-
-  const workspaceBranches = useMemo(
-    () => ws?.snapshot?.workspaceBranches ?? [],
-    [ws?.snapshot?.workspaceBranches]
-  );
-  const branchCuttingSig = workspaceBranches.map((b) => `${b.id}:${Number(b.cuttingListMinPaidFraction)}`).join(',');
-  const [cuttingDraftPct, setCuttingDraftPct] = useState({});
-  const [cuttingSaveBusy, setCuttingSaveBusy] = useState('');
-  const [govLimitsForm, setGovLimitsForm] = useState({
-    expenseExecutiveThresholdNgn: 200_000,
-    refundExecutiveThresholdNgn: 1_000_000,
-    othersMinJustificationLen: 40,
-    othersFinanceReviewThresholdNgn: 50_000,
-    ap3UnclassifiedAlertThresholdNgn: 100_000,
-    othersBranchCoachThresholdPct: 15,
-    refundStaffAllocationDeductionPct: 20,
-  });
-  const [govLimitsBusy, setGovLimitsBusy] = useState(false);
-
-  useEffect(() => {
-    const next = {};
-    for (const b of workspaceBranches) {
-      const f = Number(b.cuttingListMinPaidFraction);
-      const pct = Math.round((Number.isFinite(f) ? f : 0.7) * 100);
-      next[b.id] = String(Math.min(100, Math.max(5, pct)));
-    }
-    setCuttingDraftPct(next);
-  }, [branchCuttingSig, workspaceBranches]);
-
-  const saveBranchCuttingPct = async (branchId) => {
-    const bid = String(branchId || '').trim();
-    const n = Number(String(cuttingDraftPct[bid] ?? '').replace(/,/g, ''));
-    if (!Number.isFinite(n) || n < 5 || n > 100) {
-      showToast('Enter a whole percent between 5 and 100.', { variant: 'error' });
-      return;
-    }
-    setCuttingSaveBusy(bid);
-    try {
-      const { ok, data } = await apiFetch(`/api/branches/${encodeURIComponent(bid)}/cutting-threshold`, {
-        method: 'PATCH',
-        body: JSON.stringify({ cuttingListMinPaidFraction: n / 100 }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not update cutting threshold.', { variant: 'error' });
-        return;
-      }
-      await wsRefresh?.();
-      showToast('Cutting list payment gate saved for branch.');
-    } finally {
-      setCuttingSaveBusy('');
-    }
-  };
-
-  const loadBranchAudit = useCallback(async () => {
-    if (!showBranchAudit) return;
-    setBranchAuditBusy(true);
-    try {
-      const { ok, data } = await apiFetch('/api/branches/strict-audit');
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not load branch integrity audit.', { variant: 'error' });
-        return;
-      }
-      setBranchAudit(data);
-    } finally {
-      setBranchAuditBusy(false);
-    }
-  }, [showBranchAudit, showToast]);
-
-  useEffect(() => {
-    if (!governanceMatch || !showBranchAudit) return;
-    void loadBranchAudit();
-  }, [governanceMatch, showBranchAudit, loadBranchAudit]);
-
-  useEffect(() => {
-    if (!governanceMatch || !showGovernanceLimitsControl) return;
-    let cancelled = false;
-    (async () => {
-      const { ok, data } = await apiFetch('/api/org/governance-limits');
-      if (cancelled) return;
-      if (ok && data?.ok && data.limits) {
-        setGovLimitsForm({
-          expenseExecutiveThresholdNgn: Number(data.limits.expenseExecutiveThresholdNgn) || 200_000,
-          refundExecutiveThresholdNgn: Number(data.limits.refundExecutiveThresholdNgn) || 1_000_000,
-          othersMinJustificationLen: Number(data.limits.othersMinJustificationLen) || 40,
-          othersFinanceReviewThresholdNgn: Number(data.limits.othersFinanceReviewThresholdNgn) || 50_000,
-          ap3UnclassifiedAlertThresholdNgn: Number(data.limits.ap3UnclassifiedAlertThresholdNgn) || 100_000,
-          othersBranchCoachThresholdPct: Number(data.limits.othersBranchCoachThresholdPct) || 15,
-          refundStaffAllocationDeductionPct:
-            data.limits.refundStaffAllocationDeductionPct != null
-              ? Number(data.limits.refundStaffAllocationDeductionPct)
-              : 20,
-        });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [governanceMatch, showGovernanceLimitsControl, ws?.refreshEpoch]);
-
-  const saveGovernanceLimits = async () => {
-    setGovLimitsBusy(true);
-    try {
-      const { ok, data } = await apiFetch('/api/org/governance-limits', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          expenseExecutiveThresholdNgn: Number(govLimitsForm.expenseExecutiveThresholdNgn),
-          refundExecutiveThresholdNgn: Number(govLimitsForm.refundExecutiveThresholdNgn),
-          othersMinJustificationLen: Number(govLimitsForm.othersMinJustificationLen),
-          othersFinanceReviewThresholdNgn: Number(govLimitsForm.othersFinanceReviewThresholdNgn),
-          ap3UnclassifiedAlertThresholdNgn: Number(govLimitsForm.ap3UnclassifiedAlertThresholdNgn),
-          othersBranchCoachThresholdPct: Number(govLimitsForm.othersBranchCoachThresholdPct),
-          refundStaffAllocationDeductionPct: Number(govLimitsForm.refundStaffAllocationDeductionPct),
-        }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not save limits.', { variant: 'error' });
-        return;
-      }
-      showToast('Approval thresholds saved.');
-      await ws?.refresh?.();
-    } finally {
-      setGovLimitsBusy(false);
-    }
-  };
 
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Account"
+        eyebrow="Administration"
         title="Settings"
         tabs={
           <PageTabs
             tabs={settingsTabs}
-            value={activeSection}
+            value={allowedSections.has(activeSection) ? activeSection : 'overview'}
             onChange={(id) => navigate(`/settings/${id}`)}
           />
         }
@@ -522,399 +104,17 @@ const Settings = () => {
       <MainPanel className="max-w-5xl min-w-0">
         <div className="relative z-[1] min-w-0">
           <Routes>
-            <Route index element={<Navigate to="profile" replace />} />
-            <Route path="profile" element={<SettingsProfilePanel />} />
+            <Route index element={<Navigate to="overview" replace />} />
             <Route
-              path="security"
+              path="overview"
               element={
-                <div className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm max-w-xl">
-                  <h3 className="z-section-title flex items-center gap-2">
-                    <Lock size={14} /> Password
-                  </h3>
-                  <p className="text-xs text-gray-500 mb-4">
-                    Changing your password affects this login only. Other sessions may need to sign in again.
-                  </p>
-                  <form className="space-y-4" onSubmit={changePassword}>
-                    <div>
-                      <label className="z-field-label">Current password</label>
-                      <input
-                        type="password"
-                        value={passwordForm.currentPassword}
-                        onChange={(e) =>
-                          setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
-                        }
-                        className="z-input"
-                      />
-                    </div>
-                    <div>
-                      <label className="z-field-label">New password</label>
-                      <input
-                        type="password"
-                        value={passwordForm.newPassword}
-                        onChange={(e) =>
-                          setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
-                        }
-                        className="z-input"
-                      />
-                    </div>
-                    <div>
-                      <label className="z-field-label">Confirm new password</label>
-                      <input
-                        type="password"
-                        value={passwordForm.confirmPassword}
-                        onChange={(e) =>
-                          setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
-                        }
-                        className="z-input"
-                      />
-                    </div>
-                    <button type="submit" className="z-btn-secondary w-full justify-center">
-                      <Save size={16} /> Update password
-                    </button>
-                  </form>
-                </div>
-              }
-            />
-            <Route
-              path="preferences"
-              element={
-                <section className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm space-y-8">
-                  <div>
-                    <h3 className="z-section-title mb-1">Dashboard layout</h3>
-                    <p className="text-xs text-slate-500 mb-4">
-                      Choose what appears on the home dashboard. Save to apply and return to the dashboard.
-                    </p>
-                    <div className="space-y-3">
-                      {[
-                        { key: 'showCharts', label: 'Show charts (sales, stock mix, income vs expense)' },
-                        { key: 'showAlertBanner', label: 'Show alerts & reminders strip' },
-                        { key: 'showReportsStrip', label: 'Show reports & exports strip' },
-                      ].map((row) => (
-                        <label
-                          key={row.key}
-                          className="flex items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 bg-slate-50/50 cursor-pointer hover:border-teal-100 transition-colors"
-                        >
-                          <span className="text-sm font-medium text-gray-700">{row.label}</span>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(prefs[row.key])}
-                            onChange={(e) =>
-                              setPrefs((p) => ({
-                                ...p,
-                                [row.key]: e.target.checked,
-                              }))
-                            }
-                            className="accent-zarewa-teal w-4 h-4 shrink-0"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {canEditOrgTargets ? (
-                    <div className="border-t border-slate-100 pt-6">
-                      <h3 className="z-section-title mb-1">Company manager targets</h3>
-                      <p className="text-xs text-slate-500 mb-4 max-w-xl leading-relaxed">
-                        Applies to all users on the Manager dashboard unless they turn on a personal override below.
-                        Save here does not leave Preferences — use Save company only.
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <label className="block space-y-1.5">
-                          <span className="text-ui-xs font-medium text-slate-500">
-                            Produced sales target (₦ / month)
-                          </span>
-                          <input
-                            type="number"
-                            min={1}
-                            step={1000}
-                            value={orgMtNaira}
-                            onChange={(e) => setOrgMtNaira(e.target.value)}
-                            className="z-input w-full tabular-nums"
-                          />
-                        </label>
-                        <label className="block space-y-1.5">
-                          <span className="text-ui-xs font-medium text-slate-500">
-                            Production metres target (m / month)
-                          </span>
-                          <input
-                            type="number"
-                            min={1}
-                            step={1000}
-                            value={orgMtMeters}
-                            onChange={(e) => setOrgMtMeters(e.target.value)}
-                            className="z-input w-full tabular-nums"
-                          />
-                        </label>
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          disabled={orgMtBusy}
-                          onClick={() => void persistOrgManagerTargets()}
-                          className="z-btn-primary gap-2 disabled:opacity-50"
-                        >
-                          <Save size={16} /> Save company targets
-                        </button>
-                        <button
-                          type="button"
-                          disabled={orgMtBusy}
-                          onClick={() => void clearOrgManagerTargets()}
-                          className="z-btn-secondary disabled:opacity-50"
-                        >
-                          Clear company targets
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {canEditOrgTargets ? (
-                    <div className="border-t border-slate-100 pt-6">
-                      <h3 className="z-section-title mb-1">Store restock mins</h3>
-                      <p className="text-xs text-slate-500 mb-4 max-w-xl leading-relaxed">
-                        On-hand desk and Clear now alert when free + in-transit stock falls below these mins.
-                        Admin / MD with settings.manage can save. Defaults: 700 kg coils · 400 m stone.
-                        Optional per-spec overrides win over the coil default.
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <label className="block space-y-1.5">
-                          <span className="text-ui-xs font-medium text-slate-500">
-                            Coil restock min (kg)
-                          </span>
-                          <input
-                            type="number"
-                            min={1}
-                            step={50}
-                            value={storeCoilMinKg}
-                            onChange={(e) => setStoreCoilMinKg(e.target.value)}
-                            className="z-input w-full tabular-nums"
-                          />
-                        </label>
-                        <label className="block space-y-1.5">
-                          <span className="text-ui-xs font-medium text-slate-500">
-                            Stone restock min (m)
-                          </span>
-                          <input
-                            type="number"
-                            min={1}
-                            step={10}
-                            value={storeStoneMinM}
-                            onChange={(e) => setStoreStoneMinM(e.target.value)}
-                            className="z-input w-full tabular-nums"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="mt-5">
-                        <h4 className="text-ui-xs font-medium text-slate-500 mb-2">
-                          Per-spec coil mins (optional)
-                        </h4>
-                        {storeSpecOverrides.length === 0 ? (
-                          <p className="text-xs text-slate-500 mb-2 leading-relaxed">
-                            No per-spec overrides — restock alerts use the coil default above.
-                          </p>
-                        ) : null}
-                        <div className="space-y-2">
-                          {storeSpecOverrides.map((row, idx) => (
-                            <div
-                              key={`ovr-${idx}`}
-                              className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end"
-                            >
-                              <label className="sm:col-span-3 block space-y-1">
-                                <span className="text-[10px] font-medium text-slate-500">
-                                  Family
-                                </span>
-                                <select
-                                  value={row.family}
-                                  onChange={(e) => {
-                                    const v = e.target.value === 'aluminium' ? 'aluminium' : 'aluzinc';
-                                    setStoreSpecOverrides((prev) =>
-                                      prev.map((r, i) => (i === idx ? { ...r, family: v } : r))
-                                    );
-                                  }}
-                                  className="z-input w-full"
-                                >
-                                  <option value="aluzinc">Aluzinc</option>
-                                  <option value="aluminium">Aluminium</option>
-                                </select>
-                              </label>
-                              <label className="sm:col-span-3 block space-y-1">
-                                <span className="text-[10px] font-medium text-slate-500">
-                                  Colour
-                                </span>
-                                <input
-                                  type="text"
-                                  value={row.colour}
-                                  placeholder="e.g. Gray Beige"
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setStoreSpecOverrides((prev) =>
-                                      prev.map((r, i) => (i === idx ? { ...r, colour: v } : r))
-                                    );
-                                  }}
-                                  className="z-input w-full"
-                                />
-                              </label>
-                              <label className="sm:col-span-2 block space-y-1">
-                                <span className="text-[10px] font-medium text-slate-500">
-                                  Gauge
-                                </span>
-                                <input
-                                  type="text"
-                                  value={row.gauge}
-                                  placeholder="0.28"
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setStoreSpecOverrides((prev) =>
-                                      prev.map((r, i) => (i === idx ? { ...r, gauge: v } : r))
-                                    );
-                                  }}
-                                  className="z-input w-full tabular-nums"
-                                />
-                              </label>
-                              <label className="sm:col-span-2 block space-y-1">
-                                <span className="text-[10px] font-medium text-slate-500">
-                                  Min kg
-                                </span>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  step={50}
-                                  value={row.minKg}
-                                  placeholder="Min kg"
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setStoreSpecOverrides((prev) =>
-                                      prev.map((r, i) => (i === idx ? { ...r, minKg: v } : r))
-                                    );
-                                  }}
-                                  className="z-input w-full tabular-nums"
-                                />
-                              </label>
-                              <div className="sm:col-span-2">
-                                <button
-                                  type="button"
-                                  className="z-btn-secondary w-full text-xs"
-                                  onClick={() =>
-                                    setStoreSpecOverrides((prev) => prev.filter((_, i) => i !== idx))
-                                  }
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <button
-                          type="button"
-                          className="mt-2 z-btn-secondary text-xs"
-                          onClick={() =>
-                            setStoreSpecOverrides((prev) => [
-                              ...prev,
-                              { family: 'aluzinc', colour: '', gauge: '', minKg: '' },
-                            ])
-                          }
-                        >
-                          Add spec override
-                        </button>
-                      </div>
-
-                      <div className="mt-4">
-                        <button
-                          type="button"
-                          disabled={storeRestockBusy}
-                          onClick={() => void persistOrgStoreRestock()}
-                          className="z-btn-primary gap-2 disabled:opacity-50"
-                        >
-                          <Save size={16} /> Save store restock mins
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="border-t border-slate-100 pt-6">
-                    <h3 className="z-section-title mb-1">Your manager targets</h3>
-                    <p className="text-xs text-slate-500 mb-4 max-w-xl leading-relaxed">
-                      Personal monthly baselines for Manager progress bars. Used when &quot;Use my own targets&quot; is
-                      on, or when no company targets are set.
-                    </p>
-                    <label className="flex items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 bg-slate-50/50 cursor-pointer hover:border-teal-100 transition-colors mb-4">
-                      <span className="text-sm font-medium text-gray-700">
-                        Use my own targets (ignore company defaults)
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(prefs.managerTargetsPersonalOverride)}
-                        onChange={(e) =>
-                          setPrefs((p) => ({
-                            ...p,
-                            managerTargetsPersonalOverride: e.target.checked,
-                          }))
-                        }
-                        className="accent-zarewa-teal w-4 h-4 shrink-0"
-                      />
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <label className="block space-y-1.5">
-                        <span className="text-ui-xs font-medium text-slate-500">
-                          Produced sales target (₦ / month)
-                        </span>
-                        <input
-                          type="number"
-                          min={1}
-                          step={1000}
-                          value={prefs.managerTargets?.nairaTargetPerMonth ?? ''}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setPrefs((p) => ({
-                              ...p,
-                              managerTargets: {
-                                ...p.managerTargets,
-                                nairaTargetPerMonth:
-                                  Number.isFinite(v) && v > 0
-                                    ? v
-                                    : p.managerTargets?.nairaTargetPerMonth ??
-                                      DEFAULT_MANAGER_TARGETS_PER_MONTH.nairaTargetPerMonth,
-                              },
-                            }));
-                          }}
-                          className="z-input w-full tabular-nums"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-ui-xs font-medium text-slate-500">
-                          Production metres target (m / month)
-                        </span>
-                        <input
-                          type="number"
-                          min={1}
-                          step={1000}
-                          value={prefs.managerTargets?.meterTargetPerMonth ?? ''}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setPrefs((p) => ({
-                              ...p,
-                              managerTargets: {
-                                ...p.managerTargets,
-                                meterTargetPerMonth:
-                                  Number.isFinite(v) && v > 0
-                                    ? v
-                                    : p.managerTargets?.meterTargetPerMonth ??
-                                      DEFAULT_MANAGER_TARGETS_PER_MONTH.meterTargetPerMonth,
-                              },
-                            }));
-                          }}
-                          className="z-input w-full tabular-nums"
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3 pt-2">
-                    <button type="button" onClick={persist} className="z-btn-primary gap-2">
-                      <Save size={16} /> Save & return to dashboard
-                    </button>
-                  </div>
-                </section>
+                <SettingsOverviewPanel
+                  showTeamTab={showTeamTab}
+                  showOrganization={showOrganization}
+                  showHelpIntelligence={showZareIntelligence}
+                  showSystemTab={showSystemTab}
+                  showAdminDataReset={showAdminDataReset}
+                />
               }
             />
             <Route
@@ -931,607 +131,63 @@ const Settings = () => {
                     />
                   </div>
                 ) : (
-                  <Navigate to="/settings/profile" replace />
+                  <Navigate to="/settings/overview" replace />
                 )
               }
             />
             <Route
-              path="design-system"
+              path="organization"
               element={
-                showTeamTab ? (
-                  <DesignSystemPanel />
+                showOrganization ? (
+                  <OrganizationSettingsPanel />
                 ) : (
-                  <Navigate to="/settings/profile" replace />
+                  <Navigate to="/settings/overview" replace />
                 )
               }
             />
+            <Route path="catalog" element={<CatalogSettingsPanel />} />
+            <Route path="governance" element={<GovernanceSettingsPanel />} />
             <Route
-              path="data"
+              path="help"
+              element={<HelpSettingsPanel showIntelligence={showZareIntelligence} />}
+            />
+            <Route
+              path="system"
               element={
-                <div className="space-y-5">
-                  <section className="rounded-md border border-slate-200 bg-white p-4">
-                    <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-                      <BadgeDollarSign size={14} strokeWidth={2} /> Spot and table pricing
-                    </h3>
-                    <p className="text-ui-xs leading-snug text-slate-600">
-                      <span className="font-semibold text-slate-700">Operational pricing</span> (today’s spot
-                      moves and quick table updates) lives on the{' '}
-                      <Link
-                        to="/"
-                        className="font-semibold text-zarewa-teal underline-offset-2 hover:underline"
-                      >
-                        Dashboard
-                      </Link>{' '}
-                      under <span className="font-medium text-slate-700">Daily spot prices</span> and{' '}
-                      <span className="font-medium text-slate-700">Update price table</span>.
-                    </p>
-                  </section>
-
-                  <CoilRegisterImportPanel />
-
-                  <section>
-                    <header className="mb-3 px-0.5">
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Master lists
-                      </h3>
-                      <p className="mt-0.5 text-ui-xs text-slate-500 leading-snug max-w-2xl">
-                        Long-lived setup data: quotation lines, colours, materials, reference price books, and
-                        procurement mappings. Open a group to edit in a table; this is not the same as
-                        day-to-day spot pricing on the dashboard.
-                      </p>
-                    </header>
-                    <MasterDataWorkbench masterData={masterData} />
-                  </section>
-                </div>
+                showSystemTab ? (
+                  <SystemSettingsPanel showIntegrationApi={showIntegrationApi} />
+                ) : (
+                  <Navigate to="/settings/overview" replace />
+                )
               }
             />
+
+            <Route path="profile" element={<Navigate to="/me/account" replace />} />
+            <Route
+              path="security"
+              element={<Navigate to={{ pathname: '/me/account', hash: 'security' }} replace />}
+            />
+            <Route path="preferences" element={<Navigate to="/settings/organization" replace />} />
+            <Route path="data" element={<Navigate to="/settings/catalog" replace />} />
             <Route
               path="admin-reset"
-              element={
-                showAdminDataReset ? (
-                  <div className="space-y-5">
-                    <AdminDataResetPanel />
-                  </div>
-                ) : (
-                  <Navigate to="/settings/profile" replace />
-                )
-              }
+              element={<Navigate to={{ pathname: '/settings/governance', hash: 'admin-reset' }} replace />}
             />
-            <Route
-              path="governance"
-              element={
-                <div className="space-y-8">
-                  {showIntegrationApiPanel ? (
-                    <SettingsIntegrationApiPanel showToast={showToast} onRefresh={() => void ws?.refresh?.()} />
-                  ) : null}
-
-                  {showQuotationLineIntegrityAudit ? <QuotationLineIntegrityPanel /> : null}
-
-                  {!governanceHasContent ? (
-                    <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
-                      <p className="text-sm font-semibold text-slate-700">No controls in this section for your role</p>
-                      <p className="mt-2 text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                        Period locking and full audit export require additional permissions. If you need access,
-                        ask an administrator.
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {showGovernanceLimitsControl ? (
-                    <section className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm">
-                      <h3 className="z-section-title flex items-center gap-2">
-                        <Scale size={14} /> Office approval thresholds (NGN)
-                      </h3>
-                      <p className="text-xs text-gray-500 mb-4">
-                        Branch managers may approve payment requests at or below the expense threshold; amounts
-                        above require MD/CEO (or admin). Refunds above the refund threshold require executive
-                        sign-off. Changes are audited.
-                      </p>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="z-field-label">Expense — branch manager max (NGN)</label>
-                          <input
-                            type="number"
-                            min={0}
-                            step={1000}
-                            className="z-input"
-                            value={govLimitsForm.expenseExecutiveThresholdNgn}
-                            onChange={(e) =>
-                              setGovLimitsForm((p) => ({
-                                ...p,
-                                expenseExecutiveThresholdNgn: Number(e.target.value),
-                              }))
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="z-field-label">Refund — executive above (NGN)</label>
-                          <input
-                            type="number"
-                            min={0}
-                            step={1000}
-                            className="z-input"
-                            value={govLimitsForm.refundExecutiveThresholdNgn}
-                            onChange={(e) =>
-                              setGovLimitsForm((p) => ({
-                                ...p,
-                                refundExecutiveThresholdNgn: Number(e.target.value),
-                              }))
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="z-field-label">Staff refund company cut (%)</label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={99}
-                            step={1}
-                            className="z-input"
-                            value={govLimitsForm.refundStaffAllocationDeductionPct}
-                            onChange={(e) =>
-                              setGovLimitsForm((p) => ({
-                                ...p,
-                                refundStaffAllocationDeductionPct: Number(e.target.value),
-                              }))
-                            }
-                          />
-                          <p className="mt-1 text-[11px] text-slate-500 leading-snug">
-                            Applied to associated / claiming-staff allocations (not the quote customer). 0
-                            disables the cut. Default 20.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-6 rounded-md border border-slate-200 bg-slate-50 p-5">
-                        <h4 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                          <Tags size={15} className="text-amber-700" aria-hidden />
-                          Expense category governance
-                        </h4>
-                        <p className="text-xs text-gray-500 mb-4">
-                          Controls for the Others exception lane, AP3 costing alerts, and branch manager coaching when
-                          too many requests use catch-all categories.
-                        </p>
-                        <div className="space-y-5">
-                          <div>
-                            <p className="mb-3 text-ui-xs font-medium text-slate-600">
-                              Others lane
-                            </p>
-                            <div className="grid gap-4 md:grid-cols-2">
-                              <div>
-                                <label className="z-field-label">Min explanation (characters)</label>
-                                <input
-                                  type="number"
-                                  min={10}
-                                  max={500}
-                                  step={1}
-                                  className="z-input"
-                                  value={govLimitsForm.othersMinJustificationLen}
-                                  onChange={(e) =>
-                                    setGovLimitsForm((p) => ({
-                                      ...p,
-                                      othersMinJustificationLen: Number(e.target.value),
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <label className="z-field-label">Finance review from (NGN)</label>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  step={1000}
-                                  className="z-input"
-                                  value={govLimitsForm.othersFinanceReviewThresholdNgn}
-                                  onChange={(e) =>
-                                    setGovLimitsForm((p) => ({
-                                      ...p,
-                                      othersFinanceReviewThresholdNgn: Number(e.target.value),
-                                    }))
-                                  }
-                                />
-                              </div>
-                            </div>
-                          </div>
-                          <div className="border-t border-amber-100/90 pt-5">
-                            <p className="mb-3 text-ui-xs font-medium text-slate-600">
-                              Alerts & coaching
-                            </p>
-                            <div className="grid gap-4 md:grid-cols-2">
-                              <div>
-                                <label className="z-field-label">AP3 unclassified alert from (NGN)</label>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  step={1000}
-                                  className="z-input"
-                                  value={govLimitsForm.ap3UnclassifiedAlertThresholdNgn}
-                                  onChange={(e) =>
-                                    setGovLimitsForm((p) => ({
-                                      ...p,
-                                      ap3UnclassifiedAlertThresholdNgn: Number(e.target.value),
-                                    }))
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <label className="z-field-label">Branch coach — Others % threshold</label>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={100}
-                                  step={1}
-                                  className="z-input"
-                                  value={govLimitsForm.othersBranchCoachThresholdPct}
-                                  onChange={(e) =>
-                                    setGovLimitsForm((p) => ({
-                                      ...p,
-                                      othersBranchCoachThresholdPct: Number(e.target.value),
-                                    }))
-                                  }
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-4">
-                        <button
-                          type="button"
-                          disabled={govLimitsBusy}
-                          onClick={() => void saveGovernanceLimits()}
-                          className="z-btn-primary justify-center"
-                        >
-                          {govLimitsBusy ? 'Saving…' : 'Save thresholds'}
-                        </button>
-                      </div>
-                    </section>
-                  ) : null}
-
-                  {showPeriodControls ? (
-                    <section className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm">
-                      <h3 className="z-section-title flex items-center gap-2">
-                        <Shield size={14} /> Period controls
-                      </h3>
-                      <p className="text-xs text-gray-500 mb-4">
-                        Lock completed accounting periods so late postings and reversals cannot backdate into
-                        closed months.
-                      </p>
-                      <form className="grid gap-4 md:grid-cols-[12rem_1fr_auto]" onSubmit={lockPeriod}>
-                        <div>
-                          <label className="z-field-label">Period</label>
-                          <input
-                            type="month"
-                            value={periodForm.periodKey}
-                            onChange={(e) =>
-                              setPeriodForm((prev) => ({ ...prev, periodKey: e.target.value }))
-                            }
-                            className="z-input"
-                          />
-                        </div>
-                        <div>
-                          <label className="z-field-label">Reason</label>
-                          <input
-                            value={periodForm.reason}
-                            onChange={(e) =>
-                              setPeriodForm((prev) => ({ ...prev, reason: e.target.value }))
-                            }
-                            className="z-input"
-                            placeholder="Month-end close completed"
-                          />
-                        </div>
-                        <div className="flex items-end">
-                          <button type="submit" className="z-btn-primary w-full justify-center md:w-auto">
-                            Lock period
-                          </button>
-                        </div>
-                      </form>
-
-                      <div className="mt-5 space-y-3">
-                        {periodLocks.length === 0 ? (
-                          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-5 text-sm text-slate-500">
-                            No accounting periods are locked yet.
-                          </div>
-                        ) : (
-                          periodLocks.map((lock) => (
-                            <div
-                              key={lock.periodKey}
-                              className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4 md:flex-row md:items-center md:justify-between"
-                            >
-                              <div>
-                                <p className="z-stencil text-sm text-slate-900">{lock.periodKey}</p>
-                                <p className="mt-1 text-xs text-slate-500">
-                                  {lock.reason || 'Locked period'} · {lock.lockedByName || 'System'}
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => unlockPeriod(lock.periodKey)}
-                                className="z-btn-secondary justify-center"
-                              >
-                                Unlock
-                              </button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </section>
-                  ) : null}
-
-                  {showAuditExport ? (
-                    <section className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h3 className="z-section-title flex items-center gap-2 mb-0">
-                          <Shield size={14} /> Compliance export
-                        </h3>
-                        <button type="button" onClick={downloadAuditNdjson} className="z-btn-secondary text-xs">
-                          Download full audit log (NDJSON)
-                        </button>
-                      </div>
-                      <p className="mt-2 text-xs text-slate-500">
-                        Newline-delimited JSON for archiving, SIEM ingest, or offline review. Respects your
-                        current session.
-                      </p>
-                    </section>
-                  ) : null}
-
-                  {showCuttingThresholdControl ? (
-                    <section className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm">
-                      <h3 className="z-section-title flex items-center gap-2">
-                        <Factory size={14} /> Cutting list — minimum paid %
-                      </h3>
-                      <p className="mt-2 text-xs text-slate-500">
-                        Before a cutting list can be saved without manager production approval, the quotation must reach this paid fraction
-                        (ledger receipts plus advance applied). Enforced on the server per branch.
-                      </p>
-                      <div className="mt-4 space-y-3">
-                        {workspaceBranches.length === 0 ? (
-                          <p className="text-sm text-slate-500">No branches in workspace.</p>
-                        ) : (
-                          workspaceBranches.map((b) => (
-                            <div
-                              key={b.id}
-                              className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-end sm:justify-between"
-                            >
-                              <div className="min-w-0">
-                                <p className="text-sm font-bold text-zarewa-teal">{b.name || b.code || b.id}</p>
-                                <p className="text-ui-xs text-slate-500 font-mono">{b.id}</p>
-                              </div>
-                              <div className="flex flex-wrap items-end gap-2">
-                                <div>
-                                  <label className="z-field-label">Min paid (%)</label>
-                                  <input
-                                    type="number"
-                                    min={5}
-                                    max={100}
-                                    step={1}
-                                    value={cuttingDraftPct[b.id] ?? ''}
-                                    onChange={(e) =>
-                                      setCuttingDraftPct((prev) => ({ ...prev, [b.id]: e.target.value }))
-                                    }
-                                    className="z-input w-28"
-                                  />
-                                </div>
-                                <button
-                                  type="button"
-                                  disabled={cuttingSaveBusy === b.id}
-                                  onClick={() => saveBranchCuttingPct(b.id)}
-                                  className="z-btn-primary text-xs justify-center"
-                                >
-                                  {cuttingSaveBusy === b.id ? 'Saving…' : 'Save'}
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </section>
-                  ) : null}
-
-                  {showBranchAudit ? (
-                    <section className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h3 className="z-section-title flex items-center gap-2 mb-0">
-                          <Shield size={14} /> Branch isolation audit
-                        </h3>
-                        <button
-                          type="button"
-                          onClick={loadBranchAudit}
-                          disabled={branchAuditBusy}
-                          className="z-btn-secondary text-xs"
-                        >
-                          {branchAuditBusy ? 'Refreshing…' : 'Refresh audit'}
-                        </button>
-                      </div>
-                      <p className="mt-2 text-xs text-slate-500">
-                        Checks branch-enabled tables for missing or invalid branch IDs.
-                      </p>
-                      {branchAudit ? (
-                        <>
-                          <div
-                            className={`mt-4 rounded-xl border px-4 py-3 text-xs ${
-                              branchAudit.strictBranchIsolationOk
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                : 'border-red-200 bg-red-50 text-red-800'
-                            }`}
-                          >
-                            <p className="font-semibold">
-                              {branchAudit.strictBranchIsolationOk
-                                ? 'Strict branch isolation: OK'
-                                : 'Strict branch isolation: Issues found'}
-                            </p>
-                            <p className="mt-1">
-                              Missing branch IDs: {branchAudit.totals?.missingBranchIdRows ?? 0} · Invalid branch
-                              IDs: {branchAudit.totals?.invalidBranchIdRows ?? 0}
-                            </p>
-                          </div>
-                          <div className="mt-4 space-y-2 max-h-[280px] overflow-y-auto pr-1">
-                            {(branchAudit.tables || []).map((row) => (
-                              <div
-                                key={row.table}
-                                className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2"
-                              >
-                                <p className="text-xs font-semibold text-slate-800">{row.table}</p>
-                                <p className="mt-1 text-xs text-slate-600">
-                                  Missing: {row.missingBranchIdRows} · Invalid: {row.invalidBranchIdRows}
-                                </p>
-                                {Array.isArray(row.sampleIds) && row.sampleIds.length > 0 ? (
-                                  <p className="mt-1 text-ui-xs text-slate-500">
-                                    Sample IDs: {row.sampleIds.join(', ')}
-                                  </p>
-                                ) : null}
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-4 text-xs text-slate-500">
-                          No audit loaded yet.
-                        </div>
-                      )}
-                    </section>
-                  ) : null}
-
-                  {auditLog.length > 0 ? (
-                    <section className="rounded-md border border-slate-200/90 bg-white p-6 shadow-sm">
-                      <h3 className="z-section-title flex items-center gap-2">
-                        <Shield size={14} /> Recent audit activity
-                      </h3>
-                      <div className="space-y-3 max-h-[min(520px,55vh)] overflow-y-auto pr-1">
-                        {auditLog.slice(0, 12).map((entry) => (
-                          <div
-                            key={entry.id}
-                            className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4"
-                          >
-                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                              <div>
-                                <p className="text-sm font-semibold text-slate-800">{entry.action}</p>
-                                <p className="mt-1 text-xs text-slate-500">
-                                  {entry.actorName || 'System'} · {entry.entityKind || 'record'} ·{' '}
-                                  {entry.entityId || '—'}
-                                </p>
-                              </div>
-                              <span className="z-stencil text-ui-xs text-slate-500">
-                                {String(entry.occurredAtISO || '').replace('T', ' ').slice(0, 16)}
-                              </span>
-                            </div>
-                            {entry.note ? <p className="mt-2 text-xs text-slate-600">{entry.note}</p> : null}
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  ) : null}
-                </div>
-              }
-            />
-            <Route
-              path="guide"
-              element={
-                <section>
-                  <div className="mb-6 rounded-md border border-slate-200 bg-white p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="max-w-xl">
-                        <p className="text-ui-xs font-medium text-slate-500">
-                          Your role tour
-                        </p>
-                        <h3 className="mt-1 text-lg font-semibold text-slate-900">
-                          {trainingGuideForRole(currentUser?.roleKey).title}
-                        </h3>
-                        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                          Replay the step-by-step guide for your role ({currentUser?.roleLabel || currentUser?.roleKey}).
-                          On any screen, open <strong>Chat</strong> and message <strong>Zare</strong> for page coaching.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => ws?.openRoleTrainingReplay?.()}
-                        className="inline-flex shrink-0 items-center gap-2 rounded-sm bg-zarewa-teal px-4 py-2.5 text-xs font-medium text-white hover:bg-teal-900"
-                      >
-                        <BookOpen size={14} aria-hidden />
-                        Replay my role tour
-                      </button>
-                    </div>
-                  </div>
-                  <h3 className="z-section-title mb-2">Team roles</h3>
-                  <p className="text-xs text-gray-500 mb-6 leading-relaxed">
-                    Each card describes part of the workflow. Access is controlled by the role and permissions on
-                    each login. The stored “department” field matches the role key so shortcuts and the post-login
-                    landing page stay aligned. Bootstrap still exposes{' '}
-                    <code className="rounded bg-slate-100 px-1 py-0.5 text-ui-xs">suggestedRoleByDepartment</code> for
-                    legacy workspace labels mapped onto roles.
-                  </p>
-                  <div className="space-y-4">
-                    {DEPARTMENT_GUIDE.map((d) => {
-                      const Icon = d.icon;
-                      return (
-                        <details
-                          key={d.id}
-                          className="group rounded-md border border-slate-200 bg-white open:shadow-none"
-                        >
-                          <summary className="flex cursor-pointer list-none items-start gap-3 p-5 [&::-webkit-details-marker]:hidden">
-                            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-slate-200 bg-slate-50 text-slate-700">
-                              <Icon size={18} />
-                            </span>
-                            <span className="min-w-0 flex-1 text-left">
-                              <span className="flex items-center justify-between gap-2">
-                                <span className="text-sm font-semibold text-slate-900">{d.title}</span>
-                                <ChevronRight
-                                  className="shrink-0 text-gray-300 transition-transform group-open:rotate-90"
-                                  size={18}
-                                />
-                              </span>
-                              <span className="mt-1 block text-xs font-medium text-gray-600 leading-relaxed">
-                                {d.primary}
-                              </span>
-                            </span>
-                          </summary>
-                          <div className="border-t border-gray-100 px-5 pb-5 pt-0">
-                            <ul className="mt-3 space-y-2 text-xs text-gray-600 leading-relaxed list-disc pl-5">
-                              {d.bullets.map((b) => (
-                                <li key={b}>{b}</li>
-                              ))}
-                            </ul>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              {d.links.map((l, li) => (
-                                <Link
-                                  key={`${l.to}-${l.label}-${li}`}
-                                  to={l.to}
-                                  state={l.state}
-                                  className="inline-flex items-center gap-1 rounded-sm border border-slate-200 bg-white px-3 py-2 text-ui-xs font-medium text-slate-800 hover:bg-slate-50"
-                                >
-                                  {l.label}
-                                  <ChevronRight size={12} />
-                                </Link>
-                              ))}
-                            </div>
-                          </div>
-                        </details>
-                      );
-                    })}
-                  </div>
-                </section>
-              }
-            />
+            <Route path="guide" element={<Navigate to="/settings/help?section=guide" replace />} />
             <Route
               path="zare-intelligence"
-              element={
-                showZareIntelligence ? (
-                  <ZareIntelligencePanel />
-                ) : (
-                  <Navigate to="/settings/profile" replace />
-                )
-              }
+              element={<Navigate to="/settings/help?section=intelligence" replace />}
             />
             <Route
               path="knowledge-center"
-              element={
-                showZareIntelligence ? (
-                  <KnowledgeCenterPanel />
-                ) : (
-                  <Navigate to="/settings/profile" replace />
-                )
-              }
+              element={<Navigate to="/settings/help?section=knowledge" replace />}
             />
-            <Route path="*" element={<Navigate to="profile" replace />} />
+            <Route
+              path="design-system"
+              element={<Navigate to="/settings/system?section=design" replace />}
+            />
+
+            <Route path="*" element={<Navigate to="overview" replace />} />
           </Routes>
         </div>
       </MainPanel>
