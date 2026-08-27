@@ -109,6 +109,20 @@ describe('useReportsExport', () => {
   });
 
   it('opens generic print modal for workspace sales pack config', async () => {
+    const receipts = [
+      {
+        id: 'SR-1',
+        ledgerEntryId: 'LE-1',
+        type: 'RECEIPT',
+        dateISO: '2026-03-10',
+        amountNgn: 50_000,
+        cashReceivedNgn: 50_000,
+        customer: 'Acme',
+        quotationRef: 'QT-1001',
+        method: 'Transfer',
+        status: 'Cleared',
+      },
+    ];
     const ledgerEntries = [
       {
         type: 'RECEIPT',
@@ -121,7 +135,7 @@ describe('useReportsExport', () => {
         id: 'LE-1',
       },
     ];
-    const { result } = renderHook(() => useReportsExport(emptyExportArgs({ ledgerEntries })));
+    const { result } = renderHook(() => useReportsExport(emptyExportArgs({ ledgerEntries, receipts })));
 
     await act(async () => {
       await result.current.handlePackPrint(PACK_SALES_CUSTOMER);

@@ -108,12 +108,19 @@ export function useReportsExport({
         );
       }
       if (name === PACK_SALES_CUSTOMER) {
-        return salesPaymentsReceivedRows(ledgerEntries, productionJobs, quotations, startDate, endDate).map((r) => ({
+        return salesPaymentsReceivedRows(
+          receipts,
+          productionJobs,
+          quotations,
+          startDate,
+          endDate,
+          ledgerEntries
+        ).map((r) => ({
           reportSection: 'Payments received (period)',
           category: r.group,
           ledgerType: 'RECEIPT',
           dateISO: r.paymentDateISO,
-          recordId: r.ledgerEntryId,
+          recordId: r.ledgerEntryId || r.receiptId,
           customer: r.customerName,
           quotationRef: r.quotationRef,
           amountNgn: r.amountPaidNgn,
@@ -323,7 +330,14 @@ export function useReportsExport({
         };
       }
       if (name === PACK_SALES_CUSTOMER) {
-        const raw = salesPaymentsReceivedRows(ledgerEntries, productionJobs, quotations, startDate, endDate);
+        const raw = salesPaymentsReceivedRows(
+          receipts,
+          productionJobs,
+          quotations,
+          startDate,
+          endDate,
+          ledgerEntries
+        );
         const s = salesPaymentsReceivedSummary(raw);
         const rows = raw.map((r) => ({
           group: r.group,
@@ -622,7 +636,14 @@ export function useReportsExport({
     }
 
     if (name === PACK_SALES_CUSTOMER && fmt === 'Excel') {
-      const rows = salesPaymentsReceivedRows(ledgerEntries, productionJobs, quotations, startDate, endDate).map((r) => ({
+      const rows = salesPaymentsReceivedRows(
+        receipts,
+        productionJobs,
+        quotations,
+        startDate,
+        endDate,
+        ledgerEntries
+      ).map((r) => ({
         category: r.group,
         paymentDateISO: r.paymentDateISO,
         customerName: r.customerName,
@@ -631,6 +652,7 @@ export function useReportsExport({
         paymentMethod: r.paymentMethod,
         bankReference: r.bankReference,
         ledgerEntryId: r.ledgerEntryId,
+        receiptId: r.receiptId,
       }));
       if (!rows.length) {
         showToast('No rows for this pack in the selected range.', { variant: 'info' });

@@ -6,8 +6,9 @@ import {
   productionAttributedRevenueNgn,
   productionOutputDateISO,
 } from '../lib/liveAnalytics';
+import { isReceiptReversed } from '../lib/receiptClearance';
+import { receiptCashReceivedNgn } from '../lib/salesReceiptsList';
 import { useReportsSummaryQuery } from './useReportsSummaryQuery';
-
 const EXCEPTION_STORAGE_KEY = 'reports.paymentExceptionClosureNotes';
 
 export function useReportsSnapshot(ws, startDate, endDate) {
@@ -104,8 +105,12 @@ export function useReportsSnapshot(ws, startDate, endDate) {
     const quotationPipelineNgn = quotes.reduce((s, q) => s + (q.totalNgn ?? 0), 0);
     const producedSalesNgn = productionAttributedRevenueNgn(quotations, productionJobs, startDate, endDate);
     const totalPaid = receipts
-      .filter((r) => r.dateISO >= startDate && r.dateISO <= endDate)
-      .reduce((s, q) => s + (q.amountNgn ?? 0), 0);
+      .filter((r) => {
+        if (isReceiptReversed(r)) return false;
+        const iso = String(r.dateISO || '').slice(0, 10);
+        return (!startDate || iso >= startDate) && (!endDate || iso <= endDate);
+      })
+      .reduce((s, r) => s + receiptCashReceivedNgn(r), 0);
     const outstanding = liveReceivablesNgn(quotations, ledgerEntries, productionJobs);
     const productionJobsCompletedInRange = productionJobs.filter((j) => {
       if (String(j.status || '').trim() !== 'Completed') return false;

@@ -1,9 +1,11 @@
 import {
+  companionOverpayNgnByReceiptId,
   firstProductionDateISO,
   receivableDueOnQuotationFromEntries,
 } from './customerLedgerCore.js';
 import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
 import { refundOutstandingAmount, isRefundPayable, approvedRefundsAwaitingPayment } from './refundsStore.js';
+import { isReceiptReversed, receiptEffectiveCashNgn } from './receiptClearance.js';
 import { receiptCashReceivedNgn } from './salesReceiptsList.js';
 
 function toIsoDate(value) {
@@ -633,38 +635,67 @@ function quotationHasCompletedProductionInRange(quotationRef, productionJobs, st
 }
 
 /**
- * Payments received in period (quotation receipts only), grouped by production completion timing
- * within the selected period.
+ * Payments received in period from sales receipts (cash actually recorded), grouped by production
+ * completion timing within the selected period.
+ *
+ * Uses the same cash basis as the receipts register / desk (`receiptEffectiveCashNgn`), not bare
+ * ledger RECEIPT allocation — finance confirmation may shrink ledger RECEIPT while keeping full
+ * cash on `sales_receipts`.
+ *
+ * @param {object[]} salesReceipts
+ * @param {object[]} [productionJobs]
+ * @param {object[]} [quotations]
+ * @param {string} [startDate]
+ * @param {string} [endDate]
+ * @param {object[]} [ledgerEntries] — bank ref / companion overpay when receipts lack enrich fields
  */
 export function salesPaymentsReceivedRows(
-  ledgerEntries = [],
+  salesReceipts = [],
   productionJobs = [],
   quotations = [],
   startDate,
-  endDate
+  endDate,
+  ledgerEntries = []
 ) {
   const quoteCustomer = new Map(
     (quotations || []).map((q) => [String(q.id || '').trim(), q.customer || q.customerName || ''])
   );
-  const inRange = filterLedgerEntriesInRange(ledgerEntries, startDate, endDate);
+  const ledgerById = new Map(
+    (ledgerEntries || []).map((e) => [String(e.id || '').trim(), e]).filter(([k]) => k)
+  );
+  const companion = companionOverpayNgnByReceiptId(ledgerEntries);
   const rows = [];
-  for (const e of inRange) {
-    if (String(e.type || '').trim() !== 'RECEIPT') continue;
-    const qref = String(e.quotationRef || '').trim();
-    const amount = Math.round(Number(e.amountNgn) || 0);
+  for (const r of salesReceipts || []) {
+    if (isReceiptReversed(r)) continue;
+    const iso = toIsoDate(r.dateISO || r.date || r.atISO);
+    if (!iso) continue;
+    if (startDate && iso < startDate) continue;
+    if (endDate && iso > endDate) continue;
+
+    const rid = String(r.id || '').trim();
+    const lid = r.ledgerEntryId != null ? String(r.ledgerEntryId).trim() : '';
+    const le = (lid && ledgerById.get(lid)) || (rid && ledgerById.get(rid)) || null;
+    const extra =
+      companion.get(rid) || (lid ? companion.get(lid) : 0) || 0;
+    // Prefer desk-enriched cashReceivedNgn; else allocation + companion / bank-authoritative cash.
+    const amount = receiptEffectiveCashNgn(r, { companionOverpayNgn: extra });
     if (amount <= 0) continue;
+
+    const qref = String(r.quotationRef || '').trim();
     const producedInPeriod = qref
       ? quotationHasCompletedProductionInRange(qref, productionJobs, startDate, endDate)
       : false;
     rows.push({
       group: producedInPeriod ? 'Materials produced in period' : 'Materials not produced in period',
-      paymentDateISO: toIsoDate(e.atISO),
-      customerName: e.customerName || e.customerID || quoteCustomer.get(qref) || '',
+      paymentDateISO: iso,
+      customerName:
+        r.customer || r.customerName || le?.customerName || le?.customerID || quoteCustomer.get(qref) || '',
       quotationRef: qref,
       amountPaidNgn: amount,
-      paymentMethod: e.paymentMethod || '',
-      bankReference: e.bankReference || '',
-      ledgerEntryId: e.id || '',
+      paymentMethod: r.method || r.paymentMethod || le?.paymentMethod || '',
+      bankReference: le?.bankReference || r.bankReference || '',
+      ledgerEntryId: lid || rid || '',
+      receiptId: rid || '',
     });
   }
   rows.sort(
@@ -672,7 +703,8 @@ export function salesPaymentsReceivedRows(
       String(a.group).localeCompare(String(b.group)) ||
       String(a.paymentDateISO).localeCompare(String(b.paymentDateISO)) ||
       String(a.quotationRef).localeCompare(String(b.quotationRef)) ||
-      String(a.ledgerEntryId).localeCompare(String(b.ledgerEntryId))
+      String(a.ledgerEntryId).localeCompare(String(b.ledgerEntryId)) ||
+      String(a.receiptId).localeCompare(String(b.receiptId))
   );
   return rows;
 }
