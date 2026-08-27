@@ -1,7 +1,7 @@
 ﻿import { useCallback, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { formatNgn } from '../Data/mockData';
-import { displayDocNumber } from '../lib/reportDisplayFormat';
+import { displayDocNumber, displayTxnDateShort } from '../lib/reportDisplayFormat';
 import {
   downloadStandardFinanceWorkbook,
   downloadStandardPurchasesWorkbook,
@@ -346,29 +346,34 @@ export function useReportsExport({
         const rows = raw.map((r) => {
           const isDebt = r.group === 'Outstanding balance (debtors)';
           const reportAmt = isDebt ? Number(r.outstandingBalanceNgn) || 0 : Number(r.amountPaidNgn) || 0;
+          const receiptNo =
+            displayDocNumber(r.receiptId) || displayDocNumber(r.ledgerEntryId) || '—';
           return {
             group: r.group,
-            paymentDateISO: r.paymentDateISO || '—',
+            paymentDateISO: displayTxnDateShort(r.paymentDateISO) || r.paymentDateISO || '—',
+            firstProductionDateISO: r.firstProductionDateISO
+              ? displayTxnDateShort(r.firstProductionDateISO)
+              : '—',
             customerName: r.customerName || '—',
             quotationRef: displayDocNumber(r.quotationRef) || r.quotationRef || '—',
+            receiptNo,
             amountPaidNgn: isDebt ? '—' : formatNgn(r.amountPaidNgn),
             outstandingBalanceNgn: formatNgn(r.outstandingBalanceNgn || 0),
-            paymentMethod: r.paymentMethod || '—',
-            bankReference: r.bankReference || '—',
+            bankReference: r.bankReference || r.paymentMethod || '—',
             _amountPaidNgn: reportAmt,
           };
         });
         return {
           title: PACK_SALES_CUSTOMER,
           columns: [
-            { key: 'group', label: 'Category' },
-            { key: 'paymentDateISO', label: 'Date' },
-            { key: 'customerName', label: 'Customer' },
-            { key: 'quotationRef', label: 'Quotation' },
-            { key: 'amountPaidNgn', label: 'Amount paid' },
-            { key: 'outstandingBalanceNgn', label: 'Balance outstanding' },
-            { key: 'paymentMethod', label: 'Method' },
-            { key: 'bankReference', label: 'Reference' },
+            { key: 'paymentDateISO', label: 'Date', width: '5.5%' },
+            { key: 'firstProductionDateISO', label: 'Prod', width: '5.5%' },
+            { key: 'customerName', label: 'Customer', width: '14%' },
+            { key: 'quotationRef', label: 'Quote', width: '8%' },
+            { key: 'receiptNo', label: 'Receipt', width: '8%' },
+            { key: 'amountPaidNgn', label: 'Paid', width: '9%', align: 'right' },
+            { key: 'outstandingBalanceNgn', label: 'Bal.', width: '9%', align: 'right' },
+            { key: 'bankReference', label: 'Remarks', width: '41%', wrap: true },
           ],
           rows,
           grouping: {
@@ -663,12 +668,13 @@ export function useReportsExport({
         firstProductionDateISO: r.firstProductionDateISO || '',
         customerName: r.customerName,
         quotationRef: r.quotationRef,
+        receiptId: r.receiptId || '',
         amountPaidNgn: r.amountPaidNgn,
         outstandingBalanceNgn: Number(r.outstandingBalanceNgn) || 0,
+        remarks: r.bankReference || r.paymentMethod || '',
         paymentMethod: r.paymentMethod,
         bankReference: r.bankReference,
         ledgerEntryId: r.ledgerEntryId,
-        receiptId: r.receiptId,
       }));
       if (!rows.length) {
         showToast('No rows for this pack in the selected range.', { variant: 'info' });

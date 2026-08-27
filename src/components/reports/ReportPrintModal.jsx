@@ -103,18 +103,26 @@ export function ManagementReportSheet({
 
   const thClass = (align) =>
     `${STATEMENT_TH}${align === 'right' ? ' text-right' : ''}`;
-  const tdClass = (align, zebra) => {
+  const tdClass = (align, zebra, wrap) => {
     const base = align === 'right' ? STATEMENT_TD_NUM : STATEMENT_TD;
     const zebraCls = zebra ? ' bg-slate-50/40' : '';
-    return `${base}${zebraCls}`;
+    const wrapCls = wrap ? ' whitespace-normal break-words' : '';
+    return `${base}${zebraCls}${wrapCls}`;
   };
+
+  const colStyle = (c) => (c?.width ? { width: c.width, maxWidth: c.width } : undefined);
 
   const renderCells = (row, i, skipGroupKey = false) =>
     columns.map((c) => {
       const raw = skipGroupKey && c.key === grouping?.groupBy ? '' : row[c.key];
       const text = raw != null && raw !== '' ? String(raw) : '—';
       return (
-        <td key={c.key} title={text !== '—' ? text : undefined} className={tdClass(c.align, i % 2 === 1)}>
+        <td
+          key={c.key}
+          title={text !== '—' ? text : undefined}
+          style={colStyle(c)}
+          className={tdClass(c.align, i % 2 === 1, c.wrap)}
+        >
           {text}
         </td>
       );
@@ -128,7 +136,7 @@ export function ManagementReportSheet({
         <thead>
           <tr>
             {columns.map((c) => (
-              <th key={c.key} className={thClass(c.align)}>
+              <th key={c.key} className={thClass(c.align)} style={colStyle(c)}>
                 {c.label}
               </th>
             ))}

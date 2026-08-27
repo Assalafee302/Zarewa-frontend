@@ -532,6 +532,15 @@ summary {
     padding-top: 2px;
     padding-bottom: 2px;
   }
+
+  .report-print-table.report-print-table--single-line td.whitespace-normal,
+  .statement-dense-table td.whitespace-normal {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    max-width: none;
+    line-height: 1.25;
+  }
 }
 
 /* Unified data lists — same rhythm as Sales / Operations tables */
@@ -3015,6 +3024,15 @@ summary {
     line-height: 1.1 !important;
     padding-top: 1.5pt !important;
     padding-bottom: 1.5pt !important;
+  }
+
+  .statement-dense-table td.whitespace-normal,
+  .report-print-table.report-print-table--single-line td.whitespace-normal {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    max-width: none;
+    line-height: 1.25 !important;
   }
 
   /* Receipts: thermal (~80mm), advance A6 portrait, or full A5 landscape */
