@@ -4080,6 +4080,9 @@ const Account = () => {
         refund={refundViewTarget}
         isOpen={Boolean(refundViewTarget)}
         onClose={() => setRefundViewTarget(null)}
+        onApplied={async () => {
+          await wsRefresh?.();
+        }}
         onReverseApply={
           ws?.hasPermission?.('finance.reverse') ? handleDeskReverseRefundCredit : undefined
         }

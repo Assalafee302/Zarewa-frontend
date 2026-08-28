@@ -1,0 +1,298 @@
+/**
+ * Pure helpers: apply prior overpay / approved refund credit onto a new quotation.
+ * Overpayment may apply without manager approval; other refund kinds need Approved status.
+ */
+
+import { normalizeRefundReasonCategoriesForApi } from '../refundConstants.js';
+import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
+import {
+  sumRefundStaffCompanyDeductionNgn,
+  sumRefundStaffNetPayoutNgn,
+} from './refundStaffAllocationDeduction.js';
+
+export const REFUND_CREDIT_CONFIRMATION_STATUS = 'Credit confirmation';
+export const REFUND_CREDIT_REVERSED_STATUS = 'Reversed';
+/** Ledger `bank_reference` prefix for refund-fund apply (not same-quote OVERPAY_APPLY). */
+export const REFUND_CREDIT_LEDGER_REF_PREFIX = 'CREDIT_APPLY:';
+/** Compensating rows for {@link REFUND_CREDIT_LEDGER_REF_PREFIX} (finance.reverse). */
+export const REFUND_CREDIT_REVERSE_LEDGER_REF_PREFIX = 'CREDIT_APPLY_REVERSE:';
+
+/**
+ * @param {unknown} reasonCategory
+ * @param {Array<{ category?: string }> | null | undefined} calculationLines
+ */
+export function refundCategoriesAreOverpaymentOnly(reasonCategory, calculationLines) {
+  const cats = normalizeRefundReasonCategoriesForApi(reasonCategory);
+  if (cats.length > 0) {
+    return cats.every((c) => String(c).toLowerCase().includes('overpay'));
+  }
+  const lines = Array.isArray(calculationLines) ? calculationLines : [];
+  const withCat = lines
+    .map((l) => String(l?.category || '').trim())
+    .filter(Boolean);
+  if (!withCat.length) return false;
+  return withCat.every((c) => c.toLowerCase().includes('overpay'));
+}
+
+/**
+ * Service-fee refunds (transport, installation) are cash-out only — not transferable credit.
+ * @param {unknown} reasonCategory
+ * @param {Array<{ category?: string, label?: string }> | null | undefined} calculationLines
+ */
+function refundIncludesNonTransferableServiceCategory(reasonCategory, calculationLines) {
+  const blocked = ['transport', 'install'];
+  const matchesBlocked = (value) => {
+    const v = String(value || '').toLowerCase();
+    return blocked.some((b) => v.includes(b));
+  };
+  const cats = normalizeRefundReasonCategoriesForApi(reasonCategory);
+  if (cats.some((c) => matchesBlocked(c))) return true;
+  const lines = Array.isArray(calculationLines) ? calculationLines : [];
+  return lines.some((l) => matchesBlocked(l?.category) || matchesBlocked(l?.label));
+}
+
+/**
+ * Status/category gate only — does not check open balance (use with stored-row open helpers).
+ * @param {{ status?: string, reasonCategory?: unknown, calculationLines?: unknown }} refund
+ */
+export function refundIsEligibleCreditSourceKind(refund) {
+  const status = String(refund?.status || '').trim();
+  if (refundIncludesNonTransferableServiceCategory(refund?.reasonCategory, refund?.calculationLines)) {
+    return false;
+  }
+  const overpayOnly = refundCategoriesAreOverpaymentOnly(
+    refund?.reasonCategory,
+    refund?.calculationLines
+  );
+  if (overpayOnly) {
+    return status === 'Pending' || status === 'Approved';
+  }
+  return status === 'Approved';
+}
+
+/**
+ * Whether this refund row may be used as transferable credit onto another quotation.
+ * @param {{ status?: string, reasonCategory?: unknown, calculationLines?: unknown, amountNgn?: number, approvedAmountNgn?: number, paidAmountNgn?: number }} refund
+ */
+export function refundIsEligibleCreditSource(refund) {
+  return refundIsEligibleCreditSourceKind(refund) && refundCreditOpenAmountNgn(refund) > 0;
+}
+
+/**
+ * Cashier / receipt UI hint when a refund row exists but cannot be pooled as credit.
+ * @param {{ status?: string, reasonCategory?: unknown, calculationLines?: unknown }} refund
+ * @param {number} openNgn transferable open from {@link refundCreditOpenAmountFromStoredRefund}
+ * @param {boolean} [kindEligible]
+ */
+export function refundCreditUnavailableReason(refund, openNgn, kindEligible = refundIsEligibleCreditSourceKind(refund)) {
+  const overpayOnly = refundCategoriesAreOverpaymentOnly(
+    refund?.reasonCategory,
+    refund?.calculationLines
+  );
+  if (refundIncludesNonTransferableServiceCategory(refund?.reasonCategory, refund?.calculationLines)) {
+    return 'Transport/installation refunds are cash payout only.';
+  }
+  if (String(refund?.status || '').trim() === 'Pending' && !overpayOnly) {
+    return 'Needs manager approval before it can cover a receipt.';
+  }
+  if (openNgn <= 0 && kindEligible) {
+    return 'Already used, paid out, or no net balance left after company cut.';
+  }
+  if (openNgn <= 0) {
+    return 'Already used or paid out.';
+  }
+  return 'Not available to cover a receipt yet.';
+}
+
+export function refundCreditAppliedNgn(refund) {
+  return Math.max(0, Math.round(Number(refund?.creditAppliedNgn ?? refund?.credit_applied_ngn) || 0));
+}
+
+/**
+ * Requested cash still waiting on the manager after refund fund was used on a receipt.
+ */
+export function refundLeftoverAwaitingApprovalNgn(refund) {
+  const requested = Math.round(Number(refund?.amountNgn) || 0);
+  return Math.max(0, requested - refundCreditAppliedNgn(refund));
+}
+
+/**
+ * Open transferable amount on a refund (requested minus paid and fund already applied, for Pending overpay).
+ * @param {{ status?: string, reasonCategory?: unknown, calculationLines?: unknown, amountNgn?: number, approvedAmountNgn?: number, paidAmountNgn?: number, creditAppliedNgn?: number }} refund
+ */
+export function refundCreditOpenAmountNgn(refund) {
+  const status = String(refund?.status || '').trim();
+  const paid = Math.round(Number(refund?.paidAmountNgn) || 0);
+  const creditApplied = refundCreditAppliedNgn(refund);
+  const overpayOnly = refundCategoriesAreOverpaymentOnly(
+    refund?.reasonCategory,
+    refund?.calculationLines
+  );
+  if (status === 'Pending' && overpayOnly) {
+    const requested = Math.round(Number(refund?.amountNgn) || 0);
+    return Math.max(0, requested - paid - creditApplied);
+  }
+  const approved =
+    Math.round(Number(refund?.approvedAmountNgn) || 0) ||
+    (status === 'Approved' || status === 'Paid' ? Math.round(Number(refund?.amountNgn) || 0) : 0);
+  return effectiveOutstandingNgn(approved, paid);
+}
+
+function parseRefundSplitDistributions(raw) {
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(String(raw || '[]'));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Open transferable credit on a stored refund row, capping staff-split refunds at net payout
+ * after company cut (when gross approved/paid would overstate usable fund).
+ *
+ * @param {object} row DB or API refund row
+ */
+export function refundCreditOpenAmountFromStoredRefund(row) {
+  const shape = {
+    status: row?.status,
+    reasonCategory: row?.reason_category ?? row?.reasonCategory,
+    calculationLines:
+      row?.calculationLines ??
+      (typeof row?.calculation_lines_json === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(row.calculation_lines_json || '[]');
+            } catch {
+              return [];
+            }
+          })()
+        : []),
+    amountNgn: row?.amount_ngn ?? row?.amountNgn,
+    approvedAmountNgn: row?.approved_amount_ngn ?? row?.approvedAmountNgn,
+    paidAmountNgn: row?.paid_amount_ngn ?? row?.paidAmountNgn,
+    creditAppliedNgn: row?.credit_applied_ngn ?? row?.creditAppliedNgn,
+  };
+  let open = refundCreditOpenAmountNgn(shape);
+  if (!(open > 0)) return 0;
+
+  const splits = parseRefundSplitDistributions(
+    row?.split_distributions_json ?? row?.splitDistributions ?? row?.refundSplits
+  );
+  if (!splits.length) return open;
+
+  const netPool = sumRefundStaffNetPayoutNgn(splits);
+  const companyCut = sumRefundStaffCompanyDeductionNgn(splits);
+  if (!(netPool > 0) && !(companyCut > 0)) return open;
+
+  const paid = Math.round(Number(shape.paidAmountNgn) || 0);
+  const creditApplied = refundCreditAppliedNgn(shape);
+  const settledCut = Math.min(companyCut, paid);
+  const cashPaid = Math.max(0, paid - settledCut);
+  const netOpen = Math.max(0, netPool - cashPaid - creditApplied);
+  return Math.min(open, netOpen);
+}
+
+/**
+ * True when an active refund on the payment target should block credit from other quotations.
+ * Pending overpay-only refunds do not block — they can be applied explicitly or ignored.
+ *
+ * @param {object} row customer_refunds row
+ */
+export function refundBlocksExternalCreditOnQuotation(row) {
+  const shape = {
+    status: row?.status,
+    reasonCategory: row?.reason_category ?? row?.reasonCategory,
+    calculationLines:
+      typeof row?.calculation_lines_json === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(row.calculation_lines_json || '[]');
+            } catch {
+              return [];
+            }
+          })()
+        : row?.calculationLines,
+    amountNgn: row?.amount_ngn ?? row?.amountNgn,
+    approvedAmountNgn: row?.approved_amount_ngn ?? row?.approvedAmountNgn,
+    paidAmountNgn: row?.paid_amount_ngn ?? row?.paidAmountNgn,
+    creditAppliedNgn: row?.credit_applied_ngn ?? row?.creditAppliedNgn,
+  };
+  const status = String(shape.status || '').trim();
+  const overpayOnly = refundCategoriesAreOverpaymentOnly(shape.reasonCategory, shape.calculationLines);
+  if (status === 'Pending') {
+    return !overpayOnly;
+  }
+  if (status === 'Approved') {
+    if (overpayOnly) return false;
+    return refundCreditOpenAmountFromStoredRefund(row) > 0;
+  }
+  return false;
+}
+
+/**
+ * Cap apply amount to target due and available credit.
+ * @param {{ targetDueNgn: number, availableNgn: number, requestedNgn?: number | null }} p
+ */
+export function planRefundCreditApplyAmount({ targetDueNgn, availableNgn, requestedNgn = null }) {
+  const due = Math.max(0, Math.round(Number(targetDueNgn) || 0));
+  const available = Math.max(0, Math.round(Number(availableNgn) || 0));
+  const requested =
+    requestedNgn == null || requestedNgn === ''
+      ? due
+      : Math.max(0, Math.round(Number(requestedNgn) || 0));
+  const applyNgn = Math.min(due, available, requested);
+  return {
+    ok: applyNgn > 0,
+    applyNgn,
+    targetDueNgn: due,
+    availableNgn: available,
+    remainderDueNgn: Math.max(0, due - applyNgn),
+    leftoverCreditNgn: Math.max(0, available - applyNgn),
+    error: applyNgn > 0 ? null : 'No refund fund to apply against this quotation balance.',
+  };
+}
+
+/**
+ * Cashier confirm: offset usable refund fund against an unconfirmed receipt’s cash.
+ * Quote due may already be 0 because Sales posted the receipt — offset against receipt cash instead.
+ * @param {{ receiptCashNgn?: number, availableNgn?: number }} p
+ */
+export function planCashierRefundOffset({ receiptCashNgn, availableNgn }) {
+  const receipt = Math.max(0, Math.round(Number(receiptCashNgn) || 0));
+  const available = Math.max(0, Math.round(Number(availableNgn) || 0));
+  const offsetNgn = Math.min(receipt, available);
+  return {
+    offsetNgn,
+    cashToConfirmNgn: Math.max(0, receipt - offsetNgn),
+    leftoverRefundNgn: Math.max(0, available - offsetNgn),
+  };
+}
+
+/**
+ * Allocate applyNgn across sources (FIFO as given). Remainder stays on older sources.
+ * @param {Array<{ id: string, availableNgn: number }>} sources
+ * @param {number} applyNgn
+ */
+export function allocateRefundCreditAcrossSources(sources, applyNgn) {
+  let left = Math.max(0, Math.round(Number(applyNgn) || 0));
+  const allocations = [];
+  for (const src of sources || []) {
+    if (left <= 0) break;
+    const avail = Math.max(0, Math.round(Number(src?.availableNgn) || 0));
+    if (avail <= 0) continue;
+    const take = Math.min(left, avail);
+    allocations.push({
+      id: src.id,
+      amountNgn: take,
+      leftoverOnSourceNgn: avail - take,
+    });
+    left -= take;
+  }
+  return {
+    allocations,
+    appliedNgn: Math.max(0, Math.round(Number(applyNgn) || 0) - left),
+    shortfallNgn: left,
+  };
+}

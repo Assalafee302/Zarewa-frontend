@@ -16,6 +16,7 @@ import {
 import { ModalFrame } from '../layout/ModalFrame';
 import { RefundPayoutRecipientPicker } from './RefundPayoutRecipientPicker';
 import { RefundPayoutBankForm } from './RefundPayoutBankForm';
+import { RefundApplyToQuotationPanel } from '../finance/RefundApplyToQuotationPanel.jsx';
 import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -3821,6 +3822,9 @@ const RefundModal = ({
                 </span>
               ) : null}
             </div>
+          ) : null}
+          {(mode === 'view' || mode === 'approve') && record?.refundID ? (
+            <RefundApplyToQuotationPanel refund={record} />
           ) : null}
           {refundGuideOpen && !showApprovalReview ? (
             <div

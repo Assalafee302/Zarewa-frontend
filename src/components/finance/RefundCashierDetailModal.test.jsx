@@ -8,8 +8,15 @@ vi.mock('../../lib/apiBase', () => ({
   apiFetch: vi.fn(),
 }));
 
+vi.mock('../../context/ToastContext', () => ({
+  useToast: () => ({ show: vi.fn() }),
+}));
+
 vi.mock('../../context/WorkspaceContext', () => ({
   useWorkspace: () => ({
+    canMutate: true,
+    hasPermission: () => false,
+    refresh: vi.fn(),
     snapshot: {
       quotations: [
         {

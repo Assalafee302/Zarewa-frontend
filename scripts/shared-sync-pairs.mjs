@@ -66,6 +66,7 @@ export const SHARED_SYNC_PAIRS = [
   ['shared/lib/refundCategoryDerivedCaps.js', 'src/shared/lib/refundCategoryDerivedCaps.js'],
   ['shared/lib/refundQuotationMoney.js', 'src/shared/lib/refundQuotationMoney.js'],
   ['shared/lib/refundStaffAllocationDeduction.js', 'src/shared/lib/refundStaffAllocationDeduction.js'],
+  ['shared/lib/refundCreditApply.js', 'src/shared/lib/refundCreditApply.js'],
   ['shared/lib/customerLedgerCore.js', 'src/shared/lib/customerLedgerCore.js'],
   ['shared/lib/managementQueueFilters.js', 'src/shared/lib/managementQueueFilters.js'],
   ['shared/lib/managementQueueCounts.js', 'src/shared/lib/managementQueueCounts.js'],

@@ -14,6 +14,7 @@ import { refundStatusIsWithdrawn } from '../../lib/refundsStore';
 import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn } from '../../lib/refundCashierDetail';
 import { refundCreditApplicationIsActive } from '../../lib/refundFundApply.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
+import { RefundApplyToQuotationPanel } from './RefundApplyToQuotationPanel.jsx';
 
 function MoneyRow({ label, value, tone }) {
   const cls =
@@ -32,7 +33,7 @@ function MoneyRow({ label, value, tone }) {
   );
 }
 
-export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onReverseApply }) {
+export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onReverseApply, onApplied }) {
   const ws = useWorkspace();
   const [intelligence, setIntelligence] = useState(null);
   const [intelBusy, setIntelBusy] = useState(false);
@@ -180,6 +181,13 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
               ) : null}
             </div>
           ) : null}
+
+          <RefundApplyToQuotationPanel
+            refund={refund}
+            onApplied={async () => {
+              await onApplied?.();
+            }}
+          />
 
           <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3 space-y-1.5">
             <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-1">How this refund was used</p>
