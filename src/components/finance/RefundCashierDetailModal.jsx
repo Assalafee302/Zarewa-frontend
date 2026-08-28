@@ -206,9 +206,29 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             {story.unclearedOffsetNgn > 0 ? (
               <MoneyRow label="Uncleared receipt offset" value={story.unclearedOffsetNgn} tone="amber" />
             ) : null}
-            <MoneyRow label="Paid from till / bank" value={story.paidNgn} tone="emerald" />
+            {story.settledAtApprovalNgn > 0 ? (
+              <MoneyRow label="Settled at BM approval" value={story.settledAtApprovalNgn} tone="amber" />
+            ) : null}
+            <MoneyRow label="Paid from till / bank" value={story.treasuryPaidNgn} tone="emerald" />
             <MoneyRow label="Still to pay" value={story.cashDueNgn} tone="rose" />
           </div>
+
+          {story.hasStaffSplit && story.splitBreakdown?.length > 1 ? (
+            <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 space-y-1.5">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
+              <ul className="space-y-1">
+                {story.splitBreakdown.map((row) => (
+                  <li
+                    key={`${row.recipientKind}-${row.recipientLabel}-${row.netPayoutNgn}`}
+                    className="flex justify-between gap-2 text-xs text-sky-950"
+                  >
+                    <span className="font-semibold">{row.recipientLabel}</span>
+                    <span className="tabular-nums font-bold">{formatNgn(row.netPayoutNgn)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {blockCashPayout ? (
             <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-950 leading-relaxed" role="alert">

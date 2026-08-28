@@ -49,6 +49,10 @@ import {
   refundOutstandingAmount,
   hangingRefundsForCustomer,
 } from '../../lib/refundsStore';
+import {
+  refundCashierMoneyStory,
+  refundDefaultTreasuryPayoutNgn,
+} from '../../lib/refundCashierDetail';
 import { overpayCreditBalanceFromEntries } from '../../lib/customerLedgerCore.js';
 import { openAuditQueue } from '../../lib/liveAnalytics';
 import { effectiveOutstandingNgn, isEffectivelyFullyPaid } from '../../lib/paymentOutstandingTolerance.js';
@@ -888,7 +892,12 @@ const Account = () => {
   const openRefundPay = useCallback((row) => {
     setRefundPayTarget(row);
     setRefundPaidBy('');
-    setRefundPayLines([createRequestPayLine(bankAccountsForPayout[0]?.id ?? '', refundOutstandingAmount(row))]);
+    setRefundPayLines([
+      createRequestPayLine(
+        bankAccountsForPayout[0]?.id ?? '',
+        refundDefaultTreasuryPayoutNgn(row)
+      ),
+    ]);
     setRefundPaymentNote(row.paymentNote || '');
     setShowRefundPayModal(true);
   }, [bankAccountsForPayout]);
@@ -1829,6 +1838,11 @@ const Account = () => {
     }
     return [...names];
   }, [refundPayTarget?.quotationRef, salesReceipts]);
+
+  const refundPayMoneyStory = useMemo(
+    () => (refundPayTarget ? refundCashierMoneyStory(refundPayTarget) : null),
+    [refundPayTarget]
+  );
 
   const receiptsVisibleInReconciliationQueue = useMemo(() => salesReceipts, [salesReceipts]);
 
@@ -4252,25 +4266,71 @@ const Account = () => {
                   <ul className="mt-2 space-y-0.5 text-xs text-slate-600">
                     {refundPayTarget.payoutHistory.map((p) => (
                       <li key={p.id || `${p.postedAtISO}-${p.amountNgn}`}>
-                        Paid {formatNgn(p.amountNgn)}
+                        Till paid {formatNgn(p.amountNgn)}
                         {p.accountName ? ` · ${p.accountName}` : ''}
                         {p.reference ? ` · ${p.reference}` : ''}
                       </li>
                     ))}
                   </ul>
                 ) : null}
-                <div className="grid grid-cols-3 gap-3 pt-2 text-ui-xs text-gray-600 tabular-nums">
+                {refundPayMoneyStory?.settledAtApprovalNgn > 0 ? (
+                  <div className="mt-2 rounded-xl border border-violet-200/90 bg-violet-50/80 px-3 py-2 text-xs text-violet-950 leading-relaxed">
+                    {formatNgn(refundPayMoneyStory.settledAtApprovalNgn)} settled at Branch Manager approval
+                    {refundPayMoneyStory.companyCutNgn > 0 ? (
+                      <>
+                        {' '}
+                        (company cut {formatNgn(refundPayMoneyStory.companyCutNgn)} → retention ledger)
+                      </>
+                    ) : null}
+                    . That is not a till payout to the customer.
+                  </div>
+                ) : null}
+                {refundPayMoneyStory?.hasStaffSplit ? (
+                  <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950 space-y-1.5">
+                    <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">
+                      Split payout (net cash after company cut)
+                    </p>
+                    <ul className="space-y-1">
+                      {refundPayMoneyStory.splitBreakdown.map((row) => (
+                        <li
+                          key={`${row.recipientKind}-${row.recipientLabel}-${row.netPayoutNgn}`}
+                          className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5"
+                        >
+                          <span className="font-semibold">{row.recipientLabel}</span>
+                          <span className="tabular-nums font-black">
+                            {formatNgn(row.netPayoutNgn)}
+                            {row.companyDeductionNgn > 0 ? (
+                              <span className="ml-1 font-medium text-violet-800">
+                                (gross {formatNgn(row.grossNgn)} − cut {formatNgn(row.companyDeductionNgn)})
+                              </span>
+                            ) : null}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-sky-800/90 leading-relaxed">
+                      Pay each recipient their net line — do not send the full balance to one bank account.
+                    </p>
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-ui-xs text-gray-600 tabular-nums">
                   <div>
                     <p className="uppercase text-gray-400">Approved</p>
-                    <p className="text-sm font-black text-zarewa-teal">{formatNgn(refundApprovedAmount(refundPayTarget))}</p>
+                    <p className="text-sm font-black text-zarewa-teal">{formatNgn(refundPayMoneyStory?.approvedNgn ?? refundApprovedAmount(refundPayTarget))}</p>
+                  </div>
+                  {refundPayMoneyStory?.settledAtApprovalNgn > 0 ? (
+                    <div>
+                      <p className="uppercase text-gray-400">Retained at approval</p>
+                      <p className="text-sm font-black text-violet-800">{formatNgn(refundPayMoneyStory.settledAtApprovalNgn)}</p>
+                    </div>
+                  ) : null}
+                  <div>
+                    <p className="uppercase text-gray-400">Paid from till</p>
+                    <p className="text-sm font-black text-emerald-800">{formatNgn(refundPayMoneyStory?.treasuryPaidNgn ?? 0)}</p>
                   </div>
                   <div>
-                    <p className="uppercase text-gray-400">Paid</p>
-                    <p className="text-sm font-black text-zarewa-teal">{formatNgn(Number(refundPayTarget.paidAmountNgn) || 0)}</p>
-                  </div>
-                  <div>
-                    <p className="uppercase text-gray-400">Balance</p>
-                    <p className="text-sm font-black text-rose-700">{formatNgn(refundOutstandingAmount(refundPayTarget))}</p>
+                    <p className="uppercase text-gray-400">Cash still due</p>
+                    <p className="text-sm font-black text-rose-700">{formatNgn(refundPayMoneyStory?.cashDueNgn ?? refundOutstandingAmount(refundPayTarget))}</p>
                   </div>
                 </div>
               </div>

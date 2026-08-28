@@ -163,6 +163,12 @@ export function CompanyRetentionPanel({
         </div>
       </div>
 
+      {summary && summary.tablesReady === false ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 leading-relaxed">
+          Company retention ledger is not ready on this server. Restart the API so migrations run, then refresh.
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         <FinanceDeskQueueActionButton tone="slate" onClick={() => void load()} disabled={loading}>
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
