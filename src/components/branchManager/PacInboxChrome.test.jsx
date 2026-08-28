@@ -23,6 +23,6 @@ describe('PacInboxChrome', () => {
       </>
     );
     expect(screen.getByText('fault')).toBeTruthy();
-    expect(screen.getByText(/30h/)).toBeTruthy();
+    expect(screen.getByText(/1d/)).toBeTruthy();
   });
 });

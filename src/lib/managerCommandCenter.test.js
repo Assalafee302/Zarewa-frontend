@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { computeBranchHealthScore } from './managerBranchHealthScore';
 import { normalizeManagerPageTab } from './managerPageTabs';
 import { checklistCompletionPct } from './managerDailyChecklist';
-import { managerKindTone, managerSlaMeta, normalizeManagerInboxRoute } from './managerDashboardCore';
+import {
+  managerKindTone,
+  managerSlaAgeLabel,
+  managerSlaMeta,
+  normalizeManagerInboxRoute,
+} from './managerDashboardCore';
 
 describe('manager command center helpers', () => {
   it('normalizes page tabs', () => {
@@ -33,8 +38,17 @@ describe('manager command center helpers', () => {
 
   it('marks refund SLA breach after 48h', () => {
     expect(managerSlaMeta('refunds', 51)?.tone).toBe('urgent');
+    expect(managerSlaMeta('refunds', 51)?.label).toMatch(/2d — refund SLA breached/);
     expect(managerSlaMeta('refunds', 10)?.tone).toBe('info');
     expect(managerSlaMeta('refunds', null)?.label).toMatch(/unknown/i);
+  });
+
+  it('formats SLA age as days from 24h upward', () => {
+    expect(managerSlaAgeLabel(10)).toBe('10h');
+    expect(managerSlaAgeLabel(23)).toBe('23h');
+    expect(managerSlaAgeLabel(24)).toBe('1d');
+    expect(managerSlaAgeLabel(30)).toBe('1d');
+    expect(managerSlaMeta('issues', 3709, { compact: true })?.label).toBe('155d!');
   });
 
   it('computes health score in range', () => {

@@ -304,6 +304,12 @@ export function countAbsentFromRoll(rollRows) {
   }, 0);
 }
 
+/** Compact SLA chip: hours below 24h, whole days from 24h upward. */
+export function managerSlaAgeLabel(ageHours) {
+  if (ageHours >= 24) return `${Math.round(ageHours / 24)}d`;
+  return `${Math.round(ageHours)}h`;
+}
+
 /** Refund SLA: warn 24h / breach 48h. Other queues: warn 24h / breach 48h. */
 export function managerSlaMeta(kind, ageHours, { compact = false } = {}) {
   if (ageHours == null || !Number.isFinite(ageHours)) {
@@ -312,15 +318,19 @@ export function managerSlaMeta(kind, ageHours, { compact = false } = {}) {
   const isRefund = String(kind || '').toLowerCase().includes('refund');
   const breachAt = 48;
   const warnAt = 24;
-  const hours = Math.round(ageHours);
+  const ageLabel = managerSlaAgeLabel(ageHours);
   if (ageHours >= breachAt) {
     return {
-      label: compact ? `${hours}h!` : isRefund ? `${hours}h — refund SLA breached` : `${hours}h — SLA breached`,
+      label: compact
+        ? `${ageLabel}!`
+        : isRefund
+          ? `${ageLabel} — refund SLA breached`
+          : `${ageLabel} — SLA breached`,
       tone: 'urgent',
     };
   }
-  if (ageHours >= warnAt) return { label: compact ? `${hours}h` : `${hours}h`, tone: 'pending' };
-  return { label: compact ? `${hours}h` : `${hours}h`, tone: 'info' };
+  if (ageHours >= warnAt) return { label: ageLabel, tone: 'pending' };
+  return { label: ageLabel, tone: 'info' };
 }
 
 export function attentionKindMatchesFilter(kind, filterKey) {

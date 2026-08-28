@@ -45,6 +45,7 @@ import {
 } from '../lib/managerDashboardCore';
 import { isEffectivelyFullyPaid } from '../lib/paymentOutstandingTolerance';
 import { formatPersonName } from '../lib/formatPersonName';
+import { accountingReceivableOutstandingNgn, quotationWaivedBalanceNgn } from '../lib/customerLedgerCore';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import { syncAccountingPolicyFlagsFromHealth, deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
 import { userMayApproveRefundRequests } from '../lib/refundsStore';
@@ -59,7 +60,11 @@ import {
   userMayReleaseQuotationPaymentHold,
   userMayWriteOffReceivableBadDebt,
 } from '../lib/workspaceGovernanceClient';
-import { RECEIVABLE_WRITEOFF_NOTE_MIN_LEN } from '../lib/receivableWriteOffPolicy';
+import {
+  isMinorReceivableForBranchManager,
+  MAX_BRANCH_MANAGER_MINOR_RECEIVABLE_NGN,
+  RECEIVABLE_WRITEOFF_NOTE_MIN_LEN,
+} from '../lib/receivableWriteOffPolicy';
 import { canMarkHrAttendance } from '../lib/hrAccess';
 import { useCreditExceptions } from './useCreditExceptions';
 import {
@@ -1464,7 +1469,7 @@ export function useBranchManagerWorkstation() {
         const confirmed = await requestConfirm({
           title: 'Waive round-off',
           description:
-            'Waive only the small balance within the 99.5% payment tolerance (max ₦5,000). This removes it from Creditors receivables and posts a GL write-off. Continue?',
+            'Waive the small remaining balance (payment tolerance or minor receivable under ₦1,000). This removes it from receivables and posts a GL write-off. Continue?',
           onConfirm: 'waive_balance',
         });
         if (!confirmed) return;
@@ -1599,7 +1604,14 @@ export function useBranchManagerWorkstation() {
     const eligible = rows.filter((row) => {
       const paid = Math.round(Number(row.paid_ngn) || 0);
       const total = Math.round(Number(row.total_ngn) || 0);
-      return total <= 0 || isEffectivelyFullyPaid(paid, total);
+      if (total <= 0) return true;
+      if (isEffectivelyFullyPaid(paid, total)) return true;
+      const receivable = accountingReceivableOutstandingNgn(
+        total,
+        paid,
+        quotationWaivedBalanceNgn(row)
+      );
+      return isMinorReceivableForBranchManager(receivable, paid);
     });
     const skippedBalance = rows.length - eligible.length;
 
@@ -1610,7 +1622,7 @@ export function useBranchManagerWorkstation() {
     if (eligible.length === 0 && conversionRows.length === 0) {
       showToast(
         skippedBalance > 0
-          ? 'None of the visible quotes meet the 99.5% paid rule — post remaining balances before sign-off.'
+          ? 'None of the visible quotes are fully paid or have a minor balance under ₦1,000 — post remaining balances before sign-off.'
           : 'Nothing to clear (no paid quotations or conversion gaps).',
         { variant: 'error' }
       );
@@ -1630,7 +1642,7 @@ export function useBranchManagerWorkstation() {
         : '';
     const ok = await requestConfirm({
       title: 'Admin bulk clear?',
-      description: `Clear ${parts.join(' and ')}? Paid quotes must be at 99.5% paid or above. Conversion High/Low (too-much-gap) reviews are signed off with an admin bulk remark.${skipNote}`,
+      description: `Clear ${parts.join(' and ')}? Paid quotes must be fully paid, or have a minor receivable under ₦${MAX_BRANCH_MANAGER_MINOR_RECEIVABLE_NGN.toLocaleString('en-NG')}. Conversion High/Low (too-much-gap) reviews are signed off with an admin bulk remark.${skipNote}`,
       onConfirm: 'clear_all_clearance',
       variant: 'danger',
     });

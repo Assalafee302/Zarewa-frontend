@@ -6,6 +6,7 @@ import { accountingReceivableOutstandingNgn, quotationWaivedBalanceNgn } from '.
 import {
   evaluateReceivableWriteOff,
   registerReceivableOutstandingNgn,
+  MAX_BRANCH_MANAGER_MINOR_RECEIVABLE_NGN,
   MAX_ROUND_OFF_WAIVE_NGN,
 } from '../../lib/receivableWriteOffPolicy.js';
 import { IntelStat, CaseStrip } from './managementIntelUi';
@@ -158,6 +159,14 @@ export function ClearanceManagerApprovalPreview({
           <p className="mt-1 text-ui-xs text-teal-900">
             Remaining {formatNgn(strictReceivableNgn)} is within the{' '}
             {MAX_ROUND_OFF_WAIVE_NGN.toLocaleString('en-NG')} round-off band.
+          </p>
+        ) : null}
+        {strictReceivableNgn > 0 &&
+        receivableNgn > 0 &&
+        strictReceivableNgn < MAX_BRANCH_MANAGER_MINOR_RECEIVABLE_NGN ? (
+          <p className="mt-1 text-ui-xs text-teal-900">
+            Minor balance under ₦{MAX_BRANCH_MANAGER_MINOR_RECEIVABLE_NGN.toLocaleString('en-NG')} — Branch
+            Manager may waive and approve clearance.
           </p>
         ) : null}
         {strictReceivableNgn > 0 && receivableNgn > 0 ? (
