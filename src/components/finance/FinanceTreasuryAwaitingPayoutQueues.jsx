@@ -6,7 +6,9 @@ import { isFinanceExceptionExpenseItem } from '../../shared/expenseCategoryPolic
 import {
   FinanceDeskColoredQueuePanel,
   FinanceDeskColoredQueueRow,
+  FinanceDeskQueueStatusDot,
 } from './FinanceDeskColoredQueuePanel';
+import { refundPayeePayoutCaution } from '../../lib/refundCashierDetail';
 import {
   paymentRequestOutstandingNgn,
   poTransportPayoutMetaLine,
@@ -181,11 +183,19 @@ export function FinanceTreasuryAwaitingPayoutQueues({
               {refundPayeeLines.map((line) => {
                 const r = line.parentRefund || {};
                 const rowTestId = `finance-refund-awaiting-row-${line.refundID}-${line.queueKey}`;
+                const caution = refundPayeePayoutCaution(r, line, {
+                  siblingPayeeLines: refundPayeeLines,
+                });
+                const statusIndicator =
+                  caution.level !== 'none' ? (
+                    <FinanceDeskQueueStatusDot tone={caution.tone} title={caution.title} />
+                  ) : null;
                 return (
                 <FinanceDeskColoredQueueRow
                   key={`${line.refundID}-${line.queueKey}`}
                   theme="rose"
                   testId={rowTestId}
+                  statusIndicator={statusIndicator}
                   title={
                     <>
                       <span className="font-mono">{line.refundID}</span>

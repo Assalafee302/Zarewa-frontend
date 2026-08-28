@@ -4,6 +4,7 @@ import {
   refundCashierMoneyStory,
   refundCashierOverpayResidualNgn,
   refundDefaultTreasuryPayoutNgn,
+  refundPayeePayoutCaution,
   refundPayeePayoutQueueLines,
 } from './refundCashierDetail.js';
 
@@ -113,6 +114,82 @@ describe('refundPayeePayoutQueueLines', () => {
     expect(lines[1].companyDeductionNgn).toBe(4_000);
     expect(lines[1].netPayoutNgn).toBe(16_000);
     expect(lines[1].amountDueNgn).toBe(16_000);
+  });
+});
+
+describe('refundPayeePayoutCaution', () => {
+  it('warns when bank details are missing', () => {
+    const refund = {
+      refundID: 'RF-1',
+      approvedAmountNgn: 25_000,
+      paidAmountNgn: 0,
+      status: 'Approved',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 25_000 },
+      ],
+    };
+    const line = {
+      refundID: 'RF-1',
+      recipientKind: 'customer',
+      amountDueNgn: 25_000,
+      payeeAccountNo: '',
+      payeeBankName: '',
+    };
+    const caution = refundPayeePayoutCaution(refund, line, { siblingPayeeLines: [line] });
+    expect(caution.level).toBe('warn');
+    expect(caution.codes).toContain('missing_bank');
+  });
+
+  it('marks split payout when multiple payees are still due', () => {
+    const refund = {
+      refundID: 'RF-2026-002',
+      customerID: 'CUS-1',
+      approvedAmountNgn: 45_000,
+      paidAmountNgn: 4_000,
+      status: 'Approved',
+      paymentNote: 'Settled at approval: company cut ₦4,000 → retention ledger.',
+      payeeAccountNo: '0123456789',
+      payeeBankName: 'GTBank',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 25_000 },
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-1',
+          amountNgn: 20_000,
+          payoutAccount: {
+            payeeName: 'Staff Payee',
+            payeeBankName: 'Access Bank',
+            payeeAccountNo: '9988776655',
+          },
+        },
+      ],
+    };
+    const lines = refundPayeePayoutQueueLines(refund);
+    expect(lines).toHaveLength(2);
+    const caution = refundPayeePayoutCaution(refund, lines[0], { siblingPayeeLines: lines });
+    expect(caution.codes).toContain('multi_payee');
+    expect(caution.level).toBe('info');
+    expect(caution.tone).toBe('violet');
+  });
+
+  it('warns when settlement exists but splits are missing from snapshot', () => {
+    const refund = {
+      refundID: 'RF-2026-002',
+      approvedAmountNgn: 45_000,
+      paidAmountNgn: 4_000,
+      status: 'Approved',
+      paymentNote: 'Settled at approval: company cut ₦4,000 → retention ledger.',
+    };
+    const line = {
+      refundID: 'RF-2026-002',
+      recipientKind: 'customer',
+      amountDueNgn: 41_000,
+      payeeAccountNo: '0123456789',
+      payeeBankName: 'GTBank',
+    };
+    const caution = refundPayeePayoutCaution(refund, line, { siblingPayeeLines: [line] });
+    expect(caution.codes).toContain('splits_incomplete');
+    expect(caution.level).toBe('warn');
   });
 });
 

@@ -7,7 +7,22 @@ describe('FinanceTreasuryAwaitingPayoutQueues', () => {
   it('renders refund and expense payout panels with shared test ids', () => {
     render(
       <FinanceTreasuryAwaitingPayoutQueues
-        refunds={[{ refundID: 'RF-1', customer: 'Acme', approvedAmountNgn: 1000, paidAmountNgn: 0 }]}
+        refunds={[
+          {
+            refundID: 'RF-1',
+            customer: 'Acme',
+            approvedAmountNgn: 1000,
+            paidAmountNgn: 0,
+          },
+          {
+            refundID: 'RF-2',
+            customer: 'Grace Emmanuel',
+            approvedAmountNgn: 45000,
+            paidAmountNgn: 4000,
+            paymentNote: 'Settled at approval: company cut ₦4,000 → retention ledger.',
+            splitDistributions: [],
+          },
+        ]}
         paymentRequests={[
           {
             requestID: 'PR-1',
@@ -39,6 +54,8 @@ describe('FinanceTreasuryAwaitingPayoutQueues', () => {
     expect(screen.getByTestId('finance-refunds-awaiting-payout')).toBeTruthy();
     expect(screen.getByTestId('finance-payment-requests-awaiting-payout')).toBeTruthy();
     expect(screen.getByTestId('finance-refund-awaiting-row-RF-1-customer-0')).toBeTruthy();
+    expect(screen.getByTestId('finance-refund-awaiting-row-RF-2-customer-0')).toBeTruthy();
+    expect(screen.getAllByTestId('finance-queue-status-dot').length).toBeGreaterThan(0);
     expect(screen.getByTestId('finance-preq-awaiting-row-PR-1')).toBeTruthy();
     expect(screen.getByText('Fuel & lubricant')).toBeTruthy();
     expect(screen.getAllByText(/Work order MWO-1/).length).toBeGreaterThan(0);

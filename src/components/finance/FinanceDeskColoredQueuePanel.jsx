@@ -91,11 +91,32 @@ export function FinanceDeskColoredQueuePanel({
   );
 }
 
+/** Coloured dot for queue rows that need cashier attention before payout. */
+export function FinanceDeskQueueStatusDot({ tone = 'amber', title }) {
+  const toneCls = {
+    amber: 'bg-amber-500 ring-amber-200/80',
+    violet: 'bg-violet-500 ring-violet-200/80',
+    rose: 'bg-rose-500 ring-rose-200/80',
+  };
+  const label = String(title || '').trim();
+  if (!label) return null;
+  return (
+    <span
+      className={`inline-block h-2 w-2 shrink-0 rounded-full ring-2 ring-offset-1 ${toneCls[tone] || toneCls.amber}`}
+      title={label}
+      aria-label={label}
+      role="img"
+      data-testid="finance-queue-status-dot"
+    />
+  );
+}
+
 /**
  * Single row inside a coloured queue panel (Treasury row pattern).
  * @param {{
  *   theme?: keyof typeof THEMES;
  *   title: React.ReactNode;
+ *   statusIndicator?: React.ReactNode;
  *   meta?: string;
  *   extra?: React.ReactNode;
  *   amount: string;
@@ -106,6 +127,7 @@ export function FinanceDeskColoredQueuePanel({
 export function FinanceDeskColoredQueueRow({
   theme = 'teal',
   title,
+  statusIndicator = null,
   meta,
   extra,
   amount,
@@ -120,7 +142,10 @@ export function FinanceDeskColoredQueueRow({
     >
       <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
         <div className="min-w-0 leading-tight flex-1">
-          <div className="text-xs font-bold text-zarewa-teal truncate">{title}</div>
+          <div className="text-xs font-bold text-zarewa-teal truncate flex items-center gap-1.5 min-w-0">
+            {statusIndicator}
+            <span className="truncate min-w-0">{title}</span>
+          </div>
           {meta ? (
             <p className="text-ui-xs text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta}>
               {meta}

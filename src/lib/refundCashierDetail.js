@@ -368,6 +368,80 @@ export function flattenRefundPayeePayoutQueue(refunds) {
   return lines;
 }
 
+const REFUND_PAYOUT_CAUTION_COPY = {
+  missing_bank: 'Bank details missing — confirm pay-to account before payout.',
+  multi_payee: 'Split payout — pay each recipient their net line separately.',
+  splits_incomplete:
+    'Payee split may be incomplete on this snapshot — open payout to refresh amounts.',
+  quotation_blocked: 'Refunds are blocked on this quotation — payout will be rejected.',
+};
+
+/**
+ * Cashier desk hint when a refund payout row may fail or needs extra care.
+ * @returns {{ level: 'none'|'info'|'warn'|'block', tone: 'amber'|'violet'|'rose', title: string, codes: string[] }}
+ */
+export function refundPayeePayoutCaution(refund, payeeLine, { siblingPayeeLines = [] } = {}) {
+  const codes = [];
+  const rid = String(payeeLine?.refundID ?? refund?.refundID ?? '').trim();
+  const siblings = (Array.isArray(siblingPayeeLines) ? siblingPayeeLines : []).filter(
+    (line) => String(line?.refundID ?? '').trim() === rid
+  );
+
+  const acct = String(
+    payeeLine?.payeeAccountNo ||
+      refund?.payeeAccountNo ||
+      refund?.payee_account_no ||
+      ''
+  ).trim();
+  const bank = String(
+    payeeLine?.payeeBankName ||
+      refund?.payeeBankName ||
+      refund?.payee_bank_name ||
+      ''
+  ).trim();
+  if (!acct || !bank) codes.push('missing_bank');
+
+  if (siblings.length > 1) codes.push('multi_payee');
+
+  const splits = refundSplitRows(refund);
+  const story = refundCashierMoneyStory(refund);
+  const settledNote = refundPaymentNoteSettledAtApproval(refund);
+  const paidNgn = Math.round(Number(refund?.paidAmountNgn ?? refund?.paid_amount_ngn) || 0);
+  const splitPayeeCount = splits.filter((row) => row.amountNgn > 0).length;
+  if (
+    (!splits.length && (settledNote || paidNgn > 0)) ||
+    (splitPayeeCount > 1 && siblings.length === 1) ||
+    (story.hasStaffSplit && siblings.length === 1 && payeeLine?.recipientKind === 'customer')
+  ) {
+    codes.push('splits_incomplete');
+  }
+
+  if (
+    String(
+      refund?.quotationRefundsBlockedAtISO ?? refund?.quotation_refunds_blocked_at_iso ?? ''
+    ).trim()
+  ) {
+    codes.push('quotation_blocked');
+  }
+
+  if (!codes.length) {
+    return { level: 'none', tone: 'amber', title: '', codes: [] };
+  }
+
+  let level = 'info';
+  let tone = 'violet';
+  if (codes.includes('quotation_blocked')) {
+    level = 'block';
+    tone = 'rose';
+  } else if (codes.includes('missing_bank') || codes.includes('splits_incomplete')) {
+    level = 'warn';
+    tone = 'amber';
+  }
+
+  const title = codes.map((code) => REFUND_PAYOUT_CAUTION_COPY[code] || code).join(' · ');
+  return { level, tone, title, codes };
+}
+
 /** Default till payout for one payee — uses queue line cash due, not proportional guess. */
 export function refundDefaultTreasuryPayoutNgn(refund, payeeQueueKey = null) {
   const lines = refundPayeePayoutQueueLines(refund);
