@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formatNgn } from '../../Data/mockData';
-import { approvedRefundsAwaitingPayment } from '../../lib/refundsStore';
+import { approvedRefundsAwaitingPayment, refundOutstandingAmount } from '../../lib/refundsStore';
 import { registerSettlementsAwaitingPayment } from '../../lib/registerSettlementPay';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance.js';
 import { paymentRequestPayoutMetaLine } from '../../lib/financeTreasuryPayoutQueueMeta';
@@ -67,7 +67,7 @@ export function FinanceCashierPayoutsPanel() {
         kind: 'Customer refund',
         party: r.customerName || r.customerID || '—',
         date: String(r.approvedAtISO || r.dateISO || '').slice(0, 10),
-        amount: Math.round(Number(r.outstandingNgn ?? r.amountNgn) || 0),
+        amount: refundOutstandingAmount(r),
         pay: () => handleDeskPayRefund(String(r.refundID || r.id || '')),
         view: () => handleDeskViewRefund?.(String(r.refundID || r.id || '')),
       });

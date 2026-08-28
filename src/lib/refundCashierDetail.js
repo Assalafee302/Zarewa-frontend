@@ -3,6 +3,10 @@ import {
   overpaymentAlreadyRefundedNgn,
   quotationOverpaymentResidualNgn,
 } from '../shared/lib/refundQuotationMoney.js';
+import {
+  sumRefundStaffCompanyDeductionNgn,
+  sumRefundStaffUnclearedOffsetNgn,
+} from '../shared/lib/refundStaffAllocationDeduction.js';
 
 /**
  * Cashier-facing split of a refund: requested vs applied onto another quote vs till payout.
@@ -17,6 +21,14 @@ export function refundCashierMoneyStory(refund) {
   const approvedNgn = refundApprovedAmount(refund);
   const paidNgn = Math.round(Number(refund?.paidAmountNgn ?? refund?.paid_amount_ngn) || 0);
   const cashDueNgn = refundOutstandingAmount(refund);
+  const splits = Array.isArray(refund?.splitDistributions)
+    ? refund.splitDistributions
+    : Array.isArray(refund?.refundSplits)
+      ? refund.refundSplits
+      : [];
+  const companyCutNgn = sumRefundStaffCompanyDeductionNgn(splits);
+  const unclearedOffsetNgn = sumRefundStaffUnclearedOffsetNgn(splits);
+  const settledAtApprovalNgn = Math.max(0, companyCutNgn + unclearedOffsetNgn);
   return {
     requestedNgn,
     appliedNgn,
@@ -24,6 +36,9 @@ export function refundCashierMoneyStory(refund) {
     approvedNgn,
     paidNgn,
     cashDueNgn,
+    companyCutNgn,
+    unclearedOffsetNgn,
+    settledAtApprovalNgn,
   };
 }
 

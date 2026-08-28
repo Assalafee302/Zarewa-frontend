@@ -192,6 +192,12 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
               />
             ) : null}
             <MoneyRow label="Approved for cash" value={story.approvedNgn} />
+            {story.companyCutNgn > 0 ? (
+              <MoneyRow label="Company cut (retained)" value={story.companyCutNgn} tone="amber" />
+            ) : null}
+            {story.unclearedOffsetNgn > 0 ? (
+              <MoneyRow label="Uncleared receipt offset" value={story.unclearedOffsetNgn} tone="amber" />
+            ) : null}
             <MoneyRow label="Paid from till / bank" value={story.paidNgn} tone="emerald" />
             <MoneyRow label="Still to pay" value={story.cashDueNgn} tone="rose" />
           </div>

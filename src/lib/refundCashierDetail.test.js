@@ -19,6 +19,9 @@ describe('refundCashierMoneyStory', () => {
       approvedNgn: 128_300,
       paidNgn: 0,
       cashDueNgn: 128_300,
+      companyCutNgn: 0,
+      unclearedOffsetNgn: 0,
+      settledAtApprovalNgn: 0,
     });
   });
 });
