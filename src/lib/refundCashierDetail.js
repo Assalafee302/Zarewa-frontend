@@ -65,6 +65,20 @@ function parseCompanyCutFromPaymentNote(refund) {
   return roundRefundStaffMoney(String(match[1] || '').replace(/,/g, ''));
 }
 
+function parseUnclearedOffsetFromPaymentNote(refund) {
+  const note = String(refund?.paymentNote ?? refund?.payment_note ?? '');
+  const match = note.match(/uncleared receipts offset\s*[₦N]?\s*([\d,]+)/i);
+  if (!match) return 0;
+  return roundRefundStaffMoney(String(match[1] || '').replace(/,/g, ''));
+}
+
+/** Cash still owed from till/bank — excludes company cut and uncleared-receipt offsets settled at approval. */
+function payeeTillCashDueNgn(row, { treasuryPaidToPayeeNgn = 0, extraUnclearedOffsetNgn = 0 } = {}) {
+  const offset = roundRefundStaffMoney(row?.unclearedReceiptOffsetNgn) + extraUnclearedOffsetNgn;
+  const tillOwed = Math.max(0, roundRefundStaffMoney(row?.netPayoutNgn) - offset);
+  return Math.max(0, tillOwed - roundRefundStaffMoney(treasuryPaidToPayeeNgn));
+}
+
 /** Merge API / snapshot rows so payout math always sees split_distributions_json. */
 export function enrichRefundForCashierPayout(row, apiRefund) {
   if (!apiRefund || typeof apiRefund !== 'object') return row;
@@ -101,7 +115,12 @@ function refundSettledAtApprovalNgn(refund, breakdown) {
   const approvedNgn = refundApprovedAmount(refund);
   const paidNgn = Math.round(Number(refund?.paidAmountNgn ?? refund?.paid_amount_ngn) || 0);
   const companyCutNgn = breakdown.reduce((sum, row) => sum + row.companyDeductionNgn, 0);
-  const unclearedOffsetNgn = breakdown.reduce((sum, row) => sum + row.unclearedReceiptOffsetNgn, 0);
+  const breakdownUncleared = breakdown.reduce(
+    (sum, row) => sum + row.unclearedReceiptOffsetNgn,
+    0
+  );
+  const noteUncleared = parseUnclearedOffsetFromPaymentNote(refund);
+  const unclearedOffsetNgn = Math.max(breakdownUncleared, noteUncleared);
   let settledAtApprovalNgn = Math.max(0, companyCutNgn + unclearedOffsetNgn);
   if (settledAtApprovalNgn <= 0 && refundPaymentNoteSettledAtApproval(refund) && paidNgn > 0) {
     settledAtApprovalNgn = Math.min(paidNgn, approvedNgn);
@@ -243,11 +262,31 @@ export function refundPayeePayoutQueueLines(refund) {
     return a.recipientKind === 'customer' ? -1 : 1;
   });
 
+  const noteUncleared = parseUnclearedOffsetFromPaymentNote(refund);
+  const breakdownUncleared = breakdown.reduce(
+    (sum, row) => sum + roundRefundStaffMoney(row.unclearedReceiptOffsetNgn),
+    0
+  );
+  let staffUnclearedExtra = Math.max(0, noteUncleared - breakdownUncleared);
+
   let treasuryRemaining = story.treasuryPaidNgn;
   const lines = breakdown.map((row, idx) => {
-    const treasuryPaidToPayeeNgn = Math.min(row.netPayoutNgn, Math.max(0, treasuryRemaining));
+    const extraUnclearedOffsetNgn =
+      row.recipientKind === 'associated_staff'
+        ? Math.min(staffUnclearedExtra, roundRefundStaffMoney(row.netPayoutNgn))
+        : 0;
+    if (extraUnclearedOffsetNgn > 0) {
+      staffUnclearedExtra -= extraUnclearedOffsetNgn;
+    }
+    const treasuryPaidToPayeeNgn = Math.min(
+      payeeTillCashDueNgn(row, { extraUnclearedOffsetNgn: extraUnclearedOffsetNgn }),
+      Math.max(0, treasuryRemaining)
+    );
     treasuryRemaining -= treasuryPaidToPayeeNgn;
-    const amountDueNgn = Math.max(0, row.netPayoutNgn - treasuryPaidToPayeeNgn);
+    const amountDueNgn = payeeTillCashDueNgn(row, {
+      treasuryPaidToPayeeNgn,
+      extraUnclearedOffsetNgn: extraUnclearedOffsetNgn,
+    });
     const kindSlug = row.recipientKind === 'associated_staff' ? 'staff' : 'customer';
     const queueKey = `${kindSlug}-${idx}`;
     const payeeBankName =
@@ -276,7 +315,8 @@ export function refundPayeePayoutQueueLines(refund) {
       payeeAccountNo,
       grossNgn: row.grossNgn,
       companyDeductionNgn: row.companyDeductionNgn,
-      unclearedReceiptOffsetNgn: row.unclearedReceiptOffsetNgn,
+      unclearedReceiptOffsetNgn:
+        roundRefundStaffMoney(row.unclearedReceiptOffsetNgn) + extraUnclearedOffsetNgn,
       netPayoutNgn: row.netPayoutNgn,
       treasuryPaidToPayeeNgn,
       amountDueNgn,
@@ -284,7 +324,14 @@ export function refundPayeePayoutQueueLines(refund) {
     };
   });
 
-  return lines.filter((line) => line.amountDueNgn > 0);
+  let cashRemaining = story.cashDueNgn;
+  const capped = lines.map((line) => {
+    const amountDueNgn = Math.min(line.amountDueNgn, Math.max(0, cashRemaining));
+    cashRemaining -= amountDueNgn;
+    return { ...line, amountDueNgn };
+  });
+
+  return capped.filter((line) => line.amountDueNgn > 0);
 }
 
 /** Expand approved refunds into individual payee payout queue rows. */
@@ -321,32 +368,18 @@ export function flattenRefundPayeePayoutQueue(refunds) {
   return lines;
 }
 
-/** Default till payout for the primary customer bank — not the full refund when staff splits exist. */
-export function refundDefaultTreasuryPayoutNgn(refund) {
+/** Default till payout for one payee — uses queue line cash due, not proportional guess. */
+export function refundDefaultTreasuryPayoutNgn(refund, payeeQueueKey = null) {
+  const lines = refundPayeePayoutQueueLines(refund);
+  if (payeeQueueKey) {
+    return lines.find((line) => line.queueKey === payeeQueueKey)?.amountDueNgn ?? 0;
+  }
+  const customerLine = lines.find((line) => line.recipientKind === 'customer');
+  if (customerLine) return customerLine.amountDueNgn;
+  if (lines.length === 1) return lines[0].amountDueNgn;
+
   const story = refundCashierMoneyStory(refund);
-  const cashDueNgn = story.cashDueNgn;
-  if (cashDueNgn <= 0) return 0;
-
-  if (story.staffNetNgn > 0 && story.customerNetNgn > 0) {
-    const totalNet = story.customerNetNgn + story.staffNetNgn;
-    const customerDue = roundRefundStaffMoney((cashDueNgn * story.customerNetNgn) / totalNet);
-    return Math.max(0, Math.min(customerDue, story.customerNetNgn, cashDueNgn));
-  }
-
-  const companyCutNgn =
-    story.companyCutNgn ||
-    parseCompanyCutFromPaymentNote(refund) ||
-    (story.settledAtApprovalNgn > 0 ? story.settledAtApprovalNgn : 0);
-
-  if (companyCutNgn > 0 && cashDueNgn < story.approvedNgn) {
-    const staffGross = roundRefundStaffMoney(companyCutNgn / REFUND_STAFF_ALLOCATION_DEDUCTION_RATE);
-    const customerNet = Math.max(0, story.approvedNgn - staffGross);
-    if (customerNet > 0 && customerNet < cashDueNgn) {
-      return Math.min(customerNet, cashDueNgn);
-    }
-  }
-
-  return cashDueNgn;
+  return story.cashDueNgn;
 }
 
 /**

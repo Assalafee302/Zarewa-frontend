@@ -53,7 +53,7 @@ describe('refundDefaultTreasuryPayoutNgn', () => {
     expect(refundDefaultTreasuryPayoutNgn(refund)).toBe(160_800);
   });
 
-  it('infers customer net from payment note when splits missing from snapshot', () => {
+  it('uses total cash due when splits missing from snapshot (fetch refund detail for payee lines)', () => {
     const refund = {
       amountNgn: 297_300,
       approvedAmountNgn: 297_300,
@@ -62,7 +62,29 @@ describe('refundDefaultTreasuryPayoutNgn', () => {
       paymentNote: 'Settled at approval: company cut ₦27,300 → retention ledger.',
       splitDistributions: [],
     };
-    expect(refundDefaultTreasuryPayoutNgn(refund)).toBe(160_800);
+    expect(refundDefaultTreasuryPayoutNgn(refund)).toBe(270_000);
+  });
+
+  it('defaults full customer cash when staff share cleared by uncleared receipt offset', () => {
+    const refund = {
+      refundID: 'RF-KD-26-9555',
+      customerID: 'CUS-1',
+      amountNgn: 89_300,
+      approvedAmountNgn: 89_300,
+      paidAmountNgn: 14_300,
+      status: 'Approved',
+      paymentNote:
+        'Settled at approval: company cut ₦2,860 → retention ledger; uncleared receipts offset ₦11,440.',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000 },
+        { recipientKind: 'associated_staff', recipientAssociatedStaffID: 'AST-1', amountNgn: 14_300 },
+      ],
+    };
+    const lines = refundPayeePayoutQueueLines(refund);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].recipientKind).toBe('customer');
+    expect(lines[0].amountDueNgn).toBe(75_000);
+    expect(refundDefaultTreasuryPayoutNgn(refund)).toBe(75_000);
   });
 });
 

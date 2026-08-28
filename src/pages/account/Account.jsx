@@ -916,8 +916,12 @@ const Account = () => {
       } else if (payeeLines.length > 1) {
         payoutLines = payeeLines.map((line) => createRequestPayLine(accountId, line.amountDueNgn));
       } else {
+        const soleLine = payeeLines.length === 1 ? payeeLines[0] : null;
         payoutLines = [
-          createRequestPayLine(accountId, refundDefaultTreasuryPayoutNgn(target)),
+          createRequestPayLine(
+            accountId,
+            soleLine?.amountDueNgn ?? refundDefaultTreasuryPayoutNgn(target, payeeQueueKey)
+          ),
         ];
       }
       setRefundPayTarget(target);
