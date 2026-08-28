@@ -2109,13 +2109,21 @@ const Account = () => {
       );
       if (cancelled) return;
       setCashierRefundCreditLoading(false);
-      if (!ok || !data?.ok || !(Number(data.totalAvailableNgn) > 0)) {
+      if (!ok || !data?.ok) {
+        setCashierRefundCreditInfo(null);
+        setApplyRefundOnConfirm(false);
+        return;
+      }
+      const hasUsableCredit = Number(data.totalAvailableNgn) > 0;
+      const hasUnavailable =
+        Array.isArray(data.unavailableSources) && data.unavailableSources.length > 0;
+      if (!hasUsableCredit && !hasUnavailable) {
         setCashierRefundCreditInfo(null);
         setApplyRefundOnConfirm(false);
         return;
       }
       setCashierRefundCreditInfo(data);
-      setApplyRefundOnConfirm(true);
+      setApplyRefundOnConfirm(hasUsableCredit);
     })().catch(() => {
       if (!cancelled) {
         setCashierRefundCreditLoading(false);
@@ -2135,13 +2143,19 @@ const Account = () => {
   }, [receiptFinanceRow]);
 
   const cashierRefundOffset = useMemo(() => {
-    if (!cashierRefundCreditInfo) return null;
+    if (!cashierRefundCreditInfo || !(Number(cashierRefundCreditInfo.totalAvailableNgn) > 0)) {
+      return null;
+    }
     const plan = planCashierRefundOffset({
       receiptCashNgn: cashierReceiptCashNgn,
       availableNgn: cashierRefundCreditInfo.totalAvailableNgn,
     });
     return plan.offsetNgn > 0 ? plan : null;
   }, [cashierRefundCreditInfo, cashierReceiptCashNgn]);
+
+  const cashierRefundCreditPanelVisible = Boolean(
+    cashierRefundCreditInfo && !receiptFinanceRow?.financeReconciliationSavedAtISO
+  );
 
   useEffect(() => {
     if (!receiptFinanceRow || !cashierRefundOffset) return;
@@ -5054,8 +5068,9 @@ const Account = () => {
 
                     {cashierRefundCreditLoading ? (
                       <p className="text-ui-xs text-slate-500">Checking approved refund fund…</p>
-                    ) : cashierRefundOffset && !receiptFinanceRow.financeReconciliationSavedAtISO ? (
+                    ) : cashierRefundCreditPanelVisible ? (
                       <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-ui-xs text-amber-950 space-y-1.5">
+                        {cashierRefundOffset ? (
                         <label className="flex items-start gap-2 cursor-pointer">
                           <input
                             type="checkbox"
@@ -5076,6 +5091,12 @@ const Account = () => {
                               : ' Nothing left to pay out on those refunds.'}
                           </span>
                         </label>
+                        ) : (
+                          <p className="font-semibold text-rose-900">
+                            Refund fund on file but none can cover this receipt yet — see reasons below. Confirm cash
+                            only, or apply from the refund record after fixing the blocker.
+                          </p>
+                        )}
                         {(cashierRefundCreditInfo?.sources || []).length > 0 ? (
                           <ul className="pl-6 list-disc text-slate-700 space-y-0.5">
                             {(cashierRefundCreditInfo.sources || []).slice(0, 6).map((s) => (
