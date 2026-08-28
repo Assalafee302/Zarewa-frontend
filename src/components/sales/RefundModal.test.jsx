@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import RefundModal, {
   refundableOverpaymentNgn,
   refundCreatePathFromPreview,
+  refundFormIsOverpaymentOnly,
   refundQuickOverpayAvailableFromPreview,
   refundRecordSubtitle,
 } from './RefundModal.jsx';
@@ -813,5 +814,25 @@ describe('refundRecordSubtitle', () => {
         creditConfirmationStatus: 'applied',
       })
     ).toBe('RF-1 · Pending · ₦20,000 applied to QT-2 · ₦30,000 awaits approval');
+  });
+
+  it('detects overpayment-only refund breakdown lines', () => {
+    expect(
+      refundFormIsOverpaymentOnly([
+        { include: true, category: 'Overpayment', amountNgn: '297300' },
+      ])
+    ).toBe(true);
+    expect(
+      refundFormIsOverpaymentOnly([
+        { include: true, category: 'Overpayment', amountNgn: '100000' },
+        { include: false, category: 'Unproduced meterage', amountNgn: '50000' },
+      ])
+    ).toBe(true);
+    expect(
+      refundFormIsOverpaymentOnly([
+        { include: true, category: 'Overpayment', amountNgn: '100000' },
+        { include: true, category: 'Transport issue', amountNgn: '5000' },
+      ])
+    ).toBe(false);
   });
 });

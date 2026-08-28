@@ -437,6 +437,30 @@ function suggestedLineIsPositiveNonOverpayment(line) {
   });
 }
 
+/** True when every included breakdown line is Overpayment (quick overpay path). */
+export function refundFormIsOverpaymentOnly(calculationLines) {
+  const lines = (Array.isArray(calculationLines) ? calculationLines : []).filter(
+    (l) => l?.include !== false && roundMoneyLocal(l?.amountNgn) > 0
+  );
+  if (!lines.length) return false;
+  return lines.every((l) => String(l.category || '').trim() === 'Overpayment');
+}
+
+function refundOverpayCustomerSplit(quoteCustomerId, amountNgn) {
+  const cid = String(quoteCustomerId || '').trim();
+  const amt = roundMoneyLocal(amountNgn);
+  if (!cid || amt <= 0) return [];
+  return [
+    {
+      recipientKind: 'customer',
+      recipientAssociatedStaffID: '',
+      recipientCustomerID: cid,
+      amountNgn: String(amt),
+      note: 'Overpayment · quote customer',
+    },
+  ];
+}
+
 /**
  * Still-refundable overpayment on this quote (after prior overpay refunds).
  * Prefer residual from preview — never invent an amount from gross excess alone when residual is 0.
@@ -1326,11 +1350,17 @@ const RefundModal = ({
     () => allCustomers.find((c) => String(c.customerID || '').trim() === String(form.customerID || '').trim()) || null,
     [allCustomers, form.customerID]
   );
+  const overpaymentOnlyRefund = useMemo(
+    () => refundFormIsOverpaymentOnly(form.calculationLines),
+    [form.calculationLines]
+  );
   const selectedCustomerHrPayout = useMemo(() => {
+    // Overpayment returns to the quote customer's bank — not HR payroll / staff cut path.
+    if (overpaymentOnlyRefund) return null;
     const cid = String(form.customerID || '').trim();
     if (!cid) return null;
     return claimingStaffRows.find((r) => String(r.customerID || '').trim() === cid && r.hasBank) || null;
-  }, [claimingStaffRows, form.customerID]);
+  }, [claimingStaffRows, form.customerID, overpaymentOnlyRefund]);
   const payoutAccountReady = Boolean(
     (String(form.payeeName || '').trim() &&
       String(form.payeeAccountNo || '').trim() &&
@@ -2046,16 +2076,32 @@ const RefundModal = ({
     setForm((f) => ({ ...f, payeeName, payeeBankName, payeeAccountNo }));
   }, [isOpen, mode, selectedRefundCustomer, selectedCustomerHrPayout]);
 
-  // When customer has bank, keep the simple path (no allocation rows).
+  // When customer has bank, keep the simple path (no staff allocation rows).
+  // Overpayment-only: store one split to quote customer for full amount (no company cut).
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
     if (!payoutAccountReady) return;
     setForm((f) => {
+      const quoteCustomerId = String(f.customerID || '').trim();
+      const amountNgn = roundMoneyLocal(f.amountNgn);
+      if (refundFormIsOverpaymentOnly(f.calculationLines) && quoteCustomerId && amountNgn > 0) {
+        const desired = refundOverpayCustomerSplit(quoteCustomerId, amountNgn);
+        const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
+        const sig = (rows) =>
+          rows
+            .map(
+              (r) =>
+                `${r.recipientKind}:${r.recipientCustomerID}:${roundMoneyLocal(r.amountNgn)}:${r.note}`
+            )
+            .join('|');
+        if (sig(existing) === sig(desired)) return f;
+        return { ...f, refundSplits: desired };
+      }
       const splits = Array.isArray(f.refundSplits) ? f.refundSplits : [];
       if (!splits.length) return f;
       return { ...f, refundSplits: [] };
     });
-  }, [isOpen, mode, payoutAccountReady, form.customerID]);
+  }, [isOpen, mode, payoutAccountReady, form.customerID, form.amountNgn, form.calculationLines]);
 
   /** Server-eligible quotes; keep a manually verified quote visible when not in the API list. */
   const quotationPickMerged = useMemo(() => {
@@ -2172,9 +2218,29 @@ const RefundModal = ({
   // other remainder → quotation handled-by (HR), never the person filing this refund.
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
-    if (payoutAccountReady) return;
     const amountNgn = roundMoneyLocal(form.amountNgn);
     if (amountNgn <= 0) return;
+    const quoteCustomerId = String(form.customerID || '').trim();
+
+    if (refundFormIsOverpaymentOnly(form.calculationLines) && quoteCustomerId) {
+      const next = refundOverpayCustomerSplit(quoteCustomerId, amountNgn);
+      setForm((f) => {
+        const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
+        if (existing.some((row) => String(row?._manual || '') === '1')) return f;
+        const sig = (rows) =>
+          rows
+            .map(
+              (r) =>
+                `${r.recipientKind}:${r.recipientAssociatedStaffID || r.recipientCustomerID}:${roundMoneyLocal(r.amountNgn)}:${r.note}`
+            )
+            .join('|');
+        if (sig(existing) === sig(next)) return f;
+        return { ...f, refundSplits: next };
+      });
+      return;
+    }
+
+    if (payoutAccountReady) return;
 
     const transportAmt = sumIncludedRefundLinesByCategoryMatch(form.calculationLines, (c) =>
       String(c).toLowerCase().includes('transport')
@@ -2194,7 +2260,6 @@ const RefundModal = ({
       companyStaffClaimOptions,
       defaultRefundPayee
     );
-    const quoteCustomerId = String(form.customerID || '').trim();
 
     const next = [];
     if (transportAmt > 0) {
@@ -2306,6 +2371,7 @@ const RefundModal = ({
     form.amountNgn,
     form.customerID,
     form.calculationLines,
+    payoutAccountReady,
     selectedQuotationForPayoutPeople,
     selectedQuoteMoneyRow,
     associatedStaffRows,
@@ -3244,7 +3310,7 @@ const RefundModal = ({
     const payeeName = String(form.payeeName || '').trim();
     const payeeAccountNo = String(form.payeeAccountNo || '').trim();
     const payeeBankName = String(form.payeeBankName || '').trim();
-    const refundSplits = (Array.isArray(form.refundSplits) ? form.refundSplits : [])
+    let refundSplits = (Array.isArray(form.refundSplits) ? form.refundSplits : [])
       .map((row) => {
         const kind = String(row?.recipientKind || 'customer').trim().toLowerCase();
         const staffId = String(row?.recipientAssociatedStaffID || '').trim();
@@ -3283,6 +3349,16 @@ const RefundModal = ({
           row.amountNgn > 0 &&
           (row.recipientCustomerID || row.recipientAssociatedStaffID)
       );
+    if (
+      refundSplits.length === 0 &&
+      refundFormIsOverpaymentOnly(form.calculationLines) &&
+      String(form.customerID || '').trim()
+    ) {
+      refundSplits = refundOverpayCustomerSplit(form.customerID, amountNgn).map((row) => ({
+        ...row,
+        amountNgn: Math.round(Number(row.amountNgn) || 0),
+      }));
+    }
     if (mayWaiveStaffAllocationCut) {
       for (const row of refundSplits) {
         if (!row.companyCutWaived) continue;
@@ -5354,7 +5430,12 @@ const RefundModal = ({
                               </>
                             )}
                           </div>
-                          {partnerWalletPolicyEnabled ? (
+                          {overpaymentOnlyRefund ? (
+                            <p className="text-ui-xs text-emerald-300/90 leading-snug">
+                              Full ₦{roundMoneyLocal(form.amountNgn).toLocaleString('en-NG')} overpayment to this
+                              customer after approval — not subject to company cut or staff allocation.
+                            </p>
+                          ) : partnerWalletPolicyEnabled ? (
                             <p className="text-ui-xs text-slate-400 leading-snug">
                               Flow: BM approves → partner wallet → cashier pays (full or partial).
                             </p>
