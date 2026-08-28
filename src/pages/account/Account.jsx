@@ -5063,13 +5063,35 @@ const Account = () => {
                           />
                           <span>
                             <span className="font-bold">{REFUND_FUND_CASHIER_OFFSET_LABEL}: </span>
-                            {formatNgn(cashierRefundOffset.offsetNgn)} from this customer’s approved refund
-                            will cover this receipt. That slice is not paid out in cash.
+                            {formatNgn(cashierRefundOffset.offsetNgn)} from this customer&apos;s refund fund
+                            ({formatNgn(cashierRefundCreditInfo?.totalAvailableNgn || 0)} on file across{' '}
+                            {(cashierRefundCreditInfo?.sources || []).length || 1} source
+                            {(cashierRefundCreditInfo?.sources || []).length === 1 ? '' : 's'}) will cover this
+                            receipt. That slice is not paid out in cash.
                             {cashierRefundOffset.leftoverRefundNgn > 0
                               ? ` Leftover ${formatNgn(cashierRefundOffset.leftoverRefundNgn)} stays on the payout queue.`
-                              : ' Nothing left to pay out on that refund.'}
+                              : ' Nothing left to pay out on those refunds.'}
                           </span>
                         </label>
+                        {(cashierRefundCreditInfo?.sources || []).length > 0 ? (
+                          <ul className="pl-6 list-disc text-slate-700 space-y-0.5">
+                            {(cashierRefundCreditInfo.sources || []).slice(0, 6).map((s) => (
+                              <li key={s.id}>
+                                {s.label}: {formatNgn(s.availableNgn)}
+                                {s.overpaymentOnly ? ' · overpayment' : ' · approved refund'}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                        {(cashierRefundCreditInfo?.unavailableSources || []).length > 0 ? (
+                          <ul className="pl-6 list-disc text-rose-900/80 space-y-0.5">
+                            {(cashierRefundCreditInfo.unavailableSources || []).slice(0, 4).map((s) => (
+                              <li key={s.id || s.refundId}>
+                                {s.refundId || s.sourceQuotationRef || 'Refund'}: {s.reason || 'Not available'}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                         {applyRefundOnConfirm ? (
                           <p className="pl-6 font-semibold text-emerald-800">
                             {cashierRefundOffset.cashToConfirmNgn > 0
