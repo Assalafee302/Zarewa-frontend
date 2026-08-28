@@ -175,6 +175,17 @@ export function CompanyRetentionPanel({
         </div>
       ) : null}
 
+      {summary &&
+      summary.tablesReady !== false &&
+      total <= 0 &&
+      Math.round(Number(summary?.backfillScanned) || 0) > 0 &&
+      Math.round(Number(summary?.backfilled) || 0) <= 0 ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 leading-relaxed">
+          Approved refunds with company cut were found but no ledger balance could be built. Contact support if
+          Refresh does not load balances after an API restart.
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         <FinanceDeskQueueActionButton tone="slate" onClick={() => void load()} disabled={loading}>
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
