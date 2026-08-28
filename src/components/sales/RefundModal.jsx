@@ -2180,6 +2180,32 @@ const RefundModal = ({
     if (amountNgn <= 0) return;
     const quoteCustomerId = String(form.customerID || '').trim();
 
+    if (refundFormIsOverpaymentOnly(form.calculationLines) && quoteCustomerId && !payoutAccountReady) {
+      const next = [
+        {
+          recipientKind: 'customer',
+          recipientAssociatedStaffID: '',
+          recipientCustomerID: quoteCustomerId,
+          amountNgn: String(amountNgn),
+          note: 'Overpayment · quote customer',
+        },
+      ];
+      setForm((f) => {
+        const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
+        if (existing.some((row) => String(row?._manual || '') === '1')) return f;
+        const sig = (rows) =>
+          rows
+            .map(
+              (r) =>
+                `${r.recipientKind}:${r.recipientAssociatedStaffID || r.recipientCustomerID}:${roundMoneyLocal(r.amountNgn)}:${r.note}`
+            )
+            .join('|');
+        if (sig(existing) === sig(next)) return f;
+        return { ...f, refundSplits: next };
+      });
+      return;
+    }
+
     // Customer bank on file: payout splits are optional (default is full payee until user adds lines).
     if (payoutAccountReady) return;
 
@@ -2312,7 +2338,6 @@ const RefundModal = ({
     form.amountNgn,
     form.customerID,
     form.calculationLines,
-    payoutAccountReady,
     selectedQuotationForPayoutPeople,
     selectedQuoteMoneyRow,
     associatedStaffRows,
@@ -3061,6 +3086,30 @@ const RefundModal = ({
     productionAlignmentAck,
     productionAlignmentOverrideNote,
   ]);
+
+  /** Quick overpay is cash vs quote — hide stale production-metre noise from the first preview load. */
+  useEffect(() => {
+    if (!refundFormIsOverpaymentOnly(form.calculationLines)) return;
+    setProductionAlignmentIssues((prev) =>
+      prev.filter(
+        (i) =>
+          ![
+            'produced_exceeds_quotation',
+            'produced_exceeds_cutting_list',
+            'cutting_list_exceeds_produced',
+            'unproduced_with_full_production',
+          ].includes(String(i?.code || ''))
+      )
+    );
+    setWarnings((prev) =>
+      prev.filter(
+        (w) =>
+          !/produced output.*exceeds|exceeds cutting list|fully produced|offcut\/accessories in addition|economic floor check/i.test(
+            String(w || '')
+          )
+      )
+    );
+  }, [form.calculationLines]);
 
   const alignmentBlocksAction = useMemo(() => {
     if (mode !== 'create' && !showApproval) return false;
@@ -5382,18 +5431,27 @@ const RefundModal = ({
                         </>
                       ) : (
                         <>
-                          <p className="text-ui-xs text-amber-100/90 leading-snug">
-                            No customer bank on file. Remainder defaults to the quotation{' '}
-                            <span className="font-semibold text-white">Handled by</span> staff (HR bank)
-                            {defaultRefundPayee?.name ? (
-                              <>
-                                {' '}
-                                — <span className="font-semibold text-white">{defaultRefundPayee.name}</span>
-                              </>
-                            ) : null}
-                            . Transporter/installer from the quote can be selected separately. Not the person
-                            filing this refund.
-                          </p>
+                          {overpaymentOnlyRefund ? (
+                            <p className="text-ui-xs text-emerald-200/90 leading-snug">
+                              Overpayment is the customer&apos;s cash above the quote — route it to{' '}
+                              <span className="font-semibold text-white">{form.customerName || 'the quote customer'}</span>{' '}
+                              (add bank below). Company cut does not apply to customer overpay; only staff /
+                              associated-staff lines use the 20% cut.
+                            </p>
+                          ) : (
+                            <p className="text-ui-xs text-amber-100/90 leading-snug">
+                              No customer bank on file. Remainder defaults to the quotation{' '}
+                              <span className="font-semibold text-white">Handled by</span> staff (HR bank)
+                              {defaultRefundPayee?.name ? (
+                                <>
+                                  {' '}
+                                  — <span className="font-semibold text-white">{defaultRefundPayee.name}</span>
+                                </>
+                              ) : null}
+                              . Transporter/installer from the quote can be selected separately. Not the person
+                              filing this refund.
+                            </p>
+                          )}
                           {defaultRefundPayeeHint && !(defaultRefundPayee?.customerID || defaultRefundPayee?.userId) ? (
                             <p className="text-ui-xs text-rose-200/90 leading-snug">{defaultRefundPayeeHint}</p>
                           ) : null}
@@ -5674,6 +5732,10 @@ const RefundModal = ({
                                   </div>
                                 ) : null}
                                 {(() => {
+                                  const isQuoteCustomerRow =
+                                    !isStaff &&
+                                    String(row.recipientCustomerID || '').trim() ===
+                                      String(form.customerID || '').trim();
                                   const ded = applyRefundStaffAllocationDeduction(
                                     {
                                       ...row,
@@ -5687,6 +5749,15 @@ const RefundModal = ({
                                       ),
                                     }
                                   );
+                                  if (isQuoteCustomerRow) {
+                                    return (
+                                      <p className="text-[10px] leading-snug text-emerald-200/90">
+                                        Customer overpayment — full ₦
+                                        {(Number(ded.grossNgn) || 0).toLocaleString('en-NG')} to quote customer (no
+                                        company cut).
+                                      </p>
+                                    );
+                                  }
                                   if (
                                     !(ded.companyDeductionNgn > 0) &&
                                     !(ded.unclearedReceiptOffsetNgn > 0) &&
