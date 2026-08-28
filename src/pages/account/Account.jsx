@@ -50,7 +50,6 @@ import {
   hangingRefundsForCustomer,
 } from '../../lib/refundsStore';
 import {
-  refundCashierMoneyStory,
   refundDefaultTreasuryPayoutNgn,
   enrichRefundForCashierPayout,
   refundPayeePayoutQueueLines,
@@ -1854,29 +1853,6 @@ const Account = () => {
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.receipts) ? [...ws.snapshot.receipts] : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.receipts]
-  );
-
-  const refundPayPaymentConfirmers = useMemo(() => {
-    const qref = String(refundPayTarget?.quotationRef || '').trim();
-    if (!qref) return [];
-    const names = new Set();
-    for (const receipt of salesReceipts) {
-      if (String(receipt.quotationRef || '').trim() !== qref) continue;
-      if (!receipt.financeReconciliationSavedAtISO) continue;
-      const name = String(receipt.financeReconciliationSavedBy || '').trim();
-      if (name) names.add(name);
-    }
-    return [...names];
-  }, [refundPayTarget?.quotationRef, salesReceipts]);
-
-  const refundPayMoneyStory = useMemo(
-    () => (refundPayTarget ? refundCashierMoneyStory(refundPayTarget) : null),
-    [refundPayTarget]
-  );
-
-  const refundPayDefaultNgn = useMemo(
-    () => (refundPayTarget ? refundDefaultTreasuryPayoutNgn(refundPayTarget) : 0),
-    [refundPayTarget]
   );
 
   const refundPaySelectedPayee = useMemo(() => {
@@ -4267,21 +4243,10 @@ const Account = () => {
           </div>
           {refundPayTarget ? (
             <form className="space-y-4" onSubmit={confirmRefundPaid}>
-              <div className="bg-rose-50/80 rounded-2xl p-4 border border-rose-100 text-sm space-y-1">
-                <p className="font-mono font-bold text-zarewa-teal">{refundPayTarget.refundID}</p>
-                <p className="font-bold text-gray-800">{refundPayTarget.customer}</p>
-                <p className="text-xs text-gray-600">{refundPayTarget.reason}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-ui-xs">
-                  <div>
-                    <p className="uppercase text-gray-400 font-bold tracking-wide">Refund requested by</p>
-                    <p className="font-semibold text-gray-800">{refundPayTarget.requestedBy || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="uppercase text-gray-400 font-bold tracking-wide">Payment confirmed by</p>
-                    <p className="font-semibold text-gray-800">
-                      {refundPayPaymentConfirmers.length > 0 ? refundPayPaymentConfirmers.join(' · ') : '—'}
-                    </p>
-                  </div>
+              <div className="rounded-2xl border border-rose-100 bg-rose-50/80 p-4 space-y-3 text-sm">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="font-mono font-bold text-zarewa-teal">{refundPayTarget.refundID}</p>
+                  <p className="text-lg font-black tabular-nums text-rose-700">{formatNgn(refundPayTotalNgn)}</p>
                 </div>
                 {(refundPaySelectedPayee?.payeeName ||
                   refundPaySelectedPayee?.payeeAccountNo ||
@@ -4289,120 +4254,30 @@ const Account = () => {
                   refundPayTarget.payeeName ||
                   refundPayTarget.payeeAccountNo ||
                   refundPayTarget.payeeBankName) ? (
-                  <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950 space-y-1">
-                    <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">
-                      Pay to
-                      {refundPaySelectedPayee?.recipientLabel
-                        ? ` · ${refundPaySelectedPayee.recipientLabel}`
-                        : ' (from request)'}
+                  <div className="rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950">
+                    <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">Pay to</p>
+                    <p className="font-bold text-sky-950 pt-0.5">
+                      {refundPaySelectedPayee?.recipientLabel ||
+                        refundPaySelectedPayee?.payeeName ||
+                        refundPayTarget.payeeName ||
+                        '—'}
                     </p>
-                    {(refundPaySelectedPayee?.payeeName || refundPayTarget.payeeName) ? (
-                      <p className="font-bold text-sky-950">
-                        {refundPaySelectedPayee?.payeeName || refundPayTarget.payeeName}
-                      </p>
-                    ) : null}
-                    <p className="font-mono text-xs font-semibold tabular-nums leading-snug">
+                    <p className="font-mono text-xs font-semibold tabular-nums pt-0.5">
                       {[
                         refundPaySelectedPayee?.payeeBankName || refundPayTarget.payeeBankName,
                         refundPaySelectedPayee?.payeeAccountNo || refundPayTarget.payeeAccountNo,
                       ]
                         .filter(Boolean)
-                        .join(' · ') ||
-                        refundPaySelectedPayee?.payeeAccountNo ||
-                        refundPayTarget.payeeAccountNo ||
-                        '—'}
+                        .join(' · ') || '—'}
                     </p>
-                    {refundPaySelectedPayee?.companyDeductionNgn > 0 ? (
-                      <p className="text-violet-900/90 font-semibold">
-                        20% company cut {formatNgn(refundPaySelectedPayee.companyDeductionNgn)} already retained at
-                        approval.
-                      </p>
-                    ) : null}
                   </div>
-                ) : null}
-                {refundPayTarget.quotationRef ? (
-                  <p className="text-xs font-semibold text-slate-600 pt-1">
-                    Quote <span className="font-mono">{refundPayTarget.quotationRef}</span>
-                  </p>
                 ) : null}
                 {Math.round(Number(refundPayTarget.creditAppliedNgn) || 0) > 0 ? (
-                  <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 leading-relaxed">
-                    {formatNgn(refundPayTarget.creditAppliedNgn)} of this refund was already applied to{' '}
-                    {String(refundPayTarget.creditAppliedToQuotationRef || '').trim() || 'a receipt'} — that is not a
-                    till payout. Pay only the remaining cash balance.
-                  </div>
+                  <p className="text-xs text-amber-950">
+                    {formatNgn(refundPayTarget.creditAppliedNgn)} already applied to another receipt — pay only
+                    the cash lines below.
+                  </p>
                 ) : null}
-                {Array.isArray(refundPayTarget.payoutHistory) && refundPayTarget.payoutHistory.length > 0 ? (
-                  <ul className="mt-2 space-y-0.5 text-xs text-slate-600">
-                    {refundPayTarget.payoutHistory.map((p) => (
-                      <li key={p.id || `${p.postedAtISO}-${p.amountNgn}`}>
-                        Till paid {formatNgn(p.amountNgn)}
-                        {p.accountName ? ` · ${p.accountName}` : ''}
-                        {p.reference ? ` · ${p.reference}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {refundPayMoneyStory?.settledAtApprovalNgn > 0 ? (
-                  <div className="mt-2 rounded-xl border border-violet-200/90 bg-violet-50/80 px-3 py-2 text-xs text-violet-950 leading-relaxed">
-                    {formatNgn(refundPayMoneyStory.settledAtApprovalNgn)} settled at Branch Manager approval
-                    {refundPayMoneyStory.companyCutNgn > 0 ? (
-                      <>
-                        {' '}
-                        (company cut {formatNgn(refundPayMoneyStory.companyCutNgn)} → retention ledger)
-                      </>
-                    ) : null}
-                    . That is not a till payout to the customer.
-                  </div>
-                ) : null}
-                {refundPayMoneyStory?.hasStaffSplit ? (
-                  <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950 space-y-1.5">
-                    <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">
-                      Split payout (net cash after company cut)
-                    </p>
-                    <ul className="space-y-1">
-                      {refundPayMoneyStory.splitBreakdown.map((row) => (
-                        <li
-                          key={`${row.recipientKind}-${row.recipientLabel}-${row.netPayoutNgn}`}
-                          className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5"
-                        >
-                          <span className="font-semibold">{row.recipientLabel}</span>
-                          <span className="tabular-nums font-black">
-                            {formatNgn(row.netPayoutNgn)}
-                            {row.companyDeductionNgn > 0 ? (
-                              <span className="ml-1 font-medium text-violet-800">
-                                (gross {formatNgn(row.grossNgn)} − cut {formatNgn(row.companyDeductionNgn)})
-                              </span>
-                            ) : null}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="text-sky-800/90 leading-relaxed">
-                      Pay each recipient their net line — do not send the full balance to one bank account.
-                    </p>
-                  </div>
-                ) : null}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-ui-xs text-gray-600 tabular-nums">
-                  <div>
-                    <p className="uppercase text-gray-400">Approved</p>
-                    <p className="text-sm font-black text-zarewa-teal">{formatNgn(refundPayMoneyStory?.approvedNgn ?? refundApprovedAmount(refundPayTarget))}</p>
-                  </div>
-                  {refundPayMoneyStory?.settledAtApprovalNgn > 0 ? (
-                    <div>
-                      <p className="uppercase text-gray-400">Retained at approval</p>
-                      <p className="text-sm font-black text-violet-800">{formatNgn(refundPayMoneyStory.settledAtApprovalNgn)}</p>
-                    </div>
-                  ) : null}
-                  <div>
-                    <p className="uppercase text-gray-400">Paid from till</p>
-                    <p className="text-sm font-black text-emerald-800">{formatNgn(refundPayMoneyStory?.treasuryPaidNgn ?? 0)}</p>
-                  </div>
-                  <div>
-                    <p className="uppercase text-gray-400">Cash still due</p>
-                    <p className="text-sm font-black text-rose-700">{formatNgn(refundPayMoneyStory?.cashDueNgn ?? refundOutstandingAmount(refundPayTarget))}</p>
-                  </div>
-                </div>
               </div>
               <div>
                 <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
@@ -4416,7 +4291,7 @@ const Account = () => {
                 />
               </div>
               <div className="flex items-center justify-between">
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>
+                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Treasury account</label>
                 <button
                   type="button"
                   onClick={addRefundPayLine}
@@ -4425,15 +4300,6 @@ const Account = () => {
                   <Plus size={14} /> Add line
                 </button>
               </div>
-              {refundPayMoneyStory &&
-              refundPayDefaultNgn > 0 &&
-              refundPayDefaultNgn < (refundPayMoneyStory.cashDueNgn ?? 0) ? (
-                <p className="text-xs font-semibold text-sky-900 leading-relaxed rounded-lg border border-sky-200 bg-sky-50/90 px-3 py-2">
-                  Pre-filled {formatNgn(refundPayDefaultNgn)} for the quote customer only. Pay staff their
-                  separate net line ({formatNgn(Math.max(0, refundPayMoneyStory.cashDueNgn - refundPayDefaultNgn))}) in
-                  another transfer — not to this customer bank.
-                </p>
-              ) : null}
               <div className="space-y-1.5">
                 {refundPayLines.map((line) => (
                   <div
@@ -4512,7 +4378,7 @@ const Account = () => {
                 </div>
               </div>
               <p className="text-ui-xs text-gray-500 leading-relaxed">
-                Saving this payout writes the treasury movements and keeps the refund open until the approved balance is fully paid.
+                Posts treasury movement for this payee. Company cut and splits are already settled at approval.
               </p>
               <button
                 type="submit"

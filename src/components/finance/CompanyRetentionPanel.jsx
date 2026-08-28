@@ -45,8 +45,14 @@ export function CompanyRetentionPanel({
     setLoading(true);
     try {
       const { ok, data } = await apiFetch('/api/refund-company-retention');
-      if (ok && data?.ok !== false) setSummary(data);
-      else showToast(String(data?.error || 'Could not load company cut balance.'), { variant: 'error' });
+      if (ok && data?.ok !== false) {
+        setSummary(data);
+        if (Math.round(Number(data?.backfilled) || 0) > 0) {
+          showToast(`Loaded ${data.backfilled} company-cut balance(s) from approved refunds.`, {
+            variant: 'success',
+          });
+        }
+      } else showToast(String(data?.error || 'Could not load company cut balance.'), { variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -270,7 +276,7 @@ export function CompanyRetentionPanel({
           description={`Staff refund % cuts accumulate here. After ${holdDays} days, withdraw with Branch Manager approval.`}
           icon={<Landmark size={16} strokeWidth={2} />}
           testId="finance-company-retention"
-          count={pending.length || (total > 0 ? 1 : 0)}
+          count={Math.max(pending.length, credits.length, total > 0 ? 1 : 0)}
         >
           {body}
         </FinanceDeskColoredQueuePanel>
