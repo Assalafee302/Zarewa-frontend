@@ -11,7 +11,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { flattenQuotationLineItems } from '../../lib/managerDashboardCore';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
 import { refundStatusIsWithdrawn } from '../../lib/refundsStore';
-import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn } from '../../lib/refundCashierDetail';
+import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn, refundDefaultTreasuryPayoutNgn } from '../../lib/refundCashierDetail';
 import { refundCreditApplicationIsActive } from '../../lib/refundFundApply.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
 import { RefundApplyToQuotationPanel } from './RefundApplyToQuotationPanel.jsx';
@@ -114,6 +114,10 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
     (Array.isArray(refund?.calculationLines) &&
       refund.calculationLines.some((l) => String(l?.category || '').toLowerCase().includes('overpay')));
   const blockCashPayout = Boolean(looksOverpay && story.cashDueNgn > 0 && overpayResidualNgn < story.cashDueNgn);
+  const defaultPayoutNgn = useMemo(
+    () => refundDefaultTreasuryPayoutNgn(refund),
+    [refund]
+  );
 
   useEffect(() => {
     if (!isOpen || !qref) {
@@ -344,7 +348,9 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
           cancelLabel="Close"
           onConfirm={onPay && story.cashDueNgn > 0 && !blockCashPayout ? () => onPay(refund) : undefined}
           confirmLabel={
-            onPay && story.cashDueNgn > 0 && !blockCashPayout ? `Payout ${formatNgn(story.cashDueNgn)}` : 'Save'
+            onPay && story.cashDueNgn > 0 && !blockCashPayout
+              ? `Payout ${formatNgn(defaultPayoutNgn)}${defaultPayoutNgn < story.cashDueNgn ? ' (customer)' : ''}`
+              : 'Save'
           }
         />
       </ModalScrollShell>

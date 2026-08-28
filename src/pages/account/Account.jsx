@@ -52,6 +52,7 @@ import {
 import {
   refundCashierMoneyStory,
   refundDefaultTreasuryPayoutNgn,
+  enrichRefundForCashierPayout,
 } from '../../lib/refundCashierDetail';
 import { overpayCreditBalanceFromEntries } from '../../lib/customerLedgerCore.js';
 import { openAuditQueue } from '../../lib/liveAnalytics';
@@ -889,18 +890,31 @@ const Account = () => {
     setRefundPayLines((prev) => (prev.length <= 1 ? prev : prev.filter((line) => line.id !== lineId)));
   };
 
-  const openRefundPay = useCallback((row) => {
-    setRefundPayTarget(row);
-    setRefundPaidBy('');
-    setRefundPayLines([
-      createRequestPayLine(
-        bankAccountsForPayout[0]?.id ?? '',
-        refundDefaultTreasuryPayoutNgn(row)
-      ),
-    ]);
-    setRefundPaymentNote(row.paymentNote || '');
-    setShowRefundPayModal(true);
-  }, [bankAccountsForPayout]);
+  const openRefundPay = useCallback(
+    async (row) => {
+      let target = row;
+      const rid = String(row?.refundID || '').trim();
+      if (rid && ws?.canMutate) {
+        try {
+          const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}`);
+          if (ok && data?.refund) {
+            target = normalizeRefund(enrichRefundForCashierPayout(row, data.refund));
+          }
+        } catch {
+          /* use workspace row */
+        }
+      }
+      const defaultAmount = refundDefaultTreasuryPayoutNgn(target);
+      setRefundPayTarget(target);
+      setRefundPaidBy('');
+      setRefundPayLines([
+        createRequestPayLine(bankAccountsForPayout[0]?.id ?? '', defaultAmount),
+      ]);
+      setRefundPaymentNote(target.paymentNote || '');
+      setShowRefundPayModal(true);
+    },
+    [bankAccountsForPayout, ws?.canMutate]
+  );
 
   const cancelRefundBeforePay = useCallback(
     async (row) => {
@@ -1841,6 +1855,11 @@ const Account = () => {
 
   const refundPayMoneyStory = useMemo(
     () => (refundPayTarget ? refundCashierMoneyStory(refundPayTarget) : null),
+    [refundPayTarget]
+  );
+
+  const refundPayDefaultNgn = useMemo(
+    () => (refundPayTarget ? refundDefaultTreasuryPayoutNgn(refundPayTarget) : 0),
     [refundPayTarget]
   );
 
@@ -4355,6 +4374,15 @@ const Account = () => {
                   <Plus size={14} /> Add line
                 </button>
               </div>
+              {refundPayMoneyStory &&
+              refundPayDefaultNgn > 0 &&
+              refundPayDefaultNgn < (refundPayMoneyStory.cashDueNgn ?? 0) ? (
+                <p className="text-xs font-semibold text-sky-900 leading-relaxed rounded-lg border border-sky-200 bg-sky-50/90 px-3 py-2">
+                  Pre-filled {formatNgn(refundPayDefaultNgn)} for the quote customer only. Pay staff their
+                  separate net line ({formatNgn(Math.max(0, refundPayMoneyStory.cashDueNgn - refundPayDefaultNgn))}) in
+                  another transfer — not to this customer bank.
+                </p>
+              ) : null}
               <div className="space-y-1.5">
                 {refundPayLines.map((line) => (
                   <div
