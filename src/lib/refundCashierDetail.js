@@ -249,13 +249,13 @@ export function refundCashierSplitBreakdown(refund) {
  *   amountDueNgn: number,
  * }>}
  */
-export function refundPayeePayoutQueueLines(refund) {
+function buildRefundPayeePayoutLines(refund) {
   const story = refundCashierMoneyStory(refund);
-  if (story.cashDueNgn <= 0) return [];
+  if (story.cashDueNgn <= 0) return { story, lines: [] };
 
   const rid = String(refund?.refundID ?? refund?.refund_id ?? '').trim();
   let breakdown = story.splitBreakdown.filter((row) => row.netPayoutNgn > 0);
-  if (!breakdown.length) return [];
+  if (!breakdown.length) return { story, lines: [] };
 
   breakdown = [...breakdown].sort((a, b) => {
     if (a.recipientKind === b.recipientKind) return 0;
@@ -304,6 +304,8 @@ export function refundPayeePayoutQueueLines(refund) {
       (row.recipientKind === 'customer'
         ? String(refund?.payeeName ?? refund?.payee_name ?? '').trim()
         : row.recipientLabel);
+    const unclearedReceiptOffsetNgn =
+      roundRefundStaffMoney(row.unclearedReceiptOffsetNgn) + extraUnclearedOffsetNgn;
     return {
       queueKey,
       refundID: rid,
@@ -315,8 +317,7 @@ export function refundPayeePayoutQueueLines(refund) {
       payeeAccountNo,
       grossNgn: row.grossNgn,
       companyDeductionNgn: row.companyDeductionNgn,
-      unclearedReceiptOffsetNgn:
-        roundRefundStaffMoney(row.unclearedReceiptOffsetNgn) + extraUnclearedOffsetNgn,
+      unclearedReceiptOffsetNgn,
       netPayoutNgn: row.netPayoutNgn,
       treasuryPaidToPayeeNgn,
       amountDueNgn,
@@ -331,7 +332,35 @@ export function refundPayeePayoutQueueLines(refund) {
     return { ...line, amountDueNgn };
   });
 
-  return capped.filter((line) => line.amountDueNgn > 0);
+  return { story, lines: capped };
+}
+
+/** Per-recipient till status for refund detail — includes payees with ₦0 till due. */
+export function refundRecipientTillPayoutRows(refund) {
+  const { lines } = buildRefundPayeePayoutLines(refund);
+  return lines.map((line) => {
+    let payoutStatus = 'none';
+    let payoutStatusLabel = 'No till payout';
+    if (line.amountDueNgn > 0) {
+      payoutStatus = 'till_due';
+      payoutStatusLabel = 'Pay from till / bank';
+    } else if (line.treasuryPaidToPayeeNgn > 0) {
+      payoutStatus = 'paid';
+      payoutStatusLabel = 'Paid from till / bank';
+    } else if (line.unclearedReceiptOffsetNgn > 0) {
+      payoutStatus = 'offset_at_approval';
+      payoutStatusLabel = 'Cleared at approval (uncleared receipts)';
+    } else if (line.companyDeductionNgn > 0) {
+      payoutStatus = 'company_cut';
+      payoutStatusLabel = 'Company cut retained at approval';
+    }
+    return { ...line, payoutStatus, payoutStatusLabel };
+  });
+}
+
+export function refundPayeePayoutQueueLines(refund) {
+  const { lines } = buildRefundPayeePayoutLines(refund);
+  return lines.filter((line) => line.amountDueNgn > 0);
 }
 
 /** Expand approved refunds into individual payee payout queue rows. */

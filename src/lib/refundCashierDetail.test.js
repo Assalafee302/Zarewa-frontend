@@ -6,6 +6,7 @@ import {
   refundDefaultTreasuryPayoutNgn,
   refundPayeePayoutCaution,
   refundPayeePayoutQueueLines,
+  refundRecipientTillPayoutRows,
 } from './refundCashierDetail.js';
 
 describe('refundCashierMoneyStory', () => {
@@ -86,6 +87,39 @@ describe('refundDefaultTreasuryPayoutNgn', () => {
     expect(lines[0].recipientKind).toBe('customer');
     expect(lines[0].amountDueNgn).toBe(75_000);
     expect(refundDefaultTreasuryPayoutNgn(refund)).toBe(75_000);
+  });
+});
+
+describe('refundRecipientTillPayoutRows', () => {
+  it('shows staff offset at approval without till due while customer stays in queue', () => {
+    const refund = {
+      refundID: 'RF-KD-26-9555',
+      customerID: 'CUS-1',
+      amountNgn: 89_300,
+      approvedAmountNgn: 89_300,
+      paidAmountNgn: 14_300,
+      status: 'Approved',
+      paymentNote:
+        'Settled at approval: company cut ₦2,860 → retention ledger; uncleared receipts offset ₦11,440.',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-1',
+          amountNgn: 14_300,
+          payeeName: 'Muhammad Ibrahim Bakari',
+        },
+      ],
+    };
+    const rows = refundRecipientTillPayoutRows(refund);
+    expect(rows).toHaveLength(2);
+    const customer = rows.find((row) => row.recipientKind === 'customer');
+    const staff = rows.find((row) => row.recipientKind === 'associated_staff');
+    expect(customer?.amountDueNgn).toBe(75_000);
+    expect(customer?.payoutStatus).toBe('till_due');
+    expect(staff?.amountDueNgn).toBe(0);
+    expect(staff?.payoutStatus).toBe('offset_at_approval');
+    expect(refundPayeePayoutQueueLines(refund)).toHaveLength(1);
   });
 });
 

@@ -11,7 +11,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { flattenQuotationLineItems } from '../../lib/managerDashboardCore';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
 import { refundStatusIsWithdrawn } from '../../lib/refundsStore';
-import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn, refundDefaultTreasuryPayoutNgn } from '../../lib/refundCashierDetail';
+import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn, refundDefaultTreasuryPayoutNgn, refundRecipientTillPayoutRows } from '../../lib/refundCashierDetail';
 import { refundCreditApplicationIsActive } from '../../lib/refundFundApply.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
 import { RefundApplyToQuotationPanel } from './RefundApplyToQuotationPanel.jsx';
@@ -118,6 +118,8 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
     () => refundDefaultTreasuryPayoutNgn(refund),
     [refund]
   );
+  const recipientTillRows = useMemo(() => refundRecipientTillPayoutRows(refund), [refund]);
+  const tillDuePayeeCount = recipientTillRows.filter((row) => row.amountDueNgn > 0).length;
 
   useEffect(() => {
     if (!isOpen || !qref) {
@@ -217,7 +219,48 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             <MoneyRow label="Still to pay" value={story.cashDueNgn} tone="rose" />
           </div>
 
-          {story.hasStaffSplit && story.splitBreakdown?.length > 1 ? (
+          {recipientTillRows.length > 0 ? (
+            <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 space-y-2">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
+              <p className="text-ui-xs text-sky-900/85 leading-relaxed">
+                Only payees with till due appear in the Finance payout queue. Staff cleared by uncleared receipts at
+                approval do not get a separate bank transfer.
+              </p>
+              <ul className="space-y-2">
+                {recipientTillRows.map((row) => (
+                  <li
+                    key={`${row.queueKey}-${row.recipientLabel}`}
+                    className="rounded-lg border border-sky-200/70 bg-white/60 px-2.5 py-2"
+                  >
+                    <div className="flex justify-between gap-2 text-xs text-sky-950">
+                      <span className="font-semibold">{row.recipientLabel}</span>
+                      <span className="tabular-nums font-bold">{formatNgn(row.netPayoutNgn)} net</span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-ui-xs">
+                      <span
+                        className={
+                          row.payoutStatus === 'till_due'
+                            ? 'font-bold text-rose-800'
+                            : row.payoutStatus === 'offset_at_approval'
+                              ? 'font-semibold text-amber-900'
+                              : 'font-semibold text-slate-600'
+                        }
+                      >
+                        {row.payoutStatusLabel}
+                        {row.payoutStatus === 'till_due' ? ` · ${formatNgn(row.amountDueNgn)}` : ''}
+                        {row.payoutStatus === 'offset_at_approval'
+                          ? ` · ${formatNgn(row.unclearedReceiptOffsetNgn)}`
+                          : ''}
+                      </span>
+                      {row.payoutStatus === 'till_due' ? (
+                        <span className="font-bold uppercase tracking-wide text-rose-700">In payout queue</span>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : story.hasStaffSplit && story.splitBreakdown?.length > 1 ? (
             <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 space-y-1.5">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
               <ul className="space-y-1">
@@ -349,7 +392,9 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
           onConfirm={onPay && story.cashDueNgn > 0 && !blockCashPayout ? () => onPay(refund) : undefined}
           confirmLabel={
             onPay && story.cashDueNgn > 0 && !blockCashPayout
-              ? `Payout ${formatNgn(defaultPayoutNgn)}${defaultPayoutNgn < story.cashDueNgn ? ' (customer)' : ''}`
+              ? `Payout ${formatNgn(defaultPayoutNgn)}${
+                  tillDuePayeeCount > 1 ? ' (this payee)' : tillDuePayeeCount === 1 ? '' : ' (customer)'
+                }`
               : 'Save'
           }
         />
