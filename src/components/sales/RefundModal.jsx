@@ -446,21 +446,6 @@ export function refundFormIsOverpaymentOnly(calculationLines) {
   return lines.every((l) => String(l.category || '').trim() === 'Overpayment');
 }
 
-function refundOverpayCustomerSplit(quoteCustomerId, amountNgn) {
-  const cid = String(quoteCustomerId || '').trim();
-  const amt = roundMoneyLocal(amountNgn);
-  if (!cid || amt <= 0) return [];
-  return [
-    {
-      recipientKind: 'customer',
-      recipientAssociatedStaffID: '',
-      recipientCustomerID: cid,
-      amountNgn: String(amt),
-      note: 'Overpayment · quote customer',
-    },
-  ];
-}
-
 /**
  * Still-refundable overpayment on this quote (after prior overpay refunds).
  * Prefer residual from preview — never invent an amount from gross excess alone when residual is 0.
@@ -2076,33 +2061,6 @@ const RefundModal = ({
     setForm((f) => ({ ...f, payeeName, payeeBankName, payeeAccountNo }));
   }, [isOpen, mode, selectedRefundCustomer, selectedCustomerHrPayout]);
 
-  // When customer has bank, keep the simple path (no staff allocation rows).
-  // Overpayment-only: store one split to quote customer for full amount (no company cut).
-  useEffect(() => {
-    if (!isOpen || mode !== 'create') return;
-    if (!payoutAccountReady) return;
-    setForm((f) => {
-      const quoteCustomerId = String(f.customerID || '').trim();
-      const amountNgn = roundMoneyLocal(f.amountNgn);
-      if (refundFormIsOverpaymentOnly(f.calculationLines) && quoteCustomerId && amountNgn > 0) {
-        const desired = refundOverpayCustomerSplit(quoteCustomerId, amountNgn);
-        const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
-        const sig = (rows) =>
-          rows
-            .map(
-              (r) =>
-                `${r.recipientKind}:${r.recipientCustomerID}:${roundMoneyLocal(r.amountNgn)}:${r.note}`
-            )
-            .join('|');
-        if (sig(existing) === sig(desired)) return f;
-        return { ...f, refundSplits: desired };
-      }
-      const splits = Array.isArray(f.refundSplits) ? f.refundSplits : [];
-      if (!splits.length) return f;
-      return { ...f, refundSplits: [] };
-    });
-  }, [isOpen, mode, payoutAccountReady, form.customerID, form.amountNgn, form.calculationLines]);
-
   /** Server-eligible quotes; keep a manually verified quote visible when not in the API list. */
   const quotationPickMerged = useMemo(() => {
     const byId = new Map();
@@ -2222,24 +2180,7 @@ const RefundModal = ({
     if (amountNgn <= 0) return;
     const quoteCustomerId = String(form.customerID || '').trim();
 
-    if (refundFormIsOverpaymentOnly(form.calculationLines) && quoteCustomerId) {
-      const next = refundOverpayCustomerSplit(quoteCustomerId, amountNgn);
-      setForm((f) => {
-        const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
-        if (existing.some((row) => String(row?._manual || '') === '1')) return f;
-        const sig = (rows) =>
-          rows
-            .map(
-              (r) =>
-                `${r.recipientKind}:${r.recipientAssociatedStaffID || r.recipientCustomerID}:${roundMoneyLocal(r.amountNgn)}:${r.note}`
-            )
-            .join('|');
-        if (sig(existing) === sig(next)) return f;
-        return { ...f, refundSplits: next };
-      });
-      return;
-    }
-
+    // Customer bank on file: payout splits are optional (default is full payee until user adds lines).
     if (payoutAccountReady) return;
 
     const transportAmt = sumIncludedRefundLinesByCategoryMatch(form.calculationLines, (c) =>
@@ -3349,16 +3290,6 @@ const RefundModal = ({
           row.amountNgn > 0 &&
           (row.recipientCustomerID || row.recipientAssociatedStaffID)
       );
-    if (
-      refundSplits.length === 0 &&
-      refundFormIsOverpaymentOnly(form.calculationLines) &&
-      String(form.customerID || '').trim()
-    ) {
-      refundSplits = refundOverpayCustomerSplit(form.customerID, amountNgn).map((row) => ({
-        ...row,
-        amountNgn: Math.round(Number(row.amountNgn) || 0),
-      }));
-    }
     if (mayWaiveStaffAllocationCut) {
       for (const row of refundSplits) {
         if (!row.companyCutWaived) continue;
@@ -3400,11 +3331,25 @@ const RefundModal = ({
           return;
         }
       }
-    } else if (refundSplits.length > 0 && Math.abs(splitTotal - amountNgn) > AMOUNT_LINE_TOL) {
-      setPreviewError(
-        `Split total (₦${splitTotal.toLocaleString('en-NG')}) must equal refund amount (₦${amountNgn.toLocaleString('en-NG')}).`
-      );
-      return;
+    } else if (refundSplits.length > 0) {
+      if (Math.abs(splitTotal - amountNgn) > AMOUNT_LINE_TOL) {
+        setPreviewError(
+          `Split total (₦${splitTotal.toLocaleString('en-NG')}) must equal refund amount (₦${amountNgn.toLocaleString('en-NG')}).`
+        );
+        return;
+      }
+      for (const row of refundSplits) {
+        if (row.recipientKind === 'associated_staff' && !row.recipientAssociatedStaffID) {
+          setPreviewError('Select associated staff or a payout recipient with bank for each allocation.');
+          return;
+        }
+        if (row.recipientKind === 'customer' && !row.recipientCustomerID) {
+          setPreviewError(
+            'Select a payout recipient (quote customer, staff customer, or associated staff with bank) for each allocation.'
+          );
+          return;
+        }
+      }
     }
 
     if (openProductionJob?.jobId) {
@@ -5386,11 +5331,10 @@ const RefundModal = ({
                           <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
                             {selectedCustomerHrPayout ? 'HR bank' : 'Customer bank'}
                           </span>
-                        ) : (
-                          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
-                            Allocate
-                          </span>
-                        )}
+                        ) : null}
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+                          Split payout
+                        </span>
                       </div>
 
                       {payoutAccountReady ? (
@@ -5430,23 +5374,14 @@ const RefundModal = ({
                               </>
                             )}
                           </div>
-                          {overpaymentOnlyRefund ? (
-                            <p className="text-ui-xs text-emerald-300/90 leading-snug">
-                              Full ₦{roundMoneyLocal(form.amountNgn).toLocaleString('en-NG')} overpayment to this
-                              customer after approval — not subject to company cut or staff allocation.
-                            </p>
-                          ) : partnerWalletPolicyEnabled ? (
-                            <p className="text-ui-xs text-slate-400 leading-snug">
-                              Flow: BM approves → partner wallet → cashier pays (full or partial).
-                            </p>
-                          ) : (
-                            <p className="text-ui-xs text-slate-500 leading-snug">
-                              Paid from this account after approval.
-                            </p>
-                          )}
+                          <p className="text-ui-xs text-slate-400 leading-snug">
+                            With no split lines below, the full refund goes to this account after approval. Add
+                            lines to pay associated staff or quotation sales staff instead — totals must equal the
+                            refund amount.
+                          </p>
                         </>
                       ) : (
-                        <div className="space-y-3">
+                        <>
                           <p className="text-ui-xs text-amber-100/90 leading-snug">
                             No customer bank on file. Remainder defaults to the quotation{' '}
                             <span className="font-semibold text-white">Handled by</span> staff (HR bank)
@@ -5492,6 +5427,10 @@ const RefundModal = ({
                               Add bank for quote customer ({form.customerName || 'customer'})
                             </button>
                           ) : null}
+                        </>
+                      )}
+
+                      <div className="space-y-3">
                           {(Array.isArray(form.refundSplits) ? form.refundSplits : []).map((row, idx) => {
                             const isStaff = String(row.recipientKind || '') === 'associated_staff';
                             const selectedKey = payoutRowSelectValue(row);
@@ -5811,6 +5750,30 @@ const RefundModal = ({
                           })()}
                           {!readOnly ? (
                             <div className="flex flex-wrap gap-2">
+                              {String(form.customerID || '').trim() ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      refundSplits: [
+                                        ...(Array.isArray(f.refundSplits) ? f.refundSplits : []),
+                                        {
+                                          _manual: '1',
+                                          recipientKind: 'customer',
+                                          recipientAssociatedStaffID: '',
+                                          recipientCustomerID: String(f.customerID || '').trim(),
+                                          amountNgn: '',
+                                          note: 'Overpayment · quote customer',
+                                        },
+                                      ],
+                                    }))
+                                  }
+                                  className="text-ui-xs font-semibold text-violet-300 hover:text-violet-200"
+                                >
+                                  + Quote customer
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() =>
@@ -5886,7 +5849,6 @@ const RefundModal = ({
                             </p>
                           ) : null}
                         </div>
-                      )}
                     </div>
                   </div>
                 )}
