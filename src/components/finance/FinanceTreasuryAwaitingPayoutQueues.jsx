@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Banknote, RotateCcw, Truck, Wallet } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx';
@@ -10,12 +10,12 @@ import {
 import {
   paymentRequestOutstandingNgn,
   poTransportPayoutMetaLine,
-  refundOutstandingAmount,
-  refundPayoutMetaLine,
+  refundPayeePayoutMetaLine,
   paymentRequestPayoutMetaLine,
   registerSettlementOutstandingNgn,
   registerSettlementPayoutMetaLine,
 } from '../../lib/financeTreasuryPayoutQueueMeta';
+import { flattenRefundPayeePayoutQueue } from '../../lib/refundCashierDetail';
 import { maintenanceCostKindLabel } from '../../shared/lib/maintenanceCostEnvelope';
 
 function PaymentRequestCategoryExtra({ req }) {
@@ -57,12 +57,12 @@ function PayeeAccountExtra({ payeeName, payeeBankName, payeeAccountNo }) {
   );
 }
 
-function RefundPayeeExtra({ refund }) {
+function RefundPayeeExtra({ payeeLine }) {
   return (
     <PayeeAccountExtra
-      payeeName={refund?.payeeName}
-      payeeBankName={refund?.payeeBankName}
-      payeeAccountNo={refund?.payeeAccountNo}
+      payeeName={payeeLine?.payeeName}
+      payeeBankName={payeeLine?.payeeBankName}
+      payeeAccountNo={payeeLine?.payeeAccountNo}
     />
   );
 }
@@ -138,8 +138,9 @@ export function FinanceTreasuryAwaitingPayoutQueues({
   alwaysShow = false,
 }) {
   const id = (suffix) => (sectionIdPrefix ? `${sectionIdPrefix}-${suffix}` : undefined);
+  const refundPayeeLines = useMemo(() => flattenRefundPayeePayoutQueue(refunds), [refunds]);
   const total =
-    refunds.length + paymentRequests.length + registerSettlements.length + poTransport.length;
+    refundPayeeLines.length + paymentRequests.length + registerSettlements.length + poTransport.length;
   const hasChildren = Boolean(children);
 
   if (!alwaysShow && total === 0 && !hasChildren) return null;
@@ -173,27 +174,38 @@ export function FinanceTreasuryAwaitingPayoutQueues({
             theme="rose"
             title="Refunds"
             icon={<RotateCcw size={16} strokeWidth={2} />}
-            count={refunds.length}
+            count={refundPayeeLines.length}
             testId="finance-refunds-awaiting-payout"
           >
             <ul className="space-y-1.5">
-              {refunds.map((r) => (
+              {refundPayeeLines.map((line) => {
+                const r = line.parentRefund || {};
+                const rowTestId = `finance-refund-awaiting-row-${line.refundID}-${line.queueKey}`;
+                return (
                 <FinanceDeskColoredQueueRow
-                  key={r.refundID}
+                  key={`${line.refundID}-${line.queueKey}`}
                   theme="rose"
-                  testId={`finance-refund-awaiting-row-${r.refundID}`}
+                  testId={rowTestId}
                   title={
                     <>
-                      <span className="font-mono">{r.refundID}</span>
-                      <span className="font-medium text-slate-600"> · {r.customer}</span>
+                      <span className="font-mono">{line.refundID}</span>
+                      <span className="font-medium text-slate-600">
+                        {' '}
+                        · {line.recipientLabel}
+                      </span>
+                      <span className="text-ui-xs font-bold uppercase text-slate-400">
+                        {' '}
+                        · {line.recipientKind === 'associated_staff' ? 'Staff' : 'Customer'}
+                      </span>
                     </>
                   }
-                  meta={refundPayoutMetaLine(r, branchNameById)}
-                  extra={<RefundPayeeExtra refund={r} />}
-                  amount={formatNgn(refundOutstandingAmount(r))}
-                  actions={renderRefundActions(r)}
+                  meta={refundPayeePayoutMetaLine(r, line, branchNameById)}
+                  extra={<RefundPayeeExtra payeeLine={line} />}
+                  amount={formatNgn(line.amountDueNgn)}
+                  actions={renderRefundActions(line)}
                 />
-              ))}
+                );
+              })}
             </ul>
           </PayoutTypeGroup>
 

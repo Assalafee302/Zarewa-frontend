@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formatNgn } from '../../Data/mockData';
-import { approvedRefundsAwaitingPayment, refundOutstandingAmount } from '../../lib/refundsStore';
+import { approvedRefundsAwaitingPayment } from '../../lib/refundsStore';
+import { flattenRefundPayeePayoutQueue } from '../../lib/refundCashierDetail';
 import { registerSettlementsAwaitingPayment } from '../../lib/registerSettlementPay';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance.js';
 import { paymentRequestPayoutMetaLine } from '../../lib/financeTreasuryPayoutQueueMeta';
@@ -61,15 +62,17 @@ export function FinanceCashierPayoutsPanel() {
         view: () => handleDeskViewPaymentRequest?.(String(pr.requestID || pr.id || '')),
       });
     }
-    for (const r of approvedRefundsAwaitingPayment(snap.refunds || [])) {
+    for (const line of flattenRefundPayeePayoutQueue(approvedRefundsAwaitingPayment(snap.refunds || []))) {
+      const r = line.parentRefund || {};
       rows.push({
-        id: String(r.refundID || r.id || ''),
+        id: `${line.refundID}-${line.queueKey}`,
         kind: 'Customer refund',
-        party: r.customerName || r.customerID || '—',
-        date: String(r.approvedAtISO || r.dateISO || '').slice(0, 10),
-        amount: refundOutstandingAmount(r),
-        pay: () => handleDeskPayRefund(String(r.refundID || r.id || '')),
-        view: () => handleDeskViewRefund?.(String(r.refundID || r.id || '')),
+        party: line.recipientLabel || r.customerName || r.customerID || '—',
+        ref: line.refundID,
+        date: String(r.approvedAtISO || r.approvalDate || r.dateISO || '').slice(0, 10),
+        amount: line.amountDueNgn,
+        pay: () => handleDeskPayRefund(String(line.refundID || ''), line.queueKey),
+        view: () => handleDeskViewRefund?.(String(line.refundID || '')),
       });
     }
     for (const s of registerSettlementsAwaitingPayment(snap.registerSettlementsAwaitingPayment || [])) {

@@ -4,6 +4,7 @@ import {
   refundCashierMoneyStory,
   refundCashierOverpayResidualNgn,
   refundDefaultTreasuryPayoutNgn,
+  refundPayeePayoutQueueLines,
 } from './refundCashierDetail.js';
 
 describe('refundCashierMoneyStory', () => {
@@ -62,6 +63,34 @@ describe('refundDefaultTreasuryPayoutNgn', () => {
       splitDistributions: [],
     };
     expect(refundDefaultTreasuryPayoutNgn(refund)).toBe(160_800);
+  });
+});
+
+describe('refundPayeePayoutQueueLines', () => {
+  it('returns one row per payee with net due after company cut at approval', () => {
+    const refund = {
+      refundID: 'RF-2026-002',
+      customerID: 'CUS-1',
+      customer: 'Grace Emmanuel',
+      amountNgn: 45_000,
+      approvedAmountNgn: 45_000,
+      paidAmountNgn: 4_000,
+      status: 'Approved',
+      paymentNote: 'Settled at approval: company cut ₦4,000 → retention ledger.',
+      payeeName: 'Grace Emmanuel',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 25_000 },
+        { recipientKind: 'associated_staff', recipientAssociatedStaffID: 'AST-1', amountNgn: 20_000 },
+      ],
+    };
+    const lines = refundPayeePayoutQueueLines(refund);
+    expect(lines).toHaveLength(2);
+    expect(lines[0].recipientKind).toBe('customer');
+    expect(lines[0].amountDueNgn).toBe(25_000);
+    expect(lines[1].recipientKind).toBe('associated_staff');
+    expect(lines[1].companyDeductionNgn).toBe(4_000);
+    expect(lines[1].netPayoutNgn).toBe(16_000);
+    expect(lines[1].amountDueNgn).toBe(16_000);
   });
 });
 

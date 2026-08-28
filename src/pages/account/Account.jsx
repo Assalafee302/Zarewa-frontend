@@ -53,6 +53,7 @@ import {
   refundCashierMoneyStory,
   refundDefaultTreasuryPayoutNgn,
   enrichRefundForCashierPayout,
+  refundPayeePayoutQueueLines,
 } from '../../lib/refundCashierDetail';
 import { overpayCreditBalanceFromEntries } from '../../lib/customerLedgerCore.js';
 import { openAuditQueue } from '../../lib/liveAnalytics';
@@ -227,6 +228,7 @@ const Account = () => {
   const [statementPrintToDate, setStatementPrintToDate] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [refundPayTarget, setRefundPayTarget] = useState(null);
+  const [refundPayPayeeKey, setRefundPayPayeeKey] = useState(null);
   const [refundViewTarget, setRefundViewTarget] = useState(null);
   const [expenseViewTarget, setExpenseViewTarget] = useState(null);
   const [refundPaidBy, setRefundPaidBy] = useState('');
@@ -891,7 +893,7 @@ const Account = () => {
   };
 
   const openRefundPay = useCallback(
-    async (row) => {
+    async (row, payeeQueueKey = null) => {
       let target = row;
       const rid = String(row?.refundID || '').trim();
       if (rid && ws?.canMutate) {
@@ -904,12 +906,25 @@ const Account = () => {
           /* use workspace row */
         }
       }
-      const defaultAmount = refundDefaultTreasuryPayoutNgn(target);
+      const payeeLines = refundPayeePayoutQueueLines(target);
+      const selectedPayee = payeeQueueKey
+        ? payeeLines.find((line) => line.queueKey === payeeQueueKey)
+        : null;
+      const accountId = bankAccountsForPayout[0]?.id ?? '';
+      let payoutLines;
+      if (selectedPayee) {
+        payoutLines = [createRequestPayLine(accountId, selectedPayee.amountDueNgn)];
+      } else if (payeeLines.length > 1) {
+        payoutLines = payeeLines.map((line) => createRequestPayLine(accountId, line.amountDueNgn));
+      } else {
+        payoutLines = [
+          createRequestPayLine(accountId, refundDefaultTreasuryPayoutNgn(target)),
+        ];
+      }
       setRefundPayTarget(target);
+      setRefundPayPayeeKey(selectedPayee?.queueKey ?? payeeQueueKey ?? null);
       setRefundPaidBy('');
-      setRefundPayLines([
-        createRequestPayLine(bankAccountsForPayout[0]?.id ?? '', defaultAmount),
-      ]);
+      setRefundPayLines(payoutLines);
       setRefundPaymentNote(target.paymentNote || '');
       setShowRefundPayModal(true);
     },
@@ -1088,6 +1103,7 @@ const Account = () => {
     }
     setShowRefundPayModal(false);
     setRefundPayTarget(null);
+    setRefundPayPayeeKey(null);
     setRefundPaidBy('');
     setRefundPayLines([]);
     setRefundPaymentNote('');
@@ -1512,11 +1528,11 @@ const Account = () => {
   );
 
   const handleDeskPayRefund = useCallback(
-    (refundId) => {
+    (refundId, payeeQueueKey = null) => {
       const id = String(refundId || '').trim();
       const row = customerRefunds.find((r) => String(r.refundID || '').trim() === id);
       if (row) {
-        openRefundPay(row);
+        void openRefundPay(row, payeeQueueKey);
         return;
       }
       handleAccountTabChange('desk');
@@ -1862,6 +1878,15 @@ const Account = () => {
     () => (refundPayTarget ? refundDefaultTreasuryPayoutNgn(refundPayTarget) : 0),
     [refundPayTarget]
   );
+
+  const refundPaySelectedPayee = useMemo(() => {
+    if (!refundPayTarget) return null;
+    const lines = refundPayeePayoutQueueLines(refundPayTarget);
+    if (refundPayPayeeKey) {
+      return lines.find((line) => line.queueKey === refundPayPayeeKey) ?? null;
+    }
+    return lines.length === 1 ? lines[0] : null;
+  }, [refundPayTarget, refundPayPayeeKey]);
 
   const receiptsVisibleInReconciliationQueue = useMemo(() => salesReceipts, [salesReceipts]);
 
@@ -4213,6 +4238,7 @@ const Account = () => {
           if (treasuryPayoutSubmitting) return;
           setShowRefundPayModal(false);
           setRefundPayTarget(null);
+          setRefundPayPayeeKey(null);
           setRefundPaidBy('');
           setRefundPayLines([]);
           setRefundPaymentNote('');
@@ -4229,6 +4255,7 @@ const Account = () => {
               onClick={() => {
                 setShowRefundPayModal(false);
                 setRefundPayTarget(null);
+                setRefundPayPayeeKey(null);
                 setRefundPaidBy('');
                 setRefundPayLines([]);
                 setRefundPaymentNote('');
@@ -4256,17 +4283,41 @@ const Account = () => {
                     </p>
                   </div>
                 </div>
-                {(refundPayTarget.payeeName || refundPayTarget.payeeAccountNo || refundPayTarget.payeeBankName) ? (
+                {(refundPaySelectedPayee?.payeeName ||
+                  refundPaySelectedPayee?.payeeAccountNo ||
+                  refundPaySelectedPayee?.payeeBankName ||
+                  refundPayTarget.payeeName ||
+                  refundPayTarget.payeeAccountNo ||
+                  refundPayTarget.payeeBankName) ? (
                   <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950 space-y-1">
-                    <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">Pay to (from request)</p>
-                    {refundPayTarget.payeeName ? (
-                      <p className="font-bold text-sky-950">{refundPayTarget.payeeName}</p>
+                    <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">
+                      Pay to
+                      {refundPaySelectedPayee?.recipientLabel
+                        ? ` · ${refundPaySelectedPayee.recipientLabel}`
+                        : ' (from request)'}
+                    </p>
+                    {(refundPaySelectedPayee?.payeeName || refundPayTarget.payeeName) ? (
+                      <p className="font-bold text-sky-950">
+                        {refundPaySelectedPayee?.payeeName || refundPayTarget.payeeName}
+                      </p>
                     ) : null}
                     <p className="font-mono text-xs font-semibold tabular-nums leading-snug">
-                      {[refundPayTarget.payeeBankName, refundPayTarget.payeeAccountNo].filter(Boolean).join(' · ') ||
+                      {[
+                        refundPaySelectedPayee?.payeeBankName || refundPayTarget.payeeBankName,
+                        refundPaySelectedPayee?.payeeAccountNo || refundPayTarget.payeeAccountNo,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') ||
+                        refundPaySelectedPayee?.payeeAccountNo ||
                         refundPayTarget.payeeAccountNo ||
                         '—'}
                     </p>
+                    {refundPaySelectedPayee?.companyDeductionNgn > 0 ? (
+                      <p className="text-violet-900/90 font-semibold">
+                        20% company cut {formatNgn(refundPaySelectedPayee.companyDeductionNgn)} already retained at
+                        approval.
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
                 {refundPayTarget.quotationRef ? (

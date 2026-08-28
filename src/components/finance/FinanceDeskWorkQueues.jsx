@@ -841,15 +841,18 @@ export function FinanceDeskWorkQueues({
                   </FinanceActionButton>
                 ) : null
               }
-              renderRefundActions={(r) => (
+              renderRefundActions={(line) => (
                 <>
-                  <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayRefund(String(r.refundID || ""))}>
+                  <FinanceDeskQueueActionButton
+                    tone="sky"
+                    onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
+                  >
                     Payout
                   </FinanceDeskQueueActionButton>
                   {onViewRefund ? (
                     <FinanceDeskQueueActionButton
                       tone="slate"
-                      onClick={() => onViewRefund(String(r.refundID || ""))}
+                      onClick={() => onViewRefund(String(line.refundID || ''))}
                     >
                       View
                     </FinanceDeskQueueActionButton>
@@ -859,7 +862,7 @@ export function FinanceDeskWorkQueues({
                     </FinanceDeskQueueActionButton>
                   )}
                   {onCancelRefund ? (
-                    <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelRefund(r)}>
+                    <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelRefund(line.parentRefund)}>
                       Cancel
                     </FinanceDeskQueueActionButton>
                   ) : null}

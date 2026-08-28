@@ -38,7 +38,7 @@ describe('FinanceTreasuryAwaitingPayoutQueues', () => {
     expect(screen.getByTestId('finance-payouts-combined')).toBeTruthy();
     expect(screen.getByTestId('finance-refunds-awaiting-payout')).toBeTruthy();
     expect(screen.getByTestId('finance-payment-requests-awaiting-payout')).toBeTruthy();
-    expect(screen.getByTestId('finance-refund-awaiting-row-RF-1')).toBeTruthy();
+    expect(screen.getByTestId('finance-refund-awaiting-row-RF-1-customer-0')).toBeTruthy();
     expect(screen.getByTestId('finance-preq-awaiting-row-PR-1')).toBeTruthy();
     expect(screen.getByText('Fuel & lubricant')).toBeTruthy();
     expect(screen.getAllByText(/Work order MWO-1/).length).toBeGreaterThan(0);

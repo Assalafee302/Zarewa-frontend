@@ -202,8 +202,123 @@ export function refundCashierSplitBreakdown(refund) {
       unclearedReceiptOffsetNgn: roundRefundStaffMoney(row?.unclearedReceiptOffsetNgn),
       netPayoutNgn: roundRefundStaffMoney(row?.netPayoutNgn ?? row?.amountNgn),
       payeeName: payeeName || recipientLabel,
+      payeeBankName: String(
+        row?.payoutAccount?.payeeBankName ?? row?.payeeBankName ?? row?.payee_bank_name ?? ''
+      ).trim(),
+      payeeAccountNo: String(
+        row?.payoutAccount?.payeeAccountNo ?? row?.payeeAccountNo ?? row?.payee_account_no ?? ''
+      ).trim(),
     };
   });
+}
+
+/**
+ * One Finance desk row per payee still owed cash (after company cut settled at approval).
+ * @returns {Array<{
+ *   queueKey: string,
+ *   refundID: string,
+ *   parentRefund: object,
+ *   recipientKind: string,
+ *   recipientLabel: string,
+ *   payeeName: string,
+ *   payeeBankName: string,
+ *   payeeAccountNo: string,
+ *   grossNgn: number,
+ *   companyDeductionNgn: number,
+ *   netPayoutNgn: number,
+ *   treasuryPaidToPayeeNgn: number,
+ *   amountDueNgn: number,
+ * }>}
+ */
+export function refundPayeePayoutQueueLines(refund) {
+  const story = refundCashierMoneyStory(refund);
+  if (story.cashDueNgn <= 0) return [];
+
+  const rid = String(refund?.refundID ?? refund?.refund_id ?? '').trim();
+  let breakdown = story.splitBreakdown.filter((row) => row.netPayoutNgn > 0);
+  if (!breakdown.length) return [];
+
+  breakdown = [...breakdown].sort((a, b) => {
+    if (a.recipientKind === b.recipientKind) return 0;
+    return a.recipientKind === 'customer' ? -1 : 1;
+  });
+
+  let treasuryRemaining = story.treasuryPaidNgn;
+  const lines = breakdown.map((row, idx) => {
+    const treasuryPaidToPayeeNgn = Math.min(row.netPayoutNgn, Math.max(0, treasuryRemaining));
+    treasuryRemaining -= treasuryPaidToPayeeNgn;
+    const amountDueNgn = Math.max(0, row.netPayoutNgn - treasuryPaidToPayeeNgn);
+    const kindSlug = row.recipientKind === 'associated_staff' ? 'staff' : 'customer';
+    const queueKey = `${kindSlug}-${idx}`;
+    const payeeBankName =
+      row.payeeBankName ||
+      (row.recipientKind === 'customer'
+        ? String(refund?.payeeBankName ?? refund?.payee_bank_name ?? '').trim()
+        : '');
+    const payeeAccountNo =
+      row.payeeAccountNo ||
+      (row.recipientKind === 'customer'
+        ? String(refund?.payeeAccountNo ?? refund?.payee_account_no ?? '').trim()
+        : '');
+    const payeeName =
+      row.payeeName ||
+      (row.recipientKind === 'customer'
+        ? String(refund?.payeeName ?? refund?.payee_name ?? '').trim()
+        : row.recipientLabel);
+    return {
+      queueKey,
+      refundID: rid,
+      parentRefund: refund,
+      recipientKind: row.recipientKind,
+      recipientLabel: row.recipientLabel,
+      payeeName,
+      payeeBankName,
+      payeeAccountNo,
+      grossNgn: row.grossNgn,
+      companyDeductionNgn: row.companyDeductionNgn,
+      unclearedReceiptOffsetNgn: row.unclearedReceiptOffsetNgn,
+      netPayoutNgn: row.netPayoutNgn,
+      treasuryPaidToPayeeNgn,
+      amountDueNgn,
+      settledAtApprovalNgn: story.settledAtApprovalNgn,
+    };
+  });
+
+  return lines.filter((line) => line.amountDueNgn > 0);
+}
+
+/** Expand approved refunds into individual payee payout queue rows. */
+export function flattenRefundPayeePayoutQueue(refunds) {
+  const list = Array.isArray(refunds) ? refunds : [];
+  const lines = [];
+  for (const refund of list) {
+    const payeeLines = refundPayeePayoutQueueLines(refund);
+    if (payeeLines.length) {
+      lines.push(...payeeLines);
+      continue;
+    }
+    const due = refundOutstandingAmount(refund);
+    if (due <= 0) continue;
+    const rid = String(refund?.refundID ?? '').trim();
+    lines.push({
+      queueKey: 'customer-0',
+      refundID: rid,
+      parentRefund: refund,
+      recipientKind: 'customer',
+      recipientLabel: String(refund?.customer ?? refund?.payeeName ?? 'Customer').trim() || 'Customer',
+      payeeName: String(refund?.payeeName ?? '').trim(),
+      payeeBankName: String(refund?.payeeBankName ?? '').trim(),
+      payeeAccountNo: String(refund?.payeeAccountNo ?? '').trim(),
+      grossNgn: refundApprovedAmount(refund),
+      companyDeductionNgn: 0,
+      unclearedReceiptOffsetNgn: 0,
+      netPayoutNgn: due,
+      treasuryPaidToPayeeNgn: 0,
+      amountDueNgn: due,
+      settledAtApprovalNgn: 0,
+    });
+  }
+  return lines;
 }
 
 /** Default till payout for the primary customer bank — not the full refund when staff splits exist. */

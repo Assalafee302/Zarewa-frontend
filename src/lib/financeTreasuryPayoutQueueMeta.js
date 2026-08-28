@@ -45,6 +45,33 @@ export function refundPayoutMetaLine(r, branchNameById = {}) {
     .join(' · ');
 }
 
+/**
+ * Meta for one payee line on the Finance refund payout queue.
+ * @param {object} refund
+ * @param {object} payeeLine from refundPayeePayoutQueueLines
+ * @param {Record<string, string>} [branchNameById]
+ */
+export function refundPayeePayoutMetaLine(refund, payeeLine, branchNameById = {}) {
+  const role =
+    payeeLine?.recipientKind === 'associated_staff' ? 'Staff split' : 'Customer';
+  const cut =
+    Math.round(Number(payeeLine?.companyDeductionNgn) || 0) > 0
+      ? ` · 20% cut ${formatNgn(payeeLine.companyDeductionNgn)} retained`
+      : '';
+  const gross =
+    Math.round(Number(payeeLine?.grossNgn) || 0) > 0 &&
+    Math.round(Number(payeeLine?.grossNgn) || 0) !== Math.round(Number(payeeLine?.netPayoutNgn) || 0)
+      ? ` · Gross ${formatNgn(payeeLine.grossNgn)}`
+      : '';
+  return [
+    role,
+    `Net ${formatNgn(payeeLine?.netPayoutNgn)}${gross}${cut}`,
+    refundPayoutMetaLine(refund, branchNameById),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 /** @param {object} req @param {Record<string, string>} [branchNameById] */
 export function paymentRequestPayoutMetaLine(req, branchNameById = {}) {
   const paidAmountNgn = Number(req?.paidAmountNgn) || 0;
