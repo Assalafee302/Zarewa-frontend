@@ -131,9 +131,11 @@ import { RefundFundClearanceBanner } from '../../components/finance/HangingCusto
 import {
   applyRefundFundDeductionToPaymentLines,
   buildRefundFundClearanceSummary,
+  defaultRefundSourceSelection,
   planCashierRefundOffset,
   REFUND_FUND_CASHIER_OFFSET_LABEL,
   restorePaymentLinesAfterRefundFundUnchecked,
+  sumRefundSourceAvailableNgn,
 } from '../../lib/refundFundApply.js';
 import { findQuotationByRef } from '../../lib/quotationColourGauge.js';
 import { AccountGlManualJournalCard } from '../../components/account/AccountGlManualJournalCard.jsx';
@@ -276,6 +278,8 @@ const Account = () => {
   const [applyRefundOnConfirm, setApplyRefundOnConfirm] = useState(false);
   const [cashierRefundCreditInfo, setCashierRefundCreditInfo] = useState(null);
   const [cashierRefundCreditLoading, setCashierRefundCreditLoading] = useState(false);
+  /** Refund-credit source ids chosen for this receipt confirm (see defaultRefundSourceSelection). */
+  const [selectedRefundSourceIds, setSelectedRefundSourceIds] = useState([]);
   /** Correct bank/cash account for expense or payment-request treasury outflows (same idea as receipt splits). */
   const [expenseOutflowEdit, setExpenseOutflowEdit] = useState(null);
   const [expenseOutflowLineIdx, setExpenseOutflowLineIdx] = useState(0);
@@ -2111,12 +2115,14 @@ const Account = () => {
     if (!receiptFinanceRow?.id) {
       setCashierRefundCreditInfo(null);
       setApplyRefundOnConfirm(false);
+      setSelectedRefundSourceIds([]);
       setCashierRefundCreditLoading(false);
       return;
     }
     if (receiptFinanceRow.financeReconciliationSavedAtISO) {
       setCashierRefundCreditInfo(null);
       setApplyRefundOnConfirm(false);
+      setSelectedRefundSourceIds([]);
       setCashierRefundCreditLoading(false);
       return;
     }
@@ -2125,6 +2131,7 @@ const Account = () => {
     if (!cid || !qid) {
       setCashierRefundCreditInfo(null);
       setApplyRefundOnConfirm(false);
+      setSelectedRefundSourceIds([]);
       return;
     }
     let cancelled = false;
@@ -2138,6 +2145,7 @@ const Account = () => {
       if (!ok || !data?.ok) {
         setCashierRefundCreditInfo(null);
         setApplyRefundOnConfirm(false);
+        setSelectedRefundSourceIds([]);
         return;
       }
       const hasUsableCredit = Number(data.totalAvailableNgn) > 0;
@@ -2146,15 +2154,20 @@ const Account = () => {
       if (!hasUsableCredit && !hasUnavailable) {
         setCashierRefundCreditInfo(null);
         setApplyRefundOnConfirm(false);
+        setSelectedRefundSourceIds([]);
         return;
       }
+      const defaultIds = defaultRefundSourceSelection(data.sources);
+      const selectedTotal = sumRefundSourceAvailableNgn(data.sources, defaultIds);
       setCashierRefundCreditInfo(data);
-      setApplyRefundOnConfirm(hasUsableCredit);
+      setSelectedRefundSourceIds(defaultIds);
+      setApplyRefundOnConfirm(selectedTotal > 0);
     })().catch(() => {
       if (!cancelled) {
         setCashierRefundCreditLoading(false);
         setCashierRefundCreditInfo(null);
         setApplyRefundOnConfirm(false);
+        setSelectedRefundSourceIds([]);
       }
     });
     return () => {
@@ -2173,16 +2186,21 @@ const Account = () => {
     return Math.round(Number(receiptFinanceRow.amountNgn) || 0);
   }, [receiptFinanceRow, receiptFinanceFocusMovementId, liveTreasuryMovements]);
 
+  const cashierSelectedRefundAvailableNgn = useMemo(
+    () => sumRefundSourceAvailableNgn(cashierRefundCreditInfo?.sources, selectedRefundSourceIds),
+    [cashierRefundCreditInfo?.sources, selectedRefundSourceIds]
+  );
+
   const cashierRefundOffset = useMemo(() => {
-    if (!cashierRefundCreditInfo || !(Number(cashierRefundCreditInfo.totalAvailableNgn) > 0)) {
+    if (!cashierRefundCreditInfo || !(cashierSelectedRefundAvailableNgn > 0)) {
       return null;
     }
     const plan = planCashierRefundOffset({
       receiptCashNgn: cashierReceiptCashNgn,
-      availableNgn: cashierRefundCreditInfo.totalAvailableNgn,
+      availableNgn: cashierSelectedRefundAvailableNgn,
     });
     return plan.offsetNgn > 0 ? plan : null;
-  }, [cashierRefundCreditInfo, cashierReceiptCashNgn]);
+  }, [cashierRefundCreditInfo, cashierReceiptCashNgn, cashierSelectedRefundAvailableNgn]);
 
   const cashierRefundCreditPanelVisible = Boolean(
     cashierRefundCreditInfo && !receiptFinanceRow?.financeReconciliationSavedAtISO
@@ -2208,6 +2226,12 @@ const Account = () => {
       return out;
     });
   }, [applyRefundOnConfirm, cashierRefundOffset, cashierReceiptCashNgn, receiptFinanceRow]);
+
+  useEffect(() => {
+    if (applyRefundOnConfirm && cashierSelectedRefundAvailableNgn <= 0) {
+      setApplyRefundOnConfirm(false);
+    }
+  }, [applyRefundOnConfirm, cashierSelectedRefundAvailableNgn]);
 
   const handleDeskViewReceipt = useCallback(
     (receipt) => {
@@ -2335,8 +2359,8 @@ const Account = () => {
                 ? {
                     refundCreditApply: {
                       amountNgn: offsetNgn,
-                      sourceIds: Array.isArray(cashierRefundCreditInfo?.sources)
-                        ? cashierRefundCreditInfo.sources.map((s) => s.id).filter(Boolean)
+                      sourceIds: Array.isArray(selectedRefundSourceIds)
+                        ? selectedRefundSourceIds.filter(Boolean)
                         : [],
                     },
                   }
@@ -2387,6 +2411,7 @@ const Account = () => {
       applyRefundOnConfirm,
       cashierRefundOffset,
       cashierRefundCreditInfo,
+      selectedRefundSourceIds,
     ]
   );
 
@@ -5143,15 +5168,14 @@ const Account = () => {
                             type="checkbox"
                             className="mt-0.5 h-4 w-4 rounded border-slate-300"
                             checked={applyRefundOnConfirm}
-                            disabled={receiptFinanceBusy}
+                            disabled={receiptFinanceBusy || cashierSelectedRefundAvailableNgn <= 0}
                             onChange={(e) => setApplyRefundOnConfirm(e.target.checked)}
                           />
                           <span>
                             <span className="font-bold">{REFUND_FUND_CASHIER_OFFSET_LABEL}: </span>
-                            {formatNgn(cashierRefundOffset.offsetNgn)} from this customer&apos;s refund fund
-                            ({formatNgn(cashierRefundCreditInfo?.totalAvailableNgn || 0)} on file across{' '}
-                            {(cashierRefundCreditInfo?.sources || []).length || 1} source
-                            {(cashierRefundCreditInfo?.sources || []).length === 1 ? '' : 's'}) will cover this
+                            {formatNgn(cashierRefundOffset.offsetNgn)} from selected refund fund
+                            ({formatNgn(cashierSelectedRefundAvailableNgn)} selected of{' '}
+                            {formatNgn(cashierRefundCreditInfo?.totalAvailableNgn || 0)} on file) will cover this
                             receipt. That slice is not paid out in cash.
                             {cashierRefundOffset.leftoverRefundNgn > 0
                               ? ` Leftover ${formatNgn(cashierRefundOffset.leftoverRefundNgn)} stays on the payout queue.`
@@ -5160,16 +5184,36 @@ const Account = () => {
                         </label>
                         ) : (
                           <p className="font-semibold text-rose-900">
-                            Refund fund on file but none can cover this receipt yet — see reasons below. Confirm cash
-                            only, or apply from the refund record after fixing the blocker.
+                            Refund fund on file but none can cover this receipt yet — pick a source below or see
+                            reasons. Confirm cash only, or apply from the refund record after fixing the blocker.
                           </p>
                         )}
                         {(cashierRefundCreditInfo?.sources || []).length > 0 ? (
-                          <ul className="pl-6 list-disc text-slate-700 space-y-0.5">
+                          <ul className="pl-2 list-none text-slate-700 space-y-1">
                             {(cashierRefundCreditInfo.sources || []).slice(0, 6).map((s) => (
                               <li key={s.id}>
-                                {s.label}: {formatNgn(s.availableNgn)}
-                                {s.overpaymentOnly ? ' · overpayment' : ' · approved refund'}
+                                <label className="flex items-start gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                                    checked={selectedRefundSourceIds.includes(s.id)}
+                                    disabled={receiptFinanceBusy}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      setSelectedRefundSourceIds((prev) => {
+                                        const set = new Set(prev);
+                                        if (checked) set.add(s.id);
+                                        else set.delete(s.id);
+                                        return [...set];
+                                      });
+                                    }}
+                                  />
+                                  <span>
+                                    {s.label}: {formatNgn(s.availableNgn)}
+                                    {s.overpaymentOnly ? ' · overpayment' : ' · approved refund'}
+                                    {s.kind === 'overpay' ? ' · ledger pool' : ''}
+                                  </span>
+                                </label>
                               </li>
                             ))}
                           </ul>

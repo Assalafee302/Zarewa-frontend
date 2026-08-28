@@ -32,6 +32,21 @@ export function planCashierRefundOffset({ receiptCashNgn, availableNgn }) {
   };
 }
 
+/** Prefer explicit refund rows over ledger overpay pools when both exist (traceable source). */
+export function defaultRefundSourceSelection(sources) {
+  const list = Array.isArray(sources) ? sources : [];
+  const refundRows = list.filter((s) => s.kind === 'refund');
+  const pick = refundRows.length > 0 ? refundRows : list;
+  return pick.map((s) => String(s.id || '').trim()).filter(Boolean);
+}
+
+export function sumRefundSourceAvailableNgn(sources, selectedIds) {
+  const ids = new Set(Array.isArray(selectedIds) ? selectedIds.map((id) => String(id || '').trim()) : []);
+  return (Array.isArray(sources) ? sources : [])
+    .filter((s) => ids.has(String(s.id || '').trim()))
+    .reduce((sum, s) => sum + roundNgn(s.availableNgn), 0);
+}
+
 export function parsePaymentLineAmount(v) {
   const n = Number(String(v ?? '').replace(/,/g, ''));
   return Number.isFinite(n) ? Math.round(n) : 0;
