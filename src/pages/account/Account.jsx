@@ -149,6 +149,10 @@ import {
   receiptRegisteredByLabel,
   RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE,
 } from '../../lib/receiptClearance.js';
+import {
+  expandReceiptsToPaymentConfirmQueue,
+  paymentConfirmQueueRowAmountNgn,
+} from '../../shared/lib/receiptPaymentConfirmQueue.js';
 
 import { AccountPageContext } from './AccountPageContext.jsx';
 import { AccountTabPanels } from './AccountTabPanels.jsx';
@@ -262,6 +266,8 @@ const Account = () => {
   const [bankReconciliation, setBankReconciliation] = useState([]);
 
   const [receiptFinanceRow, setReceiptFinanceRow] = useState(null);
+  /** When set, confirm modal handles one treasury split (TM-…) only. */
+  const [receiptFinanceFocusMovementId, setReceiptFinanceFocusMovementId] = useState(null);
   const [receiptReverseBusy, setReceiptReverseBusy] = useState(false);
   const [receiptBankAmtInput, setReceiptBankAmtInput] = useState('');
   /** When true, confirm payment but do not set finance delivery clearance. */
@@ -1914,6 +1920,11 @@ const Account = () => {
     [sortedFilteredSalesReceipts]
   );
 
+  const waitingPaymentConfirmQueue = useMemo(
+    () => expandReceiptsToPaymentConfirmQueue(waitingConfirmationReceipts, liveTreasuryMovements),
+    [waitingConfirmationReceipts, liveTreasuryMovements]
+  );
+
   const openUnreconciledReceiptsPrint = useCallback(async () => {
     const snap = (await ws?.ensureDomainLoaded?.('sales')) || ws?.snapshot;
     const payload = unreconciledReceiptsPrintPayload(waitingConfirmationReceipts, liveTreasuryMovements, {
@@ -1990,15 +2001,15 @@ const Account = () => {
   );
 
   const waitingReceiptsListWindow = useMemo(() => {
-    const total = waitingConfirmationReceipts.length;
+    const total = waitingPaymentConfirmQueue.length;
     const pageCount = Math.max(1, Math.ceil(total / RECEIPTS_PAGE_SIZE) || 1);
     const safePage = Math.min(waitingReceiptsPage, pageCount - 1);
     const start = safePage * RECEIPTS_PAGE_SIZE;
-    const slice = waitingConfirmationReceipts.slice(start, start + RECEIPTS_PAGE_SIZE);
+    const slice = waitingPaymentConfirmQueue.slice(start, start + RECEIPTS_PAGE_SIZE);
     const from = total === 0 ? 0 : start + 1;
     const to = Math.min(start + RECEIPTS_PAGE_SIZE, total);
     return { total, pageCount, safePage, slice, from, to };
-  }, [waitingConfirmationReceipts, waitingReceiptsPage]);
+  }, [waitingPaymentConfirmQueue, waitingReceiptsPage]);
 
   const receiptsListWindow = useMemo(() => {
     const total = confirmedReceipts.length;
@@ -2013,8 +2024,11 @@ const Account = () => {
 
   const receiptsPendingClearanceNgn = useMemo(
     () =>
-      waitingConfirmationReceipts.reduce((s, r) => s + (Number(receiptCashReceivedNgn(r)) || Number(r.amountNgn) || 0), 0),
-    [waitingConfirmationReceipts]
+      waitingPaymentConfirmQueue.reduce(
+        (s, r) => s + (Number(paymentConfirmQueueRowAmountNgn(r)) || 0),
+        0
+      ),
+    [waitingPaymentConfirmQueue]
   );
 
   const openBankDepositsCount = useMemo(() => {
@@ -2031,10 +2045,10 @@ const Account = () => {
   }, [receiptsSortKey, receiptsSortDir, debouncedSearchQuery, receiptsTableSearch, receiptsNoCuttingListOnly]);
 
   useEffect(() => {
-    const total = waitingConfirmationReceipts.length;
+    const total = waitingPaymentConfirmQueue.length;
     const pageCount = Math.max(1, Math.ceil(total / RECEIPTS_PAGE_SIZE) || 1);
     setWaitingReceiptsPage((p) => Math.min(p, pageCount - 1));
-  }, [waitingConfirmationReceipts.length]);
+  }, [waitingPaymentConfirmQueue.length]);
 
   useEffect(() => {
     const total = confirmedReceipts.length;
@@ -2047,18 +2061,30 @@ const Account = () => {
   );
 
   const openReceiptFinance = useCallback(
-    (r) => {
+    (r, focusMovementId = null) => {
+      const movementId = String(focusMovementId || r?._movementId || '').trim() || null;
       setReceiptFinanceRow(r);
-      const allocated = Number(r.amountNgn) || 0;
-      const cash = r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
+      setReceiptFinanceFocusMovementId(movementId);
+      const splits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
+      const focusSplit = movementId ? splits.find((s) => String(s.movementId) === movementId) : null;
+      const allocated = focusSplit
+        ? Number(focusSplit.amountNgn) || 0
+        : Number(r.amountNgn) || 0;
+      const cash = focusSplit
+        ? allocated
+        : r.cashReceivedNgn != null
+          ? Number(r.cashReceivedNgn) || allocated
+          : allocated;
       const br =
-        r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : cash;
+        r.bankReceivedAmountNgn != null && !movementId
+          ? Number(r.bankReceivedAmountNgn)
+          : cash;
       setReceiptBankAmtInput(String(br));
       setReceiptHoldDelivery(Boolean(r.financeReconciliationSavedAtISO && !r.financeDeliveryClearedAtISO));
-      const splits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
+      const splitRows = movementId ? splits.filter((s) => String(s.movementId) === movementId) : splits;
       setPaymentCorrectionDrafts(
         Object.fromEntries(
-          splits.map((s) => [
+          splitRows.map((s) => [
             s.movementId,
             {
               amountNgn: String(s.amountNgn),
@@ -2076,7 +2102,7 @@ const Account = () => {
   const handleDeskConfirmReceipt = useCallback(
     (receipt) => {
       if (!receipt) return;
-      openReceiptFinance(receipt);
+      openReceiptFinance(receipt, receipt._movementId || null);
     },
     [openReceiptFinance]
   );
@@ -2138,9 +2164,14 @@ const Account = () => {
 
   const cashierReceiptCashNgn = useMemo(() => {
     if (!receiptFinanceRow) return 0;
+    if (receiptFinanceFocusMovementId) {
+      const splits = receiptLedgerReceiptTreasurySplits(receiptFinanceRow, liveTreasuryMovements);
+      const focus = splits.find((s) => String(s.movementId) === String(receiptFinanceFocusMovementId));
+      if (focus) return Math.round(Number(focus.amountNgn) || 0);
+    }
     if (receiptFinanceRow.cashReceivedNgn != null) return Math.round(Number(receiptFinanceRow.cashReceivedNgn) || 0);
     return Math.round(Number(receiptFinanceRow.amountNgn) || 0);
-  }, [receiptFinanceRow]);
+  }, [receiptFinanceRow, receiptFinanceFocusMovementId, liveTreasuryMovements]);
 
   const cashierRefundOffset = useMemo(() => {
     if (!cashierRefundCreditInfo || !(Number(cashierRefundCreditInfo.totalAvailableNgn) > 0)) {
@@ -2220,6 +2251,7 @@ const Account = () => {
       }
       showToast('Receipt reversed. Post the correct amount from Sales if needed.');
       setReceiptFinanceRow(null);
+      setReceiptFinanceFocusMovementId(null);
       setPaymentCorrectionDrafts({});
       await ws.refresh();
     } finally {
@@ -2240,7 +2272,10 @@ const Account = () => {
         );
         return;
       }
-      const settleSplits = receiptLedgerReceiptTreasurySplits(receiptFinanceRow, liveTreasuryMovements);
+      const allSettleSplits = receiptLedgerReceiptTreasurySplits(receiptFinanceRow, liveTreasuryMovements);
+      const settleSplits = receiptFinanceFocusMovementId
+        ? allSettleSplits.filter((s) => String(s.movementId) === String(receiptFinanceFocusMovementId))
+        : allSettleSplits;
       const offsetNgn =
         applyRefundOnConfirm && cashierRefundOffset?.offsetNgn > 0
           ? Math.round(Number(cashierRefundOffset.offsetNgn) || 0)
@@ -2323,11 +2358,14 @@ const Account = () => {
               : ` Refund fund ${formatNgn(applied)} covered this receipt — nothing left to pay out on that refund.`
             : '';
         showToast(
-          (receiptHoldDelivery
-            ? 'Payment confirmed — books updated (delivery held).'
-            : 'Payment confirmed — books updated and cleared for delivery.') + creditBit
+          (data.partialSplitConfirm
+            ? 'Payment line confirmed — confirm remaining lines on this receipt when ready.'
+            : receiptHoldDelivery
+              ? 'Payment confirmed — books updated (delivery held).'
+              : 'Payment confirmed — books updated and cleared for delivery.') + creditBit
         );
         setReceiptFinanceRow(null);
+        setReceiptFinanceFocusMovementId(null);
         setPaymentCorrectionDrafts({});
         await wsRefresh?.();
       } finally {
@@ -2336,6 +2374,7 @@ const Account = () => {
     },
     [
       receiptFinanceRow,
+      receiptFinanceFocusMovementId,
       receiptBankAmtInput,
       receiptHoldDelivery,
       paymentCorrectionDrafts,
@@ -4986,16 +5025,20 @@ const Account = () => {
         isOpen={receiptFinanceRow != null}
         onClose={() => {
           setReceiptFinanceRow(null);
+          setReceiptFinanceFocusMovementId(null);
           setPaymentCorrectionDrafts({});
         }}
         showCloseButton={false}>
         <div className="z-modal-panel z-modal-scroll-y max-w-2xl w-full p-4 sm:p-8">
           <div className="flex justify-between items-start gap-3 mb-4">
-            <h3 className="text-lg font-bold text-zarewa-teal">Confirm payment received</h3>
+            <h3 className="text-lg font-bold text-zarewa-teal">
+              {receiptFinanceFocusMovementId ? 'Confirm this payment line' : 'Confirm payment received'}
+            </h3>
             <button
               type="button"
               onClick={() => {
                 setReceiptFinanceRow(null);
+                setReceiptFinanceFocusMovementId(null);
                 setPaymentCorrectionDrafts({});
               }}
               className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
@@ -5006,7 +5049,17 @@ const Account = () => {
           </div>
           {receiptFinanceRow ? (
             <form className="space-y-4" onSubmit={saveReceiptFinance}>
-              <p className="text-ui-xs text-slate-600 font-mono break-all">{receiptFinanceRow.id}</p>
+              <p className="text-ui-xs text-slate-600 font-mono break-all">
+                {receiptFinanceFocusMovementId ? (
+                  <>
+                    {receiptFinanceFocusMovementId}
+                    <span className="text-slate-400"> · receipt </span>
+                    {receiptFinanceRow.id}
+                  </>
+                ) : (
+                  receiptFinanceRow.id
+                )}
+              </p>
               {(() => {
                 const registeredBy = receiptRegisteredByLabel(receiptFinanceRow, liveLedgerEntries);
                 return registeredBy ? (
@@ -5016,12 +5069,18 @@ const Account = () => {
                 ) : null;
               })()}
               {(() => {
-                const settleSplits = receiptLedgerReceiptTreasurySplits(
+                const allSettleSplits = receiptLedgerReceiptTreasurySplits(
                   receiptFinanceRow,
                   liveTreasuryMovements
                 );
-                const cashTotal =
-                  receiptFinanceRow.cashReceivedNgn != null
+                const settleSplits = receiptFinanceFocusMovementId
+                  ? allSettleSplits.filter(
+                      (s) => String(s.movementId) === String(receiptFinanceFocusMovementId)
+                    )
+                  : allSettleSplits;
+                const cashTotal = receiptFinanceFocusMovementId
+                  ? settleSplits.reduce((sum, s) => sum + (Number(s.amountNgn) || 0), 0)
+                  : receiptFinanceRow.cashReceivedNgn != null
                     ? Number(receiptFinanceRow.cashReceivedNgn) || 0
                     : Number(receiptFinanceRow.amountNgn) || 0;
                 const formDisabled = receiptFinanceBusy;
@@ -5038,9 +5097,17 @@ const Account = () => {
                 return (
                   <>
                     <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-ui-xs text-teal-950 leading-snug">
-                      <span className="font-bold">One confirm step</span> — enter what was actually received. Saving
-                      updates treasury, receipt, ledger, and quote paid amount, and clears for delivery unless you hold
-                      it below. Revisions after the first save may need manager approval.
+                      <span className="font-bold">
+                        {receiptFinanceFocusMovementId ? 'One payment line' : 'One confirm step'}
+                      </span>{' '}
+                      — enter what was actually received for{' '}
+                      {receiptFinanceFocusMovementId ? 'this payment only' : 'this receipt'}. Saving updates
+                      treasury, receipt, ledger, and quote paid amount
+                      {receiptFinanceFocusMovementId && allSettleSplits.length > 1
+                        ? '; other lines on this receipt stay in the queue until confirmed separately'
+                        : ''}
+                      , and clears for delivery unless you hold it below. Revisions after the first save may need
+                      manager approval.
                     </div>
 
                     <RefundFundClearanceBanner
@@ -5284,7 +5351,9 @@ const Account = () => {
 
                     <div className="rounded-xl border border-zarewa-teal/20 bg-teal-50/40 px-3 py-3 space-y-1.5">
                       <label className="text-ui-xs font-bold text-zarewa-teal uppercase block">
-                        Amount actually received (₦)
+                        {receiptFinanceFocusMovementId || settleSplits.length === 1
+                          ? 'Amount received for this payment (₦)'
+                          : 'Amount actually received (₦)'}
                       </label>
                       {settleSplits.length > 0 ? (
                         <>
@@ -5292,7 +5361,9 @@ const Account = () => {
                             {formatNgn(confirmedTotalNgn)}
                           </p>
                           <p className="text-ui-xs text-slate-600 leading-snug">
-                            Sum of payment lines — saved to receipt, ledger, treasury, and quote paid.
+                            {receiptFinanceFocusMovementId || settleSplits.length === 1
+                              ? 'This payment line only — not the full receipt total.'
+                              : 'Sum of payment lines — saved to receipt, ledger, treasury, and quote paid.'}
                           </p>
                         </>
                       ) : (

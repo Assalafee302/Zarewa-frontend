@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, ChevronLeft, ChevronRight, Wallet } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { receiptLedgerReceiptTreasurySplits } from '../../lib/salesReceiptsList';
+import { paymentConfirmQueueRowAmountNgn } from '../../shared/lib/receiptPaymentConfirmQueue.js';
 import { receiptClearanceBadgeLabel, receiptRegisteredByLabel } from '../../lib/receiptClearance.js';
 import {
   findQuotationByRef,
@@ -104,7 +105,9 @@ export function FinanceReceiptsClearanceTable({
             </thead>
             <tbody>
               {listWindow.slice.map((r) => {
+                const isSplitRow = r._confirmKind === 'payment_split';
                 const allocated = Number(r.amountNgn) || 0;
+                const queueAmount = paymentConfirmQueueRowAmountNgn(r);
                 const cash =
                   r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
                 const bank =
@@ -129,26 +132,39 @@ export function FinanceReceiptsClearanceTable({
                     ? 'Pending'
                     : clearanceLabel;
                 const amountTitle = [
-                  formatNgn(cash),
-                  Math.round(allocated) !== Math.round(cash) ? `Quote ${formatNgn(allocated)}` : '',
-                  bank != null && Math.round(bank) !== Math.round(cash) ? `Bank ${formatNgn(bank)}` : '',
+                  formatNgn(isSplitRow ? queueAmount : cash),
+                  isSplitRow && r._parentReceiptId ? `Receipt ${r._parentReceiptId}` : '',
+                  !isSplitRow && Math.round(allocated) !== Math.round(cash) ? `Quote ${formatNgn(allocated)}` : '',
+                  !isSplitRow && bank != null && Math.round(bank) !== Math.round(cash) ? `Bank ${formatNgn(bank)}` : '',
                   paySplits.length > 0 ? paySplits.map((s) => s.accountLabel).join(', ') : '',
                 ]
                   .filter(Boolean)
                   .join(' · ');
-                const receiptTitle = [r.id, r.quotationRef, registeredBy, cuttingChipLabel]
+                const receiptTitle = [
+                  isSplitRow ? r._movementId : r.id,
+                  isSplitRow ? r._parentReceiptId : null,
+                  r.quotationRef,
+                  registeredBy,
+                  cuttingChipLabel,
+                ]
                   .filter(Boolean)
                   .join(' · ');
                 return (
-                  <tr key={r.id} className="border-t border-slate-100 hover:bg-teal-50/30">
+                  <tr key={isSplitRow ? `${r._parentReceiptId}:${r._movementId}` : r.id} className="border-t border-slate-100 hover:bg-teal-50/30">
                     <td className={`${TD} whitespace-nowrap tabular-nums text-slate-600`} title={date}>
                       {date || '—'}
                     </td>
                     <td className={TD} title={receiptTitle}>
                       <div className="flex min-w-0 items-center gap-1">
                         <span className="min-w-0 truncate font-mono text-[11px] font-semibold text-zarewa-teal">
-                          {r.id}
-                          {r.quotationRef ? ` · ${r.quotationRef}` : ''}
+                          {isSplitRow ? r._movementId : r.id}
+                          {isSplitRow && r._parentReceiptId ? (
+                            <span className="text-slate-500 font-normal"> · {r._parentReceiptId}</span>
+                          ) : null}
+                          {!isSplitRow && r.quotationRef ? ` · ${r.quotationRef}` : null}
+                          {isSplitRow && r.quotationRef ? (
+                            <span className="text-slate-500 font-normal"> · {r.quotationRef}</span>
+                          ) : null}
                         </span>
                         <span
                           className={`shrink-0 truncate max-w-[5.5rem] text-[9px] font-semibold uppercase ${
@@ -169,7 +185,7 @@ export function FinanceReceiptsClearanceTable({
                       {spec || '—'}
                     </td>
                     <td className={`${TD} text-right font-semibold tabular-nums whitespace-nowrap`} title={amountTitle}>
-                      {formatNgn(cash)}
+                      {formatNgn(isSplitRow ? queueAmount : cash)}
                     </td>
                     <td className={TD}>
                       <div className="flex min-w-0 items-center gap-1">
