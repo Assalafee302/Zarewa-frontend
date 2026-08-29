@@ -2268,7 +2268,7 @@ const CustomerDashboard = () => {
             <div className="space-y-3 text-sm">
               <p className="font-mono font-bold text-zarewa-teal">{detail.row.refundID}</p>
               <p className="font-black text-zarewa-teal">{formatNgn(detail.row.amountNgn)}</p>
-              {(detail.row.status === 'Approved' || detail.row.status === 'Paid') && (
+              {(detail.row.status === 'Approved' || detail.row.status === 'Partially paid' || detail.row.status === 'Paid') && (
                 <p className="text-xs text-gray-500 tabular-nums">
                   Approved {formatNgn(refundApprovedAmount(detail.row))} · Balance {formatNgn(refundOutstandingAmount(detail.row))}
                 </p>
