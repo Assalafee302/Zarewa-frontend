@@ -1829,7 +1829,7 @@ const CustomerDashboard = () => {
                             {formatNgn(r.amountNgn)}
                           </p>
                           <SalesStatusChip label={r.status} chipClass={refundStatusChipClass(r.status)} />
-                          {(r.status === 'Approved' || r.status === 'Paid') && (
+                          {(r.status === 'Approved' || r.status === 'Partially paid' || r.status === 'Paid') && (
                             <p className="text-ui-xs text-gray-500 tabular-nums">
                               Bal {formatNgn(refundOutstandingAmount(r))}
                             </p>

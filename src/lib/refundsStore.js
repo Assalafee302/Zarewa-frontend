@@ -10,7 +10,7 @@ import { overpayCreditNgnByCustomerIdFromEntries } from './customerLedgerCore.js
 
 const STORAGE_KEY = 'zarewa.sales.refunds';
 
-/** @typedef {'Pending'|'Approved'|'Rejected'|'Cancelled'|'Paid'} RefundStatus */
+/** @typedef {'Pending'|'Approved'|'Partially paid'|'Rejected'|'Cancelled'|'Paid'} RefundStatus */
 
 function normalizeLine(line) {
   return {
@@ -36,7 +36,7 @@ export function refundApprovedAmount(r) {
   const requested = Number(r?.amountNgn) || 0;
   const approved = Number(r?.approvedAmountNgn);
   if (Number.isFinite(approved) && approved > 0) return approved;
-  if (r?.status === 'Approved' || r?.status === 'Paid') return requested;
+  if (r?.status === 'Approved' || r?.status === 'Paid' || r?.status === 'Partially paid') return requested;
   return 0;
 }
 
@@ -134,7 +134,11 @@ export function normalizeRefund(r) {
       r.previewSnapshot != null && typeof r.previewSnapshot === 'object' ? r.previewSnapshot : null,
     calculationNotes: r.calculationNotes ?? '',
     status:
-      r.status === 'Paid' || r.status === 'Rejected' || r.status === 'Approved' || r.status === 'Cancelled'
+      r.status === 'Paid' ||
+      r.status === 'Rejected' ||
+      r.status === 'Approved' ||
+      r.status === 'Cancelled' ||
+      r.status === 'Partially paid'
         ? r.status
         : 'Pending',
     requestedBy: formatPersonName(r.requestedBy ?? '—'),
@@ -184,7 +188,7 @@ export function normalizeRefund(r) {
 export function isRefundPayable(r) {
   if (Math.round(Number(r?.walletOpenNgn) || 0) > 0) return false;
   return (
-    r?.status === 'Approved' &&
+    (r?.status === 'Approved' || r?.status === 'Partially paid') &&
     refundOutstandingAmount(r) > 0 &&
     !refundQuotationRefundsBlocked(r)
   );

@@ -542,7 +542,7 @@ export function refundRecordSubtitle(record) {
   if (leftover <= 0) return `${base} · ${used}`;
   const status = String(record.status || '').trim();
   if (status === 'Paid') return `${base} · ${used}`;
-  if (status === 'Approved') {
+  if (status === 'Approved' || status === 'Partially paid') {
     return `${base} · ${used} · ₦${leftover.toLocaleString('en-NG')} awaits payout`;
   }
   return `${base} · ${used} · ₦${leftover.toLocaleString('en-NG')} awaits approval`;
