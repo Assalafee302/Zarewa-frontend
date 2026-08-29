@@ -23,7 +23,7 @@ function splitDisplayName(displayName) {
 }
 
 /**
- * @param {{ defaultBranchId?: string; onSuccess: (userId: string) => void; onCancel?: () => void }} props
+ * @param {{ defaultBranchId?: string; onSuccess: (userId: string, loginCredentials?: { username: string; temporaryPassword: string }) => void; onCancel?: () => void }} props
  */
 export function HrStaffRegisterForm({ defaultBranchId, defaultPayrollGroup, onSuccess, onCancel }) {
   const ws = useWorkspace();
@@ -44,6 +44,8 @@ export function HrStaffRegisterForm({ defaultBranchId, defaultPayrollGroup, onSu
   const [form, setForm] = useState(() => ({ ...emptyStaffForm(branch), payrollGroup }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [loginCredentials, setLoginCredentials] = useState(null);
+  const [registeredUserId, setRegisteredUserId] = useState('');
 
   const setModeAndResetLogin = (nextMode) => {
     setMode(nextMode);
@@ -115,10 +117,42 @@ export function HrStaffRegisterForm({ defaultBranchId, defaultPayrollGroup, onSu
       }
       return;
     }
-    onSuccess(data.userId);
+    setRegisteredUserId(data.userId || '');
+    setLoginCredentials(data.loginCredentials || null);
+    if (!data.loginCredentials?.username) {
+      onSuccess(data.userId, null);
+    }
   };
 
   const existingLogin = mode === 'existing';
+
+  if (loginCredentials?.username) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+          <p className="font-bold">Staff registered — share these login details once</p>
+          <p className="mt-1 text-emerald-900/90">
+            Username and password are shown only now. Staff must change password on first login.
+          </p>
+        </div>
+        <dl className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Username</dt>
+            <dd className="mt-1 font-mono font-semibold text-slate-900">{loginCredentials.username}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Temporary password</dt>
+            <dd className="mt-1 font-mono font-semibold text-slate-900">{loginCredentials.temporaryPassword}</dd>
+          </div>
+        </dl>
+        <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+          <HrButton type="button" onClick={() => onSuccess(registeredUserId, loginCredentials)}>
+            Continue to profile
+          </HrButton>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={submit} className="space-y-6">

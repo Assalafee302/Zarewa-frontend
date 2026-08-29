@@ -2,18 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { formToRegisterBody } from './hrStaff';
 
 describe('formToRegisterBody', () => {
-  it('sends password for a new login and omits existingUserId', () => {
+  it('omits username and password for a new login — server generates on register', () => {
     const body = formToRegisterBody({
       username: 'new.staff',
       displayName: 'New Staff',
       password: 'Zarewa@123',
       roleKey: 'sales_staff',
-      employeeNo: '',
+      employeeNo: 'ZAPKD001',
       payrollGroup: 'branch_ops',
     });
     expect(body.existingUserId).toBeUndefined();
-    expect(body.username).toBe('new.staff');
-    expect(body.password).toBe('Zarewa@123');
+    expect(body.username).toBeUndefined();
+    expect(body.password).toBeUndefined();
+    expect(body.employeeNo).toBe('ZAPKD001');
   });
 
   it('attaches an existing login without sending a password', () => {

@@ -60,18 +60,7 @@ export function HrStaffFormFields({
   existingLogin = false,
   allowedPayrollGroups,
 }) {
-  const set = (key, value) =>
-    setForm((f) => {
-      const next = { ...f, [key]: value };
-      if (mode === 'register' && !existingLogin && key === 'employeeNo') {
-        const login = String(value || '')
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9._-]/g, '');
-        if (login) next.username = login;
-      }
-      return next;
-    });
+  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   const [activeTab, setActiveTab] = useState(initialTab);
   const [staffRoster, setStaffRoster] = useState([]);
   const branchChanged =
@@ -317,76 +306,6 @@ export function HrStaffFormFields({
 
   return (
     <div className="space-y-8">
-      {mode === 'register' ? (
-        <section className="space-y-4">
-          <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">
-            {existingLogin ? 'Login (existing)' : 'Login account'}
-          </h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Login username"
-              hint={
-                existingLogin
-                  ? 'Kept from the selected account — not changed.'
-                  : 'Same as employee ID — used to sign in. Auto-filled when you enter employee ID.'
-              }
-            >
-              <input
-                className={fieldCls}
-                value={form.username}
-                onChange={(e) => set('username', e.target.value)}
-                autoComplete="off"
-                readOnly={existingLogin || Boolean(String(form.employeeNo || '').trim())}
-                required={!existingLogin}
-              />
-            </Field>
-            <Field label="Display name">
-              <input
-                className={fieldCls}
-                value={form.displayName}
-                onChange={(e) => set('displayName', e.target.value)}
-                required
-              />
-            </Field>
-            {existingLogin ? null : (
-              <Field label="Temporary password" hint="Staff should change on first login.">
-                <input
-                  type="password"
-                  className={fieldCls}
-                  value={form.password}
-                  onChange={(e) => set('password', e.target.value)}
-                  required
-                  minLength={8}
-                />
-              </Field>
-            )}
-            <Field label="System role">
-              <select
-                className={fieldCls}
-                value={form.roleKey}
-                onChange={(e) => set('roleKey', e.target.value)}
-                required
-                disabled={erpRestricted}
-              >
-                {registerableRoles.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-              {existingLogin ? (
-                <p className="mt-1 text-xs text-slate-500">Leave this as-is unless HR needs to change their desk role.</p>
-              ) : null}
-              {erpRestricted ? (
-                <p className="mt-1 text-xs text-amber-800">
-                  Mining division staff cannot access sales, finance, or operations — HR portal and My Profile only.
-                </p>
-              ) : null}
-            </Field>
-          </div>
-        </section>
-      ) : null}
-
       <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
         {visibleTabs.map((tab) => (
           <button
@@ -1175,6 +1094,58 @@ export function HrStaffFormFields({
           </Field>
         </div>
       </section>
+      ) : null}
+      {mode === 'register' ? (
+        <section className="space-y-4 rounded-2xl border border-teal-100 bg-teal-50/40 p-4">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wide text-zarewa-teal">
+              {existingLogin ? 'Login (existing)' : 'ERP access'}
+            </h3>
+            <p className="mt-1 text-xs text-slate-600">
+              {existingLogin
+                ? 'Profile is linked to the selected login — username and password stay unchanged.'
+                : 'Username and temporary password are generated when you register, from the employee ID. Staff must change password on first login.'}
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {existingLogin ? (
+              <Field label="Login username" hint="Kept from the selected account — not changed.">
+                <input className={`${fieldCls} bg-slate-50`} value={form.username} readOnly autoComplete="off" />
+              </Field>
+            ) : null}
+            <Field label="Display name">
+              <input
+                className={fieldCls}
+                value={form.displayName}
+                onChange={(e) => set('displayName', e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="System role">
+              <select
+                className={fieldCls}
+                value={form.roleKey}
+                onChange={(e) => set('roleKey', e.target.value)}
+                required
+                disabled={erpRestricted}
+              >
+                {registerableRoles.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              {existingLogin ? (
+                <p className="mt-1 text-xs text-slate-500">Leave this as-is unless HR needs to change their desk role.</p>
+              ) : null}
+              {erpRestricted ? (
+                <p className="mt-1 text-xs text-amber-800">
+                  Mining division staff cannot access sales, finance, or operations — HR portal and My Profile only.
+                </p>
+              ) : null}
+            </Field>
+          </div>
+        </section>
       ) : null}
     </div>
   );

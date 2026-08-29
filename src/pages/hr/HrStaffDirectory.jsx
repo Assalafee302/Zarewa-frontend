@@ -423,7 +423,7 @@ export default function HrStaffDirectory({
           defaultPayrollGroup={defaultPayrollGroup || (cohort === 'mining' ? 'mining_div' : 'branch_ops')}
           onSuccess={(newUserId) => {
             setRegisterOpen(false);
-            navigate(`${staffBasePath}/${encodeURIComponent(newUserId)}`);
+            if (newUserId) navigate(`${staffBasePath}/${encodeURIComponent(newUserId)}`);
           }}
           onCancel={() => setRegisterOpen(false)}
         />

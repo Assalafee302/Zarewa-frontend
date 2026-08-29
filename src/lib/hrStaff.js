@@ -308,10 +308,6 @@ export async function submitMyHrProfile() {
 /** @param {object} form */
 export function formToRegisterBody(form) {
   const existingUserId = String(form.existingUserId || '').trim();
-  const employeeLogin = String(form.employeeNo || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]/g, '');
   const body = {
     displayName: String(form.displayName || '').trim(),
     roleKey: form.roleKey,
@@ -320,9 +316,6 @@ export function formToRegisterBody(form) {
   if (existingUserId) {
     body.existingUserId = existingUserId;
     body.username = String(form.username || '').trim().toLowerCase();
-  } else {
-    body.username = employeeLogin || String(form.username || '').trim().toLowerCase();
-    body.password = form.password;
   }
   if (form.applicantId) body.applicantId = String(form.applicantId).trim();
   return body;
