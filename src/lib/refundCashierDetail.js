@@ -146,6 +146,20 @@ export function refundTreasuryPaidNgn(refund) {
   return paidNgn;
 }
 
+/** Normalized till/bank payout lines for finance registers and audit. */
+export function refundPayoutRegisterLines(refund) {
+  const history = Array.isArray(refund?.payoutHistory) ? refund.payoutHistory : [];
+  return history
+    .map((line) => ({
+      postedAtISO: String(line?.postedAtISO ?? line?.posted_at_iso ?? '').trim(),
+      accountName: String(line?.accountName ?? line?.account_name ?? '').trim(),
+      amountNgn: roundRefundStaffMoney(line?.amountNgn ?? line?.amount_ngn),
+      reference: String(line?.reference ?? '').trim(),
+      note: String(line?.note ?? '').trim(),
+    }))
+    .filter((line) => line.amountNgn > 0);
+}
+
 /**
  * Gross splits scaled to approved amount, with company cut / net payout computed per recipient.
  * @returns {Array<{

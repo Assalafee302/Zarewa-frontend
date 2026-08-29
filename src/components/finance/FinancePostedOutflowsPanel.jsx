@@ -13,6 +13,15 @@ import {
 } from '../../lib/financeTreasuryPayoutQueueMeta';
 import { useAppTablePaging } from '../../lib/appDataTable';
 import {
+  refundApprovedAmount,
+  isRefundPayable,
+} from '../../lib/refundsStore';
+import {
+  refundCashierMoneyStory,
+  refundPayoutRegisterLines,
+  refundTreasuryPaidNgn,
+} from '../../lib/refundCashierDetail';
+import {
   isPayFromCorrectionTreasuryRow,
   treasuryMovementSourceBadge,
   treasuryOutflowLinesForExpense,
@@ -101,7 +110,9 @@ function StatusChip({ status }) {
         ? 'bg-rose-50 text-rose-800'
         : lower === 'paid'
           ? 'bg-slate-100 text-slate-700'
-          : 'bg-amber-50 text-amber-950';
+          : lower === 'partially paid'
+            ? 'bg-cyan-50 text-cyan-900'
+            : 'bg-amber-50 text-amber-950';
   return (
     <span className={`inline-flex rounded-sm px-1.5 py-0.5 text-ui-xs font-semibold ${cls}`}>{s || '—'}</span>
   );
@@ -998,9 +1009,225 @@ function ArchiveRequestList() {
   );
 }
 
+function refundPayoutDetailText(refund) {
+  const lines = refundPayoutRegisterLines(refund);
+  if (lines.length) {
+    return lines
+      .map((line) => {
+        const bits = [
+          line.accountName || 'Till/bank',
+          formatNgn(line.amountNgn),
+          line.postedAtISO ? line.postedAtISO.slice(0, 10) : '',
+          line.reference || '',
+        ].filter(Boolean);
+        return bits.join(' · ');
+      })
+      .join('; ');
+  }
+  const note = String(refund?.paymentNote ?? refund?.payment_note ?? '');
+  if (/settled at approval/i.test(note)) {
+    return 'Settled at approval (company cut / offset — no till payout)';
+  }
+  return 'No till/bank payout recorded';
+}
+
+function RefundRowActions({ refund }) {
+  const {
+    handleDeskViewRefund,
+    handleDeskPayRefund,
+    canPayRequests,
+    canReversePaymentRequestTreasury,
+    reverseRefundTreasuryPayout,
+    reversingRefundTreasuryPayoutId,
+    ws,
+  } = useAccountPage();
+  const treasuryPaid = refundTreasuryPaidNgn(refund);
+  const payable = isRefundPayable(refund);
+
+  return (
+    <div className="inline-flex flex-wrap justify-end gap-1">
+      <QuietAction onClick={() => handleDeskViewRefund(refund.refundID)}>View</QuietAction>
+      {payable && canPayRequests && ws?.canMutate ? (
+        <QuietAction tone="sky" onClick={() => handleDeskPayRefund(refund.refundID)}>
+          Pay
+        </QuietAction>
+      ) : null}
+      {treasuryPaid > 0 && canReversePaymentRequestTreasury && ws?.canMutate ? (
+        <QuietAction
+          tone="amber"
+          disabled={reversingRefundTreasuryPayoutId === refund.refundID}
+          onClick={() => void reverseRefundTreasuryPayout(refund.refundID)}
+        >
+          <RotateCcw size={11} aria-hidden />
+          Reverse
+        </QuietAction>
+      ) : null}
+    </div>
+  );
+}
+
+function RefundRegisterList() {
+  const {
+    disbursementsPaidRefunds,
+    disbursementsOpenRefunds,
+    disbursementsSearch,
+  } = useAccountPage();
+  const [refundQueue, setRefundQueue] = useState('paid');
+  const rows = refundQueue === 'open' ? disbursementsOpenRefunds : disbursementsPaidRefunds;
+  const paging = useAppTablePaging(rows, LIST_PAGE, [refundQueue, disbursementsSearch]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setRefundQueue('paid')}
+          className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+            refundQueue === 'paid'
+              ? 'bg-zarewa-teal text-white'
+              : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          Paid &amp; partial ({disbursementsPaidRefunds.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setRefundQueue('open')}
+          className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+            refundQueue === 'open'
+              ? 'bg-zarewa-teal text-white'
+              : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          Awaiting payout ({disbursementsOpenRefunds.length})
+        </button>
+      </div>
+      {paging.slice.length === 0 ? (
+        <p className="rounded-md border border-dashed border-[var(--z-border)] bg-[var(--z-surface-muted)]/40 px-4 py-8 text-center text-sm text-[var(--z-text-muted)]">
+          {refundQueue === 'open'
+            ? 'No approved refunds waiting for till/bank payout.'
+            : 'No paid refunds in this view yet. Payouts appear here after Finance pays from Desk.'}
+        </p>
+      ) : (
+        <>
+          <ul className="space-y-2 lg:hidden">
+            {paging.slice.map((refund) => {
+              const approved = refundApprovedAmount(refund);
+              const treasuryPaid = refundTreasuryPaidNgn(refund);
+              const story = refundCashierMoneyStory(refund);
+              const payee = partyName(refund);
+              return (
+                <li
+                  key={refund.refundID}
+                  className="rounded-md border border-[var(--z-border)] bg-white px-3 py-2.5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-[var(--z-text)]">
+                        <span className="font-mono text-xs text-zarewa-teal">{refund.refundID}</span>
+                        {payee ? <span className="font-medium text-slate-700"> · {payee}</span> : null}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-600">
+                        {refund.quotationRef ? `${refund.quotationRef} · ` : ''}
+                        {refund.customer || '—'}
+                      </p>
+                      <div className="mt-1">
+                        <StatusChip status={refund.status} />
+                      </div>
+                      <p className="mt-1.5 text-xs leading-snug text-slate-700">{refundPayoutDetailText(refund)}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <p className="z-stencil text-sm text-zarewa-teal">{formatNgn(approved)}</p>
+                      {treasuryPaid > 0 ? (
+                        <p className="text-ui-xs text-slate-500">Till {formatNgn(treasuryPaid)}</p>
+                      ) : null}
+                      {story.cashDueNgn > 0 ? (
+                        <p className="text-ui-xs font-semibold text-amber-900">Due {formatNgn(story.cashDueNgn)}</p>
+                      ) : null}
+                      <RefundRowActions refund={refund} />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="hidden lg:block">
+            <AppTableWrap>
+              <AppTable role="numeric">
+                <AppTableThead>
+                  <AppTableTh>Date</AppTableTh>
+                  <AppTableTh>Refund</AppTableTh>
+                  <AppTableTh>Customer</AppTableTh>
+                  <AppTableTh>Quote</AppTableTh>
+                  <AppTableTh>Status</AppTableTh>
+                  <AppTableTh>How paid (till/bank)</AppTableTh>
+                  <AppTableTh align="right">Approved</AppTableTh>
+                  <AppTableTh align="right">Till paid</AppTableTh>
+                  <AppTableTh align="right"> </AppTableTh>
+                </AppTableThead>
+                <AppTableBody>
+                  {paging.slice.map((refund) => {
+                    const approved = refundApprovedAmount(refund);
+                    const treasuryPaid = refundTreasuryPaidNgn(refund);
+                    const story = refundCashierMoneyStory(refund);
+                    const payee = partyName(refund);
+                    const displayDate =
+                      String(refund.paidAtISO || '').trim().slice(0, 10) ||
+                      refundPayoutRegisterLines(refund)[0]?.postedAtISO?.slice(0, 10) ||
+                      refund.approvalDate?.slice(0, 10) ||
+                      '—';
+                    return (
+                      <AppTableTr key={refund.refundID}>
+                        <AppTableTd>{displayDate}</AppTableTd>
+                        <AppTableTd monospace title={payee}>
+                          {refund.refundID}
+                        </AppTableTd>
+                        <AppTableTd title={refund.customer}>{refund.customer || '—'}</AppTableTd>
+                        <AppTableTd monospace>{refund.quotationRef || '—'}</AppTableTd>
+                        <AppTableTd>
+                          <StatusChip status={refund.status} />
+                        </AppTableTd>
+                        <AppTableTd truncate={false} title={refundPayoutDetailText(refund)}>
+                          <span className="text-xs leading-snug text-slate-700">{refundPayoutDetailText(refund)}</span>
+                        </AppTableTd>
+                        <AppTableTd align="right" truncate={false}>
+                          <p className="font-semibold text-zarewa-teal">{formatNgn(approved)}</p>
+                          {story.cashDueNgn > 0 ? (
+                            <p className="text-ui-xs font-semibold text-amber-900">Due {formatNgn(story.cashDueNgn)}</p>
+                          ) : null}
+                        </AppTableTd>
+                        <AppTableTd align="right">{treasuryPaid > 0 ? formatNgn(treasuryPaid) : '—'}</AppTableTd>
+                        <AppTableTd align="right" truncate={false}>
+                          <RefundRowActions refund={refund} />
+                        </AppTableTd>
+                      </AppTableTr>
+                    );
+                  })}
+                </AppTableBody>
+              </AppTable>
+            </AppTableWrap>
+          </div>
+        </>
+      )}
+      <AppTablePager
+        showingFrom={paging.showingFrom}
+        showingTo={paging.showingTo}
+        total={paging.total}
+        hasPrev={paging.hasPrev}
+        hasNext={paging.hasNext}
+        onPrev={paging.goPrev}
+        onNext={paging.goNext}
+        pageSize={LIST_PAGE}
+      />
+    </div>
+  );
+}
+
 const SECTION_HINT = {
   posted: 'Treasury lines that already left till or bank. View opens the source request or expense.',
   requests: 'Open payment requests. Pay approved items here or from Desk.',
+  refunds: 'Confirm how approved refunds were paid from till/bank. View opens payout lines, splits, and settlement notes.',
   expenses: 'Posted expense cards after payout. Open View to compare payee, memo, and lines.',
   archive: 'Rejected or refused before payout. Resubmit a corrected request — treasury does not pay from this list.',
 };
@@ -1008,6 +1235,7 @@ const SECTION_HINT = {
 const SEARCH_PLACEHOLDER = {
   posted: 'Search date, payee, account, source id…',
   requests: 'Search request id, payee, category…',
+  refunds: 'Search refund id, customer, quote, payout account…',
   expenses: 'Search expense id, payee, category…',
   archive: 'Search archived request id, payee, note…',
 };
@@ -1020,6 +1248,9 @@ export function FinancePostedOutflowsPanel() {
     disbursementsFilteredExpenses,
     disbursementsArchivedRejectedPayRequests,
     disbursementsExceptionPayRequests,
+    disbursementsOpenRefunds,
+    disbursementsPaidRefunds,
+    dueRefundsNgn,
     disbursementsSearch,
     setDisbursementsSearch,
     canImportExpenses,
@@ -1063,6 +1294,13 @@ export function FinancePostedOutflowsPanel() {
       count: disbursementsActivePayRequests.length,
       subtotalNgn: dueNgn,
       unit: 'request',
+    },
+    {
+      id: 'refunds',
+      title: 'Refunds',
+      count: disbursementsPaidRefunds.length + disbursementsOpenRefunds.length,
+      subtotalNgn: dueRefundsNgn,
+      unit: 'refund',
     },
     {
       id: 'expenses',
@@ -1109,8 +1347,10 @@ export function FinancePostedOutflowsPanel() {
         }
       />
 
-      {dueRequests.length > 0 || (disbursementsExceptionPayRequests || []).length > 0 ? (
-        <AccountingDeskNotice tone={dueRequests.length > 0 ? 'info' : 'warn'}>
+      {dueRequests.length > 0 ||
+      disbursementsOpenRefunds.length > 0 ||
+      (disbursementsExceptionPayRequests || []).length > 0 ? (
+        <AccountingDeskNotice tone={dueRequests.length > 0 || disbursementsOpenRefunds.length > 0 ? 'info' : 'warn'}>
           {dueRequests.length > 0 ? (
             <button
               type="button"
@@ -1121,7 +1361,21 @@ export function FinancePostedOutflowsPanel() {
               {formatNgn(dueNgn)})
             </button>
           ) : null}
-          {dueRequests.length > 0 && (disbursementsExceptionPayRequests || []).length > 0 ? (
+          {dueRequests.length > 0 && disbursementsOpenRefunds.length > 0 ? (
+            <span className="text-slate-400"> · </span>
+          ) : null}
+          {disbursementsOpenRefunds.length > 0 ? (
+            <button
+              type="button"
+              className="font-semibold text-zarewa-teal hover:underline"
+              onClick={() => setSection('refunds')}
+            >
+              {disbursementsOpenRefunds.length} approved refund
+              {disbursementsOpenRefunds.length === 1 ? '' : 's'} still to pay ({formatNgn(dueRefundsNgn)})
+            </button>
+          ) : null}
+          {(dueRequests.length > 0 || disbursementsOpenRefunds.length > 0) &&
+          (disbursementsExceptionPayRequests || []).length > 0 ? (
             <span className="text-slate-400"> · </span>
           ) : null}
           {(disbursementsExceptionPayRequests || []).length > 0 ? (
@@ -1184,6 +1438,7 @@ export function FinancePostedOutflowsPanel() {
 
       {section === 'posted' ? <PostedOutflowsTable /> : null}
       {section === 'requests' ? <RequestPipelineList /> : null}
+      {section === 'refunds' ? <RefundRegisterList /> : null}
       {section === 'expenses' ? <PostedExpenseList /> : null}
       {section === 'archive' ? <ArchiveRequestList /> : null}
     </div>

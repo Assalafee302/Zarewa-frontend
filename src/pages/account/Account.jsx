@@ -48,11 +48,16 @@ import {
   refundApprovedAmount,
   refundOutstandingAmount,
   hangingRefundsForCustomer,
+  isRefundPayable,
+  refundStatusIsWithdrawn,
 } from '../../lib/refundsStore';
 import {
   refundDefaultTreasuryPayoutNgn,
   enrichRefundForCashierPayout,
   refundPayeePayoutQueueLines,
+  refundTreasuryPaidNgn,
+  refundCashierMoneyStory,
+  refundPayoutRegisterLines,
 } from '../../lib/refundCashierDetail';
 import { overpayCreditBalanceFromEntries } from '../../lib/customerLedgerCore.js';
 import { openAuditQueue } from '../../lib/liveAnalytics';
@@ -2986,6 +2991,77 @@ const Account = () => {
     [disbursementsFilteredPayRequests]
   );
 
+  const disbursementsRegisterRefunds = useMemo(() => {
+    const qq = (disbursementsSearch.trim() || debouncedSearchQuery.trim()).toLowerCase();
+    return (customerRefunds || [])
+      .filter((r) => {
+        if (refundStatusIsWithdrawn(r.status)) return false;
+        const st = String(r.status || '').trim();
+        if (!['Approved', 'Partially paid', 'Paid'].includes(st)) return false;
+        if (!qq) return true;
+        const treasuryPaid = refundTreasuryPaidNgn(r);
+        const payoutText = (r.payoutHistory || [])
+          .map((line) =>
+            [line.accountName, line.reference, line.note, line.postedAtISO].filter(Boolean).join(' ')
+          )
+          .join(' ');
+        return [
+          r.refundID,
+          r.customer,
+          r.customerID,
+          r.quotationRef,
+          r.status,
+          r.payeeName,
+          r.reason,
+          r.paymentNote,
+          payoutText,
+          String(treasuryPaid),
+          String(r.approvedAmountNgn ?? r.amountNgn),
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(qq);
+      })
+      .sort((a, b) => {
+        const aDate =
+          String(a.paidAtISO || '').trim() ||
+          (Array.isArray(a.payoutHistory) && a.payoutHistory[0]?.postedAtISO) ||
+          a.approvalDate ||
+          a.requestedAtISO ||
+          '';
+        const bDate =
+          String(b.paidAtISO || '').trim() ||
+          (Array.isArray(b.payoutHistory) && b.payoutHistory[0]?.postedAtISO) ||
+          b.approvalDate ||
+          b.requestedAtISO ||
+          '';
+        return String(bDate).localeCompare(String(aDate));
+      });
+  }, [customerRefunds, disbursementsSearch, debouncedSearchQuery]);
+
+  const disbursementsOpenRefunds = useMemo(
+    () => disbursementsRegisterRefunds.filter((r) => isRefundPayable(r)),
+    [disbursementsRegisterRefunds]
+  );
+
+  const disbursementsPaidRefunds = useMemo(
+    () =>
+      disbursementsRegisterRefunds.filter((r) => {
+        const st = String(r.status || '').trim();
+        return st === 'Paid' || st === 'Partially paid' || refundTreasuryPaidNgn(r) > 0;
+      }),
+    [disbursementsRegisterRefunds]
+  );
+
+  const dueRefundsNgn = useMemo(
+    () =>
+      disbursementsOpenRefunds.reduce((sum, r) => {
+        const story = refundCashierMoneyStory(r);
+        return sum + Math.max(0, Math.round(Number(story.cashDueNgn) || 0));
+      }, 0),
+    [disbursementsOpenRefunds]
+  );
+
   const paymentOutflowBaseRows = useMemo(
     () => treasuryOutflowPaymentTableRows(liveTreasuryMovements),
     [liveTreasuryMovements]
@@ -3516,6 +3592,10 @@ const Account = () => {
       disbursementsArchivedRejectedPayRequests,
       disbursementsExceptionPayRequests,
       disbursementsFilteredExpenses,
+      disbursementsOpenRefunds,
+      disbursementsPaidRefunds,
+      disbursementsRegisterRefunds,
+      dueRefundsNgn,
       disbursementsPayRequestQueue,
       disbursementsSearch,
       disbursementsVisiblePayRequests,
@@ -3644,6 +3724,10 @@ const Account = () => {
       disbursementsArchivedRejectedPayRequests,
       disbursementsExceptionPayRequests,
       disbursementsFilteredExpenses,
+      disbursementsOpenRefunds,
+      disbursementsPaidRefunds,
+      disbursementsRegisterRefunds,
+      dueRefundsNgn,
       disbursementsPayRequestQueue,
       disbursementsSearch,
       disbursementsVisiblePayRequests,
