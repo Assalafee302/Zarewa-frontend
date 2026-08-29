@@ -209,8 +209,8 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             {story.companyCutNgn > 0 ? (
               <MoneyRow label="Company cut (retained)" value={story.companyCutNgn} tone="amber" />
             ) : null}
-            {story.unclearedOffsetNgn > 0 ? (
-              <MoneyRow label="Uncleared receipt offset" value={story.unclearedOffsetNgn} tone="amber" />
+            {story.unclearedHoldNgn > 0 ? (
+              <MoneyRow label="Uncleared receipts pending" value={story.unclearedHoldNgn} tone="amber" />
             ) : null}
             {story.settledAtApprovalNgn > 0 ? (
               <MoneyRow label="Settled at BM approval" value={story.settledAtApprovalNgn} tone="amber" />
@@ -223,8 +223,8 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 space-y-2">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
               <p className="text-ui-xs text-sky-900/85 leading-relaxed">
-                Only payees with till due appear in the Finance payout queue. Staff cleared by uncleared receipts at
-                approval do not get a separate bank transfer.
+                Payees with uncleared receipt holds stay out of the payout queue until receipts are cleared or
+                Finance manually applies the offset at pay time.
               </p>
               <ul className="space-y-2">
                 {recipientTillRows.map((row) => (
@@ -241,15 +241,20 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                         className={
                           row.payoutStatus === 'till_due'
                             ? 'font-bold text-rose-800'
-                            : row.payoutStatus === 'offset_at_approval'
+                            : row.payoutStatus === 'held_uncleared'
                               ? 'font-semibold text-amber-900'
-                              : 'font-semibold text-slate-600'
+                              : row.payoutStatus === 'referral_available'
+                                ? 'font-semibold text-emerald-900'
+                                : 'font-semibold text-slate-600'
                         }
                       >
                         {row.payoutStatusLabel}
                         {row.payoutStatus === 'till_due' ? ` · ${formatNgn(row.amountDueNgn)}` : ''}
-                        {row.payoutStatus === 'offset_at_approval'
-                          ? ` · ${formatNgn(row.unclearedReceiptOffsetNgn)}`
+                        {row.payoutStatus === 'held_uncleared'
+                          ? ` · ${formatNgn(row.netPayoutNgn)} net held`
+                          : ''}
+                        {row.payoutStatus === 'referral_available'
+                          ? ` · ${formatNgn(row.netPayoutNgn)} for cashier referral`
                           : ''}
                       </span>
                       {row.payoutStatus === 'till_due' ? (

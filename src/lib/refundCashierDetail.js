@@ -1,4 +1,5 @@
 import { refundApprovedAmount, refundOutstandingAmount } from './refundsStore';
+import { refundCategoriesAreOverpaymentOnly } from '../shared/lib/refundCreditApply.js';
 import {
   overpaymentAlreadyRefundedNgn,
   quotationOverpaymentResidualNgn,
@@ -72,10 +73,10 @@ function parseUnclearedOffsetFromPaymentNote(refund) {
   return roundRefundStaffMoney(String(match[1] || '').replace(/,/g, ''));
 }
 
-/** Cash still owed from till/bank — excludes company cut and uncleared-receipt offsets settled at approval. */
-function payeeTillCashDueNgn(row, { treasuryPaidToPayeeNgn = 0, extraUnclearedOffsetNgn = 0 } = {}) {
-  const offset = roundRefundStaffMoney(row?.unclearedReceiptOffsetNgn) + extraUnclearedOffsetNgn;
-  const tillOwed = Math.max(0, roundRefundStaffMoney(row?.netPayoutNgn) - offset);
+/** Cash still owed from till/bank — excludes company cut settled at approval. */
+function payeeTillCashDueNgn(row, { treasuryPaidToPayeeNgn = 0 } = {}) {
+  if (row?.payoutHeldForUnclearedReceipts) return 0;
+  const tillOwed = Math.max(0, roundRefundStaffMoney(row?.netPayoutNgn));
   return Math.max(0, tillOwed - roundRefundStaffMoney(treasuryPaidToPayeeNgn));
 }
 
@@ -112,23 +113,17 @@ function refundPaymentNoteSettledAtApproval(refund) {
 }
 
 function refundSettledAtApprovalNgn(refund, breakdown) {
-  const approvedNgn = refundApprovedAmount(refund);
   const paidNgn = Math.round(Number(refund?.paidAmountNgn ?? refund?.paid_amount_ngn) || 0);
   const companyCutNgn = breakdown.reduce((sum, row) => sum + row.companyDeductionNgn, 0);
-  const breakdownUncleared = breakdown.reduce(
-    (sum, row) => sum + row.unclearedReceiptOffsetNgn,
-    0
-  );
-  const noteUncleared = parseUnclearedOffsetFromPaymentNote(refund);
-  const unclearedOffsetNgn = Math.max(breakdownUncleared, noteUncleared);
-  let settledAtApprovalNgn = Math.max(0, companyCutNgn + unclearedOffsetNgn);
+  let settledAtApprovalNgn = Math.max(0, companyCutNgn);
   if (settledAtApprovalNgn <= 0 && refundPaymentNoteSettledAtApproval(refund) && paidNgn > 0) {
-    settledAtApprovalNgn = Math.min(paidNgn, approvedNgn);
+    const noteCompanyCut = parseCompanyCutFromPaymentNote(refund);
+    settledAtApprovalNgn = noteCompanyCut > 0 ? noteCompanyCut : Math.min(paidNgn, refundApprovedAmount(refund));
   }
   return settledAtApprovalNgn;
 }
 
-/** Treasury cash posted from Finance — excludes company cut / offsets settled at BM approval. */
+/** Treasury cash posted from Finance — excludes company cut / legacy offsets settled at BM approval. */
 export function refundTreasuryPaidNgn(refund) {
   const history = Array.isArray(refund?.payoutHistory) ? refund.payoutHistory : [];
   const fromHistory = history.reduce(
@@ -140,8 +135,10 @@ export function refundTreasuryPaidNgn(refund) {
   if (paidNgn <= 0) return 0;
   const breakdown = refundCashierSplitBreakdown(refund);
   const settledAtApprovalNgn = refundSettledAtApprovalNgn(refund, breakdown);
-  if (settledAtApprovalNgn > 0 || refundPaymentNoteSettledAtApproval(refund)) {
-    return Math.max(0, paidNgn - settledAtApprovalNgn);
+  const legacyUnclearedOffsetNgn = parseUnclearedOffsetFromPaymentNote(refund);
+  const nonTreasurySettlementNgn = settledAtApprovalNgn + legacyUnclearedOffsetNgn;
+  if (nonTreasurySettlementNgn > 0 || refundPaymentNoteSettledAtApproval(refund)) {
+    return Math.max(0, paidNgn - nonTreasurySettlementNgn);
   }
   return paidNgn;
 }
@@ -179,6 +176,18 @@ export function refundCashierSplitBreakdown(refund) {
   const rawSplits = refundSplitRows(refund).filter((s) => s.amountNgn > 0);
 
   const quoteCustomerId = String(refund?.customerID ?? refund?.customer_id ?? '').trim();
+  let calculationLines = refund?.calculationLines;
+  if (!Array.isArray(calculationLines)) {
+    try {
+      calculationLines = JSON.parse(String(refund?.calculation_lines_json ?? '[]'));
+    } catch {
+      calculationLines = [];
+    }
+  }
+  const overpaymentOnly = refundCategoriesAreOverpaymentOnly(
+    refund?.reasonCategory ?? refund?.reason_category,
+    calculationLines
+  );
 
   if (!rawSplits.length) {
     return [
@@ -204,6 +213,10 @@ export function refundCashierSplitBreakdown(refund) {
     allocated += share;
     return applyRefundStaffAllocationDeduction({ ...row, amountNgn: share }, quoteCustomerId, {
       honorCompanyCutWaiver: true,
+      overpaymentOnly,
+      unclearedReceiptHoldNgn:
+        roundRefundStaffMoney(row?.unclearedReceiptHoldNgn ?? row?.uncleared_receipt_hold_ngn) ||
+        roundRefundStaffMoney(row?.unclearedReceiptOffsetNgn ?? row?.uncleared_receipt_offset_ngn),
     });
   });
 
@@ -232,7 +245,10 @@ export function refundCashierSplitBreakdown(refund) {
       recipientLabel,
       grossNgn: roundRefundStaffMoney(row?.grossNgn ?? row?.amountNgn),
       companyDeductionNgn: roundRefundStaffMoney(row?.companyDeductionNgn),
-      unclearedReceiptOffsetNgn: roundRefundStaffMoney(row?.unclearedReceiptOffsetNgn),
+      unclearedReceiptHoldNgn: roundRefundStaffMoney(row?.unclearedReceiptHoldNgn),
+      unclearedReceiptOffsetNgn: 0,
+      payoutHeldForUnclearedReceipts: Boolean(row?.payoutHeldForUnclearedReceipts),
+      overpaymentCashierReferralAvailable: Boolean(row?.overpaymentCashierReferralAvailable),
       netPayoutNgn: roundRefundStaffMoney(row?.netPayoutNgn ?? row?.amountNgn),
       payeeName: payeeName || recipientLabel,
       payeeBankName: String(
@@ -278,29 +294,19 @@ function buildRefundPayeePayoutLines(refund) {
 
   const noteUncleared = parseUnclearedOffsetFromPaymentNote(refund);
   const breakdownUncleared = breakdown.reduce(
-    (sum, row) => sum + roundRefundStaffMoney(row.unclearedReceiptOffsetNgn),
+    (sum, row) => sum + roundRefundStaffMoney(row.unclearedReceiptHoldNgn),
     0
   );
   let staffUnclearedExtra = Math.max(0, noteUncleared - breakdownUncleared);
 
   let treasuryRemaining = story.treasuryPaidNgn;
   const lines = breakdown.map((row, idx) => {
-    const extraUnclearedOffsetNgn =
-      row.recipientKind === 'associated_staff'
-        ? Math.min(staffUnclearedExtra, roundRefundStaffMoney(row.netPayoutNgn))
-        : 0;
-    if (extraUnclearedOffsetNgn > 0) {
-      staffUnclearedExtra -= extraUnclearedOffsetNgn;
-    }
     const treasuryPaidToPayeeNgn = Math.min(
-      payeeTillCashDueNgn(row, { extraUnclearedOffsetNgn: extraUnclearedOffsetNgn }),
+      payeeTillCashDueNgn(row),
       Math.max(0, treasuryRemaining)
     );
     treasuryRemaining -= treasuryPaidToPayeeNgn;
-    const amountDueNgn = payeeTillCashDueNgn(row, {
-      treasuryPaidToPayeeNgn,
-      extraUnclearedOffsetNgn: extraUnclearedOffsetNgn,
-    });
+    const amountDueNgn = payeeTillCashDueNgn(row, { treasuryPaidToPayeeNgn });
     const kindSlug = row.recipientKind === 'associated_staff' ? 'staff' : 'customer';
     const queueKey = `${kindSlug}-${idx}`;
     const payeeBankName =
@@ -318,8 +324,17 @@ function buildRefundPayeePayoutLines(refund) {
       (row.recipientKind === 'customer'
         ? String(refund?.payeeName ?? refund?.payee_name ?? '').trim()
         : row.recipientLabel);
-    const unclearedReceiptOffsetNgn =
-      roundRefundStaffMoney(row.unclearedReceiptOffsetNgn) + extraUnclearedOffsetNgn;
+    const unclearedReceiptHoldNgn =
+      roundRefundStaffMoney(row.unclearedReceiptHoldNgn) +
+      (row.recipientKind === 'associated_staff' && staffUnclearedExtra > 0
+        ? Math.min(staffUnclearedExtra, roundRefundStaffMoney(row.netPayoutNgn))
+        : 0);
+    if (row.recipientKind === 'associated_staff' && staffUnclearedExtra > 0) {
+      staffUnclearedExtra = Math.max(
+        0,
+        staffUnclearedExtra - roundRefundStaffMoney(row.unclearedReceiptHoldNgn)
+      );
+    }
     return {
       queueKey,
       refundID: rid,
@@ -331,7 +346,9 @@ function buildRefundPayeePayoutLines(refund) {
       payeeAccountNo,
       grossNgn: row.grossNgn,
       companyDeductionNgn: row.companyDeductionNgn,
-      unclearedReceiptOffsetNgn,
+      unclearedReceiptHoldNgn,
+      payoutHeldForUnclearedReceipts: Boolean(row.payoutHeldForUnclearedReceipts),
+      overpaymentCashierReferralAvailable: Boolean(row.overpaymentCashierReferralAvailable),
       netPayoutNgn: row.netPayoutNgn,
       treasuryPaidToPayeeNgn,
       amountDueNgn,
@@ -361,9 +378,12 @@ export function refundRecipientTillPayoutRows(refund) {
     } else if (line.treasuryPaidToPayeeNgn > 0) {
       payoutStatus = 'paid';
       payoutStatusLabel = 'Paid from till / bank';
-    } else if (line.unclearedReceiptOffsetNgn > 0) {
-      payoutStatus = 'offset_at_approval';
-      payoutStatusLabel = 'Cleared at approval (uncleared receipts)';
+    } else if (line.overpaymentCashierReferralAvailable && line.netPayoutNgn > 0) {
+      payoutStatus = 'referral_available';
+      payoutStatusLabel = 'Available for cashier referral / confirmation';
+    } else if (line.payoutHeldForUnclearedReceipts && line.netPayoutNgn > 0) {
+      payoutStatus = 'held_uncleared';
+      payoutStatusLabel = 'Held — uncleared receipts pending';
     } else if (line.companyDeductionNgn > 0) {
       payoutStatus = 'company_cut';
       payoutStatusLabel = 'Company cut retained at approval';
@@ -515,7 +535,7 @@ export function refundCashierMoneyStory(refund) {
 
   const breakdown = refundCashierSplitBreakdown(refund);
   const companyCutNgn = breakdown.reduce((sum, row) => sum + row.companyDeductionNgn, 0);
-  const unclearedOffsetNgn = breakdown.reduce((sum, row) => sum + row.unclearedReceiptOffsetNgn, 0);
+  const unclearedHoldNgn = breakdown.reduce((sum, row) => sum + row.unclearedReceiptHoldNgn, 0);
   const settledAtApprovalNgn = refundSettledAtApprovalNgn(refund, breakdown);
   const treasuryPaidNgn = refundTreasuryPaidNgn(refund);
   const netCashApprovedNgn = Math.max(0, approvedNgn - settledAtApprovalNgn);
@@ -536,7 +556,9 @@ export function refundCashierMoneyStory(refund) {
     cashDueNgn,
     netCashApprovedNgn,
     companyCutNgn,
-    unclearedOffsetNgn,
+    unclearedHoldNgn,
+    /** @deprecated use unclearedHoldNgn — holds are not auto-settled */
+    unclearedOffsetNgn: unclearedHoldNgn,
     settledAtApprovalNgn,
     customerNetNgn,
     staffNetNgn,

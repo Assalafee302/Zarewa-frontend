@@ -1719,7 +1719,7 @@ const RefundModal = ({
           : needsLink
             ? 'Select to link HR sales customer for payout'
             : uncleared > 0
-              ? `Has ₦${uncleared.toLocaleString('en-NG')} uncleared receipts — offset from net payout`
+              ? `Has ₦${uncleared.toLocaleString('en-NG')} uncleared receipts — payout held until cleared`
               : s.hasBank
                 ? 'Uses HR payroll bank'
                 : 'Select to add bank on the staff HR profile',
@@ -5747,6 +5747,7 @@ const RefundModal = ({
                                       unclearedReceiptHoldNgn: unclearedFloatByClaimingCustomerId.get(
                                         String(row.recipientCustomerID || '').trim()
                                       ),
+                                      overpaymentOnly: overpaymentOnlyRefund,
                                     }
                                   );
                                   if (isQuoteCustomerRow) {
@@ -5760,7 +5761,7 @@ const RefundModal = ({
                                   }
                                   if (
                                     !(ded.companyDeductionNgn > 0) &&
-                                    !(ded.unclearedReceiptOffsetNgn > 0) &&
+                                    !(ded.unclearedReceiptHoldNgn > 0) &&
                                     !ded.companyCutWaived
                                   ) {
                                     return null;
@@ -5774,11 +5775,13 @@ const RefundModal = ({
                                         : ded.companyDeductionNgn > 0
                                           ? ` · Company ${cutPct}% −₦${(Number(ded.companyDeductionNgn) || 0).toLocaleString('en-NG')}`
                                           : ''}
-                                      {ded.unclearedReceiptOffsetNgn > 0
-                                        ? ` · Uncleared receipts −₦${(Number(ded.unclearedReceiptOffsetNgn) || 0).toLocaleString('en-NG')}`
+                                      {ded.unclearedReceiptHoldNgn > 0
+                                        ? ` · ₦${(Number(ded.unclearedReceiptHoldNgn) || 0).toLocaleString('en-NG')} uncleared receipts pending`
                                         : ''}
                                       {ded.payoutHeldForUnclearedReceipts
-                                        ? ' · Held until cashier clears receipts'
+                                        ? overpaymentOnlyRefund
+                                          ? ' · Till payout held — fund available for cashier referral/confirmation (even before production)'
+                                          : ' · Payout held until receipts cleared or manually applied'
                                         : ` · Pay staff ₦${(Number(ded.netPayoutNgn) || 0).toLocaleString('en-NG')}`}
                                     </p>
                                   );
@@ -5798,21 +5801,27 @@ const RefundModal = ({
                                   unclearedReceiptHoldNgn: unclearedFloatByClaimingCustomerId.get(
                                     String(r.recipientCustomerID || '').trim()
                                   ),
+                                  overpaymentOnly: overpaymentOnlyRefund,
                                 }
                               )
                             );
                             const companyCut = sumRefundStaffCompanyDeductionNgn(enriched);
-                            const unclearedOff = sumRefundStaffUnclearedOffsetNgn(enriched);
+                            const unclearedHold = enriched.reduce(
+                              (sum, row) => sum + (Number(row.unclearedReceiptHoldNgn) || 0),
+                              0
+                            );
                             const netPay = sumRefundStaffNetPayoutNgn(enriched);
                             const cutPct = Math.round(staffAllocationDeductionRate * 100);
-                            if (companyCut <= 0 && unclearedOff <= 0) return null;
+                            if (companyCut <= 0 && unclearedHold <= 0) return null;
                             return (
                               <p className="text-[10px] text-amber-100/90 rounded-lg border border-amber-500/30 bg-amber-950/40 px-2.5 py-1.5">
                                 {companyCut > 0
                                   ? `Company cut ${cutPct}%: −₦${companyCut.toLocaleString('en-NG')}. `
                                   : ''}
-                                {unclearedOff > 0
-                                  ? `Uncleared receipts offset: −₦${unclearedOff.toLocaleString('en-NG')} (cashier clear holds or this reduces payout). `
+                                {unclearedHold > 0
+                                  ? overpaymentOnlyRefund
+                                    ? `Uncleared receipts ₦${unclearedHold.toLocaleString('en-NG')} on file — till payout held; fund available for cashier referral/confirmation (even before production). `
+                                    : `Uncleared receipts ₦${unclearedHold.toLocaleString('en-NG')} pending — till payout held until cleared. `
                                   : ''}
                                 Finance pays net ₦{netPay.toLocaleString('en-NG')} via Staff / partner refund
                                 payouts after approval.

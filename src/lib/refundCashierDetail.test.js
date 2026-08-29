@@ -67,7 +67,7 @@ describe('refundDefaultTreasuryPayoutNgn', () => {
     expect(refundDefaultTreasuryPayoutNgn(refund)).toBe(270_000);
   });
 
-  it('defaults full customer cash when staff share cleared by uncleared receipt offset', () => {
+  it('defaults full customer cash when staff share is held for uncleared receipts', () => {
     const refund = {
       refundID: 'RF-KD-26-9555',
       customerID: 'CUS-1',
@@ -79,7 +79,12 @@ describe('refundDefaultTreasuryPayoutNgn', () => {
         'Settled at approval: company cut ₦2,860 → retention ledger; uncleared receipts offset ₦11,440.',
       splitDistributions: [
         { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000 },
-        { recipientKind: 'associated_staff', recipientAssociatedStaffID: 'AST-1', amountNgn: 14_300 },
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-1',
+          amountNgn: 14_300,
+          unclearedReceiptHoldNgn: 11_440,
+        },
       ],
     };
     const lines = refundPayeePayoutQueueLines(refund);
@@ -91,7 +96,7 @@ describe('refundDefaultTreasuryPayoutNgn', () => {
 });
 
 describe('refundRecipientTillPayoutRows', () => {
-  it('shows staff offset at approval without till due while customer stays in queue', () => {
+  it('shows staff held for uncleared receipts without till due while customer stays in queue', () => {
     const refund = {
       refundID: 'RF-KD-26-9555',
       customerID: 'CUS-1',
@@ -108,6 +113,7 @@ describe('refundRecipientTillPayoutRows', () => {
           recipientAssociatedStaffID: 'AST-1',
           amountNgn: 14_300,
           payeeName: 'Muhammad Ibrahim Bakari',
+          unclearedReceiptHoldNgn: 11_440,
         },
       ],
     };
@@ -118,8 +124,34 @@ describe('refundRecipientTillPayoutRows', () => {
     expect(customer?.amountDueNgn).toBe(75_000);
     expect(customer?.payoutStatus).toBe('till_due');
     expect(staff?.amountDueNgn).toBe(0);
-    expect(staff?.payoutStatus).toBe('offset_at_approval');
+    expect(staff?.payoutStatus).toBe('held_uncleared');
     expect(refundPayeePayoutQueueLines(refund)).toHaveLength(1);
+  });
+
+  it('shows overpayment staff as referral-available while till payout stays held', () => {
+    const refund = {
+      refundID: 'RF-KD-26-9553',
+      customerID: 'CUS-1',
+      amountNgn: 61_200,
+      approvedAmountNgn: 61_200,
+      paidAmountNgn: 12_240,
+      status: 'Approved',
+      reasonCategory: '["Overpayment"]',
+      calculationLines: [{ category: 'Overpayment', amountNgn: 61_200 }],
+      splitDistributions: [
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-9553',
+          amountNgn: 61_200,
+          unclearedReceiptHoldNgn: 48_960,
+        },
+      ],
+    };
+    const rows = refundRecipientTillPayoutRows(refund);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].payoutStatus).toBe('referral_available');
+    expect(rows[0].amountDueNgn).toBe(0);
+    expect(refundPayeePayoutQueueLines(refund)).toHaveLength(0);
   });
 });
 
