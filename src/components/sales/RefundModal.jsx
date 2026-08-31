@@ -39,7 +39,6 @@ import {
   sumRefundStaffNetPayoutNgn,
   sumRefundStaffUnclearedOffsetNgn,
 } from '../../shared/lib/refundStaffAllocationDeduction.js';
-import { refundOverpaymentStaffAllocationError } from '../../shared/lib/refundCreditApply.js';
 import {
   isBranchManagerPreparedByLabel,
   preparedByRoleTitleAgreesWithPayee,
@@ -3350,16 +3349,6 @@ const RefundModal = ({
           return;
         }
       }
-    }
-    const overpayStaffErr = refundOverpaymentStaffAllocationError({
-      reasonCategory,
-      calculationLines: form.calculationLines,
-      splits: refundSplits,
-      quoteCustomerId: String(form.customerID || selectedQuotationSnapshot?.customerID || '').trim(),
-    });
-    if (overpayStaffErr) {
-      setPreviewError(overpayStaffErr);
-      return;
     }
     const splitTotal = refundSplits.reduce((s, row) => s + row.amountNgn, 0);
     const hasCustomerBank = Boolean(
