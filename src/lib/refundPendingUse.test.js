@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hangingRefundHowToUse, receiptLineHangingRefundHint } from './refundPendingUse.js';
+import { hangingRefundHowToUse, ledgerOverpayHowToUse, receiptLineHangingRefundHint } from './refundPendingUse.js';
 import { normalizeRefund } from './refundsStore.js';
 
 describe('refund pending use copy', () => {
@@ -29,5 +29,9 @@ describe('refund pending use copy', () => {
     ];
     expect(receiptLineHangingRefundHint(61_200, hanging)).toMatch(/RF-KD-26-9553/);
     expect(receiptLineHangingRefundHint(34_000, hanging)).toBe('');
+  });
+
+  it('says overpay can cover a receipt without filing a refund', () => {
+    expect(ledgerOverpayHowToUse()).toMatch(/no refund request needed/i);
   });
 });

@@ -6,7 +6,7 @@
 export const REFUND_FUND_LEDGER_REF_PREFIX = 'CREDIT_APPLY:';
 export const REFUND_FUND_USE_LABEL = 'Use from refund fund';
 export const REFUND_FUND_DEDUCTED_LABEL = 'Deducted from refund fund';
-export const REFUND_FUND_CASHIER_OFFSET_LABEL = 'Use approved refund on this receipt';
+export const REFUND_FUND_CASHIER_OFFSET_LABEL = 'Use overpay / refund fund on this receipt';
 
 export function refundCreditApplicationIsActive(app) {
   const s = String(app?.status || '').trim().toLowerCase();
@@ -32,12 +32,13 @@ export function planCashierRefundOffset({ receiptCashNgn, availableNgn }) {
   };
 }
 
-/** Prefer explicit refund rows over ledger overpay pools when both exist (traceable source). */
+/** Tick every usable source. Skip same-quote overpay on confirm so this receipt’s own extra cash is not offset against itself. */
 export function defaultRefundSourceSelection(sources) {
   const list = Array.isArray(sources) ? sources : [];
-  const refundRows = list.filter((s) => s.kind === 'refund');
-  const pick = refundRows.length > 0 ? refundRows : list;
-  return pick.map((s) => String(s.id || '').trim()).filter(Boolean);
+  return list
+    .filter((s) => !(s.kind === 'overpay' && s.sameQuotation))
+    .map((s) => String(s.id || '').trim())
+    .filter(Boolean);
 }
 
 export function sumRefundSourceAvailableNgn(sources, selectedIds) {

@@ -42,7 +42,7 @@ export function hangingRefundHowToUse(r) {
 }
 
 export function ledgerOverpayHowToUse() {
-  return 'Separate ledger leftover — not a named refund. Only tick if it is extra cash, not the same amount as a hanging refund on this customer.';
+  return 'Overpayment on that job — no refund request needed. Tick to cover this receipt instead of confirming the same ₦ as new bank cash.';
 }
 
 export function unavailableRefundHowToUse(source) {

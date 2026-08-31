@@ -71,7 +71,7 @@ export function HangingCustomerRefundBanner({ hanging, overpayCreditNgn = 0, ind
         <p className="mt-0.5 font-medium text-rose-900/90">
           {info.count > 0
             ? 'Each open refund stays listed below with how to use it. Do not confirm a receipt line as new bank cash if it is the same ₦ as a hanging refund — tick the refund instead.'
-            : 'This customer has an overpayment credit on the ledger that has not been applied to a quotation or requested as a refund yet. Use from refund fund on Add payment when it should cover a new receipt.'}
+            : 'This customer has an overpayment credit that has not been applied or requested as a refund yet. Tick it on Confirm payment or Add payment to cover a new receipt — no refund form needed.'}
         </p>
         {Array.isArray(hanging) && hanging.length > 0 ? (
           <ul className="mt-2 space-y-2">

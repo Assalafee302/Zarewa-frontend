@@ -8,6 +8,7 @@ import {
   refundFundAppliedOnQuotation,
   refundFundPaymentRowsForQuotation,
   restorePaymentLinesAfterRefundFundUnchecked,
+  defaultRefundSourceSelection,
 } from './refundFundApply.js';
 
 describe('refund fund apply helpers', () => {
@@ -181,6 +182,16 @@ describe('refund fund apply helpers', () => {
         cashOnReceiptNgn: 35_000,
       })
     ).toBeNull();
+  });
+
+  it('defaults cashier ticks to overpay on another job, not this quotation’s own extra cash', () => {
+    expect(
+      defaultRefundSourceSelection([
+        { id: 'overpay:QT-OLD', kind: 'overpay', sameQuotation: false, availableNgn: 50_000 },
+        { id: 'overpay:QT-NEW', kind: 'overpay', sameQuotation: true, availableNgn: 10_000 },
+        { id: 'refund:RF-1', kind: 'refund', sameQuotation: false, availableNgn: 20_000 },
+      ])
+    ).toEqual(['overpay:QT-OLD', 'refund:RF-1']);
   });
 
   it('plans cashier receipt offset against approved refund fund', () => {

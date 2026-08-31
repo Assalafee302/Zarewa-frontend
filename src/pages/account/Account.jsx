@@ -5294,7 +5294,7 @@ const Account = () => {
                     />
 
                     {cashierRefundCreditLoading ? (
-                      <p className="text-ui-xs text-slate-500">Checking approved refund fund…</p>
+                      <p className="text-ui-xs text-slate-500">Checking overpay and refund fund…</p>
                     ) : cashierRefundCreditPanelVisible ? (
                       <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-ui-xs text-amber-950 space-y-1.5">
                         {cashierRefundOffset ? (
@@ -5348,8 +5348,11 @@ const Account = () => {
                                       {s.label}: {formatNgn(s.availableNgn)}
                                     </span>
                                     <span className="block font-medium text-amber-950/90">
-                                      {s.overpaymentOnly ? 'Overpayment refund' : 'Approved refund'}
-                                      {s.kind === 'overpay' ? ' · ledger pool (not a named refund)' : ''}
+                                      {s.overpaymentOnly
+                                        ? s.kind === 'overpay'
+                                          ? 'Overpayment · no refund requested'
+                                          : 'Overpayment refund'
+                                        : 'Approved refund'}
                                       {s.status ? ` · ${s.status}` : ''}
                                     </span>
                                     <span className="block mt-0.5 text-amber-900/90">

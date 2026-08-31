@@ -1360,16 +1360,20 @@ const ReceiptModal = ({
                       />
                       <span>
                         <span className="font-bold text-amber-900">{REFUND_FUND_USE_LABEL}: </span>
-                        {formatNgn(refundCreditInfo.recommendedApplyNgn)} from this customer’s refund
-                        fund will cover this receipt. That slice is removed from the refund and is not
-                        refundable again. Leftover stays refundable.
+                        {formatNgn(refundCreditInfo.recommendedApplyNgn)} from this customer’s overpay
+                        or refund fund will cover this receipt. That slice is not refundable again.
+                        Leftover stays on the source job.
                       </span>
                     </label>
                     <ul className="pl-0 list-none text-slate-700 space-y-2">
                       {(refundCreditInfo.sources || []).map((s) => (
                         <li key={s.id}>
                           {s.label}: {formatNgn(s.availableNgn)}
-                          {s.overpaymentOnly ? ' · overpayment (no approval)' : ' · approved refund'}
+                          {s.overpaymentOnly
+                            ? s.kind === 'overpay'
+                              ? ' · overpayment (no refund needed)'
+                              : ' · overpayment (no approval)'
+                            : ' · approved refund'}
                           {s.sameQuotation ? ' · this quotation' : ''}
                         </li>
                       ))}
