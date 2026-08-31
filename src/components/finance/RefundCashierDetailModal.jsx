@@ -11,7 +11,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { flattenQuotationLineItems } from '../../lib/managerDashboardCore';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
 import { refundStatusIsWithdrawn } from '../../lib/refundsStore';
-import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn, refundDefaultTreasuryPayoutNgn, refundRecipientTillPayoutRows } from '../../lib/refundCashierDetail';
+import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn, refundDefaultTreasuryPayoutNgn, refundRecipientTillPayoutRows, actorMayOverrideRefundUnclearedPayoutHold } from '../../lib/refundCashierDetail';
 import { refundCreditApplicationIsActive } from '../../lib/refundFundApply.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
 import { RefundApplyToQuotationPanel } from './RefundApplyToQuotationPanel.jsx';
@@ -35,6 +35,10 @@ function MoneyRow({ label, value, tone }) {
 
 export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onReverseApply, onApplied }) {
   const ws = useWorkspace();
+  const overrideUnclearedHold = actorMayOverrideRefundUnclearedPayoutHold(
+    ws?.session?.user,
+    ws?.hasPermission
+  );
   const [intelligence, setIntelligence] = useState(null);
   const [intelBusy, setIntelBusy] = useState(false);
 
@@ -115,10 +119,13 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
       refund.calculationLines.some((l) => String(l?.category || '').toLowerCase().includes('overpay')));
   const blockCashPayout = Boolean(looksOverpay && story.cashDueNgn > 0 && overpayResidualNgn < story.cashDueNgn);
   const defaultPayoutNgn = useMemo(
-    () => refundDefaultTreasuryPayoutNgn(refund),
-    [refund]
+    () => refundDefaultTreasuryPayoutNgn(refund, null, { overrideUnclearedHold }),
+    [refund, overrideUnclearedHold]
   );
-  const recipientTillRows = useMemo(() => refundRecipientTillPayoutRows(refund), [refund]);
+  const recipientTillRows = useMemo(
+    () => refundRecipientTillPayoutRows(refund, { overrideUnclearedHold }),
+    [refund, overrideUnclearedHold]
+  );
   const tillDuePayeeCount = recipientTillRows.filter((row) => row.amountDueNgn > 0).length;
 
   useEffect(() => {
@@ -223,8 +230,12 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 space-y-2">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
               <p className="text-ui-xs text-sky-900/85 leading-relaxed">
-                Payees with uncleared receipt holds stay out of the payout queue until those receipts
-                are cleared. Overpayment may still be used for cashier referral/confirmation on a receipt.
+                Payees stay listed even when till cash is held. Cashiers cannot pay until receipts
+                are confirmed
+                {overrideUnclearedHold
+                  ? '; you can pay as an administrator exception.'
+                  : '.'}{' '}
+                Overpayment may cover a receipt on Confirm payment.
               </p>
               <ul className="space-y-2">
                 {recipientTillRows.map((row) => (
@@ -241,6 +252,8 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                         className={
                           row.payoutStatus === 'till_due'
                             ? 'font-bold text-rose-800'
+                            : row.payoutStatus === 'admin_override_uncleared'
+                              ? 'font-semibold text-amber-900'
                             : row.payoutStatus === 'held_uncleared'
                               ? 'font-semibold text-amber-900'
                               : row.payoutStatus === 'referral_available'
@@ -250,6 +263,9 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                       >
                         {row.payoutStatusLabel}
                         {row.payoutStatus === 'till_due' ? ` · ${formatNgn(row.amountDueNgn)}` : ''}
+                        {row.payoutStatus === 'admin_override_uncleared'
+                          ? ` · ${formatNgn(row.amountDueNgn)} admin exception`
+                          : ''}
                         {row.payoutStatus === 'held_uncleared'
                           ? ` · ${formatNgn(row.netPayoutNgn)} net held`
                           : ''}
@@ -257,8 +273,10 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                           ? ` · ${formatNgn(row.netPayoutNgn)} for cashier referral`
                           : ''}
                       </span>
-                      {row.payoutStatus === 'till_due' ? (
-                        <span className="font-bold uppercase tracking-wide text-rose-700">In payout queue</span>
+                      {row.payoutStatus === 'till_due' || row.payoutStatus === 'admin_override_uncleared' ? (
+                        <span className="font-bold uppercase tracking-wide text-rose-700">
+                          {row.payoutStatus === 'admin_override_uncleared' ? 'Admin exception' : 'In payout queue'}
+                        </span>
                       ) : null}
                     </div>
                   </li>
@@ -394,9 +412,9 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
         <ModalActionFooter
           onCancel={onClose}
           cancelLabel="Close"
-          onConfirm={onPay && story.cashDueNgn > 0 && !blockCashPayout ? () => onPay(refund) : undefined}
+          onConfirm={onPay && tillDuePayeeCount > 0 && !blockCashPayout ? () => onPay(refund) : undefined}
           confirmLabel={
-            onPay && story.cashDueNgn > 0 && !blockCashPayout
+            onPay && tillDuePayeeCount > 0 && !blockCashPayout
               ? `Payout ${formatNgn(defaultPayoutNgn)}${
                   tillDuePayeeCount > 1 ? ' (this payee)' : tillDuePayeeCount === 1 ? '' : ' (customer)'
                 }`

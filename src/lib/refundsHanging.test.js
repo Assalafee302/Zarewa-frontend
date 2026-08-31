@@ -49,9 +49,22 @@ describe('hanging refund indicators', () => {
         })
       )
     ).toBe(true);
-    expect(isRefundHanging(normalizeRefund({ refundID: 'RF-3', status: 'Paid', amountNgn: 10_000 }))).toBe(
+    expect(isRefundHanging(normalizeRefund({ refundID: 'RF-3', status: 'Paid', amountNgn: 10_000, paidAtISO: '2026-08-28', paidBy: 'Finance' }))).toBe(
       false
     );
+    expect(
+      isRefundHanging(
+        normalizeRefund({
+          refundID: 'RF-9553',
+          status: 'Approved',
+          amountNgn: 61_200,
+          approvedAmountNgn: 61_200,
+          paidAmountNgn: 61_200,
+          paidAtISO: '',
+          paidBy: '',
+        })
+      )
+    ).toBe(true);
     expect(isRefundHanging(normalizeRefund({ refundID: 'RF-4', status: 'Rejected', amountNgn: 10_000 }))).toBe(
       false
     );

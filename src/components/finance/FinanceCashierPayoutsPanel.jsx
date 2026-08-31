@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formatNgn } from '../../Data/mockData';
-import { approvedRefundsAwaitingPayment } from '../../lib/refundsStore';
-import { flattenRefundPayeePayoutQueue } from '../../lib/refundCashierDetail';
+import { refundsOnFinanceRefundQueue } from '../../lib/refundsStore';
+import { flattenRefundDeskQueue, actorMayOverrideRefundUnclearedPayoutHold } from '../../lib/refundCashierDetail';
 import { registerSettlementsAwaitingPayment } from '../../lib/registerSettlementPay';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance.js';
 import { paymentRequestPayoutMetaLine } from '../../lib/financeTreasuryPayoutQueueMeta';
@@ -42,6 +42,10 @@ export function FinanceCashierPayoutsPanel() {
   const workspace = useWorkspace();
   const snap = workspace?.snapshot || ws?.snapshot || {};
   const [view, setView] = useState('due');
+  const overrideUnclearedHold = actorMayOverrideRefundUnclearedPayoutHold(
+    workspace?.session?.user || ws?.session?.user,
+    workspace?.hasPermission || ws?.hasPermission
+  );
 
   const dueRows = useMemo(() => {
     const rows = [];
@@ -62,16 +66,22 @@ export function FinanceCashierPayoutsPanel() {
         view: () => handleDeskViewPaymentRequest?.(String(pr.requestID || pr.id || '')),
       });
     }
-    for (const line of flattenRefundPayeePayoutQueue(approvedRefundsAwaitingPayment(snap.refunds || []))) {
+    for (const line of flattenRefundDeskQueue(refundsOnFinanceRefundQueue(snap.refunds || []), {
+      overrideUnclearedHold,
+    })) {
       const r = line.parentRefund || {};
+      const due = Math.round(Number(line.amountDueNgn) || 0);
       rows.push({
         id: `${line.refundID}-${line.queueKey}`,
-        kind: 'Customer refund',
+        kind:
+          due > 0
+            ? 'Customer refund'
+            : line.payoutStatusLabel || 'Refund pending',
         party: line.recipientLabel || r.customerName || r.customerID || '—',
         ref: line.refundID,
         date: String(r.approvedAtISO || r.approvalDate || r.dateISO || '').slice(0, 10),
-        amount: line.amountDueNgn,
-        pay: () => handleDeskPayRefund(String(line.refundID || ''), line.queueKey),
+        amount: due,
+        pay: due > 0 ? () => handleDeskPayRefund(String(line.refundID || ''), line.queueKey) : null,
         view: () => handleDeskViewRefund?.(String(line.refundID || '')),
       });
     }
@@ -111,6 +121,7 @@ export function FinanceCashierPayoutsPanel() {
     handleDeskViewPaymentRequest,
     handleDeskPayRegisterSettlement,
     handleDeskPayPoTransport,
+    overrideUnclearedHold,
   ]);
 
   const paidSlice = paymentsListWindow?.slice || [];
@@ -174,7 +185,7 @@ export function FinanceCashierPayoutsPanel() {
                             View
                           </button>
                         ) : null}
-                        {canPayRequests ? (
+                        {canPayRequests && row.pay ? (
                           <button
                             type="button"
                             onClick={row.pay}
@@ -182,7 +193,7 @@ export function FinanceCashierPayoutsPanel() {
                           >
                             Pay
                           </button>
-                        ) : !row.view ? (
+                        ) : !row.view && !row.pay ? (
                           <span className="text-[11px] text-slate-400">View only</span>
                         ) : null}
                       </div>

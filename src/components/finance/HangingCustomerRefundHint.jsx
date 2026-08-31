@@ -1,7 +1,8 @@
 import React from 'react';
 import { AlertTriangle, Wallet } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import { hangingRefundIndicator } from '../../lib/refundsStore';
+import { hangingRefundIndicator, hangingRefundOpenAmountNgn } from '../../lib/refundsStore';
+import { hangingRefundHowToUse, ledgerOverpayHowToUse } from '../../lib/refundPendingUse.js';
 import { REFUND_FUND_DEDUCTED_LABEL } from '../../lib/refundFundApply.js';
 
 /** Headline amount: refund exposure when refunds exist, otherwise the unapplied ledger credit. */
@@ -69,11 +70,37 @@ export function HangingCustomerRefundBanner({ hanging, overpayCreditNgn = 0, ind
         </p>
         <p className="mt-0.5 font-medium text-rose-900/90">
           {info.count > 0
-            ? 'This customer still has leftover refund open. If Add payment already used the refund fund on this job, that slice is shown separately and is not cash to confirm.'
+            ? 'Each open refund stays listed below with how to use it. Do not confirm a receipt line as new bank cash if it is the same ₦ as a hanging refund — tick the refund instead.'
             : 'This customer has an overpayment credit on the ledger that has not been applied to a quotation or requested as a refund yet. Use from refund fund on Add payment when it should cover a new receipt.'}
         </p>
-        {info.detailLabel ? (
+        {Array.isArray(hanging) && hanging.length > 0 ? (
+          <ul className="mt-2 space-y-2">
+            {hanging.map((r) => {
+              const rid = String(r.refundID || '').trim() || 'Refund';
+              const status = String(r.status || '').trim() || '—';
+              const q = String(r.quotationRef || '').trim();
+              const open = hangingRefundOpenAmountNgn(r);
+              return (
+                <li
+                  key={rid}
+                  className="rounded-lg border border-rose-200/80 bg-white/70 px-2 py-1.5 text-rose-950"
+                >
+                  <p className="font-bold tabular-nums">
+                    {rid} · {status} · {formatNgn(open)}
+                    {q ? ` · ${q}` : ''}
+                  </p>
+                  <p className="mt-0.5 font-medium text-rose-900/90">{hangingRefundHowToUse(r)}</p>
+                </li>
+              );
+            })}
+          </ul>
+        ) : info.detailLabel ? (
           <p className="mt-1 font-mono text-[10px] text-rose-800/90 break-words">{info.detailLabel}</p>
+        ) : null}
+        {info.overpayCreditNgn > 0 ? (
+          <p className="mt-2 font-medium text-rose-900/90">
+            Unapplied ledger credit {formatNgn(info.overpayCreditNgn)} — {ledgerOverpayHowToUse()}
+          </p>
         ) : null}
       </div>
     </div>

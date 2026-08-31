@@ -82,7 +82,7 @@ describe('RefundCashierDetailModal', () => {
     render(<RefundCashierDetailModal refund={refund} isOpen onClose={() => {}} />);
 
     expect(screen.getByText('RF-KD-26-9505')).toBeInTheDocument();
-    expect(screen.getByText('Kaduna Sheets')).toBeInTheDocument();
+    expect(screen.getAllByText('Kaduna Sheets').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/applied to/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText('QT-KD-26-1282').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/QT-KD-26-1237/).length).toBeGreaterThan(0);

@@ -1365,8 +1365,8 @@ const ReceiptModal = ({
                         refundable again. Leftover stays refundable.
                       </span>
                     </label>
-                    <ul className="pl-6 list-disc text-slate-600 space-y-0.5">
-                      {(refundCreditInfo.sources || []).slice(0, 4).map((s) => (
+                    <ul className="pl-0 list-none text-slate-700 space-y-2">
+                      {(refundCreditInfo.sources || []).map((s) => (
                         <li key={s.id}>
                           {s.label}: {formatNgn(s.availableNgn)}
                           {s.overpaymentOnly ? ' · overpayment (no approval)' : ' · approved refund'}
@@ -1393,16 +1393,19 @@ const ReceiptModal = ({
                           : ' — this quotation has no remaining balance due, so nothing is deducted on this receipt.'}
                       </p>
                     ) : null}
-                    <ul className="pl-4 list-disc space-y-0.5">
-                      {(refundCreditInfo.sources || []).slice(0, 4).map((s) => (
+                    <ul className="pl-0 list-none space-y-1.5">
+                      {(refundCreditInfo.sources || []).map((s) => (
                         <li key={s.id}>
                           {s.label}: {formatNgn(s.availableNgn)}
                         </li>
                       ))}
-                      {(refundCreditInfo.unavailableSources || []).slice(0, 4).map((s) => (
+                      {(refundCreditInfo.unavailableSources || []).map((s) => (
                         <li key={s.id}>
-                          {s.refundId || s.sourceQuotationRef}: {s.reason}
+                          <span className="font-bold">
+                            {s.refundId || s.sourceQuotationRef}: {s.reason}
+                          </span>
                           {s.availableNgn > 0 ? ` (${formatNgn(s.availableNgn)})` : ''}
+                          {s.status ? ` · ${s.status}` : ''}
                         </li>
                       ))}
                     </ul>

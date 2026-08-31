@@ -195,13 +195,38 @@ export function isRefundPayable(r) {
 }
 
 /**
- * Open refund still in flight for the customer — Pending approval, or Approved with unpaid balance.
- * Display-only signal for finance confirmation / reconciliation (no auto-apply).
+ * Paid/Approved with a full paid_amount but no payout actor or date — approval settlement
+ * (or a false Paid), not till cash. Keep it visible on hanging / finance desks.
+ */
+export function refundLooksPaidWithoutTillPayout(r) {
+  if (!r || refundStatusIsWithdrawn(r.status)) return false;
+  const status = String(r.status || '').trim();
+  if (!['Paid', 'Approved', 'Partially paid'].includes(status)) return false;
+  const paidAt = String(r.paidAtISO ?? r.paid_at_iso ?? '').trim();
+  const paidBy = String(r.paidBy ?? r.paid_by ?? '').trim();
+  if (paidAt || paidBy) return false;
+  const approved = refundApprovedAmount(r);
+  const requested = Math.round(Number(r.amountNgn) || 0);
+  const paid = Math.round(Number(r.paidAmountNgn) || 0);
+  const cap = approved > 0 ? approved : requested;
+  return cap > 0 && paid >= cap;
+}
+
+/**
+ * Open refund still in flight — Pending, unpaid Approved, or false Paid with no till payout.
+ * Display-only; never hide these from cashier confirm.
  */
 export function isRefundHanging(r) {
-  if (!r || refundStatusIsWithdrawn(r.status) || r.status === 'Paid') return false;
+  if (!r || refundStatusIsWithdrawn(r.status)) return false;
+  if (refundLooksPaidWithoutTillPayout(r)) return true;
+  if (r.status === 'Paid') return false;
   if (r.status === 'Pending') return true;
   return isRefundPayable(r);
+}
+
+/** Payable till rows plus false-Paid / fully settled-without-payout rows Finance must still see. */
+export function refundsOnFinanceRefundQueue(list) {
+  return (list ?? []).filter((r) => isRefundPayable(r) || refundLooksPaidWithoutTillPayout(r));
 }
 
 /** Amount still open on a hanging refund (requested for Pending; unpaid approved for payable). */

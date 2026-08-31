@@ -1,7 +1,14 @@
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { FinanceTreasuryAwaitingPayoutQueues } from './FinanceTreasuryAwaitingPayoutQueues.jsx';
+
+vi.mock('../../context/WorkspaceContext', () => ({
+  useWorkspace: () => ({
+    session: { user: { roleKey: 'cashier', permissions: ['finance.pay'] } },
+    hasPermission: (p) => p === 'finance.pay',
+  }),
+}));
 
 describe('FinanceTreasuryAwaitingPayoutQueues', () => {
   it('renders refund and expense payout panels with shared test ids', () => {

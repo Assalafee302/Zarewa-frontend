@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  actorMayOverrideRefundUnclearedPayoutHold,
+  flattenRefundDeskQueue,
   flattenRefundPayeePayoutQueue,
   refundCashierCustomerName,
   refundCashierMoneyStory,
@@ -129,6 +131,33 @@ describe('refundRecipientTillPayoutRows', () => {
     expect(refundPayeePayoutQueueLines(refund)).toHaveLength(1);
   });
 
+  it('lets admin put a held payee back on the till queue', () => {
+    const refund = {
+      refundID: 'RF-ADMIN-UNCLR',
+      customerID: 'CUS-1',
+      amountNgn: 89_300,
+      approvedAmountNgn: 89_300,
+      paidAmountNgn: 2_860,
+      status: 'Approved',
+      paymentNote: 'Settled at approval: company cut ₦2,860 → retention ledger.',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-1',
+          amountNgn: 14_300,
+          payeeName: 'Muhammad Ibrahim Bakari',
+          unclearedReceiptHoldNgn: 11_440,
+        },
+      ],
+    };
+    const rows = refundRecipientTillPayoutRows(refund, { overrideUnclearedHold: true });
+    const staff = rows.find((row) => row.recipientKind === 'associated_staff');
+    expect(staff?.payoutStatus).toBe('admin_override_uncleared');
+    expect(staff?.amountDueNgn).toBeGreaterThan(0);
+    expect(refundPayeePayoutQueueLines(refund, { overrideUnclearedHold: true })).toHaveLength(2);
+  });
+
   it('shows overpayment staff as referral-available while till payout stays held', () => {
     const refund = {
       refundID: 'RF-KD-26-9553',
@@ -154,6 +183,9 @@ describe('refundRecipientTillPayoutRows', () => {
     expect(rows[0].amountDueNgn).toBe(0);
     expect(refundPayeePayoutQueueLines(refund)).toHaveLength(0);
     expect(flattenRefundPayeePayoutQueue([refund])).toHaveLength(0);
+    const desk = flattenRefundDeskQueue([refund]);
+    expect(desk.length).toBeGreaterThan(0);
+    expect(desk[0].payoutStatus).toBe('referral_available');
   });
 });
 
@@ -265,6 +297,17 @@ describe('refundCashierCustomerName', () => {
   it('uses refund.customer when customerName is missing', () => {
     expect(refundCashierCustomerName({ customer: 'Kaduna Sheets', customerName: '' }, null)).toBe(
       'Kaduna Sheets'
+    );
+  });
+});
+
+describe('actorMayOverrideRefundUnclearedPayoutHold', () => {
+  it('allows admin only', () => {
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'admin' })).toBe(true);
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'cashier' })).toBe(false);
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'md' })).toBe(false);
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'finance_manager' }, (p) => p === '*')).toBe(
+      true
     );
   });
 });

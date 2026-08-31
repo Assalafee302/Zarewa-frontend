@@ -35,7 +35,7 @@ import {
 
 import { SALES_STATUS_CHIP, receiptCuttingListChipClass } from "../../lib/salesStatusUi";
 
-import { approvedRefundsAwaitingPayment, hangingRefundIndicatorsByCustomerId } from "../../lib/refundsStore";
+import { refundsOnFinanceRefundQueue, hangingRefundIndicatorsByCustomerId } from "../../lib/refundsStore";
 
 import {
   registerSettlementsAwaitingPayment,
@@ -349,7 +349,7 @@ export function FinanceDeskWorkQueues({
   );
 
   const approvedRefunds = useMemo(
-    () => approvedRefundsAwaitingPayment(refunds).slice(0, 15),
+    () => refundsOnFinanceRefundQueue(refunds).slice(0, 15),
     [refunds],
   );
 
@@ -843,12 +843,14 @@ export function FinanceDeskWorkQueues({
               }
               renderRefundActions={(line) => (
                 <>
-                  <FinanceDeskQueueActionButton
-                    tone="sky"
-                    onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
-                  >
-                    Payout
-                  </FinanceDeskQueueActionButton>
+                  {line.amountDueNgn > 0 ? (
+                    <FinanceDeskQueueActionButton
+                      tone="sky"
+                      onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
+                    >
+                      Payout
+                    </FinanceDeskQueueActionButton>
+                  ) : null}
                   {onViewRefund ? (
                     <FinanceDeskQueueActionButton
                       tone="slate"

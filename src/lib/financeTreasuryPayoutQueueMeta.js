@@ -58,6 +58,14 @@ export function refundPayeePayoutMetaLine(refund, payeeLine, branchNameById = {}
     Math.round(Number(payeeLine?.companyDeductionNgn) || 0) > 0
       ? ` · 20% cut ${formatNgn(payeeLine.companyDeductionNgn)} retained`
       : '';
+  const hold =
+    payeeLine?.payoutStatus === 'held_uncleared'
+      ? ' · Held — clear uncleared receipts, or use as cashier referral on a receipt'
+      : payeeLine?.payoutStatus === 'referral_available'
+        ? ' · Pending: use on Confirm payment (do not till-pay the same ₦)'
+        : payeeLine?.payoutStatus === 'needs_review'
+          ? ' · Shows paid with no till payout — View refund'
+          : '';
   const gross =
     Math.round(Number(payeeLine?.grossNgn) || 0) > 0 &&
     Math.round(Number(payeeLine?.grossNgn) || 0) !== Math.round(Number(payeeLine?.netPayoutNgn) || 0)
@@ -65,7 +73,7 @@ export function refundPayeePayoutMetaLine(refund, payeeLine, branchNameById = {}
       : '';
   return [
     role,
-    `Net ${formatNgn(payeeLine?.netPayoutNgn)}${gross}${cut}`,
+    `Net ${formatNgn(payeeLine?.netPayoutNgn)}${gross}${cut}${hold}`,
     refundPayoutMetaLine(refund, branchNameById),
   ]
     .filter(Boolean)

@@ -58,6 +58,7 @@ import {
   refundTreasuryPaidNgn,
   refundCashierMoneyStory,
   refundPayoutRegisterLines,
+  actorMayOverrideRefundUnclearedPayoutHold,
 } from '../../lib/refundCashierDetail';
 import { overpayCreditBalanceFromEntries } from '../../lib/customerLedgerCore.js';
 import { openAuditQueue } from '../../lib/liveAnalytics';
@@ -147,6 +148,12 @@ import {
   restorePaymentLinesAfterRefundFundUnchecked,
   sumRefundSourceAvailableNgn,
 } from '../../lib/refundFundApply.js';
+import {
+  hangingRefundHowToUse,
+  ledgerOverpayHowToUse,
+  receiptLineHangingRefundHint,
+  unavailableRefundHowToUse,
+} from '../../lib/refundPendingUse.js';
 import { findQuotationByRef } from '../../lib/quotationColourGauge.js';
 import { AccountGlManualJournalCard } from '../../components/account/AccountGlManualJournalCard.jsx';
 import {
@@ -422,6 +429,10 @@ const Account = () => {
   }, [workspaceBranchId, ws?.viewAllBranches, branchNameById]);
   const roleKey = String(ws?.session?.user?.roleKey || '').trim().toLowerCase();
   const isAdminRole = roleKey === 'admin';
+  const overrideUnclearedPayoutHold = actorMayOverrideRefundUnclearedPayoutHold(
+    ws?.session?.user,
+    ws?.hasPermission
+  );
   const canAssignTreasuryBranch = roleKey === 'admin' || roleKey === 'md' || roleKey === 'ceo';
   const showAllTreasuryInTab = Boolean(ws?.viewAllBranches && canAssignTreasuryBranch);
   const branchOptionsSorted = useMemo(
@@ -910,7 +921,9 @@ const Account = () => {
           /* use workspace row */
         }
       }
-      const payeeLines = refundPayeePayoutQueueLines(target);
+      const payeeLines = refundPayeePayoutQueueLines(target, {
+        overrideUnclearedHold: overrideUnclearedPayoutHold,
+      });
       const selectedPayee = payeeQueueKey
         ? payeeLines.find((line) => line.queueKey === payeeQueueKey)
         : null;
@@ -925,7 +938,10 @@ const Account = () => {
         payoutLines = [
           createRequestPayLine(
             accountId,
-            soleLine?.amountDueNgn ?? refundDefaultTreasuryPayoutNgn(target, payeeQueueKey)
+            soleLine?.amountDueNgn ??
+              refundDefaultTreasuryPayoutNgn(target, payeeQueueKey, {
+                overrideUnclearedHold: overrideUnclearedPayoutHold,
+              })
           ),
         ];
       }
@@ -936,7 +952,7 @@ const Account = () => {
       setRefundPaymentNote(target.paymentNote || '');
       setShowRefundPayModal(true);
     },
-    [bankAccountsForPayout, ws?.canMutate]
+    [bankAccountsForPayout, ws?.canMutate, overrideUnclearedPayoutHold]
   );
 
   const cancelRefundBeforePay = useCallback(
@@ -1067,6 +1083,21 @@ const Account = () => {
     if (refundPayTotalNgn <= 0) {
       showToast('Refund payout total must be positive.', { variant: 'error' });
       return;
+    }
+    if (
+      overrideUnclearedPayoutHold &&
+      (refundPaySelectedPayee?.payoutHeldForUnclearedReceipts ||
+        refundCashierMoneyStory(refundPayTarget).unclearedHoldNgn > 0)
+    ) {
+      if (
+        !(await appConfirm({
+          message:
+            'This payee still has unconfirmed receipts. Pay out anyway as an administrator exception?',
+          variant: 'danger',
+        }))
+      ) {
+        return;
+      }
     }
     if (refundPayTotalNgn > outstanding) {
       showToast('Refund payout exceeds the approved outstanding balance.', { variant: 'error' });
@@ -1866,12 +1897,14 @@ const Account = () => {
 
   const refundPaySelectedPayee = useMemo(() => {
     if (!refundPayTarget) return null;
-    const lines = refundPayeePayoutQueueLines(refundPayTarget);
+    const lines = refundPayeePayoutQueueLines(refundPayTarget, {
+      overrideUnclearedHold: overrideUnclearedPayoutHold,
+    });
     if (refundPayPayeeKey) {
       return lines.find((line) => line.queueKey === refundPayPayeeKey) ?? null;
     }
     return lines.length === 1 ? lines[0] : null;
-  }, [refundPayTarget, refundPayPayeeKey]);
+  }, [refundPayTarget, refundPayPayeeKey, overrideUnclearedPayoutHold]);
 
   const receiptsVisibleInReconciliationQueue = useMemo(() => salesReceipts, [salesReceipts]);
 
@@ -4366,6 +4399,14 @@ const Account = () => {
                     the cash lines below.
                   </p>
                 ) : null}
+                {refundPaySelectedPayee?.payoutHeldForUnclearedReceipts ||
+                refundCashierMoneyStory(refundPayTarget).unclearedHoldNgn > 0 ? (
+                  <p className="text-xs text-amber-950 leading-relaxed">
+                    {overrideUnclearedPayoutHold
+                      ? 'This payee has unconfirmed receipts. You can pay out as an administrator exception; cashiers cannot.'
+                      : 'Till payout is held until this payee’s unconfirmed receipts are confirmed.'}
+                  </p>
+                ) : null}
               </div>
               <div>
                 <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
@@ -5201,6 +5242,10 @@ const Account = () => {
                   : receiptFinanceRow.cashReceivedNgn != null
                     ? Number(receiptFinanceRow.cashReceivedNgn) || 0
                     : Number(receiptFinanceRow.amountNgn) || 0;
+                const hangingForReceipt = hangingRefundsForCustomer(
+                  customerRefunds,
+                  receiptFinanceRow.customerID
+                );
                 const formDisabled = receiptFinanceBusy;
                 const confirmedTotalNgn =
                   settleSplits.length > 0
@@ -5241,10 +5286,7 @@ const Account = () => {
                     />
 
                     <HangingCustomerRefundBanner
-                      hanging={hangingRefundsForCustomer(
-                        customerRefunds,
-                        receiptFinanceRow.customerID
-                      )}
+                      hanging={hangingForReceipt}
                       overpayCreditNgn={overpayCreditBalanceFromEntries(
                         liveLedgerEntries,
                         String(receiptFinanceRow.customerID || '').trim()
@@ -5282,9 +5324,9 @@ const Account = () => {
                           </p>
                         )}
                         {(cashierRefundCreditInfo?.sources || []).length > 0 ? (
-                          <ul className="pl-2 list-none text-slate-700 space-y-1">
-                            {(cashierRefundCreditInfo.sources || []).slice(0, 6).map((s) => (
-                              <li key={s.id}>
+                          <ul className="pl-0 list-none text-slate-800 space-y-2">
+                            {(cashierRefundCreditInfo.sources || []).map((s) => (
+                              <li key={s.id} className="rounded-lg border border-amber-200/80 bg-white/60 px-2 py-1.5">
                                 <label className="flex items-start gap-2 cursor-pointer">
                                   <input
                                     type="checkbox"
@@ -5302,9 +5344,19 @@ const Account = () => {
                                     }}
                                   />
                                   <span>
-                                    {s.label}: {formatNgn(s.availableNgn)}
-                                    {s.overpaymentOnly ? ' · overpayment' : ' · approved refund'}
-                                    {s.kind === 'overpay' ? ' · ledger pool' : ''}
+                                    <span className="font-bold">
+                                      {s.label}: {formatNgn(s.availableNgn)}
+                                    </span>
+                                    <span className="block font-medium text-amber-950/90">
+                                      {s.overpaymentOnly ? 'Overpayment refund' : 'Approved refund'}
+                                      {s.kind === 'overpay' ? ' · ledger pool (not a named refund)' : ''}
+                                      {s.status ? ` · ${s.status}` : ''}
+                                    </span>
+                                    <span className="block mt-0.5 text-amber-900/90">
+                                      {s.kind === 'overpay'
+                                        ? ledgerOverpayHowToUse()
+                                        : hangingRefundHowToUse(s)}
+                                    </span>
                                   </span>
                                 </label>
                               </li>
@@ -5312,13 +5364,22 @@ const Account = () => {
                           </ul>
                         ) : null}
                         {(cashierRefundCreditInfo?.unavailableSources || []).length > 0 ? (
-                          <ul className="pl-6 list-disc text-rose-900/80 space-y-0.5">
-                            {(cashierRefundCreditInfo.unavailableSources || []).slice(0, 4).map((s) => (
-                              <li key={s.id || s.refundId}>
-                                {s.refundId || s.sourceQuotationRef || 'Refund'}: {s.reason || 'Not available'}
-                              </li>
-                            ))}
-                          </ul>
+                          <div className="rounded-lg border border-rose-200 bg-rose-50/80 px-2 py-1.5 space-y-1.5">
+                            <p className="font-bold text-rose-950">On file but not ticked yet</p>
+                            <ul className="list-none space-y-1.5">
+                              {(cashierRefundCreditInfo.unavailableSources || []).map((s) => (
+                                <li key={s.id || s.refundId} className="text-rose-950">
+                                  <p className="font-bold">
+                                    {s.refundId || s.sourceQuotationRef || 'Refund'}
+                                    {s.status ? ` · ${s.status}` : ''}
+                                    {s.availableNgn > 0 ? ` · ${formatNgn(s.availableNgn)}` : ''}
+                                  </p>
+                                  <p className="font-medium">{s.reason || 'Not available to tick yet'}</p>
+                                  <p className="font-medium text-rose-900/90">{unavailableRefundHowToUse(s)}</p>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         ) : null}
                         {applyRefundOnConfirm ? (
                           <p className="pl-6 font-semibold text-emerald-800">
@@ -5393,6 +5454,11 @@ const Account = () => {
                                     <span className="text-emerald-800 font-semibold"> · Matches recorded</span>
                                   )}
                                 </p>
+                                {receiptLineHangingRefundHint(rec, hangingForReceipt) ? (
+                                  <p className="text-ui-xs font-semibold text-amber-950 mt-1 leading-snug">
+                                    {receiptLineHangingRefundHint(rec, hangingForReceipt)}
+                                  </p>
+                                ) : null}
                               </div>
                               <div>
                                 <label className="text-ui-xs font-bold text-slate-500 uppercase">

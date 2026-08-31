@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Banknote, RotateCcw, Truck, Wallet } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx';
 import { isFinanceExceptionExpenseItem } from '../../shared/expenseCategoryPolicy.js';
 import {
@@ -8,7 +9,11 @@ import {
   FinanceDeskColoredQueueRow,
   FinanceDeskQueueStatusDot,
 } from './FinanceDeskColoredQueuePanel';
-import { refundPayeePayoutCaution } from '../../lib/refundCashierDetail';
+import {
+  refundPayeePayoutCaution,
+  flattenRefundDeskQueue,
+  actorMayOverrideRefundUnclearedPayoutHold,
+} from '../../lib/refundCashierDetail';
 import {
   paymentRequestOutstandingNgn,
   poTransportPayoutMetaLine,
@@ -17,7 +22,6 @@ import {
   registerSettlementOutstandingNgn,
   registerSettlementPayoutMetaLine,
 } from '../../lib/financeTreasuryPayoutQueueMeta';
-import { flattenRefundPayeePayoutQueue } from '../../lib/refundCashierDetail';
 import { maintenanceCostKindLabel } from '../../shared/lib/maintenanceCostEnvelope';
 
 function PaymentRequestCategoryExtra({ req }) {
@@ -139,8 +143,16 @@ export function FinanceTreasuryAwaitingPayoutQueues({
   children,
   alwaysShow = false,
 }) {
+  const ws = useWorkspace();
+  const overrideUnclearedHold = actorMayOverrideRefundUnclearedPayoutHold(
+    ws?.session?.user,
+    ws?.hasPermission
+  );
   const id = (suffix) => (sectionIdPrefix ? `${sectionIdPrefix}-${suffix}` : undefined);
-  const refundPayeeLines = useMemo(() => flattenRefundPayeePayoutQueue(refunds), [refunds]);
+  const refundPayeeLines = useMemo(
+    () => flattenRefundDeskQueue(refunds, { overrideUnclearedHold }),
+    [refunds, overrideUnclearedHold]
+  );
   const total =
     refundPayeeLines.length + paymentRequests.length + registerSettlements.length + poTransport.length;
   const hasChildren = Boolean(children);
@@ -211,7 +223,11 @@ export function FinanceTreasuryAwaitingPayoutQueues({
                   }
                   meta={refundPayeePayoutMetaLine(r, line, branchNameById)}
                   extra={<RefundPayeeExtra payeeLine={line} />}
-                  amount={formatNgn(line.amountDueNgn)}
+                  amount={
+                    line.amountDueNgn > 0
+                      ? formatNgn(line.amountDueNgn)
+                      : line.payoutStatusLabel || formatNgn(0)
+                  }
                   actions={renderRefundActions(line)}
                 />
                 );

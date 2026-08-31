@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest';
+import { hangingRefundHowToUse, receiptLineHangingRefundHint } from './refundPendingUse.js';
+import { normalizeRefund } from './refundsStore.js';
+
+describe('refund pending use copy', () => {
+  it('tells cashier how to use a false-settled overpayment', () => {
+    const r = normalizeRefund({
+      refundID: 'RF-KD-26-9553',
+      status: 'Approved',
+      reasonCategory: '["Overpayment"]',
+      amountNgn: 61_200,
+      approvedAmountNgn: 61_200,
+      paidAmountNgn: 61_200,
+      paidAtISO: '',
+      paidBy: '',
+      quotationRef: 'QT-KD-26-1342',
+    });
+    expect(hangingRefundHowToUse(r)).toMatch(/Tick this refund/i);
+  });
+
+  it('flags a receipt split that matches hanging refund amount', () => {
+    const hanging = [
+      normalizeRefund({
+        refundID: 'RF-KD-26-9553',
+        status: 'Pending',
+        amountNgn: 61_200,
+        quotationRef: 'QT-KD-26-1342',
+      }),
+    ];
+    expect(receiptLineHangingRefundHint(61_200, hanging)).toMatch(/RF-KD-26-9553/);
+    expect(receiptLineHangingRefundHint(34_000, hanging)).toBe('');
+  });
+});
