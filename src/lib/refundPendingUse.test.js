@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { hangingRefundHowToUse, ledgerOverpayHowToUse, receiptLineHangingRefundHint } from './refundPendingUse.js';
+import {
+  hangingRefundHowToUse,
+  ledgerOverpayHowToUse,
+  receiptLineHangingRefundHint,
+  unavailableRefundHowToUse,
+} from './refundPendingUse.js';
 import { normalizeRefund } from './refundsStore.js';
 
 describe('refund pending use copy', () => {
@@ -33,5 +38,20 @@ describe('refund pending use copy', () => {
 
   it('says overpay can cover a receipt without filing a refund', () => {
     expect(ledgerOverpayHowToUse()).toMatch(/no refund request needed/i);
+  });
+
+  it('tells cashier a till-paid overpayment cannot cover a new receipt', () => {
+    expect(
+      unavailableRefundHowToUse({
+        refundId: 'RF-KD-26-9456',
+        status: 'Approved',
+        overpaymentOnly: true,
+        paidAtISO: '2026-08-08',
+        paidBy: 'Zarewa Admin',
+        paidAmountNgn: 771_500,
+        reason:
+          'Already paid out on 2026-08-08 — cannot cover another receipt. Do not confirm the same ₦ as new bank cash.',
+      })
+    ).toMatch(/already paid out/i);
   });
 });

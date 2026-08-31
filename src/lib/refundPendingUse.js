@@ -48,6 +48,11 @@ export function ledgerOverpayHowToUse() {
 export function unavailableRefundHowToUse(source) {
   const reason = String(source?.reason || '').trim();
   const status = String(source?.status || '').trim();
+  const paidAt = String(source?.paidAtISO ?? source?.paid_at_iso ?? '').trim();
+  const paidBy = String(source?.paidBy ?? source?.paid_by ?? '').trim();
+  if (paidAt || paidBy || /already paid out/i.test(reason)) {
+    return 'This overpayment was already paid out. Do not tick it as unused credit and do not confirm the same ₦ as new bank cash.';
+  }
   if (refundLooksPaidWithoutTillPayout(source) || /no till payout/i.test(reason)) {
     return hangingRefundHowToUse(source);
   }
