@@ -1389,8 +1389,19 @@ const ReceiptModal = ({
                   </div>
                 ) : useLedgerApi && refundCreditInfo ? (
                   <div className="sm:col-span-2 rounded-lg border border-sky-200 bg-sky-50/80 px-3 py-2.5 text-ui-xs text-sky-950 space-y-1.5">
-                    <p className="font-bold">This customer has a refund</p>
-                    {Number(refundCreditInfo.totalAvailableNgn) > 0 ? (
+                    <p className="font-bold">
+                      {refundCreditInfo.targetBlocksExternalCredit
+                        ? `This quotation has an open refund${
+                            refundCreditInfo.blockingRefundId ? ` (${refundCreditInfo.blockingRefundId})` : ''
+                          }`
+                        : 'This customer has leftover refund / overpay'}
+                    </p>
+                    {refundCreditInfo.targetBlocksExternalCredit ? (
+                      <p>
+                        Confirm existing receipts in Finance, or pay that refund from the till. New cash
+                        on this job stays closed until the refund is finished.
+                      </p>
+                    ) : Number(refundCreditInfo.totalAvailableNgn) > 0 ? (
                       <p>
                         Refund fund {formatNgn(refundCreditInfo.totalAvailableNgn)} is on file
                         {Number(refundCreditInfo.targetDueNgn) > 0

@@ -50,11 +50,16 @@ export function HangingCustomerRefundChip({ hanging, overpayCreditNgn = 0, indic
 
 /**
  * Banner for Confirm payment received modal.
- * @param {{ hanging?: object[] | null; overpayCreditNgn?: number; indicator?: ReturnType<typeof hangingRefundIndicator> }} props
+ * @param {{ hanging?: object[] | null; overpayCreditNgn?: number; quotationRef?: string; indicator?: ReturnType<typeof hangingRefundIndicator> }} props
  */
-export function HangingCustomerRefundBanner({ hanging, overpayCreditNgn = 0, indicator }) {
+export function HangingCustomerRefundBanner({ hanging, overpayCreditNgn = 0, quotationRef = '', indicator }) {
   const info = indicator || hangingRefundIndicator(hanging, overpayCreditNgn);
   if (!info) return null;
+  const qref = String(quotationRef || '').trim();
+  const sameJobOpen =
+    qref &&
+    Array.isArray(hanging) &&
+    hanging.some((r) => String(r?.quotationRef || '').trim() === qref);
   return (
     <div
       className="flex gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-ui-xs text-rose-950 leading-snug"
@@ -69,9 +74,11 @@ export function HangingCustomerRefundBanner({ hanging, overpayCreditNgn = 0, ind
           ) : null}
         </p>
         <p className="mt-0.5 font-medium text-rose-900/90">
-          {info.count > 0
-            ? 'Each open refund stays listed below with how to use it. Do not confirm a receipt line as new bank cash if it is the same ₦ as a hanging refund — tick the refund instead.'
-            : 'This customer has an overpayment credit that has not been applied or requested as a refund yet. Tick it on Confirm payment or Add payment to cover a new receipt — no refund form needed.'}
+          {sameJobOpen
+            ? 'This job has an open refund. Confirm the cash that was actually received, then pay the refund from the till. Do not apply leftover from another job onto this receipt.'
+            : info.count > 0
+              ? 'Each open refund stays listed below with how to use it. Do not confirm a receipt line as new bank cash if it is the same ₦ as a hanging refund — tick the refund instead.'
+              : 'This customer has an overpayment credit that has not been applied or requested as a refund yet. Tick it on Confirm payment or Add payment to cover a new receipt — no refund form needed.'}
         </p>
         {Array.isArray(hanging) && hanging.length > 0 ? (
           <ul className="mt-2 space-y-2">

@@ -2239,10 +2239,14 @@ const Account = () => {
         setSelectedRefundSourceIds([]);
         return;
       }
-      const defaultIds = defaultRefundSourceSelection(data.sources);
-      const selectedTotal = sumRefundSourceAvailableNgn(data.sources, defaultIds);
+      const defaultIds = defaultRefundSourceSelection(data.sources, {
+        blockExternalCredit: Boolean(data.targetBlocksExternalCredit),
+      });
+      const selectedTotal = data.targetBlocksExternalCredit
+        ? 0
+        : sumRefundSourceAvailableNgn(data.sources, defaultIds);
       setCashierRefundCreditInfo(data);
-      setSelectedRefundSourceIds(defaultIds);
+      setSelectedRefundSourceIds(data.targetBlocksExternalCredit ? [] : defaultIds);
       setApplyRefundOnConfirm(selectedTotal > 0);
     })().catch(() => {
       if (!cancelled) {
@@ -2383,9 +2387,11 @@ const Account = () => {
         ? allSettleSplits.filter((s) => String(s.movementId) === String(receiptFinanceFocusMovementId))
         : allSettleSplits;
       const offsetNgn =
-        applyRefundOnConfirm && cashierRefundOffset?.offsetNgn > 0
-          ? Math.round(Number(cashierRefundOffset.offsetNgn) || 0)
-          : 0;
+        cashierRefundCreditInfo?.targetBlocksExternalCredit
+          ? 0
+          : applyRefundOnConfirm && cashierRefundOffset?.offsetNgn > 0
+            ? Math.round(Number(cashierRefundOffset.offsetNgn) || 0)
+            : 0;
       const paymentLineCorrections = [];
       for (const s of settleSplits) {
         const d = paymentCorrectionDrafts[s.movementId];
@@ -2456,9 +2462,10 @@ const Account = () => {
           return;
         }
         const leftover = Math.round(Number(data.refundCreditLeftoverNgn) || cashierRefundOffset?.leftoverRefundNgn || 0);
-        const applied = Math.round(Number(data.refundCreditAppliedNgn) || offsetNgn || 0);
-        const creditBit =
-          applied > 0
+        const applied = Math.round(Number(data.refundCreditAppliedNgn) || 0);
+        const creditBit = data.refundCreditSkipped
+          ? ' Receipt confirmed as cash — leftover refund on this job was not applied as credit.'
+          : applied > 0
             ? leftover > 0
               ? ` Refund fund ${formatNgn(applied)} covered this receipt; ${formatNgn(leftover)} still to pay out.`
               : ` Refund fund ${formatNgn(applied)} covered this receipt — nothing left to pay out on that refund.`
@@ -5293,6 +5300,7 @@ const Account = () => {
 
                     <HangingCustomerRefundBanner
                       hanging={hangingForReceipt}
+                      quotationRef={receiptFinanceRow.quotationRef}
                       overpayCreditNgn={overpayCreditBalanceFromEntries(
                         liveLedgerEntries,
                         String(receiptFinanceRow.customerID || '').trim()
@@ -5303,7 +5311,16 @@ const Account = () => {
                       <p className="text-ui-xs text-slate-500">Checking overpay and refund fund…</p>
                     ) : cashierRefundCreditPanelVisible ? (
                       <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-ui-xs text-amber-950 space-y-1.5">
-                        {cashierRefundOffset ? (
+                        {cashierRefundCreditInfo?.targetBlocksExternalCredit ? (
+                          <p className="font-semibold text-sky-950">
+                            This quotation has an open refund
+                            {cashierRefundCreditInfo.blockingRefundId
+                              ? ` (${cashierRefundCreditInfo.blockingRefundId})`
+                              : ''}
+                            . Confirm the cash that was actually received, then pay that refund from the till.
+                            Leftover from another job cannot cover this receipt until the refund is finished.
+                          </p>
+                        ) : cashierRefundOffset ? (
                         <label className="flex items-start gap-2 cursor-pointer">
                           <input
                             type="checkbox"
@@ -5329,7 +5346,8 @@ const Account = () => {
                             reasons. Confirm cash only, or apply from the refund record after fixing the blocker.
                           </p>
                         )}
-                        {(cashierRefundCreditInfo?.sources || []).length > 0 ? (
+                        {!cashierRefundCreditInfo?.targetBlocksExternalCredit &&
+                        (cashierRefundCreditInfo?.sources || []).length > 0 ? (
                           <ul className="pl-0 list-none text-slate-800 space-y-2">
                             {(cashierRefundCreditInfo.sources || []).map((s) => (
                               <li key={s.id} className="rounded-lg border border-amber-200/80 bg-white/60 px-2 py-1.5">
@@ -5390,7 +5408,7 @@ const Account = () => {
                             </ul>
                           </div>
                         ) : null}
-                        {applyRefundOnConfirm ? (
+                        {applyRefundOnConfirm && cashierRefundOffset ? (
                           <p className="pl-6 font-semibold text-emerald-800">
                             {cashierRefundOffset.cashToConfirmNgn > 0
                               ? `Cash still to confirm: ${formatNgn(cashierRefundOffset.cashToConfirmNgn)}`

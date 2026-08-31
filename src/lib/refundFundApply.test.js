@@ -194,6 +194,18 @@ describe('refund fund apply helpers', () => {
     ).toEqual(['overpay:QT-OLD', 'refund:RF-1']);
   });
 
+  it('does not auto-tick other jobs when the target quotation already has a blocking refund', () => {
+    expect(
+      defaultRefundSourceSelection(
+        [
+          { id: 'overpay:QT-OLD', kind: 'overpay', sameQuotation: false, availableNgn: 50_000 },
+          { id: 'refund:RF-SAME', kind: 'refund', sameQuotation: true, availableNgn: 12_000 },
+        ],
+        { blockExternalCredit: true }
+      )
+    ).toEqual(['refund:RF-SAME']);
+  });
+
   it('plans cashier receipt offset against approved refund fund', () => {
     expect(planCashierRefundOffset({ receiptCashNgn: 80_000, availableNgn: 50_000 })).toEqual({
       offsetNgn: 50_000,

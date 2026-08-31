@@ -32,11 +32,14 @@ export function planCashierRefundOffset({ receiptCashNgn, availableNgn }) {
   };
 }
 
-/** Tick every usable source. Skip same-quote overpay on confirm so this receipt’s own extra cash is not offset against itself. */
-export function defaultRefundSourceSelection(sources) {
+/** Tick every usable source. Skip same-quote overpay on confirm so this receipt’s own extra cash is not offset against itself.
+ * When the target job already has a blocking refund, do not auto-tick other jobs’ credit.
+ */
+export function defaultRefundSourceSelection(sources, { blockExternalCredit = false } = {}) {
   const list = Array.isArray(sources) ? sources : [];
   return list
     .filter((s) => !(s.kind === 'overpay' && s.sameQuotation))
+    .filter((s) => !(blockExternalCredit && !s.sameQuotation))
     .map((s) => String(s.id || '').trim())
     .filter(Boolean);
 }
