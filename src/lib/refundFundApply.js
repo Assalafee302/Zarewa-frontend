@@ -8,6 +8,8 @@ export const REFUND_FUND_USE_LABEL = 'Use from refund fund';
 export const REFUND_FUND_DEDUCTED_LABEL = 'Deducted from refund fund';
 export const REFUND_FUND_CASHIER_OFFSET_LABEL = 'Use overpay / refund fund on this receipt';
 
+export { stripFinishedOverpayFromConfirmEligible } from '../shared/lib/refundCreditApply.js';
+
 export function refundCreditApplicationIsActive(app) {
   const s = String(app?.status || '').trim().toLowerCase();
   return s !== 'reversed' && s !== 'cancelled';

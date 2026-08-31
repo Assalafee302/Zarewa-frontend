@@ -9,6 +9,7 @@ import {
   refundFundPaymentRowsForQuotation,
   restorePaymentLinesAfterRefundFundUnchecked,
   defaultRefundSourceSelection,
+  stripFinishedOverpayFromConfirmEligible,
 } from './refundFundApply.js';
 
 describe('refund fund apply helpers', () => {
@@ -235,5 +236,23 @@ describe('refund fund apply helpers', () => {
     expect(rows[0]._refundFund).toBe(true);
     expect(rows[0].cashReceivedNgn).toBe(45_000);
     expect(rows[0].method).toMatch(/refund fund/i);
+  });
+
+  it('keeps till-paid overpayment off confirm payment', () => {
+    const cleaned = stripFinishedOverpayFromConfirmEligible({
+      sources: [],
+      unavailableSources: [
+        {
+          refundId: 'RF-KD-26-9456',
+          availableNgn: 0,
+          reasonCategory: '["Overpayment"]',
+          amountNgn: 771_500,
+          paidAmountNgn: 771_500,
+          paidAtISO: '2026-08-08',
+          paidBy: 'Zarewa Admin',
+        },
+      ],
+    });
+    expect(cleaned.unavailableSources).toEqual([]);
   });
 });

@@ -146,6 +146,7 @@ import {
   planCashierRefundOffset,
   REFUND_FUND_CASHIER_OFFSET_LABEL,
   restorePaymentLinesAfterRefundFundUnchecked,
+  stripFinishedOverpayFromConfirmEligible,
   sumRefundSourceAvailableNgn,
 } from '../../lib/refundFundApply.js';
 import {
@@ -2230,23 +2231,24 @@ const Account = () => {
         setSelectedRefundSourceIds([]);
         return;
       }
-      const hasUsableCredit = Number(data.totalAvailableNgn) > 0;
+      const eligible = stripFinishedOverpayFromConfirmEligible(data);
+      const hasUsableCredit = Number(eligible.totalAvailableNgn) > 0;
       const hasUnavailable =
-        Array.isArray(data.unavailableSources) && data.unavailableSources.length > 0;
+        Array.isArray(eligible.unavailableSources) && eligible.unavailableSources.length > 0;
       if (!hasUsableCredit && !hasUnavailable) {
         setCashierRefundCreditInfo(null);
         setApplyRefundOnConfirm(false);
         setSelectedRefundSourceIds([]);
         return;
       }
-      const defaultIds = defaultRefundSourceSelection(data.sources, {
-        blockExternalCredit: Boolean(data.targetBlocksExternalCredit),
+      const defaultIds = defaultRefundSourceSelection(eligible.sources, {
+        blockExternalCredit: Boolean(eligible.targetBlocksExternalCredit),
       });
-      const selectedTotal = data.targetBlocksExternalCredit
+      const selectedTotal = eligible.targetBlocksExternalCredit
         ? 0
-        : sumRefundSourceAvailableNgn(data.sources, defaultIds);
-      setCashierRefundCreditInfo(data);
-      setSelectedRefundSourceIds(data.targetBlocksExternalCredit ? [] : defaultIds);
+        : sumRefundSourceAvailableNgn(eligible.sources, defaultIds);
+      setCashierRefundCreditInfo(eligible);
+      setSelectedRefundSourceIds(eligible.targetBlocksExternalCredit ? [] : defaultIds);
       setApplyRefundOnConfirm(selectedTotal > 0);
     })().catch(() => {
       if (!cancelled) {

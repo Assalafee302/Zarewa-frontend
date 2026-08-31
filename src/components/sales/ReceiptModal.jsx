@@ -59,6 +59,7 @@ import {
   applyRefundFundDeductionToPaymentLines,
   isRefundFundApplyLedgerEntry,
   restorePaymentLinesAfterRefundFundUnchecked,
+  stripFinishedOverpayFromConfirmEligible,
 } from '../../lib/refundFundApply.js';
 
 function newLineId() {
@@ -499,14 +500,15 @@ const ReceiptModal = ({
         setApplyRefundCredit(false);
         return;
       }
-      const hasUsable = Number(data.recommendedApplyNgn) > 0 || Number(data.totalAvailableNgn) > 0;
-      const hasUnavailable = Array.isArray(data.unavailableSources) && data.unavailableSources.length > 0;
+      const eligible = stripFinishedOverpayFromConfirmEligible(data);
+      const hasUsable = Number(eligible.recommendedApplyNgn) > 0 || Number(eligible.totalAvailableNgn) > 0;
+      const hasUnavailable = Array.isArray(eligible.unavailableSources) && eligible.unavailableSources.length > 0;
       if (!hasUsable && !hasUnavailable) {
         setRefundCreditInfo(null);
         setApplyRefundCredit(false);
         return;
       }
-      setRefundCreditInfo(data);
+      setRefundCreditInfo(eligible);
     })().catch(() => {
       if (!cancelled) {
         setRefundCreditLoading(false);
