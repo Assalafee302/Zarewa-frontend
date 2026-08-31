@@ -22,6 +22,7 @@ import {
   refundAmountExceedsEconomicFloorCap,
   refundRequestIsEconomicFloorExempt,
 } from '../../shared/refundConstants.js';
+import { refundOverpaymentStaffAllocationError } from '../../shared/lib/refundCreditApply.js';
 
 function refundCategoryTokens(value) {
   if (Array.isArray(value)) return value.map((x) => String(x ?? '').trim()).filter(Boolean);
@@ -591,9 +592,40 @@ export function RefundManagerApprovalPreview({
     return () => clearTimeout(t);
   }, [runAlignmentCheck]);
 
+  const overpaymentStaffBlocksApprove = useMemo(() => {
+    const quoteCustomerId = String(
+      refund?.customerID ||
+        refund?.customerId ||
+        refund?.customer_id ||
+        auditData?.quotation?.customerID ||
+        auditData?.quotation?.customer_id ||
+        inboxRow?.customer_id ||
+        ''
+    ).trim();
+    return Boolean(
+      refundOverpaymentStaffAllocationError({
+        reasonCategory: currentCategories,
+        calculationLines: calcLines,
+        splits: Array.isArray(refund?.splitDistributions) ? refund.splitDistributions : [],
+        quoteCustomerId,
+      })
+    );
+  }, [
+    currentCategories,
+    calcLines,
+    refund?.splitDistributions,
+    refund?.customerID,
+    refund?.customerId,
+    refund?.customer_id,
+    auditData?.quotation?.customerID,
+    auditData?.quotation?.customer_id,
+    inboxRow?.customer_id,
+  ]);
+
   const alignmentBlocksApprove = useMemo(() => {
     if (alignmentCheckLoading) return true;
     if (financialBlocksApprove) return true;
+    if (overpaymentStaffBlocksApprove) return true;
     if (productionAlignmentIssues.length === 0) return false;
     const hasBlock = productionAlignmentIssues.some((i) => i.submitAction === 'block');
     if (hasBlock && !(canOverrideProductionAlignment && productionAlignmentOverrideNote.trim().length >= 10)) {
@@ -604,6 +636,7 @@ export function RefundManagerApprovalPreview({
   }, [
     alignmentCheckLoading,
     financialBlocksApprove,
+    overpaymentStaffBlocksApprove,
     productionAlignmentIssues,
     canOverrideProductionAlignment,
     productionAlignmentOverrideNote,
@@ -611,7 +644,7 @@ export function RefundManagerApprovalPreview({
   ]);
 
   const handleApproveClick = () => {
-    if (alignmentBlocksApprove || lineArithmeticBlocksApprove) return;
+    if (alignmentBlocksApprove || lineArithmeticBlocksApprove || overpaymentStaffBlocksApprove) return;
     const approved = Math.round(Number(approvedAmountNgn) || 0);
     if (approved <= 0) {
       setApprovalAmountError('Approved amount must be positive.');
@@ -1611,6 +1644,7 @@ export function RefundManagerApprovalPreview({
               loading ||
               alignmentBlocksApprove ||
               lineArithmeticBlocksApprove ||
+              overpaymentStaffBlocksApprove ||
               (creditAppliedNgn > 0 && leftoverAfterCreditNgn <= 0)
             }
             onClick={handleApproveClick}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  flattenRefundPayeePayoutQueue,
   refundCashierCustomerName,
   refundCashierMoneyStory,
   refundCashierOverpayResidualNgn,
@@ -152,6 +153,7 @@ describe('refundRecipientTillPayoutRows', () => {
     expect(rows[0].payoutStatus).toBe('referral_available');
     expect(rows[0].amountDueNgn).toBe(0);
     expect(refundPayeePayoutQueueLines(refund)).toHaveLength(0);
+    expect(flattenRefundPayeePayoutQueue([refund])).toHaveLength(0);
   });
 });
 

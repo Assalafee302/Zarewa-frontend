@@ -407,6 +407,10 @@ export function flattenRefundPayeePayoutQueue(refunds) {
       lines.push(...payeeLines);
       continue;
     }
+    // When splits exist but every payee is held / referral-only / already paid,
+    // do not invent a customer till line that bypasses uncleared holds.
+    const { lines: allPayeeLines } = buildRefundPayeePayoutLines(refund);
+    if (allPayeeLines.length > 0) continue;
     const due = refundOutstandingAmount(refund);
     if (due <= 0) continue;
     const rid = String(refund?.refundID ?? '').trim();

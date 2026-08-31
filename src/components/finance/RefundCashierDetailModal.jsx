@@ -223,8 +223,8 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 space-y-2">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
               <p className="text-ui-xs text-sky-900/85 leading-relaxed">
-                Payees with uncleared receipt holds stay out of the payout queue until receipts are cleared or
-                Finance manually applies the offset at pay time.
+                Payees with uncleared receipt holds stay out of the payout queue until those receipts
+                are cleared. Overpayment may still be used for cashier referral/confirmation on a receipt.
               </p>
               <ul className="space-y-2">
                 {recipientTillRows.map((row) => (
