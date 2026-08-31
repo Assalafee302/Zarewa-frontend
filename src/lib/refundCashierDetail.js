@@ -79,8 +79,34 @@ function parseUnclearedOffsetFromPaymentNote(refund) {
  */
 export function actorMayOverrideRefundUnclearedPayoutHold(actor, hasPermission) {
   if (typeof hasPermission === 'function' && hasPermission('*')) return true;
-  const rk = String(actor?.roleKey || actor?.role_key || '').trim().toLowerCase();
+  const perms = Array.isArray(actor?.permissions) ? actor.permissions : [];
+  if (perms.includes('*')) return true;
+  const rk = String(actor?.roleKey || actor?.role_key || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
   return rk === 'admin';
+}
+
+function refundWalletOpenNgn(refund) {
+  return Math.max(0, Math.round(Number(refund?.walletOpenNgn ?? refund?.wallet_open_ngn) || 0));
+}
+
+function refundSplitLooksUnclearedHeld(split) {
+  return (
+    Boolean(split?.payoutHeldForUnclearedReceipts) ||
+    Math.round(Number(split?.unclearedReceiptHoldNgn ?? split?.uncleared_receipt_hold_ngn) || 0) > 0
+  );
+}
+
+/** Snapshot/API flag that a payee net is held for unconfirmed receipts. */
+export function refundHasUnclearedPayoutHold(refund) {
+  const splits = refundSplitRows(refund);
+  if (splits.some(refundSplitLooksUnclearedHeld)) return true;
+  return (
+    Math.round(Number(refund?.heldNetNgn ?? refund?.held_net_ngn) || 0) > 0 ||
+    Math.round(Number(refund?.unclearedReceiptHoldNgn ?? refund?.uncleared_receipt_hold_ngn) || 0) > 0
+  );
 }
 
 /** Cash still owed from till/bank — excludes company cut settled at approval. */
@@ -115,6 +141,8 @@ export function enrichRefundForCashierPayout(row, apiRefund) {
     payoutHistory: Array.isArray(apiRefund.payoutHistory)
       ? apiRefund.payoutHistory
       : row?.payoutHistory,
+    walletOpenNgn: apiRefund.walletOpenNgn ?? apiRefund.wallet_open_ngn ?? row?.walletOpenNgn,
+    heldNetNgn: apiRefund.heldNetNgn ?? apiRefund.held_net_ngn ?? row?.heldNetNgn,
   };
 }
 
@@ -291,7 +319,7 @@ export function refundCashierSplitBreakdown(refund) {
  */
 function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } = {}) {
   const story = refundCashierMoneyStory(refund);
-  if (story.cashDueNgn <= 0) return { story, lines: [] };
+  if (story.cashDueNgn <= 0 && !overrideUnclearedHold) return { story, lines: [] };
 
   const rid = String(refund?.refundID ?? refund?.refund_id ?? '').trim();
   let breakdown = story.splitBreakdown.filter((row) => row.netPayoutNgn > 0);
@@ -367,13 +395,28 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
   });
 
   let cashRemaining = story.cashDueNgn;
-  const capped = lines.map((line) => {
-    const amountDueNgn = Math.min(line.amountDueNgn, Math.max(0, cashRemaining));
-    cashRemaining -= amountDueNgn;
-    return { ...line, amountDueNgn };
-  });
+  const capped = overrideUnclearedHold
+    ? lines
+    : lines.map((line) => {
+        const amountDueNgn = Math.min(line.amountDueNgn, Math.max(0, cashRemaining));
+        cashRemaining -= amountDueNgn;
+        return { ...line, amountDueNgn };
+      });
 
-  return { story, lines: capped };
+  const walletOpenNgn = refundWalletOpenNgn(refund);
+  if (walletOpenNgn <= 0) return { story, lines: capped };
+
+  // Open partner-wallet credit is withdrawn from the wallet desk — not till.
+  // Admin may still till-pay the held-for-uncleared slice that never hit the wallet.
+  return {
+    story,
+    lines: capped.map((line) => {
+      if (overrideUnclearedHold && line.payoutHeldForUnclearedReceipts && line.amountDueNgn > 0) {
+        return line;
+      }
+      return { ...line, amountDueNgn: 0 };
+    }),
+  };
 }
 
 /** Per-recipient till status for refund detail — includes payees with ₦0 till due. */

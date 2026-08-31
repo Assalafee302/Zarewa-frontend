@@ -71,17 +71,19 @@ export function FinanceCashierPayoutsPanel() {
     })) {
       const r = line.parentRefund || {};
       const due = Math.round(Number(line.amountDueNgn) || 0);
+      const canPay =
+        due > 0 || line.payoutStatus === 'admin_override_uncleared';
       rows.push({
         id: `${line.refundID}-${line.queueKey}`,
         kind:
-          due > 0
+          canPay
             ? 'Customer refund'
             : line.payoutStatusLabel || 'Refund pending',
         party: line.recipientLabel || r.customerName || r.customerID || '—',
         ref: line.refundID,
         date: String(r.approvedAtISO || r.approvalDate || r.dateISO || '').slice(0, 10),
-        amount: due,
-        pay: due > 0 ? () => handleDeskPayRefund(String(line.refundID || ''), line.queueKey) : null,
+        amount: due > 0 ? due : Math.round(Number(line.netPayoutNgn) || 0),
+        pay: canPay ? () => handleDeskPayRefund(String(line.refundID || ''), line.queueKey) : null,
         view: () => handleDeskViewRefund?.(String(line.refundID || '')),
       });
     }

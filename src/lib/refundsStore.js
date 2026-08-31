@@ -182,6 +182,8 @@ export function normalizeRefund(r) {
       r.quotationRefundsBlockedAtISO ?? r.quotation_refunds_blocked_at_iso ?? null,
     quotationRefundsBlockedReason:
       r.quotationRefundsBlockedReason ?? r.quotation_refunds_blocked_reason ?? '',
+    walletOpenNgn: Math.round(Number(r.walletOpenNgn ?? r.wallet_open_ngn) || 0),
+    heldNetNgn: Math.round(Number(r.heldNetNgn ?? r.held_net_ngn) || 0),
   };
 }
 
@@ -224,9 +226,32 @@ export function isRefundHanging(r) {
   return isRefundPayable(r);
 }
 
-/** Payable till rows plus false-Paid / fully settled-without-payout rows Finance must still see. */
+/** Payable till rows plus false-Paid / fully settled-without-payout rows Finance must still see.
+ * Wallet-credited refunds stay off the cashier till queue unless a payee net is held
+ * for unconfirmed receipts (admin may till-pay that slice).
+ */
 export function refundsOnFinanceRefundQueue(list) {
-  return (list ?? []).filter((r) => isRefundPayable(r) || refundLooksPaidWithoutTillPayout(r));
+  return (list ?? []).filter((r) => {
+    if (isRefundPayable(r) || refundLooksPaidWithoutTillPayout(r)) return true;
+    const status = String(r?.status || '').trim();
+    if (status !== 'Approved' && status !== 'Partially paid') return false;
+    if (refundQuotationRefundsBlocked(r)) return false;
+    const splits = Array.isArray(r?.splitDistributions)
+      ? r.splitDistributions
+      : Array.isArray(r?.refundSplits)
+        ? r.refundSplits
+        : [];
+    if (
+      splits.some(
+        (s) =>
+          Boolean(s?.payoutHeldForUnclearedReceipts) ||
+          Math.round(Number(s?.unclearedReceiptHoldNgn ?? s?.uncleared_receipt_hold_ngn) || 0) > 0
+      )
+    ) {
+      return true;
+    }
+    return Math.round(Number(r?.heldNetNgn) || 0) > 0;
+  });
 }
 
 /** Amount still open on a hanging refund (requested for Pending; unpaid approved for payable). */

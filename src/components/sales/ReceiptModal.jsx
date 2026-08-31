@@ -626,7 +626,8 @@ const ReceiptModal = ({
     if (selectedQuotation.managerClearedAtISO) {
       return {
         kind: 'cleared',
-        detail: 'This quotation has been cleared by manager and is closed for further payments.',
+        detail:
+          'This quotation has been cleared by manager and is closed for new payments. Unconfirmed receipts can still be confirmed in Finance & accounts.',
       };
     }
     return null;

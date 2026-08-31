@@ -843,7 +843,7 @@ export function FinanceDeskWorkQueues({
               }
               renderRefundActions={(line) => (
                 <>
-                  {line.amountDueNgn > 0 ? (
+                  {line.amountDueNgn > 0 || line.payoutStatus === 'admin_override_uncleared' ? (
                     <FinanceDeskQueueActionButton
                       tone="sky"
                       onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}

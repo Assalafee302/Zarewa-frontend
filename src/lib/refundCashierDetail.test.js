@@ -11,6 +11,7 @@ import {
   refundPayeePayoutQueueLines,
   refundRecipientTillPayoutRows,
 } from './refundCashierDetail.js';
+import { refundsOnFinanceRefundQueue } from './refundsStore.js';
 
 describe('refundCashierMoneyStory', () => {
   it('splits requested vs applied onto another quote vs cash still due', () => {
@@ -156,6 +157,63 @@ describe('refundRecipientTillPayoutRows', () => {
     expect(staff?.payoutStatus).toBe('admin_override_uncleared');
     expect(staff?.amountDueNgn).toBeGreaterThan(0);
     expect(refundPayeePayoutQueueLines(refund, { overrideUnclearedHold: true })).toHaveLength(2);
+  });
+
+  it('still lets admin pay a held staff line after paid_amount swallowed the net', () => {
+    const refund = {
+      refundID: 'RF-ADMIN-PAID-AMT',
+      customerID: 'CUS-1',
+      amountNgn: 89_300,
+      approvedAmountNgn: 89_300,
+      paidAmountNgn: 14_300,
+      status: 'Approved',
+      paymentNote: 'Settled at approval: company cut ₦2,860 → retention ledger; uncleared receipts offset ₦11,440.',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-1',
+          amountNgn: 14_300,
+          payeeName: 'Muhammad Ibrahim Bakari',
+          unclearedReceiptHoldNgn: 11_440,
+        },
+      ],
+    };
+    const cashier = refundPayeePayoutQueueLines(refund);
+    expect(cashier.find((line) => line.recipientKind === 'associated_staff')).toBeUndefined();
+    const admin = refundPayeePayoutQueueLines(refund, { overrideUnclearedHold: true });
+    const staff = admin.find((line) => line.recipientKind === 'associated_staff');
+    expect(staff?.amountDueNgn).toBe(11_440);
+    expect(staff?.payoutHeldForUnclearedReceipts).toBe(true);
+  });
+
+  it('lets admin till-pay only the held slice when the rest is on a partner wallet', () => {
+    const refund = {
+      refundID: 'RF-ADMIN-WALLET-HELD',
+      customerID: 'CUS-1',
+      amountNgn: 89_300,
+      approvedAmountNgn: 89_300,
+      paidAmountNgn: 2_860,
+      walletOpenNgn: 75_000,
+      status: 'Approved',
+      paymentNote: 'Settled at approval: company cut ₦2,860 → retention ledger.',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-1',
+          amountNgn: 14_300,
+          payeeName: 'Muhammad Ibrahim Bakari',
+          unclearedReceiptHoldNgn: 11_440,
+        },
+      ],
+    };
+    expect(refundPayeePayoutQueueLines(refund)).toHaveLength(0);
+    const admin = refundPayeePayoutQueueLines(refund, { overrideUnclearedHold: true });
+    expect(admin).toHaveLength(1);
+    expect(admin[0].recipientKind).toBe('associated_staff');
+    expect(admin[0].amountDueNgn).toBe(11_440);
+    expect(refundsOnFinanceRefundQueue([refund])).toHaveLength(1);
   });
 
   it('shows overpayment staff as referral-available while till payout stays held', () => {
@@ -309,6 +367,7 @@ describe('actorMayOverrideRefundUnclearedPayoutHold', () => {
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'finance_manager' }, (p) => p === '*')).toBe(
       true
     );
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ permissions: ['*'] })).toBe(true);
   });
 });
 

@@ -1074,7 +1074,13 @@ const Account = () => {
     if (!refundPayTarget?.refundID || treasuryPayoutSubmitting) return;
     const paidBy = refundPaidBy.trim() || activeActorLabel;
     const rid = refundPayTarget.refundID;
-    const outstanding = refundOutstandingAmount(refundPayTarget);
+    const story = refundCashierMoneyStory(refundPayTarget);
+    const outstanding = overrideUnclearedPayoutHold
+      ? Math.max(
+          refundOutstandingAmount(refundPayTarget),
+          Math.max(0, story.netCashApprovedNgn - story.treasuryPaidNgn)
+        )
+      : refundOutstandingAmount(refundPayTarget);
     const validLines = mapTreasuryPayoutLinesForApi(refundPayLines);
     if (validLines.length === 0) {
       showToast('Add at least one refund payout line.', { variant: 'error' });

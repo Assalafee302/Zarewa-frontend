@@ -196,7 +196,7 @@ export function ClearanceManagerApprovalPreview({
       )}
 
       {!loading ? (
-        <DecisionActionBar hint="Approve clears the quotation. Reject blocks it with a reason; Flag keeps it in the audit queue.">
+        <DecisionActionBar hint="Approve only after Finance has confirmed the receipts. Unconfirmed receipts stay editable in Finance even if this quote was already cleared.">
           {showReleasePayments && canReleasePaymentHolds ? (
             <button
               type="button"
