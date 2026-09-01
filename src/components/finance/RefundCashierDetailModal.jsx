@@ -414,7 +414,7 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
           onConfirm={onPay && tillDuePayeeCount > 0 && !blockCashPayout ? () => onPay(refund) : undefined}
           confirmLabel={
             onPay && tillDuePayeeCount > 0 && !blockCashPayout
-              ? `Payout ${formatNgn(defaultPayoutNgn)}${
+              ? `Pay ${formatNgn(defaultPayoutNgn)}${
                   tillDuePayeeCount > 1 ? ' (this payee)' : tillDuePayeeCount === 1 ? '' : ' (customer)'
                 }`
               : 'Save'

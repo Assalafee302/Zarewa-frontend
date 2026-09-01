@@ -102,6 +102,6 @@ describe('RefundCashierDetailModal', () => {
     render(<RefundCashierDetailModal refund={refund} isOpen onClose={() => {}} onPay={onPay} />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/do not pay/i);
-    expect(screen.queryByRole('button', { name: /payout/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^pay /i })).not.toBeInTheDocument();
   });
 });

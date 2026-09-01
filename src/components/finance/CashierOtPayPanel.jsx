@@ -91,7 +91,7 @@ export function CashierOtPayPanel({ onPaid, embedded = false }) {
               amount={formatNgn(row.totalPayableNgn)}
               actions={
                 <FinanceDeskQueueActionButton tone="teal" onClick={() => setPayId(row.id)}>
-                  Payout
+                  Pay
                 </FinanceDeskQueueActionButton>
               }
             />

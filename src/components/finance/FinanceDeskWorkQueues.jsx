@@ -108,6 +108,20 @@ function isToday(iso) {
   return String(iso || "").slice(0, 10) === todayIso();
 }
 
+function deskSearchHaystack(parts) {
+  return (Array.isArray(parts) ? parts : [])
+    .map((p) => String(p ?? "").trim())
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function deskSearchMatches(query, parts) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return true;
+  return deskSearchHaystack(parts).includes(q);
+}
+
 const DESK_SUB_TABS = [
   { id: "work", label: "Work queues" },
 
@@ -162,6 +176,8 @@ export function FinanceDeskWorkQueues({
   onAccountClick,
 
   hideAccountGrid = false,
+
+  searchQuery = "",
 }) {
   const ws = useWorkspace();
 
@@ -315,7 +331,16 @@ export function FinanceDeskWorkQueues({
     [receiptsWithCuttingMeta],
   );
 
-  const pendingReceipts = useMemo(() => pendingReceiptsAll.slice(0, 25), [pendingReceiptsAll]);
+  const deskQuery = String(searchQuery || "").trim();
+
+  const pendingReceipts = useMemo(() => {
+    const list = deskQuery
+      ? pendingReceiptsAll.filter((r) =>
+          deskSearchMatches(deskQuery, [r.id, r.customer, r.customerID, r.quotationRef])
+        )
+      : pendingReceiptsAll;
+    return deskQuery ? list : list.slice(0, 25);
+  }, [pendingReceiptsAll, deskQuery]);
 
   const pendingReceiptsWithoutCuttingList = useMemo(
     () => pendingReceiptsAll.filter((r) => receiptLacksCuttingList(r)).length,
@@ -327,51 +352,91 @@ export function FinanceDeskWorkQueues({
     [receipts],
   );
 
-  const approvedPayments = useMemo(
+  const approvedPaymentsAll = useMemo(
     () =>
-      paymentRequests
-
-        .filter((pr) => {
-          const st = String(pr.approvalStatus || "").trim();
-
-          if (st !== "Approved") return false;
-
-          const req = Math.round(Number(pr.amountRequestedNgn) || 0);
-
-          const paid = Math.round(Number(pr.paidAmountNgn) || 0);
-
-          return effectiveOutstandingNgn(req, paid) > 0;
-        })
-
-        .slice(0, 20),
-
+      paymentRequests.filter((pr) => {
+        const st = String(pr.approvalStatus || "").trim();
+        if (st !== "Approved") return false;
+        const req = Math.round(Number(pr.amountRequestedNgn) || 0);
+        const paid = Math.round(Number(pr.paidAmountNgn) || 0);
+        return effectiveOutstandingNgn(req, paid) > 0;
+      }),
     [paymentRequests],
   );
 
-  const approvedRefunds = useMemo(
-    () => refundsOnFinanceRefundQueue(refunds).slice(0, 15),
+  const approvedPayments = useMemo(() => {
+    const list = deskQuery
+      ? approvedPaymentsAll.filter((pr) =>
+          deskSearchMatches(deskQuery, [
+            pr.requestID,
+            pr.id,
+            pr.description,
+            pr.payeeName,
+            pr.expenseCategory,
+            pr.expenseID,
+          ])
+        )
+      : approvedPaymentsAll;
+    return deskQuery ? list : list.slice(0, 20);
+  }, [approvedPaymentsAll, deskQuery]);
+
+  const approvedRefundsAll = useMemo(
+    () => refundsOnFinanceRefundQueue(refunds),
     [refunds],
   );
 
-  const approvedRegisterSettlements = useMemo(
-    () => registerSettlementsAwaitingPayment(registerSettlements).slice(0, 15),
+  const approvedRefunds = useMemo(() => {
+    const list = deskQuery
+      ? approvedRefundsAll.filter((r) =>
+          deskSearchMatches(deskQuery, [
+            r.refundID,
+            r.customer,
+            r.customerID,
+            r.quotationRef,
+            r.payeeName,
+          ])
+        )
+      : approvedRefundsAll;
+    return deskQuery ? list : list.slice(0, 15);
+  }, [approvedRefundsAll, deskQuery]);
 
+  const approvedRegisterSettlementsAll = useMemo(
+    () => registerSettlementsAwaitingPayment(registerSettlements),
     [registerSettlements],
   );
 
-  const poTransportAwaiting = useMemo(
+  const approvedRegisterSettlements = useMemo(() => {
+    const list = deskQuery
+      ? approvedRegisterSettlementsAll.filter((s) =>
+          deskSearchMatches(deskQuery, [s.settlementId, s.payeeName, s.partyName, s.registerName])
+        )
+      : approvedRegisterSettlementsAll;
+    return deskQuery ? list : list.slice(0, 15);
+  }, [approvedRegisterSettlementsAll, deskQuery]);
+
+  const poTransportAwaitingAll = useMemo(
     () =>
       (Array.isArray(ws?.snapshot?.poTransportAwaitingTreasury)
         ? ws.snapshot.poTransportAwaitingTreasury
         : []
-      )
-
-        .filter((row) => Math.max(0, Number(row.outstandingNgn) || 0) > 0)
-
-        .slice(0, 15),
-
+      ).filter((row) => Math.max(0, Number(row.outstandingNgn) || 0) > 0),
     [ws?.snapshot?.poTransportAwaitingTreasury],
   );
+
+  const poTransportAwaiting = useMemo(() => {
+    const list = deskQuery
+      ? poTransportAwaitingAll.filter((row) =>
+          deskSearchMatches(deskQuery, [
+            row.poID,
+            row.poId,
+            row.transportAgentName,
+            row.transporterName,
+            row.supplierName,
+          ])
+        )
+      : poTransportAwaitingAll;
+    return deskQuery ? list : list.slice(0, 15);
+  }, [poTransportAwaitingAll, deskQuery]);
 
   const orphanHaulageRows = useMemo(
     () =>
@@ -442,10 +507,10 @@ export function FinanceDeskWorkQueues({
   );
 
   const payoutQueueCount =
-    approvedPayments.length +
-    approvedRefunds.length +
-    approvedRegisterSettlements.length +
-    poTransportAwaiting.length +
+    approvedPaymentsAll.length +
+    approvedRefundsAll.length +
+    approvedRegisterSettlementsAll.length +
+    poTransportAwaitingAll.length +
     partnerWalletsDue.length;
 
   const moneyInQueueCount =
@@ -534,10 +599,10 @@ export function FinanceDeskWorkQueues({
 
       <FinanceMobileAlertStrip
         pendingReceipts={pendingReceiptsAll.length}
-        approvedPayments={approvedPayments.length}
-        approvedRefunds={approvedRefunds.length}
-        registerWithdrawals={approvedRegisterSettlements.length}
-        poHaulage={poTransportAwaiting.length}
+        approvedPayments={approvedPaymentsAll.length}
+        approvedRefunds={approvedRefundsAll.length}
+        registerWithdrawals={approvedRegisterSettlementsAll.length}
+        poHaulage={poTransportAwaitingAll.length}
         staffPayments={staffRecoveriesDue.length + staffObligationsDue.length}
         bookTotalNgn={isCashier ? null : liquidity.bookTotalNgn}
         onOpenStaffPayments={() => setStaffPaymentsExpanded(true)}
@@ -636,7 +701,7 @@ export function FinanceDeskWorkQueues({
                   label="Expense requests"
                   value={
                     trialEx?.approvedUnpaidPaymentRequests ??
-                    approvedPayments.length
+                    approvedPaymentsAll.length
                   }
                 />
 
@@ -644,11 +709,11 @@ export function FinanceDeskWorkQueues({
                   compact
                   label="Refund payouts"
                   value={
-                    (trialEx?.approvedUnpaidRefunds ?? approvedRefunds.length) +
+                    (trialEx?.approvedUnpaidRefunds ?? approvedRefundsAll.length) +
                     partnerWalletsDue.length
                   }
                   tone={
-                    approvedRefunds.length + partnerWalletsDue.length > 0 ? "rose" : "default"
+                    approvedRefundsAll.length + partnerWalletsDue.length > 0 ? "rose" : "default"
                   }
                   icon={<RotateCcw size={14} />}
                 />
@@ -656,14 +721,14 @@ export function FinanceDeskWorkQueues({
                 <FinanceKpiCard
                   compact
                   label="Register withdrawals"
-                  value={approvedRegisterSettlements.length}
+                  value={approvedRegisterSettlementsAll.length}
                   icon={<Wallet size={14} />}
                 />
 
                 <FinanceKpiCard
                   compact
                   label="PO haulage"
-                  value={poTransportAwaiting.length}
+                  value={poTransportAwaitingAll.length}
                   icon={<Truck size={14} />}
                 />
 
@@ -698,32 +763,34 @@ export function FinanceDeskWorkQueues({
             data-testid={allQueuesClear ? "desk-all-clear" : "desk-confirm-pay-split"}
           >
             <section
+              id="desk-queue-receipts"
               className="rounded-xl border border-slate-200/80 bg-white p-3 space-y-3 scroll-mt-20 sm:p-4"
               data-testid="desk-confirm-column"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
                 <h2 className="text-sm font-semibold text-slate-900">
-                  Confirm in
+                  Confirm receipts
                 </h2>
                 <FinanceActionButton variant="link" onClick={() => onGoToTab("receipts")}>
                   View all
                 </FinanceActionButton>
               </div>
-              {pendingReceiptsAll.length > 0 ? (
+              {pendingReceipts.length > 0 ? (
                 <FinanceDeskColoredQueuePanel
-                  sectionId="desk-queue-receipts"
                   theme="amber"
                   title="Confirm payment received"
                   icon={<Banknote size={16} strokeWidth={2} />}
-                  count={pendingReceiptsAll.length}
+                  count={deskQuery ? pendingReceipts.length : pendingReceiptsAll.length}
                   description={
                     [
                       pendingReceiptsWithoutCuttingList > 0
                         ? `${pendingReceiptsWithoutCuttingList} without a cutting list (listed first).`
                         : '',
-                      pendingReceiptsAll.length > pendingReceipts.length
-                        ? `Showing ${pendingReceipts.length} of ${pendingReceiptsAll.length} — open Receipts for the rest.`
-                        : '',
+                      deskQuery
+                        ? `Matching ${pendingReceipts.length} of ${pendingReceiptsAll.length}.`
+                        : pendingReceiptsAll.length > pendingReceipts.length
+                          ? `Showing ${pendingReceipts.length} of ${pendingReceiptsAll.length} — open Receipts for the rest.`
+                          : '',
                     ]
                       .filter(Boolean)
                       .join(' ') || undefined
@@ -812,7 +879,7 @@ export function FinanceDeskWorkQueues({
                                 tone="slate"
                                 onClick={() => onViewReceipt(r)}
                               >
-                                Receipts tab
+                                View
                               </FinanceDeskQueueActionButton>
                             ) : null}
                           </>
@@ -823,7 +890,11 @@ export function FinanceDeskWorkQueues({
                   </ul>
                 </FinanceDeskColoredQueuePanel>
               ) : (
-                <p className="py-8 text-center text-xs text-slate-500">No receipts waiting to confirm.</p>
+                <p className="py-8 text-center text-xs text-slate-500">
+                  {deskQuery && pendingReceiptsAll.length > 0
+                    ? `No receipts match “${deskQuery}”.`
+                    : 'No receipts waiting to confirm.'}
+                </p>
               )}
             </section>
 
@@ -848,7 +919,7 @@ export function FinanceDeskWorkQueues({
                       tone="sky"
                       onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
                     >
-                      Payout
+                      Pay
                     </FinanceDeskQueueActionButton>
                   ) : null}
                   {onViewRefund ? (
@@ -876,7 +947,7 @@ export function FinanceDeskWorkQueues({
                     tone="teal"
                     onClick={() => onPayRequest(String(req.requestID || req.id || ""))}
                   >
-                    Payout
+                    Pay
                   </FinanceDeskQueueActionButton>
                   {onCancelPaymentRequest ? (
                     <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelPaymentRequest(req)}>
@@ -899,14 +970,14 @@ export function FinanceDeskWorkQueues({
                     tone="teal"
                     onClick={() => onPayRegisterSettlement(String(s.settlementId || ""))}
                   >
-                    Payout
+                    Pay
                   </FinanceDeskQueueActionButton>
                 ) : null
               }
               renderPoTransportActions={(row) => (
                 <>
                   <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayPoTransport(row)}>
-                    Payout
+                    Pay
                   </FinanceDeskQueueActionButton>
                   {onViewPoTransport ? (
                     <FinanceDeskQueueActionButton tone="slate" onClick={() => onViewPoTransport(row)}>

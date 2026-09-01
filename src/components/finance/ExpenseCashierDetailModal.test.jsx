@@ -74,6 +74,6 @@ describe('ExpenseCashierDetailModal', () => {
     vi.mocked(apiFetch).mockResolvedValue({ ok: true, data: { ok: true, request } });
     const onPay = vi.fn();
     render(<ExpenseCashierDetailModal request={request} isOpen onClose={() => {}} onPay={onPay} />);
-    expect(screen.getByRole('button', { name: /payout/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^pay /i })).toBeInTheDocument();
   });
 });

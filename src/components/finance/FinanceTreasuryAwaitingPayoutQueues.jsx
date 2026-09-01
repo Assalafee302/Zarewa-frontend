@@ -174,11 +174,11 @@ export function FinanceTreasuryAwaitingPayoutQueues({
       </div>
 
       {total === 0 && !hasChildren ? (
-        <p className="py-6 text-center text-xs text-slate-500">No expenses waiting to pay.</p>
+        <p className="py-6 text-center text-xs text-slate-500">Nothing waiting to pay.</p>
       ) : null}
       {total === 0 && hasChildren ? (
         <p className="text-ui-xs text-slate-500 px-0.5">
-          Classic refund/expense rows are clear — check staff/partner refund payouts below when present.
+          Refunds and expenses are clear. Partner wallets and other payouts still appear below when due.
         </p>
       ) : null}
 
@@ -307,15 +307,15 @@ export function FinanceTreasuryAwaitingPayoutQueues({
             <ul className="space-y-1.5">
               {poTransport.map((row) => (
                 <FinanceDeskColoredQueueRow
-                  key={row.poID}
+                  key={row.poID || row.poId}
                   theme="sky"
-                  testId={`finance-po-transport-awaiting-row-${row.poID}`}
+                  testId={`finance-po-transport-awaiting-row-${row.poID || row.poId}`}
                   title={
                     <>
-                      <span className="font-mono">{row.poID}</span>
+                      <span className="font-mono">{row.poID || row.poId}</span>
                       <span className="font-medium text-slate-600">
                         {' '}
-                        · {row.transportAgentName || 'Transporter'}
+                        · {row.transportAgentName || row.transporterName || 'Transporter'}
                       </span>
                     </>
                   }

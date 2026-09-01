@@ -172,7 +172,7 @@ export function FinanceDeskQueueActionButton({ children, onClick, to, tone = 'sk
     slate: 'text-slate-700 bg-slate-100 hover:bg-slate-200',
     primary: 'text-white bg-zarewa-teal hover:bg-[#0f3d3a]',
   };
-  const cls = `inline-flex items-center text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md disabled:opacity-60 disabled:cursor-not-allowed ${toneCls[tone] || toneCls.sky}`;
+  const cls = `inline-flex min-h-9 items-center text-ui-xs font-semibold uppercase tracking-wide px-2.5 py-1.5 rounded-md disabled:opacity-60 disabled:cursor-not-allowed ${toneCls[tone] || toneCls.sky}`;
   if (to) {
     return (
       <Link to={to} className={cls} title={title}>

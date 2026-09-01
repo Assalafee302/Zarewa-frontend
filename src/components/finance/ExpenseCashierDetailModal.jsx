@@ -324,7 +324,7 @@ export function ExpenseCashierDetailModal({ request, isOpen, onClose, onPay }) {
           onCancel={onClose}
           cancelLabel="Close"
           onConfirm={canPayout ? () => onPay(display) : undefined}
-          confirmLabel={canPayout ? `Payout ${formatNgn(story.dueNgn)}` : 'Save'}
+          confirmLabel={canPayout ? `Pay ${formatNgn(story.dueNgn)}` : 'Save'}
         >
           {display?.requestID ? (
             <Button

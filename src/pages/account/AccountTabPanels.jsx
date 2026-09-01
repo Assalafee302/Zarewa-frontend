@@ -90,6 +90,7 @@ export function AccountTabPanels() {
     refundById,
     removeTreasuryAccount,
     runAdminReapplyFinanceReconciledReceipts,
+    searchQuery,
     setConfirmedReceiptsPage,
     setEditingTransferBatchId,
     setReceiptsNoCuttingListOnly,
@@ -178,6 +179,7 @@ export function AccountTabPanels() {
                   onGoToTab={handleAccountTabChange}
                   onAccountClick={canManageTreasury ? undefined : setStatementAccount}
                   hideAccountGrid={canManageTreasury}
+                  searchQuery={searchQuery}
                 />
               </>
             )}

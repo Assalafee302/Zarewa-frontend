@@ -1074,7 +1074,6 @@ const Account = () => {
   const confirmRefundPaid = async (e) => {
     e.preventDefault();
     if (!refundPayTarget?.refundID || treasuryPayoutSubmitting) return;
-    const paidBy = refundPaidBy.trim() || activeActorLabel;
     const rid = refundPayTarget.refundID;
     const story = refundCashierMoneyStory(refundPayTarget);
     const outstanding = overrideUnclearedPayoutHold
@@ -1126,7 +1125,8 @@ const Account = () => {
         const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/pay`, {
           method: 'POST',
           body: JSON.stringify({
-            paidBy,
+            paidBy: activeActorLabel,
+            paymentNote: refundPaymentNote.trim(),
             note: refundPaymentNote.trim(),
             paymentLines: validLines,
           }),
@@ -1136,6 +1136,20 @@ const Account = () => {
           return;
         }
         await ws.refresh();
+        const fullyPaid =
+          data.fullyPaid === true || (data.fullyPaid !== false && refundPayTotalNgn >= outstanding);
+        setShowRefundPayModal(false);
+        setRefundPayTarget(null);
+        setRefundPayPayeeKey(null);
+        setRefundPaidBy('');
+        setRefundPayLines([]);
+        setRefundPaymentNote('');
+        showToast(
+          fullyPaid
+            ? `Refund ${rid} fully paid.`
+            : `Refund ${rid} part-paid. Treasury updated.`
+        );
+        return;
       } finally {
         setTreasuryPayoutSubmitting(false);
       }
@@ -1148,17 +1162,6 @@ const Account = () => {
       );
       return;
     }
-    setShowRefundPayModal(false);
-    setRefundPayTarget(null);
-    setRefundPayPayeeKey(null);
-    setRefundPaidBy('');
-    setRefundPayLines([]);
-    setRefundPaymentNote('');
-    showToast(
-      refundPayTotalNgn >= outstanding
-        ? `Refund ${rid} fully paid and treasury updated.`
-        : `Refund ${rid} part-paid and treasury updated.`
-    );
   };
 
   const requestPayTotalNgn = useMemo(
@@ -1652,7 +1655,7 @@ const Account = () => {
 
   const handleDeskViewPoTransport = useCallback(
     (row) => {
-      const poId = String(row?.poID || '').trim();
+      const poId = String(row?.poID || row?.poId || '').trim();
       handleAccountTabChange('desk');
       if (poId) setSearchQuery(poId);
     },
@@ -3741,6 +3744,7 @@ const Account = () => {
       waitingReceiptsListWindow,
       workspaceBranchId,
       workspaceBranchLabel,
+      searchQuery: debouncedSearchQuery,
       ws,
     }),
     [
@@ -3874,6 +3878,7 @@ const Account = () => {
       workspaceBranchId,
       workspaceBranchLabel,
       ws,
+      debouncedSearchQuery,
     ]
   );
 
@@ -3891,7 +3896,9 @@ const Account = () => {
         search={
           <div className="relative w-full min-w-0">
             <label htmlFor={financeSearchId} className="sr-only">
-              Search this tab
+              {activeTab === 'desk'
+                ? 'Search receipts, refunds, and payees'
+                : 'Search this tab'}
             </label>
             <Search
               className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
@@ -3901,7 +3908,11 @@ const Account = () => {
             <input
               id={financeSearchId}
               type="search"
-              placeholder="Search this tab…"
+              placeholder={
+                activeTab === 'desk'
+                  ? 'Search receipts, refunds, payees…'
+                  : 'Search this tab…'
+              }
               className="z-input-search"
               autoComplete="off"
               value={searchQuery}
@@ -4361,11 +4372,14 @@ const Account = () => {
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-zarewa-teal flex items-center gap-2">
               <RotateCcw size={22} className="text-rose-600" />
-              Refund payout
+              Pay refund
             </h3>
             <button
               type="button"
+              aria-label="Close refund pay dialog"
+              disabled={treasuryPayoutSubmitting}
               onClick={() => {
+                if (treasuryPayoutSubmitting) return;
                 setShowRefundPayModal(false);
                 setRefundPayTarget(null);
                 setRefundPayPayeeKey(null);
@@ -4373,7 +4387,7 @@ const Account = () => {
                 setRefundPayLines([]);
                 setRefundPaymentNote('');
               }}
-              className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
+              className="p-2 text-gray-400 hover:text-red-500 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <X size={22} />
             </button>
@@ -4427,15 +4441,10 @@ const Account = () => {
                 ) : null}
               </div>
               <div>
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Paid by (Finance user)
-                </label>
-                <input
-                  value={refundPaidBy}
-                  onChange={(e) => setRefundPaidBy(e.target.value)}
-                  placeholder="e.g. Hauwa — GTBank transfer"
-                  className="w-full z-finance-field rounded-xl font-bold outline-none"
-                />
+                <p className="text-ui-xs font-bold text-gray-400 uppercase ml-1 mb-1">Paid by</p>
+                <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-800">
+                  {activeActorLabel}
+                </p>
               </div>
               <div className="flex items-center justify-between">
                 <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Treasury account</label>
@@ -4532,7 +4541,7 @@ const Account = () => {
                 disabled={treasuryPayoutSubmitting}
                 className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {treasuryPayoutSubmitting ? 'Posting payout…' : 'Post refund payout'}
+                {treasuryPayoutSubmitting ? 'Paying…' : 'Pay refund'}
               </button>
             </form>
           ) : null}

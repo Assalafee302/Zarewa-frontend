@@ -103,12 +103,12 @@ export function FinanceCashierPayoutsPanel() {
       const due = Math.max(0, Number(row.outstandingNgn) || 0);
       if (due <= 0) continue;
       rows.push({
-        id: String(row.poId || row.id || ''),
+        id: String(row.poID || row.poId || row.id || ''),
         kind: 'PO haulage',
-        party: row.transporterName || row.supplierName || '—',
+        party: row.transportAgentName || row.transporterName || row.supplierName || '—',
         date: String(row.approvedAtISO || row.dateISO || '').slice(0, 10),
         amount: due,
-        pay: () => handleDeskPayPoTransport(String(row.poId || row.id || '')),
+        pay: () => handleDeskPayPoTransport(row),
       });
     }
     return rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
