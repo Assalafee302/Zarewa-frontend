@@ -1,7 +1,7 @@
 /**
  * How to use hanging / pending refund money — display only, never hide the row.
  */
-import { refundCategoriesAreOverpaymentOnly } from '../shared/lib/refundCreditApply.js';
+import { refundCategoriesAreOverpaymentOnly, refundFundRemainingHowToUse } from '../shared/lib/refundCreditApply.js';
 import { hangingRefundOpenAmountNgn, refundLooksPaidWithoutTillPayout } from './refundsStore.js';
 
 function roundNgn(n) {
@@ -22,6 +22,14 @@ export function hangingRefundHowToUse(r) {
     paidAmountNgn: r.paidAmountNgn,
     status: r.status,
   };
+  const usedCopy = refundFundRemainingHowToUse({
+    amountNgn: asRefund.amountNgn,
+    availableNgn: r.availableNgn ?? hangingRefundOpenAmountNgn(asRefund),
+    creditAppliedNgn: r.creditAppliedNgn ?? r.credit_applied_ngn,
+    paidAmountNgn: r.paidAmountNgn ?? r.paid_amount_ngn,
+    creditAppliedToQuotationRef: r.creditAppliedToQuotationRef ?? r.credit_applied_to_quotation_ref,
+  });
+  if (usedCopy) return usedCopy;
   if (refundLooksPaidWithoutTillPayout(asRefund)) {
     return overpay
       ? 'Still open. Tick this refund to cover a new receipt (not extra bank cash), or View it to pay staff/customer from till after holds clear.'

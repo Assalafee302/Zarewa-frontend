@@ -139,6 +139,7 @@ import { RegisterBankDepositPanel } from '../../components/finance/RegisterBankD
 import { BankDepositExceptionPanel } from '../../components/finance/BankDepositExceptionPanel.jsx';
 import { HangingCustomerRefundBanner } from '../../components/finance/HangingCustomerRefundHint.jsx';
 import { RefundFundClearanceBanner } from '../../components/finance/HangingCustomerRefundHint.jsx';
+import { RefundFundBalanceStrip } from '../../components/finance/RefundFundBalanceStrip.jsx';
 import {
   applyRefundFundDeductionToPaymentLines,
   buildRefundFundClearanceSummary,
@@ -4409,10 +4410,12 @@ const Account = () => {
                   </div>
                 ) : null}
                 {Math.round(Number(refundPayTarget.creditAppliedNgn) || 0) > 0 ? (
-                  <p className="text-xs text-amber-950">
-                    {formatNgn(refundPayTarget.creditAppliedNgn)} already applied to another receipt — pay only
-                    the cash lines below.
-                  </p>
+                  <RefundFundBalanceStrip
+                    amountNgn={refundPayTarget.amountNgn}
+                    creditAppliedNgn={refundPayTarget.creditAppliedNgn}
+                    paidAmountNgn={refundPayTarget.paidAmountNgn}
+                    creditAppliedToQuotationRef={refundPayTarget.creditAppliedToQuotationRef}
+                  />
                 ) : null}
                 {refundPaySelectedPayee?.payoutHeldForUnclearedReceipts ||
                 refundCashierMoneyStory(refundPayTarget).unclearedHoldNgn > 0 ? (
@@ -5372,6 +5375,7 @@ const Account = () => {
                                   <span>
                                     <span className="font-bold">
                                       {s.label}: {formatNgn(s.availableNgn)}
+                                      {s.creditAppliedNgn > 0 ? ' left' : ''}
                                     </span>
                                     <span className="block font-medium text-amber-950/90">
                                       {s.overpaymentOnly
@@ -5381,11 +5385,23 @@ const Account = () => {
                                         : 'Approved refund'}
                                       {s.status ? ` · ${s.status}` : ''}
                                     </span>
-                                    <span className="block mt-0.5 text-amber-900/90">
-                                      {s.kind === 'overpay'
-                                        ? ledgerOverpayHowToUse()
-                                        : hangingRefundHowToUse(s)}
-                                    </span>
+                                    {s.creditAppliedNgn > 0 ? (
+                                      <span className="block mt-1.5">
+                                        <RefundFundBalanceStrip
+                                          amountNgn={s.amountNgn}
+                                          availableNgn={s.availableNgn}
+                                          creditAppliedNgn={s.creditAppliedNgn}
+                                          paidAmountNgn={s.paidAmountNgn}
+                                          creditAppliedToQuotationRef={s.creditAppliedToQuotationRef}
+                                        />
+                                      </span>
+                                    ) : (
+                                      <span className="block mt-0.5 text-amber-900/90">
+                                        {s.kind === 'overpay'
+                                          ? ledgerOverpayHowToUse()
+                                          : hangingRefundHowToUse(s)}
+                                      </span>
+                                    )}
                                   </span>
                                 </label>
                               </li>
@@ -5404,7 +5420,19 @@ const Account = () => {
                                     {s.availableNgn > 0 ? ` · ${formatNgn(s.availableNgn)}` : ''}
                                   </p>
                                   <p className="font-medium">{s.reason || 'Not available to tick yet'}</p>
-                                  <p className="font-medium text-rose-900/90">{unavailableRefundHowToUse(s)}</p>
+                                  {s.creditAppliedNgn > 0 ? (
+                                    <div className="mt-1">
+                                      <RefundFundBalanceStrip
+                                        amountNgn={s.amountNgn}
+                                        availableNgn={s.availableNgn}
+                                        creditAppliedNgn={s.creditAppliedNgn}
+                                        paidAmountNgn={s.paidAmountNgn}
+                                        creditAppliedToQuotationRef={s.creditAppliedToQuotationRef}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <p className="font-medium text-rose-900/90">{unavailableRefundHowToUse(s)}</p>
+                                  )}
                                 </li>
                               ))}
                             </ul>

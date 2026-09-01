@@ -23,6 +23,20 @@ describe('refund pending use copy', () => {
     expect(hangingRefundHowToUse(r)).toMatch(/Tick this refund/i);
   });
 
+  it('says how much was already used and what is left', () => {
+    expect(
+      hangingRefundHowToUse({
+        refundID: 'RF-KD-26-9505',
+        status: 'Approved',
+        reasonCategory: '["Overpayment"]',
+        amountNgn: 151_330,
+        availableNgn: 128_300,
+        creditAppliedNgn: 23_030,
+        creditAppliedToQuotationRef: 'QT-KD-26-1282',
+      })
+    ).toMatch(/Already used ₦23,030 on QT-KD-26-1282/);
+  });
+
   it('flags a receipt split that matches hanging refund amount', () => {
     const hanging = [
       normalizeRefund({

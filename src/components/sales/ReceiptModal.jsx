@@ -61,6 +61,7 @@ import {
   restorePaymentLinesAfterRefundFundUnchecked,
   stripFinishedOverpayFromConfirmEligible,
 } from '../../lib/refundFundApply.js';
+import { RefundFundBalanceStrip } from '../finance/RefundFundBalanceStrip.jsx';
 
 function newLineId() {
   return `pl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -1370,14 +1371,26 @@ const ReceiptModal = ({
                     </label>
                     <ul className="pl-0 list-none text-slate-700 space-y-2">
                       {(refundCreditInfo.sources || []).map((s) => (
-                        <li key={s.id}>
-                          {s.label}: {formatNgn(s.availableNgn)}
-                          {s.overpaymentOnly
-                            ? s.kind === 'overpay'
-                              ? ' · overpayment (no refund needed)'
-                              : ' · overpayment (no approval)'
-                            : ' · approved refund'}
-                          {s.sameQuotation ? ' · this quotation' : ''}
+                        <li key={s.id} className="space-y-1">
+                          <p>
+                            {s.label}: {formatNgn(s.availableNgn)}
+                            {s.creditAppliedNgn > 0 ? ' left' : ''}
+                            {s.overpaymentOnly
+                              ? s.kind === 'overpay'
+                                ? ' · overpayment (no refund needed)'
+                                : ' · overpayment (no approval)'
+                              : ' · approved refund'}
+                            {s.sameQuotation ? ' · this quotation' : ''}
+                          </p>
+                          {s.creditAppliedNgn > 0 ? (
+                            <RefundFundBalanceStrip
+                              amountNgn={s.amountNgn}
+                              availableNgn={s.availableNgn}
+                              creditAppliedNgn={s.creditAppliedNgn}
+                              paidAmountNgn={s.paidAmountNgn}
+                              creditAppliedToQuotationRef={s.creditAppliedToQuotationRef}
+                            />
+                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -1413,8 +1426,20 @@ const ReceiptModal = ({
                     ) : null}
                     <ul className="pl-0 list-none space-y-1.5">
                       {(refundCreditInfo.sources || []).map((s) => (
-                        <li key={s.id}>
-                          {s.label}: {formatNgn(s.availableNgn)}
+                        <li key={s.id} className="space-y-1">
+                          <p>
+                            {s.label}: {formatNgn(s.availableNgn)}
+                            {s.creditAppliedNgn > 0 ? ' left' : ''}
+                          </p>
+                          {s.creditAppliedNgn > 0 ? (
+                            <RefundFundBalanceStrip
+                              amountNgn={s.amountNgn}
+                              availableNgn={s.availableNgn}
+                              creditAppliedNgn={s.creditAppliedNgn}
+                              paidAmountNgn={s.paidAmountNgn}
+                              creditAppliedToQuotationRef={s.creditAppliedToQuotationRef}
+                            />
+                          ) : null}
                         </li>
                       ))}
                       {(refundCreditInfo.unavailableSources || []).map((s) => (

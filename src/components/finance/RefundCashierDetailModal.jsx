@@ -15,6 +15,7 @@ import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpa
 import { refundCreditApplicationIsActive } from '../../lib/refundFundApply.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
 import { RefundApplyToQuotationPanel } from './RefundApplyToQuotationPanel.jsx';
+import { RefundFundBalanceStrip } from './RefundFundBalanceStrip.jsx';
 
 function MoneyRow({ label, value, tone }) {
   const cls =
@@ -170,28 +171,26 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
         </div>
         <ModalScrollBody className="px-5 pb-4 space-y-4">
           {story.appliedNgn > 0 ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-950 leading-relaxed">
-              ₦{story.appliedNgn.toLocaleString('en-NG')} of this refund was applied to{' '}
-              {story.appliedToQuote ? (
-                <span className="font-mono font-bold">{story.appliedToQuote}</span>
-              ) : (
-                'a customer receipt'
-              )}
-              . That is not a till payout
-              {blockCashPayout ? '.' : `. Cash still to pay is ${formatNgn(story.cashDueNgn)}.`}
-              {creditApplies.length > 0 && onReverseApply ? (
-                <span className="block mt-2">
-                  {creditApplies.map((a) => (
-                    <FinanceDeskQueueActionButton
-                      key={a.applicationId || a.application_id}
-                      tone="rose"
-                      onClick={() => onReverseApply(a.applicationId || a.application_id)}
-                    >
-                      Reverse apply
-                    </FinanceDeskQueueActionButton>
-                  ))}
-                </span>
-              ) : null}
+            <RefundFundBalanceStrip
+              amountNgn={story.requestedNgn}
+              creditAppliedNgn={story.appliedNgn}
+              paidAmountNgn={story.paidNgn}
+              creditAppliedToQuotationRef={story.appliedToQuote}
+            />
+          ) : null}
+          {story.appliedNgn > 0 && creditApplies.length > 0 && onReverseApply ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+              <span className="block">
+                {creditApplies.map((a) => (
+                  <FinanceDeskQueueActionButton
+                    key={a.applicationId || a.application_id}
+                    tone="rose"
+                    onClick={() => onReverseApply(a.applicationId || a.application_id)}
+                  >
+                    Reverse apply
+                  </FinanceDeskQueueActionButton>
+                ))}
+              </span>
             </div>
           ) : null}
 

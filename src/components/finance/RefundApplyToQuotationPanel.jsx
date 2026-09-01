@@ -17,6 +17,7 @@ import {
   refundTransferableOpenNgn,
 } from '../../lib/refundApplyToQuotation.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
+import { RefundFundBalanceStrip } from './RefundFundBalanceStrip.jsx';
 
 export function RefundApplyToQuotationPanel({ refund, onApplied, className = '' }) {
   const ws = useWorkspace();
@@ -145,8 +146,17 @@ export function RefundApplyToQuotationPanel({ refund, onApplied, className = '' 
         <Link2 size={16} className="shrink-0 mt-0.5 text-amber-800" aria-hidden />
         <div className="min-w-0 space-y-1">
           <p className="font-bold text-amber-900">{REFUND_FUND_USE_LABEL} on another quotation</p>
+          <RefundFundBalanceStrip
+            amountNgn={refund?.amountNgn ?? refund?.amount_ngn}
+            availableNgn={openNgn}
+            creditAppliedNgn={refund?.creditAppliedNgn ?? refund?.credit_applied_ngn}
+            paidAmountNgn={refund?.paidAmountNgn ?? refund?.paid_amount_ngn}
+            creditAppliedToQuotationRef={
+              refund?.creditAppliedToQuotationRef ?? refund?.credit_applied_to_quotation_ref
+            }
+          />
           <p className="text-amber-950/90 leading-relaxed">
-            Apply up to {formatNgn(openNgn)} from refund {refundId}
+            Apply up to {formatNgn(openNgn)} left on refund {refundId}
             {sourceQuotationRef ? ` (from ${sourceQuotationRef})` : ''} toward this customer&apos;s unpaid job. That
             slice counts as paid on the target quote — it is not bank clearance and is not refundable again.
           </p>
