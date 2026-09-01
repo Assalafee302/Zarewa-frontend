@@ -17,6 +17,7 @@ import { ModalFrame } from '../layout/ModalFrame';
 import { RefundPayoutRecipientPicker } from './RefundPayoutRecipientPicker';
 import { RefundPayoutBankForm } from './RefundPayoutBankForm';
 import { RefundApplyToQuotationPanel } from '../finance/RefundApplyToQuotationPanel.jsx';
+import { RefundFundBalanceStrip } from '../finance/RefundFundBalanceStrip.jsx';
 import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -2131,6 +2132,14 @@ const RefundModal = ({
     return { booked, overpay, cashIn, quoteTotal };
   }, [form.quotationRef, quotationPickMerged, quotations, moneyContext, intelligence.summary]);
 
+  const leftoverOverpayUsedNgn = Math.max(0, Math.round(Number(moneyContext?.creditAppliedOutNgn) || 0));
+  const leftoverOverpayStillPayableNgn =
+    moneyContext?.overpaymentResidualNgn != null
+      ? Math.max(0, Math.round(Number(moneyContext.overpaymentResidualNgn) || 0))
+      : Math.max(0, roundMoneyLocal(refundMoneyBreakdown.overpay) - leftoverOverpayUsedNgn);
+  const showLeftoverOverpayStrip =
+    leftoverOverpayUsedNgn > 0 && roundMoneyLocal(refundMoneyBreakdown.overpay) > 0;
+
   /** Cancelled-job cash path: overpay context only — not a second refund line. */
   const overpayIncludedInOrderCancellation = useMemo(() => {
     if (refundMoneyBreakdown.overpay <= 0) return false;
@@ -3953,12 +3962,14 @@ const RefundModal = ({
                         ? 'Cash received above quote total only'
                         : lastPreviewSnapshot?.hasCancelledProductionJob
                           ? 'Cancelled job — use Full refund (Order cancellation includes any overpayment)'
-                          : moneyContext?.overpaymentResidualNgn === 0 &&
-                              Number(moneyContext?.overpaymentExcessNgn) > 0
-                            ? 'Overpayment already refunded on this quotation'
-                            : form.quotationRef
-                              ? 'No refundable overpayment on this quotation'
-                              : 'Select a quotation with overpayment first'
+                          : leftoverOverpayUsedNgn > 0 && leftoverOverpayStillPayableNgn <= 0
+                            ? 'Overpayment already used on another quotation'
+                            : moneyContext?.overpaymentResidualNgn === 0 &&
+                                Number(moneyContext?.overpaymentExcessNgn) > 0
+                              ? 'Overpayment already refunded on this quotation'
+                              : form.quotationRef
+                                ? 'No refundable overpayment on this quotation'
+                                : 'Select a quotation with overpayment first'
                     }
                     className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
                       createPath === 'quick'
@@ -3991,11 +4002,22 @@ const RefundModal = ({
                 <p className="text-xs font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2" role="status">
                   {lastPreviewSnapshot?.hasCancelledProductionJob
                     ? 'Cancelled production job — use Full refund. Order cancellation covers the full refundable cash, including any amount above the quote.'
-                    : moneyContext?.overpaymentResidualNgn === 0 &&
-                        Number(moneyContext?.overpaymentExcessNgn) > 0
-                      ? 'Overpayment on this quotation is already fully refunded. Quick overpay is not available.'
-                      : 'No refundable overpayment — switch to Full refund.'}
+                    : leftoverOverpayUsedNgn > 0 && leftoverOverpayStillPayableNgn <= 0
+                      ? 'Overpayment on this quotation was already used on another job. Quick overpay is not available.'
+                      : moneyContext?.overpaymentResidualNgn === 0 &&
+                          Number(moneyContext?.overpaymentExcessNgn) > 0
+                        ? 'Overpayment on this quotation is already fully refunded. Quick overpay is not available.'
+                        : 'No refundable overpayment — switch to Full refund.'}
                 </p>
+              ) : null}
+              {showLeftoverOverpayStrip ? (
+                <RefundFundBalanceStrip
+                  amountNgn={refundMoneyBreakdown.overpay}
+                  creditAppliedNgn={leftoverOverpayUsedNgn}
+                  availableNgn={leftoverOverpayStillPayableNgn}
+                  usedOn="quotation"
+                  leftoverHint="payout"
+                />
               ) : null}
               {mode === 'create' &&
               form.quotationRef &&
@@ -4006,9 +4028,9 @@ const RefundModal = ({
                   className="text-xs font-medium text-amber-900 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2"
                   role="status"
                 >
-                  Prior refunds already covered the ₦
-                  {Number(moneyContext.overpaymentExcessNgn).toLocaleString('en-NG')} overpayment. Do not
-                  create another overpay refund for this quotation.
+                  {leftoverOverpayUsedNgn > 0
+                    ? `₦${leftoverOverpayUsedNgn.toLocaleString('en-NG')} of the ₦${Number(moneyContext.overpaymentExcessNgn).toLocaleString('en-NG')} overpayment was already used on another quotation. Do not create another overpay refund for this quotation.`
+                    : `Prior refunds already covered the ₦${Number(moneyContext.overpaymentExcessNgn).toLocaleString('en-NG')} overpayment. Do not create another overpay refund for this quotation.`}
                 </p>
               ) : null}
               {createPath === 'quick' && otherCalculatedReasonsAvailable ? (
@@ -4689,6 +4711,12 @@ const RefundModal = ({
                           >
                             ₦{lineSum.toLocaleString('en-NG')}
                           </p>
+                          {showLeftoverOverpayStrip ? (
+                            <p className="text-[10px] font-semibold text-amber-800 mt-0.5 leading-snug max-w-sm">
+                              ₦{leftoverOverpayUsedNgn.toLocaleString('en-NG')} already used on another
+                              quotation — this is all that can still be paid out.
+                            </p>
+                          ) : null}
                           {exceedsRefundableHeadroom ? (
                             <p className="text-[10px] font-semibold text-rose-700 mt-0.5 leading-snug max-w-sm">
                               {categoryCapViolation
@@ -4972,35 +5000,40 @@ const RefundModal = ({
                       ) : null}
                       {refundMoneyBreakdown.overpay > 0 ? (
                         <div className="pt-2 border-t border-slate-700/80">
-                          <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <p className="text-ui-xs font-bold text-slate-500 uppercase">
-                              {moneyContext?.overpaymentResidualNgn === 0
-                                ? 'Original overpayment'
-                                : 'Overpayment'}
-                            </p>
-                            <p className="text-sm font-black text-amber-300 tabular-nums">
-                              ₦{refundMoneyBreakdown.overpay.toLocaleString()}
-                            </p>
-                          </div>
-                          {moneyContext?.creditAppliedOutNgn > 0 ? (
-                            <p className="mt-1 text-[10px] leading-snug text-amber-200/90">
-                              ₦{Number(moneyContext.creditAppliedOutNgn).toLocaleString('en-NG')} already
-                              used on another quotation — not refundable again.
-                            </p>
-                          ) : null}
-                          {moneyContext?.overpaymentResidualNgn === 0 ? (
-                            <p className="mt-1 text-[10px] leading-snug text-emerald-300/90">
-                              {moneyContext?.creditAppliedOutNgn > 0
-                                ? 'Already used on other quotations — residual ₦0.'
-                                : 'Already settled by prior refunds — residual ₦0.'}
-                            </p>
-                          ) : moneyContext?.overpaymentResidualNgn != null &&
-                            moneyContext.overpaymentResidualNgn < refundMoneyBreakdown.overpay ? (
-                            <p className="mt-1 text-[10px] leading-snug text-slate-400">
-                              Still refundable as overpay: ₦
-                              {Number(moneyContext.overpaymentResidualNgn).toLocaleString('en-NG')}
-                            </p>
-                          ) : null}
+                          {showLeftoverOverpayStrip ? (
+                            <RefundFundBalanceStrip
+                              amountNgn={refundMoneyBreakdown.overpay}
+                              creditAppliedNgn={leftoverOverpayUsedNgn}
+                              availableNgn={leftoverOverpayStillPayableNgn}
+                              usedOn="quotation"
+                              leftoverHint="payout"
+                              tone="dark"
+                            />
+                          ) : (
+                            <>
+                              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                <p className="text-ui-xs font-bold text-slate-500 uppercase">
+                                  {moneyContext?.overpaymentResidualNgn === 0
+                                    ? 'Original overpayment'
+                                    : 'Overpayment'}
+                                </p>
+                                <p className="text-sm font-black text-amber-300 tabular-nums">
+                                  ₦{refundMoneyBreakdown.overpay.toLocaleString()}
+                                </p>
+                              </div>
+                              {moneyContext?.overpaymentResidualNgn === 0 ? (
+                                <p className="mt-1 text-[10px] leading-snug text-emerald-300/90">
+                                  Already settled by prior refunds — residual ₦0.
+                                </p>
+                              ) : moneyContext?.overpaymentResidualNgn != null &&
+                                moneyContext.overpaymentResidualNgn < refundMoneyBreakdown.overpay ? (
+                                <p className="mt-1 text-[10px] leading-snug text-slate-400">
+                                  Still refundable as overpay: ₦
+                                  {Number(moneyContext.overpaymentResidualNgn).toLocaleString('en-NG')}
+                                </p>
+                              ) : null}
+                            </>
+                          )}
                           {overpayIncludedInOrderCancellation ? (
                             <p className="mt-1 text-[10px] leading-snug text-slate-400">
                               Cash above quote — included in the Order cancellation refund line, not added
@@ -5012,11 +5045,16 @@ const RefundModal = ({
                       {previewRemainingNgn != null && mode === 'create' ? (
                         <div className="pt-2 border-t border-slate-700/80">
                           <p className="text-ui-xs font-bold text-slate-500 uppercase mb-0.5">
-                            Remaining refundable
+                            {showLeftoverOverpayStrip ? 'Can still pay out' : 'Remaining refundable'}
                           </p>
                           <p className="text-sm font-black text-amber-200 tabular-nums">
                             ₦{previewRemainingNgn.toLocaleString('en-NG')}
                           </p>
+                          {showLeftoverOverpayStrip ? (
+                            <p className="mt-1 text-[10px] leading-snug text-slate-400">
+                              After leftover already used on another quotation.
+                            </p>
+                          ) : null}
                         </div>
                       ) : null}
                       {form.quotationRef && (quotationRefundsPaidAlreadyNgn > 0 || priorRefundsOnQuote.length > 0) ? (
@@ -5763,9 +5801,10 @@ const RefundModal = ({
                                   if (isQuoteCustomerRow) {
                                     return (
                                       <p className="text-[10px] leading-snug text-emerald-200/90">
-                                        Customer overpayment — full ₦
-                                        {(Number(ded.grossNgn) || 0).toLocaleString('en-NG')} to quote customer (no
-                                        company cut).
+                                        Customer overpayment —{' '}
+                                        {showLeftoverOverpayStrip
+                                          ? `₦${(Number(ded.grossNgn) || 0).toLocaleString('en-NG')} is all that can still be paid out to quote customer (no company cut). ₦${leftoverOverpayUsedNgn.toLocaleString('en-NG')} already used on another quotation.`
+                                          : `full ₦${(Number(ded.grossNgn) || 0).toLocaleString('en-NG')} to quote customer (no company cut).`}
                                       </p>
                                     );
                                   }
