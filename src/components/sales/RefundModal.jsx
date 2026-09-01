@@ -2597,6 +2597,7 @@ const RefundModal = ({
           preview.overpaymentResidualNgn != null
             ? Math.max(0, Math.round(Number(preview.overpaymentResidualNgn) || 0))
             : null,
+        creditAppliedOutNgn: Math.max(0, Math.round(Number(preview.creditAppliedOutNgn) || 0)),
         hasCancelledProductionJob: Boolean(preview.hasCancelledProductionJob),
         openProductionJob: preview.openProductionJob || null,
       });
@@ -2611,6 +2612,7 @@ const RefundModal = ({
           preview.overpaymentResidualNgn != null
             ? Math.max(0, Math.round(Number(preview.overpaymentResidualNgn) || 0))
             : null,
+        creditAppliedOutNgn: Math.max(0, Math.round(Number(preview.creditAppliedOutNgn) || 0)),
         refundHardCapNgn:
           preview.refundHardCapNgn != null
             ? Math.round(Number(preview.refundHardCapNgn))
@@ -4980,9 +4982,17 @@ const RefundModal = ({
                               ₦{refundMoneyBreakdown.overpay.toLocaleString()}
                             </p>
                           </div>
+                          {moneyContext?.creditAppliedOutNgn > 0 ? (
+                            <p className="mt-1 text-[10px] leading-snug text-amber-200/90">
+                              ₦{Number(moneyContext.creditAppliedOutNgn).toLocaleString('en-NG')} already
+                              used on another quotation — not refundable again.
+                            </p>
+                          ) : null}
                           {moneyContext?.overpaymentResidualNgn === 0 ? (
                             <p className="mt-1 text-[10px] leading-snug text-emerald-300/90">
-                              Already settled by prior refunds — residual ₦0.
+                              {moneyContext?.creditAppliedOutNgn > 0
+                                ? 'Already used on other quotations — residual ₦0.'
+                                : 'Already settled by prior refunds — residual ₦0.'}
                             </p>
                           ) : moneyContext?.overpaymentResidualNgn != null &&
                             moneyContext.overpaymentResidualNgn < refundMoneyBreakdown.overpay ? (
