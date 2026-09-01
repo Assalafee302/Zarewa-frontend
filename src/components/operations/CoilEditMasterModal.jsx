@@ -33,6 +33,7 @@ function buildFormFromCoil(coil) {
     materialTypeName: String(coil?.materialTypeName ?? coil?.materialType ?? '').trim(),
     currentKg: cur > 0 ? String(cur) : '',
     receivedKg: recv > 0 ? String(recv) : '',
+    receivedAtISO: String(coil?.receivedAtISO ?? '').trim().slice(0, 10),
     stockForm: String(coil?.stockForm || 'coil').toLowerCase() === 'roll' ? 'roll' : 'coil',
     linkOnHandToReceived: aligned,
   };
@@ -139,6 +140,11 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
       );
       return;
     }
+    const receivedAtISO = form.receivedAtISO.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(receivedAtISO)) {
+      showToast('Enter a valid date of receival.', { variant: 'error' });
+      return;
+    }
 
     setBusy(true);
     try {
@@ -149,6 +155,7 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
         stockForm: form.stockForm,
         receivedKg: recvNum,
         currentWeightKg: curNum,
+        receivedAtISO,
         recalculate: true,
       };
       const { ok, data } = await apiFetch(`/api/coil-lots/${encodeURIComponent(coil.coilNo)}/master-data`, {
@@ -339,6 +346,17 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
                     <p className="mt-1 text-ui-xs text-slate-500">Physical kg on the roll today — drives free kg.</p>
                   </label>
                 </div>
+                <label className="block">
+                  <span className="text-ui-xs font-bold text-slate-500 uppercase">Date of receival</span>
+                  <input
+                    className="z-input w-full mt-0.5 font-semibold tabular-nums"
+                    type="date"
+                    value={form.receivedAtISO}
+                    onChange={(e) => setForm((f) => ({ ...f, receivedAtISO: e.target.value }))}
+                    required
+                  />
+                  <p className="mt-1 text-ui-xs text-slate-500">Corrects a mis-entered receival date on the register.</p>
+                </label>
               </fieldset>
 
               <p className="text-xs text-slate-600 leading-relaxed rounded-lg border border-slate-200 bg-white px-3 py-2">
