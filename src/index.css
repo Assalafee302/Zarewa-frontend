@@ -541,6 +541,23 @@ summary {
     max-width: none;
     line-height: 1.25;
   }
+
+  .report-print-table td.report-print-num,
+  .report-print-table td.report-print-totals-num,
+  .report-print-table td.report-print-totals-label,
+  .statement-dense-table td.report-print-num,
+  .statement-dense-table td.report-print-totals-num,
+  .statement-dense-table td.report-print-totals-label {
+    max-width: none;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+
+  .report-print-table td.report-print-grand-total,
+  .statement-dense-table td.report-print-grand-total {
+    background-color: #e2e8f0;
+  }
 }
 
 /* Unified data lists — same rhythm as Sales / Operations tables */
@@ -3033,6 +3050,26 @@ summary {
     text-overflow: clip !important;
     max-width: none;
     line-height: 1.25 !important;
+  }
+
+  .report-print-table td.report-print-num,
+  .report-print-table td.report-print-totals-num,
+  .report-print-table td.report-print-totals-label,
+  .statement-dense-table td.report-print-num,
+  .statement-dense-table td.report-print-totals-num,
+  .statement-dense-table td.report-print-totals-label,
+  .statement-style-report td.report-print-num,
+  .statement-style-report td.report-print-totals-num,
+  .statement-style-report td.report-print-totals-label {
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+
+  .report-print-table td.report-print-grand-total,
+  .statement-dense-table td.report-print-grand-total {
+    background-color: #e2e8f0 !important;
   }
 
   /* Receipts: thermal (~80mm), advance A6 portrait, or full A5 landscape */

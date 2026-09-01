@@ -144,5 +144,15 @@ describe('useReportsExport', () => {
     expect(result.current.printOpen).toBe(true);
     expect(result.current.printPayload?.title).toBe(PACK_SALES_CUSTOMER);
     expect(result.current.printPayload?.rows?.length).toBeGreaterThan(0);
+    expect(result.current.printPayload?.grouping?.sumColumns).toEqual([
+      { key: '_amountPaidNgn', columnKey: 'amountPaidNgn' },
+      { key: '_outstandingBalanceNgn', columnKey: 'outstandingBalanceNgn' },
+    ]);
+    const paidCol = result.current.printPayload.columns.find((c) => c.key === 'amountPaidNgn');
+    const balCol = result.current.printPayload.columns.find((c) => c.key === 'outstandingBalanceNgn');
+    expect(paidCol?.align).toBe('right');
+    expect(balCol?.label).toBe('Balance');
+    expect(result.current.printPayload.rows.every((r) => typeof r._amountPaidNgn === 'number')).toBe(true);
+    expect(result.current.printPayload.rows.some((r) => r._amountPaidNgn === 50_000)).toBe(true);
   });
 });

@@ -28,7 +28,7 @@ export function StatementStyleReportShell({
               <p
                 key={idx}
                 title={line}
-                className="m-0 mb-0.5 max-w-full truncate text-[11px] text-slate-700"
+                className="m-0 mb-0.5 max-w-full text-[11px] leading-snug text-slate-700"
                 style={{ color: '#334155' }}
               >
                 {line}
@@ -43,7 +43,7 @@ export function StatementStyleReportShell({
             <p
               key={idx}
               title={full}
-              className="m-0 mb-0.5 max-w-full truncate text-[11px]"
+              className="m-0 mb-0.5 max-w-full text-[11px] leading-snug"
               style={{ color: '#334155' }}
             >
               {label ? (

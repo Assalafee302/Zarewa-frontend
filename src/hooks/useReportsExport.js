@@ -345,7 +345,6 @@ export function useReportsExport({
         const s = salesPaymentsReceivedSummary(raw);
         const rows = raw.map((r) => {
           const isDebt = r.group === 'Outstanding balance (debtors)';
-          const reportAmt = isDebt ? Number(r.outstandingBalanceNgn) || 0 : Number(r.amountPaidNgn) || 0;
           const receiptNo =
             displayDocNumber(r.receiptId) || displayDocNumber(r.ledgerEntryId) || '—';
           return {
@@ -360,26 +359,31 @@ export function useReportsExport({
             amountPaidNgn: isDebt ? '—' : formatNgn(r.amountPaidNgn),
             outstandingBalanceNgn: formatNgn(r.outstandingBalanceNgn || 0),
             bankReference: r.bankReference || r.paymentMethod || '—',
-            _amountPaidNgn: reportAmt,
+            _amountPaidNgn: isDebt ? 0 : Number(r.amountPaidNgn) || 0,
+            _outstandingBalanceNgn: isDebt ? Number(r.outstandingBalanceNgn) || 0 : 0,
           };
         });
         return {
           title: PACK_SALES_CUSTOMER,
           columns: [
-            { key: 'paymentDateISO', label: 'Date', width: '5.5%' },
-            { key: 'firstProductionDateISO', label: 'Prod', width: '5.5%' },
-            { key: 'customerName', label: 'Customer', width: '14%' },
-            { key: 'quotationRef', label: 'Quote', width: '8%' },
-            { key: 'receiptNo', label: 'Receipt', width: '8%' },
-            { key: 'amountPaidNgn', label: 'Paid', width: '9%', align: 'right' },
-            { key: 'outstandingBalanceNgn', label: 'Bal.', width: '9%', align: 'right' },
-            { key: 'bankReference', label: 'Remarks', width: '41%', wrap: true },
+            { key: 'paymentDateISO', label: 'Date', width: '6%' },
+            { key: 'firstProductionDateISO', label: 'Prod', width: '6%' },
+            { key: 'customerName', label: 'Customer', width: '16%' },
+            { key: 'quotationRef', label: 'Quote', width: '9%' },
+            { key: 'receiptNo', label: 'Receipt', width: '9%' },
+            { key: 'amountPaidNgn', label: 'Paid', width: '12%', align: 'right', minWidth: '6.5rem' },
+            { key: 'outstandingBalanceNgn', label: 'Balance', width: '12%', align: 'right', minWidth: '6.5rem' },
+            { key: 'bankReference', label: 'Remarks', width: '30%', wrap: true },
           ],
           rows,
           grouping: {
             groupBy: 'group',
             subtotalKey: '_amountPaidNgn',
             subtotalColumnKey: 'amountPaidNgn',
+            sumColumns: [
+              { key: '_amountPaidNgn', columnKey: 'amountPaidNgn' },
+              { key: '_outstandingBalanceNgn', columnKey: 'outstandingBalanceNgn' },
+            ],
             groupLabel: 'Category',
             subtotalLabel: 'Subtotal',
             totalLabel: 'Total',

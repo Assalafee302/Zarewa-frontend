@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Printer, X } from 'lucide-react';
+import { formatNgn } from '../../lib/formatNgn';
 import { PrintModalPortal } from '../layout/PrintModalPortal';
 import {
   StatementStyleReportShell,
@@ -10,6 +11,25 @@ import {
   STATEMENT_TF,
   STATEMENT_TF_NUM,
 } from './StatementStyleReportShell';
+
+function resolveSumColumns(grouping) {
+  if (Array.isArray(grouping?.sumColumns) && grouping.sumColumns.length) {
+    return grouping.sumColumns.filter((d) => d?.key && d?.columnKey);
+  }
+  if (grouping?.subtotalKey) {
+    return [
+      {
+        key: grouping.subtotalKey,
+        columnKey: grouping.subtotalColumnKey || grouping.subtotalKey,
+      },
+    ];
+  }
+  return [];
+}
+
+function emptySums(sumDefs) {
+  return Object.fromEntries(sumDefs.map((d) => [d.columnKey, 0]));
+}
 
 /**
  * Statement-style management report sheet — same visual language as
@@ -44,15 +64,13 @@ export function ManagementReportSheet({
     const n = Number(cleaned);
     return Number.isFinite(n) ? n : 0;
   };
-  const formatSubtotal = (n) =>
-    n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const shouldGroup = Boolean(grouping?.groupBy && grouping?.subtotalKey);
-  const subtotalColumnIndex = shouldGroup
-    ? Math.max(
-        0,
-        columns.findIndex((c) => c.key === (grouping.subtotalColumnKey || grouping.subtotalKey))
-      )
-    : 0;
+  const sumDefs = resolveSumColumns(grouping);
+  const shouldGroup = Boolean(grouping?.groupBy && sumDefs.length);
+  const addRowSums = (target, row) => {
+    for (const d of sumDefs) {
+      target[d.columnKey] = (target[d.columnKey] || 0) + parseNumeric(row[d.key]);
+    }
+  };
   const groupedRows = shouldGroup
     ? rows
         .reduce((acc, row) => {
@@ -60,13 +78,11 @@ export function ManagementReportSheet({
           const existing = acc.find((g) => g.key === key);
           if (existing) {
             existing.rows.push(row);
-            existing.subtotal += parseNumeric(row[grouping.subtotalKey]);
+            addRowSums(existing.sums, row);
           } else {
-            acc.push({
-              key,
-              rows: [row],
-              subtotal: parseNumeric(row[grouping.subtotalKey]),
-            });
+            const sums = emptySums(sumDefs);
+            addRowSums(sums, row);
+            acc.push({ key, rows: [row], sums });
           }
           return acc;
         }, [])
@@ -85,7 +101,21 @@ export function ManagementReportSheet({
           }),
         }))
     : [];
-  const overallTotal = shouldGroup ? groupedRows.reduce((sum, g) => sum + g.subtotal, 0) : 0;
+  const overallSums = shouldGroup
+    ? groupedRows.reduce((acc, g) => {
+        for (const d of sumDefs) {
+          acc[d.columnKey] = (acc[d.columnKey] || 0) + (g.sums[d.columnKey] || 0);
+        }
+        return acc;
+      }, emptySums(sumDefs))
+    : emptySums(sumDefs);
+  const sumColKeys = new Set(sumDefs.map((d) => d.columnKey));
+  const firstSumIdx = (() => {
+    const indexes = columns
+      .map((c, i) => (sumColKeys.has(c.key) ? i : -1))
+      .filter((i) => i >= 0);
+    return indexes.length ? Math.min(...indexes) : Math.max(0, columns.length - 1);
+  })();
 
   const reportLabel =
     documentTypeLabel &&
@@ -104,13 +134,57 @@ export function ManagementReportSheet({
   const thClass = (align) =>
     `${STATEMENT_TH}${align === 'right' ? ' text-right' : ''}`;
   const tdClass = (align, zebra, wrap) => {
-    const base = align === 'right' ? STATEMENT_TD_NUM : STATEMENT_TD;
+    const base = align === 'right' ? `${STATEMENT_TD_NUM} report-print-num` : STATEMENT_TD;
     const zebraCls = zebra ? ' bg-slate-50/40' : '';
     const wrapCls = wrap ? ' whitespace-normal break-words' : '';
     return `${base}${zebraCls}${wrapCls}`;
   };
 
-  const colStyle = (c) => (c?.width ? { width: c.width, maxWidth: c.width } : undefined);
+  const colStyle = (c) => {
+    if (!c?.width && !c?.minWidth) return undefined;
+    return { width: c.width, maxWidth: c.width, minWidth: c.minWidth };
+  };
+
+  const renderTotalsRow = (label, sums, emphasize = false) => {
+    const labelUntil = firstSumIdx;
+    const tone = emphasize ? ' report-print-grand-total' : '';
+    const cells = [];
+    let idx = 0;
+    while (idx < columns.length) {
+      const col = columns[idx];
+      if (idx === 0 && labelUntil > 0) {
+        cells.push(
+          <td
+            key="totals-label"
+            colSpan={labelUntil}
+            className={`${STATEMENT_TF} report-print-totals-label text-right${tone}`}
+          >
+            {label}
+          </td>
+        );
+        idx = labelUntil;
+        continue;
+      }
+      if (sumColKeys.has(col.key)) {
+        const n = Number(sums[col.key]) || 0;
+        const text = n ? formatNgn(n) : '—';
+        cells.push(
+          <td
+            key={col.key}
+            title={text !== '—' ? text : undefined}
+            style={colStyle(col)}
+            className={`${STATEMENT_TF_NUM} report-print-totals-num${tone}`}
+          >
+            {text}
+          </td>
+        );
+      } else {
+        cells.push(<td key={col.key} className={`${STATEMENT_TF}${tone}`} />);
+      }
+      idx += 1;
+    }
+    return <tr>{cells}</tr>;
+  };
 
   const renderCells = (row, i, skipGroupKey = false) =>
     columns.map((c) => {
@@ -160,7 +234,7 @@ export function ManagementReportSheet({
                     <td
                       colSpan={Math.max(1, columns.length)}
                       title={`${grouping.groupLabel || 'Category'}: ${group.key}`}
-                      className={`${STATEMENT_TF} uppercase tracking-wide`}
+                      className={`${STATEMENT_TF} report-print-totals-label uppercase tracking-wide`}
                     >
                       {grouping.groupLabel || 'Category'}: {group.key}
                     </td>
@@ -168,38 +242,10 @@ export function ManagementReportSheet({
                   {group.rows.map((row, i) => (
                     <tr key={`${group.key}-${i}`}>{renderCells(row, i, true)}</tr>
                   ))}
-                  <tr>
-                    {columns.map((col, idx) => {
-                      if (idx < subtotalColumnIndex) {
-                        return <td key={col.key} className={STATEMENT_TD} />;
-                      }
-                      if (idx === subtotalColumnIndex) {
-                        return (
-                          <td key={col.key} className={STATEMENT_TF_NUM}>
-                            {`${grouping.subtotalLabel || 'Subtotal'}: ${formatSubtotal(group.subtotal)}`}
-                          </td>
-                        );
-                      }
-                      return <td key={col.key} className={STATEMENT_TD} />;
-                    })}
-                  </tr>
+                  {renderTotalsRow(grouping.subtotalLabel || 'Subtotal', group.sums)}
                 </React.Fragment>
               ))}
-              <tr>
-                {columns.map((col, idx) => {
-                  if (idx < subtotalColumnIndex) {
-                    return <td key={col.key} className={STATEMENT_TD} />;
-                  }
-                  if (idx === subtotalColumnIndex) {
-                    return (
-                      <td key={col.key} className={STATEMENT_TF_NUM}>
-                        {`${grouping.totalLabel || 'Overall total'}: ${formatSubtotal(overallTotal)}`}
-                      </td>
-                    );
-                  }
-                  return <td key={col.key} className={STATEMENT_TD} />;
-                })}
-              </tr>
+              {renderTotalsRow(grouping.totalLabel || 'Total', overallSums, true)}
             </>
           ) : (
             rows.map((row, i) => <tr key={i}>{renderCells(row, i)}</tr>)
