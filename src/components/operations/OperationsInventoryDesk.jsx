@@ -640,11 +640,17 @@ export function OperationsInventoryDesk({
                           <ul className="overflow-y-auto divide-y divide-slate-200/60">
                             {coilLotsByReceiptCapped.map((c) => {
                               const live = liveCoilWeightKg(c);
+                              const reserved = Math.max(0, Number(c.qtyReserved) || 0);
+                              const isDone = c.currentStatus === 'Consumed' || c.currentStatus === 'Finished';
+                              const isReserved = !isDone && reserved > 0.0001;
                               const material = c.materialTypeName || c.productID || '—';
                               const rcvd = c.receivedAtISO ? String(c.receivedAtISO).slice(0, 10) : '—';
                               const rowTitle = [
                                 c.poID && `PO ${c.poID}`,
                                 c.currentStatus,
+                                isReserved
+                                  ? `${reserved.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg reserved, ${Math.max(0, live - reserved).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg free`
+                                  : null,
                                 c.supplierName,
                                 c.location,
                               ]
@@ -661,9 +667,13 @@ export function OperationsInventoryDesk({
                                     <span className="text-ui-xs text-slate-600 tabular-nums">{rcvd}</span>
                                     <span className="text-xs font-bold text-zarewa-teal truncate font-mono">
                                       {c.coilNo}
-                                      {c.currentStatus === 'Consumed' || c.currentStatus === 'Finished' ? (
+                                      {isDone ? (
                                         <span className="ml-1 text-ui-xs font-bold uppercase text-amber-700">
                                           {c.currentStatus}
+                                        </span>
+                                      ) : isReserved ? (
+                                        <span className="ml-1 text-ui-xs font-bold uppercase text-sky-700">
+                                          Reserved
                                         </span>
                                       ) : null}
                                     </span>

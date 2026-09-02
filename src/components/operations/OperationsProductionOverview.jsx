@@ -232,6 +232,9 @@ export function OperationsProductionOverview({
           <div className="space-y-2">
             <CoilFamilyBlock label="Aluminium" data={coilStock.aluminium} />
             <CoilFamilyBlock label="Aluzinc" data={coilStock.aluzinc} />
+            {coilStock.unclassified?.totalKg > 0 ? (
+              <CoilFamilyBlock label="Unclassified (check material type)" data={coilStock.unclassified} />
+            ) : null}
           </div>
         </OperationsDeskSection>
 

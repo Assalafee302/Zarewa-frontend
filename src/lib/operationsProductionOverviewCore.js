@@ -1,4 +1,5 @@
 import { canonicalColourName } from './stockCheckMasterOptions.js';
+import { materialFamilyKeyForConversion } from '../shared/lib/coilMaterialFamily.js';
 
 /** @param {object} lot */
 export function liveCoilWeightKgForOverview(lot) {
@@ -16,10 +17,33 @@ export function liveCoilWeightKgForOverview(lot) {
   return Number.isFinite(q) ? Math.max(0, q) : 0;
 }
 
+/**
+ * Kg on this coil that is not already reserved to a job — what a store keeper can actually
+ * hand out or a purchase suggestion should treat as "still available". Using the gross figure
+ * here (liveCoilWeightKgForOverview) makes a fully-reserved coil read as full stock and
+ * suppresses purchase suggestions for material that is already spoken for.
+ * @param {object} lot
+ */
+export function freeCoilWeightKgForOverview(lot) {
+  const gross = liveCoilWeightKgForOverview(lot);
+  const reserved = Number(lot.qtyReserved) || 0;
+  return Math.max(0, gross - Math.max(0, reserved));
+}
+
+/**
+ * Coarse family bucket for the stock overview. Anything that isn't clearly aluminium or
+ * aluzinc (galvanised, stone-coated, or a coil with a blank/unrecognized material_type_name)
+ * goes into "unclassified" rather than being silently counted as aluzinc — that previously
+ * skewed the Aluzinc tonnage and its auto-generated purchase suggestions.
+ */
 function coilFamily(materialTypeName) {
-  const mt = String(materialTypeName || '').toLowerCase();
-  if (mt.includes('alumin')) return 'aluminium';
-  return 'aluzinc';
+  const key = materialFamilyKeyForConversion(materialTypeName);
+  if (key === 'aluminium' || key === 'aluzinc') return key;
+  return 'unclassified';
+}
+
+function emptyFamilyBucket() {
+  return { totalKg: 0, lowCount: 0, buckets: new Map() };
 }
 
 /**
@@ -29,22 +53,29 @@ function coilFamily(materialTypeName) {
 export function buildCoilStockOverview(coilLots, masterData = null) {
   const active = (coilLots || []).filter((c) => c.currentStatus !== 'Consumed');
   const families = {
-    aluminium: { totalKg: 0, lowCount: 0, buckets: new Map() },
-    aluzinc: { totalKg: 0, lowCount: 0, buckets: new Map() },
+    aluminium: emptyFamilyBucket(),
+    aluzinc: emptyFamilyBucket(),
+    unclassified: emptyFamilyBucket(),
   };
 
   for (const c of active) {
     const kg = liveCoilWeightKgForOverview(c);
+    const freeKg = freeCoilWeightKgForOverview(c);
     const fam = coilFamily(c.materialTypeName);
     const bucket = families[fam];
+    // totalKg/lowCount stay gross — this is "how much material is physically here", which is
+    // still true of a reserved coil. freeKg (tracked per gauge/colour bucket below) is what
+    // purchase suggestions should use instead, so a fully-reserved coil doesn't read as
+    // available stock and suppress a suggestion to buy more.
     bucket.totalKg += kg;
     if (kg > 0 && kg < 85) bucket.lowCount += 1;
 
     const gauge = c.gaugeLabel || '—';
     const colour = canonicalColourName(masterData, c.colour || '') || c.colour || '—';
     const key = `${gauge}|${colour}`;
-    const prev = bucket.buckets.get(key) || { gauge, colour, kg: 0, coilCount: 0 };
+    const prev = bucket.buckets.get(key) || { gauge, colour, kg: 0, freeKg: 0, coilCount: 0 };
     prev.kg += kg;
+    prev.freeKg += freeKg;
     prev.coilCount += 1;
     bucket.buckets.set(key, prev);
   }
@@ -53,10 +84,11 @@ export function buildCoilStockOverview(coilLots, masterData = null) {
     [...map.values()].sort((a, b) => b.kg - a.kg).slice(0, 6);
 
   return {
-    totalKg: families.aluminium.totalKg + families.aluzinc.totalKg,
+    totalKg: families.aluminium.totalKg + families.aluzinc.totalKg + families.unclassified.totalKg,
     aluminium: { ...families.aluminium, top: topBuckets(families.aluminium.buckets) },
     aluzinc: { ...families.aluzinc, top: topBuckets(families.aluzinc.buckets) },
-    lowCoilsTotal: families.aluminium.lowCount + families.aluzinc.lowCount,
+    unclassified: { ...families.unclassified, top: topBuckets(families.unclassified.buckets) },
+    lowCoilsTotal: families.aluminium.lowCount + families.aluzinc.lowCount + families.unclassified.lowCount,
   };
 }
 
@@ -219,7 +251,11 @@ export function buildCoilPurchaseSuggestions({ coilStock, pendingProductions, co
   for (const fam of ['aluminium', 'aluzinc']) {
     const block = coilStock[fam];
     for (const b of block.top || []) {
-      if (b.kg >= 500) continue;
+      // Judge low-stock purely on free (unreserved) kg — a bucket that's technically full but
+      // fully reserved to running jobs is not "available" for a new order and should still
+      // prompt a purchase suggestion.
+      const free = b.freeKg ?? b.kg;
+      if (free >= 500) continue;
       const key = `${fam}|${b.gauge}|${b.colour}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -228,33 +264,34 @@ export function buildCoilPurchaseSuggestions({ coilStock, pendingProductions, co
         family: fam === 'aluminium' ? 'Aluminium' : 'Aluzinc',
         gauge: b.gauge,
         colour: b.colour,
-        kgOnHand: b.kg,
+        kgOnHand: free,
         coilCount: b.coilCount,
         note:
-          b.kg < 100
+          free < 100
             ? 'Critically low — prioritise purchase'
-            : 'Below 500 kg — consider replenishing',
-        priority: b.kg < 100 ? 'critical' : 'medium',
+            : 'Below 500 kg free — consider replenishing',
+        priority: free < 100 ? 'critical' : 'medium',
       });
     }
   }
 
+  const familyLabel = { aluminium: 'Aluminium', aluzinc: 'Aluzinc', unclassified: 'Unclassified' };
   const active = (coilLots || []).filter((c) => c.currentStatus !== 'Consumed');
   for (const c of active) {
-    const kg = liveCoilWeightKgForOverview(c);
-    if (kg >= 100) continue;
+    const free = freeCoilWeightKgForOverview(c);
+    if (free >= 100) continue;
     const fam = coilFamily(c.materialTypeName);
     const key = `coil:${c.coilNo || c.coilID}`;
     if (seen.has(key)) continue;
     seen.add(key);
     suggestions.push({
       key,
-      family: fam === 'aluminium' ? 'Aluminium' : 'Aluzinc',
+      family: familyLabel[fam] || 'Unclassified',
       gauge: c.gaugeLabel || '—',
       colour: c.colour || '—',
-      kgOnHand: kg,
+      kgOnHand: free,
       coilCount: 1,
-      note: `Coil ${c.coilNo || c.coilID} under 85 kg`,
+      note: `Coil ${c.coilNo || c.coilID} under 100 kg free`,
       priority: 'critical',
     });
     if (suggestions.length >= 10) break;

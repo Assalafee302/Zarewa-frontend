@@ -1698,8 +1698,8 @@ const Operations = () => {
       showToast('Enter a valid positive quantity.', { variant: 'error' });
       return;
     }
-    if (type === 'Decrease' && stockAdjustCoilAck && !canAcknowledgeCoilSkuDrift) {
-      showToast('Book-only coil SKU decreases require branch manager approval.', { variant: 'error' });
+    if (stockAdjustCoilAck && !canAcknowledgeCoilSkuDrift) {
+      showToast('Book-only coil SKU adjustments require branch manager approval.', { variant: 'error' });
       return;
     }
     if (type === 'Decrease' && q >= 50 && stockAdjustConfirmText.trim().toUpperCase() !== 'CONFIRM') {
@@ -1713,7 +1713,7 @@ const Operations = () => {
     setStockAdjustSubmitting(true);
     try {
       const res = await adjustStock(productID, type, q, reasonCode, reasonNote.trim(), date, {
-        acknowledgeCoilSkuDrift: type === 'Decrease' && stockAdjustCoilAck,
+        acknowledgeCoilSkuDrift: stockAdjustCoilAck,
         acknowledgeLargeAdjust: stockAdjustLargeAck,
       });
       if (!res.ok) {
@@ -2501,7 +2501,7 @@ const Operations = () => {
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                 />
               </div>
-              {stockAdjustCoilPrompt && stockAdjust.type === 'Decrease' ? (
+              {stockAdjustCoilPrompt ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3 text-sm text-amber-950">
                   <p className="font-medium flex gap-2 items-start">
                     <AlertTriangle size={18} className="shrink-0 mt-0.5" />
@@ -2511,7 +2511,7 @@ const Operations = () => {
                         ? `${stockAdjustCoilCount} coil lot(s)`
                         : 'coil lot(s)'}{' '}
                       in this branch. Prefer <strong>Coil control</strong> (split / scrap / return) so tags match the
-                      floor.
+                      floor — a book-only change here is overwritten the next time a coil action reconciles this SKU.
                     </span>
                   </p>
                   {canAcknowledgeCoilSkuDrift ? (
@@ -2522,11 +2522,14 @@ const Operations = () => {
                         checked={stockAdjustCoilAck}
                         onChange={(e) => setStockAdjustCoilAck(e.target.checked)}
                       />
-                      <span>I need a book-only decrease anyway (SKU only; coil rows stay unchanged). Manager approval.</span>
+                      <span>
+                        I need a book-only {stockAdjust.type === 'Increase' ? 'increase' : 'decrease'} anyway (SKU
+                        only; coil rows stay unchanged). Manager approval.
+                      </span>
                     </label>
                   ) : (
                     <p className="text-ui-xs font-semibold text-amber-900">
-                      Book-only decreases require a branch manager. Ask BM to post, or use Coil control.
+                      Book-only adjustments require a branch manager. Ask BM to post, or use Coil control.
                     </p>
                   )}
                 </div>
