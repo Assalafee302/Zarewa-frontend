@@ -82,7 +82,11 @@ export function FinanceCashierPayoutsPanel() {
         party: line.recipientLabel || r.customerName || r.customerID || '—',
         ref: line.refundID,
         date: String(r.approvedAtISO || r.approvalDate || r.dateISO || '').slice(0, 10),
-        amount: due > 0 ? due : Math.round(Number(line.netPayoutNgn) || 0),
+        // Only a payable row's amount belongs in "Due" — for a held/referral row this is the
+        // refund's full net payout, not money that's actually outstanding right now, and
+        // showing it under "Due" reads as an amount the cashier owes today.
+        amount: due,
+        heldAmount: canPay ? 0 : Math.round(Number(line.netPayoutNgn) || 0),
         pay: canPay ? () => handleDeskPayRefund(String(line.refundID || ''), line.queueKey) : null,
         view: () => handleDeskViewRefund?.(String(line.refundID || '')),
       });
@@ -127,12 +131,14 @@ export function FinanceCashierPayoutsPanel() {
   ]);
 
   const paidSlice = paymentsListWindow?.slice || [];
+  const payableDueRows = dueRows.filter((row) => Boolean(row.pay));
+  const heldDueRowCount = dueRows.length - payableDueRows.length;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         {[
-          ['due', `To pay (${dueRows.length})`],
+          ['due', `To pay (${payableDueRows.length})`],
           ['paid', `Paid (${paymentsListWindow?.total || 0})`],
         ].map(([id, label]) => (
           <button
@@ -147,6 +153,13 @@ export function FinanceCashierPayoutsPanel() {
           </button>
         ))}
       </div>
+      {view === 'due' && heldDueRowCount > 0 ? (
+        <p className="text-[12px] text-slate-500">
+          {heldDueRowCount} more line{heldDueRowCount === 1 ? '' : 's'} below {heldDueRowCount === 1 ? 'is' : 'are'}{' '}
+          approved but not yet payable (uncleared receipts or wallet release pending) — shown for visibility, not
+          counted in "To pay".
+        </p>
+      ) : null}
 
       {view === 'due' ? (
         <AppTableWrap>
@@ -175,7 +188,17 @@ export function FinanceCashierPayoutsPanel() {
                     <AppTableTd monospace title={row.ref || row.id}>
                       {row.ref || row.id || '—'}
                     </AppTableTd>
-                    <AppTableTd align="right">{formatNgn(row.amount)}</AppTableTd>
+                    <AppTableTd align="right">
+                      {row.pay ? (
+                        formatNgn(row.amount)
+                      ) : row.heldAmount > 0 ? (
+                        <span className="text-slate-400" title="Not payable from till yet — see status">
+                          — ({formatNgn(row.heldAmount)} held)
+                        </span>
+                      ) : (
+                        formatNgn(row.amount)
+                      )}
+                    </AppTableTd>
                     <AppTableTd align="right" truncate={false}>
                       <div className="inline-flex items-center justify-end gap-1">
                         {row.view ? (

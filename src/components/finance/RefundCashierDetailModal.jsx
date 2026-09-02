@@ -113,6 +113,7 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
     quoteTotalNgn: quoteTotal,
     refunds: priorRefunds,
     excludeRefundId: refund?.refundID,
+    creditAppliedOutNgn: Number(intelligence?.creditAppliedOutNgn) || 0,
   });
   const looksOverpay =
     String(refund?.reasonCategory || refund?.reason_category || '').toLowerCase().includes('overpay') ||

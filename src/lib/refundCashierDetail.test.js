@@ -398,4 +398,27 @@ describe('refundCashierOverpayResidualNgn', () => {
       })
     ).toBe(0);
   });
+
+  it('subtracts overpayment already applied as credit to another quotation', () => {
+    // Excess cash is 200k over quote total, but 150k of that has already been redirected as
+    // credit to a different quotation (not via a refund record) — only 50k should remain.
+    const residual = refundCashierOverpayResidualNgn({
+      cashInNgn: 1_200_000,
+      quoteTotalNgn: 1_000_000,
+      excludeRefundId: 'RF-KD-26-1',
+      refunds: [],
+      creditAppliedOutNgn: 150_000,
+    });
+    expect(residual).toBe(50_000);
+  });
+
+  it('defaults creditAppliedOutNgn to 0 when omitted (no behaviour change for existing callers)', () => {
+    const residual = refundCashierOverpayResidualNgn({
+      cashInNgn: 1_200_000,
+      quoteTotalNgn: 1_000_000,
+      excludeRefundId: 'RF-KD-26-1',
+      refunds: [],
+    });
+    expect(residual).toBe(200_000);
+  });
 });

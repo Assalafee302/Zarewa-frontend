@@ -690,17 +690,23 @@ export function refundCashierMoneyStory(refund) {
 
 /**
  * Remaining overpayment on the quote after other refunds. 0 means do not pay more cash.
+ * @param {number} [creditAppliedOutNgn] overpayment already redirected as credit to another
+ *   quotation (not via a refund record) — from GET /api/refunds/intelligence. The server's
+ *   pay-time check subtracts this; omitting it here can show a live "Pay" button the server
+ *   then rejects with REFUND_OVERPAYMENT_ALREADY_SETTLED.
  */
 export function refundCashierOverpayResidualNgn({
   cashInNgn,
   quoteTotalNgn,
   refunds,
   excludeRefundId,
+  creditAppliedOutNgn = 0,
 } = {}) {
   return quotationOverpaymentResidualNgn({
     cashInNgn,
     quoteTotalNgn,
     overpaymentAlreadyRefundedNgn: overpaymentAlreadyRefundedNgn(refunds, excludeRefundId),
+    creditAppliedOutNgn,
   });
 }
 
