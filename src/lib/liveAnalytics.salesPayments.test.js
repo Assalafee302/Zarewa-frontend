@@ -46,10 +46,28 @@ describe('salesPaymentsReceivedRows', () => {
       },
     ];
 
-    const rows = salesPaymentsReceivedRows(receipts, [], [], '2026-03-01', '2026-03-31', ledgerEntries);
+    const treasuryMovements = [
+      {
+        sourceKind: 'LEDGER_RECEIPT',
+        sourceId: 'LE-REC',
+        accountType: 'Bank',
+        accountName: 'Zarewa Ops Account',
+        bankName: 'Guaranty Trust Bank',
+      },
+    ];
+    const rows = salesPaymentsReceivedRows(
+      receipts,
+      [],
+      [],
+      '2026-03-01',
+      '2026-03-31',
+      ledgerEntries,
+      treasuryMovements
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0].amountPaidNgn).toBe(150_000);
     expect(rows[0].bankReference).toBe('REF-1');
+    expect(rows[0].bankLabel).toBe('GTB');
     expect(salesPaymentsReceivedSummary(rows).totalReceivedNgn).toBe(150_000);
   });
 
@@ -280,6 +298,31 @@ describe('salesPaymentsReceivedRows', () => {
     const s = salesPaymentsReceivedSummary(feb);
     expect(s.outstandingNgn).toBe(300_000);
     expect(s.outstandingQuoteCount).toBe(1);
+  });
+
+  it('computes net sales as total sales minus refunds for the period', () => {
+    const receipts = [
+      {
+        id: 'SR-NET',
+        customer: 'NetCo',
+        quotationRef: 'QT-NET',
+        dateISO: '2026-03-10',
+        amountNgn: 500_000,
+      },
+    ];
+    const jobs = [
+      {
+        quotationRef: 'QT-NET',
+        status: 'Completed',
+        completedAtISO: '2026-03-11T10:00:00.000Z',
+        actualMeters: 100,
+      },
+    ];
+    const rows = salesPaymentsReceivedRows(receipts, jobs, [], '2026-03-01', '2026-03-31', []);
+    const s = salesPaymentsReceivedSummary(rows, 75_000);
+    expect(s.totalReceivedNgn).toBe(500_000);
+    expect(s.refundsNgn).toBe(75_000);
+    expect(s.netSalesNgn).toBe(425_000);
   });
 
   it('drops debtor row once balance is cleared by period end', () => {

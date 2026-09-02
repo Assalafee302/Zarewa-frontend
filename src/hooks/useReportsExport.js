@@ -32,6 +32,7 @@ import {
   PACK_EXPENSES_REFUNDS,
   PACK_GL_AUDIT,
   PACK_MATERIAL_EXCEPTIONS,
+  PACK_COIL_STOCK_TIEOUT,
   PACK_MATERIAL_TRANSACTION,
   PACK_OPS_PROCUREMENT,
   PACK_PERIOD_COSTS_INVENTORY,
@@ -43,6 +44,7 @@ import {
   buildPaidExpensePrintRows,
   conversionSummaryExcelRows,
   downloadRows,
+  fetchCoilStockTieOutReport,
   fetchConversionSummaryReport,
   fetchMaterialTransactionReport,
   fetchPurchaseRegisterReport,
@@ -114,7 +116,8 @@ export function useReportsExport({
           quotations,
           startDate,
           endDate,
-          ledgerEntries
+          ledgerEntries,
+          treasuryMovements
         ).map((r) => {
           const isDebt = r.group === 'Outstanding balance (debtors)';
           return {
@@ -128,6 +131,7 @@ export function useReportsExport({
             amountNgn: isDebt ? r.outstandingBalanceNgn : r.amountPaidNgn,
             outstandingBalanceNgn: r.outstandingBalanceNgn,
             paymentMethod: r.paymentMethod,
+            bank: r.bankLabel || '—',
             remarks: r.bankReference,
           };
         });
@@ -340,9 +344,14 @@ export function useReportsExport({
           quotations,
           startDate,
           endDate,
-          ledgerEntries
+          ledgerEntries,
+          treasuryMovements
         );
-        const s = salesPaymentsReceivedSummary(raw);
+        const refundedInPeriodNgn = refundsPaidInPeriodRows(refunds, startDate, endDate).reduce(
+          (sum, r) => sum + (Number(r.amountNgn) || 0),
+          0
+        );
+        const s = salesPaymentsReceivedSummary(raw, refundedInPeriodNgn);
         const rows = raw.map((r) => {
           const isDebt = r.group === 'Outstanding balance (debtors)';
           const receiptNo =
@@ -358,6 +367,7 @@ export function useReportsExport({
             receiptNo,
             amountPaidNgn: isDebt ? '—' : formatNgn(r.amountPaidNgn),
             outstandingBalanceNgn: formatNgn(r.outstandingBalanceNgn || 0),
+            bank: isDebt ? '—' : r.bankLabel || '—',
             bankReference: r.bankReference || r.paymentMethod || '—',
             _amountPaidNgn: isDebt ? 0 : Number(r.amountPaidNgn) || 0,
             _outstandingBalanceNgn: isDebt ? Number(r.outstandingBalanceNgn) || 0 : 0,
@@ -368,12 +378,13 @@ export function useReportsExport({
           columns: [
             { key: 'paymentDateISO', label: 'Date', width: '6%' },
             { key: 'firstProductionDateISO', label: 'Prod', width: '6%' },
-            { key: 'customerName', label: 'Customer', width: '16%' },
-            { key: 'quotationRef', label: 'Quote', width: '9%' },
-            { key: 'receiptNo', label: 'Receipt', width: '9%' },
-            { key: 'amountPaidNgn', label: 'Paid', width: '12%', align: 'right', minWidth: '6.5rem' },
-            { key: 'outstandingBalanceNgn', label: 'Balance', width: '12%', align: 'right', minWidth: '6.5rem' },
-            { key: 'bankReference', label: 'Remarks', width: '30%', wrap: true },
+            { key: 'customerName', label: 'Customer', width: '15%' },
+            { key: 'quotationRef', label: 'Quote', width: '8%' },
+            { key: 'receiptNo', label: 'Receipt', width: '8%' },
+            { key: 'amountPaidNgn', label: 'Paid', width: '11%', align: 'right', minWidth: '6.5rem' },
+            { key: 'outstandingBalanceNgn', label: 'Balance', width: '11%', align: 'right', minWidth: '6.5rem' },
+            { key: 'bank', label: 'Bank', width: '9%' },
+            { key: 'bankReference', label: 'Remarks', width: '19%', wrap: true },
           ],
           rows,
           grouping: {
@@ -390,9 +401,11 @@ export function useReportsExport({
           },
           summaryLines: [
             { label: 'Rows', value: String(s.rowCount) },
-            { label: 'Cash in report', value: formatNgn(s.totalReceivedNgn) },
+            { label: 'Total sales (cash received in period)', value: formatNgn(s.totalReceivedNgn) },
             { label: 'Materials produced in period (sales)', value: formatNgn(s.producedNgn) },
             { label: 'Materials not produced in period (credit)', value: formatNgn(s.notProducedNgn) },
+            { label: 'Less: Refunds paid in period', value: formatNgn(s.refundsNgn) },
+            { label: 'Net sales (Total sales − Refunds)', value: formatNgn(s.netSalesNgn) },
             {
               label: 'Outstanding balance (debtors)',
               value: `${formatNgn(s.outstandingNgn)} · ${s.outstandingQuoteCount} quote(s)`,
@@ -876,6 +889,39 @@ export function useReportsExport({
       return;
     }
 
+    if (name === PACK_COIL_STOCK_TIEOUT) {
+      const res = await fetchCoilStockTieOutReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const rows = res.data.rows || [];
+      if (!rows.length) {
+        showToast('No coil activity to tie out for this period.', { variant: 'info' });
+        return;
+      }
+      if (fmt === 'Excel') {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Coil_tieout');
+        XLSX.utils.book_append_sheet(
+          wb,
+          XLSX.utils.json_to_sheet([
+            { key: 'openingKnown', value: res.data.openingKnown },
+            { key: 'closingKnown', value: res.data.closingKnown },
+            { key: 'mismatchCount', value: res.data.summary?.mismatchCount ?? 0 },
+            { key: 'unverifiedCount', value: res.data.summary?.unverifiedCount ?? 0 },
+          ]),
+          'Meta'
+        );
+        XLSX.writeFile(wb, `${packSlug}.xlsx`);
+        showToast(`${name} exported as Excel.`);
+        return;
+      }
+      downloadRows(name, rows, fmt);
+      showToast(`${name} exported as ${fmt}.`);
+      return;
+    }
+
     if (name === PACK_CONVERSION_SUMMARY) {
       const res = await fetchConversionSummaryReport(apiFetch, startDate, endDate);
       if (!res.ok) {
@@ -965,6 +1011,47 @@ export function useReportsExport({
           { label: 'Total debit', value: formatNgn(data.totals?.debitNgn ?? 0) },
           { label: 'Total credit', value: formatNgn(data.totals?.creditNgn ?? 0) },
           { label: 'Excel pack', value: 'Includes journal register + full line detail.' },
+        ],
+      });
+      setPrintOpen(true);
+      return;
+    }
+    if (name === PACK_COIL_STOCK_TIEOUT) {
+      const res = await fetchCoilStockTieOutReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const rows = res.data.rows || [];
+      if (!rows.length) {
+        showToast('No coil activity to tie out for this period.', { variant: 'info' });
+        return;
+      }
+      const statusLabel = { ok: 'OK', mismatch: 'MISMATCH', unverified: 'Unverified' };
+      setPrintPayload({
+        title: PACK_COIL_STOCK_TIEOUT,
+        columns: [
+          { key: 'coilNoDisplay', label: 'Coil' },
+          { key: 'colour', label: 'Col' },
+          { key: 'gauge', label: 'Gauge' },
+          { key: 'openingKg', label: 'Opening kg', align: 'right' },
+          { key: 'purchasedKg', label: 'Purchased kg', align: 'right' },
+          { key: 'consumedKg', label: 'Consumed kg', align: 'right' },
+          { key: 'expectedClosingKg', label: 'Expected closing kg', align: 'right' },
+          { key: 'closingKg', label: 'Closing kg', align: 'right' },
+          { key: 'varianceKg', label: 'Variance kg', align: 'right' },
+          { key: 'statusLabel', label: 'Status' },
+        ],
+        rows: rows.map((r) => ({ ...r, statusLabel: statusLabel[r.status] || r.status })),
+        summaryLines: [
+          { label: 'Rows', value: String(res.data.summary?.rowCount ?? rows.length) },
+          { label: 'Mismatches', value: String(res.data.summary?.mismatchCount ?? 0) },
+          { label: 'Unverified (no snapshot)', value: String(res.data.summary?.unverifiedCount ?? 0) },
+          {
+            label: 'Opening snapshot',
+            value: res.data.openingKnown ? `Found for ${res.data.openingDate}` : `Missing for ${res.data.openingDate}`,
+          },
+          { label: 'Closing snapshot', value: res.data.closingKnown ? 'Found' : 'Missing' },
         ],
       });
       setPrintOpen(true);

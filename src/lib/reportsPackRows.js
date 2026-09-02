@@ -461,6 +461,15 @@ async function fetchMaterialTransactionReport(apiFetch, startDate, endDate) {
   return { ok: true, report: data.report };
 }
 
+async function fetchCoilStockTieOutReport(apiFetch, startDate, endDate) {
+  const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+  const { ok, data } = await apiFetch(`/api/reports/coil-stock-tieout?${q}`);
+  if (!ok || !data?.ok) {
+    return { ok: false, error: data?.error || 'Could not load the coil stock tie-out report.' };
+  }
+  return { ok: true, data };
+}
+
 async function fetchConversionSummaryReport(apiFetch, startDate, endDate) {
   const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
   const { ok, data } = await apiFetch(`/api/reports/conversion-summary?${q}`);
@@ -652,5 +661,6 @@ export {
   fetchPurchaseRegisterReport,
   fetchConversionSummaryReport,
   conversionSummaryExcelRows,
+  fetchCoilStockTieOutReport,
   downloadRows,
 };

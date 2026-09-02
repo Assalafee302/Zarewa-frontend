@@ -9,6 +9,7 @@ import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
 import { refundOutstandingAmount, isRefundPayable, approvedRefundsAwaitingPayment } from './refundsStore.js';
 import { isReceiptReversed, receiptEffectiveCashNgn } from './receiptClearance.js';
 import { receiptCashReceivedNgn } from './salesReceiptsList.js';
+import { abbreviateBankName } from './bankAbbreviation.js';
 
 function toIsoDate(value) {
   return String(value || '').slice(0, 10);
@@ -745,14 +746,34 @@ export function salesOutstandingBalanceRows(
  * @param {string} [endDate]
  * @param {object[]} [ledgerEntries] — bank ref / companion overpay when receipts lack enrich fields
  */
+/**
+ * Map ledger entry id -> receiving bank's short code (e.g. "GTB"), so a
+ * printed sales report can be reconciled line-by-line against a bank
+ * statement instead of showing the internal treasury account name.
+ */
+function bankLabelByLedgerEntryId(treasuryMovements = []) {
+  const m = new Map();
+  for (const t of treasuryMovements || []) {
+    if (String(t.sourceKind || '') !== 'LEDGER_RECEIPT') continue;
+    const id = String(t.sourceId || '').trim();
+    if (!id || m.has(id)) continue;
+    const isCash = String(t.accountType || '').trim().toLowerCase() === 'cash';
+    const label = isCash ? 'Cash' : abbreviateBankName(t.bankName) || String(t.accountName || '').trim();
+    if (label) m.set(id, label);
+  }
+  return m;
+}
+
 export function salesPaymentsReceivedRows(
   salesReceipts = [],
   productionJobs = [],
   quotations = [],
   startDate,
   endDate,
-  ledgerEntries = []
+  ledgerEntries = [],
+  treasuryMovements = []
 ) {
+  const bankByLedgerId = bankLabelByLedgerEntryId(treasuryMovements);
   const quoteCustomer = new Map(
     (quotations || []).map((q) => [String(q.id || '').trim(), q.customer || q.customerName || ''])
   );
@@ -833,6 +854,7 @@ export function salesPaymentsReceivedRows(
       outstandingBalanceNgn: outstandingFor(qref),
       paymentMethod: r.method || r.paymentMethod || le?.paymentMethod || '',
       bankReference: le?.bankReference || r.bankReference || '',
+      bankLabel: (lid && bankByLedgerId.get(lid)) || (rid && bankByLedgerId.get(rid)) || '',
       ledgerEntryId: lid || rid || '',
       receiptId: rid || '',
       firstProductionDateISO: firstProd || '',
@@ -859,7 +881,13 @@ export function salesPaymentsReceivedRows(
   return rows;
 }
 
-export function salesPaymentsReceivedSummary(rows = []) {
+/**
+ * @param {Array} rows - output of salesPaymentsReceivedRows
+ * @param {number} refundedNgn - total customer refunds paid out in the same period
+ *   (e.g. sum of refundsPaidInPeriodRows(...).amountNgn), so the report can show
+ *   Net sales = Total sales − Refunds for the month.
+ */
+export function salesPaymentsReceivedSummary(rows = [], refundedNgn = 0) {
   const cashRows = (rows || []).filter((r) => r.group !== SALES_REPORT_GROUP_OUTSTANDING);
   const outstandingRows = (rows || []).filter((r) => r.group === SALES_REPORT_GROUP_OUTSTANDING);
   const totalReceivedNgn = cashRows.reduce((s, r) => s + (Number(r.amountPaidNgn) || 0), 0);
@@ -873,12 +901,16 @@ export function salesPaymentsReceivedSummary(rows = []) {
     (s, r) => s + (Number(r.outstandingBalanceNgn) || 0),
     0
   );
+  const refundsNgn = Math.round(Number(refundedNgn) || 0);
+  const netSalesNgn = totalReceivedNgn - refundsNgn;
   return {
     rowCount: rows.length,
     totalReceivedNgn,
     producedNgn,
     notProducedNgn,
     outstandingNgn,
+    refundsNgn,
+    netSalesNgn,
     outstandingQuoteCount: outstandingRows.length,
   };
 }
@@ -901,13 +933,16 @@ export function refundsPaidInPeriodRows(refunds = [], startDate, endDate) {
       const amt = Math.round(Number(p.amountNgn) || 0);
       if (amt <= 0) continue;
       linesFromHistory += 1;
+      const isCash = String(p.accountType || '').trim().toLowerCase() === 'cash';
       paidInPeriod.push({
         payoutDateISO: iso,
         refundId: id,
         customerName: String(r.customer || '').trim() || '—',
         quotationRef: String(r.quotationRef || '').trim() || '',
         amountNgn: amt,
-        bankAccount: String(p.accountName || '').trim() || '—',
+        bankAccount: isCash
+          ? 'Cash'
+          : abbreviateBankName(p.bankName) || String(p.accountName || '').trim() || '—',
         reference: String(p.reference || '').trim() || '—',
         status: String(r.status || '').trim() || 'Paid',
       });

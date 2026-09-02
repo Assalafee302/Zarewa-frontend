@@ -104,6 +104,7 @@ export const SHARED_SYNC_PAIRS = [
   ['shared/lib/treasuryPayoutDates.js', 'src/shared/lib/treasuryPayoutDates.js'],
   ['shared/lib/customerPaymentIntegrity.js', 'src/shared/lib/customerPaymentIntegrity.js'],
   ['shared/lib/officeApprovalRouting.js', 'src/shared/lib/officeApprovalRouting.js'],
+  ['shared/lib/bankAbbreviation.js', 'src/shared/lib/bankAbbreviation.js'],
 ];
 
 /** src/lib stubs that re-export the synced canonical file. Do not put logic here. */
@@ -183,4 +184,5 @@ export const LIB_REEXPORTS = [
   'treasuryPayoutDates.js',
   'customerPaymentIntegrity.js',
   'officeApprovalRouting.js',
+  'bankAbbreviation.js',
 ];

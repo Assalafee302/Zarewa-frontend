@@ -115,6 +115,8 @@ export async function downloadStandardStockWorkbook(apiFetch, endDate, showToast
     { key: 'asAtMode', value: data.asAtMode },
     { key: 'asAtDate', value: data.asAtDate },
     { key: 'note', value: data.disclaimer || '' },
+    { key: 'totalValueNgn', value: data.totals?.totalValueNgn ?? '' },
+    { key: 'coilsWithNoCostOnRecord', value: data.totals?.unvaluedRowCount ?? '' },
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(meta), 'Meta');
   XLSX.writeFile(wb, `standard-stock-as-at-${endDate}.xlsx`);

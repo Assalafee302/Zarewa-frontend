@@ -11,6 +11,7 @@ export const PACK_MATERIAL_TRANSACTION = 'Material transaction register';
 export const PACK_PURCHASE_REGISTER = 'Purchase register';
 export const PACK_MATERIAL_EXCEPTIONS = 'Material exceptions (offcut)';
 export const PACK_CONVERSION_SUMMARY = 'Conversion summary by material & gauge';
+export const PACK_COIL_STOCK_TIEOUT = 'Coil stock tie-out';
 
 /** Jobs on /reports — URL ?job= */
 export const REPORT_JOBS = {
@@ -517,6 +518,16 @@ export const EXPORT_SECTIONS = [
         excelOnly: true,
         printCoverage: 'none',
         deepLink: { to: '/procurement', label: 'Open Procurement' },
+      },
+      {
+        id: 'coil-stock-tieout',
+        kind: 'pack',
+        pack: PACK_COIL_STOCK_TIEOUT,
+        title: 'Coil stock tie-out',
+        desc: 'Per-coil check that opening + purchased − consumed = closing, cross-referencing the purchase register, material transaction register, and closing stock.',
+        icon: Scale,
+        formats: ['Excel', 'CSV'],
+        printCoverage: 'full',
       },
       {
         id: 'material-exceptions-pack',
