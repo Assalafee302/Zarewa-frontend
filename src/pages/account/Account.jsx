@@ -50,6 +50,8 @@ import {
   hangingRefundsForCustomer,
   isRefundPayable,
   refundStatusIsWithdrawn,
+  userMayPayCustomerRefund,
+  MD_REFUND_PAY_BLOCKED_MESSAGE,
 } from '../../lib/refundsStore';
 import {
   refundDefaultTreasuryPayoutNgn,
@@ -911,6 +913,10 @@ const Account = () => {
 
   const openRefundPay = useCallback(
     async (row, payeeQueueKey = null) => {
+      if (!userMayPayCustomerRefund(ws)) {
+        showToast(MD_REFUND_PAY_BLOCKED_MESSAGE, { variant: 'info' });
+        return;
+      }
       let target = row;
       const rid = String(row?.refundID || '').trim();
       if (rid && ws?.canMutate) {
@@ -954,7 +960,7 @@ const Account = () => {
       setRefundPaymentNote(target.paymentNote || '');
       setShowRefundPayModal(true);
     },
-    [bankAccountsForPayout, ws?.canMutate, overrideUnclearedPayoutHold]
+    [bankAccountsForPayout, ws, overrideUnclearedPayoutHold, showToast]
   );
 
   const cancelRefundBeforePay = useCallback(
@@ -1073,6 +1079,10 @@ const Account = () => {
 
   const confirmRefundPaid = async (e) => {
     e.preventDefault();
+    if (!userMayPayCustomerRefund(ws)) {
+      showToast(MD_REFUND_PAY_BLOCKED_MESSAGE, { variant: 'info' });
+      return;
+    }
     if (!refundPayTarget?.refundID || treasuryPayoutSubmitting) return;
     const rid = refundPayTarget.refundID;
     const story = refundCashierMoneyStory(refundPayTarget);
@@ -1579,6 +1589,10 @@ const Account = () => {
 
   const handleDeskPayRefund = useCallback(
     (refundId, payeeQueueKey = null) => {
+      if (!userMayPayCustomerRefund(ws)) {
+        showToast(MD_REFUND_PAY_BLOCKED_MESSAGE, { variant: 'info' });
+        return;
+      }
       const id = String(refundId || '').trim();
       const row = customerRefunds.find((r) => String(r.refundID || '').trim() === id);
       if (row) {
@@ -1590,7 +1604,7 @@ const Account = () => {
         variant: 'info',
       });
     },
-    [customerRefunds, handleAccountTabChange, showToast, openRefundPay]
+    [customerRefunds, handleAccountTabChange, showToast, openRefundPay, ws]
   );
 
   const registerSettlementsAwaitingPay = useMemo(
@@ -4538,7 +4552,7 @@ const Account = () => {
               </p>
               <button
                 type="submit"
-                disabled={treasuryPayoutSubmitting}
+                disabled={treasuryPayoutSubmitting || !userMayPayCustomerRefund(ws)}
                 className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {treasuryPayoutSubmitting ? 'Paying…' : 'Pay refund'}

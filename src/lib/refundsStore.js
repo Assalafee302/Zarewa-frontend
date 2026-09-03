@@ -73,6 +73,22 @@ export function userMayApproveRefundRequests(ws) {
   return can('*') || can('refunds.approve') || can('finance.approve');
 }
 
+/**
+ * MD/CEO/chairman keep finance.pay for other desks but must not pay customer refunds.
+ * Admin trial still allowed. API remains the real gate.
+ */
+export function userMayPayCustomerRefund(ws) {
+  if (!ws) return false;
+  const rk = String(ws.session?.user?.roleKey ?? ws.roleKey ?? '').trim().toLowerCase();
+  const can = typeof ws.hasPermission === 'function' ? ws.hasPermission.bind(ws) : () => false;
+  if (rk === 'admin' || can('*')) return true;
+  if (rk === 'md' || rk === 'ceo' || rk === 'chairman') return false;
+  return true;
+}
+
+export const MD_REFUND_PAY_BLOCKED_MESSAGE =
+  'Managing Director cannot pay customer refunds. Cashier or Head of Accounts must execute the payout.';
+
 /** Rejected finance decision or cancel-before-pay — does not reserve quotation headroom or block a new request. */
 export function refundStatusIsWithdrawn(status) {
   const s = String(status || '').trim().toLowerCase();
@@ -214,12 +230,31 @@ export function refundLooksPaidWithoutTillPayout(r) {
   return cap > 0 && paid >= cap;
 }
 
+/** Wallet still open or false Paid (cut/credit) with no till actor/date. */
+export function refundPayeeStillUnsettled(r) {
+  if (!r || refundStatusIsWithdrawn(r.status)) return false;
+  if (Math.round(Number(r.walletOpenNgn) || 0) > 0) return true;
+  return refundLooksPaidWithoutTillPayout(r);
+}
+
 /**
- * Open refund still in flight — Pending, unpaid Approved, or false Paid with no till payout.
+ * Display label for status chips. Never returns "Paid" while the payee is unsettled.
+ * DB status is unchanged — reports still use Paid internally.
+ */
+export function refundPublicStatusLabel(r) {
+  const stored = String(r?.status || '').trim() || 'Pending';
+  if (!refundPayeeStillUnsettled(r)) return stored;
+  if (Math.round(Number(r.walletOpenNgn) || 0) > 0) return 'Payee not settled';
+  return 'Awaiting till payout';
+}
+
+/**
+ * Open refund still in flight — Pending, unpaid Approved, open wallet, or false Paid with no till payout.
  * Display-only; never hide these from cashier confirm.
  */
 export function isRefundHanging(r) {
   if (!r || refundStatusIsWithdrawn(r.status)) return false;
+  if (Math.round(Number(r.walletOpenNgn) || 0) > 0) return true;
   if (refundLooksPaidWithoutTillPayout(r)) return true;
   if (r.status === 'Paid') return false;
   if (r.status === 'Pending') return true;

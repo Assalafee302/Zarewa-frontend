@@ -132,6 +132,67 @@ describe('refundRecipientTillPayoutRows', () => {
     expect(refundPayeePayoutQueueLines(refund)).toHaveLength(1);
   });
 
+  it('pays out the surplus above the uncleared amount and holds only the unconfirmed slice', () => {
+    const refund = {
+      refundID: 'RF-KD-26-9556',
+      customerID: 'CUS-1',
+      amountNgn: 89_300,
+      approvedAmountNgn: 89_300,
+      paidAmountNgn: 2_860,
+      status: 'Approved',
+      paymentNote: 'Settled at approval: company cut ₦2,860 → retention ledger.',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-1',
+          amountNgn: 14_300,
+          payeeName: 'Muhammad Ibrahim Bakari',
+          // Uncleared total (3,000) is well below the staff's net payout (11,440) — only the
+          // uncleared slice should stay held; the rest is payable now.
+          unclearedReceiptHoldNgn: 3_000,
+        },
+      ],
+    };
+    const rows = refundRecipientTillPayoutRows(refund);
+    expect(rows).toHaveLength(2);
+    const staff = rows.find((row) => row.recipientKind === 'associated_staff');
+    expect(staff.netPayoutNgn).toBe(11_440);
+    expect(staff.unclearedWithheldNgn).toBe(3_000);
+    expect(staff.amountDueNgn).toBe(8_440);
+    expect(staff.payoutStatus).toBe('till_due_partial_held');
+    const lines = refundPayeePayoutQueueLines(refund);
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l) => l.recipientKind === 'associated_staff').amountDueNgn).toBe(8_440);
+  });
+
+  it('does not hold a payee at all once their uncleared receipts are confirmed (hold drops to 0)', () => {
+    const refund = {
+      refundID: 'RF-KD-26-9557',
+      customerID: 'CUS-1',
+      amountNgn: 89_300,
+      approvedAmountNgn: 89_300,
+      paidAmountNgn: 2_860,
+      status: 'Approved',
+      paymentNote: 'Settled at approval: company cut ₦2,860 → retention ledger.',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-1',
+          amountNgn: 14_300,
+          payeeName: 'Muhammad Ibrahim Bakari',
+          unclearedReceiptHoldNgn: 0,
+        },
+      ],
+    };
+    const rows = refundRecipientTillPayoutRows(refund);
+    const staff = rows.find((row) => row.recipientKind === 'associated_staff');
+    expect(staff?.payoutStatus).toBe('till_due');
+    expect(staff?.amountDueNgn).toBe(11_440);
+    expect(refundPayeePayoutQueueLines(refund)).toHaveLength(2);
+  });
+
   it('lets admin put a held payee back on the till queue', () => {
     const refund = {
       refundID: 'RF-ADMIN-UNCLR',

@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertTriangle, Wallet } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import { hangingRefundIndicator, hangingRefundOpenAmountNgn } from '../../lib/refundsStore';
+import { hangingRefundIndicator, hangingRefundOpenAmountNgn, refundPublicStatusLabel } from '../../lib/refundsStore';
 import { hangingRefundHowToUse, ledgerOverpayHowToUse } from '../../lib/refundPendingUse.js';
 import { REFUND_FUND_DEDUCTED_LABEL } from '../../lib/refundFundApply.js';
 
@@ -84,7 +84,7 @@ export function HangingCustomerRefundBanner({ hanging, overpayCreditNgn = 0, quo
           <ul className="mt-2 space-y-2">
             {hanging.map((r) => {
               const rid = String(r.refundID || '').trim() || 'Refund';
-              const status = String(r.status || '').trim() || '—';
+              const status = refundPublicStatusLabel(r) || '—';
               const q = String(r.quotationRef || '').trim();
               const open = hangingRefundOpenAmountNgn(r);
               return (

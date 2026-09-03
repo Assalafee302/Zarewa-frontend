@@ -109,10 +109,23 @@ export function refundHasUnclearedPayoutHold(refund) {
   );
 }
 
+/**
+ * Slice of a payee's net payout that stays withheld for unconfirmed receipts — capped at the
+ * payee's own uncleared total, never the whole net (so any surplus above what they actually
+ * owe in unconfirmed receipts pays out now, and unrelated payees/refunds are never touched).
+ */
+function payeeUnclearedWithheldNgn(row) {
+  if (!row?.payoutHeldForUnclearedReceipts) return 0;
+  return Math.max(
+    0,
+    Math.min(roundRefundStaffMoney(row?.netPayoutNgn), roundRefundStaffMoney(row?.unclearedReceiptHoldNgn))
+  );
+}
+
 /** Cash still owed from till/bank — excludes company cut settled at approval. */
 function payeeTillCashDueNgn(row, { treasuryPaidToPayeeNgn = 0, overrideUnclearedHold = false } = {}) {
-  if (row?.payoutHeldForUnclearedReceipts && !overrideUnclearedHold) return 0;
-  const tillOwed = Math.max(0, roundRefundStaffMoney(row?.netPayoutNgn));
+  const withheldNgn = overrideUnclearedHold ? 0 : payeeUnclearedWithheldNgn(row);
+  const tillOwed = Math.max(0, roundRefundStaffMoney(row?.netPayoutNgn) - withheldNgn);
   return Math.max(0, tillOwed - roundRefundStaffMoney(treasuryPaidToPayeeNgn));
 }
 
@@ -386,6 +399,7 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
       companyDeductionNgn: row.companyDeductionNgn,
       unclearedReceiptHoldNgn,
       payoutHeldForUnclearedReceipts: Boolean(row.payoutHeldForUnclearedReceipts),
+      unclearedWithheldNgn: payeeUnclearedWithheldNgn(row),
       overpaymentCashierReferralAvailable: Boolean(row.overpaymentCashierReferralAvailable),
       netPayoutNgn: row.netPayoutNgn,
       treasuryPaidToPayeeNgn,
@@ -428,6 +442,9 @@ export function refundRecipientTillPayoutRows(refund, { overrideUnclearedHold = 
     if (line.amountDueNgn > 0 && line.payoutHeldForUnclearedReceipts && overrideUnclearedHold) {
       payoutStatus = 'admin_override_uncleared';
       payoutStatusLabel = 'Admin exception — pay despite unconfirmed receipts';
+    } else if (line.amountDueNgn > 0 && line.unclearedWithheldNgn > 0) {
+      payoutStatus = 'till_due_partial_held';
+      payoutStatusLabel = 'Pay available balance — part held for uncleared receipts';
     } else if (line.amountDueNgn > 0) {
       payoutStatus = 'till_due';
       payoutStatusLabel = 'Pay from till / bank';
@@ -499,9 +516,13 @@ export function flattenRefundDeskQueue(refunds, { overrideUnclearedHold = false 
   const lines = [];
   for (const refund of list) {
     const rows = refundRecipientTillPayoutRows(refund, { overrideUnclearedHold }).filter((row) =>
-      ['till_due', 'held_uncleared', 'referral_available', 'admin_override_uncleared'].includes(
-        row.payoutStatus
-      )
+      [
+        'till_due',
+        'till_due_partial_held',
+        'held_uncleared',
+        'referral_available',
+        'admin_override_uncleared',
+      ].includes(row.payoutStatus)
     );
     if (rows.length) {
       lines.push(...rows.map((row) => ({ ...row, parentRefund: refund })));
@@ -543,6 +564,8 @@ const REFUND_PAYOUT_CAUTION_COPY = {
   quotation_blocked: 'Refunds are blocked on this quotation — payout will be rejected.',
   uncleared_receipts:
     'Payee has unconfirmed receipts — till payout is held until cashier confirms them.',
+  uncleared_receipts_partial:
+    'Part of this payout is held for the payee\'s unconfirmed receipts — the rest is payable now.',
   admin_uncleared_override:
     'Admin exception: payee has unconfirmed receipts — payout is allowed for this login only.',
 };
@@ -595,11 +618,13 @@ export function refundPayeePayoutCaution(refund, payeeLine, { siblingPayeeLines 
     codes.push('quotation_blocked');
   }
 
-  if (payeeLine?.payoutHeldForUnclearedReceipts) {
+  if (payeeLine?.payoutHeldForUnclearedReceipts && roundRefundStaffMoney(payeeLine?.unclearedWithheldNgn) > 0) {
     codes.push(
       payeeLine?.payoutStatus === 'admin_override_uncleared'
         ? 'admin_uncleared_override'
-        : 'uncleared_receipts'
+        : payeeLine?.payoutStatus === 'till_due_partial_held'
+          ? 'uncleared_receipts_partial'
+          : 'uncleared_receipts'
     );
   }
 
@@ -616,6 +641,7 @@ export function refundPayeePayoutCaution(refund, payeeLine, { siblingPayeeLines 
     codes.includes('missing_bank') ||
     codes.includes('splits_incomplete') ||
     codes.includes('uncleared_receipts') ||
+    codes.includes('uncleared_receipts_partial') ||
     codes.includes('admin_uncleared_override')
   ) {
     level = 'warn';

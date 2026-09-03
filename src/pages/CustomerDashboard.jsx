@@ -62,7 +62,7 @@ import {
   COMPLAINT_SEVERITIES,
   COMPLAINT_SEVERITY_LABELS,
 } from '../shared/customerComplaints.js';
-import { refundApprovedAmount, refundOutstandingAmount } from '../lib/refundsStore';
+import { refundApprovedAmount, refundOutstandingAmount, refundPublicStatusLabel } from '../lib/refundsStore';
 import {
   advanceBalanceNgn,
   overpayCreditBalanceNgn,
@@ -1828,7 +1828,10 @@ const CustomerDashboard = () => {
                           <p className="text-sm font-black text-zarewa-teal tabular-nums">
                             {formatNgn(r.amountNgn)}
                           </p>
-                          <SalesStatusChip label={r.status} chipClass={refundStatusChipClass(r.status)} />
+                          <SalesStatusChip
+                            label={refundPublicStatusLabel(r)}
+                            chipClass={refundStatusChipClass(refundPublicStatusLabel(r))}
+                          />
                           {(r.status === 'Approved' || r.status === 'Partially paid' || r.status === 'Paid') && (
                             <p className="text-ui-xs text-gray-500 tabular-nums">
                               Bal {formatNgn(refundOutstandingAmount(r))}
@@ -2275,7 +2278,7 @@ const CustomerDashboard = () => {
               )}
               <p className="text-xs text-gray-600">{detail.row.reason}</p>
               <p className="text-ui-xs text-gray-500">
-                Status: {detail.row.status}
+                Status: {refundPublicStatusLabel(detail.row)}
                 {detail.row.requestedBy ? ` · Requested by ${detail.row.requestedBy}` : ''}
                 {detail.row.approvedBy ? ` · Approved by ${detail.row.approvedBy}` : ''}
                 {detail.row.paidBy ? ` · Paid by ${detail.row.paidBy}` : ''}

@@ -41,7 +41,7 @@ import {
 } from '../../lib/receiptClearance.js';
 import { pickProductionJobForCuttingList } from '../../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../../lib/productionQueueLineStatus';
-import { refundApprovedAmount, refundOutstandingAmount, refundHasCreditConfirmation } from '../../lib/refundsStore';
+import { refundApprovedAmount, refundOutstandingAmount, refundHasCreditConfirmation, refundPublicStatusLabel } from '../../lib/refundsStore';
 import { MillSpecMark } from '../ui/MillColourChip.jsx';
 import { quotationListColour, quotationListGauge } from '../../lib/quotationListSpec.js';
 import { formatNgn } from '../../Data/mockData';
@@ -877,8 +877,8 @@ export function SalesRefundsList({
                                     <span className={SALES_ROW_AMOUNT}>
                                       {formatNgn(r.amountNgn)}
                                     </span>
-                                    <span className={`${CHIP} ${refundStatusChipClass(r.status)}`}>
-                                      {r.status}
+                                    <span className={`${CHIP} ${refundStatusChipClass(refundPublicStatusLabel(r))}`}>
+                                      {refundPublicStatusLabel(r)}
                                     </span>
                                     {refundHasCreditConfirmation(r) ? (
                                       <span
@@ -932,7 +932,9 @@ export function SalesRefundsList({
                             amount: <span className={SALES_ROW_AMOUNT}>{formatNgn(r.amountNgn)}</span>,
                             status: (
                               <span className="inline-flex flex-wrap gap-1">
-                                <span className={`${CHIP} ${refundStatusChipClass(r.status)}`}>{r.status}</span>
+                                <span className={`${CHIP} ${refundStatusChipClass(refundPublicStatusLabel(r))}`}>
+                                  {refundPublicStatusLabel(r)}
+                                </span>
                                 {refundHasCreditConfirmation(r) ? (
                                   <span
                                     className={`${CHIP} bg-sky-100 text-sky-800`}

@@ -61,11 +61,13 @@ export function refundPayeePayoutMetaLine(refund, payeeLine, branchNameById = {}
   const hold =
     payeeLine?.payoutStatus === 'held_uncleared'
       ? ' · Held — clear uncleared receipts, or use as cashier referral on a receipt'
-      : payeeLine?.payoutStatus === 'referral_available'
-        ? ' · Pending: use on Confirm payment (do not till-pay the same ₦)'
-        : payeeLine?.payoutStatus === 'needs_review'
-          ? ' · Shows paid with no till payout — View refund'
-          : '';
+      : payeeLine?.payoutStatus === 'till_due_partial_held'
+        ? ` · ${formatNgn(payeeLine.unclearedWithheldNgn)} held for uncleared receipts, rest payable now`
+        : payeeLine?.payoutStatus === 'referral_available'
+          ? ' · Pending: use on Confirm payment (do not till-pay the same ₦)'
+          : payeeLine?.payoutStatus === 'needs_review'
+            ? ' · Shows paid with no till payout — View refund'
+            : '';
   const gross =
     Math.round(Number(payeeLine?.grossNgn) || 0) > 0 &&
     Math.round(Number(payeeLine?.grossNgn) || 0) !== Math.round(Number(payeeLine?.netPayoutNgn) || 0)

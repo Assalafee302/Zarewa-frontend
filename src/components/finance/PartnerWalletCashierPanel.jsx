@@ -5,6 +5,7 @@ import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { ModalFrame } from '../layout';
+import { userMayPayCustomerRefund, MD_REFUND_PAY_BLOCKED_MESSAGE } from '../../lib/refundsStore';
 import {
   FinanceDeskColoredQueuePanel,
   FinanceDeskColoredQueueRow,
@@ -67,8 +68,13 @@ export function PartnerWalletCashierPanel({
   const submitWithdraw = async (e) => {
     e.preventDefault();
     if (!withdrawTarget || busy) return;
-    if (!canPay || !ws?.canMutate) {
-      showToast('Connect with finance.pay to release partner wallet balance.', { variant: 'info' });
+    if (!canPay || !userMayPayCustomerRefund(ws) || !ws?.canMutate) {
+      showToast(
+        !userMayPayCustomerRefund(ws)
+          ? MD_REFUND_PAY_BLOCKED_MESSAGE
+          : 'Connect with finance.pay to release partner wallet balance.',
+        { variant: 'info' }
+      );
       return;
     }
     const amountNgn = Math.round(Number(String(amount).replace(/,/g, '')) || 0);
@@ -176,7 +182,7 @@ export function PartnerWalletCashierPanel({
                 }
                 amount={formatNgn(row.balanceNgn)}
                 actions={
-                  canPay ? (
+                  canPay && userMayPayCustomerRefund(ws) ? (
                     <FinanceDeskQueueActionButton tone="violet" onClick={() => void openWithdraw(row)}>
                       Withdraw
                     </FinanceDeskQueueActionButton>

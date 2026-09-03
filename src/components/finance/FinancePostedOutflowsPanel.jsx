@@ -15,6 +15,7 @@ import { useAppTablePaging } from '../../lib/appDataTable';
 import {
   refundApprovedAmount,
   isRefundPayable,
+  refundPublicStatusLabel,
 } from '../../lib/refundsStore';
 import {
   refundCashierMoneyStory,
@@ -1132,7 +1133,7 @@ function RefundRegisterList() {
                         {refund.customer || '—'}
                       </p>
                       <div className="mt-1">
-                        <StatusChip status={refund.status} />
+                        <StatusChip status={refundPublicStatusLabel(refund)} />
                       </div>
                       <p className="mt-1.5 text-xs leading-snug text-slate-700">{refundPayoutDetailText(refund)}</p>
                     </div>
@@ -1186,7 +1187,7 @@ function RefundRegisterList() {
                         <AppTableTd title={refund.customer}>{refund.customer || '—'}</AppTableTd>
                         <AppTableTd monospace>{refund.quotationRef || '—'}</AppTableTd>
                         <AppTableTd>
-                          <StatusChip status={refund.status} />
+                          <StatusChip status={refundPublicStatusLabel(refund)} />
                         </AppTableTd>
                         <AppTableTd truncate={false} title={refundPayoutDetailText(refund)}>
                           <span className="text-xs leading-snug text-slate-700">{refundPayoutDetailText(refund)}</span>

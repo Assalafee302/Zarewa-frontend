@@ -13,6 +13,7 @@ import {
   refundPayeePayoutCaution,
   flattenRefundDeskQueue,
   actorMayOverrideRefundUnclearedPayoutHold,
+  refundCashierCustomerName,
 } from '../../lib/refundCashierDetail';
 import {
   paymentRequestOutstandingNgn,
@@ -64,12 +65,21 @@ function PayeeAccountExtra({ payeeName, payeeBankName, payeeAccountNo }) {
 }
 
 function RefundPayeeExtra({ payeeLine }) {
+  const isStaff = payeeLine?.recipientKind === 'associated_staff';
+  const staffName = String(payeeLine?.recipientLabel || payeeLine?.payeeName || '').trim();
   return (
-    <PayeeAccountExtra
-      payeeName={payeeLine?.payeeName}
-      payeeBankName={payeeLine?.payeeBankName}
-      payeeAccountNo={payeeLine?.payeeAccountNo}
-    />
+    <>
+      {isStaff && staffName ? (
+        <p className="text-ui-xs font-semibold text-slate-600 mt-0.5 truncate">
+          Staff: <span className="font-sans">{staffName}</span>
+        </p>
+      ) : null}
+      <PayeeAccountExtra
+        payeeName={payeeLine?.payeeName}
+        payeeBankName={payeeLine?.payeeBankName}
+        payeeAccountNo={payeeLine?.payeeAccountNo}
+      />
+    </>
   );
 }
 
@@ -213,8 +223,11 @@ export function FinanceTreasuryAwaitingPayoutQueues({
                       <span className="font-mono">{line.refundID}</span>
                       <span className="font-medium text-slate-600">
                         {' '}
-                        · {line.recipientLabel}
+                        · {refundCashierCustomerName(r)}
                       </span>
+                      {line.recipientKind === 'associated_staff' ? (
+                        <span className="font-medium text-slate-500"> → {line.recipientLabel}</span>
+                      ) : null}
                       <span className="text-ui-xs font-bold uppercase text-slate-400">
                         {' '}
                         · {line.recipientKind === 'associated_staff' ? 'Staff' : 'Customer'}

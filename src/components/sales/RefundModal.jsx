@@ -31,6 +31,7 @@ import {
   refundOutstandingAmount,
   refundStatusIsWithdrawn,
   userMayApproveRefundRequests,
+  refundPublicStatusLabel,
 } from '../../lib/refundsStore';
 import {
   REFUND_STAFF_ALLOCATION_DEDUCTION_RATE,
@@ -531,7 +532,7 @@ function refundCustomerNameFromRecord(record) {
  */
 export function refundRecordSubtitle(record) {
   if (!record?.refundID) return '';
-  const base = `${record.refundID} · ${record.status}`;
+  const base = `${record.refundID} · ${refundPublicStatusLabel(record)}`;
   const creditApplied = Math.round(Number(record.creditAppliedNgn ?? record.credit_applied_ngn) || 0);
   const confirmed = String(record.creditConfirmationStatus ?? record.credit_confirmation_status ?? '').trim();
   if (!confirmed && creditApplied <= 0) return base;
@@ -4105,7 +4106,7 @@ const RefundModal = ({
                   {record.requestedBy ? ` · ${record.requestedBy}` : ''}
                 </li>
                 <li>
-                  <span className="text-slate-500">Status</span> {record.status || '—'}
+                  <span className="text-slate-500">Status</span> {refundPublicStatusLabel(record) || '—'}
                   {record.approvalDate ? ` · Approved ${record.approvalDate}` : ''}
                   {record.approvedBy ? ` · ${record.approvedBy}` : ''}
                 </li>

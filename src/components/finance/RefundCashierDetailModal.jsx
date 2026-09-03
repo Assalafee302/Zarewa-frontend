@@ -10,7 +10,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
 import { flattenQuotationLineItems } from '../../lib/managerDashboardCore';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
-import { refundStatusIsWithdrawn } from '../../lib/refundsStore';
+import { refundStatusIsWithdrawn, refundPublicStatusLabel } from '../../lib/refundsStore';
 import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn, refundDefaultTreasuryPayoutNgn, refundRecipientTillPayoutRows, actorMayOverrideRefundUnclearedPayoutHold } from '../../lib/refundCashierDetail';
 import { refundCreditApplicationIsActive } from '../../lib/refundFundApply.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
@@ -164,7 +164,7 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
               ) : null}
             </p>
             <p className="text-xs font-semibold text-slate-500 mt-0.5">
-              {refund.status || '—'}
+              {refundPublicStatusLabel(refund) || '—'}
               {qref ? ` · ${qref}` : ''}
             </p>
           </div>
@@ -244,13 +244,23 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                     className="rounded-lg border border-sky-200/70 bg-white/60 px-2.5 py-2"
                   >
                     <div className="flex justify-between gap-2 text-xs text-sky-950">
-                      <span className="font-semibold">{row.recipientLabel}</span>
+                      <span className="font-semibold">
+                        {row.recipientKind === 'associated_staff' ? 'Staff: ' : ''}
+                        {row.recipientLabel}
+                      </span>
                       <span className="tabular-nums font-bold">{formatNgn(row.netPayoutNgn)} net</span>
                     </div>
+                    {row.payeeAccountNo || row.payeeBankName ? (
+                      <p className="text-ui-xs text-sky-900/80 truncate">
+                        Acct:{' '}
+                        <span className="font-mono tabular-nums">{row.payeeAccountNo || '—'}</span>
+                        {row.payeeBankName ? ` · ${row.payeeBankName}` : ''}
+                      </p>
+                    ) : null}
                     <div className="mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-ui-xs">
                       <span
                         className={
-                          row.payoutStatus === 'till_due'
+                          row.payoutStatus === 'till_due' || row.payoutStatus === 'till_due_partial_held'
                             ? 'font-bold text-rose-800'
                             : row.payoutStatus === 'admin_override_uncleared'
                               ? 'font-semibold text-amber-900'
@@ -263,6 +273,9 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                       >
                         {row.payoutStatusLabel}
                         {row.payoutStatus === 'till_due' ? ` · ${formatNgn(row.amountDueNgn)}` : ''}
+                        {row.payoutStatus === 'till_due_partial_held'
+                          ? ` · Pay ${formatNgn(row.amountDueNgn)} now · ${formatNgn(row.unclearedWithheldNgn)} held`
+                          : ''}
                         {row.payoutStatus === 'admin_override_uncleared'
                           ? ` · ${formatNgn(row.amountDueNgn)} admin exception`
                           : ''}
@@ -273,7 +286,9 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                           ? ` · ${formatNgn(row.netPayoutNgn)} for cashier referral`
                           : ''}
                       </span>
-                      {row.payoutStatus === 'till_due' || row.payoutStatus === 'admin_override_uncleared' ? (
+                      {row.payoutStatus === 'till_due' ||
+                      row.payoutStatus === 'till_due_partial_held' ||
+                      row.payoutStatus === 'admin_override_uncleared' ? (
                         <span className="font-bold uppercase tracking-wide text-rose-700">
                           {row.payoutStatus === 'admin_override_uncleared' ? 'Admin exception' : 'In payout queue'}
                         </span>
@@ -378,7 +393,8 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                 {priorRefunds.map((r) => (
                   <li key={r.refundID} className="flex justify-between gap-2 text-xs">
                     <span className="font-mono text-slate-600">
-                      {r.refundID} <span className="font-sans text-slate-500">{r.status}</span>
+                      {r.refundID}{' '}
+                      <span className="font-sans text-slate-500">{refundPublicStatusLabel(r)}</span>
                     </span>
                     <span className="tabular-nums font-semibold">
                       {formatNgn(r.paidAmountNgn > 0 ? r.paidAmountNgn : r.amountNgn)}

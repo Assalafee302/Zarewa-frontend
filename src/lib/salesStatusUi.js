@@ -39,6 +39,9 @@ export function receiptCuttingListChipClass(kind) {
 
 export function refundStatusChipClass(st) {
   if (st === 'Paid') return 'border-sky-200 bg-sky-50 text-sky-900';
+  if (st === 'Payee not settled' || st === 'Awaiting till payout') {
+    return 'border-amber-200 bg-amber-50 text-amber-900';
+  }
   if (st === 'Partially paid') return 'border-cyan-200 bg-cyan-50 text-cyan-900';
   if (st === 'Approved') return 'border-emerald-200 bg-emerald-50 text-emerald-800';
   if (st === 'Rejected') return 'border-rose-200 bg-rose-50 text-rose-800';

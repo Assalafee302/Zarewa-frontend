@@ -6,6 +6,8 @@ import {
   hangingRefundsForCustomer,
   isRefundHanging,
   normalizeRefund,
+  refundPublicStatusLabel,
+  userMayPayCustomerRefund,
 } from './refundsStore.js';
 
 describe('hanging refund indicators', () => {
@@ -158,5 +160,58 @@ describe('hanging refund indicators', () => {
     expect(direct?.overpayCreditNgn).toBe(7_500);
     expect(direct?.totalOpenNgn).toBe(0);
     expect(hangingRefundIndicator([], 0)).toBeNull();
+  });
+
+  it('treats Paid + open wallet as hanging and never labels it Paid', () => {
+    const r = normalizeRefund({
+      refundID: 'RF-WALLET-OPEN',
+      status: 'Paid',
+      amountNgn: 10_000,
+      approvedAmountNgn: 10_000,
+      paidAmountNgn: 10_000,
+      paidAtISO: '2026-08-28',
+      paidBy: 'Finance',
+      walletOpenNgn: 8_000,
+    });
+    expect(isRefundHanging(r)).toBe(true);
+    expect(refundPublicStatusLabel(r)).toBe('Payee not settled');
+    expect(refundPublicStatusLabel(r)).not.toBe('Paid');
+  });
+
+  it('keeps Paid when till actor and date are present and the wallet is closed', () => {
+    const r = normalizeRefund({
+      refundID: 'RF-TILL-PAID',
+      status: 'Paid',
+      amountNgn: 10_000,
+      approvedAmountNgn: 10_000,
+      paidAmountNgn: 10_000,
+      paidAtISO: '2026-08-28',
+      paidBy: 'Finance',
+      walletOpenNgn: 0,
+    });
+    expect(isRefundHanging(r)).toBe(false);
+    expect(refundPublicStatusLabel(r)).toBe('Paid');
+  });
+
+  it('labels false Paid (cut/credit, no till actor) as awaiting till payout', () => {
+    const r = normalizeRefund({
+      refundID: 'RF-FALSE-PAID',
+      status: 'Paid',
+      amountNgn: 10_000,
+      approvedAmountNgn: 10_000,
+      paidAmountNgn: 10_000,
+      paidAtISO: '',
+      paidBy: '',
+    });
+    expect(isRefundHanging(r)).toBe(true);
+    expect(refundPublicStatusLabel(r)).toBe('Awaiting till payout');
+  });
+
+  it('hides refund Pay for MD and allows cashier and admin trial', () => {
+    expect(userMayPayCustomerRefund({ roleKey: 'md', hasPermission: (p) => p === 'finance.pay' })).toBe(
+      false
+    );
+    expect(userMayPayCustomerRefund({ roleKey: 'cashier', hasPermission: () => false })).toBe(true);
+    expect(userMayPayCustomerRefund({ roleKey: 'admin', hasPermission: (p) => p === '*' })).toBe(true);
   });
 });

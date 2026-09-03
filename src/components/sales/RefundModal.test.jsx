@@ -614,7 +614,7 @@ describe('RefundModal', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Refund total/i)).toBeInTheDocument();
-      expect(screen.getByText(/₦100/)).toBeInTheDocument();
+      expect(screen.getAllByText(/₦100/).length).toBeGreaterThan(0);
     });
     expect(
       screen.queryByText(/Line items total does not match the requested refund amount/i)
@@ -781,7 +781,7 @@ describe('RefundModal view record', () => {
     expect(
       screen.getByText(/RF-KD-26-9505 · Approved · ₦23,030 applied to QT-KD-26-1282 · ₦128,300 awaits payout/)
     ).toBeInTheDocument();
-    expect(screen.getByText('Kaduna Sheets')).toBeInTheDocument();
+    expect(screen.getAllByText('Kaduna Sheets').length).toBeGreaterThan(0);
     expect(await screen.findByText(/ledger cash-in ₦1,132,400/i)).toBeInTheDocument();
     expect(screen.getByRole('status', { name: /Outstanding for payout/i })).toBeInTheDocument();
     expect(screen.queryByText(/₦1,150,000/)).not.toBeInTheDocument();

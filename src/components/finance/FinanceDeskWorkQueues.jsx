@@ -35,7 +35,7 @@ import {
 
 import { SALES_STATUS_CHIP, receiptCuttingListChipClass } from "../../lib/salesStatusUi";
 
-import { refundsOnFinanceRefundQueue, hangingRefundIndicatorsByCustomerId } from "../../lib/refundsStore";
+import { refundsOnFinanceRefundQueue, hangingRefundIndicatorsByCustomerId, userMayPayCustomerRefund } from "../../lib/refundsStore";
 
 import {
   registerSettlementsAwaitingPayment,
@@ -914,7 +914,8 @@ export function FinanceDeskWorkQueues({
               }
               renderRefundActions={(line) => (
                 <>
-                  {line.amountDueNgn > 0 || line.payoutStatus === 'admin_override_uncleared' ? (
+                  {userMayPayCustomerRefund(ws) &&
+                  (line.amountDueNgn > 0 || line.payoutStatus === 'admin_override_uncleared') ? (
                     <FinanceDeskQueueActionButton
                       tone="sky"
                       onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
