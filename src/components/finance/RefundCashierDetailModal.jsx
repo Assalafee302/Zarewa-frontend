@@ -294,6 +294,19 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                         </span>
                       ) : null}
                     </div>
+                    {(row.payoutStatus === 'held_uncleared' || row.payoutStatus === 'till_due_partial_held') &&
+                    row.unclearedReceiptIds?.length ? (
+                      <p className="mt-1 text-ui-xs text-amber-900">
+                        Go confirm{' '}
+                        {row.unclearedReceiptIds.map((rid, idx) => (
+                          <React.Fragment key={rid}>
+                            {idx > 0 ? ', ' : ''}
+                            <span className="font-mono font-semibold">{rid}</span>
+                          </React.Fragment>
+                        ))}{' '}
+                        on the receipts desk to release this hold.
+                      </p>
+                    ) : null}
                   </li>
                 ))}
               </ul>
