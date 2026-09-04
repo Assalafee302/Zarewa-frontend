@@ -13,24 +13,121 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"></noscript>
+    <style>
+      /* Pre-React boot screen: shown instantly from the raw HTML while the JS bundle downloads
+         and parses. On a slow connection this can be the only thing on screen for a while —
+         without it #root is empty and the site looks broken, not just slow. React's own
+         LoadingScreen (App.jsx) replaces this the moment it mounts, so keep the look matched. */
+      #zarewa-boot {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #f4f6f5;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      #zarewa-boot .card {
+        max-width: 22rem;
+        width: 100%;
+        text-align: center;
+        padding: 28px 32px;
+        border-radius: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 20px 40px -20px rgba(19, 78, 74, 0.3);
+      }
+      #zarewa-boot img {
+        height: 48px;
+        width: auto;
+        margin: 0 auto;
+        display: block;
+      }
+      #zarewa-boot .eyebrow {
+        margin-top: 12px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+      #zarewa-boot .headline {
+        margin-top: 12px;
+        font-size: 19px;
+        font-weight: 800;
+        color: #134e4a;
+      }
+      #zarewa-boot .spinner {
+        margin: 18px auto 0;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 3px solid #d3e8e5;
+        border-top-color: #134e4a;
+        animation: zarewa-spin 0.8s linear infinite;
+      }
+      #zarewa-boot .slow-note {
+        margin-top: 14px;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: #64748b;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+      }
+      #zarewa-boot .slow-note.visible {
+        opacity: 1;
+      }
+      @keyframes zarewa-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #zarewa-boot .spinner {
+          animation: none;
+        }
+      }
+      /* React replaces #root's contents on mount, so this rule stops mattering the instant it does. */
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="zarewa-boot">
+        <div class="card">
+          <img src="/zarewa-logo.png" alt="" width="120" height="48" />
+          <p class="eyebrow">Zarewa</p>
+          <p class="headline">Preparing live workspace…</p>
+          <div class="spinner" role="status" aria-label="Loading"></div>
+          <p class="slow-note" id="zarewa-boot-slow-note">
+            Still loading — this can take a little longer on a slow connection. No need to refresh.
+          </p>
+        </div>
+      </div>
+    </div>
     <noscript>
       <p style="padding:2rem;font-family:system-ui,sans-serif;color:#134e4a">
         Zarewa requires JavaScript. Enable it in your browser to sign in.
       </p>
     </noscript>
     <script>
+      window.setTimeout(function () {
+        var note = document.getElementById('zarewa-boot-slow-note');
+        if (note) note.className = 'slow-note visible';
+      }, 8000);
       window.addEventListener('error', function (ev) {
         var msg = (ev && ev.message) || '';
         if (/Loading chunk|Failed to fetch dynamically imported module|before initialization|Minified React error #30[01]|fewer hooks than expected/i.test(msg)) {
           var root = document.getElementById('root');
-          if (root && !root.innerHTML.trim()) {
+          // Root starts with the static boot screen (#zarewa-boot) pre-mount, so "still booting" now
+          // means empty OR still showing that placeholder — not literally empty as before. Once React
+          // has mounted real app content, leave it alone; a later lazy-chunk error shouldn't stomp a
+          // working app.
+          var stillBooting = root && (!root.innerHTML.trim() || document.getElementById('zarewa-boot'));
+          if (stillBooting) {
             root.innerHTML =
               '<div style="max-width:28rem;margin:3rem auto;padding:1.5rem;font-family:system-ui,sans-serif">' +
               '<h1 style="color:#7f1d1d;font-size:1.125rem">Update not fully loaded</h1>' +
-              '<p style="color:#334155;font-size:0.875rem;margin-top:0.5rem">The app bundle failed to load (often an old cached file after deploy). Hard refresh: Ctrl+Shift+R.</p>' +
+              '<p style="color:#334155;font-size:0.875rem;margin-top:0.5rem">The app bundle failed to load (often an old cached file after deploy, or a very slow/unstable connection). Hard refresh: Ctrl+Shift+R.</p>' +
               '<button type="button" onclick="location.reload()" style="margin-top:1rem;width:100%;padding:0.75rem;background:#134e4a;color:#fff;border:none;border-radius:0.75rem;font-weight:700;cursor:pointer">Reload</button></div>';
           }
         }
