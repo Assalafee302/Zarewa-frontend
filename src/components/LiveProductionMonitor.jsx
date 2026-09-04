@@ -40,6 +40,7 @@ import {
   isStoneFlatsheetQuotationLine,
   isStoneRidgeQuotationLine,
   quotationHasStoneMetreProductLines,
+  quotationProductLinesForJobProduct,
   resolveStoneFlatsheetLengthM,
   stoneBargeboardMetresPerSheet,
   stoneFlatsheetSheetsForFinishedMetres,
@@ -472,10 +473,15 @@ export function LiveProductionMonitor({
       }) === 'stone'
     );
   }, [linkedQuotation, linkedCuttingList, ws?.snapshot?.masterData?.materialTypes]);
-  /** Stone + Flat sheet / gutter / Coil — may allocate coil or complete from offcut for that portion. */
+  /**
+   * Stone + Flat sheet / gutter / Coil — may allocate coil or complete from offcut for that portion.
+   * Scoped to this job's own cutting-list product (`selectedJob.productName`) so a sibling product
+   * line elsewhere on the same multi-line quotation (e.g. a "Flat sheet" line next to this job's
+   * "Roofing Sheet" line) can't make a pure stone-metre job show/accept coil allocation, or vice versa.
+   */
   const expectsCoilAllocation = useMemo(
-    () => quotationExpectsCoilAllocation(linkedQuotation),
-    [linkedQuotation]
+    () => quotationExpectsCoilAllocation(linkedQuotation, { jobProductName: selectedJob?.productName }),
+    [linkedQuotation, selectedJob?.productName]
   );
   const stoneCoilHybrid = isStoneMeterQuote && expectsCoilAllocation;
   /** Pure stone (roofing / SF / accessories only) — no coil UI. */
@@ -484,8 +490,9 @@ export function LiveProductionMonitor({
   const isStoneAccessoriesOnlyQuote = isStoneMeterQuote && isAccessoriesOnlyQuote;
   const stoneMetreConsumptionRequired = useMemo(() => {
     const { products } = quotationLinesGrouped(linkedQuotation);
-    return quotationHasStoneMetreProductLines(products);
-  }, [linkedQuotation]);
+    const scoped = quotationProductLinesForJobProduct(products, selectedJob?.productName);
+    return quotationHasStoneMetreProductLines(scoped);
+  }, [linkedQuotation, selectedJob?.productName]);
 
   const reloadJobIntel = useCallback(async () => {
     const jobId = String(selectedJob?.jobID || '').trim();
