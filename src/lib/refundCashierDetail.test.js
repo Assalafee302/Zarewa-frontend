@@ -40,9 +40,9 @@ describe('refundDefaultTreasuryPayoutNgn', () => {
       customerID: 'CUS-QUOTE',
       amountNgn: 297_300,
       approvedAmountNgn: 297_300,
-      paidAmountNgn: 27_300,
+      paidAmountNgn: 4_095,
       status: 'Approved',
-      paymentNote: 'Settled at approval: company cut ₦27,300 → retention ledger.',
+      paymentNote: 'Settled at approval: company cut ₦4,095 → retention ledger.',
       splitDistributions: [
         {
           recipientKind: 'customer',
@@ -80,14 +80,14 @@ describe('refundDefaultTreasuryPayoutNgn', () => {
       paidAmountNgn: 14_300,
       status: 'Approved',
       paymentNote:
-        'Settled at approval: company cut ₦2,860 → retention ledger; uncleared receipts offset ₦11,440.',
+        'Settled at approval: company cut ₦429 → retention ledger; uncleared receipts offset ₦13,871.',
       splitDistributions: [
         { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000 },
         {
           recipientKind: 'associated_staff',
           recipientAssociatedStaffID: 'AST-1',
           amountNgn: 14_300,
-          unclearedReceiptHoldNgn: 11_440,
+          unclearedReceiptHoldNgn: 13_871,
         },
       ],
     };
@@ -109,7 +109,7 @@ describe('refundRecipientTillPayoutRows', () => {
       paidAmountNgn: 14_300,
       status: 'Approved',
       paymentNote:
-        'Settled at approval: company cut ₦2,860 → retention ledger; uncleared receipts offset ₦11,440.',
+        'Settled at approval: company cut ₦429 → retention ledger; uncleared receipts offset ₦13,871.',
       splitDistributions: [
         { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
         {
@@ -117,7 +117,7 @@ describe('refundRecipientTillPayoutRows', () => {
           recipientAssociatedStaffID: 'AST-1',
           amountNgn: 14_300,
           payeeName: 'Muhammad Ibrahim Bakari',
-          unclearedReceiptHoldNgn: 11_440,
+          unclearedReceiptHoldNgn: 13_871,
         },
       ],
     };
@@ -138,9 +138,9 @@ describe('refundRecipientTillPayoutRows', () => {
       customerID: 'CUS-1',
       amountNgn: 89_300,
       approvedAmountNgn: 89_300,
-      paidAmountNgn: 2_860,
+      paidAmountNgn: 429,
       status: 'Approved',
-      paymentNote: 'Settled at approval: company cut ₦2,860 → retention ledger.',
+      paymentNote: 'Settled at approval: company cut ₦429 → retention ledger.',
       splitDistributions: [
         { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
         {
@@ -148,7 +148,7 @@ describe('refundRecipientTillPayoutRows', () => {
           recipientAssociatedStaffID: 'AST-1',
           amountNgn: 14_300,
           payeeName: 'Muhammad Ibrahim Bakari',
-          // Uncleared total (3,000) is well below the staff's net payout (11,440) — only the
+          // Uncleared total (3,000) is well below the staff's net payout (13,871) — only the
           // uncleared slice should stay held; the rest is payable now.
           unclearedReceiptHoldNgn: 3_000,
         },
@@ -157,13 +157,13 @@ describe('refundRecipientTillPayoutRows', () => {
     const rows = refundRecipientTillPayoutRows(refund);
     expect(rows).toHaveLength(2);
     const staff = rows.find((row) => row.recipientKind === 'associated_staff');
-    expect(staff.netPayoutNgn).toBe(11_440);
+    expect(staff.netPayoutNgn).toBe(13_871);
     expect(staff.unclearedWithheldNgn).toBe(3_000);
-    expect(staff.amountDueNgn).toBe(8_440);
+    expect(staff.amountDueNgn).toBe(10_871);
     expect(staff.payoutStatus).toBe('till_due_partial_held');
     const lines = refundPayeePayoutQueueLines(refund);
     expect(lines).toHaveLength(2);
-    expect(lines.find((l) => l.recipientKind === 'associated_staff').amountDueNgn).toBe(8_440);
+    expect(lines.find((l) => l.recipientKind === 'associated_staff').amountDueNgn).toBe(10_871);
   });
 
   it('does not hold a payee at all once their uncleared receipts are confirmed (hold drops to 0)', () => {
@@ -172,9 +172,9 @@ describe('refundRecipientTillPayoutRows', () => {
       customerID: 'CUS-1',
       amountNgn: 89_300,
       approvedAmountNgn: 89_300,
-      paidAmountNgn: 2_860,
+      paidAmountNgn: 429,
       status: 'Approved',
-      paymentNote: 'Settled at approval: company cut ₦2,860 → retention ledger.',
+      paymentNote: 'Settled at approval: company cut ₦429 → retention ledger.',
       splitDistributions: [
         { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
         {
@@ -189,7 +189,7 @@ describe('refundRecipientTillPayoutRows', () => {
     const rows = refundRecipientTillPayoutRows(refund);
     const staff = rows.find((row) => row.recipientKind === 'associated_staff');
     expect(staff?.payoutStatus).toBe('till_due');
-    expect(staff?.amountDueNgn).toBe(11_440);
+    expect(staff?.amountDueNgn).toBe(13_871);
     expect(refundPayeePayoutQueueLines(refund)).toHaveLength(2);
   });
 
@@ -199,9 +199,9 @@ describe('refundRecipientTillPayoutRows', () => {
       customerID: 'CUS-1',
       amountNgn: 89_300,
       approvedAmountNgn: 89_300,
-      paidAmountNgn: 2_860,
+      paidAmountNgn: 429,
       status: 'Approved',
-      paymentNote: 'Settled at approval: company cut ₦2,860 → retention ledger.',
+      paymentNote: 'Settled at approval: company cut ₦429 → retention ledger.',
       splitDistributions: [
         { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
         {
@@ -209,7 +209,7 @@ describe('refundRecipientTillPayoutRows', () => {
           recipientAssociatedStaffID: 'AST-1',
           amountNgn: 14_300,
           payeeName: 'Muhammad Ibrahim Bakari',
-          unclearedReceiptHoldNgn: 11_440,
+          unclearedReceiptHoldNgn: 13_871,
         },
       ],
     };
@@ -228,7 +228,7 @@ describe('refundRecipientTillPayoutRows', () => {
       approvedAmountNgn: 89_300,
       paidAmountNgn: 14_300,
       status: 'Approved',
-      paymentNote: 'Settled at approval: company cut ₦2,860 → retention ledger; uncleared receipts offset ₦11,440.',
+      paymentNote: 'Settled at approval: company cut ₦429 → retention ledger; uncleared receipts offset ₦13,871.',
       splitDistributions: [
         { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
         {
@@ -236,7 +236,7 @@ describe('refundRecipientTillPayoutRows', () => {
           recipientAssociatedStaffID: 'AST-1',
           amountNgn: 14_300,
           payeeName: 'Muhammad Ibrahim Bakari',
-          unclearedReceiptHoldNgn: 11_440,
+          unclearedReceiptHoldNgn: 13_871,
         },
       ],
     };
@@ -244,7 +244,7 @@ describe('refundRecipientTillPayoutRows', () => {
     expect(cashier.find((line) => line.recipientKind === 'associated_staff')).toBeUndefined();
     const admin = refundPayeePayoutQueueLines(refund, { overrideUnclearedHold: true });
     const staff = admin.find((line) => line.recipientKind === 'associated_staff');
-    expect(staff?.amountDueNgn).toBe(11_440);
+    expect(staff?.amountDueNgn).toBe(13_871);
     expect(staff?.payoutHeldForUnclearedReceipts).toBe(true);
   });
 
@@ -254,10 +254,10 @@ describe('refundRecipientTillPayoutRows', () => {
       customerID: 'CUS-1',
       amountNgn: 89_300,
       approvedAmountNgn: 89_300,
-      paidAmountNgn: 2_860,
+      paidAmountNgn: 429,
       walletOpenNgn: 75_000,
       status: 'Approved',
-      paymentNote: 'Settled at approval: company cut ₦2,860 → retention ledger.',
+      paymentNote: 'Settled at approval: company cut ₦429 → retention ledger.',
       splitDistributions: [
         { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 75_000, payeeName: 'YAHAYA NASIRU' },
         {
@@ -265,7 +265,7 @@ describe('refundRecipientTillPayoutRows', () => {
           recipientAssociatedStaffID: 'AST-1',
           amountNgn: 14_300,
           payeeName: 'Muhammad Ibrahim Bakari',
-          unclearedReceiptHoldNgn: 11_440,
+          unclearedReceiptHoldNgn: 13_871,
         },
       ],
     };
@@ -273,7 +273,7 @@ describe('refundRecipientTillPayoutRows', () => {
     const admin = refundPayeePayoutQueueLines(refund, { overrideUnclearedHold: true });
     expect(admin).toHaveLength(1);
     expect(admin[0].recipientKind).toBe('associated_staff');
-    expect(admin[0].amountDueNgn).toBe(11_440);
+    expect(admin[0].amountDueNgn).toBe(13_871);
     expect(refundsOnFinanceRefundQueue([refund])).toHaveLength(1);
   });
 
@@ -283,7 +283,7 @@ describe('refundRecipientTillPayoutRows', () => {
       customerID: 'CUS-1',
       amountNgn: 61_200,
       approvedAmountNgn: 61_200,
-      paidAmountNgn: 12_240,
+      paidAmountNgn: 1_836,
       status: 'Approved',
       reasonCategory: '["Overpayment"]',
       calculationLines: [{ category: 'Overpayment', amountNgn: 61_200 }],
@@ -292,7 +292,7 @@ describe('refundRecipientTillPayoutRows', () => {
           recipientKind: 'associated_staff',
           recipientAssociatedStaffID: 'AST-9553',
           amountNgn: 61_200,
-          unclearedReceiptHoldNgn: 48_960,
+          unclearedReceiptHoldNgn: 59_364,
         },
       ],
     };
@@ -316,9 +316,9 @@ describe('refundPayeePayoutQueueLines', () => {
       customer: 'Grace Emmanuel',
       amountNgn: 45_000,
       approvedAmountNgn: 45_000,
-      paidAmountNgn: 4_000,
+      paidAmountNgn: 600,
       status: 'Approved',
-      paymentNote: 'Settled at approval: company cut ₦4,000 → retention ledger.',
+      paymentNote: 'Settled at approval: company cut ₦600 → retention ledger.',
       payeeName: 'Grace Emmanuel',
       splitDistributions: [
         { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 25_000 },
@@ -330,9 +330,9 @@ describe('refundPayeePayoutQueueLines', () => {
     expect(lines[0].recipientKind).toBe('customer');
     expect(lines[0].amountDueNgn).toBe(25_000);
     expect(lines[1].recipientKind).toBe('associated_staff');
-    expect(lines[1].companyDeductionNgn).toBe(4_000);
-    expect(lines[1].netPayoutNgn).toBe(16_000);
-    expect(lines[1].amountDueNgn).toBe(16_000);
+    expect(lines[1].companyDeductionNgn).toBe(600);
+    expect(lines[1].netPayoutNgn).toBe(19_400);
+    expect(lines[1].amountDueNgn).toBe(19_400);
   });
 });
 
@@ -364,9 +364,9 @@ describe('refundPayeePayoutCaution', () => {
       refundID: 'RF-2026-002',
       customerID: 'CUS-1',
       approvedAmountNgn: 45_000,
-      paidAmountNgn: 4_000,
+      paidAmountNgn: 600,
       status: 'Approved',
-      paymentNote: 'Settled at approval: company cut ₦4,000 → retention ledger.',
+      paymentNote: 'Settled at approval: company cut ₦600 → retention ledger.',
       payeeAccountNo: '0123456789',
       payeeBankName: 'GTBank',
       splitDistributions: [

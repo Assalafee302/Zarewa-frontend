@@ -35,6 +35,7 @@ export default function GovernanceSettingsPanel() {
     ap3UnclassifiedAlertThresholdNgn: 100_000,
     othersBranchCoachThresholdPct: 15,
     refundStaffAllocationDeductionPct: 20,
+    refundAssociatedStaffDeductionPct: 3,
   });
   const [govLimitsBusy, setGovLimitsBusy] = useState(false);
 
@@ -145,6 +146,10 @@ export default function GovernanceSettingsPanel() {
             data.limits.refundStaffAllocationDeductionPct != null
               ? Number(data.limits.refundStaffAllocationDeductionPct)
               : 20,
+          refundAssociatedStaffDeductionPct:
+            data.limits.refundAssociatedStaffDeductionPct != null
+              ? Number(data.limits.refundAssociatedStaffDeductionPct)
+              : 3,
         });
       }
     })();
@@ -166,6 +171,7 @@ export default function GovernanceSettingsPanel() {
           ap3UnclassifiedAlertThresholdNgn: Number(govLimitsForm.ap3UnclassifiedAlertThresholdNgn),
           othersBranchCoachThresholdPct: Number(govLimitsForm.othersBranchCoachThresholdPct),
           refundStaffAllocationDeductionPct: Number(govLimitsForm.refundStaffAllocationDeductionPct),
+          refundAssociatedStaffDeductionPct: Number(govLimitsForm.refundAssociatedStaffDeductionPct),
         }),
       });
       if (!ok || !data?.ok) {
@@ -289,7 +295,7 @@ export default function GovernanceSettingsPanel() {
               />
             </div>
             <div>
-              <label className="z-field-label">Staff refund company cut (%)</label>
+              <label className="z-field-label">Claiming staff refund company cut (%)</label>
               <input
                 type="number"
                 min={0}
@@ -305,8 +311,29 @@ export default function GovernanceSettingsPanel() {
                 }
               />
               <p className="mt-1 text-[11px] leading-snug text-slate-500">
-                Applied to associated / claiming-staff allocations (not the quote customer). 0 disables the cut.
-                Default 20.
+                Applied when an HR staff login claims a refund via their own customer account (not the quote
+                customer, and not a driver/installer). 0 disables the cut. Default 20.
+              </p>
+            </div>
+            <div>
+              <label className="z-field-label">Associated staff (driver/installer) refund cut (%)</label>
+              <input
+                type="number"
+                min={0}
+                max={99}
+                step={1}
+                className="z-input"
+                value={govLimitsForm.refundAssociatedStaffDeductionPct}
+                onChange={(e) =>
+                  setGovLimitsForm((p) => ({
+                    ...p,
+                    refundAssociatedStaffDeductionPct: Number(e.target.value),
+                  }))
+                }
+              />
+              <p className="mt-1 text-[11px] leading-snug text-slate-500">
+                Applied to Transport and Installation refund allocations paid to a registered driver or
+                installer/roofer. 0 disables the cut. Default 3.
               </p>
             </div>
           </div>

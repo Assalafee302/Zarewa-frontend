@@ -35,6 +35,7 @@ export function ManagementDecisionModal({
   auditData,
   loadingAudit,
   refundIntelExtras,
+  refundEligibilityCheck,
   loadingRefundIntel,
   decisionBusy,
   selectedUnifiedWorkItem,
@@ -323,6 +324,7 @@ export function ManagementDecisionModal({
                   inboxRow={selectedIntel.row}
                   auditData={auditData}
                   paymentIntel={refundIntelExtras}
+                  refundEligibility={refundEligibilityCheck}
                   loadingAudit={loadingAudit}
                   loadingIntel={loadingRefundIntel}
                   formatNgn={asMoney}

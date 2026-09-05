@@ -33,6 +33,7 @@ export function ClearanceManagerApprovalPreview({
   inboxRow,
   auditData,
   paymentIntel,
+  refundEligibility = null,
   loadingAudit,
   loadingIntel,
   formatNgn,
@@ -64,6 +65,11 @@ export function ClearanceManagerApprovalPreview({
   const writeOffEval = evaluateReceivableWriteOff(totalNgn, paidNgn, waivedNgn);
   const pct = percentPaid(paidNgn, totalNgn);
   const stageActors = auditData?.stageActors || {};
+  const overpaidNgn = Math.max(0, Math.round(paidNgn - totalNgn));
+  const refundBlockedReasons =
+    overpaidNgn > 0 && refundEligibility && refundEligibility.wouldAppearInRefundQuotationDropdown === false
+      ? (refundEligibility.blockingReasons || []).filter(Boolean)
+      : [];
 
   const titleByContext = {
     clearance: 'Manager clearance',
@@ -177,6 +183,20 @@ export function ClearanceManagerApprovalPreview({
                 writeOffEval.message ||
                 'Material balance — collect payment or MD write-off required.'}
           </p>
+        ) : null}
+        {refundBlockedReasons.length > 0 ? (
+          <div className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2">
+            <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-900">
+              Overpaid {formatNgn(overpaidNgn)} — not yet refundable
+            </p>
+            <ul className="mt-1 space-y-0.5">
+              {refundBlockedReasons.map((reason, i) => (
+                <li key={i} className="text-ui-xs leading-snug text-amber-900">
+                  {reason}
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
       </CaseStrip>
 

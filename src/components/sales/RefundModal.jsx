@@ -842,6 +842,18 @@ function associatedStaffMatchesRole(row, role) {
 }
 
 /**
+ * Transport/Installation split rows must pick a payee of the matching role — a Transport line
+ * should not be payable to the quotation's installer and vice versa. Other rows (claims,
+ * overpayment, manual adds) have no role and pick from every option as before.
+ */
+export function payoutRowRequiredRole(row) {
+  const note = String(row?.note || '').trim().toLowerCase();
+  if (note === 'transport') return 'driver';
+  if (note === 'installation') return 'installer';
+  return null;
+}
+
+/**
  * Resolve a quotation person to associated-staff row: id first, then name (even if id was stale).
  */
 function matchAssociatedStaffForPerson(person, staffRows) {
@@ -1650,12 +1662,11 @@ const RefundModal = ({
         if (seen.has(key)) return null;
         seen.add(key);
         const hasBank = associatedStaffHasBank(s);
-        const roleBit =
-          id === quotationAssigneeIds.transporterId
-            ? ' · Quotation transporter'
-            : id === quotationAssigneeIds.installerId
-              ? ' · Quotation installer'
-              : '';
+        const isTransporter = id === quotationAssigneeIds.transporterId;
+        const isInstaller = id === quotationAssigneeIds.installerId;
+        // Same person assigned as both on this quote — don't restrict them out of either row.
+        const payoutRole = isTransporter && isInstaller ? null : isTransporter ? 'driver' : isInstaller ? 'installer' : null;
+        const roleBit = isTransporter ? ' · Quotation transporter' : isInstaller ? ' · Quotation installer' : '';
         const bankBit = hasBank
           ? `${s.bankName || s.bank_name} ${s.bankAccountNo || s.bank_account_no}`
           : 'no bank on file';
@@ -1666,6 +1677,7 @@ const RefundModal = ({
           searchText: `${s.name} ${s.staffType || s.staff_type || ''} ${s.bankName || ''} ${s.bankAccountNo || ''} ${id}`,
           needsBank: !hasBank,
           hint: hasBank ? 'Assigned on quotation' : 'Select to add account number now',
+          payoutRole,
           meta: {
             kind: 'associated_staff',
             id,
@@ -5544,6 +5556,21 @@ const RefundModal = ({
                             const selectedOpt = payoutRecipientOptions.find(
                               (o) => o.key === selectedKey
                             );
+                            // Transport rows offer only the registered driver; Installation rows
+                            // only the registered installer/roofer. Non-staff options (claiming
+                            // staff, quote customer) stay available on every row.
+                            const requiredPayoutRole = payoutRowRequiredRole(row);
+                            const rowPayoutOptions = requiredPayoutRole
+                              ? payoutRecipientOptions.filter(
+                                  (o) =>
+                                    // Keep whatever is already selected visible even if it predates
+                                    // this filter — only new picks are steered to the matching role.
+                                    o.key === selectedKey ||
+                                    o.meta?.kind !== 'associated_staff' ||
+                                    o.payoutRole == null ||
+                                    o.payoutRole === requiredPayoutRole
+                                )
+                              : payoutRecipientOptions;
                             return (
                               <div
                                 key={`alloc-${idx}`}
@@ -5573,13 +5600,17 @@ const RefundModal = ({
                                   disabled={readOnly}
                                   loading={payoutDirectoryLoading}
                                   value={selectedKey}
-                                  options={payoutRecipientOptions}
+                                  options={rowPayoutOptions}
                                   placeholder="Search quotation staff, driver, installer, or customer…"
                                   emptyHint={
                                     payoutAssociatedStaffError
                                       ? payoutAssociatedStaffError
-                                      : payoutRecipientOptions.length === 0
-                                        ? 'No payout recipients loaded yet. Associated staff and branch staff appear when directories load.'
+                                      : rowPayoutOptions.length === 0
+                                        ? requiredPayoutRole === 'driver'
+                                          ? 'No registered driver on this quotation yet. Assign one, or add bank details for the transporter.'
+                                          : requiredPayoutRole === 'installer'
+                                            ? 'No registered installer on this quotation yet. Assign one, or add bank details for the installer.'
+                                            : 'No payout recipients loaded yet. Associated staff and branch staff appear when directories load.'
                                         : 'No payout recipients match that search.'
                                   }
                                   onChange={(key, opt) => {

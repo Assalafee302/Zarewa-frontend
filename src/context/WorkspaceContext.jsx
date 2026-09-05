@@ -126,7 +126,13 @@ function workspacePollIntervalMs() {
   return 60_000;
 }
 
-const BOOTSTRAP_FETCH_TIMEOUT_MS = 25_000;
+const BOOTSTRAP_FETCH_TIMEOUT_MS = 35_000;
+/**
+ * Background polls (every workspacePollIntervalMs()) may fail on a merely slow/flaky connection,
+ * not a real outage. Absorb this many consecutive poll failures — keep showing live data and
+ * retry silently — before falling back to the read-only cached snapshot and locking the app.
+ */
+const POLL_FAILURE_TOLERANCE = 2;
 
 function clearBootstrapCache() {
   try {
@@ -220,6 +226,8 @@ export function WorkspaceProvider({ children }) {
   const fullBootstrapLoadedRef = useRef(false);
   const lastErrorRef = useRef(null);
   const refreshSeqRef = useRef(0);
+  const statusRef = useRef(status);
+  const pollFailureStreakRef = useRef(0);
 
   const resetDomainRuntime = useCallback(() => {
     loadedDomainsRef.current = new Set();
@@ -241,6 +249,10 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => {
     lastErrorRef.current = lastError;
   }, [lastError]);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   const applySnapshot = useCallback((data, mode = 'ok') => {
     let merged = null;
@@ -400,6 +412,7 @@ export function WorkspaceProvider({ children }) {
       }
       if (r.status === 304) {
         // Server is reachable — leave degraded/read-only lock (304 used to leave status stuck).
+        pollFailureStreakRef.current = 0;
         if (stale()) return snapshotRef.current;
         setStatus('ok');
         setLastError(null);
@@ -420,6 +433,7 @@ export function WorkspaceProvider({ children }) {
       if (isPoll) bootstrapPollEtagRef.current = nextEtag;
       else bootstrapFullEtagRef.current = nextEtag;
       if (httpStatus === 401 || data?.code === 'AUTH_REQUIRED') {
+        pollFailureStreakRef.current = 0;
         if (stale()) return snapshotRef.current;
         const uid = snapshotRef.current?.session?.user?.id;
         if (uid && hasPendingPasswordChange(uid)) {
@@ -450,6 +464,7 @@ export function WorkspaceProvider({ children }) {
       if (!effectiveMode && !isPoll) {
         fullBootstrapLoadedRef.current = true;
       }
+      pollFailureStreakRef.current = 0;
       if (stale()) return snapshotRef.current;
       if (!isPoll) invalidateAppShellQueries();
       const prevSnap = snapshotRef.current;
@@ -460,6 +475,15 @@ export function WorkspaceProvider({ children }) {
       return applySnapshot(withPendingPasswordSession(incoming), 'ok');
     } catch (e) {
       if (stale()) return snapshotRef.current;
+      // A background poll on a merely slow/flaky connection can fail once or twice without the
+      // API actually being down. Absorb a few consecutive misses — keep the live view, retry
+      // silently next cycle — instead of yanking the user into the read-only lock immediately.
+      if (Boolean(opts?.poll) && statusRef.current === 'ok') {
+        pollFailureStreakRef.current += 1;
+        if (pollFailureStreakRef.current <= POLL_FAILURE_TOLERANCE) {
+          return snapshotRef.current;
+        }
+      }
       const cached = readBootstrapCache(snapshotRef.current?.session);
       if (cached) {
         setLastError(String(e.message || e));

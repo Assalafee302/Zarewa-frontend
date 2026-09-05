@@ -8,6 +8,7 @@ import RefundModal, {
   refundFormIsOverpaymentOnly,
   refundQuickOverpayAvailableFromPreview,
   refundRecordSubtitle,
+  payoutRowRequiredRole,
 } from './RefundModal.jsx';
 import { ToastProvider } from '../../context/ToastContext.jsx';
 import { apiFetch } from '../../lib/apiBase';
@@ -127,6 +128,27 @@ async function clickApproveWhenReady(user) {
   await waitFor(() => expect(approveBtn).not.toBeDisabled(), { timeout: 10_000 });
   await user.click(approveBtn);
 }
+
+describe('payoutRowRequiredRole', () => {
+  it('routes a Transport split to the driver role', () => {
+    expect(payoutRowRequiredRole({ note: 'Transport' })).toBe('driver');
+  });
+
+  it('routes an Installation split to the installer role', () => {
+    expect(payoutRowRequiredRole({ note: 'Installation' })).toBe('installer');
+  });
+
+  it('is case-insensitive on the note text', () => {
+    expect(payoutRowRequiredRole({ note: 'transport' })).toBe('driver');
+    expect(payoutRowRequiredRole({ note: 'INSTALLATION' })).toBe('installer');
+  });
+
+  it('leaves non-transport/installation rows unrestricted', () => {
+    expect(payoutRowRequiredRole({ note: 'Overpayment · quote customer' })).toBeNull();
+    expect(payoutRowRequiredRole({ note: 'Associated staff' })).toBeNull();
+    expect(payoutRowRequiredRole({})).toBeNull();
+  });
+});
 
 describe('refundableOverpaymentNgn', () => {
   it('prefers residual so settled overpayment is not re-offered', () => {

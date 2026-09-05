@@ -149,6 +149,7 @@ export function useBranchManagerWorkstation() {
   const [selectedIntel, setSelectedIntel] = useState(null);
   const [auditData, setAuditData] = useState(null);
   const [refundIntelExtras, setRefundIntelExtras] = useState(null);
+  const [refundEligibilityCheck, setRefundEligibilityCheck] = useState(null);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [loadingRefundIntel, setLoadingRefundIntel] = useState(false);
   const [decisionBusy, setDecisionBusy] = useState(false);
@@ -1059,6 +1060,34 @@ export function useBranchManagerWorkstation() {
       cancelled = true;
     };
   }, [fetchAudit, selectedIntelKind, selectedIntelQuoteId, selectedIntelRefundQref, selectedIntel?.refundId]);
+
+  /**
+   * Manager clearance screen: why a quotation with cash on it wouldn't show up in the refund
+   * pick list yet (e.g. a below-floor price exception still pending MD approval). Quotation
+   * review only — the refund-approval screen already knows its own refund's status directly.
+   */
+  useEffect(() => {
+    if (selectedIntelKind !== 'quotation') {
+      setRefundEligibilityCheck(null);
+      return;
+    }
+    const qref = String(selectedIntelQuoteId || '').trim();
+    if (!qref) {
+      setRefundEligibilityCheck(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { ok, data } = await apiFetch(
+        `/api/refunds/eligibility-check?quotationRef=${encodeURIComponent(qref)}`
+      );
+      if (cancelled) return;
+      setRefundEligibilityCheck(ok && data?.ok ? data : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedIntelKind, selectedIntelQuoteId]);
 
   useEffect(() => {
     if (selectedIntel?.kind !== 'conversion') return;
@@ -2233,6 +2262,7 @@ export function useBranchManagerWorkstation() {
     setAuditData,
     refundIntelExtras,
     setRefundIntelExtras,
+    refundEligibilityCheck,
     loadingAudit,
     setLoadingAudit,
     loadingRefundIntel,

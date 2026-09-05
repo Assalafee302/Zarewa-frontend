@@ -426,6 +426,7 @@ const ManagerDashboard = () => {
         auditData={bm.auditData}
         loadingAudit={bm.loadingAudit}
         refundIntelExtras={bm.refundIntelExtras}
+        refundEligibilityCheck={bm.refundEligibilityCheck}
         loadingRefundIntel={bm.loadingRefundIntel}
         decisionBusy={bm.decisionBusy}
         selectedUnifiedWorkItem={bm.selectedUnifiedWorkItem}
