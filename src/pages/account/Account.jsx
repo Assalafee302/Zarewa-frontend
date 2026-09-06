@@ -2379,7 +2379,21 @@ const Account = () => {
         showToast(data?.error || 'Could not reverse receipt.', { variant: 'error' });
         return;
       }
-      showToast('Receipt reversed. Post the correct amount from Sales if needed.');
+      const reversedCredits = Array.isArray(data?.reversedRefundCreditApplications)
+        ? data.reversedRefundCreditApplications
+        : [];
+      if (reversedCredits.length) {
+        const total = reversedCredits.reduce((s, r) => s + (Number(r?.amountNgn) || 0), 0);
+        const refundIds = [...new Set(reversedCredits.map((r) => r?.refundId).filter(Boolean))];
+        showToast(
+          `Receipt reversed. Also undid ₦${total.toLocaleString('en-NG')} refund credit this receipt applied${
+            refundIds.length ? ` (${refundIds.join(', ')})` : ''
+          } — review that refund’s payout before paying it out.`,
+          { variant: 'info' }
+        );
+      } else {
+        showToast('Receipt reversed. Post the correct amount from Sales if needed.');
+      }
       setReceiptFinanceRow(null);
       setReceiptFinanceFocusMovementId(null);
       setPaymentCorrectionDrafts({});
