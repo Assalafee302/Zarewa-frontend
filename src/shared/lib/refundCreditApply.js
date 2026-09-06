@@ -1,8 +1,8 @@
 /**
- * Pure helpers: apply prior overpay / approved refund credit onto a new quotation.
- * Overpayment may apply without manager approval (Pending or Approved) and does not
- * require production — Finance may use it for cashier referral/confirmation on receipts
- * even when roofing metres are not produced yet. Other refund kinds need Approved status.
+ * Pure helpers: apply prior overpay credit onto a new quotation.
+ * Only overpayment-only refunds whose sole payee is the quote customer may transfer
+ * as receipt credit (Pending or Approved). Staff-cut / multi-payee / non-overpay
+ * refunds stay cash payout only.
  */
 
 import { normalizeRefundReasonCategoriesForApi } from '../refundConstants.js';
@@ -53,23 +53,112 @@ function refundIncludesNonTransferableServiceCategory(reasonCategory, calculatio
   return lines.some((l) => matchesBlocked(l?.category) || matchesBlocked(l?.label));
 }
 
+function parseSplitDistributionsForCredit(raw) {
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(String(raw || '[]'));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Distinct payees (by recipient id) with a nonzero allocation on this refund's split.
+ * @param {unknown} splitDistributions raw array, JSON string, or already-parsed
+ */
+export function refundSplitPayeeKeys(splitDistributions) {
+  const splits = parseSplitDistributionsForCredit(splitDistributions);
+  const keys = new Set();
+  for (const s of splits) {
+    const amt = Math.round(Number(s?.amountNgn ?? s?.amount_ngn) || 0);
+    if (amt <= 0) continue;
+    const kind = String(s?.recipientKind ?? s?.recipient_kind ?? '').trim().toLowerCase();
+    const isStaff = kind === 'associated_staff' || kind === 'staff';
+    const id = isStaff
+      ? String(s?.recipientAssociatedStaffID ?? s?.recipient_associated_staff_id ?? '').trim()
+      : String(s?.recipientCustomerID ?? s?.recipient_customer_id ?? '').trim();
+    keys.add(`${isStaff ? 'associated_staff' : 'customer'}:${id || kind || 'unknown'}`);
+  }
+  return [...keys];
+}
+
+/**
+ * True when a refund pays out to more than one distinct payee (e.g. a Transport/Installation
+ * split to a driver/installer alongside the quote customer). Refund-fund credit-apply moves
+ * money against the refund's shared paid/credit-applied totals, not a specific payee's share —
+ * applying it against one payee's portion would silently reduce what the OTHER payee can still
+ * be paid, with no way to tell which payee it was meant to cover. Pay each payee out directly
+ * (Till/Bank payout) instead; only single-payee refunds are safe to use as transferable credit.
+ * @param {unknown} splitDistributions
+ */
+export function refundSplitHasMultiplePayees(splitDistributions) {
+  return refundSplitPayeeKeys(splitDistributions).length > 1;
+}
+
+/**
+ * True when every nonzero payee line is the quote customer (or there is no split —
+ * legacy single customer payout). Staff / other-customer lines are not transferable credit.
+ * @param {{
+ *   customerID?: string,
+ *   customerId?: string,
+ *   customer_id?: string,
+ *   splitDistributions?: unknown,
+ *   split_distributions_json?: unknown,
+ *   refundSplits?: unknown,
+ * }} refund
+ */
+export function refundCreditPayeeIsQuoteCustomerOnly(refund) {
+  const quoteCustomerId = String(
+    refund?.customerID ?? refund?.customerId ?? refund?.customer_id ?? ''
+  ).trim();
+  const splits = parseSplitDistributionsForCredit(
+    refund?.splitDistributions ?? refund?.split_distributions_json ?? refund?.refundSplits
+  );
+  const nonzero = splits.filter(
+    (s) => Math.round(Number(s?.amountNgn ?? s?.amount_ngn) || 0) > 0
+  );
+  if (!nonzero.length) return true;
+  if (!quoteCustomerId) return false;
+  for (const s of nonzero) {
+    const kind = String(s?.recipientKind ?? s?.recipient_kind ?? '').trim().toLowerCase();
+    const isStaff = kind === 'associated_staff' || kind === 'staff';
+    if (isStaff) return false;
+    const payeeCustomerId = String(
+      s?.recipientCustomerID ?? s?.recipient_customer_id ?? ''
+    ).trim();
+    if (payeeCustomerId !== quoteCustomerId) return false;
+  }
+  return true;
+}
+
 /**
  * Status/category gate only — does not check open balance (use with stored-row open helpers).
- * @param {{ status?: string, reasonCategory?: unknown, calculationLines?: unknown }} refund
+ * @param {{
+ *   status?: string,
+ *   reasonCategory?: unknown,
+ *   calculationLines?: unknown,
+ *   splitDistributions?: unknown,
+ *   customerID?: string,
+ * }} refund
  */
 export function refundIsEligibleCreditSourceKind(refund) {
   const status = String(refund?.status || '').trim();
   if (refundIncludesNonTransferableServiceCategory(refund?.reasonCategory, refund?.calculationLines)) {
     return false;
   }
-  const overpayOnly = refundCategoriesAreOverpaymentOnly(
-    refund?.reasonCategory,
-    refund?.calculationLines
-  );
-  if (overpayOnly) {
-    return status === 'Pending' || status === 'Approved';
+  if (
+    !refundCategoriesAreOverpaymentOnly(refund?.reasonCategory, refund?.calculationLines)
+  ) {
+    return false;
   }
-  return status === 'Approved';
+  if (refundSplitHasMultiplePayees(refund?.splitDistributions ?? refund?.split_distributions_json)) {
+    return false;
+  }
+  if (!refundCreditPayeeIsQuoteCustomerOnly(refund)) {
+    return false;
+  }
+  return status === 'Pending' || status === 'Approved';
 }
 
 /** True when a ledger/credit error is the quotation-has-open-refund payment lock. */
@@ -99,6 +188,15 @@ export function refundCreditUnavailableReason(refund, openNgn, kindEligible = re
   );
   if (refundIncludesNonTransferableServiceCategory(refund?.reasonCategory, refund?.calculationLines)) {
     return 'Transport/installation refunds are cash payout only.';
+  }
+  if (!overpayOnly) {
+    return 'Only overpayment refunds can cover another receipt — pay this refund from Till/Bank instead.';
+  }
+  if (refundSplitHasMultiplePayees(refund?.splitDistributions ?? refund?.split_distributions_json)) {
+    return 'This refund pays out to more than one person — apply each payee’s share directly from Till/Bank payout instead of a receipt credit.';
+  }
+  if (!refundCreditPayeeIsQuoteCustomerOnly(refund)) {
+    return 'Staff or non-customer payee lines must be paid from Till/Bank — only quote-customer overpayment can cover another receipt.';
   }
   if (String(refund?.status || '').trim() === 'Pending' && !overpayOnly) {
     return 'Needs manager approval before it can cover a receipt.';

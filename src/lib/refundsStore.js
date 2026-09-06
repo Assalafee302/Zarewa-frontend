@@ -56,8 +56,17 @@ export function refundDefaultApproveAmountNgn(r) {
 }
 
 export function refundOutstandingAmount(r) {
+  const fromSummary = r?.settlementSummary?.cashOutstandingNgn;
+  if (fromSummary != null && Number.isFinite(Number(fromSummary))) {
+    return Math.max(0, Math.round(Number(fromSummary) || 0));
+  }
   const approved = refundApprovedAmount(r);
   const paid = Number(r?.paidAmountNgn) || 0;
+  // Prefer explicit company cut when API exposes it and paid is payee-only.
+  const companyCut = Math.round(Number(r?.companyCutNgn ?? r?.settlementSummary?.companyCutNgn) || 0);
+  if (companyCut > 0) {
+    return effectiveOutstandingNgn(Math.max(0, approved - companyCut), paid);
+  }
   return effectiveOutstandingNgn(approved, paid);
 }
 
@@ -161,6 +170,7 @@ export function normalizeRefund(r) {
     requestedAtISO: r.requestedAtISO ?? '',
     approvalDate: r.approvalDate ?? '',
     approvedBy: formatPersonName(r.approvedBy ?? ''),
+    approvedByUserId: r.approvedByUserId ?? r.approved_by_user_id ?? null,
     approvedAmountNgn,
     managerComments: r.managerComments ?? '',
     paidAmountNgn,
@@ -185,8 +195,20 @@ export function normalizeRefund(r) {
       ? r.productionAlignmentAcknowledgedCodes
       : [],
     productionAlignmentOverrideNote: String(r.productionAlignmentOverrideNote ?? '').trim(),
+    companyCutWaived: Boolean(r.companyCutWaived === true || r.company_cut_waived === true),
+    companyCutWaiverNote: String(r.companyCutWaiverNote ?? r.company_cut_waiver_note ?? '').trim(),
     payoutHistory: Array.isArray(r.payoutHistory) ? r.payoutHistory.map(normalizePayoutLine) : [],
-    outstandingAmountNgn: effectiveOutstandingNgn(approvedAmountNgn, paidAmountNgn),
+    companyCutNgn: Math.round(Number(r.companyCutNgn ?? r.settlementSummary?.companyCutNgn) || 0),
+    settlementSummary:
+      r.settlementSummary != null && typeof r.settlementSummary === 'object' ? r.settlementSummary : null,
+    outstandingAmountNgn: refundOutstandingAmount({
+      ...r,
+      amountNgn,
+      paidAmountNgn,
+      approvedAmountNgn,
+      companyCutNgn: Math.round(Number(r.companyCutNgn ?? r.settlementSummary?.companyCutNgn) || 0),
+      settlementSummary: r.settlementSummary,
+    }),
     creditAppliedNgn: Math.round(Number(r.creditAppliedNgn ?? r.credit_applied_ngn) || 0),
     creditAppliedToQuotationRef: String(
       r.creditAppliedToQuotationRef ?? r.credit_applied_to_quotation_ref ?? ''
@@ -198,18 +220,32 @@ export function normalizeRefund(r) {
       r.quotationRefundsBlockedAtISO ?? r.quotation_refunds_blocked_at_iso ?? null,
     quotationRefundsBlockedReason:
       r.quotationRefundsBlockedReason ?? r.quotation_refunds_blocked_reason ?? '',
-    walletOpenNgn: Math.round(Number(r.walletOpenNgn ?? r.wallet_open_ngn) || 0),
-    heldNetNgn: Math.round(Number(r.heldNetNgn ?? r.held_net_ngn) || 0),
+    walletOpenNgn: Math.round(
+      Number(r.walletOpenNgn ?? r.wallet_open_ngn ?? r.settlementSummary?.walletOpenNgn) || 0
+    ),
+    walletOpenCredits: Array.isArray(r.walletOpenCredits) ? r.walletOpenCredits : [],
+    heldNetNgn: Math.round(
+      Number(r.heldNetNgn ?? r.held_net_ngn ?? r.settlementSummary?.heldUnclearedNgn) || 0
+    ),
   };
 }
 
 export function isRefundPayable(r) {
-  if (Math.round(Number(r?.walletOpenNgn) || 0) > 0) return false;
-  return (
-    (r?.status === 'Approved' || r?.status === 'Partially paid') &&
-    refundOutstandingAmount(r) > 0 &&
-    !refundQuotationRefundsBlocked(r)
-  );
+  if (refundQuotationRefundsBlocked(r)) return false;
+  const status = r?.status;
+  if (status !== 'Approved' && status !== 'Partially paid') return false;
+  const tillFromSummary = r?.settlementSummary?.tillPayableNgn;
+  if (tillFromSummary != null) {
+    return Math.round(Number(tillFromSummary) || 0) > 0;
+  }
+  // Wallet-only remaining is released via partner wallet on the same refund, not till pay.
+  if (Math.round(Number(r?.walletOpenNgn) || 0) > 0) {
+    const outstanding = refundOutstandingAmount(r);
+    const held = Math.round(Number(r?.heldNetNgn) || 0);
+    const wallet = Math.round(Number(r?.walletOpenNgn) || 0);
+    return Math.max(0, outstanding - wallet - held) > 0;
+  }
+  return refundOutstandingAmount(r) > 0;
 }
 
 /**
@@ -218,6 +254,15 @@ export function isRefundPayable(r) {
  */
 export function refundLooksPaidWithoutTillPayout(r) {
   if (!r || refundStatusIsWithdrawn(r.status)) return false;
+  // Server settlement summary: Settled means payees are covered — not a false Paid.
+  if (String(r?.settlementSummary?.publicLabel || '').trim() === 'Settled') return false;
+  if (Math.round(Number(r?.settlementSummary?.cashOutstandingNgn) || 0) > 0) {
+    const payeeSettled = Math.round(Number(r?.settlementSummary?.payeeSettledNgn) || 0);
+    const companyCut = Math.round(Number(r?.settlementSummary?.companyCutNgn || r?.companyCutNgn) || 0);
+    const paid = Math.round(Number(r.paidAmountNgn) || 0);
+    // Legacy false Paid: paid_amount inflated by company cut with nothing to payees.
+    if (payeeSettled <= 0 && companyCut > 0 && paid >= companyCut) return true;
+  }
   const status = String(r.status || '').trim();
   if (!['Paid', 'Approved', 'Partially paid'].includes(status)) return false;
   const paidAt = String(r.paidAtISO ?? r.paid_at_iso ?? '').trim();
@@ -238,13 +283,15 @@ export function refundPayeeStillUnsettled(r) {
 }
 
 /**
- * Display label for status chips. Never returns "Paid" while the payee is unsettled.
- * DB status is unchanged — reports still use Paid internally.
+ * Display label for status chips. Prefer server settlementSummary.publicLabel when present.
  */
 export function refundPublicStatusLabel(r) {
+  const fromSummary = String(r?.settlementSummary?.publicLabel || '').trim();
+  if (fromSummary) return fromSummary;
   const stored = String(r?.status || '').trim() || 'Pending';
   if (!refundPayeeStillUnsettled(r)) return stored;
-  if (Math.round(Number(r.walletOpenNgn) || 0) > 0) return 'Payee not settled';
+  if (Math.round(Number(r.walletOpenNgn) || 0) > 0) return 'Ready — partner wallet';
+  if (Math.round(Number(r.heldNetNgn) || 0) > 0) return 'Blocked — clear receipts';
   return 'Awaiting till payout';
 }
 
@@ -271,6 +318,7 @@ export function refundsOnFinanceRefundQueue(list) {
     const status = String(r?.status || '').trim();
     if (status !== 'Approved' && status !== 'Partially paid') return false;
     if (refundQuotationRefundsBlocked(r)) return false;
+    if (Math.round(Number(r?.walletOpenNgn) || 0) > 0) return true;
     const splits = Array.isArray(r?.splitDistributions)
       ? r.splitDistributions
       : Array.isArray(r?.refundSplits)

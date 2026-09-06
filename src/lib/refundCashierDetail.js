@@ -75,7 +75,7 @@ function parseUnclearedOffsetFromPaymentNote(refund) {
 
 /**
  * Cashiers cannot till-pay while the payee has unconfirmed receipts.
- * Admin may override at payout.
+ * Branch manager, Head of Accounts, or admin may override at payout.
  */
 export function actorMayOverrideRefundUnclearedPayoutHold(actor, hasPermission) {
   if (typeof hasPermission === 'function' && hasPermission('*')) return true;
@@ -85,7 +85,16 @@ export function actorMayOverrideRefundUnclearedPayoutHold(actor, hasPermission) 
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '_');
-  return rk === 'admin';
+  if (rk === 'admin') return true;
+  if (rk === 'cashier') return false;
+  if (rk === 'sales_manager' || rk === 'branch_manager' || rk === 'finance_manager') return true;
+  if (typeof hasPermission === 'function') {
+    if (hasPermission('refunds.approve') || hasPermission('finance.approve')) return true;
+  }
+  if (perms.includes('refunds.approve') || perms.includes('finance.approve')) {
+    return true;
+  }
+  return false;
 }
 
 function refundWalletOpenNgn(refund) {
@@ -344,13 +353,6 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
     return a.recipientKind === 'customer' ? -1 : 1;
   });
 
-  const noteUncleared = parseUnclearedOffsetFromPaymentNote(refund);
-  const breakdownUncleared = breakdown.reduce(
-    (sum, row) => sum + roundRefundStaffMoney(row.unclearedReceiptHoldNgn),
-    0
-  );
-  let staffUnclearedExtra = Math.max(0, noteUncleared - breakdownUncleared);
-
   let treasuryRemaining = story.treasuryPaidNgn;
   const lines = breakdown.map((row, idx) => {
     const treasuryPaidToPayeeNgn = Math.min(
@@ -376,17 +378,7 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
       (row.recipientKind === 'customer'
         ? String(refund?.payeeName ?? refund?.payee_name ?? '').trim()
         : row.recipientLabel);
-    const unclearedReceiptHoldNgn =
-      roundRefundStaffMoney(row.unclearedReceiptHoldNgn) +
-      (row.recipientKind === 'associated_staff' && staffUnclearedExtra > 0
-        ? Math.min(staffUnclearedExtra, roundRefundStaffMoney(row.netPayoutNgn))
-        : 0);
-    if (row.recipientKind === 'associated_staff' && staffUnclearedExtra > 0) {
-      staffUnclearedExtra = Math.max(
-        0,
-        staffUnclearedExtra - roundRefundStaffMoney(row.unclearedReceiptHoldNgn)
-      );
-    }
+    const unclearedReceiptHoldNgn = roundRefundStaffMoney(row.unclearedReceiptHoldNgn);
     return {
       queueKey,
       refundID: rid,
@@ -422,17 +414,74 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
   const walletOpenNgn = refundWalletOpenNgn(refund);
   if (walletOpenNgn <= 0) return { story, lines: capped };
 
-  // Open partner-wallet credit is withdrawn from the wallet desk — not till.
-  // Admin may still till-pay the held-for-uncleared slice that never hit the wallet.
-  return {
-    story,
-    lines: capped.map((line) => {
-      if (overrideUnclearedHold && line.payoutHeldForUnclearedReceipts && line.amountDueNgn > 0) {
-        return line;
-      }
+  // Attribute open wallet to non-held payee nets (same order credit was created), then
+  // keep till dues only for the non-wallet surplus (and admin held exception).
+  const summaryTill =
+    refund?.settlementSummary?.tillPayableNgn != null
+      ? Math.max(0, Math.round(Number(refund.settlementSummary.tillPayableNgn) || 0))
+      : null;
+  const heldTotal = capped.reduce(
+    (sum, line) =>
+      sum +
+      (line.payoutHeldForUnclearedReceipts
+        ? roundRefundStaffMoney(line.unclearedWithheldNgn || line.netPayoutNgn)
+        : 0),
+    0
+  );
+  const tillBudget =
+    summaryTill != null
+      ? summaryTill
+      : overrideUnclearedHold
+        ? Math.max(0, story.cashDueNgn - walletOpenNgn)
+        : Math.max(0, story.cashDueNgn - walletOpenNgn - heldTotal);
+
+  let walletLeft = walletOpenNgn;
+  const walletByQueueKey = new Map();
+  const attrOrder = [...capped].sort((a, b) => {
+    if (Boolean(a.payoutHeldForUnclearedReceipts) !== Boolean(b.payoutHeldForUnclearedReceipts)) {
+      return a.payoutHeldForUnclearedReceipts ? 1 : -1;
+    }
+    if (a.recipientKind === b.recipientKind) return 0;
+    // Partner wallet is typically staff / claiming allocations — attribute there first.
+    return a.recipientKind === 'associated_staff' ? -1 : 1;
+  });
+  for (const line of attrOrder) {
+    if (line.payoutHeldForUnclearedReceipts || walletLeft <= 0) {
+      walletByQueueKey.set(line.queueKey, 0);
+      continue;
+    }
+    const take = Math.min(walletLeft, Math.max(0, roundRefundStaffMoney(line.netPayoutNgn)));
+    walletLeft -= take;
+    walletByQueueKey.set(line.queueKey, take);
+  }
+  const attributed = capped.map((line) => {
+    const take = walletByQueueKey.get(line.queueKey) || 0;
+    return {
+      ...line,
+      onPartnerWallet: take > 0,
+      walletOpenForPayeeNgn: take,
+    };
+  });
+
+  let tillLeft = tillBudget;
+  const nextLines = attributed.map((line) => {
+    if (line.onPartnerWallet && !(overrideUnclearedHold && line.payoutHeldForUnclearedReceipts)) {
       return { ...line, amountDueNgn: 0 };
-    }),
-  };
+    }
+    if (overrideUnclearedHold && line.payoutHeldForUnclearedReceipts) {
+      const due = Math.min(
+        Math.max(line.amountDueNgn, roundRefundStaffMoney(line.netPayoutNgn)),
+        tillLeft
+      );
+      tillLeft -= due;
+      return { ...line, amountDueNgn: due };
+    }
+    const due = Math.min(line.amountDueNgn, tillLeft);
+    tillLeft -= due;
+    return { ...line, amountDueNgn: due };
+  });
+
+  return { story, lines: nextLines };
 }
 
 /** Per-recipient till status for refund detail — includes payees with ₦0 till due. */
@@ -450,6 +499,9 @@ export function refundRecipientTillPayoutRows(refund, { overrideUnclearedHold = 
     } else if (line.amountDueNgn > 0) {
       payoutStatus = 'till_due';
       payoutStatusLabel = 'Pay from till / bank';
+    } else if (line.onPartnerWallet && line.walletOpenForPayeeNgn > 0) {
+      payoutStatus = 'wallet_due';
+      payoutStatusLabel = `Release from partner wallet · ${formatWalletDueLabel(line.walletOpenForPayeeNgn)}`;
     } else if (line.treasuryPaidToPayeeNgn > 0) {
       payoutStatus = 'paid';
       payoutStatusLabel = 'Paid from till / bank';
@@ -465,6 +517,14 @@ export function refundRecipientTillPayoutRows(refund, { overrideUnclearedHold = 
     }
     return { ...line, payoutStatus, payoutStatusLabel };
   });
+}
+
+function formatWalletDueLabel(ngn) {
+  try {
+    return `₦${Math.round(Number(ngn) || 0).toLocaleString('en-NG')}`;
+  } catch {
+    return String(ngn);
+  }
 }
 
 export function refundPayeePayoutQueueLines(refund, { overrideUnclearedHold = false } = {}) {
@@ -524,6 +584,7 @@ export function flattenRefundDeskQueue(refunds, { overrideUnclearedHold = false 
         'held_uncleared',
         'referral_available',
         'admin_override_uncleared',
+        'wallet_due',
       ].includes(row.payoutStatus)
     );
     if (rows.length) {
@@ -560,28 +621,26 @@ export function flattenRefundDeskQueue(refunds, { overrideUnclearedHold = false 
 
 const REFUND_PAYOUT_CAUTION_COPY = {
   missing_bank: 'Bank details missing — confirm pay-to account before payout.',
-  multi_payee: 'Split payout — pay each recipient their net line separately.',
-  splits_incomplete:
-    'Payee split may be incomplete on this snapshot — open payout to refresh amounts.',
+  clear_receipts: 'Clear receipts first — till payout is held until unconfirmed receipts are confirmed.',
+  dual_control: 'Needs another finance user — you cannot pay a refund you approved.',
   quotation_blocked: 'Refunds are blocked on this quotation — payout will be rejected.',
-  uncleared_receipts:
-    'Payee has unconfirmed receipts — till payout is held until cashier confirms them.',
-  uncleared_receipts_partial:
-    'Part of this payout is held for the payee\'s unconfirmed receipts — the rest is payable now.',
-  admin_uncleared_override:
-    'Admin exception: payee has unconfirmed receipts — payout is allowed for this login only.',
 };
+
+function normalizeCautionActorName(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
 
 /**
  * Cashier desk hint when a refund payout row may fail or needs extra care.
+ * User-facing codes stay at three: missing bank, clear receipts, dual-control
+ * (plus rare quotation_blocked as a hard block).
  * @returns {{ level: 'none'|'info'|'warn'|'block', tone: 'amber'|'violet'|'rose', title: string, codes: string[] }}
  */
-export function refundPayeePayoutCaution(refund, payeeLine, { siblingPayeeLines = [] } = {}) {
+export function refundPayeePayoutCaution(refund, payeeLine, { siblingPayeeLines = [], actor = null } = {}) {
   const codes = [];
-  const rid = String(payeeLine?.refundID ?? refund?.refundID ?? '').trim();
-  const siblings = (Array.isArray(siblingPayeeLines) ? siblingPayeeLines : []).filter(
-    (line) => String(line?.refundID ?? '').trim() === rid
-  );
 
   const acct = String(
     payeeLine?.payeeAccountNo ||
@@ -597,21 +656,6 @@ export function refundPayeePayoutCaution(refund, payeeLine, { siblingPayeeLines 
   ).trim();
   if (!acct || !bank) codes.push('missing_bank');
 
-  if (siblings.length > 1) codes.push('multi_payee');
-
-  const splits = refundSplitRows(refund);
-  const story = refundCashierMoneyStory(refund);
-  const settledNote = refundPaymentNoteSettledAtApproval(refund);
-  const paidNgn = Math.round(Number(refund?.paidAmountNgn ?? refund?.paid_amount_ngn) || 0);
-  const splitPayeeCount = splits.filter((row) => row.amountNgn > 0).length;
-  if (
-    (!splits.length && (settledNote || paidNgn > 0)) ||
-    (splitPayeeCount > 1 && siblings.length === 1) ||
-    (story.hasStaffSplit && siblings.length === 1 && payeeLine?.recipientKind === 'customer')
-  ) {
-    codes.push('splits_incomplete');
-  }
-
   if (
     String(
       refund?.quotationRefundsBlockedAtISO ?? refund?.quotation_refunds_blocked_at_iso ?? ''
@@ -621,33 +665,34 @@ export function refundPayeePayoutCaution(refund, payeeLine, { siblingPayeeLines 
   }
 
   if (payeeLine?.payoutHeldForUnclearedReceipts && roundRefundStaffMoney(payeeLine?.unclearedWithheldNgn) > 0) {
-    codes.push(
-      payeeLine?.payoutStatus === 'admin_override_uncleared'
-        ? 'admin_uncleared_override'
-        : payeeLine?.payoutStatus === 'till_due_partial_held'
-          ? 'uncleared_receipts_partial'
-          : 'uncleared_receipts'
-    );
+    codes.push('clear_receipts');
+  }
+
+  const actorId = actor?.id != null ? String(actor.id).trim() : '';
+  const approverId = String(
+    refund?.approvedByUserId ?? refund?.approved_by_user_id ?? ''
+  ).trim();
+  const actorName = normalizeCautionActorName(actor?.displayName || actor?.username || actor?.name);
+  const approverName = normalizeCautionActorName(refund?.approvedBy ?? refund?.approved_by);
+  if (
+    (approverId && actorId && approverId === actorId) ||
+    (actorName && approverName && actorName === approverName)
+  ) {
+    codes.push('dual_control');
   }
 
   if (!codes.length) {
     return { level: 'none', tone: 'amber', title: '', codes: [] };
   }
 
-  let level = 'info';
-  let tone = 'violet';
+  let level = 'warn';
+  let tone = 'amber';
   if (codes.includes('quotation_blocked')) {
     level = 'block';
     tone = 'rose';
-  } else if (
-    codes.includes('missing_bank') ||
-    codes.includes('splits_incomplete') ||
-    codes.includes('uncleared_receipts') ||
-    codes.includes('uncleared_receipts_partial') ||
-    codes.includes('admin_uncleared_override')
-  ) {
-    level = 'warn';
-    tone = 'amber';
+  } else if (codes.includes('dual_control') && codes.length === 1) {
+    level = 'info';
+    tone = 'violet';
   }
 
   const title = codes.map((code) => REFUND_PAYOUT_CAUTION_COPY[code] || code).join(' · ');
@@ -680,14 +725,33 @@ export function refundCashierMoneyStory(refund) {
   ).trim();
   const approvedNgn = refundApprovedAmount(refund);
   const paidNgn = Math.round(Number(refund?.paidAmountNgn ?? refund?.paid_amount_ngn) || 0);
-  const cashDueNgn = refundOutstandingAmount(refund);
+  const summary = refund?.settlementSummary;
 
   const breakdown = refundCashierSplitBreakdown(refund);
-  const companyCutNgn = breakdown.reduce((sum, row) => sum + row.companyDeductionNgn, 0);
-  const unclearedHoldNgn = breakdown.reduce((sum, row) => sum + row.unclearedReceiptHoldNgn, 0);
-  const settledAtApprovalNgn = refundSettledAtApprovalNgn(refund, breakdown);
-  const treasuryPaidNgn = refundTreasuryPaidNgn(refund);
-  const netCashApprovedNgn = Math.max(0, approvedNgn - settledAtApprovalNgn);
+  const companyCutNgn =
+    summary?.companyCutNgn != null
+      ? Math.round(Number(summary.companyCutNgn) || 0)
+      : breakdown.reduce((sum, row) => sum + row.companyDeductionNgn, 0);
+  const unclearedHoldNgn =
+    summary?.heldUnclearedNgn != null
+      ? Math.round(Number(summary.heldUnclearedNgn) || 0)
+      : breakdown.reduce((sum, row) => sum + row.unclearedReceiptHoldNgn, 0);
+  const settledAtApprovalNgn =
+    summary?.companyCutNgn != null
+      ? Math.round(Number(summary.companyCutNgn) || 0)
+      : refundSettledAtApprovalNgn(refund, breakdown);
+  const treasuryPaidNgn =
+    summary?.treasuryPaidNgn != null
+      ? Math.round(Number(summary.treasuryPaidNgn) || 0)
+      : refundTreasuryPaidNgn(refund);
+  const cashDueNgn =
+    summary?.cashOutstandingNgn != null
+      ? Math.round(Number(summary.cashOutstandingNgn) || 0)
+      : refundOutstandingAmount(refund);
+  const netCashApprovedNgn =
+    summary?.netCashDueNgn != null
+      ? Math.round(Number(summary.netCashDueNgn) || 0)
+      : Math.max(0, approvedNgn - settledAtApprovalNgn);
   const customerNetNgn = breakdown
     .filter((row) => row.recipientKind === 'customer')
     .reduce((sum, row) => sum + row.netPayoutNgn, 0);
@@ -713,6 +777,9 @@ export function refundCashierMoneyStory(refund) {
     staffNetNgn,
     splitBreakdown: breakdown,
     hasStaffSplit: staffNetNgn > 0,
+    tillPayableNgn:
+      summary?.tillPayableNgn != null ? Math.round(Number(summary.tillPayableNgn) || 0) : undefined,
+    publicLabel: String(summary?.publicLabel || '').trim() || undefined,
   };
 }
 

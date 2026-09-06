@@ -13,7 +13,9 @@ import {
 } from './FinanceDeskColoredQueuePanel';
 
 /**
- * Partner wallets — BM-approved refund balances; cashier releases full or partial (no re-approval).
+ * Partner wallets — BM-approved refund balances.
+ * Prefer releasing from the refund payout dialog (Release refund) when the credit
+ * belongs to a specific refund. This panel remains for party-level / multi-refund balances.
  */
 export function PartnerWalletCashierPanel({
   balances: balancesProp,
@@ -201,8 +203,9 @@ export function PartnerWalletCashierPanel({
             <div>
               <h3 className="text-xl font-bold text-zarewa-teal">Release staff / partner refund</h3>
               <p className="text-ui-xs text-slate-500 mt-1">
-                BM already approved. Amount is net of any 20% company cut on staff allocations — no second
-                approval.
+                Prefer the refund <span className="font-semibold">Release</span> dialog when paying one
+                refund. This party-level withdraw is for open balances across refunds. Company cut
+                (20% claiming staff / 3% drivers) is already settled — no second approval.
               </p>
             </div>
           </div>

@@ -249,6 +249,7 @@ const Account = () => {
   const [refundPaidBy, setRefundPaidBy] = useState('');
   const [refundPayLines, setRefundPayLines] = useState([]);
   const [refundPaymentNote, setRefundPaymentNote] = useState('');
+  const [refundReleaseWallet, setRefundReleaseWallet] = useState(true);
   const [requestPayLines, setRequestPayLines] = useState([]);
   const [requestPayNote, setRequestPayNote] = useState('');
   const [paymentGlPreview, setPaymentGlPreview] = useState(null);
@@ -932,6 +933,11 @@ const Account = () => {
       const payeeLines = refundPayeePayoutQueueLines(target, {
         overrideUnclearedHold: overrideUnclearedPayoutHold,
       });
+      const walletOpenNgn = Math.round(Number(target?.walletOpenNgn) || 0);
+      if (!payeeLines.length && walletOpenNgn <= 0) {
+        showToast('Nothing left to release on this refund.', { variant: 'info' });
+        return;
+      }
       const selectedPayee = payeeQueueKey
         ? payeeLines.find((line) => line.queueKey === payeeQueueKey)
         : null;
@@ -941,23 +947,18 @@ const Account = () => {
         payoutLines = [createRequestPayLine(accountId, selectedPayee.amountDueNgn)];
       } else if (payeeLines.length > 1) {
         payoutLines = payeeLines.map((line) => createRequestPayLine(accountId, line.amountDueNgn));
+      } else if (payeeLines.length === 1) {
+        payoutLines = [createRequestPayLine(accountId, payeeLines[0].amountDueNgn)];
       } else {
-        const soleLine = payeeLines.length === 1 ? payeeLines[0] : null;
-        payoutLines = [
-          createRequestPayLine(
-            accountId,
-            soleLine?.amountDueNgn ??
-              refundDefaultTreasuryPayoutNgn(target, payeeQueueKey, {
-                overrideUnclearedHold: overrideUnclearedPayoutHold,
-              })
-          ),
-        ];
+        // Wallet-only release — treasury account picker with ₦0 till lines.
+        payoutLines = [createRequestPayLine(accountId, 0)];
       }
       setRefundPayTarget(target);
       setRefundPayPayeeKey(selectedPayee?.queueKey ?? payeeQueueKey ?? null);
       setRefundPaidBy('');
       setRefundPayLines(payoutLines);
       setRefundPaymentNote(target.paymentNote || '');
+      setRefundReleaseWallet(walletOpenNgn > 0);
       setShowRefundPayModal(true);
     },
     [bankAccountsForPayout, ws, overrideUnclearedPayoutHold, showToast]
@@ -1093,35 +1094,44 @@ const Account = () => {
         )
       : refundOutstandingAmount(refundPayTarget);
     const validLines = mapTreasuryPayoutLinesForApi(refundPayLines);
-    if (validLines.length === 0) {
-      showToast('Add at least one refund payout line.', { variant: 'error' });
-      return;
-    }
-    if (refundPayTotalNgn <= 0) {
-      showToast('Refund payout total must be positive.', { variant: 'error' });
+    const tillLines = validLines.filter((line) => Math.round(Number(line.amountNgn) || 0) > 0);
+    const walletCredits = Array.isArray(refundPayTarget.walletOpenCredits)
+      ? refundPayTarget.walletOpenCredits.filter((c) => Math.round(Number(c.openNgn) || 0) > 0)
+      : [];
+    const releaseWallet = Boolean(refundReleaseWallet && walletCredits.length > 0);
+    if (!releaseWallet && tillLines.length === 0) {
+      showToast('Add a till payout line, or release the partner-wallet balance.', { variant: 'error' });
       return;
     }
     if (
       overrideUnclearedPayoutHold &&
+      tillLines.length > 0 &&
       (refundPaySelectedPayee?.payoutHeldForUnclearedReceipts ||
         refundCashierMoneyStory(refundPayTarget).unclearedHoldNgn > 0)
     ) {
+      if (refundPaymentNote.replace(/\s+/g, ' ').trim().length < 10) {
+        showToast(
+          'Add a short payment note (at least 10 characters) before releasing a held payout.',
+          { variant: 'error' }
+        );
+        return;
+      }
       if (
         !(await appConfirm({
           message:
-            'This payee still has unconfirmed receipts. Pay out anyway as an administrator exception?',
+            'This payee still has unconfirmed receipts. Release the held amount anyway? Your note will be audited.',
           variant: 'danger',
         }))
       ) {
         return;
       }
     }
-    if (refundPayTotalNgn > outstanding) {
+    if (tillLines.length > 0 && refundPayTotalNgn > outstanding) {
       showToast('Refund payout exceeds the approved outstanding balance.', { variant: 'error' });
       return;
     }
     const refundShortAccount = findTreasuryPayoutShortAccount(
-      validLines,
+      tillLines.length ? tillLines : validLines,
       bankAccountsForPayout,
       treasuryDisplayedBookNgnById
     );
@@ -1132,32 +1142,83 @@ const Account = () => {
     if (ws?.canMutate) {
       setTreasuryPayoutSubmitting(true);
       try {
-        const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/pay`, {
-          method: 'POST',
-          body: JSON.stringify({
-            paidBy: activeActorLabel,
-            paymentNote: refundPaymentNote.trim(),
-            note: refundPaymentNote.trim(),
-            paymentLines: validLines,
-          }),
-        });
-        if (!ok || !data?.ok) {
-          showToast(data?.error || 'Could not record refund payout.', { variant: 'error' });
-          return;
+        const treasuryAccountId = Number(
+          tillLines[0]?.treasuryAccountId || validLines[0]?.treasuryAccountId || 0
+        );
+        if (releaseWallet) {
+          if (!treasuryAccountId) {
+            showToast('Select a treasury account to release partner-wallet balance.', {
+              variant: 'error',
+            });
+            return;
+          }
+          const byParty = new Map();
+          for (const credit of walletCredits) {
+            const key = `${credit.partyKind || 'customer'}::${credit.partyId || ''}`;
+            const prev = byParty.get(key) || {
+              partyKind: credit.partyKind || 'customer',
+              partyId: String(credit.partyId || '').trim(),
+              partyName: credit.partyName || credit.payeeName || '',
+              amountNgn: 0,
+            };
+            prev.amountNgn += Math.round(Number(credit.openNgn) || 0);
+            byParty.set(key, prev);
+          }
+          for (const party of byParty.values()) {
+            if (!party.partyId || party.amountNgn <= 0) continue;
+            const { ok, data } = await apiFetch('/api/partner-wallets/withdraw', {
+              method: 'POST',
+              body: JSON.stringify({
+                partyKind: party.partyKind,
+                partyId: party.partyId,
+                partyName: party.partyName,
+                amountNgn: party.amountNgn,
+                treasuryAccountId,
+                refundId: rid,
+                reference: '',
+                note: refundPaymentNote.trim() || `Refund ${rid} partner wallet release`,
+                paidBy: activeActorLabel,
+              }),
+            });
+            if (!ok || !data?.ok) {
+              showToast(data?.error || 'Could not release partner-wallet balance.', {
+                variant: 'error',
+              });
+              return;
+            }
+          }
+        }
+        if (tillLines.length > 0) {
+          const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/pay`, {
+            method: 'POST',
+            body: JSON.stringify({
+              paidBy: activeActorLabel,
+              paymentNote: refundPaymentNote.trim(),
+              note: refundPaymentNote.trim(),
+              paymentLines: tillLines,
+            }),
+          });
+          if (!ok || !data?.ok) {
+            showToast(data?.error || 'Could not record refund payout.', { variant: 'error' });
+            return;
+          }
         }
         await ws.refresh();
-        const fullyPaid =
-          data.fullyPaid === true || (data.fullyPaid !== false && refundPayTotalNgn >= outstanding);
         setShowRefundPayModal(false);
         setRefundPayTarget(null);
         setRefundPayPayeeKey(null);
         setRefundPaidBy('');
         setRefundPayLines([]);
         setRefundPaymentNote('');
+        setRefundReleaseWallet(true);
         showToast(
-          fullyPaid
-            ? `Refund ${rid} fully paid.`
-            : `Refund ${rid} part-paid. Treasury updated.`
+          releaseWallet && tillLines.length === 0
+            ? `Refund ${rid} partner wallet released.`
+            : releaseWallet
+              ? `Refund ${rid} released (wallet + till).`
+              : refundPayTotalNgn >= outstanding
+                ? `Refund ${rid} fully paid.`
+                : `Refund ${rid} part-paid. Treasury updated.`
         );
         return;
       } finally {
@@ -4400,7 +4461,7 @@ const Account = () => {
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-zarewa-teal flex items-center gap-2">
               <RotateCcw size={22} className="text-rose-600" />
-              Pay refund
+              Release refund
             </h3>
             <button
               type="button"
@@ -4463,9 +4524,53 @@ const Account = () => {
                 refundCashierMoneyStory(refundPayTarget).unclearedHoldNgn > 0 ? (
                   <p className="text-xs text-amber-950 leading-relaxed">
                     {overrideUnclearedPayoutHold
-                      ? 'This payee has unconfirmed receipts. You can pay out as an administrator exception; cashiers cannot.'
-                      : 'Till payout is held until this payee’s unconfirmed receipts are confirmed.'}
+                      ? 'This payee has unconfirmed receipts. You can release the held slice with a short note (manager / Head of Accounts / admin).'
+                      : (() => {
+                          const story = refundCashierMoneyStory(refundPayTarget);
+                          const held = Math.round(Number(story.unclearedHoldNgn) || 0);
+                          const ready = Math.max(
+                            0,
+                            Math.round(Number(story.tillPayableNgn ?? story.cashDueNgn) || 0)
+                          );
+                          if (ready > 0 && held > 0) {
+                            return `₦${held.toLocaleString('en-NG')} held until receipts are confirmed; ₦${ready.toLocaleString('en-NG')} ready to release now.`;
+                          }
+                          return 'Till payout is held until this payee’s unconfirmed receipts are confirmed.';
+                        })()}
                   </p>
+                ) : null}
+                {Math.round(Number(refundPayTarget.walletOpenNgn) || 0) > 0 ? (
+                  <div className="rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2.5 space-y-2">
+                    <label className="flex items-start gap-2 text-xs text-violet-950 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={refundReleaseWallet}
+                        onChange={(ev) => setRefundReleaseWallet(ev.target.checked)}
+                      />
+                      <span>
+                        <span className="font-bold">Release partner wallet </span>
+                        <span className="font-black tabular-nums">
+                          {formatNgn(Math.round(Number(refundPayTarget.walletOpenNgn) || 0))}
+                        </span>
+                        <span className="block text-violet-900/80 pt-0.5">
+                          Staff / partner balance for this refund — same treasury account, no second
+                          approval.
+                        </span>
+                      </span>
+                    </label>
+                    {Array.isArray(refundPayTarget.walletOpenCredits) &&
+                    refundPayTarget.walletOpenCredits.length > 0 ? (
+                      <ul className="space-y-1 text-ui-xs text-violet-950/90 pl-6">
+                        {refundPayTarget.walletOpenCredits.map((c) => (
+                          <li key={c.id || `${c.partyId}-${c.openNgn}`}>
+                            {c.payeeName || c.partyName || c.partyId} ·{' '}
+                            <span className="font-mono tabular-nums">{formatNgn(c.openNgn)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
               <div>
@@ -4569,7 +4674,13 @@ const Account = () => {
                 disabled={treasuryPayoutSubmitting || !userMayPayCustomerRefund(ws)}
                 className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {treasuryPayoutSubmitting ? 'Paying…' : 'Pay refund'}
+                {treasuryPayoutSubmitting
+                  ? 'Releasing…'
+                  : Math.round(Number(refundPayTarget?.walletOpenNgn) || 0) > 0 && refundPayTotalNgn <= 0
+                    ? 'Release wallet'
+                    : Math.round(Number(refundPayTarget?.walletOpenNgn) || 0) > 0
+                      ? 'Release refund'
+                      : 'Pay refund'}
               </button>
             </form>
           ) : null}

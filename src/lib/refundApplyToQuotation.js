@@ -29,6 +29,7 @@ function normalizeRefundRow(refund) {
     paidAmountNgn: refund.paidAmountNgn ?? refund.paid_amount_ngn,
     credit_applied_ngn: refund.credit_applied_ngn ?? refund.creditAppliedNgn,
     creditAppliedNgn: refund.creditAppliedNgn ?? refund.credit_applied_ngn,
+    customerID: refund.customerID ?? refund.customer_id,
     split_distributions_json:
       typeof refund.split_distributions_json === 'string'
         ? refund.split_distributions_json
@@ -52,6 +53,8 @@ export function refundMayApplyCreditToQuotation(refund) {
     status,
     reasonCategory: row.reasonCategory,
     calculationLines: row.calculationLines,
+    splitDistributions: row.splitDistributions ?? row.split_distributions_json,
+    customerID: refund.customerID ?? refund.customer_id ?? row.customerID,
   });
 }
 

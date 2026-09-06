@@ -207,6 +207,7 @@ export function FinanceTreasuryAwaitingPayoutQueues({
                 const rowTestId = `finance-refund-awaiting-row-${line.refundID}-${line.queueKey}`;
                 const caution = refundPayeePayoutCaution(r, line, {
                   siblingPayeeLines: refundPayeeLines,
+                  actor: ws?.session?.user,
                 });
                 const statusIndicator =
                   caution.level !== 'none' ? (

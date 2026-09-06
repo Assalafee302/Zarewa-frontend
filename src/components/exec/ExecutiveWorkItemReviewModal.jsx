@@ -296,6 +296,8 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           ? {
               productionAlignmentAcknowledgedCodes: decisionExtras.productionAlignmentAcknowledgedCodes || [],
               productionAlignmentOverrideNote: decisionExtras.productionAlignmentOverrideNote || '',
+              companyCutWaived: Boolean(decisionExtras.companyCutWaived),
+              companyCutWaiverNote: String(decisionExtras.companyCutWaiverNote || '').trim(),
             }
           : {}),
       }),

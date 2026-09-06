@@ -166,6 +166,9 @@ export function RefundManagerApprovalPreview({
   const [approvalAmountError, setApprovalAmountError] = useState('');
   const [managerComments, setManagerComments] = useState('');
   const [rejectNoteError, setRejectNoteError] = useState('');
+  const [companyCutWaived, setCompanyCutWaived] = useState(false);
+  const [companyCutWaiverNote, setCompanyCutWaiverNote] = useState('');
+  const [waiverError, setWaiverError] = useState('');
   const [integrityBusy, setIntegrityBusy] = useState(false);
   const [integrityResult, setIntegrityResult] = useState(null);
   const [localIntelPatch, setLocalIntelPatch] = useState(null);
@@ -179,6 +182,19 @@ export function RefundManagerApprovalPreview({
   const canBypassIncompleteFloor = useMemo(() => {
     const rk = String(ws?.user?.roleKey ?? ws?.session?.user?.roleKey ?? '').toLowerCase();
     return Boolean(ws?.hasPermission?.('*') || rk === 'admin' || isExecutiveRoleKey(rk));
+  }, [ws]);
+  const mayWaiveCompanyCutAtApproval = useMemo(() => {
+    const rk = String(ws?.user?.roleKey ?? ws?.session?.user?.roleKey ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_');
+    return Boolean(
+      ws?.hasPermission?.('*') ||
+        rk === 'admin' ||
+        isExecutiveRoleKey(rk) ||
+        rk === 'sales_manager' ||
+        rk === 'branch_manager'
+    );
   }, [ws]);
   const canRecalculateIntegrity = useMemo(
     () =>
@@ -200,6 +216,9 @@ export function RefundManagerApprovalPreview({
   useEffect(() => {
     setIntegrityResult(null);
     setLocalIntelPatch(null);
+    setCompanyCutWaived(false);
+    setCompanyCutWaiverNote('');
+    setWaiverError('');
   }, [refundId]);
 
   const productionFingerprintRef = useRef('');
@@ -262,6 +281,19 @@ export function RefundManagerApprovalPreview({
       paymentNote: inboxRow.paymentNote ?? inboxRow.payment_note,
     });
   }, [refundRecord, inboxRow]);
+
+  const hasStaffCompanyCutLines = useMemo(() => {
+    const splits = Array.isArray(refund?.splitDistributions) ? refund.splitDistributions : [];
+    const quoteCustomerId = String(refund?.customerID || '').trim();
+    return splits.some((s) => {
+      const cut = Math.round(Number(s?.companyDeductionNgn) || 0);
+      if (cut > 0) return true;
+      const kind = String(s?.recipientKind || '').toLowerCase();
+      if (kind === 'associated_staff' || kind === 'staff') return true;
+      const cid = String(s?.recipientCustomerID || '').trim();
+      return Boolean(cid && quoteCustomerId && cid !== quoteCustomerId);
+    });
+  }, [refund?.splitDistributions, refund?.customerID]);
 
   const sum = auditData?.summary;
   const lines = flattenQuotationLineItems(auditData?.quotation);
@@ -645,6 +677,13 @@ export function RefundManagerApprovalPreview({
       );
       return;
     }
+    if (mayWaiveCompanyCutAtApproval && companyCutWaived) {
+      if (String(companyCutWaiverNote || '').trim().length < 8) {
+        setWaiverError('Company-cut waiver needs a short reason (at least 8 characters).');
+        return;
+      }
+    }
+    setWaiverError('');
 
     const lineSum = sumCalcLines(calcLines);
     let linesForDecision = calcLines;
@@ -697,6 +736,11 @@ export function RefundManagerApprovalPreview({
       productionAlignmentAcknowledgedCodes: ackCodes,
       productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
       managerComments: managerComments.trim(),
+      companyCutWaived: Boolean(mayWaiveCompanyCutAtApproval && companyCutWaived),
+      companyCutWaiverNote:
+        mayWaiveCompanyCutAtApproval && companyCutWaived
+          ? String(companyCutWaiverNote || '').trim()
+          : '',
       inlineManagerNote: true,
     });
   };
@@ -1485,8 +1529,8 @@ export function RefundManagerApprovalPreview({
                 withdraws there — no second BM approval. The company cut (Admin/MD %) accumulates in{' '}
                 <strong>Company cut retention</strong> (Finance / Manager Spend); after the hold
                 period it can be withdrawn with Branch Manager approval. Uncleared receipts still
-                reduce the staff net at approval. Admin/MD may waive the company cut on a line when
-                creating the refund.
+                reduce the staff net at approval. Admin/MD/BM may waive the company cut on this
+                approval screen (one checkbox + note).
               </AlertBanner>
             ) : null}
             {otherRefunds.length > 0 ? (
@@ -1555,6 +1599,45 @@ export function RefundManagerApprovalPreview({
                 placeholder="Override note (min 10 chars)"
                 className="mt-1 w-full rounded border border-amber-200 bg-white px-2 py-1 text-ui-xs"
               />
+            ) : null}
+          </div>
+        ) : null}
+
+        {mayWaiveCompanyCutAtApproval && hasStaffCompanyCutLines ? (
+          <div className="mb-2 rounded-md border border-violet-200/80 bg-violet-50/60 px-2 py-1.5 space-y-1.5">
+            <label className="flex items-start gap-2 text-ui-xs text-violet-950 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-3.5 w-3.5 accent-violet-600"
+                checked={companyCutWaived}
+                disabled={decisionBusy || loading}
+                onChange={(e) => {
+                  setCompanyCutWaived(e.target.checked);
+                  setWaiverError('');
+                  if (!e.target.checked) setCompanyCutWaiverNote('');
+                }}
+              />
+              <span>
+                Waive company cut on staff / transporter / installer lines (Admin, MD, or Branch Manager)
+              </span>
+            </label>
+            {companyCutWaived ? (
+              <input
+                type="text"
+                value={companyCutWaiverNote}
+                onChange={(e) => {
+                  setCompanyCutWaiverNote(e.target.value);
+                  setWaiverError('');
+                }}
+                disabled={decisionBusy || loading}
+                placeholder="Waiver reason (required, min 8 characters)"
+                className="w-full rounded border border-violet-200 bg-white px-2 py-1 text-ui-xs"
+              />
+            ) : null}
+            {waiverError ? (
+              <p className="text-ui-xs font-semibold text-rose-800" role="alert">
+                {waiverError}
+              </p>
             ) : null}
           </div>
         ) : null}

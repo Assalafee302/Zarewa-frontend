@@ -277,6 +277,44 @@ describe('refundRecipientTillPayoutRows', () => {
     expect(refundsOnFinanceRefundQueue([refund])).toHaveLength(1);
   });
 
+  it('keeps customer till payable when only staff share sits on partner wallet', () => {
+    const refund = {
+      refundID: 'RF-WALLET-PLUS-TILL',
+      customerID: 'CUS-1',
+      amountNgn: 100_000,
+      approvedAmountNgn: 100_000,
+      paidAmountNgn: 0,
+      companyCutNgn: 1_200,
+      walletOpenNgn: 38_800,
+      settlementSummary: {
+        cashOutstandingNgn: 98_800,
+        tillPayableNgn: 60_000,
+        walletOpenNgn: 38_800,
+        heldUnclearedNgn: 0,
+        companyCutNgn: 1_200,
+      },
+      status: 'Approved',
+      paymentNote: 'Settled at approval: company cut ₦1,200 → retention ledger.',
+      splitDistributions: [
+        { recipientKind: 'customer', recipientCustomerID: 'CUS-1', amountNgn: 60_000, payeeName: 'Customer' },
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-1',
+          amountNgn: 40_000,
+          payeeName: 'Driver',
+        },
+      ],
+    };
+    const rows = refundRecipientTillPayoutRows(refund);
+    const customer = rows.find((row) => row.recipientKind === 'customer');
+    const staff = rows.find((row) => row.recipientKind === 'associated_staff');
+    expect(staff?.payoutStatus).toBe('wallet_due');
+    expect(staff?.amountDueNgn).toBe(0);
+    expect(customer?.payoutStatus).toBe('till_due');
+    expect(customer?.amountDueNgn).toBe(60_000);
+    expect(refundPayeePayoutQueueLines(refund)).toHaveLength(1);
+  });
+
   it('shows overpayment staff as referral-available while till payout stays held', () => {
     const refund = {
       refundID: 'RF-KD-26-9553',
@@ -359,7 +397,7 @@ describe('refundPayeePayoutCaution', () => {
     expect(caution.codes).toContain('missing_bank');
   });
 
-  it('marks split payout when multiple payees are still due', () => {
+  it('does not surface multi-payee as a desk caution', () => {
     const refund = {
       refundID: 'RF-2026-002',
       customerID: 'CUS-1',
@@ -386,29 +424,59 @@ describe('refundPayeePayoutCaution', () => {
     const lines = refundPayeePayoutQueueLines(refund);
     expect(lines).toHaveLength(2);
     const caution = refundPayeePayoutCaution(refund, lines[0], { siblingPayeeLines: lines });
-    expect(caution.codes).toContain('multi_payee');
-    expect(caution.level).toBe('info');
-    expect(caution.tone).toBe('violet');
+    expect(caution.codes).not.toContain('multi_payee');
+    expect(caution.codes).not.toContain('splits_incomplete');
   });
 
-  it('warns when settlement exists but splits are missing from snapshot', () => {
+  it('warns to clear receipts when till payout is held', () => {
     const refund = {
       refundID: 'RF-2026-002',
       approvedAmountNgn: 45_000,
-      paidAmountNgn: 4_000,
+      paidAmountNgn: 0,
       status: 'Approved',
-      paymentNote: 'Settled at approval: company cut ₦4,000 → retention ledger.',
+      payeeAccountNo: '0123456789',
+      payeeBankName: 'GTBank',
     };
     const line = {
       refundID: 'RF-2026-002',
       recipientKind: 'customer',
-      amountDueNgn: 41_000,
+      amountDueNgn: 20_000,
+      payeeAccountNo: '0123456789',
+      payeeBankName: 'GTBank',
+      payoutHeldForUnclearedReceipts: true,
+      unclearedWithheldNgn: 15_000,
+      payoutStatus: 'till_due_partial_held',
+    };
+    const caution = refundPayeePayoutCaution(refund, line, { siblingPayeeLines: [line] });
+    expect(caution.codes).toContain('clear_receipts');
+    expect(caution.level).toBe('warn');
+    expect(caution.title).toMatch(/Clear receipts first/i);
+  });
+
+  it('flags dual-control when the signed-in user approved the refund', () => {
+    const refund = {
+      refundID: 'RF-DC-1',
+      approvedAmountNgn: 10_000,
+      paidAmountNgn: 0,
+      status: 'Approved',
+      approvedByUserId: 'u-42',
+      approvedBy: 'Aisha BM',
       payeeAccountNo: '0123456789',
       payeeBankName: 'GTBank',
     };
-    const caution = refundPayeePayoutCaution(refund, line, { siblingPayeeLines: [line] });
-    expect(caution.codes).toContain('splits_incomplete');
-    expect(caution.level).toBe('warn');
+    const line = {
+      refundID: 'RF-DC-1',
+      recipientKind: 'customer',
+      amountDueNgn: 10_000,
+      payeeAccountNo: '0123456789',
+      payeeBankName: 'GTBank',
+    };
+    const caution = refundPayeePayoutCaution(refund, line, {
+      siblingPayeeLines: [line],
+      actor: { id: 'u-42', displayName: 'Aisha BM' },
+    });
+    expect(caution.codes).toContain('dual_control');
+    expect(caution.title).toMatch(/another finance user/i);
   });
 });
 
@@ -421,10 +489,12 @@ describe('refundCashierCustomerName', () => {
 });
 
 describe('actorMayOverrideRefundUnclearedPayoutHold', () => {
-  it('allows admin only', () => {
+  it('allows BM, Head of Accounts, and admin — not cashier', () => {
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'admin' })).toBe(true);
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'cashier' })).toBe(false);
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'md' })).toBe(false);
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'finance_manager' })).toBe(true);
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'sales_manager' })).toBe(true);
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'finance_manager' }, (p) => p === '*')).toBe(
       true
     );

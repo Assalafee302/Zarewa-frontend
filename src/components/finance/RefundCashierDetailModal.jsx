@@ -129,6 +129,9 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
     [refund, overrideUnclearedHold]
   );
   const tillDuePayeeCount = recipientTillRows.filter((row) => row.amountDueNgn > 0).length;
+  const walletOpenNgn = Math.round(Number(refund?.walletOpenNgn) || 0);
+  const canRelease =
+    !blockCashPayout && (tillDuePayeeCount > 0 || walletOpenNgn > 0);
 
   useEffect(() => {
     if (!isOpen || !qref) {
@@ -230,10 +233,10 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 space-y-2">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
               <p className="text-ui-xs text-sky-900/85 leading-relaxed">
-                Payees stay listed even when till cash is held. Cashiers cannot pay until receipts
-                are confirmed
+                Payees stay listed even when till cash is held. Cashiers cannot pay the held slice until
+                receipts are confirmed
                 {overrideUnclearedHold
-                  ? '; you can pay as an administrator exception.'
+                  ? '; you can release held amounts with a note (manager / Head of Accounts / admin).'
                   : '.'}{' '}
                 Overpayment may cover a receipt on Confirm payment.
               </p>
@@ -264,6 +267,8 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                             ? 'font-bold text-rose-800'
                             : row.payoutStatus === 'admin_override_uncleared'
                               ? 'font-semibold text-amber-900'
+                            : row.payoutStatus === 'wallet_due'
+                              ? 'font-semibold text-violet-900'
                             : row.payoutStatus === 'held_uncleared'
                               ? 'font-semibold text-amber-900'
                               : row.payoutStatus === 'referral_available'
@@ -282,15 +287,27 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                         {row.payoutStatus === 'held_uncleared'
                           ? ` · ${formatNgn(row.netPayoutNgn)} net held`
                           : ''}
+                        {row.payoutStatus === 'wallet_due'
+                          ? ` · ${formatNgn(row.walletOpenForPayeeNgn || row.netPayoutNgn)}`
+                          : ''}
                         {row.payoutStatus === 'referral_available'
                           ? ` · ${formatNgn(row.netPayoutNgn)} for cashier referral`
                           : ''}
                       </span>
                       {row.payoutStatus === 'till_due' ||
                       row.payoutStatus === 'till_due_partial_held' ||
-                      row.payoutStatus === 'admin_override_uncleared' ? (
-                        <span className="font-bold uppercase tracking-wide text-rose-700">
-                          {row.payoutStatus === 'admin_override_uncleared' ? 'Admin exception' : 'In payout queue'}
+                      row.payoutStatus === 'admin_override_uncleared' ||
+                      row.payoutStatus === 'wallet_due' ? (
+                        <span
+                          className={`font-bold uppercase tracking-wide ${
+                            row.payoutStatus === 'wallet_due' ? 'text-violet-700' : 'text-rose-700'
+                          }`}
+                        >
+                          {row.payoutStatus === 'admin_override_uncleared'
+                            ? 'Admin exception'
+                            : row.payoutStatus === 'wallet_due'
+                              ? 'Partner wallet'
+                              : 'In payout queue'}
                         </span>
                       ) : null}
                     </div>
@@ -441,12 +458,16 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
         <ModalActionFooter
           onCancel={onClose}
           cancelLabel="Close"
-          onConfirm={onPay && tillDuePayeeCount > 0 && !blockCashPayout ? () => onPay(refund) : undefined}
+          onConfirm={onPay && canRelease ? () => onPay(refund) : undefined}
           confirmLabel={
-            onPay && tillDuePayeeCount > 0 && !blockCashPayout
-              ? `Pay ${formatNgn(defaultPayoutNgn)}${
-                  tillDuePayeeCount > 1 ? ' (this payee)' : tillDuePayeeCount === 1 ? '' : ' (customer)'
-                }`
+            onPay && canRelease
+              ? walletOpenNgn > 0 && tillDuePayeeCount <= 0
+                ? `Release wallet ${formatNgn(walletOpenNgn)}`
+                : walletOpenNgn > 0
+                  ? `Release ${formatNgn(defaultPayoutNgn + walletOpenNgn)}`
+                  : `Pay ${formatNgn(defaultPayoutNgn)}${
+                      tillDuePayeeCount > 1 ? ' (this payee)' : tillDuePayeeCount === 1 ? '' : ' (customer)'
+                    }`
               : 'Save'
           }
         />

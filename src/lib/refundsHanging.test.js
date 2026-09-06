@@ -6,6 +6,7 @@ import {
   hangingRefundsForCustomer,
   isRefundHanging,
   normalizeRefund,
+  refundOutstandingAmount,
   refundPublicStatusLabel,
   userMayPayCustomerRefund,
 } from './refundsStore.js';
@@ -174,7 +175,7 @@ describe('hanging refund indicators', () => {
       walletOpenNgn: 8_000,
     });
     expect(isRefundHanging(r)).toBe(true);
-    expect(refundPublicStatusLabel(r)).toBe('Payee not settled');
+    expect(refundPublicStatusLabel(r)).toBe('Ready — partner wallet');
     expect(refundPublicStatusLabel(r)).not.toBe('Paid');
   });
 
@@ -205,6 +206,23 @@ describe('hanging refund indicators', () => {
     });
     expect(isRefundHanging(r)).toBe(true);
     expect(refundPublicStatusLabel(r)).toBe('Awaiting till payout');
+  });
+
+  it('prefers settlementSummary.publicLabel when present', () => {
+    const r = normalizeRefund({
+      refundID: 'RF-SUMMARY',
+      status: 'Approved',
+      amountNgn: 10_000,
+      approvedAmountNgn: 10_000,
+      paidAmountNgn: 0,
+      settlementSummary: {
+        publicLabel: 'Blocked — clear receipts',
+        cashOutstandingNgn: 9_700,
+        companyCutNgn: 300,
+      },
+    });
+    expect(refundPublicStatusLabel(r)).toBe('Blocked — clear receipts');
+    expect(refundOutstandingAmount(r)).toBe(9_700);
   });
 
   it('hides refund Pay for MD and allows cashier and admin trial', () => {

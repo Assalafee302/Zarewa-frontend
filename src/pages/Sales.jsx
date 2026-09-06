@@ -1055,6 +1055,8 @@ const Sales = () => {
                   productionAlignmentAcknowledgedCodes:
                     normalized.productionAlignmentAcknowledgedCodes || [],
                   productionAlignmentOverrideNote: normalized.productionAlignmentOverrideNote || '',
+                  companyCutWaived: Boolean(normalized.companyCutWaived),
+                  companyCutWaiverNote: String(normalized.companyCutWaiverNote || '').trim(),
                 }
               : {}),
           };
