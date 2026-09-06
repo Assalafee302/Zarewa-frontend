@@ -49,7 +49,12 @@ export function productionOutputDateISO(job) {
 }
 
 function productionJobActualMeters(job) {
-  return Number(job?.actualMeters) || 0;
+  const roof = Number(job?.actualRoofM ?? job?.actual_roof_m) || 0;
+  const cladding = Number(job?.actualCladdingM ?? job?.actual_cladding_m) || 0;
+  const flatsheet = Number(job?.actualFlatsheetM ?? job?.actual_flatsheet_m) || 0;
+  const split = roof + cladding + flatsheet;
+  if (split > 1e-9) return split;
+  return Number(job?.effectiveOutputMeters ?? job?.actualMeters) || 0;
 }
 
 /** Sum of actual metres from completed production jobs per quotation ref (split denominator for attributed sales). */

@@ -901,7 +901,13 @@ const Operations = () => {
         cl.productName || cl.productID || null,
       ].filter(Boolean);
       const plannedM = Number(cl.totalMeters ?? job?.plannedMeters ?? 0);
-      const actualM = Number(job?.actualMeters ?? 0);
+      const splitActual =
+        (Number(job?.actualRoofM) || 0) +
+        (Number(job?.actualCladdingM) || 0) +
+        (Number(job?.actualFlatsheetM) || 0);
+      const actualM = Number(
+        job?.effectiveOutputMeters ?? (splitActual > 1e-9 ? splitActual : job?.actualMeters) ?? 0
+      );
       const metreVarianceAttention =
         isCompleted && metreVarianceExceedsThreshold(plannedM, actualM);
       const conversionHighLow = ['High', 'Low'].includes(String(job?.conversionAlertState || ''));

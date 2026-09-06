@@ -154,7 +154,14 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
       if (String(j.status || '').trim() !== 'Completed') return s;
       const d = productionOutputDateISO(j);
       if (!d || d < windowStart) return s;
-      return s + (Number(j.actualMeters) || 0);
+      const roof = Number(j.actualRoofM) || 0;
+      const cladding = Number(j.actualCladdingM) || 0;
+      const flatsheet = Number(j.actualFlatsheetM) || 0;
+      const split = roof + cladding + flatsheet;
+      const m =
+        Number(j.effectiveOutputMeters) ||
+        (split > 1e-9 ? split : Number(j.actualMeters) || 0);
+      return s + m;
     }, 0);
   }, [productionJobs, windowStart]);
 

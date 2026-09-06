@@ -906,19 +906,55 @@ export function LiveProductionMonitor({
     }
   }, [isAccessoriesOnlyQuote, isStoneMeterQuote, jobSt]);
 
+  const stoneMetersDraftNum = useMemo(() => {
+    const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
+    return Number.isFinite(m) ? m : NaN;
+  }, [stoneMetersConsumed]);
+
+  /**
+   * Hybrid stone draft metres for live Out / vs-plan. On Roof+Flatsheet jobs the operator enters
+   * stone roofing separately from coil/offcut flatsheet; omitting this made Out stay 0.00 m after
+   * typing "Metres consumed (stone stock)" (e.g. QT-KD-26-1457 / CL-KD-26-1195).
+   */
+  const hybridStoneDraftMeters = useMemo(() => {
+    if (!stoneCoilHybrid || !stoneMetreConsumptionRequired) return 0;
+    if (!Number.isFinite(stoneMetersDraftNum) || Math.abs(stoneMetersDraftNum) < 1e-9) return 0;
+    return stoneMetersDraftNum;
+  }, [stoneCoilHybrid, stoneMetreConsumptionRequired, stoneMetersDraftNum]);
+
   const recordedMeters = useMemo(() => {
     if (stonePureNoCoil && !completionUsesOffcutMode && jobSt === 'Running') {
-      const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
-      return Number.isFinite(m) && Math.abs(m) > 1e-9 ? m : 0;
+      return Number.isFinite(stoneMetersDraftNum) && Math.abs(stoneMetersDraftNum) > 1e-9
+        ? stoneMetersDraftNum
+        : 0;
     }
     if (stonePureNoCoil && !completionUsesOffcutMode && jobSt === 'Completed') {
       const posted = Number(selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters ?? 0);
       if (Number.isFinite(posted) && Math.abs(posted) > 1e-9) return posted;
-      const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
-      return Number.isFinite(m) && Math.abs(m) > 1e-9 ? m : 0;
+      return Number.isFinite(stoneMetersDraftNum) && Math.abs(stoneMetersDraftNum) > 1e-9
+        ? stoneMetersDraftNum
+        : 0;
+    }
+    /* Completed hybrid: prefer split roof/cladding/flatsheet columns over flatsheet-only actualMeters. */
+    if (jobSt === 'Completed' && stoneCoilHybrid) {
+      const split =
+        (Number(selectedJob?.actualRoofM) || 0) +
+        (Number(selectedJob?.actualCladdingM) || 0) +
+        (Number(selectedJob?.actualFlatsheetM) || 0);
+      if (split > 1e-9) {
+        if (canEditCompletedStoneMetresCorrections && hybridStoneDraftMeters > 0) {
+          return (
+            hybridStoneDraftMeters +
+            (Number(selectedJob?.actualCladdingM) || 0) +
+            (Number(selectedJob?.actualFlatsheetM) || 0)
+          );
+        }
+        return split;
+      }
+      return Number(selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters ?? 0) || 0;
     }
     if (resolvesToOffcutCompletion && jobSt === 'Running') {
-      return effectiveOffcutOutputMeters;
+      return effectiveOffcutOutputMeters + hybridStoneDraftMeters;
     }
     const coilM = draftAllocations.reduce((sum, row) => {
       const meters = Number(row.metersProduced);
@@ -929,21 +965,27 @@ export function LiveProductionMonitor({
       !stonePureNoCoil &&
       (jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections))
     ) {
-      return coilM + offcutInventoryMetersNum;
+      return coilM + offcutInventoryMetersNum + hybridStoneDraftMeters;
     }
-    return coilM;
+    return coilM + hybridStoneDraftMeters;
   }, [
     canEditCompletedCoilCorrections,
+    canEditCompletedStoneMetresCorrections,
     completionUsesOffcutMode,
     draftAllocations,
     effectiveOffcutOutputMeters,
+    hybridStoneDraftMeters,
+    stoneCoilHybrid,
     stonePureNoCoil,
     jobSt,
     offcutInventoryMetersNum,
     resolvesToOffcutCompletion,
+    selectedJob?.actualCladdingM,
+    selectedJob?.actualFlatsheetM,
     selectedJob?.actualMeters,
+    selectedJob?.actualRoofM,
     selectedJob?.effectiveOutputMeters,
-    stoneMetersConsumed,
+    stoneMetersDraftNum,
   ]);
   const recordedConsumedKg = useMemo(
     () =>
@@ -971,16 +1013,37 @@ export function LiveProductionMonitor({
       if (offcutSupplyMetersTotal > 0) return jobSt === 'Running';
       if (offcutInventoryMetersNum > 0) return jobSt === 'Running';
       if (isAccessoriesOnlyQuote) return jobSt === 'Running';
+      /* Hybrid stone + offcut: stone metres alone are enough to preview (flatsheet may be 0). */
+      if (
+        stoneCoilHybrid &&
+        stoneMetreConsumptionRequired &&
+        Number.isFinite(stoneMetersDraftNum) &&
+        Math.abs(stoneMetersDraftNum) > 1e-9
+      ) {
+        return jobSt === 'Running';
+      }
       return false;
     }
     const hasPreviewRows = draftAllocations.some((row) => draftRowConversionPreviewReady(row));
-    if (!hasPreviewRows) return false;
-    return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
+    if (hasPreviewRows) {
+      return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
+    }
+    /* Hybrid on coil mode with stone metres filled but no coil rows ready yet — still preview stone. */
+    if (
+      stoneCoilHybrid &&
+      stoneMetreConsumptionRequired &&
+      Number.isFinite(stoneMetersDraftNum) &&
+      Math.abs(stoneMetersDraftNum) > 1e-9
+    ) {
+      return jobSt === 'Running';
+    }
+    return false;
   }, [
     canEditCompletedCoilCorrections,
     completionUsesOffcutMode,
     draftAllocations,
     effectiveOffcutOutputMeters,
+    stoneCoilHybrid,
     stonePureNoCoil,
     jobSt,
     offcutInventoryMetersNum,
@@ -989,7 +1052,7 @@ export function LiveProductionMonitor({
     resolvesToOffcutCompletion,
     selectedJob?.jobID,
     stoneMetreConsumptionRequired,
-    stoneMetersConsumed,
+    stoneMetersDraftNum,
   ]);
 
   /** Persisted coil rows — can save closing / metres / note to server while the run is open. */
@@ -1657,28 +1720,41 @@ export function LiveProductionMonitor({
         };
       }
       const rawMeters = String(offcutMetersProduced).trim();
-      if (!rawMeters) {
+      if (rawMeters) {
+        const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
+        if (!Number.isFinite(m) || m < 0) {
+          return {
+            validLineCount: 0,
+            errors: ['Offcut produced metres must be zero or greater.', ...stoneErrs],
+            canComplete: false,
+          };
+        }
         return {
-          validLineCount: 0,
-          errors: [
-            'Enter offcut stock metres or finished-goods output metres before completing.',
-            ...stoneErrs,
-          ],
-          canComplete: false,
+          validLineCount: 1,
+          errors: stoneErrs,
+          canComplete: stoneErrs.length === 0,
         };
       }
-      const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
-      if (!Number.isFinite(m) || m < 0) {
+      /*
+       * Hybrid Roof + Flatsheet on offcut mode: stone metres are the primary draw. Flatsheet/gutter
+       * output may legitimately be 0 (operator used no offcut / no coil for the F portion). The
+       * backend already accepts offcut metres = 0 and still posts STONE_CONSUMPTION — only the UI
+       * previously blocked Complete until an offcut field was filled.
+       */
+      if (stoneCoilHybrid && stoneMetreConsumptionRequired) {
         return {
-          validLineCount: 0,
-          errors: ['Offcut produced metres must be zero or greater.', ...stoneErrs],
-          canComplete: false,
+          validLineCount: stoneErrs.length === 0 ? 1 : 0,
+          errors: stoneErrs,
+          canComplete: stoneErrs.length === 0,
         };
       }
       return {
-        validLineCount: 1,
-        errors: stoneErrs,
-        canComplete: stoneErrs.length === 0,
+        validLineCount: 0,
+        errors: [
+          'Enter offcut stock metres or finished-goods output metres before completing.',
+          ...stoneErrs,
+        ],
+        canComplete: false,
       };
     }
     if (stonePureNoCoil && !completionUsesOffcutMode) {
@@ -2008,7 +2084,15 @@ export function LiveProductionMonitor({
     return Math.min(200, Math.round(pct * 10) / 10);
   }, [hasPlannedMeters, recordedMeters, plannedMetersValue]);
 
-  const postedOutputM = Number(selectedJob?.actualMeters ?? 0);
+  const splitPosted =
+    (Number(selectedJob?.actualRoofM) || 0) +
+    (Number(selectedJob?.actualCladdingM) || 0) +
+    (Number(selectedJob?.actualFlatsheetM) || 0);
+  const postedOutputM = Number(
+    selectedJob?.effectiveOutputMeters ??
+      (splitPosted > 1e-9 ? splitPosted : selectedJob?.actualMeters) ??
+      0
+  );
   const fgAdjTotalM = Number(selectedJob?.fgAdjustmentMetersTotal ?? 0);
   const effectiveOutputM = Number(
     selectedJob?.effectiveOutputMeters ?? postedOutputM + fgAdjTotalM
@@ -3534,7 +3618,7 @@ export function LiveProductionMonitor({
             usedKg={recordedConsumedKg}
             plannedM={selectedJob.plannedMeters}
             outputM={recordedMeters}
-            outputPostedM={selectedJob?.actualMeters}
+            outputPostedM={selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters}
             alertState={selectedJob.conversionAlertState}
             plannedRoofM={selectedJob.plannedRoofM}
             plannedCladdingM={selectedJob.plannedCladdingM}
@@ -4876,7 +4960,14 @@ export function LiveProductionMonitor({
                 {!canRunConversionPreview ? (
                   <p className="rounded-md border border-dashed border-slate-200 bg-slate-50/80 px-2 py-2 text-xs text-slate-600">
                     {completionUsesOffcutMode ? (
-                      <>Enter offcut stock metres or issue incidents — output counts toward production and unproduced refunds.</>
+                      stoneCoilHybrid && stoneMetreConsumptionRequired ? (
+                        <>
+                          Enter stone metres consumed (and offcut/flatsheet metres if any). Nothing posts until
+                          Complete.
+                        </>
+                      ) : (
+                        <>Enter offcut stock metres or issue incidents — output counts toward production and unproduced refunds.</>
+                      )
                     ) : (
                       <>
                         Enter <strong className="font-semibold text-slate-800">closing kg</strong> and{' '}
