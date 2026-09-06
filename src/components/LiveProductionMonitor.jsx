@@ -36,6 +36,8 @@ import OffcutIncidentPicker from './material/OffcutIncidentPicker';
 import CoilDamageRecordModal from './operations/CoilDamageRecordModal';
 import { ProductionRegisterCoilRow } from './operations/ProductionRegisterCoilRow';
 import {
+  cuttingListExpectsCoilAllocation,
+  cuttingListRequiresStoneMetreConsumption,
   isStoneBargeboardQuotationLine,
   isStoneFlatsheetQuotationLine,
   isStoneRidgeQuotationLine,
@@ -475,24 +477,31 @@ export function LiveProductionMonitor({
   }, [linkedQuotation, linkedCuttingList, ws?.snapshot?.masterData?.materialTypes]);
   /**
    * Stone + Flat sheet / gutter / Coil — may allocate coil or complete from offcut for that portion.
-   * Scoped to this job's own cutting-list product (`selectedJob.productName`) so a sibling product
-   * line elsewhere on the same multi-line quotation (e.g. a "Flat sheet" line next to this job's
-   * "Roofing Sheet" line) can't make a pure stone-metre job show/accept coil allocation, or vice versa.
+   * Scoped to this job's own cutting-list lines (`linkedCuttingList.lines[].lineType`), not
+   * `selectedJob.productName` / product-name matching: real cutting-list creation never sets a
+   * product name on a normal (non-accessories-only) list, so name-based scoping silently fails
+   * open to the whole quotation and can make a pure stone-metre job show/accept coil allocation
+   * (or vice versa) whenever a sibling product line exists elsewhere on the same multi-line
+   * quotation. `cutting_list_lines.line_type` is always populated and reflects what was actually
+   * cut for THIS job, so it is used first; falls back to the old quotation-wide check only when
+   * this job has no resolvable cutting-list lines (e.g. legacy data, accessories-only jobs).
    */
-  const expectsCoilAllocation = useMemo(
-    () => quotationExpectsCoilAllocation(linkedQuotation, { jobProductName: selectedJob?.productName }),
-    [linkedQuotation, selectedJob?.productName]
-  );
+  const jobCuttingListLineTypesPresent = Array.isArray(linkedCuttingList?.lines) && linkedCuttingList.lines.length > 0;
+  const expectsCoilAllocation = useMemo(() => {
+    if (jobCuttingListLineTypesPresent) return cuttingListExpectsCoilAllocation(linkedCuttingList.lines);
+    return quotationExpectsCoilAllocation(linkedQuotation, { jobProductName: selectedJob?.productName });
+  }, [jobCuttingListLineTypesPresent, linkedCuttingList, linkedQuotation, selectedJob?.productName]);
   const stoneCoilHybrid = isStoneMeterQuote && expectsCoilAllocation;
   /** Pure stone (roofing / SF / accessories only) — no coil UI. */
   const stonePureNoCoil = isStoneMeterQuote && !expectsCoilAllocation;
   const isAccessoriesOnlyQuote = quotationIsAccessoriesOnlyForProduction(linkedQuotation);
   const isStoneAccessoriesOnlyQuote = isStoneMeterQuote && isAccessoriesOnlyQuote;
   const stoneMetreConsumptionRequired = useMemo(() => {
+    if (jobCuttingListLineTypesPresent) return cuttingListRequiresStoneMetreConsumption(linkedCuttingList.lines);
     const { products } = quotationLinesGrouped(linkedQuotation);
     const scoped = quotationProductLinesForJobProduct(products, selectedJob?.productName);
     return quotationHasStoneMetreProductLines(scoped);
-  }, [linkedQuotation, selectedJob?.productName]);
+  }, [jobCuttingListLineTypesPresent, linkedCuttingList, linkedQuotation, selectedJob?.productName]);
 
   const reloadJobIntel = useCallback(async () => {
     const jobId = String(selectedJob?.jobID || '').trim();
@@ -3892,7 +3901,26 @@ export function LiveProductionMonitor({
                 <div className="mt-2.5 flex flex-col gap-2 border-t border-slate-200/70 pt-2.5 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-2">
                   {[
                     ['Planned', formatMeters(selectedJob.plannedMeters), 'text-zarewa-teal'],
-                    ['Actual', formatMeters(selectedJob.actualMeters), 'text-zarewa-teal'],
+                    /*
+                     * `actualMeters` alone only ever holds the coil/offcut-derived flatsheet
+                     * output on a hybrid stone job — the stone-roofing metres consumed via the
+                     * separate "Metres consumed (stone stock)" input are recorded in
+                     * `actualRoofM`, never added into `actualMeters`. Showing `actualMeters` here
+                     * on its own made the roof entry look like it "didn't count" while the one
+                     * visible number (really just the flatsheet/coil figure) could be misread as
+                     * roof output. Sum the per-type actuals for the headline when they are
+                     * populated; older completed jobs (before this split existed) fall back to
+                     * the legacy single figure.
+                     */
+                    [
+                      'Actual',
+                      formatMeters(
+                        (Number(selectedJob.actualRoofM) || 0) +
+                          (Number(selectedJob.actualCladdingM) || 0) +
+                          (Number(selectedJob.actualFlatsheetM) || 0) || Number(selectedJob.actualMeters) || 0
+                      ),
+                      'text-zarewa-teal',
+                    ],
                     ['Alert', selectedJob.conversionAlertState || 'Pending', 'text-slate-900'],
                   ].map(([label, value, valueClass]) => (
                     <div
@@ -3910,6 +3938,15 @@ export function LiveProductionMonitor({
                         <p className="mt-0.5 text-ui-xs font-semibold tabular-nums text-slate-500 leading-tight">
                           R {formatMeters(selectedJob.plannedRoofM)} · C {formatMeters(selectedJob.plannedCladdingM)} · F{' '}
                           {formatMeters(selectedJob.plannedFlatsheetM)}
+                        </p>
+                      ) : null}
+                      {label === 'Actual' &&
+                      (Number(selectedJob.actualRoofM) > 0 ||
+                        Number(selectedJob.actualCladdingM) > 0 ||
+                        Number(selectedJob.actualFlatsheetM) > 0) ? (
+                        <p className="mt-0.5 text-ui-xs font-semibold tabular-nums text-slate-500 leading-tight">
+                          R {formatMeters(selectedJob.actualRoofM)} · C {formatMeters(selectedJob.actualCladdingM)} · F{' '}
+                          {formatMeters(selectedJob.actualFlatsheetM)}
                         </p>
                       ) : null}
                     </div>
@@ -4605,7 +4642,7 @@ export function LiveProductionMonitor({
               (canCaptureRun || canEditPlannedAllocations || canEditCompletedCoilCorrections) ? (
                 <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700 space-y-2">
                   <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                    Offcut stock metres
+                    Offcut stock metres used
                     <input
                       type="text"
                       inputMode="decimal"
@@ -4615,6 +4652,11 @@ export function LiveProductionMonitor({
                       className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
                     />
                   </label>
+                  <p className="text-ui-xs leading-snug text-slate-500">
+                    Metres drawn from existing offcut / scrap stock for this job (not a fresh coil). If this covers
+                    all of the job&rsquo;s output, leave &ldquo;Finished-goods output metres&rdquo; below blank — it
+                    will default to this number.
+                  </p>
                   <div className="border-t border-slate-100 pt-2 mt-2">
                     <p className="text-ui-xs font-bold uppercase text-zarewa-teal mb-1">Issue from offcut incidents</p>
                     <OffcutIncidentPicker
@@ -4662,7 +4704,10 @@ export function LiveProductionMonitor({
                           {formatMeters(Number(selectedJob?.actualMeters ?? 0) || 0)} m
                         </span>
                       ) : (
-                        <span>Stone metres were recorded at completion.</span>
+                        <span className="font-mono">
+                          Roof (stone): {formatMeters(Number(selectedJob?.actualRoofM ?? 0) || 0)} m — Flatsheet
+                          (coil/offcut): {formatMeters(Number(selectedJob?.actualFlatsheetM ?? 0) || 0)} m
+                        </span>
                       )}
                       <span className="ml-1 font-sans text-ui-xs font-medium text-slate-500">
                         (manager with Production release can correct)
@@ -4687,7 +4732,7 @@ export function LiveProductionMonitor({
               {completionUsesOffcutMode && !isAccessoriesOnlyQuote ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-xs text-slate-700 space-y-2">
                   <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                    Finished-goods output metres
+                    Total finished-goods output metres (only if different from offcut metres above)
                     <input
                       type="text"
                       inputMode="decimal"
@@ -4698,11 +4743,16 @@ export function LiveProductionMonitor({
                           ? `${effectiveOffcutOutputMeters.toFixed(2)} m will be produced`
                           : offcutSupplyMetersTotal > 0
                             ? `Defaults to ${offcutSupplyMetersTotal.toFixed(2)} m from incidents`
-                            : 'Same as offcut stock metres if left blank'
+                            : 'Same as offcut stock metres above if left blank'
                       }
                       className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
                     />
                   </label>
+                  <p className="text-ui-xs leading-snug text-slate-500">
+                    This is the job&rsquo;s total production output, posted as this job&rsquo;s completed metres.
+                    Leave blank when all of it came from the offcut stock entered above — only fill this in when the
+                    total differs (e.g. some pieces were hand-cut from elsewhere too).
+                  </p>
                 </div>
               ) : null}
               {!stonePureNoCoil && !completionUsesOffcutMode ? (
