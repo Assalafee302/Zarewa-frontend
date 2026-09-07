@@ -607,6 +607,21 @@ function AppShell() {
           >
             Offline — last workspace sync (read-only). Reconnect to post changes.
           </div>
+        ) : ws?.connectionUnstable ? (
+          <div
+            className="sticky top-0 z-40 -mx-4 sm:-mx-6 lg:mx-0 mb-4 border-b border-sky-200 bg-sky-50 px-4 py-2.5 text-center text-xs sm:text-sm font-semibold text-sky-950"
+            role="status"
+          >
+            Slow connection — workspace sync is delayed. You can keep saving; the app will catch up
+            automatically.
+            <button
+              type="button"
+              className="ml-2 underline underline-offset-2"
+              onClick={() => void ws.refresh?.({ forceReconnect: true })}
+            >
+              Sync now
+            </button>
+          </div>
         ) : null}
         <button
           type="button"

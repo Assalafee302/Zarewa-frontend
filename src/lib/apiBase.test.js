@@ -28,4 +28,19 @@ describe('apiFetch body', () => {
     expect(fetchMock.mock.calls[0][1].body).toBe('{"username":"store","password":"x"}');
     expect(fetchMock.mock.calls[0][1].headers['Content-Type']).toBe('application/json');
   });
+
+  it('retries a failed GET once before returning NETWORK_ERROR', async () => {
+    let calls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        calls += 1;
+        if (calls === 1) throw new TypeError('Failed to fetch');
+        return new Response('{"ok":true}', { status: 200 });
+      })
+    );
+    const res = await apiFetch('/api/workspace/revision');
+    expect(res.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
 });

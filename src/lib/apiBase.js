@@ -74,6 +74,21 @@ export function serializeApiRequestBody(rawBody) {
   return JSON.stringify(rawBody);
 }
 
+function networkErrorResult(err) {
+  return {
+    ok: false,
+    status: 0,
+    data: {
+      ok: false,
+      code: 'NETWORK_ERROR',
+      error:
+        err?.message === 'Failed to fetch'
+          ? 'Could not reach the server. Check your connection and that the API is running.'
+          : String(err?.message || err || 'Network request failed'),
+    },
+  };
+}
+
 function redirectToAppEntryForLogin() {
   if (typeof window === 'undefined') return;
   const base = String(import.meta.env.BASE_URL || '/');
@@ -120,19 +135,26 @@ export async function apiFetch(path, options = {}) {
     };
     if (body !== undefined) init.body = body;
     r = await fetch(apiUrl(path), init);
-  } catch (err) {
-    return {
-      ok: false,
-      status: 0,
-      data: {
-        ok: false,
-        code: 'NETWORK_ERROR',
-        error:
-          err?.message === 'Failed to fetch'
-            ? 'Could not reach the server. Check your connection and that the API is running.'
-            : String(err?.message || err || 'Network request failed'),
-      },
-    };
+  } catch (firstErr) {
+    // One silent retry for idempotent GETs — covers brief mobile blips without double-posting.
+    const canRetryGet = method === 'GET' || method === 'HEAD';
+    if (canRetryGet) {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        const init = {
+          ...rest,
+          method,
+          credentials: 'include',
+          headers,
+        };
+        if (body !== undefined) init.body = body;
+        r = await fetch(apiUrl(path), init);
+      } catch (retryErr) {
+        return networkErrorResult(retryErr);
+      }
+    } else {
+      return networkErrorResult(firstErr);
+    }
   }
   const text = await r.text();
   let data = null;

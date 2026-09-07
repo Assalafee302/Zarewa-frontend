@@ -7,6 +7,11 @@ import {
   isSpaHtmlResponse,
   probeDegradedApiHealth,
 } from '../lib/bootstrapConnectError';
+import {
+  adaptiveBootstrapTimeoutMs,
+  fetchWithTimeoutRetry,
+  probeApiReachable,
+} from '../lib/connectivityResilience';
 import { replaceLedgerEntries } from '../lib/customerLedgerStore';
 import {
   canAccessModuleWithPermissions,
@@ -126,13 +131,45 @@ function workspacePollIntervalMs() {
   return 60_000;
 }
 
-const BOOTSTRAP_FETCH_TIMEOUT_MS = 35_000;
+/**
+ * How long the browser waits for `/api/bootstrap` before aborting.
+ * Default 90s — slow/unstable links (common on mobile networks) often need more than 35s
+ * for a full workspace sync. Override with `VITE_BOOTSTRAP_TIMEOUT_MS` (min 15s).
+ */
+function bootstrapFetchTimeoutMs() {
+  try {
+    const raw = import.meta.env?.VITE_BOOTSTRAP_TIMEOUT_MS;
+    if (raw != null && String(raw).trim() !== '') {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 15_000) return n;
+    }
+  } catch {
+    /* ignore */
+  }
+  return 90_000;
+}
+
 /**
  * Background polls (every workspacePollIntervalMs()) may fail on a merely slow/flaky connection,
  * not a real outage. Absorb this many consecutive poll failures — keep showing live data and
  * retry silently — before falling back to the read-only cached snapshot and locking the app.
+ * Override with `VITE_POLL_FAILURE_TOLERANCE` (min 1).
  */
-const POLL_FAILURE_TOLERANCE = 2;
+function pollFailureTolerance() {
+  try {
+    const raw = import.meta.env?.VITE_POLL_FAILURE_TOLERANCE;
+    if (raw != null && String(raw).trim() !== '') {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 1) return Math.floor(n);
+    }
+  } catch {
+    /* ignore */
+  }
+  return 5;
+}
+
+const BOOTSTRAP_FETCH_TIMEOUT_MS = bootstrapFetchTimeoutMs();
+const POLL_FAILURE_TOLERANCE = pollFailureTolerance();
 
 function clearBootstrapCache() {
   try {
@@ -228,6 +265,8 @@ export function WorkspaceProvider({ children }) {
   const refreshSeqRef = useRef(0);
   const statusRef = useRef(status);
   const pollFailureStreakRef = useRef(0);
+  /** Last measured `/api/livez` RTT — used to stretch bootstrap timeout on slow links. */
+  const apiRttMsRef = useRef(null);
 
   const resetDomainRuntime = useCallback(() => {
     loadedDomainsRef.current = new Set();
@@ -269,12 +308,13 @@ export function WorkspaceProvider({ children }) {
       return merged;
     });
     setStatus(mode);
-    setLastError(null);
+    // Keep lastError for degraded/unstable banners; clear only on a healthy sync.
+    if (mode === 'ok') setLastError(null);
     if (Array.isArray(merged?.ledgerEntries)) {
       replaceLedgerEntries(merged.ledgerEntries);
     }
-    if (mode === 'ok' && merged) {
-      writeBootstrapCache(merged);
+    if ((mode === 'ok' || mode === 'unstable') && merged) {
+      if (mode === 'ok') writeBootstrapCache(merged);
       for (const domain of inferLoadedWorkspaceDomains(merged)) {
         loadedDomainsRef.current.add(domain);
       }
@@ -386,29 +426,31 @@ export function WorkspaceProvider({ children }) {
       const skipEtag = Boolean(opts?.forceReconnect);
       const etag = skipEtag ? '' : isPoll ? bootstrapPollEtagRef.current : bootstrapFullEtagRef.current;
       let r;
-      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const timeoutId =
-        controller != null
-          ? window.setTimeout(() => controller.abort(), BOOTSTRAP_FETCH_TIMEOUT_MS)
-          : null;
+      const timeoutMs = adaptiveBootstrapTimeoutMs(BOOTSTRAP_FETCH_TIMEOUT_MS, apiRttMsRef.current);
       try {
-        r = await fetch(apiUrl(`/api/bootstrap${qs}`), {
-          method: 'GET',
-          credentials: 'include',
-          headers: etag ? { 'If-None-Match': etag } : {},
-          signal: controller?.signal,
-        });
+        r = await fetchWithTimeoutRetry(
+          apiUrl(`/api/bootstrap${qs}`),
+          {
+            method: 'GET',
+            credentials: 'include',
+            headers: etag ? { 'If-None-Match': etag } : {},
+          },
+          {
+            timeoutMs,
+            // User-facing loads get one retry; background polls stay single-shot to avoid stampede.
+            retries: isPoll ? 0 : 1,
+            pauseMs: 1_500,
+          }
+        );
       } catch (err) {
         const degradedMsg = await probeDegradedApiHealth(fetch, apiUrl);
-        if (controller != null && err?.name === 'AbortError') {
+        if (err?.name === 'AbortError') {
           throw new Error(
             degradedMsg ||
               'Workspace bootstrap timed out. The API or database may be slow or offline — check the server and try again.'
           );
         }
         throw new Error(degradedMsg || formatBootstrapNetworkError(err));
-      } finally {
-        if (timeoutId != null) window.clearTimeout(timeoutId);
       }
       if (r.status === 304) {
         // Server is reachable — leave degraded/read-only lock (304 used to leave status stuck).
@@ -475,28 +517,60 @@ export function WorkspaceProvider({ children }) {
       return applySnapshot(withPendingPasswordSession(incoming), 'ok');
     } catch (e) {
       if (stale()) return snapshotRef.current;
-      // A background poll on a merely slow/flaky connection can fail once or twice without the
-      // API actually being down. Absorb a few consecutive misses — keep the live view, retry
-      // silently next cycle — instead of yanking the user into the read-only lock immediately.
-      if (Boolean(opts?.poll) && statusRef.current === 'ok') {
+      const wasLive =
+        statusRef.current === 'ok' ||
+        statusRef.current === 'unstable' ||
+        (statusRef.current === 'checking' && snapshotRef.current?.ok);
+      // Background polls: absorb consecutive misses while still live — do not hard-lock yet.
+      if (Boolean(opts?.poll) && (statusRef.current === 'ok' || statusRef.current === 'unstable')) {
         pollFailureStreakRef.current += 1;
         if (pollFailureStreakRef.current <= POLL_FAILURE_TOLERANCE) {
           return snapshotRef.current;
         }
       }
+
+      // Health-aware: if the API answers livez, sync is slow — keep desks writable (soft mode).
+      const live = await probeApiReachable(fetch, apiUrl);
+      if (live.reachable && live.rttMs != null) apiRttMsRef.current = live.rttMs;
+      const errMsg = String(e.message || e);
+      if (live.reachable && (wasLive || snapshotRef.current?.ok)) {
+        pollFailureStreakRef.current = 0;
+        if (stale()) return snapshotRef.current;
+        setStatus('unstable');
+        setLastError(
+          errMsg ||
+            'Connection is slow or sync timed out. You can keep working — the app will retry in the background.'
+        );
+        return snapshotRef.current;
+      }
+      if (live.reachable) {
+        const cachedWhileLive = readBootstrapCache(snapshotRef.current?.session);
+        if (cachedWhileLive) {
+          if (stale()) return snapshotRef.current;
+          const merged = applySnapshot(withPendingPasswordSession(cachedWhileLive), 'unstable');
+          setLastError(
+            errMsg ||
+              'Workspace sync is slow. Showing the last good copy — saves still go to the live server when reachable.'
+          );
+          return merged;
+        }
+      }
+
       const cached = readBootstrapCache(snapshotRef.current?.session);
       if (cached) {
-        setLastError(String(e.message || e));
-        return applySnapshot(withPendingPasswordSession(cached), 'degraded');
+        if (stale()) return snapshotRef.current;
+        const merged = applySnapshot(withPendingPasswordSession(cached), 'degraded');
+        setLastError(errMsg);
+        return merged;
       }
       const uid = snapshotRef.current?.session?.user?.id;
       if (uid && hasPendingPasswordChange(uid)) {
-        setLastError(String(e.message || e));
+        setLastError(errMsg);
         return snapshotRef.current;
       }
       setStatus('offline');
       setSnapshot(null);
-      setLastError(String(e.message || e));
+      setLastError(errMsg);
       resetDomainRuntime();
       fullBootstrapLoadedRef.current = false;
       workspaceRevisionEtagRef.current = '';
@@ -938,7 +1012,7 @@ export function WorkspaceProvider({ children }) {
 
   /** Warm desk snapshots in the background so page navigation does not wait on first open. */
   useEffect(() => {
-    if (status !== 'ok') return undefined;
+    if (status !== 'ok' && status !== 'unstable') return undefined;
     const uid = snapshotRef.current?.session?.user?.id;
     if (uid && hasPendingPasswordChange(uid)) return undefined;
 
@@ -978,18 +1052,30 @@ export function WorkspaceProvider({ children }) {
     return () => window.clearTimeout(id);
   }, [status]);
 
-  /** After a transient outage, retry bootstrap until live sync is restored. */
+  /** After a transient outage or slow sync, retry bootstrap until live sync is restored. */
   useEffect(() => {
-    if (status !== 'degraded') return undefined;
+    if (status !== 'degraded' && status !== 'unstable') return undefined;
+    const intervalMs = status === 'unstable' ? 12_000 : 20_000;
     const id = window.setInterval(() => {
       void refresh({ forceReconnect: true });
-    }, 20_000);
+    }, intervalMs);
     return () => window.clearInterval(id);
   }, [status, refresh]);
 
+  /** Browser regained network — try to leave soft/hard offline without waiting for the timer. */
+  useEffect(() => {
+    const onOnline = () => {
+      if (statusRef.current === 'degraded' || statusRef.current === 'unstable' || statusRef.current === 'offline') {
+        void refresh({ forceReconnect: true });
+      }
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [refresh]);
+
   /** Timer + tab focus: cheap revision check, then bootstrap poll only when data changed. */
   useEffect(() => {
-    if (status !== 'ok') return undefined;
+    if (status !== 'ok' && status !== 'unstable') return undefined;
     const ms = workspacePollIntervalMs();
     const pull = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
@@ -1109,9 +1195,12 @@ export function WorkspaceProvider({ children }) {
     return () => clearInterval(t);
   }, [status, refreshStaffPurchaseCreditPending]);
 
-  const canMutate = status === 'ok';
+  /** Writable when the API is reachable — including soft "unstable" (slow sync, not a real outage). */
+  const canMutate = status === 'ok' || status === 'unstable';
   const usingCachedData = status === 'degraded';
-  const hasWorkspaceData = (status === 'ok' || status === 'degraded') && snapshot != null;
+  const connectionUnstable = status === 'unstable';
+  const hasWorkspaceData =
+    (status === 'ok' || status === 'degraded' || status === 'unstable') && snapshot != null;
 
   const value = useMemo(
     () => ({
@@ -1127,12 +1216,14 @@ export function WorkspaceProvider({ children }) {
       isDomainLoaded,
       ensureFullBootstrap,
       refreshEpoch,
-      /** Live server reachable — reads and writes go to API. */
-      apiOnline: status === 'ok',
+      /** Live server reachable — reads and writes go to API (includes soft unstable). */
+      apiOnline: status === 'ok' || status === 'unstable',
       /** Bootstrap loaded (live or last cached sync in this tab). */
       hasWorkspaceData,
       /** Last successful bootstrap in this browser tab (read-only when server drops). */
       usingCachedData,
+      /** Sync is slow but API is reachable — keep working; non-blocking banner. */
+      connectionUnstable,
       /** POST/PATCH allowed (not read-only degraded mode). */
       canMutate,
       apiUrl,
@@ -1183,6 +1274,7 @@ export function WorkspaceProvider({ children }) {
       refreshEpoch,
       hasWorkspaceData,
       usingCachedData,
+      connectionUnstable,
       canMutate,
       session,
       branchScope,
