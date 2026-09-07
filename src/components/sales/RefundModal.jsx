@@ -3848,6 +3848,76 @@ const RefundModal = ({
   );
   const createAmountDerivedFromLines = mode === 'create' && lineSum > 0;
 
+  /** Running payout allocation totals — gross must match refund; net is after company cut. */
+  const payoutAllocationTotals = useMemo(() => {
+    const refundTotal = roundMoneyLocal(form.amountNgn);
+    const splitRows = Array.isArray(form.refundSplits) ? form.refundSplits : [];
+    const enriched = splitRows.map((r) =>
+      applyRefundStaffAllocationDeduction(
+        { ...r, amountNgn: roundMoneyLocal(r.amountNgn) },
+        form.customerID,
+        {
+          deductionRate: staffAllocationDeductionRate,
+          unclearedReceiptHoldNgn: unclearedFloatByClaimingCustomerId.get(
+            String(r.recipientCustomerID || '').trim()
+          ),
+          overpaymentOnly: overpaymentOnlyRefund,
+        }
+      )
+    );
+    const allocatedGross = enriched.reduce((sum, row) => sum + (Number(row.grossNgn) || 0), 0);
+    const companyCut = sumRefundStaffCompanyDeductionNgn(enriched);
+    const unclearedHold = enriched.reduce(
+      (sum, row) => sum + (Number(row.unclearedReceiptHoldNgn) || 0),
+      0
+    );
+    const netToPayout = sumRefundStaffNetPayoutNgn(enriched);
+    const remaining = Math.round(refundTotal - allocatedGross);
+    return {
+      refundTotal,
+      allocatedGross,
+      remaining,
+      companyCut,
+      unclearedHold,
+      netToPayout,
+      hasSplits: splitRows.length > 0,
+      balanced: Math.abs(remaining) <= AMOUNT_LINE_TOL,
+    };
+  }, [
+    form.amountNgn,
+    form.refundSplits,
+    form.customerID,
+    staffAllocationDeductionRate,
+    unclearedFloatByClaimingCustomerId,
+    overpaymentOnlyRefund,
+  ]);
+
+  const appendPayoutSplitRow = useCallback((rowFactory) => {
+    setForm((f) => {
+      const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
+      const refundTotal = roundMoneyLocal(f.amountNgn);
+      const allocated = existing.reduce((s, r) => s + roundMoneyLocal(r.amountNgn), 0);
+      const remaining = Math.max(0, refundTotal - allocated);
+      const base = typeof rowFactory === 'function' ? rowFactory(f) : rowFactory;
+      return {
+        ...f,
+        refundSplits: [
+          ...existing,
+          {
+            ...base,
+            _manual: '1',
+            amountNgn:
+              base.amountNgn != null && String(base.amountNgn).trim() !== ''
+                ? String(base.amountNgn)
+                : remaining > 0
+                  ? String(remaining)
+                  : '',
+          },
+        ],
+      };
+    });
+  }, []);
+
   const requestedRefundTotal = Math.round(Number(record?.amountNgn) || 0);
   const approvalWillScaleLines =
     showApproval &&
@@ -5514,10 +5584,18 @@ const RefundModal = ({
                               </>
                             )}
                           </div>
+                          <div className="rounded-lg border border-slate-600/80 bg-slate-950/40 px-3 py-2 flex flex-wrap items-baseline justify-between gap-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                              Total to payout
+                            </p>
+                            <p className="text-base font-black tabular-nums text-emerald-200">
+                              ₦{roundMoneyLocal(form.amountNgn).toLocaleString('en-NG')}
+                            </p>
+                          </div>
                           <p className="text-ui-xs text-slate-400 leading-snug">
                             With no split lines below, the full refund goes to this account after approval. Add
-                            lines to pay associated staff or quotation sales staff instead — totals must equal the
-                            refund amount.
+                            lines to pay associated staff or quotation sales staff — allocated amounts total
+                            automatically and must equal the refund.
                           </p>
                         </>
                       ) : (
@@ -5841,42 +5919,65 @@ const RefundModal = ({
                             );
                           })}
                           {(() => {
-                            const splitRows = Array.isArray(form.refundSplits) ? form.refundSplits : [];
-                            if (!splitRows.length) return null;
-                            const enriched = splitRows.map((r) =>
-                              applyRefundStaffAllocationDeduction(
-                                { ...r, amountNgn: roundMoneyLocal(r.amountNgn) },
-                                form.customerID,
-                                {
-                                  deductionRate: staffAllocationDeductionRate,
-                                  unclearedReceiptHoldNgn: unclearedFloatByClaimingCustomerId.get(
-                                    String(r.recipientCustomerID || '').trim()
-                                  ),
-                                  overpaymentOnly: overpaymentOnlyRefund,
-                                }
-                              )
-                            );
-                            const companyCut = sumRefundStaffCompanyDeductionNgn(enriched);
-                            const unclearedHold = enriched.reduce(
-                              (sum, row) => sum + (Number(row.unclearedReceiptHoldNgn) || 0),
-                              0
-                            );
-                            const netPay = sumRefundStaffNetPayoutNgn(enriched);
+                            if (!payoutAllocationTotals.hasSplits) return null;
+                            const {
+                              refundTotal,
+                              allocatedGross,
+                              remaining,
+                              companyCut,
+                              unclearedHold,
+                              netToPayout,
+                              balanced,
+                            } = payoutAllocationTotals;
                             const cutPct = Math.round(staffAllocationDeductionRate * 100);
-                            if (companyCut <= 0 && unclearedHold <= 0) return null;
                             return (
-                              <p className="text-[10px] text-amber-100/90 rounded-lg border border-amber-500/30 bg-amber-950/40 px-2.5 py-1.5">
-                                {companyCut > 0
-                                  ? `Company cut ${cutPct}%: −₦${companyCut.toLocaleString('en-NG')}. `
-                                  : ''}
-                                {unclearedHold > 0
-                                  ? overpaymentOnlyRefund
-                                    ? `Uncleared receipts ₦${unclearedHold.toLocaleString('en-NG')} on file — till payout held; fund available for cashier referral/confirmation (even before production). `
-                                    : `Uncleared receipts ₦${unclearedHold.toLocaleString('en-NG')} pending — till payout held until cleared. `
-                                  : ''}
-                                Finance pays net ₦{netPay.toLocaleString('en-NG')} via Staff / partner refund
-                                payouts after approval.
-                              </p>
+                              <div
+                                className={`rounded-lg border px-3 py-2.5 space-y-1.5 ${
+                                  balanced
+                                    ? 'border-emerald-500/30 bg-emerald-950/30'
+                                    : 'border-amber-500/40 bg-amber-950/40'
+                                }`}
+                              >
+                                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                    Total to payout
+                                  </p>
+                                  <p
+                                    className={`text-base font-black tabular-nums ${
+                                      balanced ? 'text-emerald-200' : 'text-amber-100'
+                                    }`}
+                                  >
+                                    ₦{netToPayout.toLocaleString('en-NG')}
+                                  </p>
+                                </div>
+                                <p className="text-[10px] text-slate-300 leading-snug tabular-nums">
+                                  Allocated ₦{allocatedGross.toLocaleString('en-NG')} of ₦
+                                  {refundTotal.toLocaleString('en-NG')}
+                                  {balanced
+                                    ? ' · balanced'
+                                    : remaining > 0
+                                      ? ` · ₦${remaining.toLocaleString('en-NG')} still to allocate`
+                                      : ` · ₦${Math.abs(remaining).toLocaleString('en-NG')} over allocated`}
+                                </p>
+                                {companyCut > 0 || unclearedHold > 0 ? (
+                                  <p className="text-[10px] text-amber-100/90 leading-snug">
+                                    {companyCut > 0
+                                      ? `Company cut ${cutPct}%: −₦${companyCut.toLocaleString('en-NG')}. `
+                                      : ''}
+                                    {unclearedHold > 0
+                                      ? overpaymentOnlyRefund
+                                        ? `Uncleared receipts ₦${unclearedHold.toLocaleString('en-NG')} on file — till payout held; fund available for cashier referral/confirmation (even before production). `
+                                        : `Uncleared receipts ₦${unclearedHold.toLocaleString('en-NG')} pending — till payout held until cleared. `
+                                      : ''}
+                                    Net above is what finance releases via Staff / partner refund payouts after
+                                    approval.
+                                  </p>
+                                ) : (
+                                  <p className="text-[10px] text-slate-400 leading-snug">
+                                    Sums from the allocation amounts above (updates as you type).
+                                  </p>
+                                )}
+                              </div>
                             );
                           })()}
                           {!readOnly ? (
@@ -5885,19 +5986,11 @@ const RefundModal = ({
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    setForm((f) => ({
-                                      ...f,
-                                      refundSplits: [
-                                        ...(Array.isArray(f.refundSplits) ? f.refundSplits : []),
-                                        {
-                                          _manual: '1',
-                                          recipientKind: 'customer',
-                                          recipientAssociatedStaffID: '',
-                                          recipientCustomerID: String(f.customerID || '').trim(),
-                                          amountNgn: '',
-                                          note: 'Overpayment · quote customer',
-                                        },
-                                      ],
+                                    appendPayoutSplitRow((f) => ({
+                                      recipientKind: 'customer',
+                                      recipientAssociatedStaffID: '',
+                                      recipientCustomerID: String(f.customerID || '').trim(),
+                                      note: 'Overpayment · quote customer',
                                     }))
                                   }
                                   className="text-ui-xs font-semibold text-violet-300 hover:text-violet-200"
@@ -5908,20 +6001,12 @@ const RefundModal = ({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  setForm((f) => ({
-                                    ...f,
-                                    refundSplits: [
-                                      ...(Array.isArray(f.refundSplits) ? f.refundSplits : []),
-                                      {
-                                        _manual: '1',
-                                        recipientKind: 'associated_staff',
-                                        recipientAssociatedStaffID: '',
-                                        recipientCustomerID: '',
-                                        amountNgn: '',
-                                        note: 'Associated staff',
-                                      },
-                                    ],
-                                  }))
+                                  appendPayoutSplitRow({
+                                    recipientKind: 'associated_staff',
+                                    recipientAssociatedStaffID: '',
+                                    recipientCustomerID: '',
+                                    note: 'Associated staff',
+                                  })
                                 }
                                 className="text-ui-xs font-semibold text-emerald-300 hover:text-emerald-200"
                               >
@@ -5930,20 +6015,12 @@ const RefundModal = ({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  setForm((f) => ({
-                                    ...f,
-                                    refundSplits: [
-                                      ...(Array.isArray(f.refundSplits) ? f.refundSplits : []),
-                                      {
-                                        _manual: '1',
-                                        recipientKind: 'customer',
-                                        recipientAssociatedStaffID: '',
-                                        recipientCustomerID: '',
-                                        amountNgn: '',
-                                        note: 'Quotation sales staff',
-                                      },
-                                    ],
-                                  }))
+                                  appendPayoutSplitRow({
+                                    recipientKind: 'customer',
+                                    recipientAssociatedStaffID: '',
+                                    recipientCustomerID: '',
+                                    note: 'Quotation sales staff',
+                                  })
                                 }
                                 className="text-ui-xs font-semibold text-sky-300 hover:text-sky-200"
                               >
