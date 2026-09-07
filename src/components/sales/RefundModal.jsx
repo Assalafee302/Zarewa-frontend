@@ -35,6 +35,7 @@ import {
 } from '../../lib/refundsStore';
 import {
   REFUND_STAFF_ALLOCATION_DEDUCTION_RATE,
+  REFUND_ASSOCIATED_STAFF_DEDUCTION_RATE,
   applyRefundStaffAllocationDeduction,
   normalizeRefundStaffAllocationDeductionRate,
   sumRefundStaffCompanyDeductionNgn,
@@ -1394,9 +1395,27 @@ const RefundModal = ({
     () =>
       normalizeRefundStaffAllocationDeductionRate(
         ws?.snapshot?.orgGovernanceLimits?.refundStaffAllocationDeductionPct ??
-          REFUND_STAFF_ALLOCATION_DEDUCTION_RATE
+          REFUND_STAFF_ALLOCATION_DEDUCTION_RATE,
+        REFUND_STAFF_ALLOCATION_DEDUCTION_RATE
       ),
     [ws?.snapshot?.orgGovernanceLimits?.refundStaffAllocationDeductionPct]
+  );
+  /** Drivers / installers (Transport & Installation) — default 3%, not the claiming-staff 20%. */
+  const associatedStaffDeductionRate = useMemo(
+    () =>
+      normalizeRefundStaffAllocationDeductionRate(
+        ws?.snapshot?.orgGovernanceLimits?.refundAssociatedStaffDeductionPct ??
+          REFUND_ASSOCIATED_STAFF_DEDUCTION_RATE,
+        REFUND_ASSOCIATED_STAFF_DEDUCTION_RATE
+      ),
+    [ws?.snapshot?.orgGovernanceLimits?.refundAssociatedStaffDeductionPct]
+  );
+  const refundSplitDeductionOpts = useMemo(
+    () => ({
+      claimingStaffDeductionRate: staffAllocationDeductionRate,
+      associatedStaffDeductionRate,
+    }),
+    [staffAllocationDeductionRate, associatedStaffDeductionRate]
   );
   const unclearedFloatByClaimingCustomerId = useMemo(() => {
     const m = new Map();
@@ -3857,7 +3876,7 @@ const RefundModal = ({
         { ...r, amountNgn: roundMoneyLocal(r.amountNgn) },
         form.customerID,
         {
-          deductionRate: staffAllocationDeductionRate,
+          ...refundSplitDeductionOpts,
           unclearedReceiptHoldNgn: unclearedFloatByClaimingCustomerId.get(
             String(r.recipientCustomerID || '').trim()
           ),
@@ -3887,7 +3906,7 @@ const RefundModal = ({
     form.amountNgn,
     form.refundSplits,
     form.customerID,
-    staffAllocationDeductionRate,
+    refundSplitDeductionOpts,
     unclearedFloatByClaimingCustomerId,
     overpaymentOnlyRefund,
   ]);
@@ -5604,8 +5623,8 @@ const RefundModal = ({
                             <p className="text-ui-xs text-emerald-200/90 leading-snug">
                               Overpayment is the customer&apos;s cash above the quote — route it to{' '}
                               <span className="font-semibold text-white">{form.customerName || 'the quote customer'}</span>{' '}
-                              (add bank below). Company cut does not apply to customer overpay; only staff /
-                              associated-staff lines use the 20% cut.
+                              (add bank below). Company cut does not apply to customer overpay; transport /
+                              install use 3%, claiming staff use 20%.
                             </p>
                           ) : (
                             <p className="text-ui-xs text-amber-100/90 leading-snug">
@@ -5871,7 +5890,7 @@ const RefundModal = ({
                                     },
                                     form.customerID,
                                     {
-                                      deductionRate: staffAllocationDeductionRate,
+                                      ...refundSplitDeductionOpts,
                                       unclearedReceiptHoldNgn: unclearedFloatByClaimingCustomerId.get(
                                         String(row.recipientCustomerID || '').trim()
                                       ),
@@ -5930,6 +5949,7 @@ const RefundModal = ({
                               balanced,
                             } = payoutAllocationTotals;
                             const cutPct = Math.round(staffAllocationDeductionRate * 100);
+                            const assocCutPct = Math.round(associatedStaffDeductionRate * 100);
                             return (
                               <div
                                 className={`rounded-lg border px-3 py-2.5 space-y-1.5 ${
@@ -5962,7 +5982,7 @@ const RefundModal = ({
                                 {companyCut > 0 || unclearedHold > 0 ? (
                                   <p className="text-[10px] text-amber-100/90 leading-snug">
                                     {companyCut > 0
-                                      ? `Company cut ${cutPct}%: −₦${companyCut.toLocaleString('en-NG')}. `
+                                      ? `Company cut −₦${companyCut.toLocaleString('en-NG')} (transport/install ${assocCutPct}%, claiming staff ${cutPct}%). `
                                       : ''}
                                     {unclearedHold > 0
                                       ? overpaymentOnlyRefund
@@ -5974,7 +5994,8 @@ const RefundModal = ({
                                   </p>
                                 ) : (
                                   <p className="text-[10px] text-slate-400 leading-snug">
-                                    Sums from the allocation amounts above (updates as you type).
+                                    Sums from the allocation amounts above (updates as you type). Transport /
+                                    install cut {assocCutPct}%; claiming staff cut {cutPct}%.
                                   </p>
                                 )}
                               </div>
