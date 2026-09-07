@@ -841,6 +841,20 @@ function associatedStaffMatchesRole(row, role) {
   return true;
 }
 
+/** Map associated-staff type to Transport/Installation payout filter role. */
+export function associatedStaffPayoutRole(row, preferredRole = '') {
+  const preferred = String(preferredRole || '')
+    .trim()
+    .toLowerCase();
+  if (preferred === 'driver' || preferred === 'installer') return preferred;
+  const isDriver = associatedStaffMatchesRole(row, 'driver');
+  const isInstaller = associatedStaffMatchesRole(row, 'installer');
+  if (isDriver && isInstaller) return null;
+  if (isDriver) return 'driver';
+  if (isInstaller) return 'installer';
+  return null;
+}
+
 /**
  * Transport/Installation split rows must pick a payee of the matching role — a Transport line
  * should not be payable to the quotation's installer and vice versa. Other rows (claims,
@@ -1473,13 +1487,14 @@ const RefundModal = ({
       return aActive - bActive;
     });
 
-    const pushAssociated = (asRow, roleHint) => {
+    const pushAssociated = (asRow, roleHint, personRole = '') => {
       const sid = String(asRow.id || asRow.staffID || '').trim();
       if (!sid) return false;
       const key = `staff:${sid}`;
       if (seen.has(key)) return true;
       seen.add(key);
       const hasBank = associatedStaffHasBank(asRow);
+      const payoutRole = associatedStaffPayoutRole(asRow, personRole);
       opts.push({
         key,
         label: `${asRow.name}${asRow.staffType || asRow.staff_type ? ` · ${asRow.staffType || asRow.staff_type}` : ''} · ${roleHint}${
@@ -1491,6 +1506,7 @@ const RefundModal = ({
         searchText: `${asRow.name} ${roleHint} ${asRow.staffType || ''} ${sid}`,
         needsBank: !hasBank,
         hint: hasBank ? roleHint : `${roleHint} — select to add bank`,
+        payoutRole,
         meta: {
           kind: 'associated_staff',
           id: sid,
@@ -1555,7 +1571,7 @@ const RefundModal = ({
 
       if (!preferCustomerDirectory) {
         const asRow = matchAssociatedStaffForPerson(person, staffPool);
-        if (asRow && pushAssociated(asRow, roleHint)) continue;
+        if (asRow && pushAssociated(asRow, roleHint, role)) continue;
       }
 
       const claimRow = matchClaimingStaffForPerson(person, companyStaffClaimOptions, {
@@ -1569,7 +1585,7 @@ const RefundModal = ({
 
       if (preferCustomerDirectory) {
         const asFallback = matchAssociatedStaffForPerson(person, staffPool);
-        if (asFallback && pushAssociated(asFallback, roleHint)) continue;
+        if (asFallback && pushAssociated(asFallback, roleHint, role)) continue;
       }
 
       // Id on quote but directory not loaded / stale — still selectable (add bank or resolve later).
@@ -1585,6 +1601,7 @@ const RefundModal = ({
             searchText: `${name} ${roleHint} ${id}`,
             needsBank: true,
             hint: `${roleHint} — select to add bank`,
+            payoutRole: role === 'driver' || role === 'installer' ? role : null,
             meta: {
               kind: asStaff ? 'associated_staff' : 'customer',
               id,
@@ -1606,7 +1623,7 @@ const RefundModal = ({
         const toOffer = (likely.length ? likely : loose).slice(0, 8);
         if (toOffer.length) {
           for (const s of toOffer) {
-            pushAssociated(s, `${roleHint} · match for ${name}`);
+            pushAssociated(s, `${roleHint} · match for ${name}`, role);
           }
           continue;
         }
@@ -1642,35 +1659,57 @@ const RefundModal = ({
     eligibleQuotes,
   ]);
 
-  /** Drivers/installers assigned on this quotation only — not the full associated-staff directory. */
+  /**
+   * Full Driver/Installer directory for Transport/Installation splits.
+   * Quotation assignees stay labelled; everyone else is selectable from Associated staff.
+   */
   const associatedStaffPayoutOptions = useMemo(() => {
     const seen = new Set(quotationLinkedPayoutOptions.map((o) => o.key));
-    const assigneeIds = new Set(
-      [quotationAssigneeIds.transporterId, quotationAssigneeIds.installerId].filter(Boolean)
-    );
+    const transporterId = quotationAssigneeIds.transporterId;
+    const installerId = quotationAssigneeIds.installerId;
     return activeAssociatedStaff
       .map((s) => {
         const id = String(s.id || s.staffID || '').trim();
-        if (!id || !assigneeIds.has(id)) return null;
+        if (!id) return null;
+        const typeRole = associatedStaffPayoutRole(s);
+        if (typeRole !== 'driver' && typeRole !== 'installer') return null;
         const key = `staff:${id}`;
         if (seen.has(key)) return null;
         seen.add(key);
         const hasBank = associatedStaffHasBank(s);
-        const isTransporter = id === quotationAssigneeIds.transporterId;
-        const isInstaller = id === quotationAssigneeIds.installerId;
+        const isTransporter = Boolean(transporterId) && id === transporterId;
+        const isInstaller = Boolean(installerId) && id === installerId;
         // Same person assigned as both on this quote — don't restrict them out of either row.
-        const payoutRole = isTransporter && isInstaller ? null : isTransporter ? 'driver' : isInstaller ? 'installer' : null;
-        const roleBit = isTransporter ? ' · Quotation transporter' : isInstaller ? ' · Quotation installer' : '';
+        const payoutRole =
+          isTransporter && isInstaller ? null : isTransporter ? 'driver' : isInstaller ? 'installer' : typeRole;
+        const roleBit = isTransporter
+          ? ' · Quotation transporter'
+          : isInstaller
+            ? ' · Quotation installer'
+            : typeRole === 'driver'
+              ? ' · Transporter'
+              : ' · Installer';
         const bankBit = hasBank
           ? `${s.bankName || s.bank_name} ${s.bankAccountNo || s.bank_account_no}`
           : 'no bank on file';
+        const onQuote = isTransporter || isInstaller;
         return {
           key,
           label: `${s.name}${s.staffType || s.staff_type ? ` · ${s.staffType || s.staff_type}` : ''}${roleBit} · ${bankBit}`,
-          group: 'On this quotation',
-          searchText: `${s.name} ${s.staffType || s.staff_type || ''} ${s.bankName || ''} ${s.bankAccountNo || ''} ${id}`,
+          group: onQuote ? 'On this quotation' : 'Associated staff',
+          searchText: `${s.name} ${s.staffType || s.staff_type || ''} ${s.bankName || ''} ${s.bankAccountNo || ''} ${id} ${
+            typeRole === 'driver' ? 'transporter driver' : 'installer'
+          }`,
           needsBank: !hasBank,
-          hint: hasBank ? 'Assigned on quotation' : 'Select to add account number now',
+          hint: onQuote
+            ? hasBank
+              ? 'Assigned on quotation'
+              : 'Select to add account number now'
+            : hasBank
+              ? typeRole === 'driver'
+                ? 'Associated staff · transporter'
+                : 'Associated staff · installer'
+              : 'Select to add account number now',
           payoutRole,
           meta: {
             kind: 'associated_staff',
@@ -1682,7 +1721,13 @@ const RefundModal = ({
           },
         };
       })
-      .filter(Boolean);
+      .filter(Boolean)
+      .sort((a, b) => {
+        const aQuote = a.group === 'On this quotation' ? 0 : 1;
+        const bQuote = b.group === 'On this quotation' ? 0 : 1;
+        if (aQuote !== bQuote) return aQuote - bQuote;
+        return String(a.meta?.name || '').localeCompare(String(b.meta?.name || ''));
+      });
   }, [activeAssociatedStaff, quotationAssigneeIds, quotationLinkedPayoutOptions]);
 
   /** Quotation handled-by + quote customer only — not every branch HR login. */
@@ -1776,8 +1821,8 @@ const RefundModal = ({
   }, [defaultRefundPayee, form.customerID, selectedRefundCustomer]);
 
   /**
-   * Payee picker = people already on this quotation only:
-   * handled-by, transporter/installer, other quote-linked names, quote customer.
+   * Payee picker = quotation people + full Associated staff Driver/Installer directory.
+   * Transport rows filter to drivers; Installation rows filter to installers.
    */
   const payoutRecipientOptions = useMemo(() => {
     const opts = [];
@@ -5592,9 +5637,9 @@ const RefundModal = ({
                                       ? payoutAssociatedStaffError
                                       : rowPayoutOptions.length === 0
                                         ? requiredPayoutRole === 'driver'
-                                          ? 'No registered driver on this quotation yet. Assign one, or add bank details for the transporter.'
+                                          ? 'No transporters (Drivers) in Associated staff yet. Add one under Associated staff, then reopen this refund.'
                                           : requiredPayoutRole === 'installer'
-                                            ? 'No registered installer on this quotation yet. Assign one, or add bank details for the installer.'
+                                            ? 'No installers in Associated staff yet. Add one under Associated staff, then reopen this refund.'
                                             : 'No payout recipients loaded yet. Associated staff and branch staff appear when directories load.'
                                         : 'No payout recipients match that search.'
                                   }
@@ -5910,7 +5955,7 @@ const RefundModal = ({
                             <p className="text-ui-xs text-amber-200/80 leading-snug">
                               {payoutDirectoryLoading
                                 ? 'Loading payout recipients…'
-                                : 'No recipients linked on this quotation yet. Handled-by staff, transporter/installer assignees, and the quote customer appear here when the quotation is selected.'}
+                                : 'No recipients available yet. Quote handled-by, quote customer, and Associated staff (Drivers / Installers) appear when directories load.'}
                             </p>
                           ) : (
                             <p className="text-ui-xs text-slate-400 leading-snug">
@@ -5919,7 +5964,7 @@ const RefundModal = ({
                                 : 'Default: quotation handled-by staff when linked in HR'}
                               {` · ${payoutRecipientOptions.length} payee${
                                 payoutRecipientOptions.length === 1 ? '' : 's'
-                              } from this quotation only.`}
+                              } (quotation people + Associated staff transporters/installers).`}
                             </p>
                           )}
                           {payoutAssociatedStaffError ? (

@@ -9,6 +9,7 @@ import RefundModal, {
   refundQuickOverpayAvailableFromPreview,
   refundRecordSubtitle,
   payoutRowRequiredRole,
+  associatedStaffPayoutRole,
 } from './RefundModal.jsx';
 import { ToastProvider } from '../../context/ToastContext.jsx';
 import { apiFetch } from '../../lib/apiBase';
@@ -147,6 +148,22 @@ describe('payoutRowRequiredRole', () => {
     expect(payoutRowRequiredRole({ note: 'Overpayment · quote customer' })).toBeNull();
     expect(payoutRowRequiredRole({ note: 'Associated staff' })).toBeNull();
     expect(payoutRowRequiredRole({})).toBeNull();
+  });
+});
+
+describe('associatedStaffPayoutRole', () => {
+  it('maps Driver / transporter types to driver', () => {
+    expect(associatedStaffPayoutRole({ staffType: 'Driver' })).toBe('driver');
+    expect(associatedStaffPayoutRole({ staff_type: 'Transporter' })).toBe('driver');
+  });
+
+  it('maps Installer / roofer types to installer', () => {
+    expect(associatedStaffPayoutRole({ staffType: 'Installer' })).toBe('installer');
+    expect(associatedStaffPayoutRole({ staffType: 'Roofer' })).toBe('installer');
+  });
+
+  it('honours preferred quote role when provided', () => {
+    expect(associatedStaffPayoutRole({ staffType: 'Driver' }, 'installer')).toBe('installer');
   });
 });
 
