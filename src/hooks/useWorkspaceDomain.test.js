@@ -44,7 +44,7 @@ describe('useWorkspaceDomain', () => {
     render(React.createElement(Probe, { domain: ['finance', 'sales'] }));
     await waitFor(() => {
       expect(ensureDomainLoaded).toHaveBeenCalledWith('finance');
-      expect(prefetchWorkspaceDomains).toHaveBeenCalledWith({ only: ['sales'] });
+      expect(prefetchWorkspaceDomains).toHaveBeenCalledWith({ only: ['sales'], forceAll: true });
     });
   });
 });

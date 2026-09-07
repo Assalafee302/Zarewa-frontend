@@ -94,8 +94,7 @@ export function mergeRowsByKey(prevArr, pollArr) {
 }
 
 /**
- * Merge a dashboard-mode poll payload into an existing snapshot without truncating
- * arrays that were loaded from a full bootstrap or domain snapshot.
+ * Prefer keeping previously loaded desk rows when a shell/dashboard poll sends [].
  */
 export function mergeDashboardPollIntoSnapshot(prev, poll) {
   if (!poll || poll.ok !== true) return poll;
@@ -106,6 +105,17 @@ export function mergeDashboardPollIntoSnapshot(prev, poll) {
     ...poll,
     session: { ...(prev.session || {}), ...(poll.session || {}) },
     permissions: poll.permissions ?? prev.permissions,
+    bootstrapMeta: {
+      ...(prev.bootstrapMeta || {}),
+      ...(poll.bootstrapMeta || {}),
+      deferredDeskArrays: Array.isArray(poll.bootstrapMeta?.deferredDeskArrays)
+        ? poll.bootstrapMeta.deferredDeskArrays
+        : prev.bootstrapMeta?.deferredDeskArrays,
+      truncated: {
+        ...(prev.bootstrapMeta?.truncated || {}),
+        ...(poll.bootstrapMeta?.truncated || {}),
+      },
+    },
   };
 
   for (const field of BOOTSTRAP_POLL_MERGE_ARRAYS) {
@@ -114,6 +124,11 @@ export function mergeDashboardPollIntoSnapshot(prev, poll) {
     if (!Array.isArray(pollArr)) continue;
     if (!Array.isArray(prevArr) || prevArr.length === 0) {
       merged[field] = pollArr;
+      continue;
+    }
+    // Shell polls intentionally send empty desk arrays — never wipe domain-loaded data.
+    if (pollArr.length === 0) {
+      merged[field] = prevArr;
       continue;
     }
     if (pollArr.length >= prevArr.length) {

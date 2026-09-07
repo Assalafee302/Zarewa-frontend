@@ -96,6 +96,9 @@ export function inferLoadedWorkspaceDomains(snapshot) {
       : []
   );
 
+  // Shell bootstrap defers nearly every desk array — nothing is "loaded" yet.
+  if (snapshot.bootstrapMeta?.mode === 'shell') return loaded;
+
   if (!deferred.has('customers') && Array.isArray(snapshot.customers) && snapshot.customers.length > 0) {
     loaded.add('sales');
   }
@@ -106,6 +109,7 @@ export function inferLoadedWorkspaceDomains(snapshot) {
     loaded.add('operations');
   }
   if (
+    !deferred.has('suppliers') &&
     Array.isArray(snapshot.suppliers) &&
     snapshot.suppliers.length > 0 &&
     Array.isArray(snapshot.purchaseOrders)
@@ -117,28 +121,71 @@ export function inferLoadedWorkspaceDomains(snapshot) {
 }
 
 /**
+ * True when the browser reports a constrained / save-data link.
+ * Used to prefetch only the primary desk domain instead of flooding the network.
+ */
+export function isConstrainedNetwork() {
+  try {
+    if (typeof navigator === 'undefined') return false;
+    /** @type {{ saveData?: boolean; effectiveType?: string } | undefined} */
+    const c =
+      /** @type {any} */ (navigator).connection ||
+      /** @type {any} */ (navigator).mozConnection ||
+      /** @type {any} */ (navigator).webkitConnection;
+    if (!c) return false;
+    if (c.saveData) return true;
+    const t = String(c.effectiveType || '').toLowerCase();
+    return t === 'slow-2g' || t === '2g' || t === '3g';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Order domain prefetch for background warming.
+ * Slow links: primary desk only. Otherwise serial queue (caller awaits one-by-one).
+ * @param {string[]} domains
+ * @param {{ constrained?: boolean; forceAll?: boolean; primaryOnly?: boolean }} [opts]
+ */
+export function planDomainPrefetch(domains, opts = {}) {
+  const list = (Array.isArray(domains) ? domains : []).map((d) => String(d).trim().toLowerCase()).filter(Boolean);
+  if (!list.length) return [];
+  const constrained = opts.constrained ?? isConstrainedNetwork();
+  if (opts.forceAll) return list;
+  if (opts.primaryOnly || constrained) return list.slice(0, 1);
+  return list;
+}
+
+/**
  * @param {object | null | undefined} snapshot
  * @param {string} domain
  */
 export function snapshotHasUsableDomainData(snapshot, domain) {
   const key = String(domain || '').trim().toLowerCase();
   if (!snapshot?.ok) return false;
+  const deferred = new Set(
+    Array.isArray(snapshot.bootstrapMeta?.deferredDeskArrays)
+      ? snapshot.bootstrapMeta.deferredDeskArrays
+      : []
+  );
   switch (key) {
     case 'sales':
+      // Prefer customers (sales-owned). Ignore receipts left by a sibling domain pack.
+      if (deferred.has('customers')) return false;
       return Array.isArray(snapshot.customers) && snapshot.customers.length > 0;
     case 'finance':
-      return (
-        (Array.isArray(snapshot.expenses) && snapshot.expenses.length > 0) ||
-        (Array.isArray(snapshot.paymentRequests) && snapshot.paymentRequests.length > 0) ||
-        (Array.isArray(snapshot.receipts) && snapshot.receipts.length > 0)
-      );
+      // Expenses are finance-owned; receipts alone (from sales pack) must not skip finance hydrate.
+      if (deferred.has('expenses')) return false;
+      return Array.isArray(snapshot.expenses) && snapshot.expenses.length > 0;
     case 'operations':
+      if (deferred.has('coilLots') && deferred.has('productionJobCoils')) return false;
       return (
         (Array.isArray(snapshot.coilLots) && snapshot.coilLots.length > 0) ||
         (Array.isArray(snapshot.productionJobCoils) && snapshot.productionJobCoils.length > 0)
       );
     case 'procurement':
-      return Array.isArray(snapshot.suppliers);
+      if (deferred.has('suppliers')) return false;
+      return Array.isArray(snapshot.suppliers) && snapshot.suppliers.length > 0;
     default:
       return false;
   }

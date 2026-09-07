@@ -33,6 +33,7 @@ import { mergeDashboardPollIntoSnapshot } from '../lib/bootstrapPollMerge';
 import {
   accessibleWorkspaceDomains,
   inferLoadedWorkspaceDomains,
+  planDomainPrefetch,
   snapshotHasUsableDomainData,
 } from '../lib/workspaceDomainPrefetch';
 import {
@@ -353,13 +354,27 @@ export function WorkspaceProvider({ children }) {
 
   const mergeSnapshotPatch = useCallback((patch) => {
     if (!patch || patch.ok !== true) return null;
-    const { domain: _domain, ok: _ok, ...fields } = patch;
+    const { domain: domainKey, ok: _ok, ...fields } = patch;
     let merged = null;
     setSnapshot((prev) => {
+      const prevDeferred = Array.isArray(prev?.bootstrapMeta?.deferredDeskArrays)
+        ? prev.bootstrapMeta.deferredDeskArrays
+        : [];
+      const filledKeys = Object.keys(fields).filter((k) => Array.isArray(fields[k]) && fields[k].length > 0);
+      const nextDeferred = prevDeferred.filter((k) => !filledKeys.includes(k));
       merged = mergeSessionOnboardingFlags(prev, {
         ...(prev || {}),
         ok: true,
         ...fields,
+        bootstrapMeta: {
+          ...(prev?.bootstrapMeta || {}),
+          mode: domainKey ? 'hydrated' : prev?.bootstrapMeta?.mode,
+          deferredDeskArrays: nextDeferred,
+          truncated: {
+            ...(prev?.bootstrapMeta?.truncated || {}),
+            ...Object.fromEntries(filledKeys.map((k) => [k, false])),
+          },
+        },
       });
       if (Array.isArray(merged?.ledgerEntries)) {
         replaceLedgerEntries(merged.ledgerEntries);
@@ -409,13 +424,9 @@ export function WorkspaceProvider({ children }) {
       const mode = String(opts?.mode ?? '').trim();
       const isPoll = Boolean(opts?.poll);
       const forceFull = Boolean(opts?.forceFull);
-      const wantsLight =
-        !forceFull &&
-        !mode &&
-        !isPoll &&
-        !fullBootstrapLoadedRef.current &&
-        loadedDomainsRef.current.size === 0;
-      const effectiveMode = forceFull ? '' : mode || (isPoll ? 'dashboard' : wantsLight ? 'dashboard' : '');
+      // Default to lean shell unless an explicit full bootstrap is requested.
+      // Desk registers hydrate via `/api/workspace/{domain}-snapshot`.
+      const effectiveMode = forceFull ? '' : mode || 'shell';
       const qsParts = [];
       if (effectiveMode) qsParts.push(`mode=${encodeURIComponent(effectiveMode)}`);
       if (isPoll) qsParts.push('poll=1', 'active=1');
@@ -511,7 +522,8 @@ export function WorkspaceProvider({ children }) {
       if (!isPoll) invalidateAppShellQueries();
       const prevSnap = snapshotRef.current;
       const incoming =
-        isPoll && effectiveMode === 'dashboard' && prevSnap?.ok
+        prevSnap?.ok &&
+        (isPoll || effectiveMode === 'shell' || effectiveMode === 'dashboard')
           ? mergeDashboardPollIntoSnapshot(prevSnap, data)
           : data;
       return applySnapshot(withPendingPasswordSession(incoming), 'ok');
@@ -645,13 +657,15 @@ export function WorkspaceProvider({ children }) {
       const pending = domains.filter((d) => force || !loadedDomainsRef.current.has(d));
       if (!pending.length) return;
 
-      if (priority && pending[0] === priority) {
+      // Slow / save-data links: primary desk only. Otherwise still serial (never parallel stampede).
+      const planned = planDomainPrefetch(pending, {
+        forceAll: Boolean(opts.forceAll),
+        primaryOnly: Boolean(opts.primaryOnly),
+      });
+      for (const domain of planned) {
         if (gen !== prefetchGenRef.current) return;
-        await ensureDomainLoaded(priority, { force });
-        pending.shift();
+        await ensureDomainLoaded(domain, { force });
       }
-      if (gen !== prefetchGenRef.current || !pending.length) return;
-      await Promise.allSettled(pending.map((d) => ensureDomainLoaded(d, { force })));
     },
     [ensureDomainLoaded]
   );
@@ -686,7 +700,7 @@ export function WorkspaceProvider({ children }) {
       const prevLoaded = [...loadedDomainsRef.current];
       resetDomainRuntime();
       if (!revRes.ok) {
-        await refresh({ poll: true, mode: 'dashboard' });
+        await refresh({ poll: true, mode: 'shell' });
         if (prevLoaded.length) {
           void Promise.allSettled(prevLoaded.map((d) => ensureDomainLoaded(d, { force: true })));
         }
@@ -694,13 +708,13 @@ export function WorkspaceProvider({ children }) {
       }
       const revData = await revRes.json().catch(() => null);
       if (!revData?.ok) {
-        await refresh({ poll: true, mode: 'dashboard' });
+        await refresh({ poll: true, mode: 'shell' });
         if (prevLoaded.length) {
           void Promise.allSettled(prevLoaded.map((d) => ensureDomainLoaded(d, { force: true })));
         }
         return snapshotRef.current;
       }
-      await refresh({ poll: true, mode: 'dashboard' });
+      await refresh({ poll: true, mode: 'shell' });
       if (prevLoaded.length) {
         void Promise.allSettled(prevLoaded.map((d) => ensureDomainLoaded(d, { force: true })));
       }
@@ -764,7 +778,7 @@ export function WorkspaceProvider({ children }) {
           bootstrapPollEtagRef.current = '';
           bootstrapFullEtagRef.current = '';
           await refreshDashboardSummary();
-          const boot = await refresh({ mode: 'dashboard' });
+          const boot = await refresh({ mode: 'shell' });
           if (!boot) {
             return {
               ok: false,
@@ -991,7 +1005,7 @@ export function WorkspaceProvider({ children }) {
       workspaceRevisionEtagRef.current = '';
       bootstrapPollEtagRef.current = '';
       bootstrapFullEtagRef.current = '';
-      await refresh({ mode: 'dashboard' });
+      await refresh({ mode: 'shell' });
       void prefetchWorkspaceDomains({ force: true });
       return { ok: true, data };
     },
@@ -1007,7 +1021,7 @@ export function WorkspaceProvider({ children }) {
   );
 
   useEffect(() => {
-    void refresh({ mode: 'dashboard' });
+    void refresh({ mode: 'shell' });
   }, [refresh]);
 
   /** Warm desk snapshots in the background so page navigation does not wait on first open. */

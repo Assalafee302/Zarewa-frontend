@@ -2,6 +2,13 @@ import React from 'react';
 
 /** Bootstrap truncation notice when server sends capped or deferred desk lists. */
 export function BootstrapTruncatedBanner({ bootstrapMeta }) {
+  if (bootstrapMeta?.mode === 'shell') {
+    return (
+      <div className="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-xs text-sky-950">
+        Fast start — desk registers load when you open Sales, Operations, Account, or Procurement.
+      </div>
+    );
+  }
   const limits = bootstrapMeta?.listLimitsApplied;
   const truncated = bootstrapMeta?.truncated;
   const deferred = Array.isArray(bootstrapMeta?.deferredDeskArrays)

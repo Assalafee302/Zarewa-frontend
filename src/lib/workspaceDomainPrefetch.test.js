@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   accessibleWorkspaceDomains,
   inferLoadedWorkspaceDomains,
+  planDomainPrefetch,
   snapshotHasUsableDomainData,
   workspaceDomainSyncLabel,
   workspaceDomainsForPath,
@@ -22,6 +23,25 @@ describe('workspaceDomainPrefetch', () => {
     });
     expect(loaded.has('sales')).toBe(false);
     expect(loaded.has('finance')).toBe(false);
+  });
+
+  it('inferLoadedWorkspaceDomains treats mode=shell as unloaded', () => {
+    const loaded = inferLoadedWorkspaceDomains({
+      ok: true,
+      customers: [{ customerID: 'C1' }],
+      bootstrapMeta: { mode: 'shell', deferredDeskArrays: ['customers'] },
+    });
+    expect(loaded.size).toBe(0);
+  });
+
+  it('planDomainPrefetch keeps only the primary domain on constrained links', () => {
+    expect(planDomainPrefetch(['sales', 'finance', 'operations'], { constrained: true })).toEqual([
+      'sales',
+    ]);
+    expect(planDomainPrefetch(['sales', 'finance'], { forceAll: true, constrained: true })).toEqual([
+      'sales',
+      'finance',
+    ]);
   });
 
   it('inferLoadedWorkspaceDomains marks domains present in session cache', () => {
@@ -48,9 +68,25 @@ describe('workspaceDomainPrefetch', () => {
     expect(workspaceDomainSyncLabel(['finance', 'sales'])).toBe('finance register & sales register');
   });
 
-  it('snapshotHasUsableDomainData detects finance receipts', () => {
+  it('snapshotHasUsableDomainData detects finance expenses, not sales receipts alone', () => {
     expect(
       snapshotHasUsableDomainData({ ok: true, receipts: [{ receiptId: 'R1' }] }, 'finance')
+    ).toBe(false);
+    expect(
+      snapshotHasUsableDomainData({ ok: true, expenses: [{ expenseID: 'E1' }] }, 'finance')
     ).toBe(true);
+  });
+
+  it('snapshotHasUsableDomainData respects deferred shell keys', () => {
+    expect(
+      snapshotHasUsableDomainData(
+        {
+          ok: true,
+          customers: [{ customerID: 'C1' }],
+          bootstrapMeta: { deferredDeskArrays: ['customers'] },
+        },
+        'sales'
+      )
+    ).toBe(false);
   });
 });

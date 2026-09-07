@@ -38,7 +38,7 @@ export function useWorkspaceDomain(domain) {
   }, [domains, wsIsDomainLoaded, wsSnapshot, wsRefreshEpoch]);
 
   useEffect(() => {
-    if (!keysSig || wsStatus !== 'ok') {
+    if (!keysSig || (wsStatus !== 'ok' && wsStatus !== 'unstable')) {
       setAwaiting(false);
       return undefined;
     }
@@ -51,7 +51,7 @@ export function useWorkspaceDomain(domain) {
       }
       const rest = keysSig.split(',').slice(1).filter(Boolean);
       if (rest.length) {
-        await wsPrefetch?.({ only: rest });
+        await wsPrefetch?.({ only: rest, forceAll: true });
       }
       if (!cancelled) setAwaiting(false);
     })();
