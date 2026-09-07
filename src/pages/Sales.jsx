@@ -42,6 +42,7 @@ import { PrintModalPortal } from '../components/layout/PrintModalPortal';
 import { AdvancePaymentPrintView } from '../components/receipt/ReceiptPrintViews';
 import { lazyWithRetry } from '../lib/lazyWithRetry';
 import { humanizeReactError } from '../lib/reactErrorMessage.js';
+import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../lib/appDataTable';
 
 const QuotationModal = lazyWithRetry(() => import('../components/sales/QuotationModal'), { id: 'QuotationModal' });
 const ReceiptModal = lazyWithRetry(() => import('../components/sales/ReceiptModal'), { id: 'ReceiptModal' });
@@ -186,7 +187,6 @@ const Sales = () => {
   const [advancePrintEntry, setAdvancePrintEntry] = useState(null);
   const [ledgerNonce, setLedgerNonce] = useState(0);
   const [adminSalesReconcileBusy, setAdminSalesReconcileBusy] = useState(false);
-  const [showCount, setShowCount] = useState(20);
   const [showArchivedQuotations, setShowArchivedQuotations] = useState(false);
   const [salesListSort, setSalesListSort] = useState({ field: 'id', dir: 'desc' });
   const [receiptPaymentStatusFilter, setReceiptPaymentStatusFilter] = useState('all');
@@ -585,10 +585,16 @@ const Sales = () => {
     return sortQuotationsList(workFiltered, salesListSort.field, salesListSort.dir);
   }, [quotationsSearchFiltered, showArchivedQuotations, salesListSort, quoteWorkFilter]);
 
-  const filteredQuotations = useMemo(
-    () => quotationWorkRows.slice(0, showCount),
-    [quotationWorkRows, showCount]
+  const quotationsPage = useAppTablePaging(
+    quotationWorkRows,
+    APP_DATA_TABLE_PAGE_SIZE,
+    debouncedSearchQuery,
+    quoteWorkFilter,
+    salesListSort.field,
+    salesListSort.dir,
+    showArchivedQuotations
   );
+  const filteredQuotations = quotationsPage.slice;
 
   const mergedReceiptRows = useMemo(
     () => mergeReceiptRowsForSales(importedReceipts, quotations, ledgerSyncKey),
@@ -678,12 +684,21 @@ const Sales = () => {
     );
   }, [searchFilteredReceiptRows, receiptPaymentStatusFilter]);
 
-  const filteredMergedReceipts = useMemo(() => {
-    const sorted = sortReceiptsList(paymentFilteredReceiptRows, salesListSort.field, salesListSort.dir);
-    return sorted.slice(0, showCount);
-  }, [paymentFilteredReceiptRows, showCount, salesListSort]);
+  const receiptWorkRows = useMemo(() => {
+    return sortReceiptsList(paymentFilteredReceiptRows, salesListSort.field, salesListSort.dir);
+  }, [paymentFilteredReceiptRows, salesListSort]);
 
-  const filteredCuttingLists = useMemo(() => {
+  const receiptsPage = useAppTablePaging(
+    receiptWorkRows,
+    APP_DATA_TABLE_PAGE_SIZE,
+    debouncedSearchQuery,
+    receiptPaymentStatusFilter,
+    salesListSort.field,
+    salesListSort.dir
+  );
+  const filteredMergedReceipts = receiptsPage.slice;
+
+  const cuttingWorkRows = useMemo(() => {
     const q = debouncedSearchQuery.trim().toLowerCase();
     const filtered = cuttingLists.filter((row) => {
       if (!q) return true;
@@ -694,14 +709,22 @@ const Sales = () => {
       } ${row.productName || ''} ${row.date} ${row.total} ${row.status} ${line.label}`.toLowerCase();
       return blob.includes(q);
     });
-    const sorted = sortCuttingLists(filtered, salesListSort.field, salesListSort.dir, {
+    return sortCuttingLists(filtered, salesListSort.field, salesListSort.dir, {
       productionLineStatusKey: (row) => {
         const job = pickProductionJobForCuttingList(row.id, productionJobs, cuttingLists);
         return productionQueueLineStatusPresentation(row, job).label;
       },
     });
-    return sorted.slice(0, showCount);
-  }, [cuttingLists, productionJobs, debouncedSearchQuery, showCount, salesListSort]);
+  }, [cuttingLists, productionJobs, debouncedSearchQuery, salesListSort]);
+
+  const cuttingPage = useAppTablePaging(
+    cuttingWorkRows,
+    APP_DATA_TABLE_PAGE_SIZE,
+    debouncedSearchQuery,
+    salesListSort.field,
+    salesListSort.dir
+  );
+  const filteredCuttingLists = cuttingPage.slice;
 
   const refundSearchRows = useMemo(() => {
     const q = debouncedSearchQuery.trim().toLowerCase();
@@ -726,10 +749,15 @@ const Sales = () => {
     return sortRefundsList(workFiltered, salesListSort.field, salesListSort.dir);
   }, [refundSearchRows, salesListSort, refundWorkFilter]);
 
-  const filteredRefunds = useMemo(
-    () => refundWorkRows.slice(0, showCount),
-    [refundWorkRows, showCount]
+  const refundsPage = useAppTablePaging(
+    refundWorkRows,
+    APP_DATA_TABLE_PAGE_SIZE,
+    debouncedSearchQuery,
+    refundWorkFilter,
+    salesListSort.field,
+    salesListSort.dir
   );
+  const filteredRefunds = refundsPage.slice;
 
   const filteredCustomersCount = useMemo(() => {
     const list = Array.isArray(customerRecords) ? customerRecords : [];
@@ -754,19 +782,19 @@ const Sales = () => {
   const listStats = useMemo(
     () => ({
       quotations: {
-        shown: filteredQuotations.length,
+        shown: quotationsPage.total,
         pendingApproval: quotationsSearchFiltered.filter(
           (x) => x.status !== 'Approved' && !isQuotationArchivedRow(x)
         ).length,
       },
       receipts: {
-        shown: filteredMergedReceipts.length,
-        matching: paymentFilteredReceiptRows.length,
+        shown: receiptsPage.total,
+        matching: receiptsPage.total,
         awaitingCashier: awaitingCashierReceiptCount,
       },
-      cuttinglist: { shown: filteredCuttingLists.length },
+      cuttinglist: { shown: cuttingPage.total },
       refund: {
-        shown: filteredRefunds.length,
+        shown: refundsPage.total,
         pending: refundSearchRows.filter((x) => x.status === 'Pending').length,
         awaitingPay: approvedRefundsAwaitingPayment(refundSearchRows).length,
       },
@@ -776,12 +804,11 @@ const Sales = () => {
       },
     }),
     [
-      filteredQuotations,
-      filteredMergedReceipts,
-      paymentFilteredReceiptRows,
+      quotationsPage.total,
+      receiptsPage.total,
+      cuttingPage.total,
+      refundsPage.total,
       awaitingCashierReceiptCount,
-      filteredCuttingLists,
-      filteredRefunds,
       refundSearchRows,
       quotationsSearchFiltered,
       filteredCustomersCount,
@@ -793,7 +820,6 @@ const Sales = () => {
     setActiveTab(TAB_LABELS[id] ? id : 'quotations');
     setSearchQuery('');
     setCustomerAddOpen(false);
-    setShowCount(20);
     setShowArchivedQuotations(false);
     setQuoteWorkFilter('all');
     setRefundWorkFilter('all');
@@ -1332,17 +1358,14 @@ const Sales = () => {
   const applyQuoteWorkFilter = (filter, { openDesk = true } = {}) => {
     setQuoteWorkFilter(filter);
     setMobileDeskOpen(openDesk);
-    setShowCount(20);
   };
   const applyRefundWorkFilter = (filter) => {
     setRefundWorkFilter(filter);
     setMobileDeskOpen(true);
-    setShowCount(20);
   };
   const applyReceiptAwaitingFilter = () => {
     setReceiptPaymentStatusFilter('awaiting');
     setMobileDeskOpen(true);
-    setShowCount(20);
   };
 
   const salesTabs = useMemo(
@@ -1817,9 +1840,7 @@ const Sales = () => {
                     salesListSort={salesListSort}
                     setSalesListSort={setSalesListSort}
                     filteredQuotations={filteredQuotations}
-                    quotationWorkRows={quotationWorkRows}
-                    showCount={showCount}
-                    setShowCount={setShowCount}
+                    listPaging={quotationsPage}
                     debouncedSearchQuery={debouncedSearchQuery}
                     openNewModal={openNewModal}
                     actionMenuKey={actionMenuKey}
@@ -1848,9 +1869,7 @@ const Sales = () => {
                     salesListSort={salesListSort}
                     setSalesListSort={setSalesListSort}
                     filteredMergedReceipts={filteredMergedReceipts}
-                    paymentFilteredReceiptRows={paymentFilteredReceiptRows}
-                    showCount={showCount}
-                    setShowCount={setShowCount}
+                    listPaging={receiptsPage}
                     debouncedSearchQuery={debouncedSearchQuery}
                     openNewModal={openNewModal}
                     actionMenuKey={actionMenuKey}
@@ -1874,8 +1893,7 @@ const Sales = () => {
                     filteredCuttingLists={filteredCuttingLists}
                     cuttingLists={cuttingLists}
                     productionJobs={productionJobs}
-                    showCount={showCount}
-                    setShowCount={setShowCount}
+                    listPaging={cuttingPage}
                     debouncedSearchQuery={debouncedSearchQuery}
                     openNewModal={openNewModal}
                     actionMenuKey={actionMenuKey}
@@ -1899,9 +1917,7 @@ const Sales = () => {
                     salesListSort={salesListSort}
                     setSalesListSort={setSalesListSort}
                     filteredRefunds={filteredRefunds}
-                    refundWorkRows={refundWorkRows}
-                    showCount={showCount}
-                    setShowCount={setShowCount}
+                    listPaging={refundsPage}
                     debouncedSearchQuery={debouncedSearchQuery}
                     openNewModal={openNewModal}
                     actionMenuKey={actionMenuKey}

@@ -6,16 +6,6 @@ import { screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from './test/renderWithProviders';
 import React, { StrictMode } from 'react';
 
-vi.mock('./lib/firebase.js', () => ({
-  firebaseConfigured: false,
-  auth: null,
-  app: null,
-  db: null,
-  storage: null,
-  functions: null,
-  analyticsPromise: Promise.resolve(null),
-}));
-
 function jsonFetchResponse(data, status = 200) {
   return {
     ok: status >= 200 && status < 300,

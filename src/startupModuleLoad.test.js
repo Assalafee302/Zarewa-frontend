@@ -50,4 +50,14 @@ describe('startup module graph', () => {
     const mod = await import('./components/TeamChatDockGate.jsx');
     expect(typeof mod.TeamChatDockGate).toBe('function');
   });
+
+  it('loads ManagerDashboard without TDZ', async () => {
+    const mod = await import('./pages/ManagerDashboard.jsx');
+    expect(typeof mod.default).toBe('function');
+  }, 60_000);
+
+  it('loads Sales page without TDZ', async () => {
+    const mod = await import('./pages/Sales.jsx');
+    expect(typeof mod.default).toBe('function');
+  }, 60_000);
 });

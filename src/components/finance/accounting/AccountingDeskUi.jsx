@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 
 /** Matches Procurement list row chrome */
 export const ACCOUNTING_CARD_ROW =
-  'rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm transition-colors hover:bg-white/70';
+  'rounded-lg border border-slate-200/80 bg-white py-1.5 px-2.5 shadow-sm transition-colors hover:bg-slate-50';
 
 export const ACCOUNTING_REGISTER_SORT_FIELDS = [
   { id: 'amount', label: 'Amount' },

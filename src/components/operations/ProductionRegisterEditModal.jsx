@@ -1,11 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense } from 'react';
 import { X } from 'lucide-react';
 import { ModalFrame } from '../layout';
-import { LiveProductionMonitor } from '../LiveProductionMonitor';
+import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { registerStatusTone, PROD_REG } from '../../lib/productionRegisterUi';
+import { PageLoader } from '../ui/PageLoader';
+
+const LiveProductionMonitor = lazyWithRetry(
+  () => import('../LiveProductionMonitor').then((m) => ({ default: m.LiveProductionMonitor })),
+  { id: 'LiveProductionMonitor' }
+);
 
 /**
  * Operations: modal opened from **Edit register** — coil plan, run log, completion.
+ * LiveProductionMonitor (~250KB) loads only when the modal opens.
  */
 export function ProductionRegisterEditModal({
   isOpen,
@@ -16,9 +23,9 @@ export function ProductionRegisterEditModal({
 }) {
   const id = cuttingListId != null ? String(cuttingListId).trim() : '';
   const open = Boolean(isOpen);
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = React.useState(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!open) setStatus(null);
   }, [open]);
 
@@ -58,19 +65,21 @@ export function ProductionRegisterEditModal({
             <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/80 px-3 py-4 text-sm text-amber-950">
               Missing cutting list id — refresh the workspace and try again.
             </div>
-          ) : (
-            <LiveProductionMonitor
-              focusCuttingListId={id}
-              hideJobSidebar
-              inModal
-              operationsRegisterEdit
-              viewOnly={false}
-              initialRecallIntent={Boolean(initialRecallIntent)}
-              onModalClose={onClose}
-              showModalCloseButton={false}
-              onRegisterHeaderMeta={(meta) => setStatus(meta?.status || null)}
-            />
-          )}
+          ) : open ? (
+            <Suspense fallback={<PageLoader message="Loading production register…" className="min-h-[16rem]" />}>
+              <LiveProductionMonitor
+                focusCuttingListId={id}
+                hideJobSidebar
+                inModal
+                operationsRegisterEdit
+                viewOnly={false}
+                initialRecallIntent={Boolean(initialRecallIntent)}
+                onModalClose={onClose}
+                showModalCloseButton={false}
+                onRegisterHeaderMeta={(meta) => setStatus(meta?.status || null)}
+              />
+            </Suspense>
+          ) : null}
         </div>
       </div>
     </ModalFrame>

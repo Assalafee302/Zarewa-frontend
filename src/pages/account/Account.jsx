@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Landmark,
@@ -32,6 +32,7 @@ import {
   ModalFrame,
 } from '../../components/layout';
 import { AiAskButton } from '../../components/AiAskButton';
+import { PageLoader } from '../../components/ui/PageLoader';
 import { ZareApprovalHint } from '../../components/ZareApprovalHint';
 import { editMutationNeedsSecondApprovalRole } from '../../lib/editApprovalUi';
 import { formatNgn } from '../../Data/mockData';
@@ -45,7 +46,6 @@ import { withIdempotencyHeaders } from '../../lib/idempotency';
 import { appConfirm } from '../../lib/appConfirm';
 import {
   normalizeRefund,
-  refundApprovedAmount,
   refundOutstandingAmount,
   hangingRefundsForCustomer,
   isRefundPayable,
@@ -54,12 +54,10 @@ import {
   MD_REFUND_PAY_BLOCKED_MESSAGE,
 } from '../../lib/refundsStore';
 import {
-  refundDefaultTreasuryPayoutNgn,
   enrichRefundForCashierPayout,
   refundPayeePayoutQueueLines,
   refundTreasuryPaidNgn,
   refundCashierMoneyStory,
-  refundPayoutRegisterLines,
   actorMayOverrideRefundUnclearedPayoutHold,
 } from '../../lib/refundCashierDetail';
 import { overpayCreditBalanceFromEntries } from '../../lib/customerLedgerCore.js';
@@ -68,7 +66,6 @@ import { effectiveOutstandingNgn, isEffectivelyFullyPaid } from '../../lib/payme
 import {
   enrichReceiptsWithCuttingListMeta,
   findSalesReceiptByMatchToken,
-  receiptCashReceivedNgn,
   receiptLacksCuttingList,
   receiptLedgerReceiptTreasurySplits,
 } from '../../lib/salesReceiptsList';
@@ -178,8 +175,15 @@ import {
 } from '../../shared/lib/receiptPaymentConfirmQueue.js';
 
 import { AccountPageContext } from './AccountPageContext.jsx';
-import { AccountTabPanels } from './AccountTabPanels.jsx';
-import { ExpenseBulkImportModal } from '../../components/account/ExpenseBulkImportModal.jsx';
+import { lazyWithRetry } from '../../lib/lazyWithRetry';
+
+const AccountTabPanels = lazyWithRetry(() => import('./AccountTabPanels.jsx').then((m) => ({ default: m.AccountTabPanels })), {
+  id: 'AccountTabPanels',
+});
+const ExpenseBulkImportModal = lazyWithRetry(
+  () => import('../../components/account/ExpenseBulkImportModal.jsx').then((m) => ({ default: m.ExpenseBulkImportModal })),
+  { id: 'ExpenseBulkImportModal' }
+);
 
 function parseNgnInput(raw) {
   return Math.round(Number(String(raw ?? '').replace(/,/g, '')) || 0);
@@ -246,7 +250,7 @@ const Account = () => {
   const [refundPayPayeeKey, setRefundPayPayeeKey] = useState(null);
   const [refundViewTarget, setRefundViewTarget] = useState(null);
   const [expenseViewTarget, setExpenseViewTarget] = useState(null);
-  const [refundPaidBy, setRefundPaidBy] = useState('');
+  const [, setRefundPaidBy] = useState('');
   const [refundPayLines, setRefundPayLines] = useState([]);
   const [refundPaymentNote, setRefundPaymentNote] = useState('');
   const [refundReleaseWallet, setRefundReleaseWallet] = useState(true);
@@ -4052,7 +4056,9 @@ const Account = () => {
       <div className="grid min-w-0 grid-cols-1">
         <div className="min-w-0">
           <FinanceSequencePanel>
-            <AccountTabPanels />
+            <Suspense fallback={<PageLoader message="Loading finance desk…" className="min-h-[16rem]" />}>
+              <AccountTabPanels />
+            </Suspense>
           </FinanceSequencePanel>
         </div>
       </div>
@@ -5150,18 +5156,22 @@ const Account = () => {
         </div>
       </ModalFrame>
 
-      <ExpenseBulkImportModal
-        open={showExpenseImportModal}
-        onClose={() => setShowExpenseImportModal(false)}
-        treasuryAccounts={bankAccountsForPayout}
-        branchId={ws?.workspaceBranchId || workspaceBranchId || ''}
-        branchLabel={workspaceBranchLabel || ''}
-        onImported={async (data) => {
-          const n = Number(data?.createdCount) || 0;
-          showToast(n ? `Imported ${n} expense(s).` : 'Expenses imported.');
-          await ws?.refresh?.();
-        }}
-      />
+      {showExpenseImportModal ? (
+        <Suspense fallback={null}>
+          <ExpenseBulkImportModal
+            open={showExpenseImportModal}
+            onClose={() => setShowExpenseImportModal(false)}
+            treasuryAccounts={bankAccountsForPayout}
+            branchId={ws?.workspaceBranchId || workspaceBranchId || ''}
+            branchLabel={workspaceBranchLabel || ''}
+            onImported={async (data) => {
+              const n = Number(data?.createdCount) || 0;
+              showToast(n ? `Imported ${n} expense(s).` : 'Expenses imported.');
+              await ws?.refresh?.();
+            }}
+          />
+        </Suspense>
+      ) : null}
 
       <ModalFrame isOpen={showExpenseModal} onClose={() => setShowExpenseModal(false)} showCloseButton={false}>
         <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">

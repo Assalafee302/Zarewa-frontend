@@ -39,7 +39,7 @@ export const COMMAND_SECTION_SUB = 'mt-0.5 text-sm text-[var(--z-text-muted)]';
 
 /** @deprecated prefer COMMAND_METRIC_CARD — kept for list rows in exec trays */
 export const EXEC_CARD_ROW =
-  'rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-2.5 px-3 shadow-sm transition-colors hover:bg-white/70 active:scale-[0.99]';
+  'rounded-lg border border-slate-200/80 bg-white py-2.5 px-3 shadow-sm transition-colors hover:bg-slate-50 active:scale-[0.99]';
 
 export const EXEC_CHIP =
   'inline-flex items-center text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border shrink-0';

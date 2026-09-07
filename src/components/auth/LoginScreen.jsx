@@ -17,7 +17,11 @@ import { ZAREWA_LOGO_SRC, ZAREWA_QUOTATION_BRANDING } from '../../Data/companyQu
 import { resolvePostLoginPath } from '../../lib/departmentWorkspace';
 import PasswordField from './PasswordField';
 
-const LOGIN_HERO_SRC = '/login-mill-hero.jpg';
+const LOGIN_HERO_JPG = '/login-mill-hero.jpg';
+const LOGIN_HERO_WEBP = '/login-mill-hero.webp';
+/** Intrinsic size of public/login-mill-hero.jpg */
+const LOGIN_HERO_W = 512;
+const LOGIN_HERO_H = 341;
 
 const PASSWORD_TOGGLE_CLASS =
   'absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-xl text-[#707976] transition-colors hover:text-zarewa-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal disabled:cursor-not-allowed disabled:opacity-50';
@@ -244,11 +248,18 @@ export default function LoginScreen() {
       <main className="mx-auto flex h-auto min-h-0 w-full max-w-[1440px] flex-col gap-6 rounded-[40px] lg:h-[90vh] lg:min-h-[700px] lg:max-h-[920px] lg:flex-row lg:gap-8">
         <section className="relative hidden w-[55%] flex-col overflow-hidden rounded-[2rem] bg-[#f8f9ff] p-12 z-login-shadow lg:flex">
           <div className="absolute inset-0 z-0">
-            <img
-              alt=""
-              className="h-full w-full object-cover opacity-90"
-              src={LOGIN_HERO_SRC}
-            />
+            <picture>
+              <source srcSet={LOGIN_HERO_WEBP} type="image/webp" />
+              <img
+                alt=""
+                className="h-full w-full object-cover opacity-90"
+                src={LOGIN_HERO_JPG}
+                width={LOGIN_HERO_W}
+                height={LOGIN_HERO_H}
+                fetchPriority="high"
+                decoding="async"
+              />
+            </picture>
             <div className="absolute inset-0 bg-gradient-to-t from-zarewa-teal/90 via-zarewa-teal/50 to-transparent mix-blend-multiply" />
             <div className="absolute inset-0 bg-gradient-to-b from-[#f8f9ff]/90 via-[#f8f9ff]/40 to-transparent" />
           </div>

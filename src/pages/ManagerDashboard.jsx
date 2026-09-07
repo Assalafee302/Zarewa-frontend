@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -7,28 +7,15 @@ import {
   PageShell,
   PageTabs,
 } from '../components/layout';
-import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
-import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFormFields.jsx';
-import { BranchManagerCommandInbox } from '../components/branchManager/BranchManagerCommandInbox';
 import { ManagerPriorityBanner, pickManagerPriorityItem } from '../components/branchManager/ManagerPriorityBanner';
 import { ManagerTodayPulse } from '../components/branchManager/ManagerTodayPulse';
 import { ManagerOpsStrip } from '../components/branchManager/ManagerOpsStrip';
 import { ManagerPeopleGlancePanel } from '../components/branchManager/ManagerPeopleGlancePanel';
 import { ManagerCustomerIssuesPanel } from '../components/branchManager/ManagerCustomerIssuesPanel';
 import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyChecklist';
-import { ManagerBranchTab } from '../components/branchManager/ManagerBranchTab';
-import { ManagerSpendTab } from '../components/branchManager/ManagerSpendTab';
-import { ManagerWatchTab } from '../components/branchManager/ManagerWatchTab';
-import { ManagementDecisionModal } from '../components/branchManager/ManagementDecisionModal';
-import { OtApprovalDecisionModal } from '../components/branchManager/OtApprovalDecisionModal';
-import {
-  ManagementConfirmDialog,
-  ManagementRemarkDialog,
-} from '../components/branchManager/ManagementRemarkDialog';
 import { useBranchManagerWorkstation } from '../hooks/useBranchManagerWorkstation';
 import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { WorkspaceDeskSyncBanner } from '../components/workspace/WorkspaceDeskSyncBanner';
-import { EditApprovalDetailModal } from '../components/branchManager/EditApprovalDetailModal';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import { computeBranchHealthScore } from '../lib/managerBranchHealthScore';
 import {
@@ -45,11 +32,96 @@ import { canMarkHrAttendance, hrHasPermission } from '../lib/hrAccess';
 import { formatPersonName } from '../lib/formatPersonName';
 import { managerRowAgeHours } from '../lib/managerDashboardCore';
 import { buildManagerWatchModel } from '../lib/managerWatchQueues';
+import { lazyWithRetry } from '../lib/lazyWithRetry';
+import { PageLoader } from '../components/ui/PageLoader';
+
+/** Tab / modal trees stay out of the Today first paint (recharts + inbox + forms). */
+const BranchManagerCommandInbox = lazyWithRetry(
+  () =>
+    import('../components/branchManager/BranchManagerCommandInbox').then((m) => ({
+      default: m.BranchManagerCommandInbox,
+    })),
+  { id: 'BranchManagerCommandInbox' }
+);
+const ManagerBranchTab = lazyWithRetry(
+  () =>
+    import('../components/branchManager/ManagerBranchTab').then((m) => ({
+      default: m.ManagerBranchTab,
+    })),
+  { id: 'ManagerBranchTab' }
+);
+const ManagerSpendTab = lazyWithRetry(
+  () =>
+    import('../components/branchManager/ManagerSpendTab').then((m) => ({
+      default: m.ManagerSpendTab,
+    })),
+  { id: 'ManagerSpendTab' }
+);
+const ManagerWatchTab = lazyWithRetry(
+  () =>
+    import('../components/branchManager/ManagerWatchTab').then((m) => ({
+      default: m.ManagerWatchTab,
+    })),
+  { id: 'ManagerWatchTab' }
+);
+const ManagementDecisionModal = lazyWithRetry(
+  () =>
+    import('../components/branchManager/ManagementDecisionModal').then((m) => ({
+      default: m.ManagementDecisionModal,
+    })),
+  { id: 'ManagementDecisionModal' }
+);
+const OtApprovalDecisionModal = lazyWithRetry(
+  () =>
+    import('../components/branchManager/OtApprovalDecisionModal').then((m) => ({
+      default: m.OtApprovalDecisionModal,
+    })),
+  { id: 'OtApprovalDecisionModal' }
+);
+const ManagementRemarkDialog = lazyWithRetry(
+  () =>
+    import('../components/branchManager/ManagementRemarkDialog').then((m) => ({
+      default: m.ManagementRemarkDialog,
+    })),
+  { id: 'ManagementRemarkDialog' }
+);
+const ManagementConfirmDialog = lazyWithRetry(
+  () =>
+    import('../components/branchManager/ManagementRemarkDialog').then((m) => ({
+      default: m.ManagementConfirmDialog,
+    })),
+  { id: 'ManagementConfirmDialog' }
+);
+const EditApprovalDetailModal = lazyWithRetry(
+  () =>
+    import('../components/branchManager/EditApprovalDetailModal').then((m) => ({
+      default: m.EditApprovalDetailModal,
+    })),
+  { id: 'EditApprovalDetailModal' }
+);
+const ExpenseRequestFormFields = lazyWithRetry(
+  () =>
+    import('../components/office/ExpenseRequestFormFields.jsx').then((m) => ({
+      default: m.ExpenseRequestFormFields,
+    })),
+  { id: 'ExpenseRequestFormFields' }
+);
+const StockRegisterMonthEndModal = lazyWithRetry(
+  () =>
+    import('../components/reports/StockRegisterMonthEndModal').then((m) => ({
+      default: m.StockRegisterMonthEndModal,
+    })),
+  { id: 'StockRegisterMonthEndModal' }
+);
 
 /**
  * Branch manager command center — Today, Approvals, Branch, Watch, Expenses.
  */
 const MANAGER_DESK_DOMAINS = ['finance', 'sales', 'operations'];
+
+function ManagerTabFallback() {
+  return <PageLoader message="Loading section…" className="min-h-[12rem]" />;
+}
 
 const ManagerDashboard = () => {
   const bm = useBranchManagerWorkstation();
@@ -280,6 +352,14 @@ const ManagerDashboard = () => {
     [bm.totalOpenActions, watchModel.totals.waitingCount]
   );
 
+  const needsDecisionModal = Boolean(bm.selectedIntel);
+  const needsEditApprovalModal = Boolean(bm.editApprovalModal?.open);
+  const needsOtModal = Boolean(bm.otApprovalModal?.open);
+  const needsRemarkDialog = Boolean(bm.remarkDialog?.open);
+  const needsConfirmDialog = Boolean(bm.confirmDialog?.open);
+  const needsExpenseModal = Boolean(bm.showExpenseCorrectionModal);
+  const needsStockModal = Boolean(bm.stockRegisterMgrOpen);
+
   return (
     <PageShell className="pb-14">
       <WorkspaceDeskSyncBanner loading={domainLoading && !domainReady} label="branch desk" />
@@ -364,201 +444,231 @@ const ManagerDashboard = () => {
         </div>
       ) : null}
 
-      {pageTab === 'approvals' ? (
-        <BranchManagerCommandInbox bm={bm} showDeliveryCreditTab={bm.showDeliveryCreditTab} />
-      ) : null}
+      <Suspense fallback={<ManagerTabFallback />}>
+        {pageTab === 'approvals' ? (
+          <BranchManagerCommandInbox bm={bm} showDeliveryCreditTab={bm.showDeliveryCreditTab} />
+        ) : null}
 
-      {pageTab === 'branch' ? (
-        <ManagerBranchTab
-          displaySnapshots={bm.displaySnapshots}
-          metricPeriod={bm.metricPeriod}
-          onMetricPeriodChange={bm.setMetricPeriod}
-          managerTargetSourceMeta={bm.managerTargetSourceMeta}
-          producedSalesProgress={bm.producedSalesProgress}
-          productionMetresProgress={bm.productionMetresProgress}
-          mayViewReports={userMayViewManagementReportsClient(
-            bm.ws?.session?.user?.roleKey,
-            bm.ws?.permissions
-          )}
-          loading={bm.loading}
-          quotations={bm.ws?.snapshot?.quotations || []}
-          salesAvailable={customerIssuesAvailable}
-          materialCount={bm.tabCounts?.material || 0}
-          attendancePendingCount={bm.attendancePendingCount}
-          onOpenMaterialQueue={() => jumpToQueue('material')}
-          onOpenStockRegister={() => bm.setStockRegisterMgrOpen(true)}
-          branchId={bm.mgrBranchId}
-          coilRequests={bm.ws?.snapshot?.coilRequests || []}
-          onStockApproved={() => void bm.ws?.refresh?.()}
-          peopleGlanceAvailable={peopleGlanceAvailable}
-          customerIssuesAvailable={customerIssuesAvailable}
-          watchModel={watchModel}
-          onOpenWatch={openWatch}
-        />
-      ) : null}
-
-      {pageTab === 'watch' ? <ManagerWatchTab model={watchModel} loading={bm.loading} /> : null}
-
-      {pageTab === 'spend' ? (
-        <ManagerSpendTab
-          snapshot={bm.ws?.snapshot}
-          branchId={bm.mgrBranchId}
-          branchLabel={branchLabel}
-          viewAllBranches={Boolean(bm.ws?.viewAllBranches)}
-          roleKey={bm.ws?.session?.user?.roleKey || bm.managerRoleKey}
-          permissions={bm.ws?.permissions}
-          onOpenWorkOrder={(wid) => {
-            setPageTab('approvals');
-            bm.setActiveTab('issues');
-            bm.setFocusWorkOrderId(wid);
-          }}
-        />
-      ) : null}
-
-      <ManagementDecisionModal
-        selectedIntel={bm.selectedIntel}
-        closeIntelModal={() => {
-          if (bm.remarkDialog?.open || bm.confirmDialog?.open) return;
-          bm.closeIntelModal();
-        }}
-        intelModalTitle={bm.intelModalTitle}
-        intelModalLight={bm.intelModalLight}
-        auditData={bm.auditData}
-        loadingAudit={bm.loadingAudit}
-        refundIntelExtras={bm.refundIntelExtras}
-        refundEligibilityCheck={bm.refundEligibilityCheck}
-        loadingRefundIntel={bm.loadingRefundIntel}
-        decisionBusy={bm.decisionBusy}
-        selectedUnifiedWorkItem={bm.selectedUnifiedWorkItem}
-        officialRecordFallbackId={bm.officialRecordFallbackId}
-        openUnifiedWorkItem={bm.openUnifiedWorkItem}
-        selectedRefundRecord={bm.selectedRefundRecord}
-        canApproveRefunds={bm.canApproveRefunds}
-        canApprovePaymentRequests={bm.canApprovePaymentRequests}
-        canManagerClearance={bm.canManagerClearance}
-        canReleasePaymentHolds={bm.canReleasePaymentHolds}
-        canWriteOffBadDebt={bm.canWriteOffBadDebt}
-        canApproveMaterialIncidents={bm.canApproveMaterialIncidents}
-        deliveryGateMode={bm.deliveryGateMode}
-        ws={bm.ws}
-        formatNgn={bm.formatNgn}
-        handleReview={bm.handleReview}
-        handleRefundDecision={bm.handleRefundDecision}
-        handlePaymentDecision={bm.handlePaymentDecision}
-        handleRegisterSettlementDecision={bm.handleRegisterSettlementDecision}
-        handleConversionSignoff={bm.handleConversionSignoff}
-        handleDisapproveSelectedQuotation={bm.handleDisapproveSelectedQuotation}
-        handleFlagSelectedQuotation={bm.handleFlagSelectedQuotation}
-        handleReleasePaymentsSelectedQuotation={bm.handleReleasePaymentsSelectedQuotation}
-        handleWaiveBalanceSelectedQuotation={bm.handleWaiveBalanceSelectedQuotation}
-        handleWriteOffReceivableSelectedQuotation={bm.handleWriteOffReceivableSelectedQuotation}
-        handleProductionOverrideSelectedQuotation={bm.handleProductionOverrideSelectedQuotation}
-        conversionSignoffRemark={bm.conversionSignoffRemark}
-        setConversionSignoffRemark={bm.setConversionSignoffRemark}
-        conversionSignoffEditApprovalId={bm.conversionSignoffEditApprovalId}
-        setConversionSignoffEditApprovalId={bm.setConversionSignoffEditApprovalId}
-        paymentIntelLineItems={bm.paymentIntelLineItems}
-        selectedPaymentAttachmentUrl={bm.selectedPaymentAttachmentUrl}
-        printSelectedPaymentRequest={bm.printSelectedPaymentRequest}
-        poAuditData={bm.poAuditData}
-        loadingPoAudit={bm.loadingPoAudit}
-        navigate={bm.navigate}
-        onMaterialDecisionSuccess={async () => {
-          await bm.fetchData?.({ background: true });
-          bm.closeIntelModal();
-        }}
-        onGovernanceOpenRefund={bm.openGovernanceLinkedRefund}
-        onGovernanceOpenQuotation={bm.openGovernanceLinkedQuotation}
-        onGovernanceOpenProductionQc={bm.openGovernanceLinkedProductionQc}
-        onGovernanceOpenProcurement={bm.openProcurementDesk}
-        canApproveStaffPurchaseCredit={bm.canApproveStaffPurchaseCreditMd}
-        canRejectStaffPurchaseCredit={bm.canRejectStaffPurchaseCreditMd}
-        handleStaffPurchaseCreditDecision={bm.handleStaffPurchaseCreditDecision}
-      />
-
-      <EditApprovalDetailModal
-        isOpen={bm.editApprovalModal.open}
-        editApprovalId={bm.editApprovalModal.id}
-        inboxRow={bm.editApprovalModal.row}
-        canApprove={bm.canApproveEdits}
-        onClose={bm.closeEditApprovalModal}
-        onDecisionComplete={async () => {
-          await bm.fetchData?.({ background: true });
-          await (bm.ws.refreshEditApprovalsPending?.() ?? Promise.resolve());
-        }}
-      />
-
-      <OtApprovalDecisionModal
-        isOpen={bm.otApprovalModal?.open}
-        requestId={bm.otApprovalModal?.id || ''}
-        onClose={bm.closeOtApprovalModal}
-        onDecisionComplete={async () => {
-          await bm.fetchData?.({ background: true });
-        }}
-      />
-
-      <ManagementRemarkDialog
-        open={bm.remarkDialog.open}
-        title={bm.remarkDialog.title}
-        description={bm.remarkDialog.description}
-        confirmLabel={bm.remarkDialog.confirmLabel}
-        minLength={bm.remarkDialog.minLength}
-        optional={bm.remarkDialog.optional}
-        value={bm.remarkDraft}
-        onChange={bm.setRemarkDraft}
-        busy={bm.decisionBusy}
-        variant={bm.remarkDialog.variant === 'warning' ? 'danger' : 'primary'}
-        onConfirm={bm.submitRemarkDialog}
-        onCancel={bm.cancelRemarkDialog}
-      />
-
-      <ManagementConfirmDialog
-        open={bm.confirmDialog.open}
-        title={bm.confirmDialog.title}
-        description={bm.confirmDialog.description}
-        busy={bm.decisionBusy}
-        variant={bm.confirmDialog.variant === 'danger' ? 'danger' : 'primary'}
-        onConfirm={bm.submitConfirmDialog}
-        onCancel={bm.cancelConfirmDialog}
-      />
-
-      <ModalFrame isOpen={bm.showExpenseCorrectionModal} onClose={() => bm.setShowExpenseCorrectionModal(false)} showCloseButton={false}>
-        <div className="z-modal-panel max-w-2xl p-6 sm:p-8 overflow-y-auto max-h-[90vh]">
-          <div className="flex items-center justify-between gap-3 mb-5">
-            <h3 className="text-lg font-black text-zarewa-teal">Edit expense request</h3>
-            <button
-              type="button"
-              onClick={() => bm.setShowExpenseCorrectionModal(false)}
-              className="text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-slate-800"
-            >
-              Close
-            </button>
-          </div>
-          <ExpenseRequestFormFields
-            form={bm.expenseCorrectionForm}
-            setForm={bm.setExpenseCorrectionForm}
-            onSubmit={bm.saveExpenseCorrection}
-            fileInputRef={bm.payRequestFileRef}
-            showToast={bm.showToast}
-            formatNgn={bm.formatNgn}
-            submitting={bm.savingExpenseCorrection}
-            submitLabel="Save request changes"
-            hintBeforeSubmit={`Editing request ${bm.editingPaymentRequestId || ''}. This updates request details only (no payout posting).`}
-            actor={{ roleKey: bm.ws?.session?.user?.roleKey, permissions: bm.ws?.session?.permissions }}
-            hasPermission={(p) => Boolean(bm.ws?.hasPermission?.(p))}
+        {pageTab === 'branch' ? (
+          <ManagerBranchTab
+            displaySnapshots={bm.displaySnapshots}
+            metricPeriod={bm.metricPeriod}
+            onMetricPeriodChange={bm.setMetricPeriod}
+            managerTargetSourceMeta={bm.managerTargetSourceMeta}
+            producedSalesProgress={bm.producedSalesProgress}
+            productionMetresProgress={bm.productionMetresProgress}
+            mayViewReports={userMayViewManagementReportsClient(
+              bm.ws?.session?.user?.roleKey,
+              bm.ws?.permissions
+            )}
+            loading={bm.loading}
+            quotations={bm.ws?.snapshot?.quotations || []}
+            salesAvailable={customerIssuesAvailable}
+            materialCount={bm.tabCounts?.material || 0}
+            attendancePendingCount={bm.attendancePendingCount}
+            onOpenMaterialQueue={() => jumpToQueue('material')}
+            onOpenStockRegister={() => bm.setStockRegisterMgrOpen(true)}
+            branchId={bm.mgrBranchId}
+            coilRequests={bm.ws?.snapshot?.coilRequests || []}
+            onStockApproved={() => void bm.ws?.refresh?.()}
+            peopleGlanceAvailable={peopleGlanceAvailable}
+            customerIssuesAvailable={customerIssuesAvailable}
+            watchModel={watchModel}
+            onOpenWatch={openWatch}
           />
-        </div>
-      </ModalFrame>
+        ) : null}
 
-      <StockRegisterMonthEndModal
-        isOpen={bm.stockRegisterMgrOpen}
-        onClose={() => bm.setStockRegisterMgrOpen(false)}
-        roleMode="manager"
-        branchId={bm.mgrBranchId}
-        branchLabel={bm.mgrBranchLabel}
-        showToast={bm.showToast}
-        roleKey={bm.ws.session?.user?.roleKey}
-      />
+        {pageTab === 'watch' ? <ManagerWatchTab model={watchModel} loading={bm.loading} /> : null}
+
+        {pageTab === 'spend' ? (
+          <ManagerSpendTab
+            snapshot={bm.ws?.snapshot}
+            branchId={bm.mgrBranchId}
+            branchLabel={branchLabel}
+            viewAllBranches={Boolean(bm.ws?.viewAllBranches)}
+            roleKey={bm.ws?.session?.user?.roleKey || bm.managerRoleKey}
+            permissions={bm.ws?.permissions}
+            onOpenWorkOrder={(wid) => {
+              setPageTab('approvals');
+              bm.setActiveTab('issues');
+              bm.setFocusWorkOrderId(wid);
+            }}
+          />
+        ) : null}
+      </Suspense>
+
+      {needsDecisionModal ? (
+        <Suspense fallback={null}>
+          <ManagementDecisionModal
+            selectedIntel={bm.selectedIntel}
+            closeIntelModal={() => {
+              if (bm.remarkDialog?.open || bm.confirmDialog?.open) return;
+              bm.closeIntelModal();
+            }}
+            intelModalTitle={bm.intelModalTitle}
+            intelModalLight={bm.intelModalLight}
+            auditData={bm.auditData}
+            loadingAudit={bm.loadingAudit}
+            refundIntelExtras={bm.refundIntelExtras}
+            refundEligibilityCheck={bm.refundEligibilityCheck}
+            loadingRefundIntel={bm.loadingRefundIntel}
+            decisionBusy={bm.decisionBusy}
+            selectedUnifiedWorkItem={bm.selectedUnifiedWorkItem}
+            officialRecordFallbackId={bm.officialRecordFallbackId}
+            openUnifiedWorkItem={bm.openUnifiedWorkItem}
+            selectedRefundRecord={bm.selectedRefundRecord}
+            canApproveRefunds={bm.canApproveRefunds}
+            canApprovePaymentRequests={bm.canApprovePaymentRequests}
+            canManagerClearance={bm.canManagerClearance}
+            canReleasePaymentHolds={bm.canReleasePaymentHolds}
+            canWriteOffBadDebt={bm.canWriteOffBadDebt}
+            canApproveMaterialIncidents={bm.canApproveMaterialIncidents}
+            deliveryGateMode={bm.deliveryGateMode}
+            ws={bm.ws}
+            formatNgn={bm.formatNgn}
+            handleReview={bm.handleReview}
+            handleRefundDecision={bm.handleRefundDecision}
+            handlePaymentDecision={bm.handlePaymentDecision}
+            handleRegisterSettlementDecision={bm.handleRegisterSettlementDecision}
+            handleConversionSignoff={bm.handleConversionSignoff}
+            handleDisapproveSelectedQuotation={bm.handleDisapproveSelectedQuotation}
+            handleFlagSelectedQuotation={bm.handleFlagSelectedQuotation}
+            handleReleasePaymentsSelectedQuotation={bm.handleReleasePaymentsSelectedQuotation}
+            handleWaiveBalanceSelectedQuotation={bm.handleWaiveBalanceSelectedQuotation}
+            handleWriteOffReceivableSelectedQuotation={bm.handleWriteOffReceivableSelectedQuotation}
+            handleProductionOverrideSelectedQuotation={bm.handleProductionOverrideSelectedQuotation}
+            conversionSignoffRemark={bm.conversionSignoffRemark}
+            setConversionSignoffRemark={bm.setConversionSignoffRemark}
+            conversionSignoffEditApprovalId={bm.conversionSignoffEditApprovalId}
+            setConversionSignoffEditApprovalId={bm.setConversionSignoffEditApprovalId}
+            paymentIntelLineItems={bm.paymentIntelLineItems}
+            selectedPaymentAttachmentUrl={bm.selectedPaymentAttachmentUrl}
+            printSelectedPaymentRequest={bm.printSelectedPaymentRequest}
+            poAuditData={bm.poAuditData}
+            loadingPoAudit={bm.loadingPoAudit}
+            navigate={bm.navigate}
+            onMaterialDecisionSuccess={async () => {
+              await bm.fetchData?.({ background: true });
+              bm.closeIntelModal();
+            }}
+            onGovernanceOpenRefund={bm.openGovernanceLinkedRefund}
+            onGovernanceOpenQuotation={bm.openGovernanceLinkedQuotation}
+            onGovernanceOpenProductionQc={bm.openGovernanceLinkedProductionQc}
+            onGovernanceOpenProcurement={bm.openProcurementDesk}
+            canApproveStaffPurchaseCredit={bm.canApproveStaffPurchaseCreditMd}
+            canRejectStaffPurchaseCredit={bm.canRejectStaffPurchaseCreditMd}
+            handleStaffPurchaseCreditDecision={bm.handleStaffPurchaseCreditDecision}
+          />
+        </Suspense>
+      ) : null}
+
+      {needsEditApprovalModal ? (
+        <Suspense fallback={null}>
+          <EditApprovalDetailModal
+            isOpen={bm.editApprovalModal.open}
+            editApprovalId={bm.editApprovalModal.id}
+            inboxRow={bm.editApprovalModal.row}
+            canApprove={bm.canApproveEdits}
+            onClose={bm.closeEditApprovalModal}
+            onDecisionComplete={async () => {
+              await bm.fetchData?.({ background: true });
+              await (bm.ws.refreshEditApprovalsPending?.() ?? Promise.resolve());
+            }}
+          />
+        </Suspense>
+      ) : null}
+
+      {needsOtModal ? (
+        <Suspense fallback={null}>
+          <OtApprovalDecisionModal
+            isOpen={bm.otApprovalModal?.open}
+            requestId={bm.otApprovalModal?.id || ''}
+            onClose={bm.closeOtApprovalModal}
+            onDecisionComplete={async () => {
+              await bm.fetchData?.({ background: true });
+            }}
+          />
+        </Suspense>
+      ) : null}
+
+      {needsRemarkDialog ? (
+        <Suspense fallback={null}>
+          <ManagementRemarkDialog
+            open={bm.remarkDialog.open}
+            title={bm.remarkDialog.title}
+            description={bm.remarkDialog.description}
+            confirmLabel={bm.remarkDialog.confirmLabel}
+            minLength={bm.remarkDialog.minLength}
+            optional={bm.remarkDialog.optional}
+            value={bm.remarkDraft}
+            onChange={bm.setRemarkDraft}
+            busy={bm.decisionBusy}
+            variant={bm.remarkDialog.variant === 'warning' ? 'danger' : 'primary'}
+            onConfirm={bm.submitRemarkDialog}
+            onCancel={bm.cancelRemarkDialog}
+          />
+        </Suspense>
+      ) : null}
+
+      {needsConfirmDialog ? (
+        <Suspense fallback={null}>
+          <ManagementConfirmDialog
+            open={bm.confirmDialog.open}
+            title={bm.confirmDialog.title}
+            description={bm.confirmDialog.description}
+            busy={bm.decisionBusy}
+            variant={bm.confirmDialog.variant === 'danger' ? 'danger' : 'primary'}
+            onConfirm={bm.submitConfirmDialog}
+            onCancel={bm.cancelConfirmDialog}
+          />
+        </Suspense>
+      ) : null}
+
+      {needsExpenseModal ? (
+        <Suspense fallback={null}>
+          <ModalFrame isOpen={bm.showExpenseCorrectionModal} onClose={() => bm.setShowExpenseCorrectionModal(false)} showCloseButton={false}>
+            <div className="z-modal-panel max-w-2xl p-6 sm:p-8 overflow-y-auto max-h-[90vh]">
+              <div className="flex items-center justify-between gap-3 mb-5">
+                <h3 className="text-lg font-black text-zarewa-teal">Edit expense request</h3>
+                <button
+                  type="button"
+                  onClick={() => bm.setShowExpenseCorrectionModal(false)}
+                  className="text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-slate-800"
+                >
+                  Close
+                </button>
+              </div>
+              <ExpenseRequestFormFields
+                form={bm.expenseCorrectionForm}
+                setForm={bm.setExpenseCorrectionForm}
+                onSubmit={bm.saveExpenseCorrection}
+                fileInputRef={bm.payRequestFileRef}
+                showToast={bm.showToast}
+                formatNgn={bm.formatNgn}
+                submitting={bm.savingExpenseCorrection}
+                submitLabel="Save request changes"
+                hintBeforeSubmit={`Editing request ${bm.editingPaymentRequestId || ''}. This updates request details only (no payout posting).`}
+                actor={{ roleKey: bm.ws?.session?.user?.roleKey, permissions: bm.ws?.session?.permissions }}
+                hasPermission={(p) => Boolean(bm.ws?.hasPermission?.(p))}
+              />
+            </div>
+          </ModalFrame>
+        </Suspense>
+      ) : null}
+
+      {needsStockModal ? (
+        <Suspense fallback={null}>
+          <StockRegisterMonthEndModal
+            isOpen={bm.stockRegisterMgrOpen}
+            onClose={() => bm.setStockRegisterMgrOpen(false)}
+            roleMode="manager"
+            branchId={bm.mgrBranchId}
+            branchLabel={bm.mgrBranchLabel}
+            showToast={bm.showToast}
+            roleKey={bm.ws.session?.user?.roleKey}
+          />
+        </Suspense>
+      ) : null}
     </PageShell>
   );
 };

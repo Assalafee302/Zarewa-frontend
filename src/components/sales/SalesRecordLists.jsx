@@ -9,7 +9,8 @@ import {
   SalesWorkFilterChip,
 } from './SalesListTableFrame';
 import { SalesRecordsView, SALES_ROW_ID, SALES_ROW_CUSTOMER, SALES_ROW_AMOUNT } from './SalesListRow';
-import { SalesShowMoreButton } from './SalesShowMoreButton';
+import { AppTablePager } from '../ui/AppDataTable';
+import { APP_DATA_TABLE_PAGE_SIZE } from '../../lib/appDataTable';
 import {
   SalesReceiptPaymentStatusFilter,
   SalesReceiptPaymentStatusLegend,
@@ -93,9 +94,7 @@ export function SalesQuotationsList({
   salesListSort,
   setSalesListSort,
   filteredQuotations,
-  quotationWorkRows,
-  showCount,
-  setShowCount,
+  listPaging,
   debouncedSearchQuery,
   openNewModal,
   actionMenuKey,
@@ -304,8 +303,17 @@ export function SalesQuotationsList({
                         }}
                       />
                     )}
-                    {quotationWorkRows.length > showCount ? (
-                      <SalesShowMoreButton label="Show more quotations" onClick={() => setShowCount((c) => c + 20)} />
+                    {listPaging ? (
+                      <AppTablePager
+                        showingFrom={listPaging.showingFrom}
+                        showingTo={listPaging.showingTo}
+                        total={listPaging.total}
+                        hasPrev={listPaging.hasPrev}
+                        hasNext={listPaging.hasNext}
+                        onPrev={listPaging.goPrev}
+                        onNext={listPaging.goNext}
+                        pageSize={listPaging.pageSize || APP_DATA_TABLE_PAGE_SIZE}
+                      />
                     ) : null}
                   </SalesListTableFrame>
   );
@@ -320,9 +328,7 @@ export function SalesReceiptsList({
   salesListSort,
   setSalesListSort,
   filteredMergedReceipts,
-  paymentFilteredReceiptRows,
-  showCount,
-  setShowCount,
+  listPaging,
   debouncedSearchQuery,
   openNewModal,
   actionMenuKey,
@@ -565,8 +571,17 @@ export function SalesReceiptsList({
                         }}
                       />
                     )}
-                    {paymentFilteredReceiptRows.length > showCount ? (
-                      <SalesShowMoreButton label="Show more payments" onClick={() => setShowCount((c) => c + 20)} />
+                    {listPaging ? (
+                      <AppTablePager
+                        showingFrom={listPaging.showingFrom}
+                        showingTo={listPaging.showingTo}
+                        total={listPaging.total}
+                        hasPrev={listPaging.hasPrev}
+                        hasNext={listPaging.hasNext}
+                        onPrev={listPaging.goPrev}
+                        onNext={listPaging.goNext}
+                        pageSize={listPaging.pageSize || APP_DATA_TABLE_PAGE_SIZE}
+                      />
                     ) : null}
                   </SalesListTableFrame>
   );
@@ -580,8 +595,7 @@ export function SalesCuttingListsList({
   filteredCuttingLists,
   cuttingLists,
   productionJobs,
-  showCount,
-  setShowCount,
+  listPaging,
   debouncedSearchQuery,
   openNewModal,
   actionMenuKey,
@@ -736,8 +750,17 @@ export function SalesCuttingListsList({
                         }}
                       />
                     )}
-                    {cuttingLists.length > showCount ? (
-                      <SalesShowMoreButton label="Show more cutting lists" onClick={() => setShowCount((c) => c + 20)} />
+                    {listPaging ? (
+                      <AppTablePager
+                        showingFrom={listPaging.showingFrom}
+                        showingTo={listPaging.showingTo}
+                        total={listPaging.total}
+                        hasPrev={listPaging.hasPrev}
+                        hasNext={listPaging.hasNext}
+                        onPrev={listPaging.goPrev}
+                        onNext={listPaging.goNext}
+                        pageSize={listPaging.pageSize || APP_DATA_TABLE_PAGE_SIZE}
+                      />
                     ) : null}
                   </SalesListTableFrame>
   );
@@ -751,9 +774,7 @@ export function SalesRefundsList({
   salesListSort,
   setSalesListSort,
   filteredRefunds,
-  refundWorkRows,
-  showCount,
-  setShowCount,
+  listPaging,
   debouncedSearchQuery,
   openNewModal,
   actionMenuKey,
@@ -954,8 +975,17 @@ export function SalesRefundsList({
                         }}
                       />
                     )}
-                    {refundWorkRows.length > showCount ? (
-                      <SalesShowMoreButton label="Show more refunds" onClick={() => setShowCount((c) => c + 20)} />
+                    {listPaging ? (
+                      <AppTablePager
+                        showingFrom={listPaging.showingFrom}
+                        showingTo={listPaging.showingTo}
+                        total={listPaging.total}
+                        hasPrev={listPaging.hasPrev}
+                        hasNext={listPaging.hasNext}
+                        onPrev={listPaging.goPrev}
+                        onNext={listPaging.goNext}
+                        pageSize={listPaging.pageSize || APP_DATA_TABLE_PAGE_SIZE}
+                      />
                     ) : null}
                   </SalesListTableFrame>
   );

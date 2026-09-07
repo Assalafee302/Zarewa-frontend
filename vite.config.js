@@ -13,14 +13,6 @@ function resolveBuildId() {
 
 const ZAREWA_BUILD_ID = resolveBuildId();
 
-function srcPath(id) {
-  return id.replace(/\\/g, '/');
-}
-
-function inSrc(id, segment) {
-  return srcPath(id).includes(segment);
-}
-
 /** Lets IT confirm deployed HTML matches the built bundle (View Source → zarewa-build meta). */
 function zarewaBuildMetaPlugin() {
   return {
@@ -34,111 +26,95 @@ function zarewaBuildMetaPlugin() {
   };
 }
 
+/**
+ * Vite 8 / Rolldown: use codeSplitting.groups (manualChunks is deprecated / ineffective).
+ * Higher priority wins. Keep React out of desk/AI chunks so login does not download them.
+ */
+const codeSplittingGroups = [
+  { name: 'vendor-react-dom', test: /node_modules[/\\](?:react-dom|scheduler)[/\\]/, priority: 40 },
+  { name: 'vendor-react', test: /node_modules[/\\](?:react|react-is|use-sync-external-store)[/\\]/, priority: 35 },
+  { name: 'vendor-router', test: /node_modules[/\\]react-router/, priority: 34 },
+  { name: 'vendor-tanstack', test: /node_modules[/\\]@tanstack/, priority: 30 },
+  // Light shared deps MUST beat xlsx/recharts. Otherwise Rolldown parks lucide/clsx inside those
+  // heavy chunks and the login screen statically imports ~900KB just for icons and cn().
+  { name: 'vendor-lucide', test: /node_modules[/\\]lucide-react[/\\]/, priority: 29 },
+  { name: 'vendor-cn', test: /node_modules[/\\](?:clsx|tailwind-merge)[/\\]/, priority: 29 },
+  { name: 'vendor-motion', test: /node_modules[/\\]framer-motion[/\\]/, priority: 28 },
+  { name: 'vendor-radix', test: /node_modules[/\\]@radix-ui[/\\]/, priority: 28 },
+  { name: 'vendor-recharts', test: /node_modules[/\\]recharts[/\\]/, priority: 27 },
+  { name: 'vendor-xlsx', test: /node_modules[/\\]xlsx[/\\]/, priority: 27 },
+
+  // Auth-critical session runtime — must NOT be absorbed into desk-shell or login downloads the desk.
+  {
+    name: 'workspace-runtime',
+    // Only auth-needed UI (ConfirmDialog + button). Do NOT match all of components/ui —
+    // that forced modal/card (framer-motion) onto the login critical path.
+    test: /[/\\]src[/\\](?:App\.jsx|main\.jsx|context[/\\]WorkspaceContext|context[/\\]ToastContext|context[/\\]ConfirmProvider|components[/\\]layout[/\\]AppErrorBoundary|components[/\\]ui[/\\](?:ConfirmDialog|button)|lib[/\\](?:utils|apiBase|lazyWithRetry|queryClient|connectivityResilience|bootstrapConnectError|bootstrapPollMerge|workspaceDomainPrefetch|pendingPasswordChange|customerLedgerStore|moduleAccess|editApprovalUi|hrAccess|reportsAccess|normalizeWorkspacePersonNames|formatPersonName|workspaceBranchCreate|workspaceSanitize|reactErrorMessage|appConfirm)|Data[/\\]companyQuotation|shared[/\\]lib[/\\](?:moduleAccess|workspaceSanitize|formatNgn))/,
+    priority: 25,
+  },
+
+  { name: 'auth-ui', test: /[/\\]src[/\\]components[/\\]auth[/\\](?:LoginScreen|PasswordField)/, priority: 22 },
+
+  // AppDesk and its static desk chrome only — do not include AppErrorBoundary (auth boot imports it).
+  {
+    name: 'desk-shell',
+    test: /[/\\]src[/\\](?:AppDesk\.jsx|components[/\\]layout[/\\](?:Sidebar|BranchWorkspaceBar|DocumentTitleSync|PrintSessionCleanup|UnsavedWorkNavigationGuard|RouteErrorBoundary)|context[/\\](?:InventoryContext|CustomersContext|AiAssistantContext|HelpChatContext|UnsavedWorkContext)|components[/\\]auth[/\\](?:UserOnboardingGate|ModuleRouteGuard|ManagerRouteGuard|FinanceDeskRouteGuard|LegacyAccountsRouteGuard|RoleTrainingReplayLayer|SessionTimeoutWarning)|hooks[/\\]useAppShellSummaries|lib[/\\](?:workspaceNotifications|useWorkspaceSearch|notificationDismissal)|components[/\\]AiAskButton|components[/\\]hr[/\\]HrMainRouteGuard|components[/\\]workspace[/\\](?:BootstrapTruncatedBanner|WorkspaceSearchResults))/,
+    priority: 20,
+  },
+
+  { name: 'profile-ui', test: /[/\\]src[/\\](?:components[/\\]profile[/\\]|pages[/\\]hr[/\\]MyProfile|pages[/\\]hr[/\\]useMyProfileCohort)/, priority: 18 },
+  { name: 'hr-ui', test: /[/\\]src[/\\]components[/\\]hr[/\\]/, priority: 17 },
+  {
+    name: 'sales-modals',
+    test: /[/\\]src[/\\]components[/\\](?:sales[/\\](?:QuotationModal|ReceiptModal|CuttingListModal|RefundModal|AdvancePaymentModal|QuotationPrintView|CuttingListReportPrintView|cuttingListReportConstants|QuotationPriceExceptionPanel)|refund[/\\])/,
+    priority: 16,
+  },
+  { name: 'desk-shared-ui', test: /[/\\]src[/\\]components[/\\]management[/\\]/, priority: 15 },
+  {
+    name: 'operations-ui',
+    test: /[/\\]src[/\\]components[/\\](?:LiveProductionMonitor|production[/\\]|material[/\\]|operations[/\\])/,
+    priority: 15,
+  },
+  { name: 'settings-ui', test: /[/\\]src[/\\]components[/\\]settings[/\\]/, priority: 14 },
+  { name: 'exec-ui', test: /[/\\]src[/\\]components[/\\]exec[/\\]/, priority: 14 },
+  {
+    name: 'manager-ui',
+    test: /[/\\]src[/\\]components[/\\](?:branchManager[/\\]|dashboard[/\\])/,
+    priority: 14,
+  },
+  { name: 'sales-ui', test: /[/\\]src[/\\]components[/\\](?:customers[/\\]|sales[/\\])/, priority: 13 },
+  { name: 'finance-ui', test: /[/\\]src[/\\]components[/\\](?:account[/\\]|finance[/\\])/, priority: 13 },
+  { name: 'procurement-ui', test: /[/\\]src[/\\]components[/\\]procurement[/\\]/, priority: 13 },
+  { name: 'reports-ui', test: /[/\\]src[/\\]components[/\\]reports[/\\]/, priority: 13 },
+  { name: 'office-ui', test: /[/\\]src[/\\]components[/\\](?:office[/\\]|workspace[/\\])/, priority: 12 },
+  {
+    name: 'help-chat-ui',
+    test: /[/\\]src[/\\](?:components[/\\]HelpChatDock|lib[/\\]help(?:Knowledge|OperationalCatalog|Recommend|Synthesize)|shared[/\\]lib[/\\]helpSynthesize)/,
+    priority: 11,
+  },
+];
+
 export default defineConfig({
   plugins: [react(), tailwindcss(), zarewaBuildMetaPlugin()],
   define: {
     __ZAREWA_BUILD_ID__: JSON.stringify(ZAREWA_BUILD_ID),
   },
   build: {
-    chunkSizeWarningLimit: 2400,
-    rollupOptions: {
+    chunkSizeWarningLimit: 900,
+    modulePreload: {
+      resolveDependencies(filename, deps) {
+        // Auth boot: React + session runtime + light UI vendors. Never desk/AI/xlsx/charts/motion.
+        return deps.filter((d) =>
+          /(?:rolldown-runtime|vendor-react|vendor-router|vendor-tanstack|vendor-lucide|vendor-cn|vendor-radix|workspace-runtime|index-)[^/]*\.(?:js|css)$/.test(
+            d
+          )
+        );
+      },
+    },
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          const path = srcPath(id);
-
-          if (path.includes('node_modules')) {
-            // Keep all lucide in app-shell — micro vendor-lucide / per-icon chunks imported
-            // the icon factory back from app-shell ("Cannot access 'Q' before initialization).
-            if (path.includes('lucide-react')) return 'app-shell';
-            if (path.includes('xlsx')) return 'vendor-xlsx';
-            if (path.includes('@tanstack/react-query')) return 'vendor-tanstack';
-            if (path.includes('react-dom')) return 'vendor-react-dom';
-            if (path.includes('react-router')) return 'vendor-router';
-            if (path.includes('/react/')) return 'vendor-react';
-            if (path.includes('framer-motion')) return 'vendor-motion';
-            if (path.includes('@radix-ui')) return 'vendor-radix';
-            if (path.includes('recharts')) return 'vendor-recharts';
-            return;
-          }
-
-          // Profile shell + My Profile routes in one chunk — splitting my-profile-hub out
-          // made profile-ui import the hub back ("Cannot access 'WB' before initialization).
-          if (
-            inSrc(path, '/src/components/profile/') ||
-            inSrc(path, '/src/pages/hr/MyProfile.jsx') ||
-            inSrc(path, '/src/pages/hr/useMyProfileCohort')
-          ) {
-            return 'profile-ui';
-          }
-
-          // Shell-only HR guard (App.jsx) — rest of HR is route-lazy.
-          if (inSrc(path, '/src/components/hr/HrMainRouteGuard')) return 'app-shell';
-          if (inSrc(path, '/src/components/hr/')) return 'hr-ui';
-
-          // Sales desk modals (Sales.jsx lazyWithRetry) — keep with refund/management previews.
-          if (
-            /[/]src[/]components[/]sales[/](QuotationModal|ReceiptModal|CuttingListModal|RefundModal|AdvancePaymentModal|QuotationPrintView|CuttingListReportPrintView|cuttingListReportConstants|QuotationPriceExceptionPanel)/.test(
-              path
-            )
-          ) {
-            return 'sales-modals';
-          }
-          if (inSrc(path, '/src/components/refund/')) return 'sales-modals';
-          if (inSrc(path, '/src/components/management/')) return 'desk-shared-ui';
-
-          if (inSrc(path, '/src/components/LiveProductionMonitor')) return 'operations-ui';
-          if (inSrc(path, '/src/components/production/')) return 'operations-ui';
-          if (inSrc(path, '/src/components/material/')) return 'operations-ui';
-          if (inSrc(path, '/src/components/operations/')) return 'operations-ui';
-
-          if (inSrc(path, '/src/components/settings/')) return 'settings-ui';
-          if (inSrc(path, '/src/components/exec/')) return 'exec-ui';
-          if (inSrc(path, '/src/components/branchManager/')) return 'manager-ui';
-          if (inSrc(path, '/src/components/dashboard/')) return 'manager-ui';
-          if (inSrc(path, '/src/components/customers/')) return 'sales-ui';
-          if (inSrc(path, '/src/components/account/')) return 'finance-ui';
-          if (inSrc(path, '/src/components/finance/')) return 'finance-ui';
-          if (inSrc(path, '/src/components/procurement/')) return 'procurement-ui';
-          if (inSrc(path, '/src/components/reports/')) return 'reports-ui';
-          if (inSrc(path, '/src/components/office/')) return 'office-ui';
-          if (inSrc(path, '/src/components/sales/')) return 'sales-ui';
-
-          if (inSrc(path, '/src/components/HelpChatDock')) return 'help-chat-ui';
-          if (inSrc(path, '/src/components/AiAssistantDock')) return 'ai-assistant-ui';
-          if (
-            inSrc(path, '/src/lib/helpKnowledge') ||
-            inSrc(path, '/src/lib/helpOperationalCatalog') ||
-            inSrc(path, '/src/lib/helpRecommend') ||
-            inSrc(path, '/src/lib/helpSynthesize') ||
-            inSrc(path, '/src/shared/lib/helpSynthesize')
-          ) {
-            return 'help-chat-ui';
-          }
-
-          if (
-            inSrc(path, '/src/lib/coilExcelImport') ||
-            inSrc(path, '/src/lib/standardReportsDownload') ||
-            inSrc(path, '/src/lib/reportsPackRows') ||
-            inSrc(path, '/src/hooks/useReportsExport')
-          ) {
-            return 'vendor-xlsx';
-          }
-
-          // Workspace widgets used by App shell header/search stay in app-shell.
-          if (inSrc(path, '/src/components/workspace/')) {
-            if (
-              inSrc(path, 'BootstrapTruncatedBanner') ||
-              inSrc(path, 'WorkspaceSearchResults')
-            ) {
-              return 'app-shell';
-            }
-            return 'office-ui';
-          }
-
-          // Route pages stay in their own lazy chunks.
-          if (inSrc(path, '/src/pages/')) return undefined;
-          // App shell, contexts, shared lib, layout — never the entry index.
-          if (inSrc(path, '/src/')) return 'app-shell';
+        codeSplitting: {
+          groups: codeSplittingGroups,
         },
       },
     },

@@ -4,16 +4,6 @@ import { screen } from '@testing-library/react';
 import { renderWithProviders } from './test/renderWithProviders';
 import App from './App.jsx';
 
-vi.mock('./lib/firebase.js', () => ({
-  firebaseConfigured: false,
-  auth: null,
-  app: null,
-  db: null,
-  storage: null,
-  functions: null,
-  analyticsPromise: Promise.resolve(null),
-}));
-
 vi.mock('./context/WorkspaceContext.jsx', async (importOriginal) => {
   const actual = await importOriginal();
   return {

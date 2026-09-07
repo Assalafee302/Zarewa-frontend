@@ -9,10 +9,9 @@
     <link rel="icon" type="image/png" href="/zarewa-logo.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Zarewa ERP</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"></noscript>
+    <!-- Self-hosted fonts (no Google CDN round-trip on mill networks). -->
+    <link rel="stylesheet" href="/fonts/zarewa-fonts.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="/fonts/zarewa-fonts.css"></noscript>
     <style>
       /* Pre-React boot screen: shown instantly from the raw HTML while the JS bundle downloads
          and parses. On a slow connection this can be the only thing on screen for a while —

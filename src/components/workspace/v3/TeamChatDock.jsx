@@ -21,13 +21,13 @@ const CREATE_KIND_MAP = {
 /**
  * Gmail / Messenger-style team chat: FAB in the bottom-right stack, compact panel above it.
  */
-export function TeamChatDock() {
+export function TeamChatDock({ initialOpen = false, initialRoomId = null }) {
   const ws = useWorkspace();
   const ai = useAiAssistant();
   const navigate = useNavigate();
   const { show: showToast } = useOptionalToast();
   const user = ws?.session?.user;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(initialOpen));
   const [createOpen, setCreateOpen] = useState(false);
   const [createPrefill, setCreatePrefill] = useState(null);
 
@@ -45,6 +45,11 @@ export function TeamChatDock() {
     setOpen(true);
     if (roomId) setActiveRoomId(String(roomId));
   }, [setActiveRoomId]);
+
+  useEffect(() => {
+    if (!initialRoomId) return;
+    setActiveRoomId(String(initialRoomId));
+  }, [initialRoomId, setActiveRoomId]);
 
   useEffect(() => {
     const onOpen = (ev) => {

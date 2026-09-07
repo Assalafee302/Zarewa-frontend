@@ -40,7 +40,7 @@ export const PROD_REG = {
 
   /** Sticky modal action bar */
   actionBar:
-    'shrink-0 border-t border-[var(--z-border-subtle)] bg-white/98 px-2.5 py-2 backdrop-blur-md shadow-[0_-6px_16px_rgba(11,28,48,0.06)] sm:px-3',
+    'shrink-0 border-t border-[var(--z-border-subtle)] bg-white px-2.5 py-2 shadow-[0_-6px_16px_rgba(11,28,48,0.06)] sm:px-3',
 
   /** Modal shell — shop-floor form width (not full desk) */
   modalPanel:

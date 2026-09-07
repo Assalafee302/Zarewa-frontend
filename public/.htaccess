@@ -8,3 +8,13 @@
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
 </IfModule>
+
+# Hashed Vite assets are immutable; HTML must stay fresh after deploys.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(?:js|css|woff2|webp|png|jpg|jpeg|svg|gif|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "^(?:index\.html|sw\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
