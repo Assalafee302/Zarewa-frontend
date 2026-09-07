@@ -478,6 +478,39 @@ describe('refundPayeePayoutCaution', () => {
     expect(caution.codes).toContain('dual_control');
     expect(caution.title).toMatch(/another finance user/i);
   });
+
+  it('does not flag dual-control for admin trial (may approve and pay)', () => {
+    const refund = {
+      refundID: 'RF-DC-ADMIN',
+      approvedAmountNgn: 10_000,
+      paidAmountNgn: 0,
+      status: 'Approved',
+      approvedByUserId: 'u-admin',
+      approvedBy: 'Dev Admin',
+      payeeAccountNo: '0123456789',
+      payeeBankName: 'GTBank',
+    };
+    const line = {
+      refundID: 'RF-DC-ADMIN',
+      recipientKind: 'customer',
+      amountDueNgn: 10_000,
+      payeeAccountNo: '0123456789',
+      payeeBankName: 'GTBank',
+    };
+    expect(
+      refundPayeePayoutCaution(refund, line, {
+        siblingPayeeLines: [line],
+        actor: { id: 'u-admin', roleKey: 'admin', displayName: 'Dev Admin' },
+      }).codes
+    ).not.toContain('dual_control');
+    expect(
+      refundPayeePayoutCaution(refund, line, {
+        siblingPayeeLines: [line],
+        actor: { id: 'u-admin', roleKey: 'sales_manager', displayName: 'Dev Admin' },
+        hasPermission: (p) => p === '*',
+      }).codes
+    ).not.toContain('dual_control');
+  });
 });
 
 describe('refundCashierCustomerName', () => {

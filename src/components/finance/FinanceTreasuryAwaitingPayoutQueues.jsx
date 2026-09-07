@@ -208,6 +208,7 @@ export function FinanceTreasuryAwaitingPayoutQueues({
                 const caution = refundPayeePayoutCaution(r, line, {
                   siblingPayeeLines: refundPayeeLines,
                   actor: ws?.session?.user,
+                  hasPermission: ws?.hasPermission,
                 });
                 const statusIndicator =
                   caution.level !== 'none' ? (

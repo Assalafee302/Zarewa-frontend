@@ -633,13 +633,30 @@ function normalizeCautionActorName(value) {
     .replace(/\s+/g, ' ');
 }
 
+/** Mirrors server `isRefundAdminTrialActor` — admin may approve and pay while testing. */
+function isRefundAdminTrialActorForCaution(actor, hasPermission) {
+  if (typeof hasPermission === 'function' && hasPermission('*')) return true;
+  const perms = Array.isArray(actor?.permissions) ? actor.permissions : [];
+  if (perms.includes('*')) return true;
+  const rk = String(actor?.roleKey || actor?.role_key || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+  return rk === 'admin';
+}
+
 /**
  * Cashier desk hint when a refund payout row may fail or needs extra care.
  * User-facing codes stay at three: missing bank, clear receipts, dual-control
  * (plus rare quotation_blocked as a hard block).
+ * Admin trial actors skip dual-control — they may pay refunds they approved.
  * @returns {{ level: 'none'|'info'|'warn'|'block', tone: 'amber'|'violet'|'rose', title: string, codes: string[] }}
  */
-export function refundPayeePayoutCaution(refund, payeeLine, { siblingPayeeLines = [], actor = null } = {}) {
+export function refundPayeePayoutCaution(
+  refund,
+  payeeLine,
+  { siblingPayeeLines = [], actor = null, hasPermission = null } = {}
+) {
   const codes = [];
 
   const acct = String(
@@ -668,17 +685,19 @@ export function refundPayeePayoutCaution(refund, payeeLine, { siblingPayeeLines 
     codes.push('clear_receipts');
   }
 
-  const actorId = actor?.id != null ? String(actor.id).trim() : '';
-  const approverId = String(
-    refund?.approvedByUserId ?? refund?.approved_by_user_id ?? ''
-  ).trim();
-  const actorName = normalizeCautionActorName(actor?.displayName || actor?.username || actor?.name);
-  const approverName = normalizeCautionActorName(refund?.approvedBy ?? refund?.approved_by);
-  if (
-    (approverId && actorId && approverId === actorId) ||
-    (actorName && approverName && actorName === approverName)
-  ) {
-    codes.push('dual_control');
+  if (!isRefundAdminTrialActorForCaution(actor, hasPermission)) {
+    const actorId = actor?.id != null ? String(actor.id).trim() : '';
+    const approverId = String(
+      refund?.approvedByUserId ?? refund?.approved_by_user_id ?? ''
+    ).trim();
+    const actorName = normalizeCautionActorName(actor?.displayName || actor?.username || actor?.name);
+    const approverName = normalizeCautionActorName(refund?.approvedBy ?? refund?.approved_by);
+    if (
+      (approverId && actorId && approverId === actorId) ||
+      (actorName && approverName && actorName === approverName)
+    ) {
+      codes.push('dual_control');
+    }
   }
 
   if (!codes.length) {
