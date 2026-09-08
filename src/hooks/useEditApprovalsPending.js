@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../lib/apiBase';
 import { SHELL_QUERY_STALE_MS } from '../lib/queryClient';
+import { isConstrainedNetwork } from '../lib/workspaceDomainPrefetch';
 
 export const EDIT_APPROVALS_QUERY_KEY = ['edit-approvals', 'pending'];
 
@@ -13,12 +14,14 @@ async function fetchEditApprovalsPending() {
 }
 
 export function useEditApprovalsPending(enabled = true) {
+  const constrained = isConstrainedNetwork();
   const query = useQuery({
     queryKey: EDIT_APPROVALS_QUERY_KEY,
     queryFn: fetchEditApprovalsPending,
     enabled: Boolean(enabled),
     staleTime: SHELL_QUERY_STALE_MS,
-    refetchInterval: 45_000,
+    refetchInterval: constrained ? 120_000 : 45_000,
+    refetchIntervalInBackground: false,
     refetchOnMount: true,
   });
 

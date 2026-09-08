@@ -33,6 +33,7 @@ import { mergeDashboardPollIntoSnapshot } from '../lib/bootstrapPollMerge';
 import {
   accessibleWorkspaceDomains,
   inferLoadedWorkspaceDomains,
+  isConstrainedNetwork,
   planDomainPrefetch,
   snapshotHasUsableDomainData,
 } from '../lib/workspaceDomainPrefetch';
