@@ -1,8 +1,9 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TeamChatDockGate } from '../components/TeamChatDockGate';
 import { TEAM_CHAT_OPEN_EVENT } from '../lib/teamChatEvents';
+import * as deskFeatures from '../lib/deskOptionalFeatures';
 
 vi.mock('../context/WorkspaceContext', () => ({
   useWorkspace: () => ({
@@ -25,6 +26,20 @@ vi.mock('../lib/lazyWithRetry', () => ({
 }));
 
 describe('TeamChatDockGate', () => {
+  beforeEach(() => {
+    vi.spyOn(deskFeatures, 'isTeamChatEnabled').mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('renders nothing when team chat is off (default)', () => {
+    deskFeatures.isTeamChatEnabled.mockReturnValue(false);
+    const { container } = render(<TeamChatDockGate />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('shows FAB until first open, then mounts dock', async () => {
     render(<TeamChatDockGate />);
     expect(screen.queryByTestId('team-chat-dock')).toBeNull();

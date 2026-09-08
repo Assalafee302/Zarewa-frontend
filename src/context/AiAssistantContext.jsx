@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
+import { isAiAssistantEnabled } from '../lib/deskOptionalFeatures';
 import { useWorkspace } from './WorkspaceContext';
 
 const AiAssistantContext = createContext(null);
@@ -18,9 +19,10 @@ export function AiAssistantProvider({ children }) {
   const user = ws?.session?.user;
   const [status, setStatus] = useState(() => defaultStatus());
   const [request, setRequest] = useState(null);
+  const aiFeatureOn = isAiAssistantEnabled();
 
   useEffect(() => {
-    if (!user || String(user.roleKey || '').toLowerCase() === 'ceo') {
+    if (!aiFeatureOn || !user || String(user.roleKey || '').toLowerCase() === 'ceo') {
       setStatus({
         ready: true,
         enabled: false,
@@ -55,7 +57,7 @@ export function AiAssistantProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [aiFeatureOn, user]);
 
   const openAssistant = useCallback((opts = {}) => {
     setRequest({

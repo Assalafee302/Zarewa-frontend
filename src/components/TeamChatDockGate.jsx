@@ -5,6 +5,7 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { useAiAssistant } from '../context/AiAssistantContext';
 import { appFabRightClass, appFabSlots } from '../lib/appFabLayout';
 import { TEAM_CHAT_OPEN_EVENT } from '../lib/teamChatEvents';
+import { isTeamChatEnabled } from '../lib/deskOptionalFeatures';
 
 const TeamChatDock = lazyWithRetry(
   () => import('./workspace/v3/TeamChatDock.jsx').then((m) => ({ default: m.TeamChatDock })),
@@ -62,22 +63,25 @@ export function TeamChatDockGate() {
   const [dockMounted, setDockMounted] = useState(false);
   const [openOnMount, setOpenOnMount] = useState(false);
   const [pendingRoomId, setPendingRoomId] = useState(null);
+  const chatOn = isTeamChatEnabled();
 
   const mountDock = useCallback((opts = {}) => {
+    if (!isTeamChatEnabled()) return;
     if (opts.roomId) setPendingRoomId(String(opts.roomId));
     if (opts.open !== false) setOpenOnMount(true);
     setDockMounted(true);
   }, []);
 
   useEffect(() => {
+    if (!chatOn) return undefined;
     const onOpen = (ev) => {
       mountDock({ roomId: ev?.detail?.roomId, open: true });
     };
     window.addEventListener(TEAM_CHAT_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(TEAM_CHAT_OPEN_EVENT, onOpen);
-  }, [mountDock]);
+  }, [chatOn, mountDock]);
 
-  if (!user) return null;
+  if (!chatOn || !user) return null;
 
   if (!dockMounted) {
     return <TeamChatFabButton onClick={() => mountDock({ open: true })} />;

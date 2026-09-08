@@ -34,6 +34,8 @@ import {
   openWorkspaceRealtime,
 } from '../lib/workspaceV3Api';
 
+import { isConstrainedNetwork } from '../lib/workspaceDomainPrefetch';
+
 const draftQueueKey = (roomId) => `zarewa.workspace.v3.messageDraft.${roomId}`;
 
 /** Fallback poll when SSE is down — dock open (active conversation). */
@@ -42,7 +44,21 @@ const OPEN_POLL_MS = 4000;
 const IDLE_POLL_MS = 10000;
 /** Safety net while SSE reports connected (covers multi-instance / missed events). */
 const LIVE_BACKUP_POLL_MS = 20000;
+/** Constrained / save-data links: stretch polls so chat does not starve desks. */
+const CONSTRAINED_OPEN_POLL_MS = 15000;
+const CONSTRAINED_IDLE_POLL_MS = 60000;
+const CONSTRAINED_LIVE_BACKUP_POLL_MS = 90000;
 const HEARTBEAT_MS = 30000;
+const CONSTRAINED_HEARTBEAT_MS = 90000;
+
+function chatPollIntervalMs(realtimeStatus, open) {
+  const constrained = isConstrainedNetwork();
+  if (realtimeStatus === 'connected') {
+    return constrained ? CONSTRAINED_LIVE_BACKUP_POLL_MS : LIVE_BACKUP_POLL_MS;
+  }
+  if (open) return constrained ? CONSTRAINED_OPEN_POLL_MS : OPEN_POLL_MS;
+  return constrained ? CONSTRAINED_IDLE_POLL_MS : IDLE_POLL_MS;
+}
 
 /**
  * Team chat state for the floating dock. Does not auto-select the first room.
@@ -255,12 +271,9 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
   }, [open, activeRoomId, loadMessages]);
 
   useEffect(() => {
-    const interval =
-      realtimeStatus === 'connected'
-        ? LIVE_BACKUP_POLL_MS
-        : open
-          ? OPEN_POLL_MS
-          : IDLE_POLL_MS;
+    // Poor networks: no background badge polls while the dock is closed.
+    if (!open && isConstrainedNetwork()) return undefined;
+    const interval = chatPollIntervalMs(realtimeStatus, open);
     const t = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       void loadRooms({ silent: true });
@@ -274,6 +287,7 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
 
   useEffect(() => {
     if (!open) return undefined;
+    const beatMs = isConstrainedNetwork() ? CONSTRAINED_HEARTBEAT_MS : HEARTBEAT_MS;
     const beat = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       void postPresenceHeartbeat({ status: 'online', deskKey: 'chat' });
@@ -290,7 +304,7 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
         }
       }
     };
-    const t = setInterval(beat, HEARTBEAT_MS);
+    const t = setInterval(beat, beatMs);
     beat();
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
@@ -300,9 +314,13 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
   }, [open, loadRooms, loadMessages]);
 
   // Keep SSE for the whole session so unread + open threads update immediately,
-  // not only while the floating dock is expanded.
+  // not only while the floating dock is expanded — unless the link is constrained.
   useEffect(() => {
     if (!userId) {
+      setRealtimeStatus('polling');
+      return undefined;
+    }
+    if (isConstrainedNetwork() && !open) {
       setRealtimeStatus('polling');
       return undefined;
     }
@@ -335,7 +353,7 @@ export function useWorkspaceTeamChat({ open = false } = {}) {
         /* ignore */
       }
     };
-  }, [userId, loadMessages, loadPresence, loadRooms]);
+  }, [userId, open, loadMessages, loadPresence, loadRooms]);
 
   const handleSend = async (payload) => {
     if (!activeRoomId) return false;

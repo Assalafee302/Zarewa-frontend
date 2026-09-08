@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Banknote, Users, Wallet } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
@@ -41,6 +41,30 @@ export function PartnerWalletCashierPanel({
   }, [balancesProp, ws?.snapshot?.partnerWalletsDue]);
 
   const policyOn = Boolean(ws?.snapshot?.partnerWalletPolicy?.enabled);
+  const [fetchedBalances, setFetchedBalances] = useState(null);
+
+  useEffect(() => {
+    if (Array.isArray(balancesProp) || !policyOn) {
+      setFetchedBalances(null);
+      return undefined;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { ok, data } = await apiFetch('/api/partner-wallets');
+      if (cancelled) return;
+      if (ok && data?.ok && Array.isArray(data.balances)) setFetchedBalances(data.balances);
+      else setFetchedBalances([]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [balancesProp, policyOn, ws?.branchScope, ws?.status]);
+
+  const effectiveBalances = Array.isArray(balancesProp)
+    ? balances
+    : fetchedBalances != null
+      ? fetchedBalances
+      : balances;
   const accounts = useMemo(
     () => (Array.isArray(treasuryAccounts) ? treasuryAccounts : []),
     [treasuryAccounts]
@@ -110,6 +134,12 @@ export function PartnerWalletCashierPanel({
         `Released ${formatNgn(amountNgn)} to ${withdrawTarget.partyName}. Remaining ${formatNgn(data.remainingBalanceNgn || 0)}.`
       );
       setWithdrawTarget(null);
+      if (!Array.isArray(balancesProp)) {
+        const again = await apiFetch('/api/partner-wallets');
+        if (again.ok && again.data?.ok && Array.isArray(again.data.balances)) {
+          setFetchedBalances(again.data.balances);
+        }
+      }
       await ws.refresh?.();
       onWithdrawn?.(data);
     } finally {
@@ -117,10 +147,10 @@ export function PartnerWalletCashierPanel({
     }
   };
 
-  if (!policyOn && balances.length === 0) return null;
+  if (!policyOn && effectiveBalances.length === 0) return null;
 
   const policyHint =
-    !policyOn && balances.length > 0
+    !policyOn && effectiveBalances.length > 0
       ? 'Partner wallet policy is off — enable ZAREWA_PARTNER_WALLET_V1 to release balances.'
       : null;
 
@@ -138,7 +168,7 @@ export function PartnerWalletCashierPanel({
         theme="violet"
         title="Staff / partner refund payouts"
         icon={<Wallet size={16} strokeWidth={2} />}
-        count={balances.length}
+        count={effectiveBalances.length}
         testId="finance-partner-wallets-awaiting"
         action={
           <button
@@ -152,17 +182,17 @@ export function PartnerWalletCashierPanel({
       >
         {!expanded ? (
           <p className="text-ui-xs text-slate-500 px-1 py-2">
-            {balances.length} staff/partner balance{balances.length === 1 ? '' : 's'} ready after BM approval
+            {effectiveBalances.length} staff/partner balance{effectiveBalances.length === 1 ? '' : 's'} ready after BM approval
             (net of 20% company cut where applicable).
           </p>
-        ) : balances.length === 0 ? (
+        ) : effectiveBalances.length === 0 ? (
           <p className="text-ui-xs text-slate-500 px-1 py-3 text-center">
             No staff/partner refund balances waiting. Approved customer refunds without wallet still appear under
             Refund payouts above.
           </p>
         ) : (
           <ul className="space-y-1.5">
-            {balances.map((row) => (
+            {effectiveBalances.map((row) => (
               <FinanceDeskColoredQueueRow
                 key={`${row.partyKind}:${row.partyId}`}
                 theme="violet"

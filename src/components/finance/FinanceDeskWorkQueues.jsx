@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import {
   Banknote,
@@ -80,6 +80,7 @@ import { PartnerWalletCashierPanel } from "./PartnerWalletCashierPanel";
 import { CompanyRetentionPanel } from "./CompanyRetentionPanel";
 import { RefundCreditApplicationsPanel } from "./RefundCreditApplicationsPanel";
 import { CashierOtPayPanel } from "./CashierOtPayPanel";
+import { apiFetch } from "../../lib/apiBase";
 
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
 
@@ -481,10 +482,34 @@ export function FinanceDeskWorkQueues({
     [ws?.snapshot?.staffObligationsDue],
   );
 
-  const partnerWalletsDue = useMemo(
-    () => (Array.isArray(ws?.snapshot?.partnerWalletsDue) ? ws.snapshot.partnerWalletsDue : []),
-    [ws?.snapshot?.partnerWalletsDue],
-  );
+  const [partnerWalletsDue, setPartnerWalletsDue] = useState([]);
+
+  const loadPartnerWallets = React.useCallback(async () => {
+    const policyOn = Boolean(ws?.snapshot?.partnerWalletPolicy?.enabled);
+    const canSee =
+      Boolean(ws?.hasPermission?.("finance.pay")) ||
+      Boolean(ws?.hasPermission?.("cashier.desk.view")) ||
+      Boolean(ws?.hasPermission?.("finance.view"));
+    if (!policyOn || !canSee || ws?.status === "checking" || ws?.status === "auth_required") {
+      setPartnerWalletsDue([]);
+      return;
+    }
+    const { ok, data } = await apiFetch("/api/partner-wallets");
+    if (ok && data?.ok && Array.isArray(data.balances)) {
+      setPartnerWalletsDue(data.balances);
+    } else {
+      setPartnerWalletsDue([]);
+    }
+  }, [
+    ws?.snapshot?.partnerWalletPolicy?.enabled,
+    ws?.status,
+    ws?.branchScope,
+    ws?.hasPermission,
+  ]);
+
+  useEffect(() => {
+    void loadPartnerWallets();
+  }, [loadPartnerWallets]);
 
   const staffObligationsTotalNgn = useMemo(
     () =>
@@ -997,6 +1022,7 @@ export function FinanceDeskWorkQueues({
                 balances={partnerWalletsDue}
                 treasuryAccounts={treasuryAccounts}
                 canPay={Boolean(ws?.hasPermission?.("finance.pay"))}
+                onWithdrawn={() => void loadPartnerWallets()}
               />
               <CompanyRetentionPanel
                 treasuryAccounts={treasuryAccounts}

@@ -129,7 +129,7 @@ function workspacePollIntervalMs() {
   } catch {
     /* ignore */
   }
-  return 60_000;
+  return 90_000;
 }
 
 /**
@@ -697,26 +697,21 @@ export function WorkspaceProvider({ children }) {
       if (revRes.status === 304) return snapshotRef.current;
       const revEtag = revRes.headers.get('ETag') || '';
       if (revEtag) workspaceRevisionEtagRef.current = revEtag;
+
+      // Soft invalidate: refresh shell meta only. Do not stampede every loaded domain
+      // (that re-downloads multi-MB packs on every remote change — fatal on poor networks).
+      // Mounted desks rehydrate via useWorkspaceDomain when refreshEpoch bumps after clear.
       const prevLoaded = [...loadedDomainsRef.current];
-      resetDomainRuntime();
-      if (!revRes.ok) {
-        await refresh({ poll: true, mode: 'shell' });
-        if (prevLoaded.length) {
-          void Promise.allSettled(prevLoaded.map((d) => ensureDomainLoaded(d, { force: true })));
-        }
-        return snapshotRef.current;
-      }
-      const revData = await revRes.json().catch(() => null);
-      if (!revData?.ok) {
-        await refresh({ poll: true, mode: 'shell' });
-        if (prevLoaded.length) {
-          void Promise.allSettled(prevLoaded.map((d) => ensureDomainLoaded(d, { force: true })));
-        }
-        return snapshotRef.current;
+      if (revRes.ok) {
+        await revRes.json().catch(() => null);
       }
       await refresh({ poll: true, mode: 'shell' });
-      if (prevLoaded.length) {
-        void Promise.allSettled(prevLoaded.map((d) => ensureDomainLoaded(d, { force: true })));
+      // applySnapshot may re-infer loaded domains from merged stale desk arrays — clear again.
+      resetDomainRuntime();
+      setRefreshEpoch((n) => n + 1);
+      const primary = planDomainPrefetch(prevLoaded, { primaryOnly: true })[0];
+      if (primary) {
+        void ensureDomainLoaded(primary, { force: true });
       }
       return snapshotRef.current;
     } catch {
@@ -1176,10 +1171,24 @@ export function WorkspaceProvider({ children }) {
       setEditApprovalsPendingCount(0);
       return;
     }
+    const roleKey = session?.user?.roleKey;
+    if (
+      !userCanApproveEditMutationsClient(roleKey, permissions) ||
+      !canAccessModuleWithPermissions(permissions, 'edit_approvals')
+    ) {
+      setEditApprovalsPendingCount(0);
+      return;
+    }
     void refreshEditApprovalsPending();
-    const t = setInterval(() => void refreshEditApprovalsPending(), 45000);
+    // Slow links: poll less often; pause when the tab is hidden.
+    const intervalMs = isConstrainedNetwork() ? 120_000 : 45_000;
+    const tick = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      void refreshEditApprovalsPending();
+    };
+    const t = setInterval(tick, intervalMs);
     return () => clearInterval(t);
-  }, [status, refreshEditApprovalsPending]);
+  }, [status, refreshEditApprovalsPending, permissions, session?.user?.roleKey]);
 
   const refreshStaffPurchaseCreditPending = useCallback(async () => {
     const roleKey = session?.user?.roleKey;
@@ -1198,6 +1207,7 @@ export function WorkspaceProvider({ children }) {
     }
   }, [permissions, session?.user?.roleKey]);
 
+  /** One-shot after auth — no 45s poll (staff credit is on-demand via refreshStaffPurchaseCreditPending). */
   useEffect(() => {
     if (status === 'checking' || status === 'auth_required') {
       setStaffPurchaseCreditPendingCount(0);
@@ -1205,8 +1215,6 @@ export function WorkspaceProvider({ children }) {
       return;
     }
     void refreshStaffPurchaseCreditPending();
-    const t = setInterval(() => void refreshStaffPurchaseCreditPending(), 45000);
-    return () => clearInterval(t);
   }, [status, refreshStaffPurchaseCreditPending]);
 
   /** Writable when the API is reachable — including soft "unstable" (slow sync, not a real outage). */

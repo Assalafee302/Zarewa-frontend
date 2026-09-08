@@ -1216,6 +1216,7 @@ function AppShell() {
           initialQuery={headerSearch}
         />
       </Suspense>
+      {/* Team chat + AI dock: off unless VITE_TEAM_CHAT / VITE_AI_ASSISTANT (partner wallet + staff credit stay). */}
       <Suspense fallback={null}>
         <TeamChatDockGate />
       </Suspense>
