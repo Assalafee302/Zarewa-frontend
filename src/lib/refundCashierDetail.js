@@ -763,10 +763,14 @@ export function refundCashierMoneyStory(refund) {
     summary?.treasuryPaidNgn != null
       ? Math.round(Number(summary.treasuryPaidNgn) || 0)
       : refundTreasuryPaidNgn(refund);
-  const cashDueNgn =
-    summary?.cashOutstandingNgn != null
-      ? Math.round(Number(summary.cashOutstandingNgn) || 0)
-      : refundOutstandingAmount(refund);
+  const cashDueNgn = refundOutstandingAmount({
+    ...refund,
+    amountNgn: requestedNgn,
+    approvedAmountNgn: approvedNgn,
+    paidAmountNgn: paidNgn,
+    creditAppliedNgn: appliedNgn,
+    settlementSummary: summary,
+  });
   const netCashApprovedNgn =
     summary?.netCashDueNgn != null
       ? Math.round(Number(summary.netCashDueNgn) || 0)
@@ -797,7 +801,9 @@ export function refundCashierMoneyStory(refund) {
     splitBreakdown: breakdown,
     hasStaffSplit: staffNetNgn > 0,
     tillPayableNgn:
-      summary?.tillPayableNgn != null ? Math.round(Number(summary.tillPayableNgn) || 0) : undefined,
+      summary?.tillPayableNgn != null
+        ? Math.min(Math.round(Number(summary.tillPayableNgn) || 0), cashDueNgn)
+        : undefined,
     publicLabel: String(summary?.publicLabel || '').trim() || undefined,
   };
 }

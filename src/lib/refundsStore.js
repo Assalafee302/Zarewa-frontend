@@ -55,18 +55,30 @@ export function refundDefaultApproveAmountNgn(r) {
   return refundApprovedAmount(r) || requested;
 }
 
-export function refundOutstandingAmount(r) {
-  const fromSummary = r?.settlementSummary?.cashOutstandingNgn;
-  if (fromSummary != null && Number.isFinite(Number(fromSummary))) {
-    return Math.max(0, Math.round(Number(fromSummary) || 0));
-  }
+/** Till/cash still owed after paid + refund-fund apply, ignoring a stale settlement summary. */
+export function refundCreditAdjustedOutstandingNgn(r) {
+  const requested = Math.round(Number(r?.amountNgn ?? r?.amount_ngn) || 0);
   const approved = refundApprovedAmount(r);
   const paid = Math.round(Number(r?.paidAmountNgn ?? r?.paid_amount_ngn) || 0);
   const creditApplied = Math.round(Number(r?.creditAppliedNgn ?? r?.credit_applied_ngn) || 0);
-  const settled = Math.max(paid, creditApplied);
+  const leftoverAfterCredit = Math.max(0, requested - creditApplied);
+  // Manager already approved the leftover after fund use — do not subtract credit twice.
+  if (creditApplied > 0 && approved > 0 && approved <= leftoverAfterCredit + 1) {
+    const tillPaid = Math.max(0, paid - creditApplied);
+    return effectiveOutstandingNgn(approved, tillPaid);
+  }
   const companyCut = Math.round(Number(r?.companyCutNgn ?? r?.settlementSummary?.companyCutNgn) || 0);
   const due = companyCut > 0 ? Math.max(0, approved - companyCut) : approved;
-  return effectiveOutstandingNgn(due, settled);
+  return effectiveOutstandingNgn(due, Math.max(paid, creditApplied));
+}
+
+export function refundOutstandingAmount(r) {
+  const fromMath = refundCreditAdjustedOutstandingNgn(r);
+  const fromSummary = r?.settlementSummary?.cashOutstandingNgn;
+  if (fromSummary != null && Number.isFinite(Number(fromSummary))) {
+    return Math.min(fromMath, Math.max(0, Math.round(Number(fromSummary) || 0)));
+  }
+  return fromMath;
 }
 
 /**
@@ -240,7 +252,8 @@ export function isRefundPayable(r) {
   if (approved > 0 && Math.max(paid, creditApplied) >= approved) return false;
   const tillFromSummary = r?.settlementSummary?.tillPayableNgn;
   if (tillFromSummary != null) {
-    return Math.round(Number(tillFromSummary) || 0) > 0;
+    const till = Math.round(Number(tillFromSummary) || 0);
+    return Math.min(till, refundCreditAdjustedOutstandingNgn(r)) > 0;
   }
   // Wallet-only remaining is released via partner wallet on the same refund, not till pay.
   if (Math.round(Number(r?.walletOpenNgn) || 0) > 0) {

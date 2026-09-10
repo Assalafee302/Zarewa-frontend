@@ -247,6 +247,18 @@ describe('hanging refund indicators', () => {
     expect(isRefundPayable(full)).toBe(false);
     expect(refundOutstandingAmount(full)).toBe(0);
 
+    const staleSummary = normalizeRefund({
+      refundID: 'RF-APPLY-STALE',
+      status: 'Approved',
+      amountNgn: 50_000,
+      approvedAmountNgn: 50_000,
+      paidAmountNgn: 50_000,
+      creditAppliedNgn: 50_000,
+      settlementSummary: { tillPayableNgn: 50_000, cashOutstandingNgn: 50_000 },
+    });
+    expect(isRefundPayable(staleSummary)).toBe(false);
+    expect(refundOutstandingAmount(staleSummary)).toBe(0);
+
     const partial = normalizeRefund({
       refundID: 'RF-APPLY-PART',
       status: 'Approved',
