@@ -2623,6 +2623,7 @@ const QuotationModal = ({
             );
             return;
           }
+          if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
           showToast(`Quotation ${data.quotationId} created.`);
           if (Array.isArray(data.duplicateWarnings) && data.duplicateWarnings.length > 0) {
             showToast(

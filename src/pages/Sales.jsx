@@ -266,8 +266,11 @@ const Sales = () => {
 
   const onLedgerSynced = useCallback(async () => {
     bumpLedger();
-    if (wsCanMutate) await wsRefresh?.();
-  }, [bumpLedger, wsCanMutate, wsRefresh]);
+    if (!wsCanMutate) return;
+    // Shell refresh alone does not reload desk arrays — force sales snapshot so new quotes/receipts appear.
+    await ws?.ensureDomainLoaded?.('sales', { force: true });
+    await wsRefresh?.();
+  }, [bumpLedger, wsCanMutate, wsRefresh, ws?.ensureDomainLoaded]);
 
   const runAdminSalesDerivedReconcile = useCallback(async () => {
     if (!isAdminRole) return;

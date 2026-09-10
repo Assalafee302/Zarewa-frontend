@@ -332,20 +332,23 @@ export function WorkspaceProvider({ children }) {
   }, []);
 
   /**
-   * After PATCH /api/quotations/:id, merge the returned row into the live snapshot so paidNgn /
-   * paymentStatus (recalculated on the server from receipts) update immediately without waiting on bootstrap.
+   * After POST/PATCH /api/quotations, upsert the returned row into the live snapshot so new quotes
+   * and paidNgn / paymentStatus updates appear immediately (shell refresh alone does not reload sales).
    */
   const mergeQuotationIntoSnapshot = useCallback((quotation) => {
     if (!quotation?.id) return;
     setSnapshot((prev) => {
-      if (!prev || !Array.isArray(prev.quotations) || prev.ok !== true) return prev;
+      if (!prev || prev.ok !== true) return prev;
+      const prevQuotations = Array.isArray(prev.quotations) ? prev.quotations : [];
       const id = String(quotation.id);
-      const idx = prev.quotations.findIndex((q) => String(q.id) === id);
-      if (idx < 0) return prev;
-      const nextQuotations = [...prev.quotations];
-      const merged = { ...nextQuotations[idx], ...quotation };
+      const idx = prevQuotations.findIndex((q) => String(q.id) === id);
+      const merged =
+        idx >= 0 ? { ...prevQuotations[idx], ...quotation } : { ...quotation };
       if (merged.customer) merged.customer = formatPersonName(merged.customer);
-      nextQuotations[idx] = merged;
+      const nextQuotations =
+        idx >= 0
+          ? prevQuotations.map((q, i) => (i === idx ? merged : q))
+          : [merged, ...prevQuotations];
       const next = { ...prev, quotations: nextQuotations };
       writeBootstrapCache(next);
       return next;
