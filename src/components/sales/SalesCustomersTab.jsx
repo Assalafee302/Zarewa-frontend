@@ -8,12 +8,13 @@ import {
 } from './SalesListTableFrame';
 import { AppTableInfiniteLoader } from '../ui/AppDataTable';
 import { APP_DATA_TABLE_PAGE_SIZE, useInfiniteReveal } from '../../lib/appDataTable';
+import { useCustomersSearchQuery } from '../../hooks/useCustomersSearchQuery';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCustomers } from '../../context/CustomersContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formatNgn } from '../../Data/mockData';
 import { appConfirm } from '../../lib/appConfirm';
-import { customerPickerSearchBlob } from '../../lib/customerPickerSearch';
 import {
   customerInitials,
 } from '../customers/customerUi';
@@ -78,11 +79,21 @@ export default function SalesCustomersTab({
   const [sortField, setSortField] = useState('customerID');
   const [sortOrder, setSortOrder] = useState('desc');
 
-  const { customers, deleteCustomer } = useCustomers();
+  const { deleteCustomer } = useCustomers();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const canDeleteCustomer = Boolean(ws?.hasPermission?.('sales.manage') && ws?.canMutate);
   const [deleteBusy, setDeleteBusy] = useState(false);
+
+  // Searched from the server (not the full snapshot) — keeps the tab fast to open and
+  // fast to search on a slow connection instead of relying on everyone already being
+  // downloaded up front. The unfiltered fetch below (searchTerm '') backs the sidebar
+  // insights, which need every customer regardless of what's typed in the search box;
+  // react-query serves both from the same cache entry when the box is empty.
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
+  const searchedCustomers = useCustomersSearchQuery(debouncedSearchQuery);
+  const allCustomers = useCustomersSearchQuery('');
+  const customers = searchedCustomers.customers;
 
   const handleDeleteCustomer = async (c) => {
     if (!(await appConfirm({
@@ -112,10 +123,8 @@ export default function SalesCustomersTab({
   }, [quotations]);
 
   const sortedAndFiltered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    let list = q
-      ? customers.filter((c) => customerPickerSearchBlob(c).includes(q))
-      : [...customers];
+    // Search is already applied server-side (searchedCustomers) — only sort here.
+    const list = [...customers];
 
     list.sort((a, b) => {
       let valA, valB;
@@ -140,12 +149,12 @@ export default function SalesCustomersTab({
     });
 
     return list;
-  }, [customers, searchQuery, sortField, sortOrder, customerRevenue]);
+  }, [customers, sortField, sortOrder, customerRevenue]);
 
   const customersPage = useInfiniteReveal(
     sortedAndFiltered,
     APP_DATA_TABLE_PAGE_SIZE,
-    searchQuery,
+    debouncedSearchQuery,
     sortField,
     sortOrder
   );
@@ -167,7 +176,7 @@ export default function SalesCustomersTab({
       byCustomer.set(cl.customerID, cur);
     });
 
-    const nameOf = (id) => customers.find((c) => c.customerID === id)?.name ?? id;
+    const nameOf = (id) => allCustomers.customers.find((c) => c.customerID === id)?.name ?? id;
 
     const topSpend = [...byCustomer.entries()]
       .filter(([, v]) => v.spend > 0)
@@ -181,13 +190,13 @@ export default function SalesCustomersTab({
       .slice(0, 3)
       .map(([id, v]) => ({ id, name: nameOf(id), meters: v.meters }));
 
-    const inactive = customers.filter((c) => {
+    const inactive = allCustomers.customers.filter((c) => {
       const touch = lastTouchISO(c.customerID, quotations, receipts, cuttingLists) || c.lastActivityISO || c.createdAtISO || '';
       return touch && touch < ciso;
     });
 
     return { topSpend, topMeters, inactive, ciso };
-  }, [customers, cuttingLists, quotations, receipts]);
+  }, [allCustomers.customers, cuttingLists, quotations, receipts]);
 
   return (
     <>
@@ -277,7 +286,17 @@ export default function SalesCustomersTab({
               </>
             }
           >
-            {paginated.length === 0 ? (
+            {searchedCustomers.isLoading ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
+                <p className="text-ui-xs font-semibold text-slate-400 uppercase tracking-widest">Loading customers…</p>
+              </div>
+            ) : searchedCustomers.isError ? (
+              <div className="rounded-lg border border-dashed border-rose-200 bg-rose-50/40 py-14 px-6 text-center">
+                <p className="text-ui-xs font-semibold text-rose-600 uppercase tracking-widest">
+                  Could not load customers — {searchedCustomers.error?.message || 'try again.'}
+                </p>
+              </div>
+            ) : paginated.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
                 <UserCircle size={40} className="mx-auto text-slate-200 mb-3" strokeWidth={1.5} />
                 <p className="text-ui-xs font-semibold text-slate-500 uppercase tracking-widest">No matching customers</p>
