@@ -234,6 +234,13 @@ export function isRefundPayable(r) {
   if (refundQuotationRefundsBlocked(r)) return false;
   const status = r?.status;
   if (status !== 'Approved' && status !== 'Partially paid') return false;
+  const approved = refundApprovedAmount(r);
+  const paid = Math.round(Number(r?.paidAmountNgn ?? r?.paid_amount_ngn) || 0);
+  const creditApplied = Math.round(Number(r?.creditAppliedNgn ?? r?.credit_applied_ngn) || 0);
+  // Post-approval fund use bumps paid_amount; drop from till queue even if settlementSummary is stale.
+  if (approved > 0 && paid >= approved) return false;
+  // Entire approved cash was redirected as refund fund (no till leftover).
+  if (approved > 0 && creditApplied >= approved && paid <= 0) return false;
   const tillFromSummary = r?.settlementSummary?.tillPayableNgn;
   if (tillFromSummary != null) {
     return Math.round(Number(tillFromSummary) || 0) > 0;

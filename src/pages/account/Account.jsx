@@ -2579,7 +2579,14 @@ const Account = () => {
         setReceiptFinanceRow(null);
         setReceiptFinanceFocusMovementId(null);
         setPaymentCorrectionDrafts({});
-        await wsRefresh?.();
+        // Refund fund on a receipt updates customer_refunds — reload finance + sales desks
+        // (shell merge alone keeps the pre-credit refund on the pay queue).
+        if (applied > 0) {
+          void ws?.refreshDomain?.('finance');
+          void ws?.refreshDomain?.('sales');
+        } else {
+          void ws?.refreshDomain?.('finance');
+        }
       } finally {
         setReceiptFinanceBusy(false);
       }
@@ -2592,7 +2599,7 @@ const Account = () => {
       paymentCorrectionDrafts,
       liveTreasuryMovements,
       todayIso,
-      wsRefresh,
+      ws,
       wsCanMutate,
       wsUsingCachedData,
       showToast,

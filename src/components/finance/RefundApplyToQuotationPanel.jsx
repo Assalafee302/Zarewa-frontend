@@ -131,7 +131,9 @@ export function RefundApplyToQuotationPanel({ refund, onApplied, className = '' 
       );
       setTargetQuotationRef('');
       setEligible(null);
-      await ws?.refresh?.();
+      // Shell refresh keeps a stale refunds[] — force desk packs so pay queue drops the used fund.
+      void ws?.refreshDomain?.('finance');
+      void ws?.refreshDomain?.('sales');
       await onApplied?.(data);
     } finally {
       setApplying(false);
