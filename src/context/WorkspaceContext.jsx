@@ -668,11 +668,16 @@ export function WorkspaceProvider({ children }) {
             }
           }
           const etag = force ? '' : domainEtagRef.current.get(key) || '';
-          const r = await fetch(apiUrl(`/api/workspace/${encodeURIComponent(key)}-snapshot`), {
-            method: 'GET',
-            credentials: 'include',
-            headers: etag ? { 'If-None-Match': etag } : {},
-          });
+          const timeoutMs = adaptiveBootstrapTimeoutMs(BOOTSTRAP_FETCH_TIMEOUT_MS, apiRttMsRef.current);
+          const r = await fetchWithTimeoutRetry(
+            apiUrl(`/api/workspace/${encodeURIComponent(key)}-snapshot`),
+            {
+              method: 'GET',
+              credentials: 'include',
+              headers: etag ? { 'If-None-Match': etag } : {},
+            },
+            { timeoutMs, retries: 1, pauseMs: 1_500 }
+          );
           if (r.status === 304) {
             loadedDomainsRef.current.add(key);
             setRefreshEpoch((n) => n + 1);
