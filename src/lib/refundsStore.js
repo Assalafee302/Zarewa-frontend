@@ -61,13 +61,12 @@ export function refundOutstandingAmount(r) {
     return Math.max(0, Math.round(Number(fromSummary) || 0));
   }
   const approved = refundApprovedAmount(r);
-  const paid = Number(r?.paidAmountNgn) || 0;
-  // Prefer explicit company cut when API exposes it and paid is payee-only.
+  const paid = Math.round(Number(r?.paidAmountNgn ?? r?.paid_amount_ngn) || 0);
+  const creditApplied = Math.round(Number(r?.creditAppliedNgn ?? r?.credit_applied_ngn) || 0);
+  const settled = Math.max(paid, creditApplied);
   const companyCut = Math.round(Number(r?.companyCutNgn ?? r?.settlementSummary?.companyCutNgn) || 0);
-  if (companyCut > 0) {
-    return effectiveOutstandingNgn(Math.max(0, approved - companyCut), paid);
-  }
-  return effectiveOutstandingNgn(approved, paid);
+  const due = companyCut > 0 ? Math.max(0, approved - companyCut) : approved;
+  return effectiveOutstandingNgn(due, settled);
 }
 
 /**
@@ -238,9 +237,7 @@ export function isRefundPayable(r) {
   const paid = Math.round(Number(r?.paidAmountNgn ?? r?.paid_amount_ngn) || 0);
   const creditApplied = Math.round(Number(r?.creditAppliedNgn ?? r?.credit_applied_ngn) || 0);
   // Post-approval fund use bumps paid_amount; drop from till queue even if settlementSummary is stale.
-  if (approved > 0 && paid >= approved) return false;
-  // Entire approved cash was redirected as refund fund (no till leftover).
-  if (approved > 0 && creditApplied >= approved && paid <= 0) return false;
+  if (approved > 0 && Math.max(paid, creditApplied) >= approved) return false;
   const tillFromSummary = r?.settlementSummary?.tillPayableNgn;
   if (tillFromSummary != null) {
     return Math.round(Number(tillFromSummary) || 0) > 0;

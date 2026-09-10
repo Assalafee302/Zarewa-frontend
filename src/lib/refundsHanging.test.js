@@ -5,6 +5,7 @@ import {
   hangingRefundOpenAmountNgn,
   hangingRefundsForCustomer,
   isRefundHanging,
+  isRefundPayable,
   normalizeRefund,
   refundOutstandingAmount,
   refundPublicStatusLabel,
@@ -231,5 +232,30 @@ describe('hanging refund indicators', () => {
     );
     expect(userMayPayCustomerRefund({ roleKey: 'cashier', hasPermission: () => false })).toBe(true);
     expect(userMayPayCustomerRefund({ roleKey: 'admin', hasPermission: (p) => p === '*' })).toBe(true);
+  });
+
+  it('drops an approved refund from Pay after its fund is used on another receipt', () => {
+    const full = normalizeRefund({
+      refundID: 'RF-APPLY-FULL',
+      status: 'Approved',
+      amountNgn: 50_000,
+      approvedAmountNgn: 50_000,
+      paidAmountNgn: 50_000,
+      creditAppliedNgn: 50_000,
+      creditAppliedToQuotationRef: 'QT-NEW',
+    });
+    expect(isRefundPayable(full)).toBe(false);
+    expect(refundOutstandingAmount(full)).toBe(0);
+
+    const partial = normalizeRefund({
+      refundID: 'RF-APPLY-PART',
+      status: 'Approved',
+      amountNgn: 50_000,
+      approvedAmountNgn: 50_000,
+      paidAmountNgn: 20_000,
+      creditAppliedNgn: 20_000,
+    });
+    expect(isRefundPayable(partial)).toBe(true);
+    expect(refundOutstandingAmount(partial)).toBe(30_000);
   });
 });
