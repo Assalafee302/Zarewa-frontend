@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UserCircle, TrendingUp, Ruler, Moon, Trash2 } from 'lucide-react';
 import {
@@ -6,6 +6,8 @@ import {
   SalesListSearchInput,
   SalesListSortBar,
 } from './SalesListTableFrame';
+import { AppTableInfiniteLoader } from '../ui/AppDataTable';
+import { APP_DATA_TABLE_PAGE_SIZE, useInfiniteReveal } from '../../lib/appDataTable';
 import { useCustomers } from '../../context/CustomersContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -75,18 +77,12 @@ export default function SalesCustomersTab({
 }) {
   const [sortField, setSortField] = useState('customerID');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
 
   const { customers, deleteCustomer } = useCustomers();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const canDeleteCustomer = Boolean(ws?.hasPermission?.('sales.manage') && ws?.canMutate);
   const [deleteBusy, setDeleteBusy] = useState(false);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
 
   const handleDeleteCustomer = async (c) => {
     if (!(await appConfirm({
@@ -146,12 +142,14 @@ export default function SalesCustomersTab({
     return list;
   }, [customers, searchQuery, sortField, sortOrder, customerRevenue]);
 
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return sortedAndFiltered.slice(start, start + itemsPerPage);
-  }, [sortedAndFiltered, currentPage]);
-
-  const totalPages = Math.ceil(sortedAndFiltered.length / itemsPerPage);
+  const customersPage = useInfiniteReveal(
+    sortedAndFiltered,
+    APP_DATA_TABLE_PAGE_SIZE,
+    searchQuery,
+    sortField,
+    sortOrder
+  );
+  const paginated = customersPage.slice;
 
   const insights = useMemo(() => {
     const ciso = insightCutoffISO();
@@ -340,29 +338,13 @@ export default function SalesCustomersTab({
               </ul>
             )}
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 pt-2">
-                <button
-                  type="button"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  className="px-3 py-1 rounded-lg border border-slate-200 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-30"
-                >
-                  Prev
-                </button>
-                <span className="text-xs font-black text-zarewa-teal tabular-nums mx-2">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  className="px-3 py-1 rounded-lg border border-slate-200 text-ui-xs font-black uppercase text-zarewa-teal disabled:opacity-30"
-                >
-                  Next
-                </button>
-              </div>
-            )}
+            <AppTableInfiniteLoader
+              shown={customersPage.shown}
+              total={customersPage.total}
+              hasMore={customersPage.hasMore}
+              onLoadMore={customersPage.loadMore}
+              pageSize={APP_DATA_TABLE_PAGE_SIZE}
+            />
           </SalesListTableFrame>
         </div>
       </div>

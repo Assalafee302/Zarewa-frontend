@@ -9,7 +9,7 @@ import {
   SalesWorkFilterChip,
 } from './SalesListTableFrame';
 import { SalesRecordsView, SALES_ROW_ID, SALES_ROW_CUSTOMER, SALES_ROW_AMOUNT } from './SalesListRow';
-import { AppTablePager } from '../ui/AppDataTable';
+import { AppTablePager, AppTableInfiniteLoader } from '../ui/AppDataTable';
 import { APP_DATA_TABLE_PAGE_SIZE } from '../../lib/appDataTable';
 import {
   SalesReceiptPaymentStatusFilter,
@@ -48,6 +48,39 @@ import { quotationListColour, quotationListGauge } from '../../lib/quotationList
 import { formatNgn } from '../../Data/mockData';
 
 const CHIP = SALES_STATUS_CHIP;
+
+/**
+ * Renders infinite-scroll ("load more" on scroll) paging when `listPaging` comes from
+ * `useInfiniteReveal` (has `hasMore`/`loadMore`), or click-through Prev/Next paging when it
+ * comes from `useAppTablePaging` — same `listPaging` prop slot on every list below, so a tab
+ * can switch modes just by changing which hook it feeds in.
+ */
+function ListPager({ listPaging }) {
+  if (!listPaging) return null;
+  if (listPaging.hasMore !== undefined) {
+    return (
+      <AppTableInfiniteLoader
+        shown={listPaging.shown}
+        total={listPaging.total}
+        hasMore={listPaging.hasMore}
+        onLoadMore={listPaging.loadMore}
+        pageSize={listPaging.pageSize || APP_DATA_TABLE_PAGE_SIZE}
+      />
+    );
+  }
+  return (
+    <AppTablePager
+      showingFrom={listPaging.showingFrom}
+      showingTo={listPaging.showingTo}
+      total={listPaging.total}
+      hasPrev={listPaging.hasPrev}
+      hasNext={listPaging.hasNext}
+      onPrev={listPaging.goPrev}
+      onNext={listPaging.goNext}
+      pageSize={listPaging.pageSize || APP_DATA_TABLE_PAGE_SIZE}
+    />
+  );
+}
 
 const QUOTE_TABLE_HEADERS = [
   { key: 'id', label: 'ID' },
@@ -303,18 +336,7 @@ export function SalesQuotationsList({
                         }}
                       />
                     )}
-                    {listPaging ? (
-                      <AppTablePager
-                        showingFrom={listPaging.showingFrom}
-                        showingTo={listPaging.showingTo}
-                        total={listPaging.total}
-                        hasPrev={listPaging.hasPrev}
-                        hasNext={listPaging.hasNext}
-                        onPrev={listPaging.goPrev}
-                        onNext={listPaging.goNext}
-                        pageSize={listPaging.pageSize || APP_DATA_TABLE_PAGE_SIZE}
-                      />
-                    ) : null}
+                    <ListPager listPaging={listPaging} />
                   </SalesListTableFrame>
   );
 }
@@ -571,18 +593,7 @@ export function SalesReceiptsList({
                         }}
                       />
                     )}
-                    {listPaging ? (
-                      <AppTablePager
-                        showingFrom={listPaging.showingFrom}
-                        showingTo={listPaging.showingTo}
-                        total={listPaging.total}
-                        hasPrev={listPaging.hasPrev}
-                        hasNext={listPaging.hasNext}
-                        onPrev={listPaging.goPrev}
-                        onNext={listPaging.goNext}
-                        pageSize={listPaging.pageSize || APP_DATA_TABLE_PAGE_SIZE}
-                      />
-                    ) : null}
+                    <ListPager listPaging={listPaging} />
                   </SalesListTableFrame>
   );
 }
@@ -750,18 +761,7 @@ export function SalesCuttingListsList({
                         }}
                       />
                     )}
-                    {listPaging ? (
-                      <AppTablePager
-                        showingFrom={listPaging.showingFrom}
-                        showingTo={listPaging.showingTo}
-                        total={listPaging.total}
-                        hasPrev={listPaging.hasPrev}
-                        hasNext={listPaging.hasNext}
-                        onPrev={listPaging.goPrev}
-                        onNext={listPaging.goNext}
-                        pageSize={listPaging.pageSize || APP_DATA_TABLE_PAGE_SIZE}
-                      />
-                    ) : null}
+                    <ListPager listPaging={listPaging} />
                   </SalesListTableFrame>
   );
 }
@@ -975,18 +975,7 @@ export function SalesRefundsList({
                         }}
                       />
                     )}
-                    {listPaging ? (
-                      <AppTablePager
-                        showingFrom={listPaging.showingFrom}
-                        showingTo={listPaging.showingTo}
-                        total={listPaging.total}
-                        hasPrev={listPaging.hasPrev}
-                        hasNext={listPaging.hasNext}
-                        onPrev={listPaging.goPrev}
-                        onNext={listPaging.goNext}
-                        pageSize={listPaging.pageSize || APP_DATA_TABLE_PAGE_SIZE}
-                      />
-                    ) : null}
+                    <ListPager listPaging={listPaging} />
                   </SalesListTableFrame>
   );
 }

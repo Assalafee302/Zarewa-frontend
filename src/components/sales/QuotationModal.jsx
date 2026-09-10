@@ -1232,6 +1232,31 @@ const QuotationModal = ({
   });
   const handleClose = wrapClose(() => onClose());
 
+  /** Re-open edit after a slim sales snapshot: lines may be missing until we fetch the full quote. */
+  useEffect(() => {
+    if (!isOpen || !editData?.id) return undefined;
+    const ql = editData?.quotationLines;
+    const hasLinesShape =
+      ql &&
+      typeof ql === 'object' &&
+      (Array.isArray(ql.products) || Array.isArray(ql.accessories) || Array.isArray(ql.services));
+    if (hasLinesShape) return undefined;
+    let cancelled = false;
+    void (async () => {
+      const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(editData.id)}`);
+      if (cancelled || !ok || !data?.ok || !data.quotation) return;
+      ws?.mergeQuotationIntoSnapshot?.(data.quotation);
+      const loaded = normalizeLoadedLines(data.quotation.quotationLines);
+      if (!loaded) return;
+      setProductRows(loaded.products.length ? loaded.products : [emptyOrderLine()]);
+      setAccessoryRows(loaded.accessories.length ? loaded.accessories : [emptyOrderLine()]);
+      setServiceRows(loaded.services.length ? loaded.services : [emptyOrderLine()]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, editData?.id, editData?.quotationLines, ws]);
+
   const treasuryPayAccountsLive = useMemo(() => {
     const raw =
       treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {

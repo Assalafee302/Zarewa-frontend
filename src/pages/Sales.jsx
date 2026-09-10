@@ -42,7 +42,7 @@ import { PrintModalPortal } from '../components/layout/PrintModalPortal';
 import { AdvancePaymentPrintView } from '../components/receipt/ReceiptPrintViews';
 import { lazyWithRetry } from '../lib/lazyWithRetry';
 import { humanizeReactError } from '../lib/reactErrorMessage.js';
-import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../lib/appDataTable';
+import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging, useInfiniteReveal } from '../lib/appDataTable';
 
 const QuotationModal = lazyWithRetry(() => import('../components/sales/QuotationModal'), { id: 'QuotationModal' });
 const ReceiptModal = lazyWithRetry(() => import('../components/sales/ReceiptModal'), { id: 'ReceiptModal' });
@@ -304,6 +304,22 @@ const Sales = () => {
   }, [isAdminRole, ws?.canMutate, showToast, onLedgerSynced]);
 
   const consumeQuotationCustomerPick = useCallback(() => setQuotationCustomerPick(null), []);
+
+  /** Keep open quotation/cutting-list modal in sync when snapshot hydrates missing quotationLines. */
+  useEffect(() => {
+    if (!selectedItem?.id || !Array.isArray(quotations)) return;
+    const fresh = quotations.find((q) => String(q.id) === String(selectedItem.id));
+    if (!fresh?.quotationLines) return;
+    const had =
+      selectedItem.quotationLines &&
+      typeof selectedItem.quotationLines === 'object' &&
+      (Array.isArray(selectedItem.quotationLines.products) ||
+        Array.isArray(selectedItem.quotationLines.accessories) ||
+        Array.isArray(selectedItem.quotationLines.services));
+    if (had) return;
+    setSelectedItem((prev) => (prev && String(prev.id) === String(fresh.id) ? { ...prev, ...fresh } : prev));
+  }, [quotations, selectedItem]);
+
   const requestNewCustomerFromQuotation = useCallback(() => {
     setCustomerCreateFromQuotation(true);
     setCustomerAddOpen(true);
@@ -688,7 +704,7 @@ const Sales = () => {
     return sortReceiptsList(paymentFilteredReceiptRows, salesListSort.field, salesListSort.dir);
   }, [paymentFilteredReceiptRows, salesListSort]);
 
-  const receiptsPage = useAppTablePaging(
+  const receiptsPage = useInfiniteReveal(
     receiptWorkRows,
     APP_DATA_TABLE_PAGE_SIZE,
     debouncedSearchQuery,

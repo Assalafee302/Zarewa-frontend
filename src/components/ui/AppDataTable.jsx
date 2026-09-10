@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { APP_DATA_TABLE_PAGE_SIZE } from '../../lib/appDataTable';
 
 /**
@@ -189,6 +189,51 @@ export function AppTablePager({
             Next
           </button>
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Infinite-scroll footer: reveals more of an already-loaded list as the user scrolls near
+ * the bottom (IntersectionObserver on a sentinel), with a "Load more" button as a visible
+ * fallback for keyboard use or when the observer can't fire (e.g. in tests, reduced motion).
+ */
+export function AppTableInfiniteLoader({ shown, total, hasMore, onLoadMore, pageSize = APP_DATA_TABLE_PAGE_SIZE }) {
+  const sentinelRef = useRef(null);
+
+  useEffect(() => {
+    if (!hasMore) return undefined;
+    const node = sentinelRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) onLoadMore();
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, onLoadMore]);
+
+  if (total === 0) return null;
+  return (
+    <div className="mt-3 flex flex-col items-center gap-2 text-sm text-slate-600">
+      <p className="font-medium tabular-nums">
+        Showing {shown} of {total}
+        {hasMore ? ` · scroll for more` : ''}
+      </p>
+      {hasMore ? (
+        <>
+          <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" />
+          <button
+            type="button"
+            onClick={onLoadMore}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-1.5 text-sm font-bold text-zarewa-teal hover:bg-slate-50"
+          >
+            Load {Math.min(pageSize, total - shown)} more
+          </button>
+        </>
       ) : null}
     </div>
   );

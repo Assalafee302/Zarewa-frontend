@@ -60,3 +60,45 @@ export function useAppTablePaging(items, pageSize = APP_DATA_TABLE_PAGE_SIZE, ..
     hasNext: start + pageSize < total,
   };
 }
+
+/**
+ * Growing-window paging for infinite scroll: reveals `pageSize` more of an
+ * already-loaded array each time `loadMore` fires, instead of paging through
+ * fixed pages. Same underlying array (no extra network round-trip) — this
+ * only controls how much of it gets rendered/mounted at once.
+ * @template T
+ * @param {T[]} items
+ * @param {number} [pageSize]
+ * @param {...unknown} resetDeps when any value changes vs last render, the window resets to pageSize
+ */
+export function useInfiniteReveal(items, pageSize = APP_DATA_TABLE_PAGE_SIZE, ...resetDeps) {
+  const [visibleCount, setVisibleCount] = useState(pageSize);
+  const total = items?.length ?? 0;
+  const prevResetDepsRef = useRef(resetDeps);
+
+  useEffect(() => {
+    const prev = prevResetDepsRef.current;
+    const changed =
+      prev.length !== resetDeps.length || resetDeps.some((dep, index) => !Object.is(dep, prev[index]));
+    if (changed) {
+      setVisibleCount(pageSize);
+      prevResetDepsRef.current = resetDeps;
+    }
+  }, [resetDeps, pageSize]);
+
+  const safeCount = Math.min(Math.max(visibleCount, pageSize), Math.max(total, pageSize));
+  const slice = useMemo(() => (items || []).slice(0, safeCount), [items, safeCount]);
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((c) => Math.min(total, c + pageSize));
+  }, [total, pageSize]);
+
+  return {
+    pageSize,
+    slice,
+    total,
+    shown: slice.length,
+    hasMore: slice.length < total,
+    loadMore,
+  };
+}

@@ -59,8 +59,8 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../../hooks/useWorkspaceDomain';
 import { WorkspaceDeskSyncBanner } from '../../components/workspace/WorkspaceDeskSyncBanner';
 import { apiFetch } from '../../lib/apiBase';
-import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTable';
-import { AppTablePager, AppTableWrap } from '../../components/ui/AppDataTable';
+import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging, useInfiniteReveal } from '../../lib/appDataTable';
+import { AppTablePager, AppTableInfiniteLoader, AppTableWrap } from '../../components/ui/AppDataTable';
 import { ListEmptyState } from '../../components/ui/ListEmptyState';
 import { pickProductionJobForCuttingList } from '../../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../../lib/productionQueueLineStatus';
@@ -1075,7 +1075,7 @@ const Operations = () => {
     [productionClosedFiltered, productionClosedSort.field, productionClosedSort.dir]
   );
 
-  const productionActivePage = useAppTablePaging(
+  const productionActivePage = useInfiniteReveal(
     productionActiveSorted,
     PRODUCTION_TABLE_PAGE_SIZE,
     productionActiveSort.field,
@@ -1085,7 +1085,7 @@ const Operations = () => {
     ws?.hasWorkspaceData
   );
 
-  const productionClosedPage = useAppTablePaging(
+  const productionClosedPage = useInfiniteReveal(
     productionQueueRows,
     PRODUCTION_TABLE_PAGE_SIZE,
     productionClosedSort.field,
@@ -2188,14 +2188,11 @@ const Operations = () => {
                                 />
                               )}
                             />
-                            <AppTablePager
-                              showingFrom={productionActivePage.showingFrom}
-                              showingTo={productionActivePage.showingTo}
+                            <AppTableInfiniteLoader
+                              shown={productionActivePage.shown}
                               total={productionActivePage.total}
-                              hasPrev={productionActivePage.hasPrev}
-                              hasNext={productionActivePage.hasNext}
-                              onPrev={productionActivePage.goPrev}
-                              onNext={productionActivePage.goNext}
+                              hasMore={productionActivePage.hasMore}
+                              onLoadMore={productionActivePage.loadMore}
                               pageSize={PRODUCTION_TABLE_PAGE_SIZE}
                             />
                           </>
@@ -2359,14 +2356,11 @@ const Operations = () => {
                               />
                             )}
                           />
-                          <AppTablePager
-                            showingFrom={productionClosedPage.showingFrom}
-                            showingTo={productionClosedPage.showingTo}
+                          <AppTableInfiniteLoader
+                            shown={productionClosedPage.shown}
                             total={productionClosedPage.total}
-                            hasPrev={productionClosedPage.hasPrev}
-                            hasNext={productionClosedPage.hasNext}
-                            onPrev={productionClosedPage.goPrev}
-                            onNext={productionClosedPage.goNext}
+                            hasMore={productionClosedPage.hasMore}
+                            onLoadMore={productionClosedPage.loadMore}
                             pageSize={PRODUCTION_TABLE_PAGE_SIZE}
                           />
                         </div>

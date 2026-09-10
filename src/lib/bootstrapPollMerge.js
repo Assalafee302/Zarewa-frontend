@@ -58,6 +58,29 @@ function rowKey(row) {
   return '';
 }
 
+function rowHasQuotationLines(row) {
+  const ql = row?.quotationLines;
+  return Boolean(
+    ql &&
+      typeof ql === 'object' &&
+      (Array.isArray(ql.products) || Array.isArray(ql.accessories) || Array.isArray(ql.services))
+  );
+}
+
+/**
+ * Merge poll row onto previous row. Slim quotation list payloads omit quotationLines —
+ * never wipe lines already hydrated from GET /api/quotations/:id or a fat snapshot.
+ */
+export function mergePollRow(prevRow, pollRow) {
+  if (!pollRow || typeof pollRow !== 'object') return prevRow;
+  if (!prevRow || typeof prevRow !== 'object') return pollRow;
+  const next = { ...prevRow, ...pollRow };
+  if (rowHasQuotationLines(prevRow) && !rowHasQuotationLines(pollRow)) {
+    next.quotationLines = prevRow.quotationLines;
+  }
+  return next;
+}
+
 export function mergeRowsByKey(prevArr, pollArr) {
   if (!Array.isArray(prevArr) || prevArr.length === 0) return pollArr;
   if (!Array.isArray(pollArr) || pollArr.length === 0) return prevArr;
@@ -74,7 +97,7 @@ export function mergeRowsByKey(prevArr, pollArr) {
     const k = rowKey(row);
     if (k && pollByKey.has(k)) {
       seen.add(k);
-      return { ...row, ...pollByKey.get(k) };
+      return mergePollRow(row, pollByKey.get(k));
     }
     return row;
   });
@@ -129,6 +152,11 @@ export function mergeDashboardPollIntoSnapshot(prev, poll) {
     // Shell polls intentionally send empty desk arrays — never wipe domain-loaded data.
     if (pollArr.length === 0) {
       merged[field] = prevArr;
+      continue;
+    }
+    // Always key-merge so slim quotation rows cannot wipe previously hydrated lines.
+    if (field === 'quotations') {
+      merged[field] = mergeRowsByKey(prevArr, pollArr);
       continue;
     }
     if (pollArr.length >= prevArr.length) {

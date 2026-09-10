@@ -361,12 +361,34 @@ export function WorkspaceProvider({ children }) {
       const prevDeferred = Array.isArray(prev?.bootstrapMeta?.deferredDeskArrays)
         ? prev.bootstrapMeta.deferredDeskArrays
         : [];
-      const filledKeys = Object.keys(fields).filter((k) => Array.isArray(fields[k]) && fields[k].length > 0);
+      // Sales domain may omit quotationLines for payload size — never wipe lines already hydrated
+      // from POST/PATCH or GET /api/quotations/:id (cutting list + print need them).
+      let nextFields = fields;
+      if (Array.isArray(fields.quotations) && Array.isArray(prev?.quotations)) {
+        const prevById = new Map(
+          prev.quotations
+            .filter((q) => q?.id && q.quotationLines)
+            .map((q) => [String(q.id), q.quotationLines])
+        );
+        if (prevById.size) {
+          nextFields = {
+            ...fields,
+            quotations: fields.quotations.map((q) => {
+              if (!q?.id || q.quotationLines) return q;
+              const kept = prevById.get(String(q.id));
+              return kept ? { ...q, quotationLines: kept } : q;
+            }),
+          };
+        }
+      }
+      const filledKeys = Object.keys(nextFields).filter(
+        (k) => Array.isArray(nextFields[k]) && nextFields[k].length > 0
+      );
       const nextDeferred = prevDeferred.filter((k) => !filledKeys.includes(k));
       merged = mergeSessionOnboardingFlags(prev, {
         ...(prev || {}),
         ok: true,
-        ...fields,
+        ...nextFields,
         bootstrapMeta: {
           ...(prev?.bootstrapMeta || {}),
           mode: domainKey ? 'hydrated' : prev?.bootstrapMeta?.mode,

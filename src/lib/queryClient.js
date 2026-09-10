@@ -25,4 +25,5 @@ export function invalidateAppShellQueries(client = appQueryClient) {
   void client.invalidateQueries({ queryKey: ['edit-approvals'] });
   void client.invalidateQueries({ queryKey: ['reports'] });
   void client.invalidateQueries({ queryKey: ['material-incidents'] });
+  void client.invalidateQueries({ queryKey: ['customers-search'] });
 }

@@ -29,6 +29,21 @@ describe('mergeRowsByKey', () => {
     expect(merged.find((r) => r.refundID === 'RF-1')?.status).toBe('Approved');
     expect(merged.find((r) => r.refundID === 'RF-2')?.status).toBe('Approved');
   });
+
+  it('keeps quotationLines when poll row is slim', () => {
+    const prev = [
+      {
+        id: 'Q1',
+        totalNgn: 100,
+        quotationLines: { products: [{ name: 'Longspan', qty: 10 }], accessories: [], services: [] },
+      },
+    ];
+    const poll = [{ id: 'Q1', totalNgn: 120, paidNgn: 20 }];
+    const merged = mergeRowsByKey(prev, poll);
+    expect(merged[0].totalNgn).toBe(120);
+    expect(merged[0].paidNgn).toBe(20);
+    expect(merged[0].quotationLines.products).toHaveLength(1);
+  });
 });
 
 describe('mergeDashboardPollIntoSnapshot', () => {
@@ -77,5 +92,29 @@ describe('mergeDashboardPollIntoSnapshot', () => {
     expect(merged.customers).toHaveLength(2);
     expect(merged.expenses).toHaveLength(1);
     expect(merged.coilLots).toHaveLength(1);
+  });
+
+  it('does not wipe quotationLines when a fuller slim poll replaces the list', () => {
+    const prev = {
+      ok: true,
+      quotations: [
+        {
+          id: 'Q1',
+          totalNgn: 100,
+          quotationLines: { products: [{ name: 'Longspan', qty: 4 }], accessories: [], services: [] },
+        },
+      ],
+    };
+    const poll = {
+      ok: true,
+      quotations: [
+        { id: 'Q1', totalNgn: 110 },
+        { id: 'Q2', totalNgn: 50 },
+      ],
+    };
+    const merged = mergeDashboardPollIntoSnapshot(prev, poll);
+    expect(merged.quotations).toHaveLength(2);
+    expect(merged.quotations.find((q) => q.id === 'Q1')?.quotationLines?.products?.[0]?.name).toBe('Longspan');
+    expect(merged.quotations.find((q) => q.id === 'Q1')?.totalNgn).toBe(110);
   });
 });

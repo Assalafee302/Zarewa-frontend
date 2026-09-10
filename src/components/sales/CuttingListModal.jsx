@@ -599,6 +599,28 @@ const CuttingListModal = ({
     () => quotations.find((q) => q.id === quotationRef) ?? null,
     [quotations, quotationRef]
   );
+
+  /** Slim sales snapshot may omit quotationLines — fetch full quote so CL form can seed products. */
+  useEffect(() => {
+    if (!isOpen || !quotationRef) return undefined;
+    const q = quotations.find((row) => row?.id === quotationRef);
+    const ql = q?.quotationLines;
+    const hasLinesShape =
+      ql &&
+      typeof ql === 'object' &&
+      (Array.isArray(ql.products) || Array.isArray(ql.accessories) || Array.isArray(ql.services));
+    if (hasLinesShape) return undefined;
+    let cancelled = false;
+    void (async () => {
+      const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(quotationRef)}`);
+      if (cancelled || !ok || !data?.ok || !data.quotation) return;
+      ws?.mergeQuotationIntoSnapshot?.(data.quotation);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, quotationRef, quotations, ws]);
+
   const selectedQuotationBelowFloorPending = useMemo(
     () => quotationBelowFloorPendingMdApproval(selectedQuotation),
     [selectedQuotation]
