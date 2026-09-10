@@ -276,6 +276,8 @@ export function WorkspaceProvider({ children }) {
   const loadedDomainsRef = useRef(inferLoadedWorkspaceDomains(initialBootstrap));
   const domainInflightRef = useRef(new Map());
   const domainEtagRef = useRef(new Map());
+  /** Last per-domain revisions seen, so a poll can tell which desks actually moved. */
+  const domainRevisionsRef = useRef(null);
   const prefetchGenRef = useRef(0);
   const fullBootstrapLoadedRef = useRef(false);
   const lastErrorRef = useRef(null);
@@ -778,12 +780,23 @@ export function WorkspaceProvider({ children }) {
       // Clearing domain etags forces conditional revalidate; do not wipe loadedDomainsRef
       // (that re-downloads multi-MB packs on every remote change — fatal on poor networks).
       const prevLoaded = [...loadedDomainsRef.current];
-      if (revRes.ok) {
-        await revRes.json().catch(() => null);
-      }
+      const revBody = revRes.ok ? await revRes.json().catch(() => null) : null;
+
+      // The global revision moves on any change anywhere, so one cashier's receipt used
+      // to make every desk revalidate its pack. Per-domain revisions narrow that to the
+      // desks that actually moved. A server that does not send them (or a first poll with
+      // nothing to compare) falls through to invalidating all of them, as before.
+      const nextDomainRevs = revBody?.domains;
+      const prevDomainRevs = domainRevisionsRef.current;
+      const changedDomains =
+        nextDomainRevs && prevDomainRevs
+          ? prevLoaded.filter((d) => nextDomainRevs[d] !== prevDomainRevs[d])
+          : prevLoaded;
+      if (nextDomainRevs) domainRevisionsRef.current = nextDomainRevs;
+
       await refresh({ poll: true, mode: 'shell' });
-      domainEtagRef.current.clear();
-      const primary = planDomainPrefetch(prevLoaded, {
+      for (const domain of changedDomains) domainEtagRef.current.delete(domain);
+      const primary = planDomainPrefetch(changedDomains, {
         primaryOnly: true,
         rttMs: apiRttMsRef.current,
       })[0];
