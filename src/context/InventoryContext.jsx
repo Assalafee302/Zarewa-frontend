@@ -97,7 +97,9 @@ export function InventoryProvider({ children }) {
   const wsHasWorkspaceData = ws?.hasWorkspaceData;
   const wsSnapshot = ws?.snapshot;
   const wsCanMutate = ws?.canMutate;
-  const wsRefresh = ws?.refresh;
+  const wsRefresh = ws?.refreshDomain
+    ? () => ws.refreshDomain('operations')
+    : ws?.refresh;
   const [products, setProducts] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [movements, setMovements] = useState([]);

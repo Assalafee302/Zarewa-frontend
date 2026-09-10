@@ -43,6 +43,7 @@ import {
   markPendingPasswordChange,
   withPendingPasswordSession,
 } from '../lib/pendingPasswordChange.js';
+import { readDeskDomainCache, writeDeskDomainCache } from '../lib/deskDomainPersist.js';
 
 const WorkspaceContext = createContext(null);
 
@@ -356,6 +357,19 @@ export function WorkspaceProvider({ children }) {
     setRefreshEpoch((n) => n + 1);
   }, []);
 
+  /** Generic in-place desk patch (close modal first; refresh domain in background). */
+  const patchDomainSnapshot = useCallback((updater) => {
+    if (typeof updater !== 'function') return;
+    setSnapshot((prev) => {
+      if (!prev || prev.ok !== true) return prev;
+      const next = updater(prev);
+      if (!next || next === prev) return prev;
+      writeBootstrapCache(next);
+      return next;
+    });
+    setRefreshEpoch((n) => n + 1);
+  }, []);
+
   const mergeSnapshotPatch = useCallback((patch) => {
     if (!patch || patch.ok !== true) return null;
     const { domain: domainKey, ok: _ok, ...fields } = patch;
@@ -628,6 +642,15 @@ export function WorkspaceProvider({ children }) {
 
       const run = (async () => {
         try {
+          const uid = snapshotRef.current?.session?.user?.id;
+          const scope = snapshotRef.current?.branchScope || '';
+          if (!force && uid) {
+            const cached = await readDeskDomainCache(uid, scope, key);
+            if (cached?.ok) {
+              loadedDomainsRef.current.add(key);
+              mergeSnapshotPatch(cached);
+            }
+          }
           const etag = force ? '' : domainEtagRef.current.get(key) || '';
           const r = await fetch(apiUrl(`/api/workspace/${encodeURIComponent(key)}-snapshot`), {
             method: 'GET',
@@ -644,7 +667,9 @@ export function WorkspaceProvider({ children }) {
           const nextEtag = r.headers.get('ETag') || '';
           if (nextEtag) domainEtagRef.current.set(key, nextEtag);
           loadedDomainsRef.current.add(key);
-          return mergeSnapshotPatch(data) ?? snapshotRef.current;
+          const merged = mergeSnapshotPatch(data) ?? snapshotRef.current;
+          if (uid) void writeDeskDomainCache(uid, scope, key, data);
+          return merged;
         } catch {
           return snapshotRef.current;
         } finally {
@@ -656,6 +681,15 @@ export function WorkspaceProvider({ children }) {
       return run;
     },
     [mergeSnapshotPatch]
+  );
+
+  const refreshDomain = useCallback(
+    async (domain) => {
+      const key = String(domain || '').trim().toLowerCase();
+      if (!key) return snapshotRef.current;
+      return ensureDomainLoaded(key, { force: true });
+    },
+    [ensureDomainLoaded]
   );
 
   const prefetchWorkspaceDomains = useCallback(
@@ -683,10 +717,12 @@ export function WorkspaceProvider({ children }) {
       const pending = domains.filter((d) => force || !loadedDomainsRef.current.has(d));
       if (!pending.length) return;
 
-      // Slow / save-data links: primary desk only. Otherwise still serial (never parallel stampede).
+      // Default: primary desk only. Secondary warm only when explicitly requested on a healthy link.
       const planned = planDomainPrefetch(pending, {
         forceAll: Boolean(opts.forceAll),
-        primaryOnly: Boolean(opts.primaryOnly),
+        primaryOnly: Boolean(opts.primaryOnly) || !opts.warmSecondary,
+        warmSecondary: Boolean(opts.warmSecondary),
+        rttMs: apiRttMsRef.current,
       });
       for (const domain of planned) {
         if (gen !== prefetchGenRef.current) return;
@@ -724,18 +760,19 @@ export function WorkspaceProvider({ children }) {
       const revEtag = revRes.headers.get('ETag') || '';
       if (revEtag) workspaceRevisionEtagRef.current = revEtag;
 
-      // Soft invalidate: refresh shell meta only. Do not stampede every loaded domain
+      // Soft invalidate: refresh shell meta; keep loaded desk packs in memory.
+      // Clearing domain etags forces conditional revalidate; do not wipe loadedDomainsRef
       // (that re-downloads multi-MB packs on every remote change — fatal on poor networks).
-      // Mounted desks rehydrate via useWorkspaceDomain when refreshEpoch bumps after clear.
       const prevLoaded = [...loadedDomainsRef.current];
       if (revRes.ok) {
         await revRes.json().catch(() => null);
       }
       await refresh({ poll: true, mode: 'shell' });
-      // applySnapshot may re-infer loaded domains from merged stale desk arrays — clear again.
-      resetDomainRuntime();
-      setRefreshEpoch((n) => n + 1);
-      const primary = planDomainPrefetch(prevLoaded, { primaryOnly: true })[0];
+      domainEtagRef.current.clear();
+      const primary = planDomainPrefetch(prevLoaded, {
+        primaryOnly: true,
+        rttMs: apiRttMsRef.current,
+      })[0];
       if (primary) {
         void ensureDomainLoaded(primary, { force: true });
       }
@@ -743,7 +780,7 @@ export function WorkspaceProvider({ children }) {
     } catch {
       return snapshotRef.current;
     }
-  }, [refresh, ensureDomainLoaded, resetDomainRuntime]);
+  }, [refresh, ensureDomainLoaded]);
 
   const login = useCallback(
     async (username, password) => {
@@ -1045,25 +1082,34 @@ export function WorkspaceProvider({ children }) {
     void refresh({ mode: 'shell' });
   }, [refresh]);
 
-  /** Warm desk snapshots in the background so page navigation does not wait on first open. */
+  /** Warm the primary desk only; siblings only on idle healthy links. */
   useEffect(() => {
     if (status !== 'ok' && status !== 'unstable') return undefined;
     const uid = snapshotRef.current?.session?.user?.id;
     if (uid && hasPendingPasswordChange(uid)) return undefined;
 
     let cancelled = false;
-    const run = () => {
-      if (!cancelled) void prefetchWorkspaceDomains();
+    const run = async () => {
+      if (cancelled) return;
+      await prefetchWorkspaceDomains({ primaryOnly: true });
+      if (cancelled) return;
+      if (!isConstrainedNetwork({ rttMs: apiRttMsRef.current })) {
+        void prefetchWorkspaceDomains({ warmSecondary: true });
+      }
     };
 
     if (typeof requestIdleCallback !== 'undefined') {
-      const id = requestIdleCallback(run, { timeout: 1200 });
+      const id = requestIdleCallback(() => {
+        void run();
+      }, { timeout: 1200 });
       return () => {
         cancelled = true;
         cancelIdleCallback(id);
       };
     }
-    const t = window.setTimeout(run, 150);
+    const t = window.setTimeout(() => {
+      void run();
+    }, 150);
     return () => {
       cancelled = true;
       window.clearTimeout(t);
@@ -1290,6 +1336,8 @@ export function WorkspaceProvider({ children }) {
       staffPurchaseCreditCrossBranch,
       refreshStaffPurchaseCreditPending,
       mergeQuotationIntoSnapshot,
+      patchDomainSnapshot,
+      refreshDomain,
       login,
       sessionMessage,
       clearSessionMessage,
@@ -1338,6 +1386,8 @@ export function WorkspaceProvider({ children }) {
       staffPurchaseCreditCrossBranch,
       refreshStaffPurchaseCreditPending,
       mergeQuotationIntoSnapshot,
+      patchDomainSnapshot,
+      refreshDomain,
       login,
       sessionMessage,
       clearSessionMessage,

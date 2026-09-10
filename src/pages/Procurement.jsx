@@ -593,7 +593,7 @@ const Procurement = () => {
         showToast(data?.error || 'Could not save standard conversion.', { variant: 'error' });
         return false;
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('procurement');
       const opt = procurementCoilMaterialByKey(standardConversionForm.materialKey);
       setStandardConversionForm((f) => ({
         ...f,
@@ -732,7 +732,7 @@ const Procurement = () => {
           return;
         }
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('procurement');
     } else {
       showToast('Reconnect to save suppliers — read-only workspace.', { variant: 'info' });
       return;
@@ -763,7 +763,7 @@ const Procurement = () => {
         showToast(data?.error || 'Could not delete supplier.', { variant: 'error' });
         return;
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('procurement');
     } else {
       showToast('Reconnect to delete suppliers — read-only workspace.', { variant: 'info' });
       return;
@@ -826,7 +826,7 @@ const Procurement = () => {
           return;
         }
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('procurement');
     } else {
       showToast('Reconnect to save transport agents — read-only workspace.', { variant: 'info' });
       return;
@@ -854,7 +854,7 @@ const Procurement = () => {
         showToast(data?.error || 'Could not delete agent.', { variant: 'error' });
         return;
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('procurement');
     } else {
       showToast('Reconnect to delete transport agents — read-only workspace.', { variant: 'info' });
       return;

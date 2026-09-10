@@ -44,6 +44,21 @@ describe('workspaceDomainPrefetch', () => {
     ]);
   });
 
+  it('planDomainPrefetch defaults to primary only unless warmSecondary on a healthy link', () => {
+    expect(planDomainPrefetch(['sales', 'finance', 'operations'], { constrained: false })).toEqual([
+      'sales',
+    ]);
+    expect(
+      planDomainPrefetch(['sales', 'finance', 'operations'], {
+        constrained: false,
+        warmSecondary: true,
+      })
+    ).toEqual(['sales', 'finance', 'operations']);
+    expect(
+      planDomainPrefetch(['sales', 'finance'], { constrained: false, rttMs: 1200, warmSecondary: true })
+    ).toEqual(['sales']);
+  });
+
   it('inferLoadedWorkspaceDomains marks domains present in session cache', () => {
     const loaded = inferLoadedWorkspaceDomains({
       ok: true,

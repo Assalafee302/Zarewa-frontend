@@ -56,13 +56,19 @@ const AdvancePaymentModal = lazyWithRetry(() => import('../components/sales/Adva
 });
 const CuttingListModal = lazyWithRetry(() => import('../components/sales/CuttingListModal'), { id: 'CuttingListModal' });
 const RefundModal = lazyWithRetry(() => import('../components/sales/RefundModal'), { id: 'RefundModal' });
+const WorkspaceExpenseQuickActions = lazyWithRetry(
+  () =>
+    import('../components/workspace/WorkspaceExpenseQuickActions').then((m) => ({
+      default: m.WorkspaceExpenseQuickActions,
+    })),
+  { id: 'WorkspaceExpenseQuickActions' }
+);
 import { MainPanel, PageHeader, PageShell, PageTabs } from '../components/layout';
 import SalesMobileAlertStrip from '../components/sales/SalesMobileAlertStrip';
 import SalesKpiStrip from '../components/sales/SalesKpiStrip';
 import { SALES_STATUS_CHIP } from '../lib/salesStatusUi';
-import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
 import { WorkspaceDeskSyncBanner } from '../components/workspace/WorkspaceDeskSyncBanner';
-import { formatNgn } from '../Data/mockData';
+import { formatNgn } from '../lib/formatNgn';
 import { useToast } from '../context/ToastContext';
 import { useCustomers } from '../context/CustomersContext';
 import { useInventory } from '../context/InventoryContext';
@@ -1114,7 +1120,7 @@ const Sales = () => {
         showToast(err, { variant: 'error' });
         return { ok: false, error: err };
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('sales');
       invalidateEligibleRefundQuotationsCache();
       void fetchEligibleRefundQuotations({ force: true });
       showToast(
@@ -1161,7 +1167,7 @@ const Sales = () => {
     if (!ok || !data?.ok) {
       return { ok: false, error: data?.error || 'Could not save cutting list.' };
     }
-    await ws.refresh();
+    void ws.refreshDomain?.('sales');
     showToast(`${isEdit ? 'Updated' : 'Created'} cutting list ${data.cuttingList?.id || data.id}.`);
     return { ok: true };
   };
@@ -1787,7 +1793,9 @@ const Sales = () => {
                 )}
               </section>
             ) : null}
-            <WorkspaceExpenseQuickActions />
+            <Suspense fallback={null}>
+              <WorkspaceExpenseQuickActions />
+            </Suspense>
           </SalesDeskAside>
         )}
 
@@ -2141,7 +2149,7 @@ const Sales = () => {
           const needsListRefresh =
             String(selectedItem?.status || '').trim() === 'Draft' || Boolean(selectedItem?.id);
           setShowCuttingModal(false);
-          if (needsListRefresh && ws?.canMutate) void ws.refresh();
+          if (needsListRefresh && ws?.canMutate) void ws.refreshDomain?.('sales');
         }}
         quotations={quotations}
         receipts={mergedReceiptRows}

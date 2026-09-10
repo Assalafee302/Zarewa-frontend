@@ -1,5 +1,4 @@
-import { HrButton, HrAddButton } from '../../components/hr/hrPageUi';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { HardHat } from 'lucide-react';
 import { formatNgn } from '../../lib/hrFormat';
@@ -7,9 +6,16 @@ import { isStaffLinkedCustomer, customerPickerPrimaryLabel } from '../../lib/cus
 import { fetchQuotationStaffPurchaseStatus } from '../../lib/hrStaffPurchaseCredit';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { ProfileStatusChip } from '../profile/profileDesign';
-import { HR_BTN_PRIMARY } from '../hr/hrFormStyles';
-import { HrPurchaseCreditDecisionContext } from '../hr/HrPurchaseCreditDecisionContext';
 import { StaffPurchaseCreditRequestModal } from './StaffPurchaseCreditRequestModal';
+
+const HrPurchaseCreditDecisionContext = lazy(() =>
+  import('../hr/HrPurchaseCreditDecisionContext').then((m) => ({
+    default: m.HrPurchaseCreditDecisionContext,
+  }))
+);
+
+const HR_BTN_PRIMARY =
+  'inline-flex min-h-11 w-full sm:w-auto items-center justify-center rounded-md bg-zarewa-teal px-5 py-3 text-xs font-medium text-white hover:bg-zarewa-teal-hover disabled:opacity-50';
 
 const STATUS_LABELS = {
   pending_approval: 'Awaiting MD approval',
@@ -198,7 +204,9 @@ export function StaffPurchaseCreditQuotationPanel({
             ) : null}
           </p>
         )}
-        <HrPurchaseCreditDecisionContext data={decisionData} className="mt-3" />
+        <Suspense fallback={null}>
+          <HrPurchaseCreditDecisionContext data={decisionData} className="mt-3" />
+        </Suspense>
         {timeline.length ? (
           <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
             <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-1.5">Status timeline</p>

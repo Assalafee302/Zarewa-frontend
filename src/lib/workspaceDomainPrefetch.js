@@ -121,11 +121,14 @@ export function inferLoadedWorkspaceDomains(snapshot) {
 }
 
 /**
- * True when the browser reports a constrained / save-data link.
- * Used to prefetch only the primary desk domain instead of flooding the network.
+ * True when the browser reports a constrained / save-data link, or measured API RTT is high.
+ * Nigerian mobile often reports `4g` while delivering much less — use RTT when available.
+ * @param {{ rttMs?: number | null }} [opts]
  */
-export function isConstrainedNetwork() {
+export function isConstrainedNetwork(opts = {}) {
   try {
+    const rtt = opts.rttMs;
+    if (rtt != null && Number.isFinite(rtt) && rtt >= 800) return true;
     if (typeof navigator === 'undefined') return false;
     /** @type {{ saveData?: boolean; effectiveType?: string } | undefined} */
     const c =
@@ -143,17 +146,21 @@ export function isConstrainedNetwork() {
 
 /**
  * Order domain prefetch for background warming.
- * Slow links: primary desk only. Otherwise serial queue (caller awaits one-by-one).
+ * Default: primary desk only. Pass warmSecondary when idle on a healthy link.
  * @param {string[]} domains
- * @param {{ constrained?: boolean; forceAll?: boolean; primaryOnly?: boolean }} [opts]
+ * @param {{ constrained?: boolean; forceAll?: boolean; primaryOnly?: boolean; warmSecondary?: boolean; rttMs?: number | null }} [opts]
  */
 export function planDomainPrefetch(domains, opts = {}) {
   const list = (Array.isArray(domains) ? domains : []).map((d) => String(d).trim().toLowerCase()).filter(Boolean);
   if (!list.length) return [];
-  const constrained = opts.constrained ?? isConstrainedNetwork();
+  const fromNet = isConstrainedNetwork({ rttMs: opts.rttMs });
+  // Explicit constrained:false still honors measured RTT / saveData (mill links often report 4g).
+  const constrained = opts.constrained === true || fromNet;
   if (opts.forceAll) return list;
   if (opts.primaryOnly || constrained) return list.slice(0, 1);
-  return list;
+  // Idle warm of siblings only when explicitly requested and the link is not constrained.
+  if (opts.warmSecondary) return list;
+  return list.slice(0, 1);
 }
 
 /**

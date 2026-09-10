@@ -117,6 +117,7 @@ export function EditSecondApprovalInline({
   const startPoll = (approvalId) => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const r = await apiFetch(`/api/edit-approvals/${encodeURIComponent(approvalId)}`);
       if (r.ok && r.data?.ok && r.data.approval?.status === 'approved') {
         if (pollRef.current) clearInterval(pollRef.current);

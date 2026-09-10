@@ -996,7 +996,7 @@ const Account = () => {
           showToast(data?.error || 'Could not cancel refund before payout.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
         showToast(`Refund ${rid} cancelled before payout.`);
       } finally {
         setCancelRefundBusyId('');
@@ -1064,7 +1064,7 @@ const Account = () => {
           setRequestPayLines([]);
           setRequestPayNote('');
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
         showToast(
           `Expense request ${rid} cancelled before payout. Resubmit from the archive after correcting.`
         );
@@ -1207,7 +1207,7 @@ const Account = () => {
             return;
           }
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
         setShowRefundPayModal(false);
         setRefundPayTarget(null);
         setRefundPayPayeeKey(null);
@@ -1355,7 +1355,7 @@ const Account = () => {
         showToast(data?.error || 'Could not reclassify expense category.', { variant: 'error' });
         return;
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('finance');
       closeReclassifyModal();
       const glNote =
         data.postPay && Number(data.glReclassCount) > 0
@@ -1471,11 +1471,11 @@ const Account = () => {
           });
           if (!ok || !data?.ok) {
             showToast(data?.error || 'Could not record transport treasury payment.', { variant: 'error' });
-            await ws.refresh();
+            void ws.refreshDomain?.('finance');
             return;
           }
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
       } finally {
         setTreasuryPayoutSubmitting(false);
       }
@@ -1517,7 +1517,7 @@ const Account = () => {
           showToast(data?.error || 'Could not record payout for this request.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
       } finally {
         setTreasuryPayoutSubmitting(false);
       }
@@ -1640,7 +1640,7 @@ const Account = () => {
           showToast(data?.error || 'Could not reverse refund fund apply.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
         setRefundViewTarget(null);
         showToast(
           `Refund fund ${formatNgn(data.amountNgn)} taken off ${data.targetQuotationRef || 'the quotation'}.`
@@ -1704,7 +1704,7 @@ const Account = () => {
     setShowRegisterSettlementPayModal(false);
     setRegisterSettlementPayTarget(null);
     showToast('Register withdrawal paid and treasury updated.');
-    await ws.refresh();
+    void ws.refreshDomain?.('finance');
   }, [showToast, ws]);
 
   const handleDeskViewPaymentRequest = useCallback(
@@ -2462,7 +2462,7 @@ const Account = () => {
       setReceiptFinanceRow(null);
       setReceiptFinanceFocusMovementId(null);
       setPaymentCorrectionDrafts({});
-      await ws.refresh();
+      void ws.refreshDomain?.('finance');
     } finally {
       setReceiptReverseBusy(false);
     }
@@ -2736,7 +2736,7 @@ const Account = () => {
           showToast(data?.error || 'Could not update pay-from account.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
         showToast(data?.noOp ? 'No changes to apply.' : 'Pay-from account updated.');
         setExpenseOutflowEdit(null);
       } finally {
@@ -2769,7 +2769,7 @@ const Account = () => {
           showToast(data?.error || 'Could not save request on server.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
       } finally {
         setSavingPayRequest(false);
       }
@@ -2853,7 +2853,7 @@ const Account = () => {
     if (statementAccount && String(statementAccount.id) === String(acc.id)) {
       setStatementAccount(null);
     }
-    await ws.refresh();
+    void ws.refreshDomain?.('finance');
     showToast('Treasury account removed.');
   };
 
@@ -2882,7 +2882,7 @@ const Account = () => {
         showToast(data?.error || 'Could not delete receipt.', { variant: 'error' });
         return;
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('finance');
       showToast(`Deleted receipt ${rid}.`);
     },
     [canExecTreasuryDelete, showToast, ws]
@@ -2940,7 +2940,7 @@ const Account = () => {
         showToast(data?.error || 'Could not save treasury on server.', { variant: 'error' });
         return;
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('finance');
     } else {
       showToast(
         ws?.usingCachedData
@@ -3006,7 +3006,7 @@ const Account = () => {
       showToast(data?.error || 'Could not sync treasury.', { variant: 'error' });
       return;
     }
-    await ws.refresh();
+    void ws.refreshDomain?.('finance');
     setTransferForm({
       fromId: '',
       toId: '',
@@ -3050,7 +3050,7 @@ const Account = () => {
       showToast(data?.error || 'Could not delete transfer.', { variant: 'error' });
       return;
     }
-    await ws.refresh();
+    void ws.refreshDomain?.('finance');
     showToast(`Transfer ${id} removed.`);
   };
 
@@ -3486,7 +3486,7 @@ const Account = () => {
           showToast(data?.error || 'Could not delete expense.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
         showToast(`Deleted expense ${id}.`);
         setPaymentsMutateApprovalId('');
       } finally {
@@ -3549,7 +3549,7 @@ const Account = () => {
           showToast(data?.error || 'Could not delete payment request.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
         showToast(`Deleted payment request ${id}.`);
         setPaymentsMutateApprovalId('');
       } finally {
@@ -3612,7 +3612,7 @@ const Account = () => {
           showToast(data?.error || 'Could not reverse treasury payout.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
         showToast(`Treasury payout reversed for ${id}.`);
         setPaymentsMutateApprovalId('');
       } finally {
@@ -3672,7 +3672,7 @@ const Account = () => {
           showToast(data?.error || 'Could not reverse refund treasury payout.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
         showToast(`Treasury payout reversed for refund ${id}.`);
         setPaymentsMutateApprovalId('');
       } finally {
@@ -5922,7 +5922,7 @@ const Account = () => {
         treasuryAccounts={bankAccounts}
         onClose={() => setStaffRecoveryTarget(null)}
         onSaved={async () => {
-          await ws.refresh();
+          void ws.refreshDomain?.('finance');
           showToast('Staff recovery payment recorded — treasury, obligation, and case balances updated.', {
             variant: 'success',
           });
@@ -5934,7 +5934,7 @@ const Account = () => {
         treasuryAccounts={bankAccounts}
         onClose={() => setStaffObligationTarget(null)}
         onSaved={async () => {
-          await ws.refresh();
+          void ws.refreshDomain?.('finance');
           showToast('Staff loan / purchase credit payment recorded — treasury and obligation balance updated.', {
             variant: 'success',
           });

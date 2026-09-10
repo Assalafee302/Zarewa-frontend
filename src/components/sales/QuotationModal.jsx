@@ -2737,7 +2737,7 @@ const QuotationModal = ({
       if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
       showToast(`Quotation ${editData.id} revived — back in the active pipeline as Pending.`);
       await onLedgerChange?.();
-      if (typeof ws?.refresh === 'function') await ws.refresh();
+      void ws.refreshDomain?.('sales');
       if (data.quotation && typeof onQuotationRevived === 'function') onQuotationRevived(data.quotation);
     } finally {
       setReviving(false);
