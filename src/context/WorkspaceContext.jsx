@@ -173,6 +173,20 @@ function pollFailureTolerance() {
 
 const BOOTSTRAP_FETCH_TIMEOUT_MS = bootstrapFetchTimeoutMs();
 const POLL_FAILURE_TOLERANCE = pollFailureTolerance();
+const MAX_RECONNECT_BACKOFF_MS = 120_000;
+
+/**
+ * Delay before reconnect attempt `attempt` (0-based) when the link is degraded.
+ * Grows exponentially so a mill link that cannot finish a bootstrap stops being asked
+ * to start another one every tick, and caps so recovery still happens unattended.
+ * @param {number} baseMs @param {number} attempt
+ */
+export function reconnectBackoffMs(baseMs, attempt) {
+  const base = Number(baseMs) > 0 ? Number(baseMs) : 12_000;
+  const n = Number.isFinite(attempt) && attempt > 0 ? Math.floor(attempt) : 0;
+  if (n > 31) return MAX_RECONNECT_BACKOFF_MS;
+  return Math.min(base * 2 ** n, MAX_RECONNECT_BACKOFF_MS);
+}
 
 function clearBootstrapCache() {
   try {
@@ -1136,11 +1150,32 @@ export function WorkspaceProvider({ children }) {
   /** After a transient outage or slow sync, retry bootstrap until live sync is restored. */
   useEffect(() => {
     if (status !== 'degraded' && status !== 'unstable') return undefined;
-    const intervalMs = status === 'unstable' ? 12_000 : 20_000;
-    const id = window.setInterval(() => {
-      void refresh({ forceReconnect: true });
-    }, intervalMs);
-    return () => window.clearInterval(id);
+    const baseMs = status === 'unstable' ? 12_000 : 20_000;
+    let cancelled = false;
+    let timer = 0;
+    let attempt = 0;
+
+    const run = async () => {
+      // Only the first attempt skips the ETag. Later ones stay conditional so a 304
+      // can end the retry loop for a few hundred bytes instead of a whole bootstrap.
+      try {
+        await refresh({ forceReconnect: attempt === 0 });
+      } catch {
+        /* stay in the loop; the next attempt is already scheduled below */
+      }
+      if (cancelled) return;
+      attempt += 1;
+      // Chain from completion, never on a fixed interval: on a link too slow to
+      // finish a bootstrap inside one tick, an interval stacks retries that then
+      // compete for the same pipe and keep the connection from ever recovering.
+      timer = window.setTimeout(run, reconnectBackoffMs(baseMs, attempt));
+    };
+
+    timer = window.setTimeout(run, baseMs);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [status, refresh]);
 
   /** Browser regained network — try to leave soft/hard offline without waiting for the timer. */

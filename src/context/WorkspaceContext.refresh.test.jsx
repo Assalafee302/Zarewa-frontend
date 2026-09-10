@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor, act, cleanup } from '@testing-library/react';
-import { WorkspaceProvider, useWorkspace } from './WorkspaceContext.jsx';
+import { WorkspaceProvider, useWorkspace, reconnectBackoffMs } from './WorkspaceContext.jsx';
 
 const cachedBootstrap = {
   ok: true,
@@ -269,5 +269,36 @@ describe('WorkspaceProvider refresh recovery', () => {
       pollButton?.click();
     });
     expect(document.querySelector('[data-testid="status"]')?.textContent).toBe('ok');
+  });
+
+});
+
+describe('reconnectBackoffMs', () => {
+  // Kaduna failure mode: a fixed 12s retry on a link that needs longer than 12s to
+  // finish a bootstrap stacks requests onto a pipe that cannot drain them, so the
+  // connection never recovers. Backoff is what breaks that loop.
+  it('grows exponentially so a slow link is not asked to retry every tick', () => {
+    expect(reconnectBackoffMs(12_000, 0)).toBe(12_000);
+    expect(reconnectBackoffMs(12_000, 1)).toBe(24_000);
+    expect(reconnectBackoffMs(12_000, 2)).toBe(48_000);
+    expect(reconnectBackoffMs(12_000, 3)).toBe(96_000);
+  });
+
+  it('caps so an unattended tab still recovers on its own', () => {
+    expect(reconnectBackoffMs(12_000, 4)).toBe(120_000);
+    expect(reconnectBackoffMs(20_000, 10)).toBe(120_000);
+    expect(reconnectBackoffMs(12_000, 500)).toBe(120_000);
+  });
+
+  it('never returns a zero or negative delay for junk input', () => {
+    for (const [base, attempt] of [
+      [0, 0],
+      [-1, 3],
+      [NaN, 2],
+      [12_000, -5],
+      [12_000, NaN],
+    ]) {
+      expect(reconnectBackoffMs(base, attempt)).toBeGreaterThan(0);
+    }
   });
 });
