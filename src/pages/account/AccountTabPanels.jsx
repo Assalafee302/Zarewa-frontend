@@ -609,7 +609,7 @@ export function AccountTabPanels() {
                   <AccountGlManualJournalCard
                     canPost
                     showToast={showToast}
-                    onPosted={() => void ws.refresh()}
+                    onPosted={() => void ws.refreshDomain?.('finance')}
                   />
                 ) : null}
 

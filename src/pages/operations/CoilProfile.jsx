@@ -382,7 +382,7 @@ export default function CoilProfile() {
         }),
       });
       if (!ok || !data?.ok) return showToast(data?.error || 'Scrap posting failed.', { variant: 'error' });
-      await ws.refresh?.();
+      void ws.refreshDomain?.('operations');
       showToast(`Scrap posted — ${kg} kg off ${coil.coilNo}.`);
       setActionModal('');
       setScrapForm({ kg: '', meters: '', bookRef: '', reason: 'Damaged edge / offcut', note: '' });
@@ -415,7 +415,7 @@ export default function CoilProfile() {
         }),
       });
       if (!ok || !data?.ok) return showToast(data?.error || 'Could not finish roll.', { variant: 'error' });
-      await ws.refresh?.();
+      void ws.refreshDomain?.('operations');
       showToast(
         `Roll finished — ${Number(data.tailKgCleared || freeKg).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg tail cleared from stock.`
       );
@@ -457,7 +457,7 @@ export default function CoilProfile() {
         }),
       });
       if (!ok || !data?.ok) return showToast(data?.error || 'Could not undo finish roll.', { variant: 'error' });
-      await ws.refresh?.();
+      void ws.refreshDomain?.('operations');
       await refreshProductionHolders();
       showToast(
         `Finish roll undone — ${Number(data.kgRestored || 0).toLocaleString(undefined, {
@@ -488,7 +488,7 @@ export default function CoilProfile() {
         }),
       });
       if (!ok || !data?.ok) return showToast(data?.error || 'Return-to-stock failed.', { variant: 'error' });
-      await ws.refresh?.();
+      void ws.refreshDomain?.('operations');
       showToast(`Return posted — ${kg} kg added back on ${coil.coilNo}.`);
       setActionModal('');
       setReturnForm({ kg: '', reason: 'Unused from production', note: '' });
@@ -532,7 +532,7 @@ export default function CoilProfile() {
         showToast(data?.error || 'Could not recalculate production stock.', { variant: 'error' });
         return;
       }
-      await ws.refresh?.();
+      void ws.refreshDomain?.('operations');
       await refreshProductionHolders();
       const count = Number(data.recalculatedJobCount || 0);
       const book = data.bookReconcile;
@@ -573,7 +573,7 @@ export default function CoilProfile() {
         showToast(data?.error || 'Could not reconcile reservation.', { variant: 'error' });
         return;
       }
-      await ws.refresh?.();
+      void ws.refreshDomain?.('operations');
       await refreshProductionHolders();
       if (data.unchanged) {
         showToast('Reserved kg already matches active production jobs.', { variant: 'info' });

@@ -1100,7 +1100,7 @@ const Procurement = () => {
         procurementNote =
           ' Supplier fully paid — assign transport on the PO before marking in transit.';
       }
-      await ws.refresh?.();
+      void ws.refreshDomain?.('procurement');
       setApPayBusy(false);
     } else {
       showToast(

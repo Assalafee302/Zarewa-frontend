@@ -548,7 +548,7 @@ const CustomerDashboard = () => {
           showToast(data?.error || 'Refund failed on server.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
+        void ws.refreshDomain?.('finance');
       } else if (!ws?.hasWorkspaceData) {
         const res = recordRefundAdvance({
           customerID: customer.customerID,
@@ -900,11 +900,11 @@ const CustomerDashboard = () => {
         const linkData = linkRes.data || linkRes;
         if (!linkRes.ok || !linkData?.ok) {
           showToast(linkData?.error || 'Profile saved but staff link failed.', { variant: 'error' });
-          await ws.refresh();
+          void ws.refreshDomain?.('finance');
           return;
         }
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('finance');
       setCustomerEditApprovalId('');
       setShowEdit(false);
       showToast(staffLinkChanged ? 'Customer profile and staff link updated.' : 'Customer profile updated.');
@@ -1731,7 +1731,7 @@ const CustomerDashboard = () => {
                           }
                           showToast('Collections work item created for finance.', { variant: 'success' });
                           setCollectionsNote('');
-                          await ws.refresh?.();
+                          void ws.refreshDomain?.('finance');
                         } finally {
                           setCollectionsBusy(false);
                         }

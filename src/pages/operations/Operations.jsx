@@ -1825,12 +1825,12 @@ const Operations = () => {
               : base,
             { variant: 'error' }
           );
-          if (saved > 0) await ws.refresh();
+          if (saved > 0) void ws.refreshDomain?.('operations');
           return;
         }
         saved += 1;
       }
-      await ws.refresh();
+      void ws.refreshDomain?.('operations');
       setCoilRequestForm({
         unit: 'kg',
         rows: [{ gauge: '', colour: '', materialType: '', requestedKg: '', unit: 'kg' }],
