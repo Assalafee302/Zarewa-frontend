@@ -225,6 +225,14 @@ const ReceiptModal = ({
     ws?.session,
   ]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    // Bank/cash pickers live on the sales pack now — warm it if shell left accounts empty.
+    if (!treasuryList.length) {
+      void ws?.ensureDomainLoaded?.('sales');
+    }
+  }, [isOpen, treasuryList.length, ws]);
+
   const defaultAccountId = treasuryList[0]?.id ?? '';
 
   const [qSearch, setQSearch] = useState('');

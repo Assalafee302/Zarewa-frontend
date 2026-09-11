@@ -270,13 +270,21 @@ const Sales = () => {
 
   const ledgerSyncKey = ledgerNonce + (ws?.refreshEpoch ?? 0);
 
-  const onLedgerSynced = useCallback(async () => {
+  const onLedgerSynced = useCallback(async (opts = {}) => {
     bumpLedger();
     if (!wsCanMutate) return;
     // Shell refresh alone does not reload desk arrays — force sales snapshot so new quotes/receipts appear.
-    await ws?.ensureDomainLoaded?.('sales', { force: true });
-    // Refunds also live on the finance pay queue — keep cashier desk in sync after credit apply.
-    await ws?.ensureDomainLoaded?.('finance', { force: true });
+    // Quotation-only saves can skip finance: that pack is large and blocked "save → add payment".
+    // Pass `domains: []` to skip domain reloads when the row was already merged into the snapshot.
+    const domains = Object.prototype.hasOwnProperty.call(opts || {}, 'domains')
+      ? (Array.isArray(opts.domains) ? opts.domains : [])
+          .map((d) => String(d || '').trim().toLowerCase())
+          .filter(Boolean)
+      : ['sales', 'finance'];
+    for (const domain of domains) {
+      await ws?.ensureDomainLoaded?.(domain, { force: true });
+    }
+    if (opts?.skipShellRefresh) return;
     await wsRefresh?.();
   }, [bumpLedger, wsCanMutate, wsRefresh, ws?.ensureDomainLoaded]);
 

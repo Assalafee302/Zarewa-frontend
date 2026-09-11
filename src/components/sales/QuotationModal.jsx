@@ -2632,7 +2632,7 @@ const QuotationModal = ({
             );
           }
         }
-        await onLedgerChange?.();
+        await onLedgerChange?.({ domains: [], skipShellRefresh: true });
         abandonUnsavedAndRun(() => onClose());
       } finally {
         setSaving(false);
@@ -2673,7 +2673,7 @@ const QuotationModal = ({
       if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
       setQuotationEditApprovalId('');
       showToast(`Material details updated on ${editData.id} (totals unchanged).`);
-      await onLedgerChange?.();
+      await onLedgerChange?.({ domains: [], skipShellRefresh: true });
       abandonUnsavedAndRun(() => onClose());
     } finally {
       setSavingMaterial(false);
@@ -2715,7 +2715,7 @@ const QuotationModal = ({
       }
       if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
       showToast('MD below-floor approval recorded.');
-      await onLedgerChange?.();
+      await onLedgerChange?.({ domains: [], skipShellRefresh: true });
       abandonUnsavedAndRun(() => onClose());
     } finally {
       setMdApproving(false);
@@ -2736,7 +2736,7 @@ const QuotationModal = ({
       }
       if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
       showToast(`Quotation ${editData.id} revived — back in the active pipeline as Pending.`);
-      await onLedgerChange?.();
+      await onLedgerChange?.({ domains: [], skipShellRefresh: true });
       void ws.refreshDomain?.('sales');
       if (data.quotation && typeof onQuotationRevived === 'function') onQuotationRevived(data.quotation);
     } finally {
