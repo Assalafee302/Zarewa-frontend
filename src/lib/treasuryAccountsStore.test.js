@@ -39,16 +39,28 @@ describe('treasuryAccountsForWorkspace', () => {
     expect(list[0].name).toBe('Kaduna Main');
   });
 
-  it('excludes accounts with empty branchId from a branch workspace', () => {
+  it('includes unassigned accounts on the default workspace branch', () => {
     const scoped = {
       treasuryAccounts: [
         { id: 1, name: 'Legacy', bankName: 'GTBank', branchId: '', type: 'Bank', accNo: '1' },
         { id: 2, name: 'Kaduna', bankName: 'GTBank', branchId: 'BR-KD', type: 'Bank', accNo: '2' },
+        { id: 3, name: 'Yola', bankName: 'Zenith', branchId: 'BR-YL', type: 'Bank', accNo: '3' },
       ],
     };
     const list = treasuryAccountsForWorkspace(scoped, { currentBranchId: 'BR-KD' });
+    expect(list.map((a) => a.name).sort()).toEqual(['Kaduna', 'Legacy']);
+  });
+
+  it('excludes unassigned accounts from a non-default branch workspace', () => {
+    const scoped = {
+      treasuryAccounts: [
+        { id: 1, name: 'Legacy', bankName: 'GTBank', branchId: '', type: 'Bank', accNo: '1' },
+        { id: 2, name: 'Yola', bankName: 'Zenith', branchId: 'BR-YL', type: 'Bank', accNo: '2' },
+      ],
+    };
+    const list = treasuryAccountsForWorkspace(scoped, { currentBranchId: 'BR-YL' });
     expect(list).toHaveLength(1);
-    expect(list[0].name).toBe('Kaduna');
+    expect(list[0].name).toBe('Yola');
   });
 
   it('workspaceTreasuryBranchId prefers session branch over ALL scope', () => {

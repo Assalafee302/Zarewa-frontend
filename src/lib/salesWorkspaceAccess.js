@@ -6,6 +6,7 @@ export const SALES_ROLE_LABELS = {
   finance_manager: 'Head of Accounts',
   sales_manager: 'Branch Manager',
   sales_staff: 'Sales officer',
+  cashier: 'Cashier',
   procurement_officer: 'Procurement officer',
   operations_officer: 'Operations Officer (Store)',
   viewer: 'Read-only viewer',

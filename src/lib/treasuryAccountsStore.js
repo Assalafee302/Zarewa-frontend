@@ -38,9 +38,11 @@ export function workspaceTreasuryBranchId(session, opts = {}) {
 /**
  * Treasury accounts for payment / receipt pickers — scoped to the active workspace branch.
  * Bootstrap may include every branch when HQ "view all" is on; pickers must not mix branches.
+ * Unassigned accounts (empty branchId) match DEFAULT_BRANCH_ID on the server when posting —
+ * include them when the workspace is on that default branch.
  * @param {{ treasuryAccounts?: object[]; branchScope?: string } | null | undefined} snapshot
  * @param {{ currentBranchId?: string; viewAllBranches?: boolean } | null | undefined} session
- * @param {{ branchScope?: string | null; viewAllBranches?: boolean } | null | undefined} [opts]
+ * @param {{ branchScope?: string | null; viewAllBranches?: boolean; defaultBranchId?: string } | null | undefined} [opts]
  */
 export function treasuryAccountsForWorkspace(snapshot, session, opts = {}) {
   const accounts = treasuryAccountsFromSnapshot(snapshot);
@@ -48,7 +50,13 @@ export function treasuryAccountsForWorkspace(snapshot, session, opts = {}) {
     branchScope: snapshot?.branchScope ?? opts.branchScope,
   });
   if (!branchId) return accounts;
-  return accounts.filter((a) => String(a.branchId ?? '').trim() === branchId);
+  const defaultBranchId = String(opts.defaultBranchId || 'BR-KD').trim() || 'BR-KD';
+  return accounts.filter((a) => {
+    const ab = String(a.branchId ?? '').trim();
+    if (ab === branchId) return true;
+    if (!ab && branchId === defaultBranchId) return true;
+    return false;
+  });
 }
 
 /** @param {string} branchId */

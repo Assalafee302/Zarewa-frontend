@@ -237,7 +237,11 @@ export function SalesQuotationsList({
                             }}
                             editDisabled={!canEditQuotation(q, salesRole)}
                             editTitle={quotationEditBlockedReason(q, salesRole) ?? ''}
-                            onAddPayment={() => openAddPaymentForQuotation(q)}
+                            onAddPayment={
+                              ws?.hasPermission?.('receipts.post')
+                                ? () => openAddPaymentForQuotation(q)
+                                : undefined
+                            }
                             onReviewAudit={
                               ws?.hasPermission?.('manager.audit') ||
                               ['admin', 'md', 'ceo'].includes(ws?.session?.user?.roleKey)
@@ -362,7 +366,18 @@ export function SalesReceiptsList({
   setSelectedItem,
   setReceiptAccessMode,
   setShowReceiptModal,
+  canPostReceipts = false,
 }) {
+  const openReceiptRow = (r) => {
+    // Cashiers / sales posters: primary click starts a new payment on the quote (not view-only).
+    if (canPostReceipts) {
+      openAddPaymentForReceiptRow(r);
+      return;
+    }
+    setSelectedItem(r);
+    setReceiptAccessMode('view');
+    setShowReceiptModal(true);
+  };
   return (
                   <SalesListTableFrame
                     toolbar={
@@ -432,12 +447,10 @@ export function SalesReceiptsList({
                         items={filteredMergedReceipts}
                         itemKey={(r) => `rc-${r.id}`}
                         openKey={actionMenuKey}
-                        onView={(r) => {
-                          setSelectedItem(r);
-                          setReceiptAccessMode('view');
-                          setShowReceiptModal(true);
-                        }}
-                        viewLabel={(r) => `View payment ${r.id}`}
+                        onView={openReceiptRow}
+                        viewLabel={(r) =>
+                          canPostReceipts ? `Add payment for ${r.id}` : `View payment ${r.id}`
+                        }
                         renderMenu={(r) => (
                           <SalesRowMenu
                             rowKey={`rc-${r.id}`}
@@ -450,7 +463,9 @@ export function SalesReceiptsList({
                               setShowReceiptModal(true);
                             }}
                             showEdit={false}
-                            onAddPayment={() => openAddPaymentForReceiptRow(r)}
+                            onAddPayment={
+                              canPostReceipts ? () => openAddPaymentForReceiptRow(r) : undefined
+                            }
                             onDelete={
                               canDeleteSalesRecord ? () => deleteReceipt(String(r.id || '').trim()) : undefined
                             }

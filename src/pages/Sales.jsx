@@ -1013,13 +1013,21 @@ const Sales = () => {
       showToast('System offline (read-only). Reconnect, refresh, then try again.', { variant: 'error' });
       return;
     }
+    if (!ws?.hasPermission?.('receipts.post')) {
+      showToast('Your role cannot record payments in Sales.', { variant: 'error' });
+      return;
+    }
     setSelectedItem(q);
     setReceiptAccessMode('add');
     setShowReceiptModal(true);
-  }, [showToast, ws?.canMutate]);
+  }, [showToast, ws?.canMutate, ws?.hasPermission]);
 
   const openAddPaymentForReceiptRow = useCallback(
     (r) => {
+      if (!ws?.hasPermission?.('receipts.post')) {
+        showToast('Your role cannot record payments in Sales.', { variant: 'error' });
+        return;
+      }
       const ref = String(r?.quotationRef || '').trim();
       const q = quotationsRef.current.find((x) => String(x.id || '').trim() === ref);
       if (q) {
@@ -1033,7 +1041,7 @@ const Sales = () => {
       setReceiptAccessMode('add');
       setShowReceiptModal(true);
     },
-    [openAddPaymentForQuotation, showToast]
+    [openAddPaymentForQuotation, showToast, ws?.hasPermission]
   );
 
   const openRefundCreateForQuotation = useCallback(
@@ -1064,6 +1072,10 @@ const Sales = () => {
     }
     if (salesTab === 'quotations' && ws?.blocksBranchScopedCreate) {
       showToast(ws.branchScopedCreateMessage, { variant: 'error', duration: 12_000 });
+      return;
+    }
+    if (salesTab === 'receipts' && !ws?.hasPermission?.('receipts.post')) {
+      showToast('Your role cannot record payments in Sales.', { variant: 'error' });
       return;
     }
     setSelectedItem(null);
@@ -1452,11 +1464,16 @@ const Sales = () => {
           <SalesDeskToolbar
             salesTab={salesTab}
             searchQuery={searchQuery}
-            createDisabled={salesTab === 'quotations' && Boolean(ws?.blocksBranchScopedCreate)}
+            createDisabled={
+              (salesTab === 'quotations' && Boolean(ws?.blocksBranchScopedCreate)) ||
+              (salesTab === 'receipts' && !ws?.hasPermission?.('receipts.post'))
+            }
             createTitle={
               salesTab === 'quotations' && ws?.blocksBranchScopedCreate
                 ? ws.branchScopedCreateMessage
-                : undefined
+                : salesTab === 'receipts' && !ws?.hasPermission?.('receipts.post')
+                  ? 'Your role cannot record payments in Sales.'
+                  : undefined
             }
             onCreate={openNewModal}
             onAdvance={() => {
@@ -1918,6 +1935,7 @@ const Sales = () => {
                     setSelectedItem={setSelectedItem}
                     setReceiptAccessMode={setReceiptAccessMode}
                     setShowReceiptModal={setShowReceiptModal}
+                    canPostReceipts={Boolean(ws?.hasPermission?.('receipts.post'))}
                   />
                 ) : null}
 

@@ -227,9 +227,19 @@ const ReceiptModal = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    // Bank/cash pickers live on the sales pack now — warm it if shell left accounts empty.
+    // Bank/cash pickers live on the sales pack — warm sales (and finance as fallback).
     if (!treasuryList.length) {
-      void ws?.ensureDomainLoaded?.('sales');
+      void (async () => {
+        await ws?.ensureDomainLoaded?.('sales');
+        const stillEmpty =
+          !(
+            treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
+              branchScope: ws?.branchScope,
+              viewAllBranches: ws?.viewAllBranches,
+            }) || []
+          ).length;
+        if (stillEmpty) void ws?.ensureDomainLoaded?.('finance');
+      })();
     }
   }, [isOpen, treasuryList.length, ws]);
 
@@ -747,6 +757,10 @@ const ReceiptModal = ({
   const saveReceipt = async (e) => {
     e.preventDefault();
     if (readOnly) return;
+    if (ws?.hasPermission && !ws.hasPermission('receipts.post')) {
+      showToast('Your role cannot record payments in Sales.', { variant: 'error' });
+      return;
+    }
     if (!bankDepositId && treasuryList.length === 0 && recommendedCreditApplyNgn <= 0) {
       showToast('Configure treasury accounts first.', { variant: 'error' });
       return;
@@ -1697,8 +1711,15 @@ const ReceiptModal = ({
             disabled={
               readOnly ||
               isPosting ||
+              !ws?.canMutate ||
               (useLedgerApi && Boolean(quotationLedgerHold)) ||
-              (useLedgerApi && voucherInLockedPeriod)
+              (useLedgerApi && voucherInLockedPeriod) ||
+              (Boolean(ws?.hasPermission) && !ws.hasPermission('receipts.post'))
+            }
+            title={
+              ws?.hasPermission && !ws.hasPermission('receipts.post')
+                ? 'Your role cannot record payments'
+                : undefined
             }
           >
             <Save size={12} /> {isPosting ? 'Posting…' : 'Post payment'}
