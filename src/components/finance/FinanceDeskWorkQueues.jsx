@@ -100,6 +100,19 @@ import {
   quotationColourGaugeLabel,
   receiptDateLabel,
 } from "../../lib/quotationColourGauge.js";
+import { sortQueueOldestFirst } from "../../lib/deskQueueOrder.js";
+
+/**
+ * How many rows a desk queue renders at once.
+ *
+ * These lists used to cap at 15–25 while sorted newest-first, which meant the rows that
+ * fell off the bottom were always the ones that had waited longest, with no control to
+ * reach them. Now that the queues drain oldest-first the cap serves a different purpose:
+ * it bounds the DOM if a queue ever runs away, rather than deciding which work is
+ * reachable. A pending queue past this length is an operational problem, and the honest
+ * count above each list already surfaces it.
+ */
+const DESK_QUEUE_CAP = 100;
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -320,15 +333,10 @@ export function FinanceDeskWorkQueues({
 
   const pendingReceiptsAll = useMemo(
     () =>
-      receiptsWithCuttingMeta
-        .filter((r) => isReceiptPendingClearance(r))
-        .slice()
-        .sort((a, b) => {
-          const aMiss = receiptLacksCuttingList(a) ? 0 : 1;
-          const bMiss = receiptLacksCuttingList(b) ? 0 : 1;
-          if (aMiss !== bMiss) return aMiss - bMiss;
-          return String(b.dateISO || b.date || '').localeCompare(String(a.dateISO || a.date || ''));
-        }),
+      sortQueueOldestFirst(
+        receiptsWithCuttingMeta.filter((r) => isReceiptPendingClearance(r)),
+        { priority: receiptLacksCuttingList }
+      ),
     [receiptsWithCuttingMeta],
   );
 
@@ -340,7 +348,7 @@ export function FinanceDeskWorkQueues({
           deskSearchMatches(deskQuery, [r.id, r.customer, r.customerID, r.quotationRef])
         )
       : pendingReceiptsAll;
-    return deskQuery ? list : list.slice(0, 25);
+    return deskQuery ? list : list.slice(0, DESK_QUEUE_CAP);
   }, [pendingReceiptsAll, deskQuery]);
 
   const pendingReceiptsWithoutCuttingList = useMemo(
@@ -355,13 +363,15 @@ export function FinanceDeskWorkQueues({
 
   const approvedPaymentsAll = useMemo(
     () =>
-      paymentRequests.filter((pr) => {
-        const st = String(pr.approvalStatus || "").trim();
-        if (st !== "Approved") return false;
-        const req = Math.round(Number(pr.amountRequestedNgn) || 0);
-        const paid = Math.round(Number(pr.paidAmountNgn) || 0);
-        return effectiveOutstandingNgn(req, paid) > 0;
-      }),
+      sortQueueOldestFirst(
+        paymentRequests.filter((pr) => {
+          const st = String(pr.approvalStatus || "").trim();
+          if (st !== "Approved") return false;
+          const req = Math.round(Number(pr.amountRequestedNgn) || 0);
+          const paid = Math.round(Number(pr.paidAmountNgn) || 0);
+          return effectiveOutstandingNgn(req, paid) > 0;
+        })
+      ),
     [paymentRequests],
   );
 
@@ -378,11 +388,11 @@ export function FinanceDeskWorkQueues({
           ])
         )
       : approvedPaymentsAll;
-    return deskQuery ? list : list.slice(0, 20);
+    return deskQuery ? list : list.slice(0, DESK_QUEUE_CAP);
   }, [approvedPaymentsAll, deskQuery]);
 
   const approvedRefundsAll = useMemo(
-    () => refundsOnFinanceRefundQueue(refunds),
+    () => sortQueueOldestFirst(refundsOnFinanceRefundQueue(refunds)),
     [refunds],
   );
 
@@ -398,11 +408,11 @@ export function FinanceDeskWorkQueues({
           ])
         )
       : approvedRefundsAll;
-    return deskQuery ? list : list.slice(0, 15);
+    return deskQuery ? list : list.slice(0, DESK_QUEUE_CAP);
   }, [approvedRefundsAll, deskQuery]);
 
   const approvedRegisterSettlementsAll = useMemo(
-    () => registerSettlementsAwaitingPayment(registerSettlements),
+    () => sortQueueOldestFirst(registerSettlementsAwaitingPayment(registerSettlements)),
     [registerSettlements],
   );
 
@@ -412,15 +422,17 @@ export function FinanceDeskWorkQueues({
           deskSearchMatches(deskQuery, [s.settlementId, s.payeeName, s.partyName, s.registerName])
         )
       : approvedRegisterSettlementsAll;
-    return deskQuery ? list : list.slice(0, 15);
+    return deskQuery ? list : list.slice(0, DESK_QUEUE_CAP);
   }, [approvedRegisterSettlementsAll, deskQuery]);
 
   const poTransportAwaitingAll = useMemo(
     () =>
-      (Array.isArray(ws?.snapshot?.poTransportAwaitingTreasury)
-        ? ws.snapshot.poTransportAwaitingTreasury
-        : []
-      ).filter((row) => Math.max(0, Number(row.outstandingNgn) || 0) > 0),
+      sortQueueOldestFirst(
+        (Array.isArray(ws?.snapshot?.poTransportAwaitingTreasury)
+          ? ws.snapshot.poTransportAwaitingTreasury
+          : []
+        ).filter((row) => Math.max(0, Number(row.outstandingNgn) || 0) > 0)
+      ),
     [ws?.snapshot?.poTransportAwaitingTreasury],
   );
 
@@ -436,16 +448,22 @@ export function FinanceDeskWorkQueues({
           ])
         )
       : poTransportAwaitingAll;
-    return deskQuery ? list : list.slice(0, 15);
+    return deskQuery ? list : list.slice(0, DESK_QUEUE_CAP);
   }, [poTransportAwaitingAll, deskQuery]);
 
-  const orphanHaulageRows = useMemo(
+  const orphanHaulageRowsAll = useMemo(
     () =>
-      (Array.isArray(ws?.snapshot?.orphanHaulageTreasuryMovements)
-        ? ws.snapshot.orphanHaulageTreasuryMovements
-        : []
-      ).slice(0, 15),
+      sortQueueOldestFirst(
+        Array.isArray(ws?.snapshot?.orphanHaulageTreasuryMovements)
+          ? ws.snapshot.orphanHaulageTreasuryMovements
+          : []
+      ),
     [ws?.snapshot?.orphanHaulageTreasuryMovements],
+  );
+
+  const orphanHaulageRows = useMemo(
+    () => orphanHaulageRowsAll.slice(0, DESK_QUEUE_CAP),
+    [orphanHaulageRowsAll],
   );
 
   const staffRecoveriesDue = useMemo(
