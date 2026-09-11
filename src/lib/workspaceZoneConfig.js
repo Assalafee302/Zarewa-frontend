@@ -1,6 +1,6 @@
 import { resolveDeskProfile, DESK_PROFILES } from './workspaceDeskNav.js';
 import { TASK_QUEUE_TABS, isValidTaskQueueTab } from './workspaceTaskQueue.js';
-import { canAccessModuleWithPermissions } from './moduleAccess.js';
+import { canAccessModuleWithPermissions, userMayAccessSalesModule } from './moduleAccess.js';
 import { userMayAccessChairmanOfficeClient } from './chairmanOfficeAccess.js';
 import {
   WORKSPACE_CATEGORIES,
@@ -115,6 +115,7 @@ const APPS_BY_PROFILE = {
     { id: 'monitoring', label: 'Monitoring', path: '/workspace/monitoring' },
   ],
   [DESK_PROFILES.office]: [
+    { id: 'sales', label: 'Sales', path: '/sales' },
     { id: 'accounts', label: 'Accounts', path: '/accounts' },
     { id: 'accounting', label: 'Accounting', path: '/accounting' },
     { id: 'hr', label: 'HR', path: '/hr' },
@@ -138,6 +139,7 @@ export function getWorkspaceZoneConfig(ctx = {}) {
   const perms = ctx.permissions || [];
   const apps = (APPS_BY_PROFILE[profile] || APPS_BY_PROFILE[DESK_PROFILES.staff]).filter((app) => {
     if (app.id === 'chairman') return userMayAccessChairmanOfficeClient(ctx.roleKey, perms);
+    if (app.id === 'sales') return userMayAccessSalesModule(ctx.roleKey, perms);
     const moduleKey = APP_MODULE_BY_ID[app.id];
     if (!moduleKey) return Boolean(app.path);
     return canAccessModuleWithPermissions(perms, moduleKey);

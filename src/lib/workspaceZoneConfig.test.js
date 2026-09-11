@@ -46,6 +46,19 @@ describe('workspaceZoneConfig', () => {
     expect(staffHr.apps.some((a) => a.path === '/my-profile')).toBe(true);
   });
 
+  it('shows Sales app for cashier with sales desk keys', () => {
+    const tillOnly = getWorkspaceZoneConfig({
+      roleKey: 'cashier',
+      permissions: ['cashier.desk.view', 'receipts.post', 'finance.pay'],
+    });
+    expect(tillOnly.apps.some((a) => a.path === '/sales')).toBe(false);
+    const withSales = getWorkspaceZoneConfig({
+      roleKey: 'cashier',
+      permissions: ['cashier.desk.view', 'receipts.post', 'sales.view', 'quotations.manage'],
+    });
+    expect(withSales.apps.some((a) => a.path === '/sales')).toBe(true);
+  });
+
   it('maps executive to activity with high_value chip', () => {
     const cfg = getWorkspaceZoneConfig({ roleKey: 'md' });
     expect(cfg.defaultZone).toBe('activity');

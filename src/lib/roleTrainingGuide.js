@@ -99,20 +99,24 @@ const ROLE_TRAINING = {
   },
   cashier: {
     title: 'Cashier guide',
-    subtitle: 'Finance — confirm receipts, pay approved refunds, and execute treasury payouts.',
+    subtitle: 'Sales desk plus Finance — quotations, receipts, cutting lists, and treasury payouts.',
     steps: [
+      {
+        heading: 'Sales',
+        body: 'Open **Sales** (`/sales`) to create customers, quotations, receipts, and cutting lists — the same desk sales officers use.',
+      },
       {
         heading: 'Finance',
         body: 'Open **Finance** (`/accounts`) each day. Use the **Desk** tab for work queues, **Receipts** to confirm payment received, and **Payments** for payouts — same module as admin, without the Accounting desk.',
       },
       {
         heading: 'Record & confirm receipts',
-        body: 'Sales officers post new receipts; you **confirm payment received** on **Finance → Receipts** when bank/cash evidence matches.',
+        body: 'You may **post receipts on Sales**. Then **confirm payment received** on **Finance → Receipts** when bank/cash evidence matches.',
         tips: ['Amounts ≥ ₦100,000 require typing the amount twice.', 'Double-check branch and customer before saving.'],
       },
       {
         heading: 'Refunds & payments',
-        body: 'You can **request** refunds from Finance workflows but **cannot approve** them. After manager approval, pay refunds from **Finance → Desk** (recommended) or **Payment register**.',
+        body: 'You can **request** refunds from Sales but **cannot approve** them. After manager approval, pay refunds from **Finance → Desk** (recommended) or **Payment register**.',
       },
       {
         heading: 'End of day',
@@ -120,6 +124,7 @@ const ROLE_TRAINING = {
       },
     ],
     quickLinks: [
+      { label: 'Sales', path: '/sales' },
       { label: 'Finance', path: '/accounts' },
       { label: 'Desk queues', path: '/accounts?tab=desk' },
       { label: 'Receipts', path: '/accounts?tab=receipts' },

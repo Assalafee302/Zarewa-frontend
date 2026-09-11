@@ -14,6 +14,11 @@ describe('workspaceDomainPrefetch', () => {
     expect(accessibleWorkspaceDomains(perms, 'cashier')).toEqual(['finance']);
   });
 
+  it('accessibleWorkspaceDomains includes sales for cashier with sales desk keys', () => {
+    const perms = ['cashier.desk.view', 'finance.pay', 'receipts.post', 'sales.view', 'quotations.manage'];
+    expect(accessibleWorkspaceDomains(perms, 'cashier')).toEqual(['finance', 'sales']);
+  });
+
   it('inferLoadedWorkspaceDomains skips deferred empty shell arrays', () => {
     const loaded = inferLoadedWorkspaceDomains({
       ok: true,
