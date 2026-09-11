@@ -1,0 +1,27 @@
+# Zarewa ERP robots.txt
+# Generated for SEO and web crawler guidance
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /.env
+Disallow: /node_modules/
+Disallow: /dist/
+
+# Allow search engines to crawl static assets
+Allow: /assets/
+Allow: /fonts/
+
+# Google specific
+User-agent: Googlebot
+Allow: /
+
+# Bing specific
+User-agent: Bingbot
+Allow: /
+
+# Sitemap location
+Sitemap: https://zarewa.app/sitemap.xml
+
+# Crawl delay and request rate
+Crawl-delay: 1

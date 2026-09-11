@@ -101,6 +101,8 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 900,
+    sourcemap: false,
+    minify: 'esbuild',
     modulePreload: {
       resolveDependencies(filename, deps) {
         // Auth boot: React + session runtime + light UI vendors. Never desk/AI/xlsx/charts/motion.

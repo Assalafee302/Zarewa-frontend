@@ -3,15 +3,69 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Zarewa ERP: Comprehensive enterprise resource planning system for managing sales, inventory, finance, HR, and operations." />
     <meta name="theme-color" content="#134e4a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="icon" type="image/png" href="/zarewa-logo.png" />
+    <meta name="apple-mobile-web-app-title" content="Zarewa" />
+    <meta name="application-name" content="Zarewa ERP" />
+    <meta name="keywords" content="ERP, enterprise resource planning, sales management, inventory management, financial management, HR system" />
+    <meta property="og:title" content="Zarewa ERP" />
+    <meta property="og:description" content="Enterprise resource planning system for modern businesses" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:alt" content="Zarewa ERP Logo" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Zarewa ERP" />
+    <meta name="twitter:description" content="Enterprise resource planning system for modern businesses" />
+    <meta name="twitter:image" content="/og-image.png" />
+    <meta name="robots" content="index, follow" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="canonical" href="https://zarewa.app" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="/zarewa-logo.png" sizes="any" />
+    <link rel="apple-touch-icon" href="/zarewa-logo.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <title>Zarewa ERP</title>
+    <title>Zarewa ERP | Enterprise Resource Planning System</title>
     <!-- Self-hosted fonts (no Google CDN round-trip on mill networks). -->
     <link rel="stylesheet" href="/fonts/zarewa-fonts.css" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="/fonts/zarewa-fonts.css"></noscript>
+    <!-- Structured data for search engines -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Zarewa ERP",
+      "description": "Comprehensive enterprise resource planning system for managing sales, inventory, finance, HR, and operations",
+      "url": "https://zarewa.app",
+      "applicationCategory": "BusinessApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "screenshot": "https://zarewa.app/og-image.png",
+      "author": {
+        "@type": "Organization",
+        "name": "Zarewa",
+        "url": "https://zarewa.app"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Zarewa",
+      "url": "https://zarewa.app",
+      "logo": "https://zarewa.app/zarewa-logo.png",
+      "description": "Enterprise resource planning system for modern businesses",
+      "potentialAction": {
+        "@type": "UseAction",
+        "object": "Enterprise Resource Planning System"
+      }
+    }
+    </script>
     <style>
       /* Pre-React boot screen: shown instantly from the raw HTML while the JS bundle downloads
          and parses. On a slow connection this can be the only thing on screen for a while —
@@ -104,9 +158,13 @@
       </div>
     </div>
     <noscript>
-      <p style="padding:2rem;font-family:system-ui,sans-serif;color:#134e4a">
-        Zarewa requires JavaScript. Enable it in your browser to sign in.
-      </p>
+      <div style="padding:2rem;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#f4f6f5;min-height:100vh;display:flex;align-items:center;justify-content:center">
+        <div style="max-width:32rem;text-align:center">
+          <h1 style="color:#134e4a;font-size:1.5rem;font-weight:700;margin:0">Zarewa ERP</h1>
+          <p style="color:#475569;margin-top:1rem;line-height:1.5">Zarewa requires JavaScript to be enabled in your browser. Please enable JavaScript to use this application.</p>
+          <p style="color:#64748b;font-size:0.875rem;margin-top:1rem">If you continue to have issues, please contact your system administrator.</p>
+        </div>
+      </div>
     </noscript>
     <script>
       window.setTimeout(function () {
