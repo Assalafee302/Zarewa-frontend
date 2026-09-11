@@ -9,19 +9,26 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Zarewa" />
     <meta name="application-name" content="Zarewa ERP" />
-    <meta name="keywords" content="ERP, enterprise resource planning, sales management, inventory management, financial management, HR system" />
+    <!--
+      Staff application, not a public site. Indexing it would publish the login page and
+      route structure for no gain, so crawling is refused here and in robots.txt.
+    -->
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+    <!--
+      Kept deliberately: these drive the link preview when staff paste a desk URL into
+      WhatsApp or a chat. Nothing here is crawled — it is rendered by the app the link is
+      shared in. The logo is the real file in public/; there is no og-image.png.
+    -->
     <meta property="og:title" content="Zarewa ERP" />
-    <meta property="og:description" content="Enterprise resource planning system for modern businesses" />
+    <meta property="og:description" content="Sales, production, finance and HR for Zarewa mills." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/og-image.png" />
-    <meta property="og:image:alt" content="Zarewa ERP Logo" />
+    <meta property="og:image" content="/zarewa-logo.png" />
+    <meta property="og:image:alt" content="Zarewa" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Zarewa ERP" />
-    <meta name="twitter:description" content="Enterprise resource planning system for modern businesses" />
-    <meta name="twitter:image" content="/og-image.png" />
-    <meta name="robots" content="index, follow" />
+    <meta name="twitter:description" content="Sales, production, finance and HR for Zarewa mills." />
+    <meta name="twitter:image" content="/zarewa-logo.png" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <link rel="canonical" href="https://zarewa.app" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate icon" type="image/png" href="/zarewa-logo.png" sizes="any" />
     <link rel="apple-touch-icon" href="/zarewa-logo.png" />
@@ -30,42 +37,6 @@
     <!-- Self-hosted fonts (no Google CDN round-trip on mill networks). -->
     <link rel="stylesheet" href="/fonts/zarewa-fonts.css" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="/fonts/zarewa-fonts.css"></noscript>
-    <!-- Structured data for search engines -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "Zarewa ERP",
-      "description": "Comprehensive enterprise resource planning system for managing sales, inventory, finance, HR, and operations",
-      "url": "https://zarewa.app",
-      "applicationCategory": "BusinessApplication",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "screenshot": "https://zarewa.app/og-image.png",
-      "author": {
-        "@type": "Organization",
-        "name": "Zarewa",
-        "url": "https://zarewa.app"
-      }
-    }
-    </script>
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Zarewa",
-      "url": "https://zarewa.app",
-      "logo": "https://zarewa.app/zarewa-logo.png",
-      "description": "Enterprise resource planning system for modern businesses",
-      "potentialAction": {
-        "@type": "UseAction",
-        "object": "Enterprise Resource Planning System"
-      }
-    }
-    </script>
     <style>
       /* Pre-React boot screen: shown instantly from the raw HTML while the JS bundle downloads
          and parses. On a slow connection this can be the only thing on screen for a while —

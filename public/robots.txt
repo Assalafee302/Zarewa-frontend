@@ -1,27 +1,11 @@
-# Zarewa ERP robots.txt
-# Generated for SEO and web crawler guidance
+# Zarewa ERP — internal staff application, not a public site.
+#
+# Every route behind this host is an authenticated desk for mill staff in Kaduna and
+# Yola. There is no search traffic to win here, and indexing the app would publish the
+# login page and route structure to anyone scanning. Crawling is refused outright.
+#
+# If a public marketing site is ever wanted, it belongs on its own host with its own
+# robots.txt — not on the application staff log into.
 
 User-agent: *
-Allow: /
-Disallow: /api/
-Disallow: /.env
-Disallow: /node_modules/
-Disallow: /dist/
-
-# Allow search engines to crawl static assets
-Allow: /assets/
-Allow: /fonts/
-
-# Google specific
-User-agent: Googlebot
-Allow: /
-
-# Bing specific
-User-agent: Bingbot
-Allow: /
-
-# Sitemap location
-Sitemap: https://zarewa.app/sitemap.xml
-
-# Crawl delay and request rate
-Crawl-delay: 1
+Disallow: /
