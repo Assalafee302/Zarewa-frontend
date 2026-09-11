@@ -7,8 +7,10 @@ import {
   isRefundHanging,
   isRefundPayable,
   normalizeRefund,
+  refundLooksPaidWithoutTillPayout,
   refundOutstandingAmount,
   refundPublicStatusLabel,
+  refundsOnFinanceRefundQueue,
   userMayPayCustomerRefund,
 } from './refundsStore.js';
 
@@ -269,5 +271,21 @@ describe('hanging refund indicators', () => {
     });
     expect(isRefundPayable(partial)).toBe(true);
     expect(refundOutstandingAmount(partial)).toBe(30_000);
+  });
+
+  it('drops credit-settled refunds from the finance payout waiting list even without a till date', () => {
+    const usedOnReceipt = normalizeRefund({
+      refundID: 'RF-WAIT-CREDIT',
+      status: 'Paid',
+      amountNgn: 50_000,
+      approvedAmountNgn: 50_000,
+      paidAmountNgn: 50_000,
+      creditAppliedNgn: 50_000,
+      creditAppliedToQuotationRef: 'QT-NEW',
+      paidAtISO: '',
+      paidBy: '',
+    });
+    expect(refundLooksPaidWithoutTillPayout(usedOnReceipt)).toBe(false);
+    expect(refundsOnFinanceRefundQueue([usedOnReceipt])).toEqual([]);
   });
 });

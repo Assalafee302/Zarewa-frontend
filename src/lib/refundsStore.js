@@ -271,6 +271,9 @@ export function isRefundPayable(r) {
  */
 export function refundLooksPaidWithoutTillPayout(r) {
   if (!r || refundStatusIsWithdrawn(r.status)) return false;
+  const creditApplied = Math.round(Number(r?.creditAppliedNgn ?? r?.credit_applied_ngn) || 0);
+  // Fund already moved onto another receipt — that is settlement, not a hanging till payout.
+  if (creditApplied > 0 && refundCreditAdjustedOutstandingNgn(r) <= 0) return false;
   // Server settlement summary: Settled means payees are covered — not a false Paid.
   if (String(r?.settlementSummary?.publicLabel || '').trim() === 'Settled') return false;
   if (Math.round(Number(r?.settlementSummary?.cashOutstandingNgn) || 0) > 0) {
@@ -278,7 +281,7 @@ export function refundLooksPaidWithoutTillPayout(r) {
     const companyCut = Math.round(Number(r?.settlementSummary?.companyCutNgn || r?.companyCutNgn) || 0);
     const paid = Math.round(Number(r.paidAmountNgn) || 0);
     // Legacy false Paid: paid_amount inflated by company cut with nothing to payees.
-    if (payeeSettled <= 0 && companyCut > 0 && paid >= companyCut) return true;
+    if (payeeSettled <= 0 && companyCut > 0 && paid >= companyCut && creditApplied <= 0) return true;
   }
   const status = String(r.status || '').trim();
   if (!['Paid', 'Approved', 'Partially paid'].includes(status)) return false;
@@ -289,6 +292,7 @@ export function refundLooksPaidWithoutTillPayout(r) {
   const requested = Math.round(Number(r.amountNgn) || 0);
   const paid = Math.round(Number(r.paidAmountNgn) || 0);
   const cap = approved > 0 ? approved : requested;
+  if (creditApplied > 0 && Math.max(paid, creditApplied) >= cap) return false;
   return cap > 0 && paid >= cap;
 }
 
@@ -331,6 +335,8 @@ export function isRefundHanging(r) {
  */
 export function refundsOnFinanceRefundQueue(list) {
   return (list ?? []).filter((r) => {
+    const creditApplied = Math.round(Number(r?.creditAppliedNgn ?? r?.credit_applied_ngn) || 0);
+    if (creditApplied > 0 && refundCreditAdjustedOutstandingNgn(r) <= 0) return false;
     if (isRefundPayable(r) || refundLooksPaidWithoutTillPayout(r)) return true;
     const status = String(r?.status || '').trim();
     if (status !== 'Approved' && status !== 'Partially paid') return false;

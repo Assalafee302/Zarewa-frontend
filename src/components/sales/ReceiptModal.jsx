@@ -857,7 +857,10 @@ const ReceiptModal = ({
               amountNgn: creditApplyNgn,
               dateISO: voucherDate,
               sourceIds: Array.isArray(refundCreditInfo?.sources)
-                ? refundCreditInfo.sources.map((s) => s.id).filter(Boolean)
+                ? [
+                    ...refundCreditInfo.sources.filter((s) => s.kind === 'refund').map((s) => s.id).filter(Boolean),
+                    ...refundCreditInfo.sources.filter((s) => s.kind !== 'refund').map((s) => s.id).filter(Boolean),
+                  ]
                 : undefined,
             }),
             headers: { 'Idempotency-Key': creditKey },
