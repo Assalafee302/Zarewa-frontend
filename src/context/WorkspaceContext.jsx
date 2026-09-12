@@ -1322,6 +1322,12 @@ export function WorkspaceProvider({ children }) {
       onEvent: (payload) => {
         if (payload?.type !== 'workspace.data') return;
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+        // Accounts, roles, permissions and branches live on the shell, not in a desk pack,
+        // and app_users is not a table the revision watches — so without this a colleague
+        // could be given access and see nothing of it until they signed in again.
+        if (payload.shell) {
+          void refresh({ poll: true, mode: 'shell' });
+        }
         const domains = Array.isArray(payload.domains) ? payload.domains : [];
         for (const domain of domains) {
           // Only desks this user actually has open — warming an unopened one on someone
@@ -1340,7 +1346,7 @@ export function WorkspaceProvider({ children }) {
         /* ignore */
       }
     };
-  }, [status, ensureDomainLoaded]);
+  }, [status, ensureDomainLoaded, refresh]);
 
   const session = snapshot?.session ?? null;
   const branchScope = snapshot?.branchScope ?? null;
