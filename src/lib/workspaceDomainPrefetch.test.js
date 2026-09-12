@@ -71,9 +71,32 @@ describe('workspaceDomainPrefetch', () => {
       expenses: [{ expenseID: 'E1' }],
       coilLots: [{ coilNo: 'CL-1' }],
       suppliers: [{ supplierID: 'S1' }],
-      purchaseOrders: [],
+      purchaseOrders: [{ poID: 'PO-1' }],
     });
     expect([...loaded]).toEqual(expect.arrayContaining(['sales', 'finance', 'operations', 'procurement']));
+  });
+
+  it('does not call procurement loaded just because suppliers are on the shell', () => {
+    // Suppliers ship with the first paint now, so their presence says nothing about the
+    // pack. Treating it as proof would short-circuit ensureDomainLoaded and leave
+    // purchase orders missing for good — while lookups reported them absent rather than
+    // still loading, which is the lie this whole change exists to remove.
+    const loaded = inferLoadedWorkspaceDomains({
+      ok: true,
+      suppliers: [{ supplierID: 'S1' }],
+      transportAgents: [{ agentID: 'TA-1' }],
+      purchaseOrders: [],
+    });
+    expect(loaded.has('procurement')).toBe(false);
+  });
+
+  it('snapshotHasUsableDomainData agrees: suppliers alone are not procurement', () => {
+    expect(
+      snapshotHasUsableDomainData({ ok: true, suppliers: [{ supplierID: 'S1' }], purchaseOrders: [] }, 'procurement')
+    ).toBe(false);
+    expect(
+      snapshotHasUsableDomainData({ ok: true, purchaseOrders: [{ poID: 'PO-1' }] }, 'procurement')
+    ).toBe(true);
   });
 
   it('workspaceDomainsForPath maps finance routes', () => {

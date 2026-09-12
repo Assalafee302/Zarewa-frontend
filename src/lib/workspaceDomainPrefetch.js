@@ -108,11 +108,12 @@ export function inferLoadedWorkspaceDomains(snapshot) {
   if (!deferred.has('coilLots') && Array.isArray(snapshot.coilLots) && snapshot.coilLots.length > 0) {
     loaded.add('operations');
   }
+  // Keyed on purchase orders, not suppliers: suppliers now ship on the shell as reference
+  // data, so their presence says nothing about whether the procurement pack has arrived.
   if (
-    !deferred.has('suppliers') &&
-    Array.isArray(snapshot.suppliers) &&
-    snapshot.suppliers.length > 0 &&
-    Array.isArray(snapshot.purchaseOrders)
+    !deferred.has('purchaseOrders') &&
+    Array.isArray(snapshot.purchaseOrders) &&
+    snapshot.purchaseOrders.length > 0
   ) {
     loaded.add('procurement');
   }
@@ -191,8 +192,10 @@ export function snapshotHasUsableDomainData(snapshot, domain) {
         (Array.isArray(snapshot.productionJobCoils) && snapshot.productionJobCoils.length > 0)
       );
     case 'procurement':
-      if (deferred.has('suppliers')) return false;
-      return Array.isArray(snapshot.suppliers) && snapshot.suppliers.length > 0;
+      // Suppliers ride the shell now, so they cannot stand in for the pack — a user who
+      // has suppliers but no purchase orders has not loaded procurement.
+      if (deferred.has('purchaseOrders')) return false;
+      return Array.isArray(snapshot.purchaseOrders) && snapshot.purchaseOrders.length > 0;
     default:
       return false;
   }
