@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback, memo } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -21,7 +21,14 @@ import {
   managerKindTone,
   normalizeAttentionFilter,
 } from '../../lib/managerDashboardCore';
+import {
+  formatMoney as defaultFormatMoney,
+  formatPersonName as defaultFormatPersonName,
+  formatRefundReason as defaultFormatRefundReason,
+  computeRefundAmountAfterCredit,
+} from '../../lib/branchManagerFormatters';
 import { MaintenanceIssuesPanel } from './MaintenanceIssuesPanel';
+import { VirtualizedInboxList } from './VirtualizedInboxList';
 import {
   PAC_INBOX_ROW_CLASS as inboxRowBase,
   PacEmptyState,
@@ -29,15 +36,21 @@ import {
   PacSlaChip as SlaChip,
 } from './PacInboxChrome';
 
-function fallbackMoney(value) {
-  const num = Number(value) || 0;
-  return `NGN ${num.toLocaleString()}`;
-}
+// Memoized expensive child components to prevent unnecessary re-fetches
+const MemoizedCreditExceptionPanel = memo(CreditExceptionPanel);
+const MemoizedMaintenanceIssuesPanel = memo(MaintenanceIssuesPanel);
 
-function fallbackPersonName(value) {
-  const v = String(value || '').trim();
-  return v || '—';
-}
+// Data-driven empty state config
+const EMPTY_STATE_ICONS = {
+  orders: { Icon: CheckCircle2, color: 'text-teal-600' },
+  cash_out: { Icon: DollarSign, color: 'text-amber-600' },
+  qc: { Icon: BarChart3, color: 'text-slate-500' },
+  material: { Icon: ClipboardList, color: 'text-teal-600' },
+  procurement: { Icon: ShoppingCart, color: 'text-slate-500' },
+  governance: { Icon: AlertTriangle, color: 'text-rose-600' },
+  edits: { Icon: PencilLine, color: 'text-slate-500' },
+  attention: { Icon: Sparkles, color: 'text-teal-600' },
+};
 
 function pacViewFromActiveTab(activeTab) {
   if (activeTab === 'credit') return 'credit';
@@ -90,12 +103,12 @@ export function BranchManagerCommandInbox(props) {
     setFocusWorkOrderId,
   } = merged;
 
-  const asMoney = typeof formatNgn === 'function' ? formatNgn : fallbackMoney;
-  const asPersonName = typeof formatPersonName === 'function' ? formatPersonName : fallbackPersonName;
+  const asMoney = typeof formatNgn === 'function' ? formatNgn : defaultFormatMoney;
+  const asPersonName = typeof formatPersonName === 'function' ? formatPersonName : defaultFormatPersonName;
   const asRefundReason =
     typeof formatRefundReasonCategory === 'function'
       ? formatRefundReasonCategory
-      : (raw) => String(raw || '—').trim() || '—';
+      : defaultFormatRefundReason;
 
   const [showAllRows, setShowAllRows] = useState(false);
   const [issuesCount, setIssuesCount] = useState(() => Math.max(0, Number(maintenanceIssueCount) || 0));
@@ -104,16 +117,17 @@ export function BranchManagerCommandInbox(props) {
     setIssuesCount(Math.max(0, Number(maintenanceIssueCount) || 0));
   }, [maintenanceIssueCount]);
 
-  const emptyIcon = () => {
-    if (activeTab === 'orders') return <CheckCircle2 size={36} className="opacity-25 mb-3 text-teal-600" />;
-    if (activeTab === 'cash_out') return <DollarSign size={36} className="opacity-25 mb-3 text-amber-600" />;
-    if (activeTab === 'qc') return <BarChart3 size={36} className="opacity-25 mb-3 text-slate-500" />;
-    if (activeTab === 'material') return <ClipboardList size={36} className="opacity-25 mb-3 text-teal-600" />;
-    if (activeTab === 'procurement') return <ShoppingCart size={36} className="opacity-25 mb-3 text-slate-500" />;
-    if (activeTab === 'governance') return <AlertTriangle size={36} className="opacity-25 mb-3 text-rose-600" />;
-    if (activeTab === 'edits') return <PencilLine size={36} className="opacity-25 mb-3 text-slate-500" />;
-    return <Sparkles size={36} className="opacity-25 mb-3 text-teal-600" />;
-  };
+  // Clear search on tab change
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab?.(tab);
+    setInboxSearch?.('');
+  }, [setActiveTab, setInboxSearch]);
+
+  const getEmptyIcon = useCallback(() => {
+    const config = EMPTY_STATE_ICONS[activeTab] || EMPTY_STATE_ICONS.attention;
+    const { Icon, color } = config;
+    return <Icon size={36} className={`opacity-25 mb-3 ${color}`} />;
+  }, [activeTab]);
 
   const pacView = pacViewFromActiveTab(activeTab);
 
@@ -128,13 +142,308 @@ export function BranchManagerCommandInbox(props) {
   const showClearAllPaid =
     canAdminBulkClearPaid && (hasClearablePaid || hasClearableConversionGaps);
 
-  const selectFilter = (key) => {
+  const selectFilter = useCallback((key) => {
     const next = normalizeAttentionFilter(key);
-    setActiveTab?.('attention');
+    handleTabChange('attention');
     setAttentionFilter?.(next);
-  };
+  }, [handleTabChange, setAttentionFilter]);
 
-  const renderAttentionInboxRow = (it) => {
+  // Keyboard navigation with performance optimization
+  const rowsRef = useRef([]);
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (pacView !== 'attention' && pacView !== 'issues') return;
+
+      const currentTarget = e.currentTarget;
+      if (!rowsRef.current.length) {
+        rowsRef.current = Array.from(currentTarget.querySelectorAll('[data-pac-row="1"]'));
+      }
+
+      if (!rowsRef.current.length) return;
+
+      const activeEl = document.activeElement;
+      const idx = rowsRef.current.indexOf(activeEl);
+
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = rowsRef.current[Math.min(rowsRef.current.length - 1, Math.max(0, idx) + 1)] || rowsRef.current[0];
+        next?.focus?.();
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = rowsRef.current[Math.max(0, (idx < 0 ? 0 : idx) - 1)] || rowsRef.current[0];
+        prev?.focus?.();
+      } else if (e.key === 'Enter' && activeEl?.getAttribute?.('data-pac-row') === '1') {
+        e.preventDefault();
+        activeEl.click?.();
+      }
+    },
+    [pacView]
+  );
+
+  // Clear keyboard cache when rows change
+  useEffect(() => {
+    rowsRef.current = [];
+  }, [filteredInboxRows]);
+
+  // Extracted row renderers for each tab type
+  const renderOrdersRow = useCallback(
+    (row) => {
+      if (row._inboxKind === 'flagged') {
+        return (
+          <button
+            key={row._rowKey}
+            type="button"
+            data-pac-row="1"
+            onClick={() => openQuotationIntel?.(row.id, row, { reviewContext: 'flagged' })}
+            className={`${inboxRowBase} hover:bg-rose-50/40 border-l-4 border-l-rose-500 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40 ${
+              selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-rose-50/50' : ''
+            }`}
+          >
+            <KindPill label="flagged" tone="urgent" />
+            <span className="shrink-0 text-xs font-bold text-slate-900">{row.id}</span>
+            <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
+              <span className="font-semibold">{asPersonName(row.customer_name)}</span>
+              {' · '}
+              <span className="text-rose-800/90">{row.manager_flag_reason || 'Awaiting audit review.'}</span>
+            </span>
+            <SlaChip kind="flagged" row={row} />
+            <AlertTriangle size={14} className="shrink-0 text-rose-500" />
+          </button>
+        );
+      }
+
+      if (row._inboxKind === 'production') {
+        const qref = row.quotation_ref;
+        return (
+          <button
+            key={row._rowKey}
+            type="button"
+            data-pac-row="1"
+            onClick={() =>
+              openQuotationIntel?.(qref, { id: qref, customer_name: row.customer_name }, { cuttingListId: row.id, fromProductionGate: true })
+            }
+            className={`${inboxRowBase} hover:bg-amber-50/50 border-l-4 border-l-amber-400 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40 ${
+              selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === qref ? 'bg-amber-50/60' : ''
+            }`}
+          >
+            <KindPill label="gate" tone="pending" />
+            <span className="shrink-0 text-xs font-mono font-bold text-slate-600">{row.id}</span>
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
+              <span className="font-bold text-zarewa-teal">{qref}</span>
+              {' · '}
+              {asPersonName(row.customer_name)}
+            </span>
+            <span className="shrink-0 text-ui-xs text-slate-500 tabular-nums whitespace-nowrap">
+              {asMoney(row.paid_ngn)} / {asMoney(row.total_ngn)}
+            </span>
+            <SlaChip kind="production" row={row} />
+            <ChevronRight size={14} className="shrink-0 text-slate-300" />
+          </button>
+        );
+      }
+
+      return (
+        <button
+          key={row._rowKey}
+          type="button"
+          data-pac-row="1"
+          onClick={() => openQuotationIntel?.(row.id, row, { reviewContext: 'clearance' })}
+          className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40 ${
+            selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-amber-50/50' : ''
+          }`}
+        >
+          <KindPill label="sign-off" tone="pending" />
+          <span className="shrink-0 text-xs font-mono font-bold text-zarewa-teal">{row.id}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">{asPersonName(row.customer_name)}</span>
+          <span className="shrink-0 text-ui-xs font-bold tabular-nums text-slate-700">{asMoney(row.total_ngn)}</span>
+          <SlaChip kind="clearance" row={row} />
+          <ChevronRight size={14} className="shrink-0 text-slate-300" />
+        </button>
+      );
+    },
+    [asMoney, asPersonName, openQuotationIntel, selectedIntel]
+  );
+
+  const renderCashOutRow = useCallback(
+    (row) => {
+      if (row._inboxKind === 'refund') {
+        return (
+          <button
+            key={row._rowKey}
+            type="button"
+            data-pac-row="1"
+            onClick={() => openAttentionItem?.({ kind: 'refunds', refundId: row.refund_id, row: { ...row } })}
+            className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40 ${
+              selectedIntel?.kind === 'refund' && selectedIntel.refundId === row.refund_id ? 'bg-amber-50/50' : ''
+            }`}
+          >
+            <KindPill label="refund" tone="pending" />
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+              <span className="font-mono font-bold text-zarewa-teal">{row.refund_id}</span>
+              {' · '}
+              {asPersonName(row.customer_name)}
+              {' · '}
+              {asRefundReason(row.reason_category || row.reason)}
+            </span>
+            <span className="shrink-0 text-ui-xs font-bold tabular-nums">
+              {asMoney(computeRefundAmountAfterCredit(row.amount_ngn, row.credit_applied_ngn || row.creditAppliedNgn))}
+            </span>
+            <SlaChip kind="refunds" row={row} />
+            <ChevronRight size={14} className="shrink-0 text-slate-300" />
+          </button>
+        );
+      }
+
+      return (
+        <button
+          key={row._rowKey}
+          type="button"
+          data-pac-row="1"
+          onClick={() => openAttentionItem?.({ kind: 'payments', requestId: row.request_id, row: { ...row } })}
+          className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40 disabled:opacity-50 ${
+            selectedIntel?.kind === 'payment' && selectedIntel.requestId === row.request_id ? 'bg-amber-50/50' : ''
+          }`}
+        >
+          <KindPill label="expense" tone="pending" />
+          {row.expense_category || row.expense_category_lane ? <ExpenseCategoryLaneBadge category={row.expense_category} /> : null}
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+            <span className="font-mono font-bold text-zarewa-teal">{row.request_id}</span>
+            {' · '}
+            {row.description || 'Payment request'}
+          </span>
+          {!canApprovePaymentRequests ? (
+            <span className="shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-amber-900">
+              Finance desk
+            </span>
+          ) : null}
+          <span className="shrink-0 text-ui-xs font-bold tabular-nums">{asMoney(row.amount_requested_ngn)}</span>
+          <SlaChip kind="payments" row={row} />
+          <ChevronRight size={14} className="shrink-0 text-slate-300" />
+        </button>
+      );
+    },
+    [asMoney, asPersonName, asRefundReason, canApprovePaymentRequests, openAttentionItem, selectedIntel]
+  );
+
+  const renderQcRow = useCallback(
+    (row) => (
+      <button
+        key={row.job_id || row._rowKey}
+        type="button"
+        data-pac-row="1"
+        onClick={() => openAttentionItem?.({ kind: 'conversions', jobId: row.job_id, row: { ...row } })}
+        className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40 ${
+          selectedIntel?.kind === 'conversion' && selectedIntel.jobId === row.job_id ? 'bg-amber-50/50' : ''
+        }`}
+      >
+        <KindPill label="prod check" tone="pending" />
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+          <span className="font-mono font-bold text-zarewa-teal">{row.job_id}</span>
+          {' · '}
+          {row.quotation_ref || row.customer_name || 'Close production check'}
+        </span>
+        <SlaChip kind="conversions" row={row} />
+        <ChevronRight size={14} className="shrink-0 text-slate-300" />
+      </button>
+    ),
+    [openAttentionItem, selectedIntel]
+  );
+
+  const renderMaterialRow = useCallback(
+    (row) => (
+      <button
+        key={row.id || row._rowKey}
+        type="button"
+        data-pac-row="1"
+        onClick={() => openMaterialIncidentIntel?.(row)}
+        className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40`}
+      >
+        <KindPill label="material" tone="pending" />
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+          <span className="font-mono font-bold text-zarewa-teal">{row.id}</span>
+          {' · '}
+          {row.summary || row.incident_type || 'Material exception'}
+        </span>
+        <SlaChip kind="material" row={row} />
+        <ChevronRight size={14} className="shrink-0 text-slate-300" />
+      </button>
+    ),
+    [openMaterialIncidentIntel]
+  );
+
+  const renderProcurementRow = useCallback(
+    (row) => (
+      <button
+        key={row._rowKey || row.po_id || row.poID}
+        type="button"
+        data-pac-row="1"
+        onClick={() => openPurchaseOrderIntel?.(row)}
+        className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40`}
+      >
+        <KindPill label="PO" tone="pending" />
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+          <span className="font-mono font-bold text-zarewa-teal">{row.po_id || row.poID}</span>
+          {' · '}
+          {row.supplier_name || 'Purchase order'}
+        </span>
+        <SlaChip kind="procurement" row={row} />
+        <ChevronRight size={14} className="shrink-0 text-slate-300" />
+      </button>
+    ),
+    [openPurchaseOrderIntel]
+  );
+
+  const renderGovernanceRow = useCallback(
+    (row) => (
+      <button
+        key={row._rowKey || row.id}
+        type="button"
+        data-pac-row="1"
+        onClick={() => openGovernanceIntel?.(row)}
+        className={`${inboxRowBase} hover:bg-rose-50/40 border-l-4 border-l-rose-500 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40`}
+      >
+        <KindPill label="governance" tone="urgent" />
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+          <span className="font-mono font-bold text-zarewa-teal">{row.title || row.id}</span>
+          {' · '}
+          {row.subtitle || 'Requires management review'}
+        </span>
+        {row.amountNgn != null ? <span className="shrink-0 text-ui-xs font-bold tabular-nums text-rose-700">{asMoney(row.amountNgn)}</span> : null}
+        <SlaChip kind="governance" row={row} />
+        <ChevronRight size={14} className="shrink-0 text-slate-300" />
+      </button>
+    ),
+    [asMoney, openGovernanceIntel]
+  );
+
+  const renderEditsRow = useCallback(
+    (row) => {
+      const e = row || {};
+      return (
+        <button
+          key={row._rowKey || row.id}
+          type="button"
+          data-pac-row="1"
+          onClick={() => openEditApprovalIntel?.(e)}
+          className={`${inboxRowBase} hover:bg-slate-50/80 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40`}
+        >
+          <KindPill label="edit" tone="pending" />
+          <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
+            <span className="font-semibold">{e.entityKind || 'record'}</span>
+            {' · '}
+            <span className="font-mono font-bold text-zarewa-teal">{e.entityId || '—'}</span>
+            {' · '}
+            <span className="text-slate-500">{asPersonName(e.requestedByDisplay || e.requestedByUserId || e.requestedBy)}</span>
+          </span>
+          <SlaChip kind="edit_approvals" row={e} />
+          <ChevronRight size={14} className="shrink-0 text-slate-300" />
+        </button>
+      );
+    },
+    [asPersonName, openEditApprovalIntel]
+  );
+
+  const renderAttentionInboxRow = useCallback((it) => {
     const reasons = Array.isArray(it?.reasons) ? it.reasons : [];
     if (it?.kind === 'edit_approvals') {
       const e = it.row || it || {};
@@ -144,7 +453,7 @@ export function BranchManagerCommandInbox(props) {
           type="button"
           data-pac-row="1"
           onClick={() => openEditApprovalIntel?.(e)}
-          className={`${inboxRowBase} hover:bg-slate-50/80 focus-visible:ring-zarewa-teal/25`}
+          className={`${inboxRowBase} hover:bg-slate-50/80 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40`}
         >
           <KindPill label="edit" tone="pending" />
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
@@ -171,7 +480,7 @@ export function BranchManagerCommandInbox(props) {
         type="button"
         data-pac-row="1"
         onClick={() => openAttentionItem?.(it)}
-        className={`${inboxRowBase} hover:bg-slate-50 focus-visible:ring-zarewa-teal/25 border-l-4 ${
+        className={`${inboxRowBase} hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40 border-l-4 ${
           tone === 'urgent' ? 'border-l-rose-500' : tone === 'pending' ? 'border-l-amber-400' : 'border-l-slate-300'
         }`}
       >
@@ -189,274 +498,36 @@ export function BranchManagerCommandInbox(props) {
         <ChevronRight size={14} className="shrink-0 text-slate-300" />
       </button>
     );
-  };
+  }, [asMoney, asPersonName, openAttentionItem, openEditApprovalIntel]);
 
-  const renderInboxRow = (row) => {
-    if (activeTab === 'attention') return renderAttentionInboxRow(row);
+  // Simplified main renderer that dispatches to tab-specific renderers
+  const renderInboxRow = useCallback(
+    (row) => {
+      const renderers = {
+        attention: renderAttentionInboxRow,
+        orders: renderOrdersRow,
+        cash_out: renderCashOutRow,
+        qc: renderQcRow,
+        material: renderMaterialRow,
+        procurement: renderProcurementRow,
+        governance: renderGovernanceRow,
+        edits: renderEditsRow,
+      };
 
-    if (activeTab === 'orders') {
-      if (row._inboxKind === 'flagged') {
-        return (
-          <button
-            key={row._rowKey}
-            type="button"
-            data-pac-row="1"
-            onClick={() => openQuotationIntel?.(row.id, row, { reviewContext: 'flagged' })}
-            className={`${inboxRowBase} hover:bg-rose-50/40 border-l-4 border-l-rose-500 ${
-              selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-rose-50/50' : ''
-            }`}
-          >
-            <KindPill label="flagged" tone="urgent" />
-            <span className="shrink-0 text-xs font-bold text-slate-900">{row.id}</span>
-            <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
-              <span className="font-semibold">{asPersonName(row.customer_name)}</span>
-              {' · '}
-              <span className="text-rose-800/90">{row.manager_flag_reason || 'Awaiting audit review.'}</span>
-            </span>
-            <SlaChip kind="flagged" row={row} />
-            <AlertTriangle size={14} className="shrink-0 text-rose-500" />
-          </button>
-        );
-      }
-
-      if (row._inboxKind === 'production') {
-        const qref = row.quotation_ref;
-        return (
-          <button
-            key={row._rowKey}
-            type="button"
-            data-pac-row="1"
-            onClick={() =>
-              openQuotationIntel?.(
-                qref,
-                { id: qref, customer_name: row.customer_name },
-                { cuttingListId: row.id, fromProductionGate: true }
-              )
-            }
-            className={`${inboxRowBase} hover:bg-amber-50/50 border-l-4 border-l-amber-400 ${
-              selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === qref ? 'bg-amber-50/60' : ''
-            }`}
-          >
-            <KindPill label="gate" tone="pending" />
-            <span className="shrink-0 text-xs font-mono font-bold text-slate-600">{row.id}</span>
-            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
-              <span className="font-bold text-zarewa-teal">{qref}</span>
-              {' · '}
-              {asPersonName(row.customer_name)}
-            </span>
-            <span className="shrink-0 text-ui-xs text-slate-500 tabular-nums whitespace-nowrap">
-              {asMoney(row.paid_ngn)} / {asMoney(row.total_ngn)}
-            </span>
-            <SlaChip kind="production" row={row} />
-            <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-amber-700" />
-          </button>
-        );
-      }
-
-      return (
-        <button
-          key={row._rowKey}
-          type="button"
-          data-pac-row="1"
-          onClick={() => openQuotationIntel?.(row.id, row, { reviewContext: 'clearance' })}
-          className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 ${
-            selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-amber-50/50' : ''
-          }`}
-        >
-          <KindPill label="sign-off" tone="pending" />
-          <span className="shrink-0 text-xs font-mono font-bold text-zarewa-teal">{row.id}</span>
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
-            {asPersonName(row.customer_name)}
-          </span>
-          <span className="shrink-0 text-ui-xs font-bold tabular-nums text-slate-700">{asMoney(row.total_ngn)}</span>
-          <SlaChip kind="clearance" row={row} />
-          <ChevronRight size={14} className="shrink-0 text-slate-300" />
-        </button>
-      );
-    }
-
-    if (activeTab === 'cash_out') {
-      if (row._inboxKind === 'refund') {
-        return (
-          <button
-            key={row._rowKey}
-            type="button"
-            data-pac-row="1"
-            onClick={() => openAttentionItem?.({ kind: 'refunds', refundId: row.refund_id, row: { ...row } })}
-            className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 ${
-              selectedIntel?.kind === 'refund' && selectedIntel.refundId === row.refund_id ? 'bg-amber-50/50' : ''
-            }`}
-          >
-            <KindPill label="refund" tone="pending" />
-            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
-              <span className="font-mono font-bold text-zarewa-teal">{row.refund_id}</span>
-              {' · '}
-              {asPersonName(row.customer_name)}
-              {' · '}
-              {asRefundReason(row.reason_category || row.reason)}
-            </span>
-            <span className="shrink-0 text-ui-xs font-bold tabular-nums">
-              {asMoney(
-                Math.round(Number(row.credit_applied_ngn || row.creditAppliedNgn) || 0) > 0
-                  ? Math.max(
-                      0,
-                      Math.round(Number(row.amount_ngn) || 0) -
-                        Math.round(Number(row.credit_applied_ngn || row.creditAppliedNgn) || 0)
-                    )
-                  : row.amount_ngn
-              )}
-            </span>
-            <SlaChip kind="refunds" row={row} />
-            <ChevronRight size={14} className="shrink-0 text-slate-300" />
-          </button>
-        );
-      }
-      return (
-        <button
-          key={row._rowKey}
-          type="button"
-          data-pac-row="1"
-          onClick={() => openAttentionItem?.({ kind: 'payments', requestId: row.request_id, row: { ...row } })}
-          className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 disabled:opacity-50 ${
-            selectedIntel?.kind === 'payment' && selectedIntel.requestId === row.request_id ? 'bg-amber-50/50' : ''
-          }`}
-        >
-          <KindPill label="expense" tone="pending" />
-          {row.expense_category || row.expense_category_lane ? (
-            <ExpenseCategoryLaneBadge category={row.expense_category} />
-          ) : null}
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
-            <span className="font-mono font-bold text-zarewa-teal">{row.request_id}</span>
-            {' · '}
-            {row.description || 'Payment request'}
-          </span>
-          {!canApprovePaymentRequests ? (
-            <span className="shrink-0 rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-ui-xs font-black uppercase text-amber-900">
-              Finance desk
-            </span>
-          ) : null}
-          <span className="shrink-0 text-ui-xs font-bold tabular-nums">{asMoney(row.amount_requested_ngn)}</span>
-          <SlaChip kind="payments" row={row} />
-          <ChevronRight size={14} className="shrink-0 text-slate-300" />
-        </button>
-      );
-    }
-
-    if (activeTab === 'qc') {
-      return (
-        <button
-          key={row.job_id || row._rowKey}
-          type="button"
-          data-pac-row="1"
-          onClick={() => openAttentionItem?.({ kind: 'conversions', jobId: row.job_id, row: { ...row } })}
-          className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400 ${
-            selectedIntel?.kind === 'conversion' && selectedIntel.jobId === row.job_id ? 'bg-amber-50/50' : ''
-          }`}
-        >
-          <KindPill label="prod check" tone="pending" />
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
-            <span className="font-mono font-bold text-zarewa-teal">{row.job_id}</span>
-            {' · '}
-            {row.quotation_ref || row.customer_name || 'Close production check'}
-          </span>
-          <SlaChip kind="conversions" row={row} />
-          <ChevronRight size={14} className="shrink-0 text-slate-300" />
-        </button>
-      );
-    }
-
-    if (activeTab === 'material') {
-      return (
-        <button
-          key={row.id || row._rowKey}
-          type="button"
-          data-pac-row="1"
-          onClick={() => openMaterialIncidentIntel?.(row)}
-          className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400`}
-        >
-          <KindPill label="material" tone="pending" />
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
-            <span className="font-mono font-bold text-zarewa-teal">{row.id}</span>
-            {' · '}
-            {row.summary || row.incident_type || 'Material exception'}
-          </span>
-          <SlaChip kind="material" row={row} />
-          <ChevronRight size={14} className="shrink-0 text-slate-300" />
-        </button>
-      );
-    }
-
-    if (activeTab === 'procurement') {
-      return (
-        <button
-          key={row._rowKey || row.po_id || row.poID}
-          type="button"
-          data-pac-row="1"
-          onClick={() => openPurchaseOrderIntel?.(row)}
-          className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-400`}
-        >
-          <KindPill label="PO" tone="pending" />
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
-            <span className="font-mono font-bold text-zarewa-teal">{row.po_id || row.poID}</span>
-            {' · '}
-            {row.supplier_name || 'Purchase order'}
-          </span>
-          <SlaChip kind="procurement" row={row} />
-          <ChevronRight size={14} className="shrink-0 text-slate-300" />
-        </button>
-      );
-    }
-
-    if (activeTab === 'governance') {
-      return (
-        <button
-          key={row._rowKey || row.id}
-          type="button"
-          data-pac-row="1"
-          onClick={() => openGovernanceIntel?.(row)}
-          className={`${inboxRowBase} hover:bg-rose-50/40 border-l-4 border-l-rose-500`}
-        >
-          <KindPill label="governance" tone="urgent" />
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
-            <span className="font-mono font-bold text-zarewa-teal">{row.title || row.id}</span>
-            {' · '}
-            {row.subtitle || 'Requires management review'}
-          </span>
-          {row.amountNgn != null ? (
-            <span className="shrink-0 text-ui-xs font-bold tabular-nums text-rose-700">{asMoney(row.amountNgn)}</span>
-          ) : null}
-          <SlaChip kind="governance" row={row} />
-          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-rose-700" />
-        </button>
-      );
-    }
-
-    if (activeTab === 'edits') {
-      const e = row || {};
-      return (
-        <button
-          key={row._rowKey || row.id}
-          type="button"
-          data-pac-row="1"
-          onClick={() => openEditApprovalIntel?.(e)}
-          className={`${inboxRowBase} hover:bg-slate-50/80`}
-        >
-          <KindPill label="edit" tone="pending" />
-          <span className="min-w-0 flex-1 truncate text-xs text-slate-700">
-            <span className="font-semibold">{e.entityKind || 'record'}</span>
-            {' · '}
-            <span className="font-mono font-bold text-zarewa-teal">{e.entityId || '—'}</span>
-            {' · '}
-            <span className="text-slate-500">{asPersonName(e.requestedByDisplay || e.requestedByUserId || e.requestedBy)}</span>
-          </span>
-          <SlaChip kind="edit_approvals" row={e} />
-          <ChevronRight size={14} className="shrink-0 text-slate-300" />
-        </button>
-      );
-    }
-
-    return null;
-  };
+      return renderers[activeTab]?.(row) || null;
+    },
+    [
+      activeTab,
+      renderAttentionInboxRow,
+      renderOrdersRow,
+      renderCashOutRow,
+      renderQcRow,
+      renderMaterialRow,
+      renderProcurementRow,
+      renderGovernanceRow,
+      renderEditsRow,
+    ]
+  );
 
   const effectiveAttentionFilter = normalizeAttentionFilter(
     pacView === 'credit'
@@ -478,13 +549,32 @@ export function BranchManagerCommandInbox(props) {
 
   const creditCount = Number(tabCounts.credit) || 0;
   const stockCount = Array.isArray(stockRegisterInbox) ? stockRegisterInbox.length : 0;
-  const filterChipCount = (key) => {
-    if (key === 'all') return attentionItems.length;
-    const n = filterAttentionItems(attentionItems, key).length;
-    if (key === 'orders' && showDeliveryCreditTab) return n + creditCount;
-    if (key === 'operations') return n + stockCount + issuesCount;
-    return n;
-  };
+
+  // Memoize filter counts to avoid recomputation on every render
+  const filterCounts = useMemo(() => {
+    const counts = {};
+    if (!MANAGER_ATTENTION_FILTERS.length) return counts;
+
+    MANAGER_ATTENTION_FILTERS.forEach((f) => {
+      const key = f.key;
+      if (key === 'all') {
+        counts[key] = attentionItems.length;
+      } else {
+        const n = filterAttentionItems(attentionItems, key).length;
+        if (key === 'orders' && showDeliveryCreditTab) {
+          counts[key] = n + creditCount;
+        } else if (key === 'operations') {
+          counts[key] = n + stockCount + issuesCount;
+        } else {
+          counts[key] = n;
+        }
+      }
+    });
+
+    return counts;
+  }, [attentionItems, filterAttentionItems, creditCount, stockCount, issuesCount, showDeliveryCreditTab, MANAGER_ATTENTION_FILTERS]);
+
+  const filterChipCount = useCallback((key) => filterCounts[key] || 0, [filterCounts]);
 
   const emptyCopy = () => {
     if (inboxSearch.trim()) {
@@ -514,7 +604,7 @@ export function BranchManagerCommandInbox(props) {
 
   const creditPanel = (
     <div className="rounded-xl border border-slate-100 bg-white p-4 sm:p-5">
-      <CreditExceptionPanel
+      <MemoizedCreditExceptionPanel
         branchId={ws?.workspaceBranchId || ws?.session?.branchId || null}
         roleKey={ws?.session?.user?.roleKey}
       />
@@ -538,7 +628,7 @@ export function BranchManagerCommandInbox(props) {
   );
 
   const issuesPanel = (
-    <MaintenanceIssuesPanel
+    <MemoizedMaintenanceIssuesPanel
       search={inboxSearch}
       focusWorkOrderId={focusWorkOrderId}
       onFocusWorkOrderHandled={() => setFocusWorkOrderId?.('')}
@@ -634,25 +724,7 @@ export function BranchManagerCommandInbox(props) {
             ? 'p-4 sm:p-5'
             : 'min-h-[320px] max-h-[min(56vh,560px)] overflow-y-auto custom-scrollbar'
         }
-        onKeyDown={(e) => {
-          if (pacView !== 'attention' && pacView !== 'issues') return;
-          const rows = Array.from(e.currentTarget.querySelectorAll('[data-pac-row="1"]'));
-          if (!rows.length) return;
-          const activeEl = document.activeElement;
-          const idx = rows.indexOf(activeEl);
-          if (e.key === 'j' || e.key === 'ArrowDown') {
-            e.preventDefault();
-            const next = rows[Math.min(rows.length - 1, Math.max(0, idx) + 1)] || rows[0];
-            next?.focus?.();
-          } else if (e.key === 'k' || e.key === 'ArrowUp') {
-            e.preventDefault();
-            const prev = rows[Math.max(0, (idx < 0 ? 0 : idx) - 1)] || rows[0];
-            prev?.focus?.();
-          } else if (e.key === 'Enter' && activeEl?.getAttribute?.('data-pac-row') === '1') {
-            e.preventDefault();
-            activeEl.click?.();
-          }
-        }}
+        onKeyDown={handleKeyDown}
         tabIndex={-1}
         role="listbox"
         aria-label="Priority action queue"
@@ -670,22 +742,33 @@ export function BranchManagerCommandInbox(props) {
             ))}
           </div>
         ) : showEmpty ? (
-          <PacEmptyState icon={emptyIcon()} title={emptyCopy().title} detail={emptyCopy().detail} />
+          <PacEmptyState icon={getEmptyIcon()} title={emptyCopy().title} detail={emptyCopy().detail} />
         ) : (
           <div>
             {hasQueueRows ? (
               <>
-                {(showAllRows || filteredInboxRows.length <= 50
-                  ? filteredInboxRows
-                  : filteredInboxRows.slice(0, 50)
-                ).map((row) => renderInboxRow(row))}
+                {/* Use virtualization for large lists (50+ items), normal rendering for small lists */}
+                {filteredInboxRows.length > 50 && showAllRows ? (
+                  <VirtualizedInboxList
+                    items={filteredInboxRows}
+                    renderRow={renderInboxRow}
+                    maxHeight={420}
+                    itemSize={48}
+                    overscanCount={5}
+                  />
+                ) : (
+                  (showAllRows || filteredInboxRows.length <= 50
+                    ? filteredInboxRows
+                    : filteredInboxRows.slice(0, 50)
+                  ).map((row) => renderInboxRow(row))
+                )}
                 {!showAllRows && filteredInboxRows.length > 50 ? (
                   <button
                     type="button"
                     onClick={() => setShowAllRows(true)}
                     className="w-full py-3 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-50"
                   >
-                    Show all {filteredInboxRows.length} items
+                    Show all {filteredInboxRows.length} items (requires scroll)
                   </button>
                 ) : null}
               </>
