@@ -1084,6 +1084,8 @@ const QuotationModal = ({
 
   const [customerQuery, setCustomerQuery] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [remoteCustomers, setRemoteCustomers] = useState([]);
+  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
   const [handledByStaff, setHandledByStaff] = useState('');
   const [handledByUserId, setHandledByUserId] = useState('');
   const [handleOnBehalfOf, setHandleOnBehalfOf] = useState(false);
@@ -2291,10 +2293,51 @@ const QuotationModal = ({
     };
   }, [selectedPayTreasuryAccount]);
 
-  const filteredCustomers = useMemo(
-    () => filterCustomersForPicker(customers, customerQuery, 40),
-    [customers, customerQuery]
-  );
+  const filteredCustomers = useMemo(() => {
+    const local = filterCustomersForPicker(customers, customerQuery, 40);
+    const q = String(customerQuery || '').trim();
+    if (!q || !remoteCustomers.length) return local;
+    const byId = new Map();
+    for (const row of [...remoteCustomers, ...local]) {
+      const id = String(row?.customerID || row?.id || '').trim();
+      if (!id || byId.has(id)) continue;
+      byId.set(id, row);
+    }
+    return [...byId.values()].slice(0, 40);
+  }, [customers, customerQuery, remoteCustomers]);
+
+  useEffect(() => {
+    const q = String(customerQuery || '').trim();
+    if (q.length < 2) {
+      setRemoteCustomers([]);
+      setCustomerSearchLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setCustomerSearchLoading(true);
+      const params = new URLSearchParams({ q, limit: '40' });
+      void apiFetch(`/api/customers?${params}`)
+        .then(({ ok, data }) => {
+          if (cancelled) return;
+          if (ok && data?.ok && Array.isArray(data.customers)) {
+            setRemoteCustomers(data.customers);
+          } else {
+            setRemoteCustomers([]);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setRemoteCustomers([]);
+        })
+        .finally(() => {
+          if (!cancelled) setCustomerSearchLoading(false);
+        });
+    }, 220);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [customerQuery]);
 
   const grandTotalNgn = useMemo(
     () => sumRowsNgn(productRows) + sumRowsNgn(accessoryRows) + sumRowsNgn(serviceRows),
@@ -2582,7 +2625,11 @@ const QuotationModal = ({
             );
             return;
           }
-          if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
+          if (data.delta && ws?.applyWriteDelta?.(data.delta)) {
+            /* merged */
+          } else if (data.quotation) {
+            ws?.mergeQuotationIntoSnapshot?.(data.quotation);
+          }
           setQuotationEditApprovalId('');
           const applied = Number(data.autoOverpayAppliedNgn) || 0;
           let msg = `Quotation ${editData.id} saved to database.`;
@@ -2623,7 +2670,11 @@ const QuotationModal = ({
             );
             return;
           }
-          if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
+          if (data.delta && ws?.applyWriteDelta?.(data.delta)) {
+            /* merged */
+          } else if (data.quotation) {
+            ws?.mergeQuotationIntoSnapshot?.(data.quotation);
+          }
           showToast(`Quotation ${data.quotationId} created.`);
           if (Array.isArray(data.duplicateWarnings) && data.duplicateWarnings.length > 0) {
             showToast(
@@ -2670,7 +2721,11 @@ const QuotationModal = ({
         });
         return;
       }
-      if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
+      if (data.delta && ws?.applyWriteDelta?.(data.delta)) {
+        /* merged */
+      } else if (data.quotation) {
+        ws?.mergeQuotationIntoSnapshot?.(data.quotation);
+      }
       setQuotationEditApprovalId('');
       showToast(`Material details updated on ${editData.id} (totals unchanged).`);
       await onLedgerChange?.({ domains: [], skipShellRefresh: true });
@@ -2713,7 +2768,11 @@ const QuotationModal = ({
         showToast(data?.error || 'Could not record MD approval.', { variant: 'error' });
         return;
       }
-      if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
+      if (data.delta && ws?.applyWriteDelta?.(data.delta)) {
+        /* merged */
+      } else if (data.quotation) {
+        ws?.mergeQuotationIntoSnapshot?.(data.quotation);
+      }
       showToast('MD below-floor approval recorded.');
       await onLedgerChange?.({ domains: [], skipShellRefresh: true });
       abandonUnsavedAndRun(() => onClose());
@@ -2734,7 +2793,7 @@ const QuotationModal = ({
         showToast(data?.error || 'Could not revive quotation.', { variant: 'error' });
         return;
       }
-      if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
+      if (data.quotation) ws?.mergeQuotationIntoSnapshot?.(data.quotation);
       showToast(`Quotation ${editData.id} revived — back in the active pipeline as Pending.`);
       await onLedgerChange?.({ domains: [], skipShellRefresh: true });
       void ws.refreshDomain?.('sales');

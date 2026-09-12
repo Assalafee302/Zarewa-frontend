@@ -587,7 +587,9 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Could not record payment.' };
         }
-        await wsRefresh?.();
+        if (!(data?.delta && ws?.applyWriteDelta?.(data.delta))) {
+          await wsRefresh?.();
+        }
         return { ok: true };
       }
       setPurchaseOrders((prev) =>
@@ -604,7 +606,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, wsCanMutate, wsRefresh]
+    [appendMovement, ws, wsCanMutate, wsRefresh]
   );
 
   const setPurchaseOrderStatus = useCallback(
@@ -655,27 +657,40 @@ export function InventoryProvider({ children }) {
 
   const confirmStoreReceipt = useCallback(
     async (poID, entries, { supplierID: sid, supplierName: sname } = {}, opts = {}) => {
-      const po = purchaseOrders.find((p) => p.poID === poID);
-      if (!po) return { ok: false, error: 'Purchase order not found.' };
-      if (!['On loading', 'In Transit', 'Approved'].includes(po.status)) {
-        return {
-          ok: false,
-          error: 'PO must be on loading, in transit, or approved before store receipt.',
-        };
-      }
-      for (const e of entries) {
-        const qty = Number(e.qtyReceived);
-        if (Number.isNaN(qty) || qty <= 0) {
-          return { ok: false, error: 'Enter a valid quantity received.' };
-        }
-        const line = findPoLine(po, e);
-        if (!line) {
+      const po =
+        purchaseOrders.find((p) => p.poID === poID) ||
+        (opts.purchaseOrder && String(opts.purchaseOrder.poID) === String(poID)
+          ? opts.purchaseOrder
+          : null);
+      if (!po && !wsCanMutate) return { ok: false, error: 'Purchase order not found.' };
+      if (po) {
+        if (!['On loading', 'In Transit', 'Approved'].includes(po.status)) {
           return {
             ok: false,
-            error: e.lineKey
-              ? `Line ${e.lineKey} not on this PO.`
-              : `Product ${e.productID} not on this PO.`,
+            error: 'PO must be on loading, in transit, or approved before store receipt.',
           };
+        }
+        for (const e of entries) {
+          const qty = Number(e.qtyReceived);
+          if (Number.isNaN(qty) || qty <= 0) {
+            return { ok: false, error: 'Enter a valid quantity received.' };
+          }
+          const line = findPoLine(po, e);
+          if (!line) {
+            return {
+              ok: false,
+              error: e.lineKey
+                ? `Line ${e.lineKey} not on this PO.`
+                : `Product ${e.productID} not on this PO.`,
+            };
+          }
+        }
+      } else {
+        for (const e of entries) {
+          const qty = Number(e.qtyReceived);
+          if (Number.isNaN(qty) || qty <= 0) {
+            return { ok: false, error: 'Enter a valid quantity received.' };
+          }
         }
       }
 
@@ -695,7 +710,9 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'GRN failed on server.' };
         }
-        await wsRefresh?.();
+        // Merge PO status immediately; coil/SKU stock still needs operations pack.
+        if (data?.delta) ws?.applyWriteDelta?.(data.delta);
+        void wsRefresh?.();
         return {
           ok: true,
           coilNos: data.coilNos || [],
@@ -708,7 +725,7 @@ export function InventoryProvider({ children }) {
         error: 'Connect to the API to post goods receipt. Offline demo posting is disabled to protect inventory accuracy.',
       };
     },
-    [purchaseOrders, wsCanMutate, wsRefresh]
+    [purchaseOrders, ws, wsCanMutate, wsRefresh]
   );
 
   const adjustStock = useCallback(

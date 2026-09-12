@@ -521,8 +521,12 @@ export function LiveProductionMonitor({
     else setJobIntel(null);
   }, [selectedJob?.jobID]);
 
-  /** Reload production jobs, coils, and yard stock — much faster than full workspace bootstrap. */
-  const refreshProductionWorkspace = useCallback(async () => {
+  /** Prefer write delta; otherwise reload production jobs/coils (faster than full bootstrap). */
+  const refreshProductionWorkspace = useCallback(async (opts = {}) => {
+    if (opts?.delta && typeof ws?.applyWriteDelta === 'function' && ws.applyWriteDelta(opts.delta)) {
+      setCoilAllocRefreshToken((n) => n + 1);
+      return;
+    }
     if (typeof ws?.ensureDomainLoaded === 'function') {
       await ws.ensureDomainLoaded('operations', { force: true });
     } else {
@@ -530,6 +534,13 @@ export function LiveProductionMonitor({
     }
     setCoilAllocRefreshToken((n) => n + 1);
   }, [ws]);
+
+  const refreshAfterWrite = useCallback(
+    async (res) => {
+      await refreshProductionWorkspace({ delta: res?.data?.delta ?? res?.delta });
+    },
+    [refreshProductionWorkspace]
+  );
 
   const recalculateJobStock = useCallback(async () => {
     if (!selectedJob?.jobID || stockRecalcBusy || !ws?.canMutate) {
@@ -548,7 +559,7 @@ export function LiveProductionMonitor({
         showToast(res.data?.error || 'Could not recalculate stock.', { variant: 'error' });
         return;
       }
-      await refreshProductionWorkspace();
+      await refreshAfterWrite(res);
       const note = stockRecalcSuffix(res.data);
       showToast(note ? note.trim() : 'Stock recalculated for this job.');
     } catch (e) {
@@ -556,7 +567,7 @@ export function LiveProductionMonitor({
     } finally {
       setStockRecalcBusy(false);
     }
-  }, [selectedJob?.jobID, stockRecalcBusy, ws?.canMutate, refreshProductionWorkspace, showToast]);
+  }, [selectedJob?.jobID, stockRecalcBusy, ws?.canMutate, refreshAfterWrite, showToast]);
 
   useEffect(() => {
     void reloadJobIntel();
@@ -2131,7 +2142,7 @@ export function LiveProductionMonitor({
         });
         return;
       }
-      await refreshProductionWorkspace();
+      await refreshAfterWrite(data);
       showToast('Manager sign-off recorded.');
       setSignoffRemark('');
       setSignoffEditApprovalId('');
@@ -2168,7 +2179,7 @@ export function LiveProductionMonitor({
       setCancelReason('');
       const wasRecall = recallModalIntent;
       setRecallModalIntent(false);
-      await refreshProductionWorkspace();
+      await refreshAfterWrite(data);
       showToast(
         wasRecall
           ? 'Entry recalled — cutting list is Waiting. Fix lengths in Sales if needed, then register again. If only coils were wrong, re-register and edit coils on the new Planned job.'
@@ -2207,7 +2218,7 @@ export function LiveProductionMonitor({
       setReturnReason('');
       const wasRecall = recallModalIntent;
       setRecallModalIntent(false);
-      await refreshProductionWorkspace();
+      await refreshAfterWrite(data);
       showToast(
         wasRecall
           ? 'Run recalled to Planned — fix coils / opening kg, then Save and start production and Complete again.'
@@ -2269,7 +2280,7 @@ export function LiveProductionMonitor({
       setFgAdjDelta('');
       setFgAdjNote('');
       setPostCompletionEditApprovalId('');
-      await refreshProductionWorkspace();
+      await refreshAfterWrite(data);
       showToast(`Adjustment recorded. Stock now ~${Number(data.productStockMetersAfter).toFixed(2)} m for SKU.`);
     } catch (e) {
       showToast(e?.message || 'Network error.', { variant: 'error' });
@@ -2421,11 +2432,11 @@ export function LiveProductionMonitor({
         });
         if (!ok || !data?.ok) {
           showToast(data?.error || 'Could not release coil reservation after delete.', { variant: 'error' });
-          await refreshProductionWorkspace();
+          await refreshAfterWrite(data);
           return;
         }
         clearProdCoilDraftStorage(selectedJob.jobID);
-        await refreshProductionWorkspace();
+        await refreshAfterWrite(data);
         showToast(
           releasedCoilNo
             ? `Removed ${releasedCoilNo} — reserved kg released back to free stock.`
@@ -2446,7 +2457,7 @@ export function LiveProductionMonitor({
       selectedJob?.jobID,
       ws?.canMutate,
       showToast,
-      refreshProductionWorkspace,
+      refreshAfterWrite,
     ]
   );
 
@@ -2627,10 +2638,10 @@ export function LiveProductionMonitor({
         }
         if (!res.ok || !res.data?.ok) {
           showToast(res.data?.error || 'Could not apply correction.', { variant: 'error' });
-          await refreshProductionWorkspace();
+          await refreshAfterWrite(res);
           return;
         }
-        await refreshProductionWorkspace();
+        await refreshAfterWrite(res);
         setPostCompletionEditApprovalId('');
         setCorrectionModalKind(null);
         setCorrectionReason('');
@@ -2649,10 +2660,10 @@ export function LiveProductionMonitor({
         });
         if (!res.ok || !res.data?.ok) {
           showToast(res.data?.error || 'Could not apply accessory correction.', { variant: 'error' });
-          await refreshProductionWorkspace();
+          await refreshAfterWrite(res);
           return;
         }
-        await refreshProductionWorkspace();
+        await refreshAfterWrite(res);
         setPostCompletionEditApprovalId('');
         setCorrectionModalKind(null);
         setCorrectionReason('');
@@ -2670,10 +2681,10 @@ export function LiveProductionMonitor({
         });
         if (!res.ok || !res.data?.ok) {
           showToast(res.data?.error || 'Could not apply stone flatsheet correction.', { variant: 'error' });
-          await refreshProductionWorkspace();
+          await refreshAfterWrite(res);
           return;
         }
-        await refreshProductionWorkspace();
+        await refreshAfterWrite(res);
         setPostCompletionEditApprovalId('');
         setCorrectionModalKind(null);
         setCorrectionReason('');
@@ -2692,10 +2703,10 @@ export function LiveProductionMonitor({
         });
         if (!res.ok || !res.data?.ok) {
           showToast(res.data?.error || 'Could not apply stone metres correction.', { variant: 'error' });
-          await refreshProductionWorkspace();
+          await refreshAfterWrite(res);
           return;
         }
-        await refreshProductionWorkspace();
+        await refreshAfterWrite(res);
         setPostCompletionEditApprovalId('');
         setCorrectionModalKind(null);
         setCorrectionReason('');
@@ -2771,6 +2782,7 @@ export function LiveProductionMonitor({
       const skippedCoilRows = incompleteNewCoilRows(draftAllocations);
       try {
         let lastStockRecalc = null;
+        let lastWriteRes = null;
         if (runLogSaveReady && !stonePureNoCoil) {
           const persistedRows = draftAllocations.filter((r) => !isDraftAllocationRow(r));
           const persistedMetersTotal = persistedRows.reduce(
@@ -2821,10 +2833,11 @@ export function LiveProductionMonitor({
           if (!resRl.ok || !resRl.data?.ok) {
             setSavingAction('');
             showToast(resRl.data?.error || 'Could not save run log.', { variant: 'error' });
-            await refreshProductionWorkspace();
+            await refreshAfterWrite(resRl);
             return;
           }
           lastStockRecalc = resRl.data?.stockRecalc ?? lastStockRecalc;
+          lastWriteRes = resRl;
         }
         if (appendSaveReady && !stonePureNoCoil && isRunningForSave) {
           const pathAlloc = `${jobApi}/allocations`;
@@ -2863,13 +2876,14 @@ export function LiveProductionMonitor({
             if (!resA.ok || !resA.data?.ok) {
               setSavingAction('');
               showToast(resA.data?.error || 'Could not save new coil.', { variant: 'error' });
-              await refreshProductionWorkspace();
+              await refreshAfterWrite(resA);
               return;
             }
             lastStockRecalc = resA.data?.stockRecalc ?? lastStockRecalc;
+            lastWriteRes = resA;
           }
         }
-        await refreshProductionWorkspace();
+        await refreshAfterWrite(lastWriteRes);
         setSavingAction('');
         if (!skippedCoilRows.length) clearProdCoilDraftStorage(selectedJob.jobID);
         showToast(`Saved.${stockRecalcSuffix(lastStockRecalc)}`);
@@ -2911,12 +2925,12 @@ export function LiveProductionMonitor({
               ),
               { variant: 'error' }
             );
-            await refreshProductionWorkspace();
+            await refreshAfterWrite(startRes);
             return;
           }
           setStoneAllocAck(true);
           markProductionStarted();
-          await refreshProductionWorkspace();
+          await refreshAfterWrite(startRes);
           clearProdCoilDraftStorage(selectedJob.jobID);
           showToast(
             stoneCoilHybrid
@@ -2941,11 +2955,11 @@ export function LiveProductionMonitor({
             ),
             { variant: 'error' }
           );
-          await refreshProductionWorkspace();
+          await refreshAfterWrite(startRes);
           return;
         }
         markProductionStarted();
-        await refreshProductionWorkspace();
+        await refreshAfterWrite(startRes);
         showToast(`Offcut/accessories run started for ${listLabel}.`);
         return;
       }
@@ -3016,7 +3030,7 @@ export function LiveProductionMonitor({
       }
       const willStartAfterAlloc = alsoStartAfterAlloc && isPlannedForSave;
       if (!willStartAfterAlloc) {
-        await refreshProductionWorkspace();
+        await refreshAfterWrite(res);
         if (!skippedCoilRows.length) clearProdCoilDraftStorage(selectedJob.jobID);
       }
       if (willStartAfterAlloc) {
@@ -3034,11 +3048,11 @@ export function LiveProductionMonitor({
             ),
             { variant: 'error' }
           );
-          await refreshProductionWorkspace();
+          await refreshAfterWrite(startRes);
           return;
         }
         markProductionStarted();
-        await refreshProductionWorkspace();
+        await refreshAfterWrite(startRes);
         if (!skippedCoilRows.length) clearProdCoilDraftStorage(selectedJob.jobID);
         showToast(
           coilAllocSavedToastMessage({
@@ -3198,7 +3212,7 @@ export function LiveProductionMonitor({
       );
       return;
     }
-    await refreshProductionWorkspace();
+    await refreshAfterWrite({ data });
     if (type === 'complete') {
       clearProdCoilDraftStorage(selectedJob.jobID);
       clearProdMeterDraftStorage(selectedJob.jobID);

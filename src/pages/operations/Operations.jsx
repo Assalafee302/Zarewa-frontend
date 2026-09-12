@@ -697,6 +697,10 @@ const Operations = () => {
   const [stockAdjustMaterialFamily, setStockAdjustMaterialFamily] = useState(
     /** @type {null | 'aluminium' | 'aluzinc'} */ (null)
   );
+  const [stockAdjustProductQuery, setStockAdjustProductQuery] = useState('');
+  const [remoteStockProducts, setRemoteStockProducts] = useState([]);
+  const [remoteStockProductsLoading, setRemoteStockProductsLoading] = useState(false);
+
   useEffect(() => {
     if (showStockAdjust) {
       setStockAdjustCoilPrompt(false);
@@ -706,8 +710,39 @@ const Operations = () => {
       setStockAdjustLargeAck(false);
       setStockAdjustLargeMeta(null);
       setStockAdjustConfirmText('');
+      setStockAdjustProductQuery('');
+      setRemoteStockProducts([]);
     }
   }, [showStockAdjust]);
+
+  useEffect(() => {
+    if (!showStockAdjust) return undefined;
+    const q = stockAdjustProductQuery.trim();
+    if (q.length < 2) {
+      setRemoteStockProducts([]);
+      setRemoteStockProductsLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setRemoteStockProductsLoading(true);
+        const params = new URLSearchParams({ q, limit: '40' });
+        const r = await apiFetch(`/api/products?${params}`);
+        if (cancelled) return;
+        setRemoteStockProductsLoading(false);
+        if (r.ok && r.data?.ok && Array.isArray(r.data.products)) {
+          setRemoteStockProducts(r.data.products);
+        } else {
+          setRemoteStockProducts([]);
+        }
+      })();
+    }, 220);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [stockAdjustProductQuery, showStockAdjust]);
 
   const stockAdjustProductOptions = useMemo(() => {
     const base =
@@ -717,10 +752,33 @@ const Operations = () => {
             const filtered = inventoryRows.filter((r) => productMaterialFamily(r) === stockAdjustMaterialFamily);
             return filtered.length ? filtered : inventoryRows;
           })();
-    return [...base].sort((a, b) =>
+    const byId = new Map();
+    for (const r of base) {
+      const id = String(r?.productID || '').trim();
+      if (id) byId.set(id, r);
+    }
+    for (const r of remoteStockProducts) {
+      const id = String(r?.productID || '').trim();
+      if (!id || byId.has(id)) continue;
+      byId.set(id, {
+        ...r,
+        name: r.name,
+        productID: r.productID,
+        unit: r.unit,
+      });
+    }
+    const q = stockAdjustProductQuery.trim().toLowerCase();
+    let rows = [...byId.values()];
+    if (q) {
+      rows = rows.filter((r) => {
+        const blob = [r.productID, r.name, r.unit].filter(Boolean).join(' ').toLowerCase();
+        return blob.includes(q);
+      });
+    }
+    return rows.sort((a, b) =>
       compareSelectLabels(`${a.name || ''} ${a.productID || ''}`, `${b.name || ''} ${b.productID || ''}`)
     );
-  }, [inventoryRows, stockAdjustMaterialFamily]);
+  }, [inventoryRows, stockAdjustMaterialFamily, remoteStockProducts, stockAdjustProductQuery]);
 
   const closeStockAdjustModal = useCallback(() => {
     setShowStockAdjust(false);
@@ -732,6 +790,8 @@ const Operations = () => {
 
   const [transitSearch, setTransitSearch] = useState('');
   const [transitSort, setTransitSort] = useState('orderDesc');
+  const [poSearchRemoteRows, setPoSearchRemoteRows] = useState([]);
+  const [poSearchRemoteLoading, setPoSearchRemoteLoading] = useState(false);
 
   const [coilReceiptSort, setCoilReceiptSort] = useState(() =>
     /** @type {{ key: 'received' | 'coilNo' | 'colour' | 'gauge' | 'material' | 'kg'; dir: 'asc' | 'desc' }} */ ({
@@ -1365,8 +1425,52 @@ const Operations = () => {
     return sorted.filter((p) => transitPoSearchBlob(p).includes(transitSearchNorm));
   }, [transitOrdersAll, transitSort, transitSearchNorm]);
 
-  /** Receivable POs must all be visible — do not cap like coil/SKU side lists. */
-  const transitOrders = transitOrdersSortedFiltered;
+  useEffect(() => {
+    const q = transitSearch.trim();
+    if (q.length < 2) {
+      setPoSearchRemoteRows([]);
+      setPoSearchRemoteLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setPoSearchRemoteLoading(true);
+        const params = new URLSearchParams({
+          q,
+          limit: '40',
+          status: PO_RECEIVABLE_STATUSES.join(','),
+        });
+        const r = await apiFetch(`/api/purchase-orders?${params}`);
+        if (cancelled) return;
+        setPoSearchRemoteLoading(false);
+        if (r.ok && r.data?.ok && Array.isArray(r.data.purchaseOrders)) {
+          setPoSearchRemoteRows(r.data.purchaseOrders);
+        } else {
+          setPoSearchRemoteRows([]);
+        }
+      })();
+    }, 280);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [transitSearch]);
+
+  /** Receivable POs must all be visible — merge typeahead hits when the pack is slim. */
+  const transitOrders = useMemo(() => {
+    const byId = new Map();
+    for (const p of transitOrdersSortedFiltered) {
+      if (p?.poID) byId.set(String(p.poID), p);
+    }
+    for (const p of poSearchRemoteRows) {
+      const id = String(p?.poID || '').trim();
+      if (!id || byId.has(id) || !shouldShowPoInTransit(p)) continue;
+      if (transitSearchNorm && !transitPoSearchBlob(p).includes(transitSearchNorm)) continue;
+      byId.set(id, p);
+    }
+    return sortTransitPurchaseOrders([...byId.values()], transitSort);
+  }, [transitOrdersSortedFiltered, poSearchRemoteRows, transitSearchNorm, transitSort]);
 
   const coilLotsReceiptSorted = useMemo(() => {
     const finishedCoils = new Set(
@@ -1467,8 +1571,10 @@ const Operations = () => {
   );
 
   const anyReceivablePo = useMemo(
-    () => purchaseOrders.some((p) => shouldShowPoInTransit(p)),
-    [purchaseOrders]
+    () =>
+      purchaseOrders.some((p) => shouldShowPoInTransit(p)) ||
+      poSearchRemoteRows.some((p) => shouldShowPoInTransit(p)),
+    [purchaseOrders, poSearchRemoteRows]
   );
 
   const skuProductsLiveSorted = useMemo(() => {
@@ -1528,7 +1634,9 @@ const Operations = () => {
       setGrnConversionOverride(false);
     }
 
-    const po = purchaseOrders.find((p) => p.poID === poId);
+    const po =
+      purchaseOrders.find((p) => p.poID === poId) ||
+      transitOrders.find((p) => p.poID === poId);
     if (!po) {
       setGrnLines([]);
       return;
@@ -1597,7 +1705,7 @@ const Operations = () => {
         };
       });
     });
-  }, [receiveDraft.poID, purchaseOrders, coilLots]);
+  }, [receiveDraft.poID, purchaseOrders, transitOrders, coilLots]);
 
   const applyTransitReceipt = async (e) => {
     e.preventDefault();
@@ -1657,11 +1765,14 @@ const Operations = () => {
     }
     setGrnSubmitting(true);
     try {
+      const selectedPo =
+        purchaseOrders.find((p) => p.poID === receiveDraft.poID) ||
+        transitOrders.find((p) => p.poID === receiveDraft.poID);
       const res = await confirmStoreReceipt(
         receiveDraft.poID,
         entries,
         {},
-        { allowConversionMismatch: grnConversionOverride }
+        { allowConversionMismatch: grnConversionOverride, purchaseOrder: selectedPo || undefined }
       );
       if (!res.ok) {
         showToast(res.error, { variant: 'error' });
@@ -2017,12 +2128,12 @@ const Operations = () => {
             stoneRestockMinM={stoneRestockMinM}
             anyReceivablePo={anyReceivablePo}
             inTransitLoads={inTransitLoads}
-            transitOrdersSortedFiltered={transitOrdersSortedFiltered}
             transitSearch={transitSearch}
             setTransitSearch={setTransitSearch}
             transitSort={transitSort}
             setTransitSort={setTransitSort}
             transitOrders={transitOrders}
+            poSearchRemoteLoading={poSearchRemoteLoading}
             expandedReceivePoId={expandedReceivePoId}
             setExpandedReceivePoId={setExpandedReceivePoId}
             setReceiveDraft={setReceiveDraft}
@@ -2412,6 +2523,13 @@ const Operations = () => {
                 <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Item
                 </label>
+                <input
+                  type="search"
+                  value={stockAdjustProductQuery}
+                  onChange={(e) => setStockAdjustProductQuery(e.target.value)}
+                  placeholder="Search SKU or name…"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-4 text-sm font-semibold outline-none mb-2"
+                />
                 <select
                   required
                   value={stockAdjust.productID}
@@ -2423,7 +2541,9 @@ const Operations = () => {
                   }}
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                 >
-                  <option value="">Select item…</option>
+                  <option value="">
+                    {remoteStockProductsLoading ? 'Searching…' : 'Select item…'}
+                  </option>
                   {stockAdjustProductOptions.map((r) => (
                     <option key={r.productID} value={r.productID}>
                       {r.name} ({r.productID})

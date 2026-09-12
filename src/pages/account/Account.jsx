@@ -1192,6 +1192,7 @@ const Account = () => {
             }
           }
         }
+        let payDelta = null;
         if (tillLines.length > 0) {
           const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/pay`, {
             method: 'POST',
@@ -1206,8 +1207,11 @@ const Account = () => {
             showToast(data?.error || 'Could not record refund payout.', { variant: 'error' });
             return;
           }
+          payDelta = data?.delta || null;
         }
-        void ws.refreshDomain?.('finance');
+        if (!(payDelta && ws.applyWriteDelta?.(payDelta))) {
+          void ws.refreshDomain?.('finance');
+        }
         setShowRefundPayModal(false);
         setRefundPayTarget(null);
         setRefundPayPayeeKey(null);
@@ -2579,13 +2583,14 @@ const Account = () => {
         setReceiptFinanceRow(null);
         setReceiptFinanceFocusMovementId(null);
         setPaymentCorrectionDrafts({});
-        // Refund fund on a receipt updates customer_refunds — reload finance + sales desks
-        // (shell merge alone keeps the pre-credit refund on the pay queue).
-        if (applied > 0) {
-          void ws?.refreshDomain?.('finance');
-          void ws?.refreshDomain?.('sales');
-        } else {
-          void ws?.refreshDomain?.('finance');
+        // Refund fund on a receipt updates customer_refunds — prefer write delta, else reload desks.
+        if (!(data?.delta && ws?.applyWriteDelta?.(data.delta))) {
+          if (applied > 0) {
+            void ws?.refreshDomain?.('finance');
+            void ws?.refreshDomain?.('sales');
+          } else {
+            void ws?.refreshDomain?.('finance');
+          }
         }
       } finally {
         setReceiptFinanceBusy(false);

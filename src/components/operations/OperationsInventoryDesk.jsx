@@ -44,12 +44,12 @@ export function OperationsInventoryDesk({
   stoneRestockMinM,
   anyReceivablePo,
   inTransitLoads,
-  transitOrdersSortedFiltered,
   transitSearch,
   setTransitSearch,
   transitSort,
   setTransitSort,
   transitOrders,
+  poSearchRemoteLoading = false,
   expandedReceivePoId,
   setExpandedReceivePoId,
   setReceiveDraft,
@@ -168,7 +168,7 @@ export function OperationsInventoryDesk({
               </h3>
               {!anyReceivablePo && inTransitLoads.length === 0 ? (
                 <p className="text-ui-xs font-medium text-slate-400">Nothing on road or loading.</p>
-              ) : transitOrdersSortedFiltered.length === 0 ? (
+              ) : transitOrders.length === 0 ? (
                 <p className="text-ui-xs font-medium text-slate-400">
                   {transitSearch.trim()
                     ? 'No purchase orders match your search.'
@@ -188,7 +188,7 @@ export function OperationsInventoryDesk({
                         type="search"
                         value={transitSearch}
                         onChange={(e) => setTransitSearch(e.target.value)}
-                        placeholder="PO, supplier, product…"
+                        placeholder={poSearchRemoteLoading ? 'Searching…' : 'PO, supplier, product…'}
                         className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2 text-ui-xs font-semibold text-slate-800 placeholder:text-slate-400"
                       />
                     </label>

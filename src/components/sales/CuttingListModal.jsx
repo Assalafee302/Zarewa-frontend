@@ -952,7 +952,9 @@ const CuttingListModal = ({
           if (nextBy) setLastPrintedByForSheet(nextBy);
         });
         if (data.cuttingList) onCuttingListUpdated?.(data.cuttingList);
-        await wsRefresh?.();
+        if (!(data.delta && ws?.applyWriteDelta?.(data.delta))) {
+          await wsRefresh?.();
+        }
       } else {
         const err = String(data?.error || '').trim();
         if (/draft/i.test(err)) {
@@ -963,7 +965,7 @@ const CuttingListModal = ({
       }
     }
     window.print();
-  }, [editData, hasUnsavedCuttingListChanges, wsCanMutate, wsRefresh, printCountForSheet, onCuttingListUpdated, showToast]);
+  }, [editData, hasUnsavedCuttingListChanges, wsCanMutate, wsRefresh, ws, printCountForSheet, onCuttingListUpdated, showToast]);
 
    
   useEffect(() => {
@@ -1468,8 +1470,10 @@ const CuttingListModal = ({
     }
     showToast('Production hold cleared. You can send this list to the queue.', { variant: 'success' });
     if (data?.cuttingList) onCuttingListUpdated?.(data.cuttingList);
-    await wsRefresh?.();
-  }, [editData?.id, wsCanMutate, wsRefresh, showToast, onCuttingListUpdated, canClearProductionHold]);
+    if (!(data?.delta && ws?.applyWriteDelta?.(data.delta))) {
+      await wsRefresh?.();
+    }
+  }, [editData?.id, wsCanMutate, wsRefresh, ws, showToast, onCuttingListUpdated, canClearProductionHold]);
 
   const registerProduction = useCallback(async () => {
     const id = editData?.id;
@@ -1532,8 +1536,11 @@ const CuttingListModal = ({
     }
     showToast('Cutting list added to the production queue.', { variant: 'success' });
     if (data?.cuttingList) onCuttingListUpdated?.(data.cuttingList);
+    if (data?.delta && ws?.applyWriteDelta?.(data.delta)) {
+      return;
+    }
     await wsRefresh?.();
-  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, isDraftRecord, hasUnsavedCuttingListChanges, quotationConsumption, machineName, wsCanMutate, wsRefresh, showToast, onCuttingListUpdated, selectedQuotation, receipts, ledgerEntries, minPaidFraction, minPaidPercentLabel]);
+  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, isDraftRecord, hasUnsavedCuttingListChanges, quotationConsumption, machineName, wsCanMutate, wsRefresh, ws, showToast, onCuttingListUpdated, selectedQuotation, receipts, ledgerEntries, minPaidFraction, minPaidPercentLabel]);
 
   return (
     <ModalFrame isOpen={isOpen} onClose={handleClose} modal={!showPrintPreview} showCloseButton={false}>

@@ -30,6 +30,7 @@ import {
 import { sanitizeWorkItemForCache } from '../lib/workspaceSanitize.js';
 import { appQueryClient, invalidateAppShellQueries } from '../lib/queryClient';
 import { mergeDashboardPollIntoSnapshot } from '../lib/bootstrapPollMerge';
+import { mergeWriteDeltaIntoSnapshot, domainsTouchedByDelta } from '../lib/applyWriteDelta';
 import {
   accessibleWorkspaceDomains,
   inferLoadedWorkspaceDomains,
@@ -323,6 +324,12 @@ export function WorkspaceProvider({ children }) {
   const pollFailureStreakRef = useRef(0);
   /** Last measured `/api/livez` RTT — used to stretch bootstrap timeout on slow links. */
   const apiRttMsRef = useRef(null);
+  /**
+   * Domains the writer just patched via body.delta — skip the echo SSE pack refetch briefly
+   * so save/approve does not wait on a full sales/finance/ops download.
+   * @type {React.MutableRefObject<{ domains: Set<string>, until: number }>}
+   */
+  const localWriteSkipRef = useRef({ domains: new Set(), until: 0 });
 
   const resetDomainRuntime = useCallback(() => {
     warmedAllRef.current = false;
@@ -409,6 +416,34 @@ export function WorkspaceProvider({ children }) {
       return next;
     });
     setRefreshEpoch((n) => n + 1);
+  }, []);
+
+  /**
+   * Apply additive write `delta` from API responses so the writer does not wait on a full
+   * domain pack. Returns true when something was merged.
+   * @param {Record<string, unknown[]> | null | undefined} delta
+   * @param {{ skipSseMs?: number }} [opts]
+   */
+  const applyWriteDelta = useCallback((delta, opts = {}) => {
+    const { next, changed, domains } = mergeWriteDeltaIntoSnapshot(snapshotRef.current, delta);
+    if (!changed || !next) return false;
+    setSnapshot(() => {
+      writeBootstrapCache(next);
+      return next;
+    });
+    if (Array.isArray(next.ledgerEntries) && Array.isArray(delta?.ledgerEntries) && delta.ledgerEntries.length) {
+      replaceLedgerEntries(next.ledgerEntries);
+    }
+    const touched = domains.length ? domains : domainsTouchedByDelta(delta);
+    if (touched.length) {
+      const skipMs = Math.max(500, Number(opts.skipSseMs) || 8_000);
+      const prev = localWriteSkipRef.current;
+      const mergedDomains = new Set(prev.until > Date.now() ? prev.domains : []);
+      for (const d of touched) mergedDomains.add(d);
+      localWriteSkipRef.current = { domains: mergedDomains, until: Date.now() + skipMs };
+    }
+    setRefreshEpoch((n) => n + 1);
+    return true;
   }, []);
 
   /** Generic in-place desk patch (close modal first; refresh domain in background). */
@@ -1404,6 +1439,9 @@ export function WorkspaceProvider({ children }) {
             // a user who has not finished warming should not have packs pulled in by
             // someone else's write.
             if (!loadedDomainsRef.current.has(domain)) continue;
+            // Writer already merged body.delta — skip the echo pack for a few seconds.
+            const skip = localWriteSkipRef.current;
+            if (skip.until > Date.now() && skip.domains.has(domain)) continue;
             await ensureDomainLoaded(domain, { revalidate: true });
           }
         }
@@ -1604,6 +1642,7 @@ export function WorkspaceProvider({ children }) {
       staffPurchaseCreditCrossBranch,
       refreshStaffPurchaseCreditPending,
       mergeQuotationIntoSnapshot,
+      applyWriteDelta,
       patchDomainSnapshot,
       refreshDomain,
       login,
@@ -1657,6 +1696,7 @@ export function WorkspaceProvider({ children }) {
       staffPurchaseCreditCrossBranch,
       refreshStaffPurchaseCreditPending,
       mergeQuotationIntoSnapshot,
+      applyWriteDelta,
       patchDomainSnapshot,
       refreshDomain,
       login,

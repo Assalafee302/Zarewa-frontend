@@ -273,6 +273,12 @@ const Sales = () => {
   const onLedgerSynced = useCallback(async (opts = {}) => {
     bumpLedger();
     if (!wsCanMutate) return;
+    // Prefer additive write delta — skip full sales/finance pack wait after receipt/quote save.
+    if (opts?.delta && ws?.applyWriteDelta?.(opts.delta)) {
+      if (opts?.skipShellRefresh) return;
+      await wsRefresh?.();
+      return;
+    }
     // Shell refresh alone does not reload desk arrays — force sales snapshot so new quotes/receipts appear.
     // Quotation-only saves can skip finance: that pack is large and blocked "save → add payment".
     // Pass `domains: []` to skip domain reloads when the row was already merged into the snapshot.
@@ -286,7 +292,7 @@ const Sales = () => {
     }
     if (opts?.skipShellRefresh) return;
     await wsRefresh?.();
-  }, [bumpLedger, wsCanMutate, wsRefresh, ws?.ensureDomainLoaded]);
+  }, [bumpLedger, wsCanMutate, wsRefresh, ws?.ensureDomainLoaded, ws?.applyWriteDelta]);
 
   const runAdminSalesDerivedReconcile = useCallback(async () => {
     if (!isAdminRole) return;
@@ -1142,7 +1148,9 @@ const Sales = () => {
         showToast(err, { variant: 'error' });
         return { ok: false, error: err };
       }
-      void ws.refreshDomain?.('sales');
+      if (!(data?.delta && ws.applyWriteDelta?.(data.delta))) {
+        void ws.refreshDomain?.('sales');
+      }
       invalidateEligibleRefundQuotationsCache();
       void fetchEligibleRefundQuotations({ force: true });
       showToast(
@@ -1189,7 +1197,9 @@ const Sales = () => {
     if (!ok || !data?.ok) {
       return { ok: false, error: data?.error || 'Could not save cutting list.' };
     }
-    void ws.refreshDomain?.('sales');
+    if (!(data?.delta && ws.applyWriteDelta?.(data.delta))) {
+      void ws.refreshDomain?.('sales');
+    }
     showToast(`${isEdit ? 'Updated' : 'Created'} cutting list ${data.cuttingList?.id || data.id}.`);
     return { ok: true, cuttingList: data.cuttingList, id: data.cuttingList?.id || data.id };
   };
@@ -1401,7 +1411,11 @@ const Sales = () => {
         showToast(data?.error || data?.message || 'Could not add to production queue.', { variant: 'error' });
         return;
       }
-      if (wsCanMutate) await wsRefresh?.();
+      if (data?.delta && ws?.applyWriteDelta?.(data.delta)) {
+        /* local merge — skip full pack wait */
+      } else if (wsCanMutate) {
+        await wsRefresh?.();
+      }
       showToast('Cutting list added to the production queue.', { variant: 'success' });
     },
     [

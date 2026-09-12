@@ -1009,7 +1009,11 @@ const ReceiptModal = ({
           showToast(
             `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.`
           );
-          await onLedgerChange?.();
+          await onLedgerChange?.({
+            delta: retrySettled.data?.delta,
+            domains: retrySettled.data?.delta ? [] : undefined,
+            skipShellRefresh: Boolean(retrySettled.data?.delta),
+          });
           abandonUnsavedAndRun(() => onClose());
           return;
         }
@@ -1047,7 +1051,11 @@ const ReceiptModal = ({
           showToast(
             `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.`
           );
-          await onLedgerChange?.();
+          await onLedgerChange?.({
+            delta: retry.data?.delta,
+            domains: retry.data?.delta ? [] : undefined,
+            skipShellRefresh: Boolean(retry.data?.delta),
+          });
           abandonUnsavedAndRun(() => onClose());
           return;
         }
@@ -1067,6 +1075,13 @@ const ReceiptModal = ({
             { variant: 'info' }
           );
         }
+        await onLedgerChange?.({
+          delta: data?.delta,
+          domains: data?.delta ? [] : undefined,
+          skipShellRefresh: Boolean(data?.delta),
+        });
+        abandonUnsavedAndRun(() => onClose());
+        return;
       } else {
         const res = recordReceiptWithQuotation({
           customerID,

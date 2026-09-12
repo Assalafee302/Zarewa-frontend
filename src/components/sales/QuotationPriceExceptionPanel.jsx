@@ -135,9 +135,21 @@ export function QuotationPriceExceptionPanel({
         showToast(data?.error || 'Could not record MD approval.', { variant: 'error' });
         return;
       }
-      if (data.quotation) mergeQuote(data.quotation);
+      if (data.delta && ws?.applyWriteDelta?.(data.delta)) {
+        if (data.quotation) {
+          setQuoteRow((prev) => ({ ...(prev || {}), ...data.quotation }));
+          if (Array.isArray(data.quotation.pricingViolations)) setViolations(data.quotation.pricingViolations);
+          if (data.quotation.pricingHasFloorRows != null) setHasFloorRows(Boolean(data.quotation.pricingHasFloorRows));
+          onQuotationUpdated?.(data.quotation);
+        }
+      } else if (data.quotation) {
+        mergeQuote(data.quotation);
+      }
       showToast('MD below-floor approval recorded — cutting list and production may proceed.');
-      if (typeof ws?.refresh === 'function') await ws.refresh();
+      if (!(data.delta && typeof ws?.applyWriteDelta === 'function')) {
+        if (typeof ws?.refreshDomain === 'function') void ws.refreshDomain('sales');
+        else if (typeof ws?.refresh === 'function') await ws.refresh();
+      }
     } finally {
       setMdApproving(false);
     }
