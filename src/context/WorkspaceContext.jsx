@@ -37,6 +37,7 @@ import {
   planDomainPrefetch,
   snapshotHasUsableDomainData,
 } from '../lib/workspaceDomainPrefetch';
+import { lookupWorkspaceEntity, workspaceList } from '../lib/workspaceEntityLookup';
 import {
   clearPendingPasswordChange,
   hasPendingPasswordChange,
@@ -781,6 +782,25 @@ export function WorkspaceProvider({ children }) {
     return snapshotHasUsableDomainData(snapshotRef.current, key);
   }, []);
 
+  /**
+   * Find one row and say whether a miss means it does not exist or has not arrived.
+   *
+   * Screens reading `snapshot.quotations.find(...)` directly cannot tell those apart, and
+   * have been reporting the second as the first — a cutting list with "no quotation", an
+   * empty supplier picker. Prefer this wherever a miss is shown to someone.
+   */
+  const lookup = useCallback(
+    (arrayKey, id, opts = {}) =>
+      lookupWorkspaceEntity(snapshotRef.current, arrayKey, id, { ...opts, isDomainLoaded }),
+    [isDomainLoaded, refreshEpoch] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  /** List form of {@link lookup}: an empty picker is the same lie as a missing record. */
+  const listOf = useCallback(
+    (arrayKey) => workspaceList(snapshotRef.current, arrayKey, isDomainLoaded),
+    [isDomainLoaded, refreshEpoch] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   const ensureFullBootstrap = useCallback(async () => {
     if (fullBootstrapLoadedRef.current) return snapshotRef.current;
     const result = await refresh({ forceFull: true });
@@ -1405,6 +1425,8 @@ export function WorkspaceProvider({ children }) {
       ensureDomainLoaded,
       prefetchWorkspaceDomains,
       isDomainLoaded,
+      lookup,
+      listOf,
       ensureFullBootstrap,
       refreshEpoch,
       /** Live server reachable — reads and writes go to API (includes soft unstable). */
@@ -1463,6 +1485,8 @@ export function WorkspaceProvider({ children }) {
       ensureDomainLoaded,
       prefetchWorkspaceDomains,
       isDomainLoaded,
+      lookup,
+      listOf,
       ensureFullBootstrap,
       refreshEpoch,
       hasWorkspaceData,
