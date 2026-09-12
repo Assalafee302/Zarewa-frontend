@@ -1191,7 +1191,7 @@ const Sales = () => {
     }
     void ws.refreshDomain?.('sales');
     showToast(`${isEdit ? 'Updated' : 'Created'} cutting list ${data.cuttingList?.id || data.id}.`);
-    return { ok: true };
+    return { ok: true, cuttingList: data.cuttingList, id: data.cuttingList?.id || data.id };
   };
 
   const deleteQuotation = useCallback(

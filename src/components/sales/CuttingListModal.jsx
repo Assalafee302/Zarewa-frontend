@@ -1385,8 +1385,13 @@ const CuttingListModal = ({
       resolvedDraftId = String(draftResult?.id ?? resolvedDraftId).trim();
     }
 
-    const shouldFinalize =
-      isDraftRecord || (isCreate && Boolean(resolvedDraftId));
+    const liveStatus = String(
+      (savedCuttingListId
+        ? cuttingLists.find((cl) => String(cl.id) === savedCuttingListId)?.status
+        : null) ?? editData?.status ?? ''
+    ).trim();
+    const liveIsDraft = liveStatus === 'Draft' || (!liveStatus && isDraftRecord);
+    const shouldFinalize = liveIsDraft || (isCreate && Boolean(resolvedDraftId));
     if (
       (shouldFinalize || isCreate) &&
       selectedQuotation &&
@@ -1416,6 +1421,10 @@ const CuttingListModal = ({
     if (!result?.ok) {
       showToast(result?.error || result?.message || 'Could not save cutting list.', { variant: 'error' });
       return;
+    }
+    if (result.cuttingList) {
+      onCuttingListUpdated?.(result.cuttingList);
+      onDraftAutosaved?.(result.cuttingList);
     }
     clearCuttingListFormDraft(branchId, quotationRef);
     clearCuttingListFormDraft(branchId, '');
