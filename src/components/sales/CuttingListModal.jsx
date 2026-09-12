@@ -210,12 +210,13 @@ function linesForDraftPayload(linesByCat, categories) {
   const out = [];
   for (const { type } of categories) {
     for (const line of linesByCat[type] || []) {
-      const sheetsRaw = String(line.sheets ?? '').trim();
-      const lengthRaw = String(line.lengthM ?? '').trim();
-      if (!sheetsRaw && !lengthRaw) continue;
+      const sheets = parseNum(line.sheets);
+      const lengthM = parseNum(line.lengthM);
+      // Only persist complete lines — partial length/qty was creating Draft rows with 0 m.
+      if (!(sheets > 0 && lengthM > 0)) continue;
       out.push({
-        sheets: parseNum(line.sheets),
-        lengthM: parseNum(line.lengthM),
+        sheets,
+        lengthM,
         lineType: type,
       });
     }
@@ -469,6 +470,8 @@ const CuttingListModal = ({
   const [cuttingListEditApprovalId, setCuttingListEditApprovalId] = useState('');
   const lastCuttingListHydrateSigRef = useRef('');
   const autosaveTimerRef = useRef(null);
+  const draftPatchTimerRef = useRef(null);
+  const draftPatchGenerationRef = useRef(0);
   const initialDraftAttemptedRef = useRef(false);
   const [initialDraftAttempted, setInitialDraftAttempted] = useState(false);
   const pendingDraftIdRef = useRef('');
@@ -1287,7 +1290,8 @@ const CuttingListModal = ({
 
   useEffect(() => {
     if (!draftPatchAutosaveEnabled || saving) return undefined;
-    const timer = window.setTimeout(async () => {
+    const generation = ++draftPatchGenerationRef.current;
+    draftPatchTimerRef.current = window.setTimeout(async () => {
       setAutosaving(true);
       setAutosaveNote('Saving draft…');
       const { ok, data } = await apiFetch(
@@ -1297,15 +1301,25 @@ const CuttingListModal = ({
           body: JSON.stringify(buildPersistPayload({ autosave: true })),
         }
       );
+      if (generation !== draftPatchGenerationRef.current) {
+        setAutosaving(false);
+        return;
+      }
       setAutosaving(false);
       if (ok && data?.ok) {
+        if (data.skipped) return;
         setAutosaveNote(`Draft saved · ${savedCuttingListId}`);
         if (data.cuttingList) onDraftAutosaved?.(data.cuttingList);
       } else {
         setAutosaveNote('Draft sync failed — click Save list.');
       }
     }, 2000);
-    return () => clearTimeout(timer);
+    return () => {
+      if (draftPatchTimerRef.current != null) {
+        window.clearTimeout(draftPatchTimerRef.current);
+        draftPatchTimerRef.current = null;
+      }
+    };
   }, [
     draftPatchAutosaveEnabled,
     draftLinesPayload,
@@ -1318,9 +1332,15 @@ const CuttingListModal = ({
   const submit = async (e) => {
     e.preventDefault();
     if (readOnly || saving) return;
+    // Invalidate in-flight draft autosaves so they cannot overwrite Save list.
+    draftPatchGenerationRef.current += 1;
     if (autosaveTimerRef.current != null) {
       window.clearTimeout(autosaveTimerRef.current);
       autosaveTimerRef.current = null;
+    }
+    if (draftPatchTimerRef.current != null) {
+      window.clearTimeout(draftPatchTimerRef.current);
+      draftPatchTimerRef.current = null;
     }
     if (!quotationRef || !selectedQuotation) {
       showToast('Select a quotation before saving.', { variant: 'error' });
@@ -1366,9 +1386,7 @@ const CuttingListModal = ({
     }
 
     const shouldFinalize =
-      isDraftRecord ||
-      Boolean(serverDraftForQuote) ||
-      (isCreate && Boolean(resolvedDraftId));
+      isDraftRecord || (isCreate && Boolean(resolvedDraftId));
     if (
       (shouldFinalize || isCreate) &&
       selectedQuotation &&
@@ -2198,7 +2216,7 @@ const CuttingListModal = ({
 
             <p className="text-ui-xs leading-snug text-orange-900 bg-orange-50 border border-orange-100 rounded-lg p-2 font-medium">
               {isDraftRecord
-                ? 'Draft lists save as you type. Click Save list when all lines are complete — then the list moves to Waiting for production.'
+                ? 'A draft is kept while you work (complete length + qty on each line). Click Save list when finished — that moves it to Waiting. Do not start a new list for the same quotation.'
                 : 'Status: Waiting → In production when the line starts → Finished when production completes.'}
             </p>
           </div>
