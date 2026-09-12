@@ -45,6 +45,7 @@ import {
   withPendingPasswordSession,
 } from '../lib/pendingPasswordChange.js';
 import { readDeskDomainCache, writeDeskDomainCache } from '../lib/deskDomainPersist.js';
+import { openWorkspaceRealtime } from '../lib/workspaceV3Api';
 
 const WorkspaceContext = createContext(null);
 
@@ -859,6 +860,15 @@ export function WorkspaceProvider({ children }) {
       if (primary) {
         void ensureDomainLoaded(primary, { force: true });
       }
+      // Then the rest of what moved. Refetching only the primary left a cashier unable to
+      // see a sales change until they walked into sales — the revision had already said it
+      // changed, and we chose not to act on it. These are already known to have moved, so
+      // the ETag was dropped above and each is a real fetch; the primary goes first so the
+      // desk in front of the user updates before the ones behind it.
+      for (const domain of changedDomains) {
+        if (domain === primary) continue;
+        void ensureDomainLoaded(domain, { force: true });
+      }
 
       // The sweep: everything else keeps its ETag and is merely re-asked, so an unchanged
       // pack answers 304 in a few hundred bytes. This is what catches a table the revision
@@ -1296,6 +1306,41 @@ export function WorkspaceProvider({ children }) {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [status, pollWorkspaceChanges, refreshDashboardSummary, touchSessionActivity]);
+
+  /**
+   * Revalidate a desk the moment someone else changes it, instead of waiting for the poll.
+   *
+   * The stream carries only which domains moved, so this still goes through the normal
+   * authenticated pack fetch — and keeps the ETag, so a desk that did not really change
+   * costs a 304 rather than a download. The poll stays as the backstop: this fan-out is
+   * per-process, so under multiple workers a broadcast may not reach every client, and
+   * only the database-backed revision check is guaranteed.
+   */
+  useEffect(() => {
+    if (status !== 'ok' && status !== 'unstable') return undefined;
+    const es = openWorkspaceRealtime({
+      onEvent: (payload) => {
+        if (payload?.type !== 'workspace.data') return;
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+        const domains = Array.isArray(payload.domains) ? payload.domains : [];
+        for (const domain of domains) {
+          // Only desks this user actually has open — warming an unopened one on someone
+          // else's write would pull a pack they never asked for.
+          if (!loadedDomainsRef.current.has(domain)) continue;
+          void ensureDomainLoaded(domain, { revalidate: true });
+        }
+      },
+      // Silent on error: EventSource reconnects on its own, and the poll covers the gap.
+      onError: () => {},
+    });
+    return () => {
+      try {
+        es?.close?.();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [status, ensureDomainLoaded]);
 
   const session = snapshot?.session ?? null;
   const branchScope = snapshot?.branchScope ?? null;
