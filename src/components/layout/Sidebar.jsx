@@ -102,8 +102,11 @@ const Sidebar = ({
   const hasExecHr = canAccessExecutiveHr(permissions);
   const hasAccountingDesk = userMayViewAccountingDeskClient(roleKey, permissions);
   const hasLegacyFinanceNav = userMaySeeLegacyAccountsNav(roleKey, permissions);
+  const financeNavRole = String(roleKey || '').trim().toLowerCase();
   const financeNavLabel =
-    String(roleKey || '').trim().toLowerCase() === 'cashier' ? 'Finance desk' : 'Finance';
+    financeNavRole === 'cashier' || financeNavRole === 'sales_manager' || financeNavRole === 'branch_manager'
+      ? 'Finance desk'
+      : 'Finance';
 
   const fullMenuItems = [
     {

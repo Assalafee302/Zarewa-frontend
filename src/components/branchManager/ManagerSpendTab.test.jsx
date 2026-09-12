@@ -5,6 +5,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ManagerSpendTab } from './ManagerSpendTab.jsx';
 
 vi.mock('./MaintenanceVendorsPanel', () => ({ MaintenanceVendorsPanel: () => null }));
+vi.mock('../finance/CompanyRetentionPanel', () => ({ CompanyRetentionPanel: () => null }));
 
 beforeAll(() => {
   class ResizeObserverStub {
@@ -49,12 +50,11 @@ function renderSpend(roleKey, permissions) {
 }
 
 describe('ManagerSpendTab drill-down access', () => {
-  it('BM drill modal shows Finance-desk copy and no /accounts link', () => {
+  it('BM drill modal can link to Payouts & expenses (cashier cover)', () => {
     renderSpend('sales_manager', ['expenses.create', 'reports.view', 'finance.approve']);
     fireEvent.click(screen.getByRole('button', { name: /Total expenses/i }));
-    expect(screen.getByText(/Payouts & expenses stay on the Finance desk/i)).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Full Payouts & expenses/i })).toBeNull();
-    expect(screen.queryByRole('link', { name: /accounts/i })).toBeNull();
+    const link = screen.getByRole('link', { name: /Full Payouts & expenses/i });
+    expect(link).toHaveAttribute('href', '/accounts?tab=disbursements');
   });
 
   it('MD drill modal can link to Payouts & expenses', () => {

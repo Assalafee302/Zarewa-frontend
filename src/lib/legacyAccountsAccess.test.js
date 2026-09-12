@@ -11,10 +11,14 @@ import {
 } from './legacyAccountsAccess.js';
 
 describe('legacyAccountsAccess (client)', () => {
-  it('branch manager redirected from /accounts', () => {
-    expect(userMayAccessLegacyAccountsRoute('sales_manager', ['finance.approve'])).toBe(false);
-    expect(resolveLegacyAccountsRedirect('sales_manager', ['finance.approve'])?.to).toBe('/manager');
-    expect(userMaySeeLegacyAccountsNav('sales_manager', ['finance.approve'])).toBe(false);
+  it('branch manager can open cashier desk (cover) but not audit', () => {
+    expect(userMayAccessLegacyAccountsRoute('sales_manager', ['finance.approve'])).toBe(true);
+    expect(resolveLegacyAccountsRedirect('sales_manager', ['finance.approve'])).toBeNull();
+    expect(userMaySeeLegacyAccountsNav('sales_manager', ['finance.approve'])).toBe(true);
+    expect(getAllowedLegacyAccountTabs('sales_manager', ['finance.pay', 'cashier.desk.view'])).toContain('desk');
+    expect(getAllowedLegacyAccountTabs('sales_manager', ['finance.pay', 'cashier.desk.view'])).not.toContain('audit');
+    expect(resolveLegacyAccountsRedirect('sales_manager', ['finance.pay'], 'audit')?.to).toBe('/accounts?tab=desk');
+    expect(legacyAccountTabLabelForRole('desk', 'sales_manager')).toBe('Cashier');
   });
 
   it('cashier role can open Finance desk even without desk permission keys', () => {

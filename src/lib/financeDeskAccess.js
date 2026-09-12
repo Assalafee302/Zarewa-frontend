@@ -13,7 +13,8 @@ export const FINANCE_DESK_PERMISSIONS = {
 };
 
 const ACCOUNTING_DESK_ROLE_KEYS = new Set(['admin', 'md', 'finance_manager']);
-const CASHIER_DESK_ROLE_KEYS = new Set(['cashier']);
+/** Cashier + Branch Manager cover when cashier is absent. */
+const CASHIER_DESK_ROLE_KEYS = new Set(['cashier', 'sales_manager', 'branch_manager']);
 
 /** Head of Accounts / company accounting desk (reconciliation, GL, month-end). */
 export function userMayViewAccountingDeskClient(roleKey, permissions) {

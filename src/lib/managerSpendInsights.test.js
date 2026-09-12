@@ -193,11 +193,11 @@ describe('managerSpendInsights', () => {
 });
 
 describe('Spend tab BM payment-register boundary', () => {
-  it('sales_manager cannot open /accounts (Spend drill footer must not link)', async () => {
+  it('sales_manager can open cashier Finance desk (cover)', async () => {
     const { userMayAccessLegacyAccountsRoute } = await import('./legacyAccountsAccess.js');
-    // ManagerSpendTab gates Link via this helper — BM must stay false even with finance.approve.
+    // ManagerSpendTab can deep-link BM to payouts when covering cashier duties.
     expect(userMayAccessLegacyAccountsRoute('sales_manager', ['expenses.create', 'finance.approve', 'reports.view'])).toBe(
-      false
+      true
     );
     expect(userMayAccessLegacyAccountsRoute('md', ['finance.view', 'reports.view'])).toBe(true);
   });

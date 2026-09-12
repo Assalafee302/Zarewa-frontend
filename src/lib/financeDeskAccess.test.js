@@ -13,6 +13,11 @@ describe('financeDeskAccess', () => {
     expect(userMayViewCashierDeskClient('cashier', [])).toBe(true);
   });
 
+  it('branch manager can view Cashier Desk for cover', () => {
+    expect(userMayViewCashierDeskClient('sales_manager', [])).toBe(true);
+    expect(userMayViewAccountingDeskClient('sales_manager', ['finance.view', 'reports.view'])).toBe(false);
+  });
+
   it('finance_manager can view Accounting Desk', () => {
     expect(userMayViewAccountingDeskClient('finance_manager', ['accounting.desk.view'])).toBe(true);
     expect(userMayViewAccountingDeskClient('finance_manager', ['finance.view', 'reports.view'])).toBe(true);

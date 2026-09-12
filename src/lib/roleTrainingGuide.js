@@ -147,6 +147,10 @@ const ROLE_TRAINING = {
         body: 'Open **Command Centre** → **Intelligence** for business forecasts, expense analysis, and coil/material signals for your branch.',
       },
       {
+        heading: 'Cashier cover',
+        body: 'When the cashier is away, open **Finance desk** (`/cashier` or `/accounts`) to confirm receipts and make payouts. You keep Manager dashboard as your home.',
+      },
+      {
         heading: 'Team HR (not main HR admin)',
         body: 'Use **My team** (`/team-hr`) for everyone in your branch — endorse leave and loans, attendance, and incidents. Staff appear by branch and role; you do not need to link line managers.',
       },
@@ -157,6 +161,7 @@ const ROLE_TRAINING = {
     ],
     quickLinks: [
       { label: 'Management', path: '/manager' },
+      { label: 'Finance desk', path: '/cashier' },
       { label: 'Command Centre', path: '/exec?tab=intelligence' },
       { label: 'My team', path: '/team-hr' },
     ],
