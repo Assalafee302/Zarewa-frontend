@@ -188,6 +188,14 @@ const MAX_RECONNECT_BACKOFF_MS = 120_000;
 const DOMAIN_REVALIDATE_EVERY_MS = 300_000;
 
 /**
+ * How long realtime invalidations are gathered before any desk is re-asked.
+ *
+ * Long enough to fold a burst of colleague writes into one request per desk, short
+ * enough that nobody perceives it as a delay — the gap this replaces was ninety seconds.
+ */
+const REALTIME_COALESCE_MS = 400;
+
+/**
  * Delay before reconnect attempt `attempt` (0-based) when the link is degraded.
  * Grows exponentially so a mill link that cannot finish a bootstrap stops being asked
  * to start another one every tick, and caps so recovery still happens unattended.
@@ -275,6 +283,12 @@ export function WorkspaceProvider({ children }) {
   const [dashboardSummaryEtag, setDashboardSummaryEtag] = useState('');
   const [lastError, setLastError] = useState(null);
   const [refreshEpoch, setRefreshEpoch] = useState(0);
+  /**
+   * Progress of the one-time warm-up that pulls every desk this user can open.
+   * Surfaced so the wait is something they can watch finish, rather than discovering the
+   * gaps one screen at a time.
+   */
+  const [warmup, setWarmup] = useState({ total: 0, done: 0, active: '', running: false });
   const [editApprovalsPendingCount, setEditApprovalsPendingCount] = useState(0);
   const [staffPurchaseCreditPendingCount, setStaffPurchaseCreditPendingCount] = useState(0);
   const [staffPurchaseCreditCrossBranch, setStaffPurchaseCreditCrossBranch] = useState(null);
@@ -297,6 +311,11 @@ export function WorkspaceProvider({ children }) {
    */
   const lastDomainSweepAtRef = useRef(0);
   const prefetchGenRef = useRef(0);
+  /**
+   * Whether every desk this user can open has been warmed for this session/branch.
+   * Reset with the rest of the domain runtime, so switching branch warms the new one.
+   */
+  const warmedAllRef = useRef(false);
   const fullBootstrapLoadedRef = useRef(false);
   const lastErrorRef = useRef(null);
   const refreshSeqRef = useRef(0);
@@ -306,6 +325,7 @@ export function WorkspaceProvider({ children }) {
   const apiRttMsRef = useRef(null);
 
   const resetDomainRuntime = useCallback(() => {
+    warmedAllRef.current = false;
     loadedDomainsRef.current = new Set();
     domainInflightRef.current = new Map();
     domainEtagRef.current = new Map();
@@ -759,7 +779,10 @@ export function WorkspaceProvider({ children }) {
       const gen = ++prefetchGenRef.current;
       const force = Boolean(opts.force);
       const pending = domains.filter((d) => force || !loadedDomainsRef.current.has(d));
-      if (!pending.length) return;
+      if (!pending.length) {
+        if (opts.reportProgress) setWarmup({ total: 0, done: 0, active: '', running: false });
+        return;
+      }
 
       // Default: primary desk only. Secondary warm only when explicitly requested on a healthy link.
       const planned = planDomainPrefetch(pending, {
@@ -768,9 +791,22 @@ export function WorkspaceProvider({ children }) {
         warmSecondary: Boolean(opts.warmSecondary),
         rttMs: apiRttMsRef.current,
       });
+      if (opts.reportProgress) {
+        setWarmup({ total: planned.length, done: 0, active: planned[0] || '', running: true });
+      }
       for (const domain of planned) {
-        if (gen !== prefetchGenRef.current) return;
+        // A newer prefetch supersedes this one — navigating somewhere else should not be
+        // made to wait behind a warm-up for desks the user has walked away from.
+        if (gen !== prefetchGenRef.current) {
+          if (opts.reportProgress) setWarmup((w) => ({ ...w, running: false }));
+          return;
+        }
+        if (opts.reportProgress) setWarmup((w) => ({ ...w, active: domain }));
         await ensureDomainLoaded(domain, { force });
+        if (opts.reportProgress) setWarmup((w) => ({ ...w, done: w.done + 1 }));
+      }
+      if (opts.reportProgress) {
+        setWarmup((w) => ({ ...w, active: '', running: false }));
       }
     },
     [ensureDomainLoaded]
@@ -1188,7 +1224,19 @@ export function WorkspaceProvider({ children }) {
     void refresh({ mode: 'shell' });
   }, [refresh]);
 
-  /** Warm the primary desk only; siblings only on idle healthy links. */
+  /**
+   * Warm the desk they landed on first, then — once — every other desk they can open.
+   *
+   * The order is the whole point. Loading section-by-section on demand meant a cutting
+   * list could be open while the quotation it belongs to had never been fetched, and the
+   * screen could not tell "not loaded" from "does not exist"; warming everything up front
+   * instead would make the desk they actually want wait behind three they do not. So the
+   * primary desk resolves first and stays fast, and the rest arrives behind a progress
+   * bar the user can watch finish.
+   *
+   * Bounded work: four capped packs, the same bytes as visiting four desks during the day,
+   * landing in the IndexedDB cache on the way past so tomorrow's first paint is warm.
+   */
   useEffect(() => {
     if (status !== 'ok' && status !== 'unstable') return undefined;
     const uid = snapshotRef.current?.session?.user?.id;
@@ -1199,6 +1247,18 @@ export function WorkspaceProvider({ children }) {
       if (cancelled) return;
       await prefetchWorkspaceDomains({ primaryOnly: true });
       if (cancelled) return;
+      if (!warmedAllRef.current) {
+        // Chained rather than run from its own effect: a second effect would race this
+        // one, and whichever started later would silently cancel the other through the
+        // prefetch generation — leaving the warm marked done with packs still missing.
+        await prefetchWorkspaceDomains({ forceAll: true, reportProgress: true });
+        if (cancelled) return;
+        // Marked done only on completion. Marking it up front would let a re-run that
+        // interrupted the warm — a branch switch, a permission change — record success
+        // for packs that never arrived.
+        warmedAllRef.current = true;
+        return;
+      }
       if (!isConstrainedNetwork({ rttMs: apiRttMsRef.current })) {
         void prefetchWorkspaceDomains({ warmSecondary: true });
       }
@@ -1318,6 +1378,40 @@ export function WorkspaceProvider({ children }) {
    */
   useEffect(() => {
     if (status !== 'ok' && status !== 'unstable') return undefined;
+
+    /**
+     * Writes arrive in bursts — a cashier confirming five payments is five events for the
+     * same desk — and a `revalidate` deliberately bypasses the in-flight dedupe, so acting
+     * on each one directly would put five overlapping pack requests on a 200 kbps mill
+     * link. Queue instead: coalesce a burst into one request per desk, and run them one at
+     * a time so the stream never competes with what the user is doing.
+     */
+    const queue = new Set();
+    let timer = 0;
+    let draining = false;
+    let closed = false;
+
+    const drain = async () => {
+      if (draining) return;
+      draining = true;
+      try {
+        while (queue.size && !closed) {
+          const batch = [...queue];
+          queue.clear();
+          for (const domain of batch) {
+            if (closed) return;
+            // Only desks already loaded. After the login warm-up that is all of them, but
+            // a user who has not finished warming should not have packs pulled in by
+            // someone else's write.
+            if (!loadedDomainsRef.current.has(domain)) continue;
+            await ensureDomainLoaded(domain, { revalidate: true });
+          }
+        }
+      } finally {
+        draining = false;
+      }
+    };
+
     const es = openWorkspaceRealtime({
       onEvent: (payload) => {
         if (payload?.type !== 'workspace.data') return;
@@ -1329,17 +1423,19 @@ export function WorkspaceProvider({ children }) {
           void refresh({ poll: true, mode: 'shell' });
         }
         const domains = Array.isArray(payload.domains) ? payload.domains : [];
-        for (const domain of domains) {
-          // Only desks this user actually has open — warming an unopened one on someone
-          // else's write would pull a pack they never asked for.
-          if (!loadedDomainsRef.current.has(domain)) continue;
-          void ensureDomainLoaded(domain, { revalidate: true });
-        }
+        for (const domain of domains) queue.add(domain);
+        if (!queue.size || timer) return;
+        timer = window.setTimeout(() => {
+          timer = 0;
+          void drain();
+        }, REALTIME_COALESCE_MS);
       },
       // Silent on error: EventSource reconnects on its own, and the poll covers the gap.
       onError: () => {},
     });
     return () => {
+      closed = true;
+      if (timer) window.clearTimeout(timer);
       try {
         es?.close?.();
       } catch {
@@ -1480,6 +1576,8 @@ export function WorkspaceProvider({ children }) {
       listOf,
       ensureFullBootstrap,
       refreshEpoch,
+      /** Background warm-up of the remaining desks: {total, done, active, running}. */
+      warmup,
       /** Live server reachable — reads and writes go to API (includes soft unstable). */
       apiOnline: status === 'ok' || status === 'unstable',
       /** Bootstrap loaded (live or last cached sync in this tab). */
@@ -1540,6 +1638,7 @@ export function WorkspaceProvider({ children }) {
       listOf,
       ensureFullBootstrap,
       refreshEpoch,
+      warmup,
       hasWorkspaceData,
       usingCachedData,
       connectionUnstable,

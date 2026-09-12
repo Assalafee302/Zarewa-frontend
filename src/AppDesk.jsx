@@ -48,6 +48,7 @@ import {
 } from './components/layout/RouteErrorBoundary';
 import { UnsavedWorkProvider, useUnsavedWorkRegistry, UNSAVED_LEAVE_MESSAGE } from './context/UnsavedWorkContext';
 import { UnsavedWorkNavigationGuard } from './components/layout/UnsavedWorkNavigationGuard';
+import { WorkspaceWarmupIndicator } from './components/workspace/WorkspaceWarmupIndicator';
 import { useWorkspace } from './context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
 import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
@@ -455,6 +456,7 @@ function AppShell() {
   return (
     <div className="flex min-h-screen min-h-dvh min-w-0 w-full max-w-full z-app-bg font-sans selection:bg-zarewa-teal-soft selection:text-zarewa-teal">
       <UnsavedWorkNavigationGuard />
+      <WorkspaceWarmupIndicator />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[1200] focus:rounded-xl focus:bg-zarewa-teal focus:text-white focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:shadow-xl"
