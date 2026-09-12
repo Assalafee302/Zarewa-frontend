@@ -464,6 +464,14 @@ const ReceiptModal = ({
     [quotations]
   );
 
+  /**
+   * An empty picker and an unloaded one look identical to whoever is reading it, and
+   * "No unpaid quotations found" is a confident claim to make about data that has not
+   * arrived. Only say it once the sales pack is actually in.
+   */
+  const quotationsPending =
+    quotations.length === 0 && ws?.listOf?.('quotations')?.state === 'not-loaded';
+
   const filteredQSearch = useMemo(() => {
     if (!qSearch.trim()) return selectableQuotations.slice(0, 10);
     const s = qSearch.toLowerCase();
@@ -1325,7 +1333,7 @@ const ReceiptModal = ({
                     <div className="absolute z-10 left-0 right-0 mt-1 max-h-[220px] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl custom-scrollbar p-1">
                       {filteredQSearch.length === 0 ? (
                         <div className="p-3 text-center text-ui-xs font-semibold text-slate-400 uppercase">
-                          No unpaid quotations found
+                          {quotationsPending ? 'Loading quotations…' : 'No unpaid quotations found'}
                         </div>
                       ) : (
                         filteredQSearch.map((qt) => (

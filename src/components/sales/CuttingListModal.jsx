@@ -598,10 +598,20 @@ const CuttingListModal = ({
     return null;
   }, [quoteSearch, quotations, selectableQuotations, cuttingLists, editData?.id, receipts, ledgerEntries, minPaidFraction]);
 
-  const selectedQuotation = useMemo(
-    () => quotations.find((q) => q.id === quotationRef) ?? null,
-    [quotations, quotationRef]
-  );
+  /**
+   * The quotation this list is for, and whether a miss means it does not exist or has
+   * not arrived. The `quotations` prop is the sales pack, which an operations user opens
+   * this modal without — so a plain `.find` reports a perfectly good cutting list as
+   * having no quotation.
+   */
+  const selectedQuotationLookup = useMemo(() => {
+    const fromProp = quotations.find((q) => q.id === quotationRef);
+    if (fromProp) return { value: fromProp, state: 'found' };
+    return ws?.lookup ? ws.lookup('quotations', quotationRef) : { value: null, state: 'absent' };
+  }, [quotations, quotationRef, ws]);
+
+  const selectedQuotation = selectedQuotationLookup.value;
+  const selectedQuotationPending = selectedQuotationLookup.state === 'not-loaded';
 
   /** Slim sales snapshot may omit quotationLines — fetch full quote so CL form can seed products. */
   useEffect(() => {
@@ -1342,8 +1352,19 @@ const CuttingListModal = ({
       window.clearTimeout(draftPatchTimerRef.current);
       draftPatchTimerRef.current = null;
     }
-    if (!quotationRef || !selectedQuotation) {
+    if (!quotationRef) {
       showToast('Select a quotation before saving.', { variant: 'error' });
+      return;
+    }
+    if (!selectedQuotation) {
+      // A list that names a quotation is not a list without one. Saying "select a
+      // quotation" here sent people looking for a problem that was not theirs.
+      showToast(
+        selectedQuotationPending
+          ? `Still loading quotation ${quotationRef} — give it a moment and save again.`
+          : `Quotation ${quotationRef} could not be found. Check the reference, or reload if the connection dropped.`,
+        { variant: 'error' }
+      );
       return;
     }
     const normalizedLines = flatLinesWithType.map((line) => ({

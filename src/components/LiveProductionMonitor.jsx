@@ -2519,12 +2519,25 @@ export function LiveProductionMonitor({
       );
       return;
     }
+    // An empty draft means the quotation had no such lines — unless its lines never
+    // arrived, in which case saying "none found" is a claim about data we do not have.
+    const linesUnread = selectedJobLinesStatus === 'failed';
     if (kind === 'accessory' && !accessoryCompletionDraft.length) {
-      showToast('No accessory lines found on the quotation for correction.', { variant: 'info' });
+      showToast(
+        linesUnread
+          ? 'This job’s quotation could not be read, so its accessory lines cannot be shown. Reload and try again.'
+          : 'No accessory lines found on the quotation for correction.',
+        { variant: 'info' }
+      );
       return;
     }
     if (kind === 'stoneSf' && !stoneFlatsheetCompletionDraft.length) {
-      showToast('No stone flatsheet lines found on the quotation for correction.', { variant: 'info' });
+      showToast(
+        linesUnread
+          ? 'This job’s quotation could not be read, so its stone flatsheet lines cannot be shown. Reload and try again.'
+          : 'No stone flatsheet lines found on the quotation for correction.',
+        { variant: 'info' }
+      );
       return;
     }
     if (kind === 'stoneMetres') {
