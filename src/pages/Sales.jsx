@@ -1331,9 +1331,22 @@ const Sales = () => {
         });
         return;
       }
-      const quotation = quotations.find(
-        (q) => String(q.id ?? '').trim() === String(cuttingList?.quotationRef ?? '').trim()
-      );
+      const qref = String(cuttingList?.quotationRef ?? '').trim();
+      let quotation = quotations.find((q) => String(q.id ?? '').trim() === qref);
+      // Sales desk pack omits quotationLines for size. Push-to-queue must hydrate before
+      // metre checks — otherwise a good quote looks like a failed connection.
+      const ql = quotation?.quotationLines ?? quotation?.linesJson;
+      const hasLinesShape =
+        ql &&
+        typeof ql === 'object' &&
+        (Array.isArray(ql.products) || Array.isArray(ql.accessories) || Array.isArray(ql.services));
+      if (quotation && qref && !hasLinesShape) {
+        const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(qref)}`);
+        if (ok && data?.ok && data.quotation) {
+          ws?.mergeQuotationIntoSnapshot?.(data.quotation);
+          quotation = data.quotation;
+        }
+      }
       const minPaidFraction = cuttingListMinPaidFractionFromSession(ws?.session);
       const minPaidPercentLabel = Math.round(minPaidFraction * 100);
       if (
@@ -1391,7 +1404,15 @@ const Sales = () => {
       if (wsCanMutate) await wsRefresh?.();
       showToast('Cutting list added to the production queue.', { variant: 'success' });
     },
-    [showToast, wsCanMutate, wsRefresh, wsHasPermission, quotations, mergedReceiptRowsWithCuttingMeta, ws?.session]
+    [
+      showToast,
+      wsCanMutate,
+      wsRefresh,
+      wsHasPermission,
+      quotations,
+      mergedReceiptRowsWithCuttingMeta,
+      ws,
+    ]
   );
 
   const isAnyModalOpen =
