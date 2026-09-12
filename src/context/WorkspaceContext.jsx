@@ -176,6 +176,16 @@ const POLL_FAILURE_TOLERANCE = pollFailureTolerance();
 const MAX_RECONNECT_BACKOFF_MS = 120_000;
 
 /**
+ * How long a desk pack may go without being re-asked.
+ *
+ * Per-domain revisions only watch the tables in the server's revision list, and some desk
+ * arrays have nothing to watch — suppliers and transport agents carry no timestamp column.
+ * This bounds how long such a change can stay invisible. Each sweep is one conditional
+ * request per loaded domain, so the steady-state cost is a handful of 304s.
+ */
+const DOMAIN_REVALIDATE_EVERY_MS = 300_000;
+
+/**
  * Delay before reconnect attempt `attempt` (0-based) when the link is degraded.
  * Grows exponentially so a mill link that cannot finish a bootstrap stops being asked
  * to start another one every tick, and caps so recovery still happens unattended.
@@ -278,6 +288,12 @@ export function WorkspaceProvider({ children }) {
   const domainEtagRef = useRef(new Map());
   /** Last per-domain revisions seen, so a poll can tell which desks actually moved. */
   const domainRevisionsRef = useRef(null);
+  /**
+   * When every loaded domain was last re-asked, regardless of what the revision said.
+   * 0 until the first poll, which starts the clock rather than sweeping immediately —
+   * the packs have only just been fetched, so there is nothing to repair yet.
+   */
+  const lastDomainSweepAtRef = useRef(0);
   const prefetchGenRef = useRef(0);
   const fullBootstrapLoadedRef = useRef(false);
   const lastErrorRef = useRef(null);
@@ -650,17 +666,22 @@ export function WorkspaceProvider({ children }) {
     async (domain, opts = {}) => {
       const key = String(domain || '').trim().toLowerCase();
       const force = Boolean(opts?.force);
+      // Revalidate: ask again, but keep the ETag so an unchanged pack costs a 304 instead
+      // of a full download. `force` drops the ETag and is for when the data is known to
+      // have moved; plain calls skip an already-loaded domain entirely. Without this
+      // middle mode there is no way to check a domain cheaply.
+      const revalidate = Boolean(opts?.revalidate);
       if (!key) return snapshotRef.current;
-      if (!force && loadedDomainsRef.current.has(key)) return snapshotRef.current;
+      if (!force && !revalidate && loadedDomainsRef.current.has(key)) return snapshotRef.current;
 
       const inflight = domainInflightRef.current.get(key);
-      if (inflight && !force) return inflight;
+      if (inflight && !force && !revalidate) return inflight;
 
       const run = (async () => {
         try {
           const uid = snapshotRef.current?.session?.user?.id;
           const scope = snapshotRef.current?.branchScope || '';
-          if (!force && uid) {
+          if (!force && !revalidate && uid) {
             const cached = await readDeskDomainCache(uid, scope, key);
             if (cached?.ok) {
               loadedDomainsRef.current.add(key);
@@ -793,6 +814,14 @@ export function WorkspaceProvider({ children }) {
       // nothing to compare) falls through to invalidating all of them, as before.
       const nextDomainRevs = revBody?.domains;
       const prevDomainRevs = domainRevisionsRef.current;
+
+      // Per-domain revisions are built from a fixed table list, and that list cannot
+      // cover everything a desk pack carries: suppliers and transport agents have no
+      // timestamp column to fingerprint at all. Anything the revision does not watch
+      // would otherwise stay stale until a full reload — which is how edited suppliers
+      // stopped appearing in Kaduna. So the narrow path is bounded by a slow full
+      // revalidation: every domain is re-asked periodically with its ETag, which costs a
+      // 304 when nothing moved and repairs whatever the revision could not see.
       const changedDomains =
         nextDomainRevs && prevDomainRevs
           ? prevLoaded.filter((d) => nextDomainRevs[d] !== prevDomainRevs[d])
@@ -800,6 +829,8 @@ export function WorkspaceProvider({ children }) {
       if (nextDomainRevs) domainRevisionsRef.current = nextDomainRevs;
 
       await refresh({ poll: true, mode: 'shell' });
+
+      // Known-changed: drop the ETag so the pack is fetched in full.
       for (const domain of changedDomains) domainEtagRef.current.delete(domain);
       const primary = planDomainPrefetch(changedDomains, {
         primaryOnly: true,
@@ -807,6 +838,19 @@ export function WorkspaceProvider({ children }) {
       })[0];
       if (primary) {
         void ensureDomainLoaded(primary, { force: true });
+      }
+
+      // The sweep: everything else keeps its ETag and is merely re-asked, so an unchanged
+      // pack answers 304 in a few hundred bytes. This is what catches a table the revision
+      // does not watch, at the cost of one conditional request per domain every few minutes.
+      if (lastDomainSweepAtRef.current === 0) {
+        lastDomainSweepAtRef.current = Date.now();
+      } else if (Date.now() - lastDomainSweepAtRef.current >= DOMAIN_REVALIDATE_EVERY_MS) {
+        lastDomainSweepAtRef.current = Date.now();
+        for (const domain of prevLoaded) {
+          if (domain === primary || changedDomains.includes(domain)) continue;
+          void ensureDomainLoaded(domain, { revalidate: true });
+        }
       }
       return snapshotRef.current;
     } catch {
