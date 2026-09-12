@@ -82,6 +82,15 @@ import { canonicalColourName } from '../../lib/colourCanonicalization.js';
 import { printProductionFollowUpList } from '../../lib/productionFollowUpPrint.js';
 import { isStoneFlatsheetQuotationLine } from '../../lib/stoneCoatedQuotationPolicy.js';
 
+/**
+ * Best-effort: false here means "no stone flatsheet line, or the quotation's lines were
+ * never loaded" — desk packs omit quotationLines for users who also hold sales access.
+ *
+ * That is tolerable only because this drives one hint label. It is called per queue row,
+ * so hydrating the quotation here would be a fetch per row. Do not build a gate, a total,
+ * or anything an operator relies on for correctness on top of it without loading the
+ * lines first — see useHydratedQuotationLines.
+ */
 function quotedStoneFlatsheetOnQuote(quotation) {
   const products = quotation?.quotationLines?.products;
   if (!Array.isArray(products)) return false;

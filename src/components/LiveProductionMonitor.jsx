@@ -130,6 +130,7 @@ import {
   supplierNominalMetres,
 } from '../lib/liveProductionMonitorUi';
 import { compareCoilsFifo } from '../lib/storeIdle';
+import { useHydratedQuotationLines } from '../hooks/useHydratedQuotationLines';
 
 /**
  * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean; operationsRegisterEdit?: boolean; initialRecallIntent?: boolean; onRegisterHeaderMeta?: (meta: { status?: string; quotationRef?: string; machineName?: string; materialLabel?: string } | null) => void }} [props]
@@ -269,6 +270,10 @@ export function LiveProductionMonitor({
     if (status === base.status) return base;
     return { ...base, status };
   }, [selectedJobId, sortedJobs, focusClTrim]);
+
+  // Desk packs strip quotationLines, so the stone flatsheet reads below would silently
+  // see none and seed an empty completion form. Pull them in for the selected job.
+  const { status: selectedJobLinesStatus } = useHydratedQuotationLines(selectedJob?.quotationRef);
 
   const selectedJobOffcutSupply = useMemo(() => {
     const raw = selectedJob?.offcutSupply;
@@ -4124,6 +4129,25 @@ export function LiveProductionMonitor({
                   </div>
                 ) : null}
               </div>
+            </div>
+          ) : null}
+
+          {/*
+            Without the quotation's lines the demand count is zero and the section above
+            simply does not render — the operator sees no stone flatsheet form and no
+            reason why. Say so, rather than letting a failed read look like a job with
+            nothing to record.
+          */}
+          {!showStoneFlatsheetIssuedSection && isStoneMeterQuote && selectedJobLinesStatus === 'failed' ? (
+            <div className="rounded-lg border border-amber-300 bg-amber-50/70 p-2 sm:p-2.5 space-y-1">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-amber-900">
+                Stone flatsheet lines unavailable
+              </p>
+              <p className="text-ui-xs text-amber-950 leading-snug">
+                This job’s quotation could not be loaded, so its sold stone flatsheet lines cannot be
+                shown. This is usually a connection problem, not a job without stone flatsheet. Re-select
+                the job or reload the page before recording usage — do not assume there is nothing to record.
+              </p>
             </div>
           ) : null}
 
