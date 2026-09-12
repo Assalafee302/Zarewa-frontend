@@ -41,8 +41,19 @@ describe('production bundle chunk graph', () => {
     if (!assetsDir) return;
     const assets = readdirSync(assetsDir).filter((f) => f.endsWith('.js'));
     const shellFile = assets.find((f) => f.startsWith('app-shell-'));
-    expect(assets.some((f) => f.startsWith('vendor-lucide-'))).toBe(false);
     if (!shellFile) return;
+
+    // One deliberate vendor-lucide chunk is fine and wanted — it is a leaf shared by every
+    // route, so it caches once instead of riding along in each desk bundle. What crashed
+    // startup was a lucide chunk importing the app shell, because the shell is still
+    // initialising when it loads. So the invariant is the direction of the edge, not
+    // whether the chunk exists.
+    for (const f of assets.filter((n) => n.startsWith('vendor-lucide-'))) {
+      const code = readFileSync(join(assetsDir, f), 'utf8');
+      expect(code, `${f} must not import the app shell`).not.toContain(
+        `./${shellFile.replace('.js', '')}`
+      );
+    }
 
     const lucideMicroChunks = assets.filter((f) => {
       if (f === shellFile || f.startsWith('index-') || f.startsWith('rolldown-runtime-')) return false;

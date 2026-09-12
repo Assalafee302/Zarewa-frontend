@@ -35,7 +35,9 @@ describe('reportsExportCatalog', () => {
     expect(EXPORT_SECTIONS.map((s) => s.id)).toEqual(['audit', 'finance', 'sales', 'operations']);
     const ids = EXPORT_SECTIONS.flatMap((s) => s.items.map((i) => i.id));
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids.length).toBe(14);
+    // A floor, not an exact count: adding a report is routine and must not fail this,
+    // while losing one silently is the thing worth catching.
+    expect(ids.length).toBeGreaterThanOrEqual(15);
   });
 
   it('marks coil stock audit workbook as excel-only', () => {
@@ -90,7 +92,9 @@ describe('reportsExportCatalog', () => {
     const rows = groupCatalogRows(flat);
     const pairs = rows.filter((r) => r.type === 'pair');
     expect(pairs.map((p) => p.pairId).sort()).toEqual(['pair-finance', 'pair-purchases', 'pair-sales']);
-    expect(rows.filter((r) => r.type === 'single').length).toBe(8);
+    // Every catalogued export is either half of a pair or a single row — nothing is
+    // dropped on the way through grouping.
+    expect(rows.filter((r) => r.type === 'single').length).toBe(flat.length - pairs.length * 2);
     const sales = pairs.find((p) => p.pairId === 'pair-sales');
     expect(printItemForPair(sales.official, sales.working)?.id).toBe('sales-customer-pack');
     const finance = pairs.find((p) => p.pairId === 'pair-finance');
@@ -119,7 +123,11 @@ describe('reportsExportCatalog', () => {
 
   it('flattens catalog with month-end flags only for bundle ids', () => {
     const flat = flattenExportCatalog();
-    expect(flat.length).toBe(14);
+    // Checked against the catalog itself rather than a number that goes stale the next
+    // time a report is added — what matters is that flattening loses nothing.
+    expect(flat.map((i) => i.id).sort()).toEqual(
+      EXPORT_SECTIONS.flatMap((s) => s.items.map((i) => i.id)).sort()
+    );
     expect(flat.filter((i) => i.monthEndRecommended).map((i) => i.id).sort()).toEqual(
       [...MONTH_END_RECOMMENDED_IDS].sort()
     );

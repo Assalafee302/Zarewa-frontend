@@ -18,6 +18,15 @@ import { formatNgn } from "../../Data/mockData";
 
 import { useWorkspace } from "../../context/WorkspaceContext";
 
+/**
+ * One shared empty list for "no partner wallets to show".
+ *
+ * A fresh `[]` is never `===` the previous state, so setting it re-renders — and this
+ * loader runs from an effect keyed on the context callbacks, which meant an empty result
+ * could re-render, re-run the effect, and spin. A stable value lets React bail out.
+ */
+const NO_PARTNER_WALLETS = Object.freeze([]);
+
 import {
   isReceiptCleared,
   isReceiptPendingClearance,
@@ -500,7 +509,7 @@ export function FinanceDeskWorkQueues({
     [ws?.snapshot?.staffObligationsDue],
   );
 
-  const [partnerWalletsDue, setPartnerWalletsDue] = useState([]);
+  const [partnerWalletsDue, setPartnerWalletsDue] = useState(NO_PARTNER_WALLETS);
 
   const loadPartnerWallets = React.useCallback(async () => {
     const policyOn = Boolean(ws?.snapshot?.partnerWalletPolicy?.enabled);
@@ -509,14 +518,14 @@ export function FinanceDeskWorkQueues({
       Boolean(ws?.hasPermission?.("cashier.desk.view")) ||
       Boolean(ws?.hasPermission?.("finance.view"));
     if (!policyOn || !canSee || ws?.status === "checking" || ws?.status === "auth_required") {
-      setPartnerWalletsDue([]);
+      setPartnerWalletsDue(NO_PARTNER_WALLETS);
       return;
     }
     const { ok, data } = await apiFetch("/api/partner-wallets");
     if (ok && data?.ok && Array.isArray(data.balances)) {
       setPartnerWalletsDue(data.balances);
     } else {
-      setPartnerWalletsDue([]);
+      setPartnerWalletsDue(NO_PARTNER_WALLETS);
     }
   }, [
     ws?.snapshot?.partnerWalletPolicy?.enabled,
