@@ -58,7 +58,9 @@ import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../../hooks/useWorkspaceDomain';
 import { WorkspaceDeskSyncBanner } from '../../components/workspace/WorkspaceDeskSyncBanner';
+import { BootstrapTruncatedBanner } from '../../components/workspace/BootstrapTruncatedBanner';
 import { apiFetch } from '../../lib/apiBase';
+import { useDeskRegisterTotals } from '../../hooks/useDeskRegisterTotals';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging, useInfiniteReveal } from '../../lib/appDataTable';
 import { AppTablePager, AppTableInfiniteLoader, AppTableWrap } from '../../components/ui/AppDataTable';
 import { ListEmptyState } from '../../components/ui/ListEmptyState';
@@ -598,6 +600,12 @@ const Operations = () => {
   const ws = useWorkspace();
   const wsRefresh = ws?.refresh;
   const { domainLoading, domainReady } = useWorkspaceDomain('operations');
+  const opsRegisterTotals = useDeskRegisterTotals(domainReady, [
+    { key: 'productionJobs', path: '/api/production-jobs' },
+    { key: 'coilLots', path: '/api/coil-lots' },
+    { key: 'cuttingLists', path: '/api/cutting-lists' },
+    { key: 'movements', path: '/api/stock-movements' },
+  ]);
   const canReceiveInventory = Boolean(ws?.hasPermission?.('inventory.receive'));
   const canAdjustInventory = Boolean(ws?.hasPermission?.('inventory.adjust'));
   const canAcknowledgeCoilSkuDrift = Boolean(
@@ -2046,6 +2054,10 @@ const Operations = () => {
   return (
     <PageShell blurred={isAnyModalOpen}>
       <WorkspaceDeskSyncBanner loading={domainLoading && !domainReady} label="operations & stock" />
+      <BootstrapTruncatedBanner
+        bootstrapMeta={ws?.snapshot?.bootstrapMeta}
+        registerTotals={opsRegisterTotals.totals}
+      />
       <PageHeader
         eyebrow="Store & plant"
         title="Operations"

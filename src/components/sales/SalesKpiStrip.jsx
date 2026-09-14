@@ -43,7 +43,14 @@ export default function SalesKpiStrip({
     switch (salesTab) {
       case 'quotations':
         return [
-          { label: 'Showing', value: listStats.quotations.shown },
+          {
+            label: 'Loaded',
+            value: listStats.quotations.shown,
+            hint:
+              listStats.quotations.onFile > listStats.quotations.shown
+                ? `${listStats.quotations.onFile.toLocaleString('en-NG')} on file`
+                : undefined,
+          },
           {
             label: 'Awaiting approval',
             value: listStats.quotations.pendingApproval,
@@ -60,12 +67,14 @@ export default function SalesKpiStrip({
       case 'receipts':
         return [
           {
-            label: 'In view',
+            label: 'Loaded',
             value: listStats.receipts.matching,
             hint:
-              listStats.receipts.matching > listStats.receipts.shown
-                ? `${listStats.receipts.shown} visible`
-                : undefined,
+              listStats.receipts.onFile > listStats.receipts.matching
+                ? `${listStats.receipts.onFile.toLocaleString('en-NG')} on file`
+                : listStats.receipts.matching > listStats.receipts.shown
+                  ? `${listStats.receipts.shown} visible`
+                  : undefined,
           },
           {
             label: 'Draft',
@@ -75,10 +84,26 @@ export default function SalesKpiStrip({
           },
         ];
       case 'cuttinglist':
-        return [{ label: 'Cutting lists', value: listStats.cuttinglist.shown }];
+        return [
+          {
+            label: 'Loaded',
+            value: listStats.cuttinglist.shown,
+            hint:
+              listStats.cuttinglist.onFile > listStats.cuttinglist.shown
+                ? `${listStats.cuttinglist.onFile.toLocaleString('en-NG')} on file`
+                : undefined,
+          },
+        ];
       case 'refund':
         return [
-          { label: 'Records', value: listStats.refund.shown },
+          {
+            label: 'Loaded',
+            value: listStats.refund.shown,
+            hint:
+              listStats.refund.onFile > listStats.refund.shown
+                ? `${listStats.refund.onFile.toLocaleString('en-NG')} on file`
+                : undefined,
+          },
           {
             label: 'Pending',
             value: listStats.refund.pending,

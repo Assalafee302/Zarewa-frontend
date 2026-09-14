@@ -68,6 +68,7 @@ import SalesMobileAlertStrip from '../components/sales/SalesMobileAlertStrip';
 import SalesKpiStrip from '../components/sales/SalesKpiStrip';
 import { SALES_STATUS_CHIP } from '../lib/salesStatusUi';
 import { WorkspaceDeskSyncBanner } from '../components/workspace/WorkspaceDeskSyncBanner';
+import { BootstrapTruncatedBanner } from '../components/workspace/BootstrapTruncatedBanner';
 import { formatNgn } from '../lib/formatNgn';
 import { useToast } from '../context/ToastContext';
 import { useCustomers } from '../context/CustomersContext';
@@ -75,6 +76,8 @@ import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useDeskRegisterTotals } from '../hooks/useDeskRegisterTotals';
+import { usePaginatedWorkspaceList } from '../hooks/usePaginatedWorkspaceList';
 import { spotPricesForSalesSidebar } from '../lib/spotPricesFromMasterData';
 import { apiFetch } from '../lib/apiBase';
 import { appConfirm } from '../lib/appConfirm';
@@ -261,6 +264,41 @@ const Sales = () => {
   );
 
   const salesTab = TAB_LABELS[activeTab] ? activeTab : 'quotations';
+
+  const salesRegisterTotals = useDeskRegisterTotals(domainReady, [
+    { key: 'quotations', path: '/api/quotations?includeLines=0' },
+    { key: 'receipts', path: '/api/sales-receipts' },
+    { key: 'cuttingLists', path: '/api/cutting-lists' },
+    { key: 'refunds', path: '/api/refunds' },
+  ]);
+
+  const serverQuotations = usePaginatedWorkspaceList('/api/quotations', {
+    enabled: domainReady && salesTab === 'quotations',
+    pageSize: 50,
+    itemsKey: 'quotations',
+    query: {
+      includeLines: '0',
+      ...(debouncedSearchQuery.trim() ? { q: debouncedSearchQuery.trim() } : {}),
+    },
+  });
+
+  const serverReceipts = usePaginatedWorkspaceList('/api/sales-receipts', {
+    enabled: domainReady && salesTab === 'receipts',
+    pageSize: 50,
+    itemsKey: 'receipts',
+  });
+
+  const serverCuttingLists = usePaginatedWorkspaceList('/api/cutting-lists', {
+    enabled: domainReady && salesTab === 'cuttinglist',
+    pageSize: 50,
+    itemsKey: 'cuttingLists',
+  });
+
+  const serverRefunds = usePaginatedWorkspaceList('/api/refunds', {
+    enabled: domainReady && salesTab === 'refund',
+    pageSize: 50,
+    itemsKey: 'refunds',
+  });
 
   useEffect(() => {
     if (!TAB_LABELS[activeTab]) {
@@ -536,9 +574,32 @@ const Sales = () => {
     [stockSearchActive, stockSearchMatches]
   );
 
+  const quotationsBrowseSource = useMemo(() => {
+    if (!(domainReady && salesTab === 'quotations')) return quotations;
+    const byId = new Map();
+    for (const row of serverQuotations.items) {
+      const id = String(row?.id || '').trim();
+      if (id) byId.set(id, row);
+    }
+    // Keep just-saved rows visible even before the next server page refresh.
+    for (const row of quotations) {
+      const id = String(row?.id || '').trim();
+      if (!id) continue;
+      const prev = byId.get(id);
+      if (!prev) {
+        byId.set(id, row);
+        continue;
+      }
+      if (row.quotationLines && !prev.quotationLines) byId.set(id, { ...prev, ...row });
+    }
+    return [...byId.values()];
+  }, [domainReady, salesTab, serverQuotations.items, quotations]);
+
   const quotationsSearchFiltered = useMemo(() => {
     const q = debouncedSearchQuery.trim().toLowerCase();
-    return quotations.filter((row) => {
+    // Server already applied `q` for the quotations tab.
+    if (domainReady && salesTab === 'quotations') return quotationsBrowseSource;
+    return quotationsBrowseSource.filter((row) => {
       if (!q) return true;
       const blob = [
         row.id,
@@ -556,7 +617,7 @@ const Sales = () => {
         .toLowerCase();
       return blob.includes(q);
     });
-  }, [quotations, debouncedSearchQuery]);
+  }, [quotationsBrowseSource, debouncedSearchQuery, domainReady, salesTab]);
 
   const quotationFollowUpRows = useMemo(
     () =>
@@ -626,7 +687,7 @@ const Sales = () => {
     return sortQuotationsList(workFiltered, salesListSort.field, salesListSort.dir);
   }, [quotationsSearchFiltered, showArchivedQuotations, salesListSort, quoteWorkFilter]);
 
-  const quotationsPage = useAppTablePaging(
+  const quotationsPageBase = useAppTablePaging(
     quotationWorkRows,
     APP_DATA_TABLE_PAGE_SIZE,
     debouncedSearchQuery,
@@ -635,11 +696,54 @@ const Sales = () => {
     salesListSort.dir,
     showArchivedQuotations
   );
+  const quotationsPage = useMemo(() => {
+    const dbTotal = Number(serverQuotations.total || salesRegisterTotals.totals.quotations || 0);
+    const usingServer = domainReady && salesTab === 'quotations';
+    // Keep Prev/Next (useAppTablePaging). Do not set `hasMore` — ListPager would switch to
+    // infinite "Load more" and goNext would replace the page instead of appending rows.
+    return {
+      ...quotationsPageBase,
+      total: usingServer && dbTotal > 0 ? dbTotal : quotationsPageBase.total,
+      hasNext: usingServer
+        ? quotationsPageBase.hasNext || serverQuotations.hasMore
+        : quotationsPageBase.hasNext,
+      goNext: () => {
+        if (quotationsPageBase.hasNext) {
+          quotationsPageBase.goNext();
+          return;
+        }
+        if (usingServer && serverQuotations.hasMore) void serverQuotations.loadMore();
+      },
+    };
+  }, [
+    quotationsPageBase,
+    domainReady,
+    salesTab,
+    serverQuotations.total,
+    serverQuotations.hasMore,
+    serverQuotations.loadMore,
+    salesRegisterTotals.totals.quotations,
+  ]);
   const filteredQuotations = quotationsPage.slice;
 
+  const importedReceiptsBrowse = useMemo(() => {
+    if (!(domainReady && salesTab === 'receipts')) return importedReceipts;
+    const byId = new Map();
+    for (const row of serverReceipts.items) {
+      const id = String(row?.id || '').trim();
+      if (id) byId.set(id, row);
+    }
+    for (const row of importedReceipts) {
+      const id = String(row?.id || '').trim();
+      if (!id) continue;
+      byId.set(id, { ...(byId.get(id) || {}), ...row });
+    }
+    return [...byId.values()];
+  }, [domainReady, salesTab, serverReceipts.items, importedReceipts]);
+
   const mergedReceiptRows = useMemo(
-    () => mergeReceiptRowsForSales(importedReceipts, quotations, ledgerSyncKey),
-    [importedReceipts, quotations, ledgerSyncKey]
+    () => mergeReceiptRowsForSales(importedReceiptsBrowse, quotations, ledgerSyncKey),
+    [importedReceiptsBrowse, quotations, ledgerSyncKey]
   );
 
   const cuttingListByQuoteRef = useMemo(
@@ -729,7 +833,7 @@ const Sales = () => {
     return sortReceiptsList(paymentFilteredReceiptRows, salesListSort.field, salesListSort.dir);
   }, [paymentFilteredReceiptRows, salesListSort]);
 
-  const receiptsPage = useInfiniteReveal(
+  const receiptsPageBase = useInfiniteReveal(
     receiptWorkRows,
     APP_DATA_TABLE_PAGE_SIZE,
     debouncedSearchQuery,
@@ -737,13 +841,54 @@ const Sales = () => {
     salesListSort.field,
     salesListSort.dir
   );
+  const receiptsPage = useMemo(() => {
+    const dbTotal = Number(serverReceipts.total || salesRegisterTotals.totals.receipts || 0);
+    const usingServer = domainReady && salesTab === 'receipts';
+    return {
+      ...receiptsPageBase,
+      total: usingServer && dbTotal > 0 ? dbTotal : receiptsPageBase.total,
+      hasMore: usingServer
+        ? receiptsPageBase.hasMore || serverReceipts.hasMore
+        : receiptsPageBase.hasMore,
+      loadMore: () => {
+        if (receiptsPageBase.hasMore) {
+          receiptsPageBase.loadMore();
+          return;
+        }
+        if (usingServer && serverReceipts.hasMore) void serverReceipts.loadMore();
+      },
+    };
+  }, [
+    receiptsPageBase,
+    domainReady,
+    salesTab,
+    serverReceipts.total,
+    serverReceipts.hasMore,
+    serverReceipts.loadMore,
+    salesRegisterTotals.totals.receipts,
+  ]);
   const filteredMergedReceipts = receiptsPage.slice;
+
+  const cuttingListsBrowseSource = useMemo(() => {
+    if (!(domainReady && salesTab === 'cuttinglist')) return cuttingLists;
+    const byId = new Map();
+    for (const row of serverCuttingLists.items) {
+      const id = String(row?.id || '').trim();
+      if (id) byId.set(id, row);
+    }
+    for (const row of cuttingLists) {
+      const id = String(row?.id || '').trim();
+      if (!id) continue;
+      byId.set(id, { ...(byId.get(id) || {}), ...row });
+    }
+    return [...byId.values()];
+  }, [domainReady, salesTab, serverCuttingLists.items, cuttingLists]);
 
   const cuttingWorkRows = useMemo(() => {
     const q = debouncedSearchQuery.trim().toLowerCase();
-    const filtered = cuttingLists.filter((row) => {
+    const filtered = cuttingListsBrowseSource.filter((row) => {
       if (!q) return true;
-      const job = pickProductionJobForCuttingList(row.id, productionJobs, cuttingLists);
+      const job = pickProductionJobForCuttingList(row.id, productionJobs, cuttingListsBrowseSource);
       const line = productionQueueLineStatusPresentation(row, job);
       const blob = `${row.id} ${row.customer} ${row.customerID || ''} ${row.quotationRef || ''} ${
         row.productID || ''
@@ -752,24 +897,65 @@ const Sales = () => {
     });
     return sortCuttingLists(filtered, salesListSort.field, salesListSort.dir, {
       productionLineStatusKey: (row) => {
-        const job = pickProductionJobForCuttingList(row.id, productionJobs, cuttingLists);
+        const job = pickProductionJobForCuttingList(row.id, productionJobs, cuttingListsBrowseSource);
         return productionQueueLineStatusPresentation(row, job).label;
       },
     });
-  }, [cuttingLists, productionJobs, debouncedSearchQuery, salesListSort]);
+  }, [cuttingListsBrowseSource, productionJobs, debouncedSearchQuery, salesListSort]);
 
-  const cuttingPage = useAppTablePaging(
+  const cuttingPageBase = useAppTablePaging(
     cuttingWorkRows,
     APP_DATA_TABLE_PAGE_SIZE,
     debouncedSearchQuery,
     salesListSort.field,
     salesListSort.dir
   );
+  const cuttingPage = useMemo(() => {
+    const dbTotal = Number(serverCuttingLists.total || salesRegisterTotals.totals.cuttingLists || 0);
+    const usingServer = domainReady && salesTab === 'cuttinglist';
+    return {
+      ...cuttingPageBase,
+      total: usingServer && dbTotal > 0 ? dbTotal : cuttingPageBase.total,
+      hasNext: usingServer
+        ? cuttingPageBase.hasNext || serverCuttingLists.hasMore
+        : cuttingPageBase.hasNext,
+      goNext: () => {
+        if (cuttingPageBase.hasNext) {
+          cuttingPageBase.goNext();
+          return;
+        }
+        if (usingServer && serverCuttingLists.hasMore) void serverCuttingLists.loadMore();
+      },
+    };
+  }, [
+    cuttingPageBase,
+    domainReady,
+    salesTab,
+    serverCuttingLists.total,
+    serverCuttingLists.hasMore,
+    serverCuttingLists.loadMore,
+    salesRegisterTotals.totals.cuttingLists,
+  ]);
   const filteredCuttingLists = cuttingPage.slice;
+
+  const refundsBrowseSource = useMemo(() => {
+    if (!(domainReady && salesTab === 'refund')) return refunds;
+    const byId = new Map();
+    for (const row of serverRefunds.items) {
+      const id = String(row?.refundID || row?.id || '').trim();
+      if (id) byId.set(id, row);
+    }
+    for (const row of refunds) {
+      const id = String(row?.refundID || row?.id || '').trim();
+      if (!id) continue;
+      byId.set(id, { ...(byId.get(id) || {}), ...row });
+    }
+    return [...byId.values()];
+  }, [domainReady, salesTab, serverRefunds.items, refunds]);
 
   const refundSearchRows = useMemo(() => {
     const q = debouncedSearchQuery.trim().toLowerCase();
-    return refunds.filter((row) => {
+    return refundsBrowseSource.filter((row) => {
       if (!q) return true;
       const blob = [
         row.refundID, row.customer, row.quotationRef, row.product, row.reason, row.reasonCategory, row.status, row.amountNgn, row.approvedAmountNgn, row.paidAmountNgn, row.paymentNote, row.managerComments,
@@ -778,7 +964,7 @@ const Sales = () => {
         .toLowerCase();
       return blob.includes(q);
     });
-  }, [refunds, debouncedSearchQuery]);
+  }, [refundsBrowseSource, debouncedSearchQuery]);
 
   const refundWorkRows = useMemo(() => {
     const workFiltered =
@@ -790,7 +976,7 @@ const Sales = () => {
     return sortRefundsList(workFiltered, salesListSort.field, salesListSort.dir);
   }, [refundSearchRows, salesListSort, refundWorkFilter]);
 
-  const refundsPage = useAppTablePaging(
+  const refundsPageBase = useAppTablePaging(
     refundWorkRows,
     APP_DATA_TABLE_PAGE_SIZE,
     debouncedSearchQuery,
@@ -798,6 +984,30 @@ const Sales = () => {
     salesListSort.field,
     salesListSort.dir
   );
+  const refundsPage = useMemo(() => {
+    const dbTotal = Number(serverRefunds.total || salesRegisterTotals.totals.refunds || 0);
+    const usingServer = domainReady && salesTab === 'refund';
+    return {
+      ...refundsPageBase,
+      total: usingServer && dbTotal > 0 ? dbTotal : refundsPageBase.total,
+      hasNext: usingServer ? refundsPageBase.hasNext || serverRefunds.hasMore : refundsPageBase.hasNext,
+      goNext: () => {
+        if (refundsPageBase.hasNext) {
+          refundsPageBase.goNext();
+          return;
+        }
+        if (usingServer && serverRefunds.hasMore) void serverRefunds.loadMore();
+      },
+    };
+  }, [
+    refundsPageBase,
+    domainReady,
+    salesTab,
+    serverRefunds.total,
+    serverRefunds.hasMore,
+    serverRefunds.loadMore,
+    salesRegisterTotals.totals.refunds,
+  ]);
   const filteredRefunds = refundsPage.slice;
 
   const filteredCustomersCount = useMemo(() => {
@@ -823,19 +1033,25 @@ const Sales = () => {
   const listStats = useMemo(
     () => ({
       quotations: {
-        shown: quotationsPage.total,
+        shown: quotationsPage.showingTo || filteredQuotations.length,
+        onFile: Number(serverQuotations.total || salesRegisterTotals.totals.quotations || 0),
         pendingApproval: quotationsSearchFiltered.filter(
           (x) => x.status !== 'Approved' && !isQuotationArchivedRow(x)
         ).length,
       },
       receipts: {
-        shown: receiptsPage.total,
+        shown: filteredMergedReceipts.length,
         matching: receiptsPage.total,
+        onFile: Number(serverReceipts.total || salesRegisterTotals.totals.receipts || 0),
         awaitingCashier: awaitingCashierReceiptCount,
       },
-      cuttinglist: { shown: cuttingPage.total },
+      cuttinglist: {
+        shown: cuttingPage.showingTo || filteredCuttingLists.length,
+        onFile: Number(serverCuttingLists.total || salesRegisterTotals.totals.cuttingLists || 0),
+      },
       refund: {
-        shown: refundsPage.total,
+        shown: refundsPage.showingTo || filteredRefunds.length,
+        onFile: Number(serverRefunds.total || salesRegisterTotals.totals.refunds || 0),
         pending: refundSearchRows.filter((x) => x.status === 'Pending').length,
         awaitingPay: approvedRefundsAwaitingPayment(refundSearchRows).length,
       },
@@ -845,15 +1061,24 @@ const Sales = () => {
       },
     }),
     [
-      quotationsPage.total,
+      quotationsPage.showingTo,
+      filteredQuotations.length,
       receiptsPage.total,
-      cuttingPage.total,
-      refundsPage.total,
+      filteredMergedReceipts.length,
+      cuttingPage.showingTo,
+      filteredCuttingLists.length,
+      refundsPage.showingTo,
+      filteredRefunds.length,
       awaitingCashierReceiptCount,
       refundSearchRows,
       quotationsSearchFiltered,
       filteredCustomersCount,
       customerRecords,
+      serverQuotations.total,
+      serverReceipts.total,
+      serverCuttingLists.total,
+      serverRefunds.total,
+      salesRegisterTotals.totals,
     ]
   );
 
@@ -1484,6 +1709,10 @@ const Sales = () => {
   return (
     <PageShell blurred={isAnyModalOpen}>
       <WorkspaceDeskSyncBanner loading={domainLoading && !domainReady} label="sales register" />
+      <BootstrapTruncatedBanner
+        bootstrapMeta={ws?.snapshot?.bootstrapMeta}
+        registerTotals={salesRegisterTotals.totals}
+      />
       <PageHeader
         title="Sales"
         subtitle="Quotations, receipts, cutting lists, refunds and customers."
@@ -1886,7 +2115,10 @@ const Sales = () => {
                   <p className="text-ui-xs font-semibold text-slate-400 mt-1 tabular-nums">
                     {salesTab === 'quotations' && (
                       <>
-                        {listStats.quotations.shown} showing
+                        {listStats.quotations.shown} loaded
+                        {listStats.quotations.onFile > listStats.quotations.shown
+                          ? ` · ${listStats.quotations.onFile.toLocaleString('en-NG')} on file`
+                          : ''}
                         {listStats.quotations.pendingApproval > 0
                           ? ` · ${listStats.quotations.pendingApproval} awaiting approval`
                           : ''}
@@ -1894,16 +2126,29 @@ const Sales = () => {
                     )}
                     {salesTab === 'receipts' && (
                       <>
-                        {filteredMergedReceipts.length} showing
+                        {filteredMergedReceipts.length} loaded
+                        {listStats.receipts.onFile > filteredMergedReceipts.length
+                          ? ` · ${listStats.receipts.onFile.toLocaleString('en-NG')} on file`
+                          : ''}
                         {paymentFilteredReceiptRows.length > filteredMergedReceipts.length
                           ? ` · ${paymentFilteredReceiptRows.length} match filter`
                           : ''}
                       </>
                     )}
-                    {salesTab === 'cuttinglist' && <>{listStats.cuttinglist.shown} records</>}
+                    {salesTab === 'cuttinglist' && (
+                      <>
+                        {listStats.cuttinglist.shown} loaded
+                        {listStats.cuttinglist.onFile > listStats.cuttinglist.shown
+                          ? ` · ${listStats.cuttinglist.onFile.toLocaleString('en-NG')} on file`
+                          : ''}
+                      </>
+                    )}
                     {salesTab === 'refund' && (
                       <>
-                        {listStats.refund.shown} records
+                        {listStats.refund.shown} loaded
+                        {listStats.refund.onFile > listStats.refund.shown
+                          ? ` · ${listStats.refund.onFile.toLocaleString('en-NG')} on file`
+                          : ''}
                         {listStats.refund.pending > 0 ? ` · ${listStats.refund.pending} pending` : ''}
                         {listStats.refund.awaitingPay > 0
                           ? ` · ${listStats.refund.awaitingPay} approved (awaiting Finance)`
