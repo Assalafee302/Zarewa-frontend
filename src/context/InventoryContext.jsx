@@ -97,9 +97,25 @@ export function InventoryProvider({ children }) {
   const wsHasWorkspaceData = ws?.hasWorkspaceData;
   const wsSnapshot = ws?.snapshot;
   const wsCanMutate = ws?.canMutate;
+  /** Heavy ops pack — only for stock/coil-changing writes (GRN, adjustments). */
   const wsRefresh = ws?.refreshDomain
     ? () => ws.refreshDomain('operations')
     : ws?.refresh;
+  const wsRefreshProcurement = ws?.refreshDomain
+    ? () => ws.refreshDomain('procurement')
+    : wsRefresh;
+  /**
+   * PO draft/status/payment responses already publish `delta` via apiFetch → applyWriteDelta.
+   * Do not rebuild operations after that; fall back to a lean procurement refresh only.
+   */
+  const finishPoWrite = useCallback(
+    (data) => {
+      if (data?.delta) return true;
+      void wsRefreshProcurement?.();
+      return false;
+    },
+    [wsRefreshProcurement]
+  );
   const [products, setProducts] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [movements, setMovements] = useState([]);
@@ -321,7 +337,7 @@ export function InventoryProvider({ children }) {
           ref: poID,
           detail: `${supplierName} · ${normalizedLines.length} coil line(s)`,
         });
-        void wsRefresh?.();
+        finishPoWrite(data);
         return { ok: true, poID };
       }
 
@@ -360,7 +376,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true, poID: createdId };
     },
-    [appendMovement, products, ws, wsCanMutate, wsRefresh]
+    [appendMovement, products, ws, wsCanMutate, finishPoWrite]
   );
 
   const updatePurchaseOrder = useCallback(
@@ -453,7 +469,7 @@ export function InventoryProvider({ children }) {
           ref: id,
           detail: `${supplierName} · ${normalizedLines.length} line(s) revised`,
         });
-        void wsRefresh?.();
+        finishPoWrite(data);
         return { ok: true, poID: id };
       }
 
@@ -484,7 +500,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true, poID: id };
     },
-    [appendMovement, products, wsCanMutate, wsRefresh]
+    [appendMovement, products, wsCanMutate, finishPoWrite]
   );
 
   const linkTransportToPurchaseOrder = useCallback(
@@ -537,10 +553,15 @@ export function InventoryProvider({ children }) {
       if (!ok || !data?.ok) {
         return { ok: false, error: data?.error || 'Could not link transport.' };
       }
-      await wsRefresh?.();
+      // Transport queues / in-transit bags may change beyond the PO row.
+      if (!finishPoWrite(data)) {
+        /* procurement fallback already kicked */
+      } else {
+        void wsRefreshProcurement?.();
+      }
       return { ok: true };
     },
-    [wsCanMutate, wsRefresh]
+    [wsCanMutate, finishPoWrite, wsRefreshProcurement]
   );
 
   const postPurchaseOrderTransport = useCallback(
@@ -559,10 +580,14 @@ export function InventoryProvider({ children }) {
       if (!ok || !data?.ok) {
         return { ok: false, error: data?.error || 'Could not post transport.' };
       }
-      await wsRefresh?.();
+      if (!finishPoWrite(data)) {
+        /* procurement fallback already kicked */
+      } else {
+        void wsRefreshProcurement?.();
+      }
       return { ok: true };
     },
-    [wsCanMutate, wsRefresh]
+    [wsCanMutate, finishPoWrite, wsRefreshProcurement]
   );
 
   const recordPurchaseSupplierPayment = useCallback(
@@ -587,9 +612,7 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Could not record payment.' };
         }
-        if (!(data?.delta && ws?.applyWriteDelta?.(data.delta))) {
-          void wsRefresh?.();
-        }
+        finishPoWrite(data);
         return { ok: true };
       }
       setPurchaseOrders((prev) =>
@@ -606,7 +629,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, ws, wsCanMutate, wsRefresh]
+    [appendMovement, wsCanMutate, finishPoWrite]
   );
 
   const setPurchaseOrderStatus = useCallback(
@@ -643,7 +666,7 @@ export function InventoryProvider({ children }) {
             code: data?.code,
           };
         }
-        await wsRefresh?.();
+        finishPoWrite(data);
         return { ok: true };
       }
       setPurchaseOrders((prev) =>
@@ -652,7 +675,7 @@ export function InventoryProvider({ children }) {
       appendMovement({ type: 'PO_STATUS', ref: poID, detail: status });
       return { ok: true };
     },
-    [appendMovement, purchaseOrders, wsCanMutate, wsRefresh]
+    [appendMovement, purchaseOrders, wsCanMutate, finishPoWrite]
   );
 
   const confirmStoreReceipt = useCallback(
