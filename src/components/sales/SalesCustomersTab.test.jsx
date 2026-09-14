@@ -54,7 +54,9 @@ describe('SalesCustomersTab', () => {
     );
 
     expect(await screen.findByText('Amina Traders')).toBeTruthy();
-    expect(apiFetch).toHaveBeenCalledWith(expect.stringContaining('/api/customers?limit=5000'));
+    expect(apiFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/customers?limit=50&offset=0')
+    );
   });
 
   it('re-queries the server with the search term (debounced) rather than filtering locally', async () => {

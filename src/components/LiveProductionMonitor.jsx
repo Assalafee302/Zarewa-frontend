@@ -152,6 +152,12 @@ export function LiveProductionMonitor({
   const [draftAllocations, setDraftAllocations] = useState([createDraftLine()]);
   const [coilAllocRefreshToken, setCoilAllocRefreshToken] = useState(0);
   const [jobCoilsFromApi, setJobCoilsFromApi] = useState(null);
+  const [eligibleProductionCoils, setEligibleProductionCoils] = useState({
+    jobId: '',
+    rows: null,
+    loading: false,
+    error: '',
+  });
   const [savingAction, setSavingAction] = useState('');
   const [signoffRemark, setSignoffRemark] = useState('');
   const [signoffEditApprovalId, setSignoffEditApprovalId] = useState('');
@@ -229,7 +235,7 @@ export function LiveProductionMonitor({
         : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.productionCompletionAdjustments]
   );
-  const coilLots = useMemo(
+  const snapshotCoilLots = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.coilLots) ? ws.snapshot.coilLots : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.coilLots]
   );
@@ -270,6 +276,46 @@ export function LiveProductionMonitor({
     if (status === base.status) return base;
     return { ...base, status };
   }, [selectedJobId, sortedJobs, focusClTrim]);
+
+  useEffect(() => {
+    const jobId = String(selectedJob?.jobID || '').trim();
+    if (!jobId) {
+      setEligibleProductionCoils({ jobId: '', rows: null, loading: false, error: '' });
+      return undefined;
+    }
+    let cancelled = false;
+    setEligibleProductionCoils({ jobId, rows: null, loading: true, error: '' });
+    void (async () => {
+      const { ok, data } = await apiFetch(
+        `/api/production/eligible-coils?jobId=${encodeURIComponent(jobId)}`
+      );
+      if (cancelled) return;
+      if (!ok || !data?.ok || !Array.isArray(data.coilLots)) {
+        const error = String(data?.error || 'Could not load the complete eligible coil list.');
+        setEligibleProductionCoils({ jobId, rows: null, loading: false, error });
+        showToast(`${error} Showing the recent cached list only.`, { variant: 'warning' });
+        return;
+      }
+      setEligibleProductionCoils({
+        jobId,
+        rows: data.coilLots,
+        loading: false,
+        error: '',
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJob?.jobID, showToast]);
+
+  const coilLots = useMemo(
+    () =>
+      eligibleProductionCoils.jobId === String(selectedJob?.jobID || '') &&
+      Array.isArray(eligibleProductionCoils.rows)
+        ? eligibleProductionCoils.rows
+        : snapshotCoilLots,
+    [eligibleProductionCoils.jobId, eligibleProductionCoils.rows, selectedJob?.jobID, snapshotCoilLots]
+  );
 
   // Desk packs strip quotationLines, so the stone flatsheet reads below would silently
   // see none and seed an empty completion form. Pull them in for the selected job.

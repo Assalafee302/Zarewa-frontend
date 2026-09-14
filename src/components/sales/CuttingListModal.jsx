@@ -49,6 +49,19 @@ import { refundFundPaymentRowsForQuotation } from '../../lib/refundFundApply.js'
 function normQuoteKey(s) {
   return normalizeReceiptMatchDashes(String(s ?? '').trim()).toLowerCase();
 }
+
+function quotationMeetsPickerGate(q, receipts, ledgerEntries, minPaidFraction, belowFloorPending) {
+  return (
+    q?.serverCuttingListEligible === true ||
+    meetsCuttingListPayThreshold(
+      q,
+      receipts,
+      ledgerEntries,
+      minPaidFraction,
+      belowFloorPending
+    )
+  );
+}
 import CuttingListReportPrintView from './CuttingListReportPrintView';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import { cuttingListEditNeedsSecondApprovalClient } from '../../lib/editApprovalUi';
@@ -467,6 +480,7 @@ const CuttingListModal = ({
   const [clearingHold, setClearingHold] = useState(false);
   const [quoteSearch, setQuoteSearch] = useState('');
   const [showQuotePicker, setShowQuotePicker] = useState(false);
+  const [serverEligibleQuotations, setServerEligibleQuotations] = useState(null);
   const [cuttingListEditApprovalId, setCuttingListEditApprovalId] = useState('');
   const lastCuttingListHydrateSigRef = useRef('');
   const autosaveTimerRef = useRef(null);
@@ -522,6 +536,38 @@ const CuttingListModal = ({
     [ws?.snapshot?.ledgerEntries]
   );
 
+  useEffect(() => {
+    if (!isOpen || editData?.id) return undefined;
+    let cancelled = false;
+    setServerEligibleQuotations(null);
+    void (async () => {
+      const { ok, data } = await apiFetch('/api/cutting-lists/eligible-quotations');
+      if (cancelled) return;
+      if (!ok || !data?.ok || !Array.isArray(data.quotations)) {
+        setServerEligibleQuotations(null);
+        showToast('Could not load the complete paid quotation list. Showing recent cached records.', {
+          variant: 'warning',
+        });
+        return;
+      }
+      setServerEligibleQuotations(data.quotations);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, editData?.id, showToast]);
+
+  const quotationCandidates = useMemo(() => {
+    if (!Array.isArray(serverEligibleQuotations)) return quotations;
+    const byId = new Map();
+    for (const row of [...quotations, ...serverEligibleQuotations]) {
+      const id = String(row?.id || '').trim();
+      if (!id) continue;
+      byId.set(id, { ...(byId.get(id) || {}), ...row });
+    }
+    return [...byId.values()];
+  }, [quotations, serverEligibleQuotations]);
+
   const selectableQuotations = useMemo(() => {
     const editingId = editData?.id ?? '';
     const takenByAnother = (quoteId) =>
@@ -533,11 +579,11 @@ const CuttingListModal = ({
       );
 
     const editingQuoteId = String(editData?.quotationRef || '').trim();
-    const base = quotations.filter((q) => {
+    const base = quotationCandidates.filter((q) => {
       if (!q?.id || takenByAnother(q.id)) return false;
       const total = Number(q.totalNgn ?? q.total_ngn) || 0;
       if (total <= 0) return false;
-      const meetsPay = meetsCuttingListPayThreshold(
+      const meetsPay = quotationMeetsPickerGate(
         q,
         receipts,
         ledgerEntries,
@@ -550,13 +596,13 @@ const CuttingListModal = ({
     });
     const sorted = [...base].sort((a, b) => a.id.localeCompare(b.id));
     if (editingQuoteId) {
-      const current = quotations.find((x) => x.id === editingQuoteId);
+      const current = quotationCandidates.find((x) => x.id === editingQuoteId);
       if (current && !sorted.some((x) => x.id === current.id)) {
         return [current, ...sorted.filter((x) => x.id !== current.id)];
       }
     }
     return sorted;
-  }, [quotations, cuttingLists, editData, receipts, ledgerEntries, minPaidFraction]);
+  }, [quotationCandidates, cuttingLists, editData, receipts, ledgerEntries, minPaidFraction]);
 
   const filteredQuotePicker = useMemo(() => {
     const raw = quoteSearch.trim();
@@ -592,7 +638,7 @@ const CuttingListModal = ({
       }
       return { kind: 'has_list', q, listId: linked.id, branchId: linked.branchId ?? '' };
     }
-    if (!meetsCuttingListPayThreshold(q, receipts, ledgerEntries, minPaidFraction, quotationBelowFloorPendingMdApproval(q))) {
+    if (!quotationMeetsPickerGate(q, receipts, ledgerEntries, minPaidFraction, quotationBelowFloorPendingMdApproval(q))) {
       return { kind: 'under_paid', q };
     }
     return null;
@@ -605,10 +651,10 @@ const CuttingListModal = ({
    * having no quotation.
    */
   const selectedQuotationLookup = useMemo(() => {
-    const fromProp = quotations.find((q) => q.id === quotationRef);
+    const fromProp = quotationCandidates.find((q) => q.id === quotationRef);
     if (fromProp) return { value: fromProp, state: 'found' };
     return ws?.lookup ? ws.lookup('quotations', quotationRef) : { value: null, state: 'absent' };
-  }, [quotations, quotationRef, ws]);
+  }, [quotationCandidates, quotationRef, ws]);
 
   const selectedQuotation = selectedQuotationLookup.value;
   const selectedQuotationPending = selectedQuotationLookup.state === 'not-loaded';
@@ -616,7 +662,7 @@ const CuttingListModal = ({
   /** Slim sales snapshot may omit quotationLines — fetch full quote so CL form can seed products. */
   useEffect(() => {
     if (!isOpen || !quotationRef) return undefined;
-    const q = quotations.find((row) => row?.id === quotationRef);
+    const q = quotationCandidates.find((row) => row?.id === quotationRef);
     const ql = q?.quotationLines;
     const hasLinesShape =
       ql &&
@@ -632,7 +678,7 @@ const CuttingListModal = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, quotationRef, quotations, ws]);
+  }, [isOpen, quotationRef, quotationCandidates, ws]);
 
   const selectedQuotationBelowFloorPending = useMemo(
     () => quotationBelowFloorPendingMdApproval(selectedQuotation),
@@ -1418,7 +1464,7 @@ const CuttingListModal = ({
     if (
       (shouldFinalize || isCreate) &&
       selectedQuotation &&
-      !meetsCuttingListPayThreshold(
+      !quotationMeetsPickerGate(
         selectedQuotation,
         receipts,
         ledgerEntries,
@@ -1507,7 +1553,7 @@ const CuttingListModal = ({
     }
     if (
       selectedQuotation &&
-      !meetsCuttingListPayThreshold(
+      !quotationMeetsPickerGate(
         selectedQuotation,
         receipts,
         ledgerEntries,
@@ -1823,7 +1869,7 @@ const CuttingListModal = ({
                           ) : (
                             filteredQuotePicker.map((q) => {
                               const cust = q.customer ?? q.customer_name ?? '';
-                              const okPay = meetsCuttingListPayThreshold(
+                              const okPay = quotationMeetsPickerGate(
                                 q,
                                 receipts,
                                 ledgerEntries,
@@ -1900,7 +1946,7 @@ const CuttingListModal = ({
                 {(isCreate || isDraftRecord) &&
                   quotationRef &&
                   selectedQuotation &&
-                  !meetsCuttingListPayThreshold(
+                  !quotationMeetsPickerGate(
                     selectedQuotation,
                     receipts,
                     ledgerEntries,

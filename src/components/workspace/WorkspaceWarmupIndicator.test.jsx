@@ -59,11 +59,11 @@ describe('WorkspaceWarmupIndicator', () => {
     act(() => {
       rerender(<WorkspaceWarmupIndicator />);
     });
-    expect(screen.getByText(/Whole workspace loaded/i)).toBeTruthy();
+    expect(screen.getByText(/Requested desk data loaded/i)).toBeTruthy();
     act(() => {
       vi.advanceTimersByTime(2500);
     });
-    expect(screen.queryByText(/Whole workspace loaded/i)).toBeNull();
+    expect(screen.queryByText(/Requested desk data loaded/i)).toBeNull();
   });
 
   it('does not claim the workspace is ready when the warm-up was cut short', () => {
@@ -74,7 +74,7 @@ describe('WorkspaceWarmupIndicator', () => {
     act(() => {
       rerender(<WorkspaceWarmupIndicator />);
     });
-    expect(screen.queryByText(/Whole workspace loaded/i)).toBeNull();
+    expect(screen.queryByText(/Requested desk data loaded/i)).toBeNull();
   });
 
   it('survives a context with no warm-up state at all', () => {

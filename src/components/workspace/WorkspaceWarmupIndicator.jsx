@@ -80,7 +80,7 @@ export function WorkspaceWarmupIndicator() {
           <Loader2 className="h-4 w-4 shrink-0 animate-spin text-zarewa-teal" aria-hidden />
         )}
         <span className="min-w-0 flex-1 truncate">
-          {showDone ? 'Whole workspace loaded' : `Loading ${activeLabel}…`}
+          {showDone ? 'Requested desk data loaded' : `Loading ${activeLabel}…`}
         </span>
         <span className="shrink-0 tabular-nums text-[11px] font-bold text-gray-500">
           {showDone ? '100%' : `${pct}%`}

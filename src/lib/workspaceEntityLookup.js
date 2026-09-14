@@ -28,7 +28,6 @@ export const WORKSPACE_ARRAY_DOMAINS = Object.freeze({
   refunds: ['sales', 'finance'],
   refundCreditApplications: ['sales', 'finance'],
   ledgerEntries: ['sales', 'finance'],
-  advanceInEvents: ['sales', 'finance'],
   treasuryAccounts: ['sales', 'finance'],
   priceListItems: ['sales'],
   salesAvailableStock: ['sales'],

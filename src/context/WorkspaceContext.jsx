@@ -30,7 +30,12 @@ import {
 import { sanitizeWorkItemForCache } from '../lib/workspaceSanitize.js';
 import { appQueryClient, invalidateAppShellQueries } from '../lib/queryClient';
 import { mergeDashboardPollIntoSnapshot } from '../lib/bootstrapPollMerge';
-import { mergeWriteDeltaIntoSnapshot, domainsTouchedByDelta } from '../lib/applyWriteDelta';
+import {
+  mergeWriteDeltaIntoSnapshot,
+  domainsTouchedByDelta,
+  entityIdsFromDelta,
+  eventIsOwnWriteEcho,
+} from '../lib/applyWriteDelta';
 import {
   accessibleWorkspaceDomains,
   inferLoadedWorkspaceDomains,
@@ -325,11 +330,16 @@ export function WorkspaceProvider({ children }) {
   /** Last measured `/api/livez` RTT — used to stretch bootstrap timeout on slow links. */
   const apiRttMsRef = useRef(null);
   /**
-   * Domains the writer just patched via body.delta — skip the echo SSE pack refetch briefly
-   * so save/approve does not wait on a full sales/finance/ops download.
-   * @type {React.MutableRefObject<{ domains: Set<string>, until: number }>}
+   * What this browser just wrote itself via body.delta, so the echo coming back on the
+   * stream can be recognised and skipped — save/approve must not wait on a full
+   * sales/finance/ops download for a row it has already merged.
+   *
+   * Ids, not just domains. Skipping a whole desk for the window meant a colleague saving to
+   * the same desk inside it was dropped outright, which is the delay this stream exists to
+   * remove; matching on ids suppresses only our own echo.
+   * @type {React.MutableRefObject<{ domains: Set<string>, ids: Map<string, Set<string>>, until: number }>}
    */
-  const localWriteSkipRef = useRef({ domains: new Set(), until: 0 });
+  const localWriteSkipRef = useRef({ domains: new Set(), ids: new Map(), until: 0 });
 
   const resetDomainRuntime = useCallback(() => {
     warmedAllRef.current = false;
@@ -438,13 +448,33 @@ export function WorkspaceProvider({ children }) {
     if (touched.length) {
       const skipMs = Math.max(500, Number(opts.skipSseMs) || 8_000);
       const prev = localWriteSkipRef.current;
-      const mergedDomains = new Set(prev.until > Date.now() ? prev.domains : []);
+      const live = prev.until > Date.now();
+      const mergedDomains = new Set(live ? prev.domains : []);
       for (const d of touched) mergedDomains.add(d);
-      localWriteSkipRef.current = { domains: mergedDomains, until: Date.now() + skipMs };
+      // Carry ids from writes still inside the window: several saves can be in flight at
+      // once, and each echo must still be recognisable as ours.
+      const mergedIds = new Map();
+      if (live) for (const [bag, ids] of prev.ids) mergedIds.set(bag, new Set(ids));
+      for (const [bag, ids] of entityIdsFromDelta(delta)) {
+        const set = mergedIds.get(bag) || new Set();
+        for (const id of ids) set.add(id);
+        mergedIds.set(bag, set);
+      }
+      localWriteSkipRef.current = { domains: mergedDomains, ids: mergedIds, until: Date.now() + skipMs };
     }
     setRefreshEpoch((n) => n + 1);
     return true;
   }, []);
+
+  // Every apiFetch mutation can publish its response delta, including calls made directly
+  // by a modal. Merge it before that modal closes so the saved row is immediately visible.
+  useEffect(() => {
+    const onWriteDelta = (event) => {
+      if (event?.detail?.delta) applyWriteDelta(event.detail.delta);
+    };
+    window.addEventListener('zarewa:write-delta', onWriteDelta);
+    return () => window.removeEventListener('zarewa:write-delta', onWriteDelta);
+  }, [applyWriteDelta]);
 
   /** Generic in-place desk patch (close modal first; refresh domain in background). */
   const patchDomainSnapshot = useCallback((updater) => {
@@ -461,7 +491,12 @@ export function WorkspaceProvider({ children }) {
 
   const mergeSnapshotPatch = useCallback((patch) => {
     if (!patch || patch.ok !== true) return null;
-    const { domain: domainKey, ok: _ok, ...fields } = patch;
+    const {
+      domain: domainKey,
+      ok: _ok,
+      bootstrapMeta: incomingBootstrapMeta,
+      ...fields
+    } = patch;
     let merged = null;
     setSnapshot((prev) => {
       const prevDeferred = Array.isArray(prev?.bootstrapMeta?.deferredDeskArrays)
@@ -487,21 +522,22 @@ export function WorkspaceProvider({ children }) {
           };
         }
       }
-      const filledKeys = Object.keys(nextFields).filter(
-        (k) => Array.isArray(nextFields[k]) && nextFields[k].length > 0
-      );
-      const nextDeferred = prevDeferred.filter((k) => !filledKeys.includes(k));
+      // An empty array from a completed domain request is loaded-and-empty, not still loading.
+      // Remove every array the domain answered, but never claim a capped array is complete.
+      const hydratedKeys = Object.keys(nextFields).filter((k) => Array.isArray(nextFields[k]));
+      const nextDeferred = prevDeferred.filter((k) => !hydratedKeys.includes(k));
       merged = mergeSessionOnboardingFlags(prev, {
         ...(prev || {}),
         ok: true,
         ...nextFields,
         bootstrapMeta: {
           ...(prev?.bootstrapMeta || {}),
+          ...(incomingBootstrapMeta || {}),
           mode: domainKey ? 'hydrated' : prev?.bootstrapMeta?.mode,
           deferredDeskArrays: nextDeferred,
           truncated: {
             ...(prev?.bootstrapMeta?.truncated || {}),
-            ...Object.fromEntries(filledKeys.map((k) => [k, false])),
+            ...(incomingBootstrapMeta?.truncated || {}),
           },
         },
       });
@@ -1259,19 +1295,7 @@ export function WorkspaceProvider({ children }) {
     void refresh({ mode: 'shell' });
   }, [refresh]);
 
-  /**
-   * Warm the desk they landed on first, then — once — every other desk they can open.
-   *
-   * The order is the whole point. Loading section-by-section on demand meant a cutting
-   * list could be open while the quotation it belongs to had never been fetched, and the
-   * screen could not tell "not loaded" from "does not exist"; warming everything up front
-   * instead would make the desk they actually want wait behind three they do not. So the
-   * primary desk resolves first and stays fast, and the rest arrives behind a progress
-   * bar the user can watch finish.
-   *
-   * Bounded work: four capped packs, the same bytes as visiting four desks during the day,
-   * landing in the IndexedDB cache on the way past so tomorrow's first paint is warm.
-   */
+  /** Load only the user's primary desk. Other permitted domains hydrate when their route opens. */
   useEffect(() => {
     if (status !== 'ok' && status !== 'unstable') return undefined;
     const uid = snapshotRef.current?.session?.user?.id;
@@ -1281,22 +1305,7 @@ export function WorkspaceProvider({ children }) {
     const run = async () => {
       if (cancelled) return;
       await prefetchWorkspaceDomains({ primaryOnly: true });
-      if (cancelled) return;
-      if (!warmedAllRef.current) {
-        // Chained rather than run from its own effect: a second effect would race this
-        // one, and whichever started later would silently cancel the other through the
-        // prefetch generation — leaving the warm marked done with packs still missing.
-        await prefetchWorkspaceDomains({ forceAll: true, reportProgress: true });
-        if (cancelled) return;
-        // Marked done only on completion. Marking it up front would let a re-run that
-        // interrupted the warm — a branch switch, a permission change — record success
-        // for packs that never arrived.
-        warmedAllRef.current = true;
-        return;
-      }
-      if (!isConstrainedNetwork({ rttMs: apiRttMsRef.current })) {
-        void prefetchWorkspaceDomains({ warmSecondary: true });
-      }
+      if (!cancelled) warmedAllRef.current = true;
     };
 
     if (typeof requestIdleCallback !== 'undefined') {
@@ -1421,7 +1430,8 @@ export function WorkspaceProvider({ children }) {
      * link. Queue instead: coalesce a burst into one request per desk, and run them one at
      * a time so the stream never competes with what the user is doing.
      */
-    const queue = new Set();
+    /** domain → whether every event coalesced for it was this browser's own echo. */
+    const queue = new Map();
     let timer = 0;
     let draining = false;
     let closed = false;
@@ -1433,15 +1443,15 @@ export function WorkspaceProvider({ children }) {
         while (queue.size && !closed) {
           const batch = [...queue];
           queue.clear();
-          for (const domain of batch) {
+          for (const [domain, ownEchoOnly] of batch) {
             if (closed) return;
             // Only desks already loaded. After the login warm-up that is all of them, but
             // a user who has not finished warming should not have packs pulled in by
             // someone else's write.
             if (!loadedDomainsRef.current.has(domain)) continue;
-            // Writer already merged body.delta — skip the echo pack for a few seconds.
-            const skip = localWriteSkipRef.current;
-            if (skip.until > Date.now() && skip.domains.has(domain)) continue;
+            // Every event folded into this entry described rows we wrote and already
+            // merged, so the pack would come back saying what the screen already shows.
+            if (ownEchoOnly) continue;
             await ensureDomainLoaded(domain, { revalidate: true });
           }
         }
@@ -1461,7 +1471,16 @@ export function WorkspaceProvider({ children }) {
           void refresh({ poll: true, mode: 'shell' });
         }
         const domains = Array.isArray(payload.domains) ? payload.domains : [];
-        for (const domain of domains) queue.add(domain);
+        // Decided here, not at drain time: by then the burst has been folded together and
+        // the ids that tell our own save from a colleague's are gone. A domain stays
+        // skippable only while every event folded into it was ours.
+        const skip = localWriteSkipRef.current;
+        const ownEcho =
+          skip.until > Date.now() && eventIsOwnWriteEcho(payload.entityIds, skip.ids);
+        for (const domain of domains) {
+          const prev = queue.get(domain);
+          queue.set(domain, prev === undefined ? ownEcho : prev && ownEcho);
+        }
         if (!queue.size || timer) return;
         timer = window.setTimeout(() => {
           timer = 0;

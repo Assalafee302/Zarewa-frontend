@@ -43,4 +43,31 @@ describe('apiFetch body', () => {
     expect(res.ok).toBe(true);
     expect(calls).toBe(2);
   });
+
+  it('reuses an uncertain mutation operation ID after a lost response', async () => {
+    document.cookie = 'zarewa_csrf=test-csrf; path=/';
+    const seenKeys = [];
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementationOnce(async (_url, init) => {
+          seenKeys.push(init.headers['Idempotency-Key']);
+          throw new TypeError('Failed to fetch');
+        })
+        .mockImplementationOnce(async (_url, init) => {
+          seenKeys.push(init.headers['Idempotency-Key']);
+          return new Response('{"ok":true,"id":"EXP-1"}', { status: 201 });
+        })
+    );
+
+    const options = { method: 'POST', body: { amount: 12731, note: 'unique uncertain test' } };
+    const uncertain = await apiFetch('/api/expenses', options);
+    const confirmed = await apiFetch('/api/expenses', options);
+
+    expect(uncertain.data.code).toBe('NETWORK_ERROR');
+    expect(confirmed.ok).toBe(true);
+    expect(seenKeys[0]).toBeTruthy();
+    expect(seenKeys[1]).toBe(seenKeys[0]);
+  });
 });

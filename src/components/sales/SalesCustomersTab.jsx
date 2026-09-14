@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UserCircle, TrendingUp, Ruler, Moon, Trash2 } from 'lucide-react';
 import {
@@ -85,11 +85,8 @@ export default function SalesCustomersTab({
   const canDeleteCustomer = Boolean(ws?.hasPermission?.('sales.manage') && ws?.canMutate);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  // Searched from the server (not the full snapshot) — keeps the tab fast to open and
-  // fast to search on a slow connection instead of relying on everyone already being
-  // downloaded up front. The unfiltered fetch below (searchTerm '') backs the sidebar
-  // insights, which need every customer regardless of what's typed in the search box;
-  // react-query serves both from the same cache entry when the box is empty.
+  // Search runs against the server and returns 50-row pages. The unfiltered query below
+  // shares that cache when the search box is empty and supplies names for visible insights.
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   const searchedCustomers = useCustomersSearchQuery(debouncedSearchQuery);
   const allCustomers = useCustomersSearchQuery('');
@@ -159,6 +156,16 @@ export default function SalesCustomersTab({
     sortOrder
   );
   const paginated = customersPage.slice;
+  const customerRowsHaveMore = customersPage.hasMore || searchedCustomers.hasNextPage;
+  const loadMoreCustomerRows = useCallback(() => {
+    if (customersPage.hasMore) {
+      customersPage.loadMore();
+      return;
+    }
+    if (searchedCustomers.hasNextPage && !searchedCustomers.isFetchingNextPage) {
+      void searchedCustomers.fetchNextPage();
+    }
+  }, [customersPage, searchedCustomers]);
 
   const insights = useMemo(() => {
     const ciso = insightCutoffISO();
@@ -358,10 +365,10 @@ export default function SalesCustomersTab({
             )}
 
             <AppTableInfiniteLoader
-              shown={customersPage.shown}
-              total={customersPage.total}
-              hasMore={customersPage.hasMore}
-              onLoadMore={customersPage.loadMore}
+              shown={paginated.length}
+              total={searchedCustomers.total}
+              hasMore={customerRowsHaveMore}
+              onLoadMore={loadMoreCustomerRows}
               pageSize={APP_DATA_TABLE_PAGE_SIZE}
             />
           </SalesListTableFrame>
