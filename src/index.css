@@ -2971,10 +2971,43 @@ summary {
     print-color-adjust: exact;
   }
 
+  /*
+   * Cutting list print: strip teal/orange fills so ink stays on the words.
+   * Near-monochrome sheet — black text, white panels, simple slate borders.
+   */
   .cutting-list-factory-root,
   .cutting-list-factory-root * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .cutting-list-factory-root {
+    color: #0f172a !important;
+    background: #fff !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-panel,
+  .cutting-list-factory-root .cl-factory-banner,
+  .cutting-list-factory-root .cl-factory-table-shell,
+  .cutting-list-factory-root .cl-factory-grand-shell,
+  .cutting-list-factory-root .cl-factory-receipt-box,
+  .cutting-list-factory-root .cl-factory-scratch,
+  .cutting-list-factory-root .cl-factory-commercial-meta,
+  .cutting-list-factory-root .cl-waybill-section,
+  .cutting-list-factory-root .cl-waybill-mid-split,
+  .cutting-list-factory-root .cl-waybill-col--addresses,
+  .cutting-list-factory-root .cl-waybill-section--cuts-full-column,
+  .cutting-list-factory-root .cl-factory-meta-tile,
+  .cutting-list-factory-root .cl-factory-id-pill,
+  .cutting-list-factory-root .cl-factory-logo-ring,
+  .cutting-list-factory-root .cl-factory-receipt-row,
+  .cutting-list-factory-root .cl-factory-subbar {
+    background: #fff !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border-color: #334155 !important;
   }
 
   .cutting-list-factory-root .cl-factory-panel,
@@ -2983,9 +3016,7 @@ summary {
   .cutting-list-factory-root .cl-factory-grand-shell,
   .cutting-list-factory-root .cl-factory-receipt-box,
   .cutting-list-factory-root .cl-factory-scratch {
-    box-shadow: none !important;
-    border: 2px solid #475569 !important;
-    background: #f8fafc !important;
+    border: 1.5px solid #334155 !important;
   }
 
   .cutting-list-factory-root .cl-factory-panel,
@@ -2993,8 +3024,128 @@ summary {
   .cutting-list-factory-root .cl-factory-table-shell,
   .cutting-list-factory-root .cl-factory-grand-shell,
   .cutting-list-factory-root .cl-factory-meta-tile,
-  .cutting-list-factory-root .cl-factory-id-pill {
-    border-radius: 4px !important;
+  .cutting-list-factory-root .cl-factory-id-pill,
+  .cutting-list-factory-root .cl-waybill-section,
+  .cutting-list-factory-root .cl-waybill-mid-split {
+    border-radius: 2px !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-banner-accent,
+  .cutting-list-factory-root .cl-factory-bill-title-dot,
+  .cutting-list-factory-root .cl-factory-cut-title-icon,
+  .cutting-list-factory-root .cl-factory-scratch-title-mark {
+    background: #0f172a !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-legal-name,
+  .cutting-list-factory-root .cl-factory-doc-title,
+  .cutting-list-factory-root .cl-factory-bill-title,
+  .cutting-list-factory-root .cl-factory-cut-title,
+  .cutting-list-factory-root .cl-waybill-section-title,
+  .cutting-list-factory-root .cl-waybill-branch-heading,
+  .cutting-list-factory-root .cl-factory-ref-v--id,
+  .cutting-list-factory-root .cl-factory-receipt-id,
+  .cutting-list-factory-root .cl-factory-receipt-amt,
+  .cutting-list-factory-root .cl-factory-bill-td-amount,
+  .cutting-list-factory-root .cl-factory-bill-subtotal-label,
+  .cutting-list-factory-root .cl-factory-bill-subtotal-value,
+  .cutting-list-factory-root .cl-factory-created-by-v,
+  .cutting-list-factory-root .cl-factory-prepared-by-footer .cl-factory-created-by-v,
+  .cutting-list-factory-root .cl-factory-print-audit-k,
+  .cutting-list-factory-root .cl-factory-scratch-title,
+  .cutting-list-factory-root .cl-factory-page-foot-brand {
+    color: #0f172a !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-ref-k,
+  .cutting-list-factory-root .cl-factory-subbar-k,
+  .cutting-list-factory-root .cl-factory-field-label,
+  .cutting-list-factory-root .cl-factory-sign-label,
+  .cutting-list-factory-root .cl-factory-created-by-k,
+  .cutting-list-factory-root .cl-factory-receipt-head,
+  .cutting-list-factory-root .cl-factory-receipt-bank,
+  .cutting-list-factory-root .cl-factory-cut-empty,
+  .cutting-list-factory-root .cl-factory-receipt-empty,
+  .cutting-list-factory-root .cl-factory-scratch-sub,
+  .cutting-list-factory-root .cl-waybill-dl dt,
+  .cutting-list-factory-root .cl-text-muted,
+  .cutting-list-factory-root .cl-factory-print-audit {
+    color: #1e293b !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-subbar-v,
+  .cutting-list-factory-root .cl-factory-subbar-v--material-primary,
+  .cutting-list-factory-root .cl-factory-subbar-v--material-secondary,
+  .cutting-list-factory-root .cl-factory-ref-v,
+  .cutting-list-factory-root .cl-waybill-dl dd,
+  .cutting-list-factory-root .cl-waybill-branch-line,
+  .cutting-list-factory-root .cl-factory-bill-td,
+  .cutting-list-factory-root .cl-factory-cut-td {
+    color: #0f172a !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-subbar-seg--material {
+    border-left-color: #334155 !important;
+  }
+
+  .cutting-list-factory-root .cl-waybill-branch-card,
+  .cutting-list-factory-root .cl-waybill-branches-block--compact .cl-waybill-branch-card,
+  .cutting-list-factory-root .cl-waybill-branches-in-left .cl-waybill-branches-block--compact .cl-waybill-branch-card {
+    border-left-color: #334155 !important;
+  }
+
+  /* Table headers: dark ink on white (no teal fill / white-on-teal) */
+  .cutting-list-factory-root .cl-factory-bill-th,
+  .cutting-list-factory-root .cl-factory-cut-th {
+    background: #fff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    border-bottom: 2px solid #0f172a !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-bill-table tbody tr:nth-child(even):not(.cl-factory-bill-subtotal-row) .cl-factory-bill-td,
+  .cutting-list-factory-root .cl-factory-cut-table tbody tr:nth-child(even):not(.cl-factory-cut-total-row) .cl-factory-cut-td {
+    background: #fff !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-bill-td,
+  .cutting-list-factory-root .cl-factory-cut-td {
+    border-bottom-color: #94a3b8 !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-bill-subtotal-row .cl-factory-bill-td,
+  .cutting-list-factory-root .cl-factory-cut-total-row .cl-factory-cut-td {
+    background: #f1f5f9 !important;
+    background-image: none !important;
+    border-top: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+  }
+
+  .cutting-list-factory-root .cl-waybill-accessories-included {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-color: #334155 !important;
+  }
+
+  .cutting-list-factory-root .cl-waybill-continuation-strip {
+    background: #fff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    border-top-color: #334155 !important;
+  }
+
+  .cutting-list-factory-root .cl-a4-pane--cutting {
+    border-right-color: #334155 !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-write-line,
+  .cutting-list-factory-root .cl-factory-sign-line,
+  .cutting-list-factory-root .cl-factory-sign-line--waybill {
+    background: transparent !important;
+    background-image: none !important;
+    border-bottom-color: #0f172a !important;
   }
 
   .report-print-table {
