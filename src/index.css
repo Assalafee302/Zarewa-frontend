@@ -1054,9 +1054,10 @@ summary {
   min-height: 198mm;
 }
 
-/* Cutting list A4 landscape — left = factory pack, right = waybill */
+/* Cutting list A4 landscape — left = factory pack, right = waybill.
+ * Margins stay tight so larger print fonts still fit one landscape sheet. */
 @page cutting-list-a4-landscape {
-  margin: 5mm 6mm;
+  margin: 3.5mm 4.5mm;
   /* Keyword form helps Chromium suggest A4 landscape in the print dialog. */
   size: A4 landscape;
 }
@@ -1068,8 +1069,8 @@ summary {
   margin-left: auto;
   margin-right: auto;
   box-sizing: border-box;
-  font-size: 7.75pt;
-  line-height: 1.2;
+  font-size: 9.5pt;
+  line-height: 1.18;
   /* Paged media: lock to named page (see @page cutting-list-a4-landscape) */
   page: cutting-list-a4-landscape;
 }
@@ -1079,7 +1080,7 @@ summary {
   display: flex;
   flex-direction: column;
   min-height: 210mm;
-  gap: 1.25mm;
+  gap: 0.85mm;
   box-sizing: border-box;
 }
 
@@ -1104,7 +1105,7 @@ summary {
   flex: 1 1 50%;
   min-width: 0;
   border-right: 1px solid var(--cl-border);
-  padding-right: 3mm;
+  padding-right: 2mm;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1113,7 +1114,7 @@ summary {
 .cl-a4-pane--waybill {
   flex: 1 1 50%;
   min-width: 0;
-  padding-left: 3mm;
+  padding-left: 2mm;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1159,13 +1160,13 @@ summary {
 }
 
 .cl-factory-banner--waybill-pane .cl-factory-doc-title {
-  font-size: 10pt;
+  font-size: 12pt;
 }
 
 .cl-waybill-continuation-strip {
   margin: 0;
-  padding: 0.55mm 1.65mm 0.85mm;
-  font-size: 6.75pt;
+  padding: 0.45mm 1.35mm 0.65mm;
+  font-size: 8pt;
   font-weight: 700;
   line-height: 1.3;
   color: #9a3412;
@@ -1291,12 +1292,12 @@ summary {
 }
 
 .cl-waybill-branches-in-left .cl-waybill-branches-block--compact .cl-waybill-branch-heading {
-  font-size: 7.5pt;
+  font-size: 9pt;
 }
 
 .cl-waybill-branches-in-left .cl-waybill-branches-block--compact .cl-waybill-branch-line {
-  font-size: 7.25pt;
-  line-height: 1.32;
+  font-size: 8.75pt;
+  line-height: 1.25;
 }
 
 /* Right column: material check fills entire half */
@@ -1333,11 +1334,11 @@ summary {
 }
 
 .cl-waybill-section-title {
-  margin: 0 0 0.65mm;
-  font-size: 6.75pt;
+  margin: 0 0 0.45mm;
+  font-size: 8.25pt;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--cl-teal);
 }
 
@@ -1388,17 +1389,17 @@ summary {
 }
 
 .cl-waybill-cut-tables .cl-factory-cut-title {
-  font-size: 6.75pt;
+  font-size: 8.25pt;
 }
 
 .cl-waybill-cut-tables .cl-factory-cut-th,
 .cl-waybill-cut-tables .cl-factory-cut-td {
   padding: 0.2mm 0.4mm;
-  font-size: 6.75pt;
+  font-size: 8.25pt;
 }
 
 .cl-waybill-cut-tables .cl-factory-cut-empty {
-  font-size: 6.85pt;
+  font-size: 8.5pt;
 }
 
 .cl-waybill-address-text {
@@ -1418,7 +1419,7 @@ summary {
   grid-template-columns: auto 1fr;
   gap: 0.35mm 1.25mm;
   margin: 0;
-  font-size: 7.15pt;
+  font-size: 8.75pt;
 }
 
 .cl-waybill-dl dt {
@@ -1426,7 +1427,7 @@ summary {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.055em;
-  font-size: 6.5pt;
+  font-size: 8pt;
   color: var(--cl-text-muted);
 }
 
@@ -1733,10 +1734,10 @@ summary {
 }
 
 .cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch {
-  min-height: 48mm;
+  min-height: 40mm;
   height: auto;
   box-sizing: border-box;
-  padding: 1.65mm 1.55mm 1.5mm;
+  padding: 1.25mm 1.25mm 1.15mm;
   border: 2px solid #475569;
   background: linear-gradient(180deg, #f1f5f9 0%, #ffffff 58%);
   box-shadow:
@@ -1745,34 +1746,34 @@ summary {
 }
 
 .cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch .cl-factory-scratch-title {
-  font-size: 8.5pt;
+  font-size: 10pt;
   color: var(--cl-teal);
-  margin-bottom: 1.15mm;
+  margin-bottom: 0.85mm;
 }
 
 .cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch .cl-factory-scratch-sub {
-  font-size: 7.25pt;
+  font-size: 8.5pt;
   font-weight: 700;
   color: #64748b;
 }
 
 .cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch .cl-factory-field-label {
-  font-size: 7pt;
+  font-size: 8.5pt;
   font-weight: 800;
   color: #475569;
-  margin-bottom: 0.35mm;
+  margin-bottom: 0.25mm;
 }
 
 .cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch .cl-factory-write-line {
-  min-height: 5.25mm;
+  min-height: 4.5mm;
   border-bottom-width: 1.5px;
   border-bottom-color: #64748b;
   background: linear-gradient(180deg, transparent 55%, rgb(100 116 139 / 0.08) 100%);
 }
 
 .cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch .cl-factory-scratch-grid {
-  row-gap: 1.05mm;
-  font-size: 7.5pt;
+  row-gap: 0.75mm;
+  font-size: 9pt;
 }
 
 .cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch .cl-factory-scratch-row3 {
@@ -1802,29 +1803,29 @@ summary {
 }
 
 .cl-factory-panel--cut-list .cl-factory-cut-title {
-  font-size: 7.75pt;
+  font-size: 9.5pt;
 }
 
 .cl-factory-panel--cut-list .cl-factory-cut-th {
-  font-size: 7.75pt;
-  padding: 0.85mm 1.2mm;
-  letter-spacing: 0.05em;
+  font-size: 9.5pt;
+  padding: 0.55mm 0.9mm;
+  letter-spacing: 0.04em;
 }
 
 .cl-factory-panel--cut-list .cl-factory-cut-td {
-  font-size: 8.75pt;
-  padding: 0.65mm 1.15mm;
-  line-height: 1.22;
+  font-size: 10.5pt;
+  padding: 0.4mm 0.9mm;
+  line-height: 1.15;
 }
 
 .cl-factory-panel--cut-list .cl-factory-cut-total-row .cl-factory-cut-td {
-  font-size: 8.25pt;
+  font-size: 10pt;
 }
 
 .cl-factory-cut-empty {
   margin: 0;
-  padding: 0.5mm 0;
-  font-size: 8pt;
+  padding: 0.35mm 0;
+  font-size: 9.5pt;
   font-style: italic;
   color: var(--cl-text-muted);
 }
@@ -1889,11 +1890,11 @@ summary {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.35mm 0.65mm;
-  padding: 0.45mm 1.65mm 0.65mm;
+  gap: 0.3mm 0.55mm;
+  padding: 0.35mm 1.35mm 0.5mm;
   border-top: 1px solid rgb(19 78 74 / 0.08);
-  font-size: 6.35pt;
-  line-height: 1.25;
+  font-size: 8pt;
+  line-height: 1.2;
   color: #0f172a;
 }
 
@@ -1901,15 +1902,15 @@ summary {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.35mm 0.5mm;
+  gap: 0.3mm 0.45mm;
   min-width: 0;
 }
 
 .cl-factory-ref-k {
-  font-size: 6.75pt;
+  font-size: 8pt;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   color: var(--cl-text-muted);
 }
 
@@ -1919,7 +1920,7 @@ summary {
 }
 
 .cl-factory-ref-v--id {
-  font-size: 10pt;
+  font-size: 11.5pt;
   font-weight: 900;
   letter-spacing: 0.02em;
 }
@@ -1962,17 +1963,17 @@ summary {
 
 .cl-factory-legal-name {
   margin: 0;
-  font-size: 7.5pt;
+  font-size: 9pt;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--cl-teal);
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
 .cl-factory-doc-title {
-  margin: 0.25mm 0 0;
-  font-size: 11pt;
+  margin: 0.2mm 0 0;
+  font-size: 13pt;
   font-weight: 900;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -2061,18 +2062,18 @@ summary {
 
 .cl-factory-subbar-v--material-primary {
   display: block;
-  font-size: 8.75pt;
+  font-size: 10.5pt;
   font-weight: 900;
-  line-height: 1.2;
+  line-height: 1.15;
   color: #0f172a;
   letter-spacing: 0.01em;
 }
 
 .cl-factory-subbar-v--material-secondary {
   display: block;
-  font-size: 7.75pt;
+  font-size: 9.25pt;
   font-weight: 800;
-  line-height: 1.3;
+  line-height: 1.25;
   color: #1e293b;
 }
 
@@ -2095,16 +2096,16 @@ summary {
 }
 
 .cl-factory-subbar-k {
-  font-size: 6.75pt;
+  font-size: 8pt;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   color: var(--cl-orange);
-  margin-right: 1mm;
+  margin-right: 0.85mm;
 }
 
 .cl-factory-subbar-v {
-  font-size: 7.5pt;
+  font-size: 9pt;
   font-weight: 600;
   color: #334155;
 }
@@ -2148,10 +2149,10 @@ summary {
 .cl-factory-bill-title,
 .cl-factory-cut-title {
   margin: 0;
-  font-size: 7.5pt;
+  font-size: 9pt;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   color: var(--cl-teal);
 }
 
@@ -2172,12 +2173,12 @@ summary {
   border-bottom: 1px solid rgb(19 78 74 / 0.2);
   background: linear-gradient(180deg, var(--cl-teal) 0%, #0d5c56 100%);
   color: #fff;
-  padding: 0.75mm 1.15mm;
-  font-size: 6.75pt;
+  padding: 0.5mm 0.9mm;
+  font-size: 8.5pt;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.055em;
-  line-height: 1.15;
+  letter-spacing: 0.045em;
+  line-height: 1.1;
 }
 
 .cl-factory-cut-th {
@@ -2188,9 +2189,9 @@ summary {
 .cl-factory-cut-td {
   border: none;
   border-bottom: 1px solid #f1f5f9;
-  padding: 0.55mm 1.1mm;
-  font-size: 7.25pt;
-  line-height: 1.2;
+  padding: 0.35mm 0.85mm;
+  font-size: 9pt;
+  line-height: 1.15;
   vertical-align: middle;
 }
 
@@ -2215,15 +2216,15 @@ summary {
 .cl-factory-bill-subtotal-label {
   text-align: right;
   font-weight: 800;
-  font-size: 7pt;
+  font-size: 8.5pt;
   text-transform: uppercase;
-  letter-spacing: 0.055em;
+  letter-spacing: 0.045em;
   color: var(--cl-teal);
 }
 
 .cl-factory-bill-subtotal-value {
   font-weight: 800;
-  font-size: 7.75pt;
+  font-size: 9.5pt;
   color: #0f172a;
 }
 
@@ -2231,7 +2232,7 @@ summary {
   background: linear-gradient(90deg, var(--cl-mint-deep) 0%, #ecfdf5 100%);
   border-top: 2px solid var(--cl-teal);
   border-bottom: none;
-  font-size: 7.5pt;
+  font-size: 9pt;
 }
 
 .cl-factory-cut-table tbody tr:not(.cl-factory-cut-total-row) {
@@ -2264,26 +2265,26 @@ summary {
 }
 
 .cl-factory-receipt-head {
-  margin: 0 0 0.75mm;
-  font-size: 7pt;
+  margin: 0 0 0.55mm;
+  font-size: 8.5pt;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.07em;
   color: var(--cl-orange);
 }
 
 .cl-factory-receipt-empty {
   margin: 0;
-  font-size: 7.25pt;
+  font-size: 8.75pt;
   color: var(--cl-text-muted);
   font-style: italic;
 }
 
 .cl-factory-receipt-row {
-  font-size: 7pt;
-  line-height: 1.3;
-  padding: 0.45mm 0.85mm;
-  margin-bottom: 0.55mm;
+  font-size: 8.5pt;
+  line-height: 1.25;
+  padding: 0.35mm 0.7mm;
+  margin-bottom: 0.4mm;
   border-radius: 3px;
   background: rgb(255 255 255 / 0.85);
   border: 1px solid rgb(254 215 170 / 0.5);
@@ -2329,9 +2330,9 @@ summary {
 .cl-factory-receipt-splits {
   list-style: none;
   margin: 0;
-  padding: 0 0 0 2.25mm;
-  font-size: 7pt;
-  line-height: 1.38;
+  padding: 0 0 0 2mm;
+  font-size: 8.5pt;
+  line-height: 1.3;
   color: #334155;
 }
 
@@ -2490,12 +2491,12 @@ summary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.35mm 1mm;
-  margin-top: 1.5mm;
-  padding: 1mm 1.5mm 0.5mm;
+  gap: 0.3mm 0.85mm;
+  margin-top: 0.85mm;
+  padding: 0.65mm 1.15mm 0.35mm;
   border-top: 1px solid rgb(15 23 42 / 0.18);
-  font-size: 6.25pt;
-  line-height: 1.35;
+  font-size: 7.5pt;
+  line-height: 1.25;
   color: #475569;
   letter-spacing: 0.01em;
 }
@@ -2503,9 +2504,9 @@ summary {
 .cl-factory-print-audit-k {
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--color-zarewa-teal);
-  font-size: 5.75pt;
+  font-size: 7pt;
 }
 
 .cl-factory-print-audit-sep {
@@ -2541,7 +2542,7 @@ summary {
 
 .cl-factory-prepared-by-footer .cl-factory-created-by-v {
   display: inline;
-  font-size: 7pt;
+  font-size: 8.5pt;
   font-weight: 900;
   color: var(--cl-teal);
 }
@@ -2577,17 +2578,17 @@ summary {
 }
 
 .cl-factory-sign-line {
-  min-height: 7mm;
+  min-height: 5.5mm;
   border-bottom: 1px solid #0f172a;
-  margin-bottom: 0.45mm;
+  margin-bottom: 0.35mm;
 }
 
 .cl-factory-sign-label {
   margin: 0;
-  font-size: 5.35pt;
+  font-size: 7pt;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   color: var(--cl-text-muted);
 }
 
@@ -2601,17 +2602,17 @@ summary {
 
 .cl-factory-created-by-k {
   display: block;
-  font-size: 5.15pt;
+  font-size: 7pt;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--cl-text-muted);
-  margin-bottom: 0.35mm;
+  margin-bottom: 0.25mm;
 }
 
 .cl-factory-created-by-v {
   display: block;
-  font-size: 7.25pt;
+  font-size: 8.75pt;
   font-weight: 900;
   color: var(--cl-teal);
   letter-spacing: 0.02em;
@@ -2644,7 +2645,7 @@ summary {
   }
 
   @page cutting-list-a4-landscape {
-    margin: 5mm 6mm;
+    margin: 3.5mm 4.5mm;
     size: A4 landscape;
   }
 
