@@ -1031,7 +1031,7 @@ const CuttingListModal = ({
         });
         if (data.cuttingList) onCuttingListUpdated?.(data.cuttingList);
         if (!(data.delta && ws?.applyWriteDelta?.(data.delta))) {
-          await wsRefresh?.();
+          void ws?.refreshDomain?.('sales');
         }
       } else {
         const err = String(data?.error || '').trim();
@@ -1549,9 +1549,9 @@ const CuttingListModal = ({
     showToast('Production hold cleared. You can send this list to the queue.', { variant: 'success' });
     if (data?.cuttingList) onCuttingListUpdated?.(data.cuttingList);
     if (!(data?.delta && ws?.applyWriteDelta?.(data.delta))) {
-      await wsRefresh?.();
+      void ws?.refreshDomain?.('sales');
     }
-  }, [editData?.id, wsCanMutate, wsRefresh, ws, showToast, onCuttingListUpdated, canClearProductionHold]);
+  }, [editData?.id, wsCanMutate, ws, showToast, onCuttingListUpdated, canClearProductionHold]);
 
   const registerProduction = useCallback(async () => {
     const id = editData?.id;

@@ -1011,8 +1011,8 @@ const ReceiptModal = ({
           );
           await onLedgerChange?.({
             delta: retrySettled.data?.delta,
-            domains: retrySettled.data?.delta ? [] : undefined,
-            skipShellRefresh: Boolean(retrySettled.data?.delta),
+            domains: [],
+            skipShellRefresh: true,
           });
           abandonUnsavedAndRun(() => onClose());
           return;
@@ -1053,8 +1053,8 @@ const ReceiptModal = ({
           );
           await onLedgerChange?.({
             delta: retry.data?.delta,
-            domains: retry.data?.delta ? [] : undefined,
-            skipShellRefresh: Boolean(retry.data?.delta),
+            domains: [],
+            skipShellRefresh: true,
           });
           abandonUnsavedAndRun(() => onClose());
           return;
@@ -1077,8 +1077,8 @@ const ReceiptModal = ({
         }
         await onLedgerChange?.({
           delta: data?.delta,
-          domains: data?.delta ? [] : undefined,
-          skipShellRefresh: Boolean(data?.delta),
+          domains: [],
+          skipShellRefresh: true,
         });
         abandonUnsavedAndRun(() => onClose());
         return;

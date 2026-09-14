@@ -314,23 +314,28 @@ const Sales = () => {
     // Prefer additive write delta — skip full sales/finance pack wait after receipt/quote save.
     if (opts?.delta && ws?.applyWriteDelta?.(opts.delta)) {
       if (opts?.skipShellRefresh) return;
-      await wsRefresh?.();
+      void wsRefresh?.();
       return;
     }
-    // Shell refresh alone does not reload desk arrays — force sales snapshot so new quotes/receipts appear.
-    // Quotation-only saves can skip finance: that pack is large and blocked "save → add payment".
-    // Pass `domains: []` to skip domain reloads when the row was already merged into the snapshot.
+    // Pass `domains: []` (or omit) when the row was already merged / will refresh in background.
+    // Default used to force-await sales+finance packs — that made every save feel like a server hang
+    // and often tripped the “Slow connection / check the server” banner when packs timed out.
     const domains = Object.prototype.hasOwnProperty.call(opts || {}, 'domains')
       ? (Array.isArray(opts.domains) ? opts.domains : [])
           .map((d) => String(d || '').trim().toLowerCase())
           .filter(Boolean)
-      : ['sales', 'finance'];
+      : [];
+    if (!domains.length) {
+      void ws?.refreshDomain?.('sales');
+      if (!opts?.skipShellRefresh) void wsRefresh?.();
+      return;
+    }
     for (const domain of domains) {
       await ws?.ensureDomainLoaded?.(domain, { force: true });
     }
     if (opts?.skipShellRefresh) return;
-    await wsRefresh?.();
-  }, [bumpLedger, wsCanMutate, wsRefresh, ws?.ensureDomainLoaded, ws?.applyWriteDelta]);
+    void wsRefresh?.();
+  }, [bumpLedger, wsCanMutate, wsRefresh, ws?.ensureDomainLoaded, ws?.applyWriteDelta, ws?.refreshDomain]);
 
   const runAdminSalesDerivedReconcile = useCallback(async () => {
     if (!isAdminRole) return;

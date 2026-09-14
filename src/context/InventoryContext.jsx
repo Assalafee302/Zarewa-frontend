@@ -588,7 +588,7 @@ export function InventoryProvider({ children }) {
           return { ok: false, error: data?.error || 'Could not record payment.' };
         }
         if (!(data?.delta && ws?.applyWriteDelta?.(data.delta))) {
-          await wsRefresh?.();
+          void wsRefresh?.();
         }
         return { ok: true };
       }
