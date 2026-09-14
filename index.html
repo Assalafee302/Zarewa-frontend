@@ -81,20 +81,55 @@
         font-weight: 800;
         color: #134e4a;
       }
+      #zarewa-boot .progress-wrap {
+        margin: 16px auto 0;
+        max-width: 18rem;
+        text-align: left;
+      }
+      #zarewa-boot .progress-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: #64748b;
+      }
+      #zarewa-boot .progress-track {
+        margin-top: 6px;
+        height: 8px;
+        width: 100%;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e8f0ee;
+      }
+      #zarewa-boot .progress-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 999px;
+        background: #134e4a;
+        transition: width 0.2s ease-out;
+      }
       #zarewa-boot .spinner {
-        margin: 18px auto 0;
-        width: 26px;
-        height: 26px;
+        margin: 14px auto 0;
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
         border: 3px solid #d3e8e5;
         border-top-color: #134e4a;
         animation: zarewa-spin 0.8s linear infinite;
       }
-      #zarewa-boot .slow-note {
-        margin-top: 14px;
+      #zarewa-boot .stage {
+        margin-top: 12px;
         font-size: 12.5px;
-        line-height: 1.5;
+        line-height: 1.45;
         color: #64748b;
+      }
+      #zarewa-boot .slow-note {
+        margin-top: 10px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #94a3b8;
         opacity: 0;
         transition: opacity 0.4s ease;
       }
@@ -110,6 +145,9 @@
         #zarewa-boot .spinner {
           animation: none;
         }
+        #zarewa-boot .progress-fill {
+          transition: none;
+        }
       }
       /* React replaces #root's contents on mount, so this rule stops mattering the instant it does. */
     </style>
@@ -121,10 +159,20 @@
           <img src="/zarewa-logo.png" alt="" width="120" height="48" />
           <p class="eyebrow">Zarewa</p>
           <p class="headline">Preparing live workspace…</p>
-          <div class="spinner" role="status" aria-label="Loading"></div>
-          <p class="slow-note" id="zarewa-boot-slow-note">
-            Still loading — this can take a little longer on a slow connection. No need to refresh.
-          </p>
+          <div class="progress-wrap" role="status" aria-live="polite" aria-busy="true" aria-label="Loading">
+            <div class="progress-meta">
+              <span id="zarewa-boot-pct">0%</span>
+              <span id="zarewa-boot-time">0s · ~45s left</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="zarewa-boot-fill"></div>
+            </div>
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="stage" id="zarewa-boot-stage">Connecting to the live server…</p>
+            <p class="slow-note" id="zarewa-boot-slow-note">
+              Mill links often need 30–90 seconds for a full workspace. Refreshing restarts the wait.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -138,10 +186,46 @@
       </div>
     </noscript>
     <script>
-      window.setTimeout(function () {
+      (function () {
+        var EXPECTED_MS = 45000;
+        var started = Date.now();
+        var fill = document.getElementById('zarewa-boot-fill');
+        var pctEl = document.getElementById('zarewa-boot-pct');
+        var timeEl = document.getElementById('zarewa-boot-time');
+        var stageEl = document.getElementById('zarewa-boot-stage');
         var note = document.getElementById('zarewa-boot-slow-note');
-        if (note) note.className = 'slow-note visible';
-      }, 8000);
+        function fmt(ms) {
+          var s = Math.max(0, Math.round(ms / 1000));
+          if (s < 60) return s + 's';
+          return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+        }
+        function stage(elapsed) {
+          if (elapsed < 4000) return 'Connecting to the live server…';
+          if (elapsed < 12000) return 'Loading your workspace…';
+          if (elapsed < 30000) return 'Pulling desk data — this can take a minute on a slow link…';
+          if (elapsed < 60000) return 'Still working — large desks take longer. No need to refresh.';
+          return 'Almost there — hanging on for the final sync…';
+        }
+        function tick() {
+          if (!fill || !document.getElementById('zarewa-boot')) return;
+          var elapsed = Date.now() - started;
+          var t = elapsed / EXPECTED_MS;
+          var pct = Math.min(92, Math.round((1 - Math.exp(-2.2 * t)) * 100));
+          var left = Math.max(0, EXPECTED_MS - elapsed);
+          fill.style.width = pct + '%';
+          if (pctEl) pctEl.textContent = pct + '%';
+          if (timeEl) {
+            timeEl.textContent =
+              elapsed < EXPECTED_MS * 1.4
+                ? fmt(elapsed) + ' · ~' + fmt(left) + ' left'
+                : fmt(elapsed) + ' · still syncing';
+          }
+          if (stageEl) stageEl.textContent = stage(elapsed);
+          if (note && elapsed >= 8000) note.className = 'slow-note visible';
+          window.requestAnimationFrame(tick);
+        }
+        window.requestAnimationFrame(tick);
+      })();
       window.addEventListener('error', function (ev) {
         var msg = (ev && ev.message) || '';
         if (/Loading chunk|Failed to fetch dynamically imported module|before initialization|Minified React error #30[01]|fewer hooks than expected/i.test(msg)) {

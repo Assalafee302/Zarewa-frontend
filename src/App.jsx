@@ -10,9 +10,24 @@ import { ToastProvider, useToast } from './context/ToastContext';
 import { ConfirmProvider, useConfirmDialog } from './context/ConfirmProvider';
 import { AppErrorBoundary } from './components/layout/AppErrorBoundary';
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
+import { BootProgress } from './components/ui/BootProgress';
 
 const LoginScreen = lazyWithRetry(() => import('./components/auth/LoginScreen'), { id: 'LoginScreen' });
 const AppDesk = lazyWithRetry(() => import('./AppDesk.jsx'), { id: 'AppDesk' });
+
+/** Typical full-bootstrap wait on mill links; bar eases toward this, not the hard abort. */
+function bootExpectedMs() {
+  try {
+    const raw = import.meta.env?.VITE_BOOTSTRAP_TIMEOUT_MS;
+    if (raw != null && String(raw).trim() !== '') {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 15_000) return Math.min(n, 90_000);
+    }
+  } catch {
+    /* ignore */
+  }
+  return 45_000;
+}
 
 /** Minimal boot UI — matches index.html #zarewa-boot so the handoff feels instant. */
 function BootScreen({ title = 'Preparing live workspace…' }) {
@@ -27,12 +42,7 @@ function BootScreen({ title = 'Preparing live workspace…' }) {
           height={48}
         />
         <p className="mt-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Zarewa</p>
-        <p className="mt-3 text-xl font-black text-[#134e4a]">{title}</p>
-        <div
-          className="mx-auto mt-4 h-6 w-6 animate-spin rounded-full border-[3px] border-[#d3e8e5] border-t-[#134e4a]"
-          role="status"
-          aria-label="Loading"
-        />
+        <BootProgress title={title} expectedMs={bootExpectedMs()} />
       </div>
     </div>
   );

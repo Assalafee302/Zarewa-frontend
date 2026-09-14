@@ -50,7 +50,7 @@ import { UnsavedWorkProvider, useUnsavedWorkRegistry, UNSAVED_LEAVE_MESSAGE } fr
 import { UnsavedWorkNavigationGuard } from './components/layout/UnsavedWorkNavigationGuard';
 import { WorkspaceWarmupIndicator } from './components/workspace/WorkspaceWarmupIndicator';
 import { useWorkspace } from './context/WorkspaceContext';
-import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
+import { PageLoader } from './components/ui/PageLoader';
 import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
 import {
   useHrNotifSummaryQuery,
@@ -1235,21 +1235,7 @@ function AppShell() {
 }
 
 function LoadingScreen() {
-  return (
-    <div className="min-h-screen z-app-bg flex items-center justify-center px-6">
-      <div className="rounded-[28px] border border-white/70 bg-white/90 px-8 py-7 text-center shadow-xl backdrop-blur-xl">
-        <img
-          src={ZAREWA_LOGO_SRC}
-          alt=""
-          className="mx-auto h-12 w-auto object-contain object-center"
-          width={120}
-          height={48}
-        />
-        <p className="mt-3 text-ui-xs font-black uppercase tracking-[0.18em] text-slate-400">Zarewa</p>
-        <p className="mt-3 text-xl font-black text-zarewa-teal">Preparing live workspace…</p>
-      </div>
-    </div>
-  );
+  return <PageLoader variant="fullscreen" message="Opening your desk…" />;
 }
 
 function AppDesk() {

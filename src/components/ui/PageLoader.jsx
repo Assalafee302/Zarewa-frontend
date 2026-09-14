@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { ZAREWA_LOGO_SRC } from '../../Data/companyQuotation';
 import { RADIUS } from '../../lib/designTokens';
 import { cn } from '../../lib/utils';
+import { BootProgress } from './BootProgress';
 
 /**
  * Branded loading indicator.
@@ -43,12 +44,7 @@ export function PageLoader({
             height={48}
           />
           <p className="mt-3 text-ui-xs font-black uppercase tracking-[0.18em] text-slate-400">Zarewa</p>
-          <p className="mt-3 text-xl font-black text-zarewa-teal">{message}</p>
-          <Loader2
-            className="mx-auto mt-4 h-5 w-5 animate-spin text-zarewa-teal/60"
-            aria-hidden
-          />
-          <span className="sr-only">{message}</span>
+          <BootProgress title={message} />
         </div>
       </div>
     );
