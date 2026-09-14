@@ -162,7 +162,7 @@
           <div class="progress-wrap" role="status" aria-live="polite" aria-busy="true" aria-label="Loading">
             <div class="progress-meta">
               <span id="zarewa-boot-pct">0%</span>
-              <span id="zarewa-boot-time">0s · ~45s left</span>
+              <span id="zarewa-boot-time">0s · ~20s left</span>
             </div>
             <div class="progress-track">
               <div class="progress-fill" id="zarewa-boot-fill"></div>
@@ -170,7 +170,7 @@
             <div class="spinner" aria-hidden="true"></div>
             <p class="stage" id="zarewa-boot-stage">Connecting to the live server…</p>
             <p class="slow-note" id="zarewa-boot-slow-note">
-              Mill links often need 30–90 seconds for a full workspace. Refreshing restarts the wait.
+              First paint is usually under 20 seconds. Desk registers load when you open each desk.
             </p>
           </div>
         </div>
@@ -187,7 +187,7 @@
     </noscript>
     <script>
       (function () {
-        var EXPECTED_MS = 45000;
+        var EXPECTED_MS = 20000;
         var started = Date.now();
         var fill = document.getElementById('zarewa-boot-fill');
         var pctEl = document.getElementById('zarewa-boot-pct');

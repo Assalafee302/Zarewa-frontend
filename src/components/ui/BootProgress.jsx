@@ -9,7 +9,7 @@ import { cn } from '../../lib/utils';
  * honest “how long so far / roughly how long left” read on slow mill links.
  */
 
-const DEFAULT_EXPECTED_MS = 45_000;
+const DEFAULT_EXPECTED_MS = 20_000;
 
 function stageForElapsed(elapsedMs) {
   if (elapsedMs < 4_000) return 'Connecting to the live server…';
@@ -99,7 +99,7 @@ export function BootProgress({
         <p className="mt-3 text-[12.5px] leading-snug text-slate-500">{stage}</p>
         {slow ? (
           <p className="mt-2 text-[12px] leading-snug text-slate-400">
-            Mill links often need 30–90 seconds for a full workspace. Refreshing restarts the wait.
+            First paint is usually under 20 seconds. Desk registers load when you open each desk.
           </p>
         ) : null}
       </div>

@@ -589,10 +589,8 @@ export function WorkspaceProvider({ children }) {
       const mode = String(opts?.mode ?? '').trim();
       const isPoll = Boolean(opts?.poll);
       const forceFull = Boolean(opts?.forceFull);
-      // Lean first paint: `dashboard` (backend still supports it). `shell` was removed from
-      // the API — requesting it fell through to a full multi-MB bootstrap and timed out.
-      const requested = mode === 'shell' ? 'dashboard' : mode;
-      const effectiveMode = forceFull ? '' : requested || 'dashboard';
+      // Lean first paint: shell (tiny). Desk registers hydrate via domain snapshots.
+      const effectiveMode = forceFull ? '' : mode || 'shell';
       const qsParts = [];
       if (effectiveMode) qsParts.push(`mode=${encodeURIComponent(effectiveMode)}`);
       if (isPoll) qsParts.push('poll=1', 'active=1');
@@ -957,7 +955,7 @@ export function WorkspaceProvider({ children }) {
           : prevLoaded;
       if (nextDomainRevs) domainRevisionsRef.current = nextDomainRevs;
 
-      await refresh({ poll: true, mode: 'dashboard' });
+      await refresh({ poll: true, mode: 'shell' });
 
       // Known-changed: drop the ETag so the pack is fetched in full.
       for (const domain of changedDomains) domainEtagRef.current.delete(domain);
@@ -1050,7 +1048,7 @@ export function WorkspaceProvider({ children }) {
           bootstrapPollEtagRef.current = '';
           bootstrapFullEtagRef.current = '';
           await refreshDashboardSummary();
-          const boot = await refresh({ mode: 'dashboard' });
+          const boot = await refresh({ mode: 'shell' });
           if (!boot) {
             return {
               ok: false,
@@ -1281,7 +1279,7 @@ export function WorkspaceProvider({ children }) {
       workspaceRevisionEtagRef.current = '';
       bootstrapPollEtagRef.current = '';
       bootstrapFullEtagRef.current = '';
-      await refresh({ mode: 'dashboard' });
+      await refresh({ mode: 'shell' });
       void prefetchWorkspaceDomains({ force: true });
       return { ok: true, data };
     },
@@ -1297,7 +1295,7 @@ export function WorkspaceProvider({ children }) {
   );
 
   useEffect(() => {
-    void refresh({ mode: 'dashboard' });
+    void refresh({ mode: 'shell' });
   }, [refresh]);
 
   /** Load only the user's primary desk. Other permitted domains hydrate when their route opens. */
@@ -1473,7 +1471,7 @@ export function WorkspaceProvider({ children }) {
         // and app_users is not a table the revision watches — so without this a colleague
         // could be given access and see nothing of it until they signed in again.
         if (payload.shell) {
-          void refresh({ poll: true, mode: 'dashboard' });
+          void refresh({ poll: true, mode: 'shell' });
         }
         const domains = Array.isArray(payload.domains) ? payload.domains : [];
         // Decided here, not at drain time: by then the burst has been folded together and

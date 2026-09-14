@@ -26,7 +26,7 @@ function bootExpectedMs() {
   } catch {
     /* ignore */
   }
-  return 45_000;
+  return 20_000;
 }
 
 /** Minimal boot UI — matches index.html #zarewa-boot so the handoff feels instant. */
