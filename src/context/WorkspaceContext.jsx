@@ -1127,6 +1127,8 @@ export function WorkspaceProvider({ children }) {
   );
 
   const logout = useCallback(async () => {
+    // Invalidate in-flight bootstrap so a late full sync cannot re-apply the desk.
+    refreshSeqRef.current += 1;
     // Clear the desk immediately — waiting on the logout POST made sign-out feel stuck
     // whenever the API was busy building a heavy bootstrap for another tab.
     const uid = snapshotRef.current?.session?.user?.id;
@@ -1145,21 +1147,17 @@ export function WorkspaceProvider({ children }) {
     setDashboardSummaryEtag('');
     setLastError(null);
     setStatus('auth_required');
-    try {
-      await apiFetch('/api/session/logout', { method: 'POST' });
-    } catch {
-      /* ignore — local session is already cleared */
-    }
+    // Fire-and-forget with a short cap — UI is already on the login screen.
+    void apiFetch('/api/session/logout', {
+      method: 'POST',
+      signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(2_000) : undefined,
+    }).catch(() => {});
   }, [resetDomainRuntime]);
 
   const endSessionForTimeout = useCallback(async () => {
+    refreshSeqRef.current += 1;
     const mins = Number(snapshot?.session?.sessionTimeoutMinutes) || 120;
     const uid = snapshotRef.current?.session?.user?.id;
-    try {
-      await apiFetch('/api/session/timeout', { method: 'POST' });
-    } catch {
-      /* ignore */
-    }
     if (uid) clearPendingPasswordChange(uid);
     replaceLedgerEntries([]);
     clearBootstrapCache();
@@ -1177,6 +1175,10 @@ export function WorkspaceProvider({ children }) {
     setSessionMessage(`You were signed out after ${mins} minutes of inactivity.`);
     sessionNoticeShownRef.current = true;
     setStatus('auth_required');
+    void apiFetch('/api/session/timeout', {
+      method: 'POST',
+      signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(2_000) : undefined,
+    }).catch(() => {});
   }, [snapshot?.session?.sessionTimeoutMinutes, resetDomainRuntime]);
 
   const touchSessionActivity = useCallback(async () => {
