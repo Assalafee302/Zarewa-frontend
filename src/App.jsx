@@ -13,6 +13,9 @@ import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
 import { BootProgress } from './components/ui/BootProgress';
 
 const LoginScreen = lazyWithRetry(() => import('./components/auth/LoginScreen'), { id: 'LoginScreen' });
+const ConfirmBranchGate = lazyWithRetry(() => import('./components/auth/ConfirmBranchGate'), {
+  id: 'ConfirmBranchGate',
+});
 const AppDesk = lazyWithRetry(() => import('./AppDesk.jsx'), { id: 'AppDesk' });
 
 /** Typical shell wait after sign-in; bar eases toward this, not the hard abort. */
@@ -169,6 +172,14 @@ function DegradedWorkspaceLock() {
 
 function AuthGate() {
   const ws = useWorkspace();
+
+  if (ws?.status === 'branch_confirm') {
+    return (
+      <Suspense fallback={<BootScreen light title="Loading branch picker…" />}>
+        <ConfirmBranchGate />
+      </Suspense>
+    );
+  }
 
   if (!ws || ws.status === 'checking' || ws.status === 'booting') {
     const authed = Boolean(ws?.snapshot?.session?.authenticated || ws?.snapshot?.session?.user);

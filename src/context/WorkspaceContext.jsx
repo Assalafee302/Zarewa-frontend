@@ -50,6 +50,12 @@ import {
   markPendingPasswordChange,
   withPendingPasswordSession,
 } from '../lib/pendingPasswordChange.js';
+import {
+  clearHqBranchConfirmed,
+  isHqBranchConfirmed,
+  markHqBranchConfirmed,
+  roleNeedsHqBranchConfirm,
+} from '../lib/hqBranchConfirm.js';
 import { readDeskDomainCache, writeDeskDomainCache } from '../lib/deskDomainPersist.js';
 import { openWorkspaceRealtime } from '../lib/workspaceV3Api';
 
@@ -281,7 +287,13 @@ export function WorkspaceProvider({ children }) {
     if (typeof window === 'undefined') return null;
     return readLatestBootstrapCache();
   }, []);
-  const [status, setStatus] = useState(() => (initialBootstrap ? 'ok' : 'checking'));
+  const [status, setStatus] = useState(() => {
+    if (!initialBootstrap) return 'checking';
+    const role = initialBootstrap?.session?.user?.roleKey;
+    const uid = initialBootstrap?.session?.user?.id;
+    if (roleNeedsHqBranchConfirm(role) && !isHqBranchConfirmed(uid)) return 'branch_confirm';
+    return 'ok';
+  });
   const [snapshot, setSnapshot] = useState(() =>
     initialBootstrap ? withPendingPasswordSession(initialBootstrap) : null
   );
@@ -1024,6 +1036,11 @@ export function WorkspaceProvider({ children }) {
         // (status 'booting' / 'checking' + authed). Do not jump into an empty desk early.
         const needsPasswordChange =
           Boolean(data.user?.mustChangePassword) || hasPendingPasswordChange(data.user?.id);
+        const needsBranchConfirm =
+          !needsPasswordChange && roleNeedsHqBranchConfirm(data.user?.roleKey);
+        if (needsBranchConfirm && data.user?.id) {
+          clearHqBranchConfirmed(data.user.id);
+        }
         applySnapshot(
           {
             ok: true,
@@ -1040,9 +1057,9 @@ export function WorkspaceProvider({ children }) {
             },
             permissions: data.permissions ?? [],
           },
-          needsPasswordChange ? 'ok' : 'booting'
+          needsPasswordChange ? 'ok' : needsBranchConfirm ? 'branch_confirm' : 'booting'
         );
-        if (!needsPasswordChange) {
+        if (!needsPasswordChange && !needsBranchConfirm) {
           resetDomainRuntime();
           fullBootstrapLoadedRef.current = false;
           workspaceRevisionEtagRef.current = '';
@@ -1131,7 +1148,10 @@ export function WorkspaceProvider({ children }) {
     // Clear the desk immediately — waiting on the logout POST made sign-out feel stuck
     // whenever the API was busy building a heavy bootstrap for another tab.
     const uid = snapshotRef.current?.session?.user?.id;
-    if (uid) clearPendingPasswordChange(uid);
+    if (uid) {
+      clearPendingPasswordChange(uid);
+      clearHqBranchConfirmed(uid);
+    }
     replaceLedgerEntries([]);
     clearBootstrapCache();
     appQueryClient.clear();
@@ -1157,7 +1177,10 @@ export function WorkspaceProvider({ children }) {
     refreshSeqRef.current += 1;
     const mins = Number(snapshot?.session?.sessionTimeoutMinutes) || 120;
     const uid = snapshotRef.current?.session?.user?.id;
-    if (uid) clearPendingPasswordChange(uid);
+    if (uid) {
+      clearPendingPasswordChange(uid);
+      clearHqBranchConfirmed(uid);
+    }
     replaceLedgerEntries([]);
     clearBootstrapCache();
     appQueryClient.clear();
@@ -1287,6 +1310,28 @@ export function WorkspaceProvider({ children }) {
     [refresh, prefetchWorkspaceDomains, resetDomainRuntime]
   );
 
+  /**
+   * HQ post-login / cold-start gate: set branch scope, then load shell bootstrap.
+   * @param {{ currentBranchId?: string; viewAllBranches?: boolean }} patch
+   */
+  const confirmWorkspaceBranch = useCallback(
+    async (patch) => {
+      setStatus('booting');
+      setLastError(null);
+      const uid = snapshotRef.current?.session?.user?.id;
+      const r = await updateWorkspace(patch || {});
+      if (!r.ok) {
+        setStatus('branch_confirm');
+        return r;
+      }
+      if (uid) markHqBranchConfirmed(uid);
+      await refreshDashboardSummary();
+      void prefetchWorkspaceDomains();
+      return r;
+    },
+    [updateWorkspace, refreshDashboardSummary, prefetchWorkspaceDomains]
+  );
+
   const getUnifiedWorkItemById = useCallback(
     (workItemId) => {
       const items = Array.isArray(snapshot?.unifiedWorkItems) ? snapshot.unifiedWorkItems : [];
@@ -1295,9 +1340,56 @@ export function WorkspaceProvider({ children }) {
     [snapshot?.unifiedWorkItems]
   );
 
+  const initialSessionBoot = useCallback(async () => {
+    // Light session probe first so HQ roles can confirm a branch before shell data loads.
+    try {
+      const { ok, status: httpStatus, data } = await apiFetch('/api/session');
+      if (statusRef.current === 'branch_confirm') return;
+      if (httpStatus === 401 || data?.code === 'AUTH_REQUIRED') {
+        clearBootstrapCache();
+        setSnapshot(null);
+        setStatus('auth_required');
+        return;
+      }
+      if (ok && data?.user) {
+        const role = data.user?.roleKey;
+        const uid = data.user?.id;
+        if (roleNeedsHqBranchConfirm(role) && !isHqBranchConfirmed(uid)) {
+          applySnapshot(
+            {
+              ok: true,
+              session: {
+                authenticated: data.authenticated ?? true,
+                user: data.user ?? null,
+                permissions: data.permissions ?? [],
+                currentBranchId: data.currentBranchId,
+                viewAllBranches: data.viewAllBranches,
+                branches: data.branches,
+                sessionExpiresAtIso: data.sessionExpiresAtIso,
+                sessionTimeoutMinutes: data.sessionTimeoutMinutes,
+                sessionWarningSeconds: data.sessionWarningSeconds,
+              },
+              permissions: data.permissions ?? [],
+            },
+            'branch_confirm'
+          );
+          return;
+        }
+      }
+      if (statusRef.current === 'branch_confirm') return;
+      await refresh({ mode: 'shell' });
+    } catch {
+      if (statusRef.current === 'branch_confirm') return;
+      await refresh({ mode: 'shell' });
+    }
+  }, [applySnapshot, refresh]);
+
+  const initialBootStartedRef = useRef(false);
   useEffect(() => {
-    void refresh({ mode: 'shell' });
-  }, [refresh]);
+    if (initialBootStartedRef.current) return;
+    initialBootStartedRef.current = true;
+    void initialSessionBoot();
+  }, [initialSessionBoot]);
 
   /** Load only the user's primary desk. Other permitted domains hydrate when their route opens. */
   useEffect(() => {
@@ -1669,6 +1761,7 @@ export function WorkspaceProvider({ children }) {
       patchDomainSnapshot,
       refreshDomain,
       login,
+      confirmWorkspaceBranch,
       sessionMessage,
       clearSessionMessage,
       endSessionForTimeout,
@@ -1723,6 +1816,7 @@ export function WorkspaceProvider({ children }) {
       patchDomainSnapshot,
       refreshDomain,
       login,
+      confirmWorkspaceBranch,
       sessionMessage,
       clearSessionMessage,
       endSessionForTimeout,
