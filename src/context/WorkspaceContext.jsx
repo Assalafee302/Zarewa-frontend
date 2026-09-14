@@ -589,9 +589,10 @@ export function WorkspaceProvider({ children }) {
       const mode = String(opts?.mode ?? '').trim();
       const isPoll = Boolean(opts?.poll);
       const forceFull = Boolean(opts?.forceFull);
-      // Default to lean shell unless an explicit full bootstrap is requested.
-      // Desk registers hydrate via `/api/workspace/{domain}-snapshot`.
-      const effectiveMode = forceFull ? '' : mode || 'shell';
+      // Lean first paint: `dashboard` (backend still supports it). `shell` was removed from
+      // the API — requesting it fell through to a full multi-MB bootstrap and timed out.
+      const requested = mode === 'shell' ? 'dashboard' : mode;
+      const effectiveMode = forceFull ? '' : requested || 'dashboard';
       const qsParts = [];
       if (effectiveMode) qsParts.push(`mode=${encodeURIComponent(effectiveMode)}`);
       if (isPoll) qsParts.push('poll=1', 'active=1');
@@ -930,7 +931,7 @@ export function WorkspaceProvider({ children }) {
       const revEtag = revRes.headers.get('ETag') || '';
       if (revEtag) workspaceRevisionEtagRef.current = revEtag;
 
-      // Soft invalidate: refresh shell meta; keep loaded desk packs in memory.
+      // Soft invalidate: refresh dashboard meta; keep loaded desk packs in memory.
       // Clearing domain etags forces conditional revalidate; do not wipe loadedDomainsRef
       // (that re-downloads multi-MB packs on every remote change — fatal on poor networks).
       const prevLoaded = [...loadedDomainsRef.current];
@@ -956,7 +957,7 @@ export function WorkspaceProvider({ children }) {
           : prevLoaded;
       if (nextDomainRevs) domainRevisionsRef.current = nextDomainRevs;
 
-      await refresh({ poll: true, mode: 'shell' });
+      await refresh({ poll: true, mode: 'dashboard' });
 
       // Known-changed: drop the ETag so the pack is fetched in full.
       for (const domain of changedDomains) domainEtagRef.current.delete(domain);
@@ -1049,7 +1050,7 @@ export function WorkspaceProvider({ children }) {
           bootstrapPollEtagRef.current = '';
           bootstrapFullEtagRef.current = '';
           await refreshDashboardSummary();
-          const boot = await refresh({ mode: 'shell' });
+          const boot = await refresh({ mode: 'dashboard' });
           if (!boot) {
             return {
               ok: false,
@@ -1126,11 +1127,8 @@ export function WorkspaceProvider({ children }) {
   );
 
   const logout = useCallback(async () => {
-    try {
-      await apiFetch('/api/session/logout', { method: 'POST' });
-    } catch {
-      /* ignore */
-    }
+    // Clear the desk immediately — waiting on the logout POST made sign-out feel stuck
+    // whenever the API was busy building a heavy bootstrap for another tab.
     const uid = snapshotRef.current?.session?.user?.id;
     if (uid) clearPendingPasswordChange(uid);
     replaceLedgerEntries([]);
@@ -1147,6 +1145,11 @@ export function WorkspaceProvider({ children }) {
     setDashboardSummaryEtag('');
     setLastError(null);
     setStatus('auth_required');
+    try {
+      await apiFetch('/api/session/logout', { method: 'POST' });
+    } catch {
+      /* ignore — local session is already cleared */
+    }
   }, [resetDomainRuntime]);
 
   const endSessionForTimeout = useCallback(async () => {
@@ -1276,7 +1279,7 @@ export function WorkspaceProvider({ children }) {
       workspaceRevisionEtagRef.current = '';
       bootstrapPollEtagRef.current = '';
       bootstrapFullEtagRef.current = '';
-      await refresh({ mode: 'shell' });
+      await refresh({ mode: 'dashboard' });
       void prefetchWorkspaceDomains({ force: true });
       return { ok: true, data };
     },
@@ -1292,7 +1295,7 @@ export function WorkspaceProvider({ children }) {
   );
 
   useEffect(() => {
-    void refresh({ mode: 'shell' });
+    void refresh({ mode: 'dashboard' });
   }, [refresh]);
 
   /** Load only the user's primary desk. Other permitted domains hydrate when their route opens. */
@@ -1464,11 +1467,11 @@ export function WorkspaceProvider({ children }) {
       onEvent: (payload) => {
         if (payload?.type !== 'workspace.data') return;
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-        // Accounts, roles, permissions and branches live on the shell, not in a desk pack,
+        // Accounts, roles, permissions and branches live on the dashboard/shell pack, not in a desk pack,
         // and app_users is not a table the revision watches — so without this a colleague
         // could be given access and see nothing of it until they signed in again.
         if (payload.shell) {
-          void refresh({ poll: true, mode: 'shell' });
+          void refresh({ poll: true, mode: 'dashboard' });
         }
         const domains = Array.isArray(payload.domains) ? payload.domains : [];
         // Decided here, not at drain time: by then the burst has been folded together and

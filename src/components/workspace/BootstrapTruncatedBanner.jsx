@@ -22,7 +22,11 @@ const FRIENDLY = {
  * @param {{ bootstrapMeta?: object | null; registerTotals?: Record<string, number>; className?: string }} props
  */
 export function BootstrapTruncatedBanner({ bootstrapMeta, registerTotals = {}, className = '' }) {
-  if (bootstrapMeta?.mode === 'shell') {
+  const deferred = Array.isArray(bootstrapMeta?.deferredDeskArrays)
+    ? bootstrapMeta.deferredDeskArrays.filter(Boolean)
+    : [];
+
+  if (bootstrapMeta?.mode === 'shell' || bootstrapMeta?.mode === 'dashboard') {
     return (
       <div
         className={`mb-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-xs text-sky-950 ${className}`}
@@ -32,9 +36,6 @@ export function BootstrapTruncatedBanner({ bootstrapMeta, registerTotals = {}, c
     );
   }
 
-  const deferred = Array.isArray(bootstrapMeta?.deferredDeskArrays)
-    ? bootstrapMeta.deferredDeskArrays.filter(Boolean)
-    : [];
   if (deferred.length) {
     const sample = deferred
       .slice(0, 4)
