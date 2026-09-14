@@ -2421,8 +2421,8 @@ const Sales = () => {
       ) : null}
       {advancePrintEntry ? (
       <PrintModalPortal open onClose={() => setAdvancePrintEntry(null)}>
-              <div className="mx-auto max-w-4xl pb-16">
-                <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
+              <div className="mx-auto w-[80mm] max-w-full pb-16">
+                <div className="receipt-print-root receipt-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
                   <AdvancePaymentPrintView
                     customerName={advancePrintEntry.customerName || advancePrintEntry.customerID}
                     amountNgn={advancePrintEntry.amountNgn}
@@ -2439,7 +2439,7 @@ const Sales = () => {
                     onClick={() => window.print()}
                     className="rounded-lg bg-amber-700 px-5 py-2.5 text-ui-xs font-semibold uppercase text-white shadow-lg"
                   >
-                    Print / Save PDF
+                    Print slip
                   </button>
                   <button
                     type="button"

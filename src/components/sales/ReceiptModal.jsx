@@ -43,7 +43,7 @@ import {
   isExistingSalesPaymentRow,
   isQuotationAddPaymentContext,
 } from '../../lib/quotationPaymentSummary';
-import { ReceiptPrintQuick, ReceiptPrintFull } from '../receipt/ReceiptPrintViews';
+import { ReceiptPrintThermal } from '../receipt/ReceiptPrintViews';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../../lib/editApprovalUi';
 import {
@@ -188,7 +188,6 @@ const ReceiptModal = ({
   const [remarks, setRemarks] = useState('');
   const [paymentLines, setPaymentLines] = useState([]);
   const [showPrint, setShowPrint] = useState(false);
-  const [printKind, setPrintKind] = useState('quick');
   const postingRef = useRef(false);
   const lastReceiptHydrateSigRef = useRef('');
   const lastAutoRefundFundCashDueRef = useRef(null);
@@ -1128,7 +1127,7 @@ const ReceiptModal = ({
     ? editData.id
     : `RC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-NEW`;
 
-  const openPrint = (kind) => {
+  const openPrint = () => {
     if (!ws?.canMutate) {
       showToast('System offline (read-only). Reconnect and refresh before printing.', { variant: 'error' });
       return;
@@ -1151,7 +1150,6 @@ const ReceiptModal = ({
       showToast('Enter payment amounts to print.', { variant: 'error' });
       return;
     }
-    setPrintKind(kind);
     setShowPrint(true);
   };
 
@@ -1749,68 +1747,36 @@ const ReceiptModal = ({
           </DeskFooterButton>
           <DeskFooterButton
             type="button"
-            variant="success"
-            onClick={() => openPrint('quick')}
-            disabled={!ws?.canMutate || !quotationRef || !receiptMayPrint(editData)}
-            title={
-              isExistingPayment && !receiptMayPrint(editData)
-                ? 'Draft until cashier clears payment — printing locked'
-                : undefined
-            }
-          >
-            <Printer size={12} /> Summary (A4)
-          </DeskFooterButton>
-          <DeskFooterButton
-            type="button"
             variant="primary"
-            onClick={() => openPrint('full')}
+            onClick={() => openPrint()}
             disabled={!ws?.canMutate || !quotationRef || !receiptMayPrint(editData)}
             title={
               isExistingPayment && !receiptMayPrint(editData)
                 ? 'Draft until cashier clears payment — printing locked'
-                : undefined
+                : 'Print receipt slip (XP-80C / 80mm)'
             }
           >
-            <Printer size={12} /> Full detail (A4)
+            <Printer size={12} /> Print receipt
           </DeskFooterButton>
         </ModalDeskFooter>
       </form>
 
       <PrintModalPortal open={showPrint} onClose={() => setShowPrint(false)}>
-        <div className="mx-auto max-w-4xl pb-16">
-          <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
-            {printKind === 'quick' ? (
-              <ReceiptPrintQuick
-                receiptId={receiptIdPreview}
-                dateStr={formatDisplayDate(voucherDate)}
-                customerName={customerName || '—'}
-                quotationRef={quotationRef || '—'}
-                quotationPaymentHistory={quotationPaymentHistory}
-                highlightReceiptId={isExistingPayment ? String(editData.id) : ''}
-                lines={printLinesPayload}
-                totalNgn={lineTotalNgn}
-                reference={remarks}
-                cashierStatusLabel={receiptCashierPrintStatus.label}
-                cashierStatusDetail={receiptCashierPrintStatus.detail}
-              />
-            ) : (
-              <ReceiptPrintFull
-                receiptId={receiptIdPreview}
-                dateStr={formatDisplayDate(voucherDate)}
-                customerName={customerName || '—'}
-                customerPhone={customerPhone}
-                quotationRef={quotationRef || '—'}
-                projectName={selectedQuotation?.projectName ?? ''}
-                quotationPaymentHistory={quotationPaymentHistory}
-                highlightReceiptId={isExistingPayment ? String(editData.id) : ''}
-                lines={printLinesPayload}
-                totalNgn={lineTotalNgn}
-                reference={remarks}
-                handledBy={handledByLabel}
-                cashierStatusLabel={receiptCashierPrintStatus.label}
-                cashierStatusDetail={receiptCashierPrintStatus.detail}
-              />
-            )}
+        <div className="mx-auto w-[80mm] max-w-full pb-16">
+          <div className="receipt-print-root receipt-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
+            <ReceiptPrintThermal
+              receiptId={receiptIdPreview}
+              dateStr={formatDisplayDate(voucherDate)}
+              customerName={customerName || '—'}
+              customerPhone={customerPhone}
+              quotationRef={quotationRef || '—'}
+              projectName={selectedQuotation?.projectName ?? ''}
+              lines={printLinesPayload}
+              totalNgn={lineTotalNgn}
+              reference={remarks}
+              handledBy={handledByLabel}
+              cashierStatusLabel={receiptCashierPrintStatus.label}
+            />
           </div>
           <div className="no-print mt-4 flex flex-wrap justify-center gap-2">
             <button
@@ -1818,7 +1784,7 @@ const ReceiptModal = ({
               onClick={() => window.print()}
               className="rounded-lg bg-emerald-700 px-5 py-2.5 text-ui-xs font-semibold uppercase tracking-wide text-white shadow-lg"
             >
-              Print / Save PDF
+              Print slip
             </button>
             <button
               type="button"

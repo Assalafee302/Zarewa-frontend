@@ -1,321 +1,138 @@
 import { formatPersonName } from '../../lib/formatPersonName';
-import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../../Data/companyQuotation';
-import { StandardReportPrintShell } from '../reports/StandardReportPrintShell';
-
-const TH = 'px-2 py-1.5 text-left text-ui-xs font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
-const THR = `${TH} text-right`;
-const TD = 'px-2 py-1.5 align-top text-[11px] text-slate-800 print:text-[10pt]';
+import {
+  ZAREWA_COMPANY_ACCOUNT_NAME,
+  ZAREWA_QUOTATION_BRANDING,
+} from '../../Data/companyQuotation';
 
 function fmt(n) {
   const v = Number(n);
-  if (Number.isNaN(v)) return '₦0';
-  return `₦${v.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  if (Number.isNaN(v)) return 'NGN 0';
+  return `NGN ${v.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-function QuotationPaymentHistoryBlock({ rows = [], highlightReceiptId = '', showCashierStatus = false }) {
-  if (!rows.length) return null;
-  return (
-    <section className="mt-4 print:mt-3">
-      <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 print:text-[9pt]">
-        All payments on this quotation
-      </p>
-      <table className="quotation-print-table w-full border-collapse border border-slate-200">
-        <thead>
-          <tr className="border-b border-slate-200 bg-slate-50/90">
-            <th className={TH}>Date</th>
-            <th className={TH}>Reference</th>
-            <th className={TH}>Source</th>
-            {showCashierStatus ? <th className={TH}>Cashier</th> : null}
-            <th className={THR}>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const isThis = highlightReceiptId && String(row.id) === String(highlightReceiptId);
-            return (
-              <tr
-                key={row.id}
-                className={`quotation-print-line border-b border-slate-100 ${isThis ? 'bg-amber-50/80' : ''}`}
-              >
-                <td className={`${TD} ${isThis ? 'font-bold text-slate-900' : ''}`}>{row.dateStr}</td>
-                <td className={`${TD} font-mono ${isThis ? 'font-bold' : ''}`}>
-                  {row.id}
-                  {isThis ? ' · this receipt' : ''}
-                </td>
-                <td className={`${TD} text-slate-600`}>{row.source}</td>
-                {showCashierStatus ? (
-                  <td className={`${TD} text-slate-600`}>
-                    <span className="font-semibold text-slate-800">{row.cashierStatus || '—'}</span>
-                    {row.cashierDetail ? (
-                      <span className="block text-ui-xs text-slate-500 print:text-[8pt]">{row.cashierDetail}</span>
-                    ) : null}
-                  </td>
-                ) : null}
-                <td className={`${TD} text-right font-semibold tabular-nums text-zarewa-teal`}>
-                  {fmt(row.amountNgn)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <p className="mt-2 text-ui-xs text-slate-500">Ledger + imported rows; totals match books.</p>
-    </section>
-  );
+function Dash() {
+  return <div className="receipt-thermal-dash" aria-hidden />;
 }
 
-function CashierConfirmationBlock({ statusLabel = '', statusDetail = '' }) {
-  if (!statusLabel) return null;
-  return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 print:border-slate-300">
-      <p className="text-ui-xs font-bold uppercase tracking-widest text-slate-500 print:text-[8pt]">
-        Confirm receipts
-      </p>
-      <p className="mt-0.5 text-[11px] font-semibold text-slate-900 print:text-[10pt]">{statusLabel}</p>
-      {statusDetail ? <p className="mt-0.5 text-[10px] text-slate-600 print:text-[9pt]">{statusDetail}</p> : null}
-    </div>
-  );
-}
-
-/** A4 pilot layout — summary lines */
-export function ReceiptPrintQuick({
+/**
+ * XP-80C / 80mm thermal receipt slip — simple browser print for roll printers.
+ * Use inside `.receipt-print-root` so @page receipt-thermal-80 applies.
+ */
+export function ReceiptPrintThermal({
   receiptId = '—',
   dateStr = '—',
   customerName = '—',
-  quotationRef = '—',
-  quotationPaymentHistory = [],
-  highlightReceiptId = '',
-  lines = [],
-  totalNgn = 0,
-  reference = '',
-  cashierStatusLabel = '',
-  cashierStatusDetail = '',
-}) {
-  const lineSum = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
-  const total = Number(totalNgn) || lineSum;
-  const displayCustomerName = formatPersonName(customerName);
-  return (
-    <StandardReportPrintShell
-      documentTypeLabel="Financial document"
-      title="Payment receipt"
-      subtitle="Summary"
-      watermarkText="RCP"
-      rightColumn={
-        <>
-          <p className="font-mono text-lg font-bold text-slate-900 print:text-[14pt]">{receiptId}</p>
-          <p className="mt-1 text-slate-600">{dateStr}</p>
-          <p className="mt-0.5 text-slate-500">Quotation {quotationRef}</p>
-        </>
-      }
-      footer="Thank you. This voucher reflects amounts posted in Zarewa at print time."
-    >
-      <section className="grid gap-3 border-b border-slate-100 pb-4 text-[11px] sm:grid-cols-2 print:pb-3 print:text-[10pt]">
-        <div>
-          <p className="font-bold uppercase tracking-wide text-slate-500">Customer</p>
-          <p className="mt-0.5 font-semibold text-slate-900">{displayCustomerName}</p>
-        </div>
-        <div>
-          <p className="font-bold uppercase tracking-wide text-slate-500">Quotation</p>
-          <p className="mt-0.5 font-mono font-medium">{quotationRef}</p>
-        </div>
-        {reference ? (
-          <div className="sm:col-span-2">
-            <p className="font-bold uppercase tracking-wide text-slate-500">Bank / POS reference</p>
-            <p className="mt-0.5 break-all">{reference}</p>
-          </div>
-        ) : null}
-        <div className="sm:col-span-2">
-          <CashierConfirmationBlock statusLabel={cashierStatusLabel} statusDetail={cashierStatusDetail} />
-        </div>
-      </section>
-
-      <QuotationPaymentHistoryBlock
-        rows={quotationPaymentHistory}
-        highlightReceiptId={highlightReceiptId}
-        showCashierStatus
-      />
-
-      <section className="mt-4 print:mt-3">
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 print:text-[9pt]">
-          This voucher — allocation
-        </p>
-        <table className="quotation-print-table w-full border-collapse border border-slate-200">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/90">
-              <th className={TH}>Payee</th>
-              <th className={TH}>Account</th>
-              <th className={THR}>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((l, i) => (
-              <tr key={i} className="quotation-print-line border-b border-slate-100">
-                <td className={`${TD} font-medium`}>{formatPersonName(l.payeeName || 'Payment')}</td>
-                <td className={`${TD} text-slate-600`}>{l.accountLabel || '—'}</td>
-                <td className={`${TD} text-right font-semibold tabular-nums text-zarewa-teal`}>{fmt(l.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="mt-3 text-right text-[12px] font-black tabular-nums text-zarewa-teal print:text-[11pt]">
-          Total paid {fmt(total)}
-        </p>
-      </section>
-    </StandardReportPrintShell>
-  );
-}
-
-/** A4 pilot layout — full detail */
-export function ReceiptPrintFull({
-  receiptId = '—',
-  dateStr = '—',
-  customerName = '—',
-  customerPhone = '—',
+  customerPhone = '',
   quotationRef = '—',
   projectName = '',
-  quotationPaymentHistory = [],
-  highlightReceiptId = '',
   lines = [],
   totalNgn = 0,
   reference = '',
-  handledBy = '—',
+  handledBy = '',
   cashierStatusLabel = '',
-  cashierStatusDetail = '',
 }) {
   const total = Number(totalNgn) || lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const displayCustomerName = formatPersonName(customerName);
   const displayHandledBy = formatPersonName(handledBy);
+  const headOffice = ZAREWA_QUOTATION_BRANDING.branches?.[0];
+
   return (
-    <StandardReportPrintShell
-      documentTypeLabel="Financial document"
-      title="Payment receipt"
-      subtitle="Full detail"
-      watermarkText="RCP"
-      rightColumn={
-        <>
-          <p className="font-mono text-lg font-bold text-slate-900 print:text-[14pt]">{receiptId}</p>
-          <p className="mt-1 text-slate-600">{dateStr}</p>
-          <p className="mt-0.5 font-mono text-slate-700">Quotation {quotationRef}</p>
-        </>
-      }
-      footer={
-        <>
-          {reference ? (
-            <span className="block">
-              Bank / POS reference: <span className="font-medium text-slate-700">{reference}</span>
-            </span>
-          ) : null}
-          <span className="mt-1 block">
-            Prepared by <span className="font-semibold text-slate-600">{displayHandledBy}</span>
-          </span>
-          <span className="mt-2 block text-ui-xs text-slate-400">
-            {ZAREWA_COMPANY_ACCOUNT_NAME}. Ledger and imported payment rows; highlighted line matches this printout.
-          </span>
-        </>
-      }
-    >
-      <section className="grid gap-3 border-b border-slate-100 pb-4 text-[11px] sm:grid-cols-2 print:pb-3 print:text-[10pt]">
+    <div className="receipt-print-thermal receipt-thermal-slip">
+      <header className="receipt-thermal-head">
+        <p className="receipt-thermal-brand">{ZAREWA_COMPANY_ACCOUNT_NAME}</p>
+        {headOffice?.lines?.[0] ? <p className="receipt-thermal-muted">{headOffice.lines[0]}</p> : null}
+        {headOffice?.lines?.[1] ? <p className="receipt-thermal-muted">{headOffice.lines[1]}</p> : null}
+        <p className="receipt-thermal-title">PAYMENT RECEIPT</p>
+      </header>
+
+      <Dash />
+
+      <dl className="receipt-thermal-meta">
         <div>
-          <p className="font-bold uppercase tracking-wide text-slate-500">Received from</p>
-          <p className="mt-0.5 font-semibold text-slate-900">{displayCustomerName}</p>
-          {customerPhone && customerPhone !== '—' ? (
-            <p className="mt-0.5 text-slate-600">{customerPhone}</p>
-          ) : null}
+          <dt>Receipt</dt>
+          <dd className="receipt-thermal-mono">{receiptId}</dd>
         </div>
         <div>
-          <p className="font-bold uppercase tracking-wide text-slate-500">Quotation</p>
-          <p className="mt-0.5 font-mono font-medium">{quotationRef}</p>
-          <p className="mt-1 text-slate-600">
-            Project: {projectName?.trim() ? projectName : '—'}
-          </p>
+          <dt>Date</dt>
+          <dd>{dateStr}</dd>
         </div>
-        <div className="sm:col-span-2">
-          <CashierConfirmationBlock statusLabel={cashierStatusLabel} statusDetail={cashierStatusDetail} />
+        <div>
+          <dt>Quotation</dt>
+          <dd className="receipt-thermal-mono">{quotationRef}</dd>
         </div>
-      </section>
+        <div>
+          <dt>Customer</dt>
+          <dd>{displayCustomerName}</dd>
+        </div>
+        {customerPhone && customerPhone !== '—' ? (
+          <div>
+            <dt>Phone</dt>
+            <dd>{customerPhone}</dd>
+          </div>
+        ) : null}
+        {projectName?.trim() ? (
+          <div>
+            <dt>Project</dt>
+            <dd>{projectName.trim()}</dd>
+          </div>
+        ) : null}
+        {reference ? (
+          <div>
+            <dt>Ref</dt>
+            <dd>{reference}</dd>
+          </div>
+        ) : null}
+        {cashierStatusLabel ? (
+          <div>
+            <dt>Cashier</dt>
+            <dd>{cashierStatusLabel}</dd>
+          </div>
+        ) : null}
+      </dl>
 
-      {quotationPaymentHistory.length > 0 ? (
-        <section className="mt-4 print:mt-3">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 print:text-[9pt]">
-            Payments on this quotation
-          </p>
-          <table className="quotation-print-table w-full border-collapse border border-slate-200">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/90">
-                <th className={TH}>Date</th>
-                <th className={TH}>Reference</th>
-                <th className={TH}>Source</th>
-                <th className={TH}>Cashier</th>
-                <th className={THR}>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {quotationPaymentHistory.map((row) => {
-                const isThis = highlightReceiptId && String(row.id) === String(highlightReceiptId);
-                return (
-                  <tr
-                    key={row.id}
-                    className={`quotation-print-line border-b border-slate-100 ${isThis ? 'bg-amber-50/80' : ''}`}
-                    title={row.detail || undefined}
-                  >
-                    <td className={TD}>{row.dateStr}</td>
-                    <td className={`${TD} font-mono`}>
-                      {row.id}
-                      {isThis ? (
-                        <span className="ml-1 rounded bg-amber-200/80 px-1 text-ui-xs font-bold uppercase text-amber-900">
-                          This receipt
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className={`${TD} text-slate-600`}>{row.source}</td>
-                    <td className={`${TD} text-slate-600`}>
-                      <span className="font-semibold text-slate-800">{row.cashierStatus || '—'}</span>
-                      {row.cashierDetail ? (
-                        <span className="block text-ui-xs text-slate-500 print:text-[8pt]">{row.cashierDetail}</span>
-                      ) : null}
-                    </td>
-                    <td className={`${TD} text-right font-semibold tabular-nums text-zarewa-teal`}>
-                      {fmt(row.amountNgn)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </section>
-      ) : null}
+      <Dash />
 
-      <section className="mt-4 print:mt-3">
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 print:text-[9pt]">
-          This receipt — allocation
-        </p>
-        <table className="quotation-print-table w-full border-collapse border border-slate-200">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/90">
-              <th className={TH}>Payee</th>
-              <th className={TH}>Account</th>
-              <th className={THR}>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((l, i) => (
-              <tr key={i} className="quotation-print-line border-b border-slate-100">
-                <td className={`${TD} font-medium`}>{formatPersonName(l.payeeName || '—')}</td>
-                <td className={`${TD} text-slate-600`}>{l.accountLabel || '—'}</td>
-                <td className={`${TD} text-right font-semibold tabular-nums text-zarewa-teal`}>{fmt(l.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="mt-4 flex flex-wrap items-baseline justify-between gap-3 border-t-2 border-slate-800 pt-3">
-          <span className="text-[11px] font-black uppercase tracking-wide text-slate-800 print:text-[10pt]">
-            Total received
-          </span>
-          <span className="text-xl font-black tabular-nums text-zarewa-teal print:text-[16pt]">{fmt(total)}</span>
-        </div>
-      </section>
-    </StandardReportPrintShell>
+      <p className="receipt-thermal-section">Allocation</p>
+      <ul className="receipt-thermal-lines">
+        {(lines.length ? lines : [{ payeeName: 'Payment', accountLabel: '', amount: total }]).map((l, i) => (
+          <li key={i}>
+            <div className="receipt-thermal-line-main">
+              <span>{formatPersonName(l.payeeName || 'Payment')}</span>
+              <span className="receipt-thermal-amt">{fmt(l.amount)}</span>
+            </div>
+            {l.accountLabel ? <p className="receipt-thermal-muted">{l.accountLabel}</p> : null}
+          </li>
+        ))}
+      </ul>
+
+      <Dash />
+
+      <div className="receipt-thermal-total">
+        <span>TOTAL</span>
+        <span>{fmt(total)}</span>
+      </div>
+
+      <Dash />
+
+      <footer className="receipt-thermal-foot">
+        {displayHandledBy && displayHandledBy !== '—' ? (
+          <p className="receipt-thermal-muted">Prepared by {displayHandledBy}</p>
+        ) : null}
+        <p>Thank you for your payment.</p>
+        <p className="receipt-thermal-muted">*** End of receipt ***</p>
+      </footer>
+    </div>
   );
+}
+
+/** @deprecated Prefer ReceiptPrintThermal (XP-80C). Kept for any leftover imports. */
+export function ReceiptPrintQuick(props) {
+  return <ReceiptPrintThermal {...props} />;
+}
+
+/** @deprecated Prefer ReceiptPrintThermal (XP-80C). Kept for any leftover imports. */
+export function ReceiptPrintFull(props) {
+  return <ReceiptPrintThermal {...props} />;
 }
 
 export function AdvancePaymentPrintView({
@@ -329,49 +146,52 @@ export function AdvancePaymentPrintView({
 }) {
   const displayCustomerName = formatPersonName(customerName);
   const displayHandledBy = formatPersonName(handledBy);
+  const headOffice = ZAREWA_QUOTATION_BRANDING.branches?.[0];
+
   return (
-    <StandardReportPrintShell
-      documentTypeLabel="Financial document"
-      title="Advance payment voucher"
-      subtitle="Deposit — not revenue until applied to a quotation"
-      watermarkText="ADV"
-      rightColumn={
-        <>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 print:text-[9pt]">Amount</p>
-          <p className="mt-0.5 text-2xl font-black tabular-nums text-zarewa-teal print:text-[18pt]">{fmt(amountNgn)}</p>
-          <p className="mt-2 text-slate-600">{dateStr}</p>
-        </>
-      }
-      footer="Advance deposits are liabilities until allocated to a quotation or refunded per policy."
-    >
-      <section className="rounded-lg border border-amber-200/80 bg-amber-50/40 p-4 text-[11px] print:border-slate-200 print:bg-white print:text-[10pt]">
-        <dl className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Customer</dt>
-            <dd className="mt-0.5 font-semibold text-slate-900">{displayCustomerName}</dd>
-          </div>
-          <div>
-            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Date</dt>
-            <dd className="mt-0.5">{dateStr}</dd>
-          </div>
-          <div>
-            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Received into</dt>
-            <dd className="mt-0.5">{accountLabel}</dd>
-          </div>
-          <div>
-            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Bank / POS reference</dt>
-            <dd className="mt-0.5 break-all">{reference || '—'}</dd>
-          </div>
-          <div className="sm:col-span-2">
-            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Purpose</dt>
-            <dd className="mt-0.5">{purpose || '—'}</dd>
-          </div>
-          <div className="sm:col-span-2">
-            <dt className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Recorded by</dt>
-            <dd className="mt-0.5">{displayHandledBy}</dd>
-          </div>
-        </dl>
-      </section>
-    </StandardReportPrintShell>
+    <div className="receipt-print-thermal receipt-thermal-slip">
+      <header className="receipt-thermal-head">
+        <p className="receipt-thermal-brand">{ZAREWA_COMPANY_ACCOUNT_NAME}</p>
+        {headOffice?.lines?.[0] ? <p className="receipt-thermal-muted">{headOffice.lines[0]}</p> : null}
+        <p className="receipt-thermal-title">ADVANCE PAYMENT</p>
+      </header>
+      <Dash />
+      <dl className="receipt-thermal-meta">
+        <div>
+          <dt>Customer</dt>
+          <dd>{displayCustomerName}</dd>
+        </div>
+        <div>
+          <dt>Date</dt>
+          <dd>{dateStr}</dd>
+        </div>
+        <div>
+          <dt>Into</dt>
+          <dd>{accountLabel}</dd>
+        </div>
+        <div>
+          <dt>Ref</dt>
+          <dd>{reference || '—'}</dd>
+        </div>
+        <div>
+          <dt>Purpose</dt>
+          <dd>{purpose || '—'}</dd>
+        </div>
+        <div>
+          <dt>By</dt>
+          <dd>{displayHandledBy}</dd>
+        </div>
+      </dl>
+      <Dash />
+      <div className="receipt-thermal-total">
+        <span>AMOUNT</span>
+        <span>{fmt(amountNgn)}</span>
+      </div>
+      <Dash />
+      <footer className="receipt-thermal-foot">
+        <p className="receipt-thermal-muted">Deposit — not revenue until applied to a quotation.</p>
+        <p className="receipt-thermal-muted">*** End of voucher ***</p>
+      </footer>
+    </div>
   );
 }
