@@ -19,6 +19,7 @@ import { ModalFrame } from '../layout/ModalFrame';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
+import { useHydratedQuotationLines } from '../../hooks/useHydratedQuotationLines';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { receiptCashReceivedNgn, normalizeReceiptMatchDashes } from '../../lib/salesReceiptsList';
@@ -48,6 +49,26 @@ import { refundFundPaymentRowsForQuotation } from '../../lib/refundFundApply.js'
 /** Compare quote / receipt links when pasted refs use en-dash etc. */
 function normQuoteKey(s) {
   return normalizeReceiptMatchDashes(String(s ?? '').trim()).toLowerCase();
+}
+
+function quotationHasLineBuckets(q) {
+  const ql = q?.quotationLines;
+  return Boolean(
+    ql &&
+      typeof ql === 'object' &&
+      (Array.isArray(ql.products) || Array.isArray(ql.accessories) || Array.isArray(ql.services))
+  );
+}
+
+function mergeQuotationCandidate(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  const merged = { ...prev, ...next };
+  // Desk packs strip lines; never let a later slim row erase a hydrated quote.
+  if (!quotationHasLineBuckets(next) && quotationHasLineBuckets(prev)) {
+    merged.quotationLines = prev.quotationLines;
+  }
+  return merged;
 }
 
 function quotationMeetsPickerGate(q, receipts, ledgerEntries, minPaidFraction, belowFloorPending) {
@@ -563,7 +584,7 @@ const CuttingListModal = ({
     for (const row of [...quotations, ...serverEligibleQuotations]) {
       const id = String(row?.id || '').trim();
       if (!id) continue;
-      byId.set(id, { ...(byId.get(id) || {}), ...row });
+      byId.set(id, mergeQuotationCandidate(byId.get(id), row));
     }
     return [...byId.values()];
   }, [quotations, serverEligibleQuotations]);
@@ -649,36 +670,47 @@ const CuttingListModal = ({
    * not arrived. The `quotations` prop is the sales pack, which an operations user opens
    * this modal without — so a plain `.find` reports a perfectly good cutting list as
    * having no quotation.
+   *
+   * Prefer the workspace copy when it has product lines: desk packs deliberately omit
+   * `quotationLines`, and a slim candidate must not block the hydrated row.
    */
   const selectedQuotationLookup = useMemo(() => {
-    const fromProp = quotationCandidates.find((q) => q.id === quotationRef);
+    const fromProp = quotationCandidates.find((q) => String(q.id) === String(quotationRef)) || null;
+    const fromWs = ws?.lookup
+      ? ws.lookup('quotations', quotationRef)
+      : { value: null, state: 'absent' };
+    const wsQ = fromWs.value;
+    if (quotationHasLineBuckets(wsQ)) {
+      return {
+        value: fromProp ? mergeQuotationCandidate(fromProp, wsQ) : wsQ,
+        state: 'found',
+      };
+    }
+    if (quotationHasLineBuckets(fromProp)) {
+      return { value: fromProp, state: 'found' };
+    }
+    if (fromProp && wsQ) {
+      return { value: mergeQuotationCandidate(fromProp, wsQ), state: 'found' };
+    }
     if (fromProp) return { value: fromProp, state: 'found' };
-    return ws?.lookup ? ws.lookup('quotations', quotationRef) : { value: null, state: 'absent' };
-  }, [quotationCandidates, quotationRef, ws]);
+    return fromWs;
+  }, [quotationCandidates, quotationRef, ws, ws?.snapshot?.quotations, ws?.refreshEpoch]);
 
-  const selectedQuotation = selectedQuotationLookup.value;
-  const selectedQuotationPending = selectedQuotationLookup.state === 'not-loaded';
+  const { lines: hydratedQuotationLines, status: hydratedLinesStatus } =
+    useHydratedQuotationLines(isOpen ? quotationRef : '');
 
-  /** Slim sales snapshot may omit quotationLines — fetch full quote so CL form can seed products. */
-  useEffect(() => {
-    if (!isOpen || !quotationRef) return undefined;
-    const q = quotationCandidates.find((row) => row?.id === quotationRef);
-    const ql = q?.quotationLines;
-    const hasLinesShape =
-      ql &&
-      typeof ql === 'object' &&
-      (Array.isArray(ql.products) || Array.isArray(ql.accessories) || Array.isArray(ql.services));
-    if (hasLinesShape) return undefined;
-    let cancelled = false;
-    void (async () => {
-      const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(quotationRef)}`);
-      if (cancelled || !ok || !data?.ok || !data.quotation) return;
-      ws?.mergeQuotationIntoSnapshot?.(data.quotation);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, quotationRef, quotationCandidates, ws]);
+  const selectedQuotation = useMemo(() => {
+    const base = selectedQuotationLookup.value;
+    if (!base) return null;
+    if (quotationHasLineBuckets(base)) return base;
+    if (hydratedQuotationLines) return { ...base, quotationLines: hydratedQuotationLines };
+    return base;
+  }, [selectedQuotationLookup.value, hydratedQuotationLines]);
+  const selectedQuotationPending =
+    selectedQuotationLookup.state === 'not-loaded' ||
+    (Boolean(quotationRef) &&
+      !quotationHasLineBuckets(selectedQuotation) &&
+      hydratedLinesStatus === 'loading');
 
   const selectedQuotationBelowFloorPending = useMemo(
     () => quotationBelowFloorPendingMdApproval(selectedQuotation),
@@ -2197,6 +2229,13 @@ const CuttingListModal = ({
                       ))}
                     </ul>
                   </div>
+                ) : hydratedLinesStatus === 'loading' || selectedQuotationPending ? (
+                  <p className="text-slate-500">Loading quotation lines…</p>
+                ) : hydratedLinesStatus === 'failed' ? (
+                  <p className="text-amber-800">
+                    Could not load quotation lines. Close and reopen this cutting list, or refresh and try
+                    again.
+                  </p>
                 ) : (
                   <p className="text-slate-500">No line items on file for this quotation.</p>
                 )}
