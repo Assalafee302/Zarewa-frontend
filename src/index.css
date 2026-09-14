@@ -2663,9 +2663,9 @@ summary {
     size: A4 portrait;
   }
 
-  /* Quotation / invoice / official receipt — slightly tighter margins so typical quotes fit one page */
+  /* Quotation / invoice / official receipt — tight margins so larger print fonts still fit one page */
   @page quotation-a4 {
-    margin: 9mm 11mm;
+    margin: 7mm 9mm;
     size: A4 portrait;
   }
 
