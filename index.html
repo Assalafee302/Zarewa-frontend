@@ -158,20 +158,10 @@
         <div class="card">
           <img src="/zarewa-logo.png" alt="" width="120" height="48" />
           <p class="eyebrow">Zarewa</p>
-          <p class="headline">Preparing live workspace…</p>
+          <p class="headline">Checking session…</p>
           <div class="progress-wrap" role="status" aria-live="polite" aria-busy="true" aria-label="Loading">
-            <div class="progress-meta">
-              <span id="zarewa-boot-pct">0%</span>
-              <span id="zarewa-boot-time">0s · ~20s left</span>
-            </div>
-            <div class="progress-track">
-              <div class="progress-fill" id="zarewa-boot-fill"></div>
-            </div>
-            <div class="spinner" aria-hidden="true"></div>
-            <p class="stage" id="zarewa-boot-stage">Connecting to the live server…</p>
-            <p class="slow-note" id="zarewa-boot-slow-note">
-              First paint is usually under 20 seconds. Desk registers load when you open each desk.
-            </p>
+            <div class="spinner" aria-hidden="true" style="margin-top:16px"></div>
+            <p class="stage" id="zarewa-boot-stage">Opening sign-in…</p>
           </div>
         </div>
       </div>
@@ -186,46 +176,7 @@
       </div>
     </noscript>
     <script>
-      (function () {
-        var EXPECTED_MS = 20000;
-        var started = Date.now();
-        var fill = document.getElementById('zarewa-boot-fill');
-        var pctEl = document.getElementById('zarewa-boot-pct');
-        var timeEl = document.getElementById('zarewa-boot-time');
-        var stageEl = document.getElementById('zarewa-boot-stage');
-        var note = document.getElementById('zarewa-boot-slow-note');
-        function fmt(ms) {
-          var s = Math.max(0, Math.round(ms / 1000));
-          if (s < 60) return s + 's';
-          return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
-        }
-        function stage(elapsed) {
-          if (elapsed < 4000) return 'Connecting to the live server…';
-          if (elapsed < 12000) return 'Loading your workspace…';
-          if (elapsed < 30000) return 'Pulling desk data — this can take a minute on a slow link…';
-          if (elapsed < 60000) return 'Still working — large desks take longer. No need to refresh.';
-          return 'Almost there — hanging on for the final sync…';
-        }
-        function tick() {
-          if (!fill || !document.getElementById('zarewa-boot')) return;
-          var elapsed = Date.now() - started;
-          var t = elapsed / EXPECTED_MS;
-          var pct = Math.min(92, Math.round((1 - Math.exp(-2.2 * t)) * 100));
-          var left = Math.max(0, EXPECTED_MS - elapsed);
-          fill.style.width = pct + '%';
-          if (pctEl) pctEl.textContent = pct + '%';
-          if (timeEl) {
-            timeEl.textContent =
-              elapsed < EXPECTED_MS * 1.4
-                ? fmt(elapsed) + ' · ~' + fmt(left) + ' left'
-                : fmt(elapsed) + ' · still syncing';
-          }
-          if (stageEl) stageEl.textContent = stage(elapsed);
-          if (note && elapsed >= 8000) note.className = 'slow-note visible';
-          window.requestAnimationFrame(tick);
-        }
-        window.requestAnimationFrame(tick);
-      })();
+      // Pre-React splash stays light — session probe only. Workspace progress starts after sign-in in React.
       window.addEventListener('error', function (ev) {
         var msg = (ev && ev.message) || '';
         if (/Loading chunk|Failed to fetch dynamically imported module|before initialization|Minified React error #30[01]|fewer hooks than expected/i.test(msg)) {

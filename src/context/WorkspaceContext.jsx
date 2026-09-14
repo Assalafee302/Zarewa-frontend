@@ -1020,7 +1020,10 @@ export function WorkspaceProvider({ children }) {
         } else if (data.user?.id) {
           clearPendingPasswordChange(data.user.id);
         }
-        // Hydrate session immediately so first-login password modal appears before bootstrap finishes.
+        // Hydrate session for password-change gate, but stay on BootScreen until shell loads
+        // (status 'booting' / 'checking' + authed). Do not jump into an empty desk early.
+        const needsPasswordChange =
+          Boolean(data.user?.mustChangePassword) || hasPendingPasswordChange(data.user?.id);
         applySnapshot(
           {
             ok: true,
@@ -1037,10 +1040,8 @@ export function WorkspaceProvider({ children }) {
             },
             permissions: data.permissions ?? [],
           },
-          'ok'
+          needsPasswordChange ? 'ok' : 'booting'
         );
-        const needsPasswordChange =
-          Boolean(data.user?.mustChangePassword) || hasPendingPasswordChange(data.user?.id);
         if (!needsPasswordChange) {
           resetDomainRuntime();
           fullBootstrapLoadedRef.current = false;
@@ -1331,10 +1332,10 @@ export function WorkspaceProvider({ children }) {
 
   /** Never leave the shell stuck on "Preparing live workspace…" if bootstrap hangs. */
   useEffect(() => {
-    if (status !== 'checking') return undefined;
+    if (status !== 'checking' && status !== 'booting') return undefined;
     const id = window.setTimeout(() => {
       setStatus((current) => {
-        if (current !== 'checking') return current;
+        if (current !== 'checking' && current !== 'booting') return current;
         return 'offline';
       });
       setLastError((prev) =>

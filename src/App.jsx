@@ -15,7 +15,7 @@ import { BootProgress } from './components/ui/BootProgress';
 const LoginScreen = lazyWithRetry(() => import('./components/auth/LoginScreen'), { id: 'LoginScreen' });
 const AppDesk = lazyWithRetry(() => import('./AppDesk.jsx'), { id: 'AppDesk' });
 
-/** Typical full-bootstrap wait on mill links; bar eases toward this, not the hard abort. */
+/** Typical shell wait after sign-in; bar eases toward this, not the hard abort. */
 function bootExpectedMs() {
   try {
     const raw = import.meta.env?.VITE_BOOTSTRAP_TIMEOUT_MS;
@@ -29,8 +29,11 @@ function bootExpectedMs() {
   return 20_000;
 }
 
-/** Minimal boot UI — matches index.html #zarewa-boot so the handoff feels instant. */
-function BootScreen({ title = 'Preparing live workspace…' }) {
+/**
+ * @param {{ title?: string; light?: boolean }} props
+ * `light` = pre-login session probe (no mill-wait progress). Full progress is for post-login workspace boot.
+ */
+function BootScreen({ title = 'Preparing live workspace…', light = false }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f4f6f5] px-6">
       <div className="w-full max-w-sm rounded-[28px] border border-white/70 bg-white/90 px-8 py-7 text-center shadow-xl">
@@ -42,7 +45,18 @@ function BootScreen({ title = 'Preparing live workspace…' }) {
           height={48}
         />
         <p className="mt-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Zarewa</p>
-        <BootProgress title={title} expectedMs={bootExpectedMs()} />
+        {light ? (
+          <>
+            <p className="mt-3 text-xl font-black text-[#134e4a]">{title}</p>
+            <div
+              className="mx-auto mt-4 h-6 w-6 animate-spin rounded-full border-[3px] border-[#d3e8e5] border-t-[#134e4a]"
+              role="status"
+              aria-label="Loading"
+            />
+          </>
+        ) : (
+          <BootProgress title={title} expectedMs={bootExpectedMs()} />
+        )}
       </div>
     </div>
   );
@@ -156,13 +170,18 @@ function DegradedWorkspaceLock() {
 function AuthGate() {
   const ws = useWorkspace();
 
-  if (!ws || ws.status === 'checking') {
-    return <BootScreen />;
+  if (!ws || ws.status === 'checking' || ws.status === 'booting') {
+    const authed = Boolean(ws?.snapshot?.session?.authenticated || ws?.snapshot?.session?.user);
+    // Pre-login: only probing the cookie — keep it light. Heavy progress is after sign-in.
+    if (!authed) {
+      return <BootScreen light title="Checking session…" />;
+    }
+    return <BootScreen title="Preparing live workspace…" />;
   }
 
   if (ws.authRequired || (ws.status === 'offline' && !ws.snapshot)) {
     return (
-      <Suspense fallback={<BootScreen title="Loading sign-in…" />}>
+      <Suspense fallback={<BootScreen light title="Loading sign-in…" />}>
         <LoginScreen />
       </Suspense>
     );
