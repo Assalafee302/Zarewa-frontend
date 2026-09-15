@@ -2810,7 +2810,7 @@ summary {
 
   /* Quotation / invoice / official receipt — tight margins so larger print fonts still fit one page */
   @page quotation-a4 {
-    margin: 7mm 9mm;
+    margin: 5mm 7mm;
     size: A4 portrait;
   }
 

@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- print helpers are colocated with the view */
+import { useLayoutEffect, useRef } from 'react';
 import { formatPersonName } from '../../lib/formatPersonName';
 import {
   ZAREWA_QUOTATION_BRANDING,
@@ -13,6 +14,52 @@ import {
 const ACCENT = ZAREWA_DOC_BLUE;
 const ACCENT_SOFT = ZAREWA_DOC_BLUE_SOFT;
 const MAROON = ZAREWA_DOC_MAROON;
+
+/** Must match `@page quotation-a4` margins in index.css */
+const QUOTE_PAGE_MARGIN_MM = 5;
+const A4_HEIGHT_MM = 297;
+const A4_WIDTH_MM = 210;
+
+function clearQuotationSheetFit(sheetEl) {
+  if (!sheetEl) return;
+  sheetEl.style.zoom = '';
+  sheetEl.style.transform = '';
+  sheetEl.style.transformOrigin = '';
+  sheetEl.style.width = '';
+  sheetEl.style.height = '';
+  sheetEl.removeAttribute('data-print-scale');
+}
+
+/**
+ * Scale the sheet so the full quotation stays on one A4 page.
+ * Prefer CSS `zoom` (Chromium print layout); fall back to transform.
+ */
+function fitQuotationSheetToOnePage(sheetEl) {
+  if (!sheetEl) return;
+  clearQuotationSheetFit(sheetEl);
+
+  const widthPx = sheetEl.getBoundingClientRect().width;
+  if (!widthPx) return;
+
+  const pxPerMm = widthPx / A4_WIDTH_MM;
+  const maxHeightPx = (A4_HEIGHT_MM - QUOTE_PAGE_MARGIN_MM * 2) * pxPerMm;
+  const contentHeightPx = sheetEl.scrollHeight;
+  if (contentHeightPx <= 0 || contentHeightPx <= maxHeightPx) return;
+
+  const scale = maxHeightPx / contentHeightPx;
+  sheetEl.setAttribute('data-print-scale', String(scale.toFixed(4)));
+
+  // Chromium: zoom shrinks layout box so pagination stays one page.
+  if (typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('zoom', '0.5')) {
+    sheetEl.style.zoom = String(scale);
+    return;
+  }
+
+  sheetEl.style.transformOrigin = 'top left';
+  sheetEl.style.transform = `scale(${scale})`;
+  sheetEl.style.width = `${100 / scale}%`;
+  sheetEl.style.height = `${contentHeightPx * scale}px`;
+}
 
 /** @typedef {'quotation' | 'invoice' | 'receipt'} QuotationDocumentKind */
 
@@ -71,10 +118,10 @@ export function normalizeQuotationLinesForPrint(quotationLines, fallbackLines = 
   };
 }
 
-/* Print sizes are larger for readability; padding/leading stay tight so typical quotes stay on one A4 page. */
+/* Print body ~13.5–14pt for desk readability; padding stays tight. Overflow uses one-page scale-to-fit. */
 const CELL =
-  'px-3 py-2 align-middle text-[12px] leading-snug print:px-1.5 print:py-0.5 print:text-[12pt] print:leading-tight';
-const TH_CELL = `${CELL} font-bold uppercase tracking-wide text-[11px] print:text-[11pt]`;
+  'px-3 py-2 align-middle text-[12px] leading-snug print:px-1.5 print:py-[3px] print:text-[13.5pt] print:leading-[1.2]';
+const TH_CELL = `${CELL} font-bold uppercase tracking-wide text-[11px] print:text-[12.5pt]`;
 
 function PrintLineRow({ name, qty, unitPrice, value }) {
   return (
@@ -92,7 +139,7 @@ function PrintSectionLabel({ label, noTopRule = false }) {
     <tr className={`quotation-print-tr bg-slate-50 ${noTopRule ? '' : 'border-t border-slate-200'}`}>
       <td
         colSpan={4}
-        className="border-l-[3px] px-3 py-2 text-[12px] font-bold uppercase tracking-wider text-slate-800 print:px-1.5 print:py-0.5 print:text-[11pt]"
+        className="border-l-[3px] px-3 py-2 text-[12px] font-bold uppercase tracking-wider text-slate-800 print:px-1.5 print:py-[3px] print:text-[12.5pt]"
         style={{ borderLeftColor: ACCENT }}
       >
         {label}
@@ -120,7 +167,7 @@ function PrintSubtotalRow({ label, amount }) {
 /** One aligned label / value pair for meta blocks */
 function MetaField({ label, children, valueClass = '' }) {
   return (
-    <div className="grid grid-cols-[minmax(6.5rem,7.5rem)_1fr] items-baseline gap-x-3 gap-y-0 text-[13px] print:text-[12pt] print:gap-x-1.5 print:leading-tight">
+    <div className="grid grid-cols-[minmax(6.5rem,7.5rem)_1fr] items-baseline gap-x-3 gap-y-0 text-[13px] print:text-[13.5pt] print:gap-x-1.5 print:leading-[1.2]">
       <span className="shrink-0 font-bold leading-snug" style={{ color: ACCENT }}>
         {label}
       </span>
@@ -213,10 +260,51 @@ export default function QuotationPrintView({
       : 'Customer name';
   const showProjectMeta = !showClientOnlyOnDoc;
 
+  const sheetRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+
+    const fit = () => fitQuotationSheetToOnePage(sheet);
+    fit();
+
+    const onBeforePrint = () => fitQuotationSheetToOnePage(sheet);
+    window.addEventListener('beforeprint', onBeforePrint);
+
+    const logo = sheet.querySelector('img');
+    logo?.addEventListener('load', fit);
+
+    return () => {
+      window.removeEventListener('beforeprint', onBeforePrint);
+      logo?.removeEventListener('load', fit);
+      clearQuotationSheetFit(sheet);
+    };
+  }, [
+    documentKind,
+    quotationId,
+    receiptRef,
+    linkedQuotationId,
+    dateStr,
+    customerName,
+    customerPhone,
+    projectName,
+    terms,
+    gauge,
+    design,
+    color,
+    payAccount,
+    lines,
+    salesperson,
+    validityDays,
+    amountPaidNgn,
+    balanceDueNgn,
+  ]);
+
   return (
     <div className="quotation-print-a4 relative mx-auto max-w-4xl w-full overflow-hidden bg-slate-100/80 p-5 font-sans text-slate-800 shadow-lg print:max-w-none print:w-full print:overflow-visible print:bg-white print:p-0 print:shadow-none">
       <div
-        className="quotation-print-watermark pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.028] print:opacity-[0.04]"
+        className="quotation-print-watermark pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden opacity-[0.028] print:opacity-[0.04]"
         aria-hidden
       >
         <span className="select-none text-[15rem] font-bold leading-none text-slate-400 print:text-[13rem]">
@@ -224,15 +312,19 @@ export default function QuotationPrintView({
         </span>
       </div>
 
-      <div className="relative overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-md print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
-        <div className="px-8 py-6 print:px-3 print:py-2">
+      {/* Fit target: white sheet only (exclude mat padding + watermark from height). */}
+      <div
+        ref={sheetRef}
+        className="relative overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-md print:overflow-visible print:rounded-none print:border-0 print:shadow-none"
+      >
+        <div className="px-8 py-6 print:px-2 print:py-1.5">
           <header
-            className="flex flex-col gap-5 border-b-2 pb-5 print:gap-2 print:pb-2"
+            className="flex flex-col gap-5 border-b-2 pb-5 print:gap-1.5 print:pb-1.5"
             style={{ borderColor: ACCENT }}
           >
             <div className="flex min-w-0 flex-1 items-start gap-4 print:gap-2">
               <div
-                className="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-md p-2 text-2xl font-bold text-white shadow-sm print:h-11 print:w-11 print:p-1"
+                className="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-md p-2 text-2xl font-bold text-white shadow-sm print:h-10 print:w-10 print:p-1"
                 style={{ backgroundColor: MAROON }}
               >
                 {b.logoSrc ? (
@@ -242,13 +334,13 @@ export default function QuotationPrintView({
                 )}
               </div>
               <div className="min-w-0 pt-0.5 print:pt-0">
-                <h1 className="w-full max-w-full text-center text-[30px] font-bold uppercase leading-snug tracking-tight text-slate-900 print:text-[17pt] print:leading-none">
+                <h1 className="w-full max-w-full text-center text-[30px] font-bold uppercase leading-snug tracking-tight text-slate-900 print:text-[18pt] print:leading-none">
                   {b.legalName}
                 </h1>
-                <p className="mt-1 text-center text-[13px] leading-relaxed text-slate-600 print:mt-0.5 print:text-[11pt] print:leading-tight">
+                <p className="mt-1 text-center text-[13px] leading-relaxed text-slate-600 print:mt-0.5 print:text-[12pt] print:leading-tight">
                   {b.poBox}
                 </p>
-                <p className="mt-0.5 text-center text-[13px] text-slate-600 print:text-[11pt] print:leading-tight">
+                <p className="mt-0.5 text-center text-[13px] text-slate-600 print:text-[12pt] print:leading-tight">
                   <span className="font-semibold" style={{ color: ACCENT }}>
                     Email
                   </span>{' '}
@@ -256,7 +348,7 @@ export default function QuotationPrintView({
                 </p>
               </div>
             </div>
-            <div className="grid w-full shrink-0 grid-cols-3 gap-5 text-[10.5px] leading-relaxed text-slate-700 print:max-w-none print:gap-1.5 print:text-[10pt] print:leading-tight">
+            <div className="grid w-full shrink-0 grid-cols-3 gap-5 text-[10.5px] leading-relaxed text-slate-700 print:max-w-none print:gap-1.5 print:text-[11pt] print:leading-tight">
               {b.branches.map((br, idx) => {
                 const rows = (br.lines || []).map((line) => String(line || '').trim()).filter(Boolean);
                 const telLine = rows.find((line) => /^tel\s*:/i.test(line)) || rows[rows.length - 1] || 'Tel: —';
@@ -278,15 +370,15 @@ export default function QuotationPrintView({
           </header>
 
           <div
-            className="mt-5 grid grid-cols-1 rounded-sm py-2.5 text-center print:mt-2 print:py-1"
+            className="mt-5 grid grid-cols-1 rounded-sm py-2.5 text-center print:mt-1.5 print:py-1"
             style={{ backgroundColor: ACCENT, flexDirection: 'column' }}
           >
-            <h2 className="text-base font-bold uppercase tracking-[0.2em] text-white print:text-[13pt] print:tracking-[0.1em] print:leading-none">
+            <h2 className="text-base font-bold uppercase tracking-[0.2em] text-white print:text-[14pt] print:tracking-[0.1em] print:leading-none">
               {title}
             </h2>
           </div>
 
-          <div className="mt-5 border-b border-slate-200 pb-5 print:mt-2 print:pb-2">
+          <div className="mt-5 border-b border-slate-200 pb-5 print:mt-1.5 print:pb-1.5">
             <div className="space-y-2.5 print:space-y-1">
               <div className="grid grid-cols-3 gap-2 print:gap-1">
                 <MetaField label={primaryMetaLabel(documentKind)}>{primaryId}</MetaField>
@@ -308,7 +400,7 @@ export default function QuotationPrintView({
               </div>
 
               {!showClientOnlyOnDoc && customerPhone && customerPhone !== '—' ? (
-                <p className="text-sm text-slate-600 print:text-[11pt] print:leading-tight">{customerPhone}</p>
+                <p className="text-sm text-slate-600 print:text-[12pt] print:leading-tight">{customerPhone}</p>
               ) : null}
 
               {documentKind === 'receipt' && linkedQuotationId ? (
@@ -328,8 +420,8 @@ export default function QuotationPrintView({
             </div>
           </div>
 
-          <div className="mt-5 overflow-x-auto print:mt-2 print:max-w-full print:overflow-visible">
-            <table className="quotation-print-table w-full table-fixed border-collapse border border-slate-200 text-left text-sm print:text-[12pt]">
+          <div className="mt-5 overflow-x-auto print:mt-1.5 print:max-w-full print:overflow-visible">
+            <table className="quotation-print-table w-full table-fixed border-collapse border border-slate-200 text-left text-sm print:text-[13.5pt]">
               <colgroup>
                 <col className="w-[42%]" />
                 <col className="w-[16%]" />
@@ -394,12 +486,12 @@ export default function QuotationPrintView({
                 <tr className="quotation-print-tr border-t-2 border-slate-200 bg-slate-50" style={{ borderTopColor: ACCENT }}>
                   <td
                     colSpan={3}
-                    className={`${CELL} py-3.5 text-right text-xs font-bold uppercase tracking-wide text-slate-800 print:py-1 print:text-[11pt]`}
+                    className={`${CELL} py-3.5 text-right text-xs font-bold uppercase tracking-wide text-slate-800 print:py-1 print:text-[12.5pt]`}
                   >
                     Grand total
                   </td>
                   <td
-                    className={`${CELL} py-3.5 text-right text-sm font-bold tabular-nums text-slate-900 print:py-1 print:text-[13pt]`}
+                    className={`${CELL} py-3.5 text-right text-sm font-bold tabular-nums text-slate-900 print:py-1 print:text-[15pt]`}
                   >
                     {formatNgn(grand)}
                   </td>
@@ -409,20 +501,20 @@ export default function QuotationPrintView({
           </div>
 
           <div
-            className="mt-6 rounded-sm px-3 py-2.5 text-center text-ui-xs font-bold uppercase leading-snug tracking-wide text-white print:mt-2 print:px-1.5 print:py-1 print:text-[9.5pt] print:leading-tight"
+            className="mt-6 rounded-sm px-3 py-2.5 text-center text-ui-xs font-bold uppercase leading-snug tracking-wide text-white print:mt-1.5 print:px-1.5 print:py-1 print:text-[11pt] print:leading-tight"
             style={{ backgroundColor: ACCENT }}
           >
             {QUOTATION_PAYMENT_NOTICE}
           </div>
 
-          <div className="mt-5 space-y-4 print:mt-2 print:space-y-1.5">
+          <div className="mt-5 space-y-4 print:mt-1.5 print:space-y-1">
             {showPayInto ? (
               <div
                 className="rounded-md border border-slate-200 px-3 py-3 print:px-2 print:py-1.5"
                 style={{ backgroundColor: ACCENT_SOFT, borderColor: ACCENT }}
               >
-                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-700 print:text-[10pt]">Pay into</p>
-                <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-ui-xs leading-relaxed text-slate-800 print:mt-1 print:gap-y-0.5 print:text-[11pt] print:leading-tight">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-700 print:text-[11pt]">Pay into</p>
+                <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-ui-xs leading-relaxed text-slate-800 print:mt-1 print:gap-y-0.5 print:text-[12pt] print:leading-tight">
                   <div className="block">
                     <span className="font-semibold text-slate-600">Bank</span>
                     <span>: </span>
@@ -442,25 +534,25 @@ export default function QuotationPrintView({
               </div>
             ) : null}
 
-            <p className="quotation-print-terms rounded-sm bg-white px-1 text-justify text-[12px] font-semibold leading-relaxed text-slate-600 print:px-0 print:text-[10.5pt] print:leading-snug">
+            <p className="quotation-print-terms rounded-sm bg-white px-1 text-justify text-[12px] font-semibold leading-relaxed text-slate-600 print:px-0 print:text-[12pt] print:leading-snug">
               {showValidity
                 ? `Quotation valid for ${validityDays} days only. ${footerTerms}`
                 : footerTerms}
             </p>
             <div
-              className="quotation-print-signatures grid grid-cols-2 gap-4 border-t-2 border-slate-200 pt-3 print:gap-2 print:pt-1.5"
+              className="quotation-print-signatures grid grid-cols-2 gap-4 border-t-2 border-slate-200 pt-3 print:gap-2 print:pt-1"
               style={{ borderTopColor: ACCENT }}
             >
               <div className="min-w-0">
-                <p className="mt-1 text-[10px] font-semibold print:mt-0 print:text-[11pt] print:leading-tight" style={{ color: ACCENT }}>
+                <p className="mt-1 text-[10px] font-semibold print:mt-0 print:text-[12pt] print:leading-tight" style={{ color: ACCENT }}>
                   Yours faithfully,
                 </p>
-                <p className="mt-0.5 text-[11px] font-bold text-slate-900 print:text-[11.5pt] print:leading-tight">{signatureCompany}</p>
-                <div className="mt-3 border-b border-slate-400 pb-1 text-[10px] text-slate-600 print:mt-1 print:pb-0.5 print:text-[10.5pt]">
+                <p className="mt-0.5 text-[11px] font-bold text-slate-900 print:text-[12.5pt] print:leading-tight">{signatureCompany}</p>
+                <div className="mt-3 border-b border-slate-400 pb-1 text-[10px] text-slate-600 print:mt-1 print:pb-0.5 print:text-[11.5pt]">
                   Marketing Manager
                 </div>
                 {salesperson && salesperson !== '—' ? (
-                  <p className="mt-1 text-[10px] text-left text-slate-600 print:mt-0.5 print:text-[10.5pt] print:leading-tight">
+                  <p className="mt-1 text-[10px] text-left text-slate-600 print:mt-0.5 print:text-[11.5pt] print:leading-tight">
                     <span className="font-semibold" style={{ color: ACCENT }}>
                       Prepared by
                     </span>
@@ -469,10 +561,10 @@ export default function QuotationPrintView({
                 ) : null}
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase print:text-[11pt] print:leading-tight" style={{ color: ACCENT }}>
+                <p className="text-[10px] font-semibold uppercase print:text-[12pt] print:leading-tight" style={{ color: ACCENT }}>
                   Customer
                 </p>
-                <div className="mt-3 border-b border-slate-400 pb-1 text-[10px] text-slate-600 print:mt-1 print:pb-0.5 print:text-[10.5pt]">
+                <div className="mt-3 border-b border-slate-400 pb-1 text-[10px] text-slate-600 print:mt-1 print:pb-0.5 print:text-[11.5pt]">
                   Signature
                 </div>
               </div>
