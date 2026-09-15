@@ -1282,7 +1282,9 @@ const Account = () => {
     setSelectedPayment({
       type: 'payment_request',
       id: req.requestID,
-      category: req.description,
+      // Display line under balance due — category chart name, not the free-text description.
+      category: req.expenseCategory || req.description || '',
+      description: req.description || '',
       total: Number(req.amountRequestedNgn) || 0,
       paid: paidAmountNgn,
       date: req.requestDate,
@@ -4745,8 +4747,13 @@ const Account = () => {
                 )}
               </p>
               <p className="text-ui-xs text-gray-400 mt-1">
-                {selectedPayment?.desc} · {selectedPayment?.category}
+                {[selectedPayment?.desc, selectedPayment?.expenseCategory || selectedPayment?.category]
+                  .filter(Boolean)
+                  .join(' · ')}
               </p>
+              {selectedPayment?.type === 'payment_request' && selectedPayment?.description ? (
+                <p className="text-ui-xs text-slate-500 mt-1 leading-snug">{selectedPayment.description}</p>
+              ) : null}
               {selectedPayment?.type === 'payment_request' &&
               (selectedPayment.maintenanceWorkOrderId ||
                 looksLikeMaintenanceWorkOrderRef(selectedPayment.requestReference)) ? (

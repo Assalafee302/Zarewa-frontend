@@ -44,13 +44,21 @@ export function ExpenseCategoryHintPanel({ category = '', othersMinJustification
   const ap3Hint = ap3CostingHintForCategory(cat);
   const hints = [];
 
-  if (laneMeta?.hint) {
-    hints.push(
-      <HintCard key="lane" tone="slate" icon={Building2} title={laneMeta.label || 'Category lane'}>
-        <p>{laneMeta.hint}</p>
-      </HintCard>
-    );
-  }
+  // Always echo the selected chart line first — lane / AP3 labels below are groupings, not a replaced category.
+  hints.push(
+    <HintCard key="selected" tone="teal" icon={Sparkles} title="Selected category">
+      <p>
+        <span className="font-bold">{cat}</span>
+        {laneMeta?.label ? (
+          <>
+            {' '}
+            · lane <span className="font-semibold">{laneMeta.label}</span>
+          </>
+        ) : null}
+      </p>
+      {laneMeta?.hint ? <p className="mt-1 opacity-90">{laneMeta.hint}</p> : null}
+    </HintCard>
+  );
 
   if (isCapexExpenseCategory(cat)) {
     hints.push(
@@ -77,16 +85,19 @@ export function ExpenseCategoryHintPanel({ category = '', othersMinJustification
     hints.push(
       <HintCard key="ap3-bad" tone="violet" icon={BarChart3} title="AP3 costing">
         <p>
-          Counts as <span className="font-bold">{ap3Hint.label}</span> — excluded from cost-per-metre allocation until
-          reclassified to a production or overhead bucket.
+          Costing reports group this as <span className="font-bold">{ap3Hint.label}</span> — excluded from
+          cost-per-metre allocation until reclassified to a production or overhead bucket. Your expense category
+          stays <span className="font-semibold">{cat}</span>.
         </p>
       </HintCard>
     );
   } else if (ap3Hint?.label && !compact) {
     hints.push(
-      <HintCard key="ap3-ok" tone="slate" icon={BarChart3} title="AP3 costing bucket">
+      <HintCard key="ap3-ok" tone="slate" icon={BarChart3} title="AP3 costing (reports only)">
         <p>
-          Maps to <span className="font-semibold">{ap3Hint.label}</span> for branch costing readiness reports.
+          For branch costing readiness, this category is grouped as{' '}
+          <span className="font-semibold">{ap3Hint.label}</span>. That does not change your selected category (
+          <span className="font-semibold">{cat}</span>).
         </p>
       </HintCard>
     );

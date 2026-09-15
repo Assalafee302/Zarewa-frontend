@@ -807,8 +807,8 @@ function PostedExpenseList() {
                         <AppTableTd>{dateCell(ex.date)}</AppTableTd>
                         <AppTableTd monospace>{ex.expenseID}</AppTableTd>
                         <AppTableTd title={payee}>{payee || '—'}</AppTableTd>
-                        <AppTableTd title={[ex.expenseType, ex.category].filter(Boolean).join(' · ')}>
-                          {[ex.expenseType, ex.category].filter(Boolean).join(' · ') || '—'}
+                        <AppTableTd title={ex.category || ''}>
+                          {ex.category || '—'}
                         </AppTableTd>
                         <AppTableTd title={paidFrom}>{paidFrom || '—'}</AppTableTd>
                         <AppTableTd align="right" className="font-semibold text-zarewa-teal">
