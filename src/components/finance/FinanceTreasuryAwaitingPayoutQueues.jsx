@@ -12,7 +12,6 @@ import {
 import {
   refundPayeePayoutCaution,
   flattenRefundDeskQueue,
-  actorMayOverrideRefundUnclearedPayoutHold,
   refundCashierCustomerName,
 } from '../../lib/refundCashierDetail';
 import {
@@ -154,14 +153,16 @@ export function FinanceTreasuryAwaitingPayoutQueues({
   alwaysShow = false,
 }) {
   const ws = useWorkspace();
-  const overrideUnclearedHold = actorMayOverrideRefundUnclearedPayoutHold(
-    ws?.session?.user,
-    ws?.hasPermission
-  );
+  const refundQueueActor = ws?.session?.user;
+  const refundQueueHasPermission = ws?.hasPermission;
   const id = (suffix) => (sectionIdPrefix ? `${sectionIdPrefix}-${suffix}` : undefined);
   const refundPayeeLines = useMemo(
-    () => flattenRefundDeskQueue(refunds, { overrideUnclearedHold }),
-    [refunds, overrideUnclearedHold]
+    () =>
+      flattenRefundDeskQueue(refunds, {
+        actor: refundQueueActor,
+        hasPermission: refundQueueHasPermission,
+      }),
+    [refunds, refundQueueActor, refundQueueHasPermission]
   );
   const total =
     refundPayeeLines.length + paymentRequests.length + registerSettlements.length + poTransport.length;

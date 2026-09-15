@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formatNgn } from '../../Data/mockData';
 import { refundsOnFinanceRefundQueue } from '../../lib/refundsStore';
-import { flattenRefundDeskQueue, actorMayOverrideRefundUnclearedPayoutHold } from '../../lib/refundCashierDetail';
+import { flattenRefundDeskQueue } from '../../lib/refundCashierDetail';
 import { registerSettlementsAwaitingPayment } from '../../lib/registerSettlementPay';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance.js';
 import { paymentRequestPayoutMetaLine } from '../../lib/financeTreasuryPayoutQueueMeta';
@@ -42,10 +42,8 @@ export function FinanceCashierPayoutsPanel() {
   const workspace = useWorkspace();
   const snap = workspace?.snapshot || ws?.snapshot || {};
   const [view, setView] = useState('due');
-  const overrideUnclearedHold = actorMayOverrideRefundUnclearedPayoutHold(
-    workspace?.session?.user || ws?.session?.user,
-    workspace?.hasPermission || ws?.hasPermission
-  );
+  const refundQueueActor = workspace?.session?.user || ws?.session?.user;
+  const refundQueueHasPermission = workspace?.hasPermission || ws?.hasPermission;
 
   const dueRows = useMemo(() => {
     const rows = [];
@@ -67,7 +65,8 @@ export function FinanceCashierPayoutsPanel() {
       });
     }
     for (const line of flattenRefundDeskQueue(refundsOnFinanceRefundQueue(snap.refunds || []), {
-      overrideUnclearedHold,
+      actor: refundQueueActor,
+      hasPermission: refundQueueHasPermission,
     })) {
       const r = line.parentRefund || {};
       const due = Math.round(Number(line.amountDueNgn) || 0);
@@ -127,7 +126,8 @@ export function FinanceCashierPayoutsPanel() {
     handleDeskViewPaymentRequest,
     handleDeskPayRegisterSettlement,
     handleDeskPayPoTransport,
-    overrideUnclearedHold,
+    refundQueueActor,
+    refundQueueHasPermission,
   ]);
 
   const paidSlice = paymentsListWindow?.slice || [];

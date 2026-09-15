@@ -38,7 +38,12 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
   const ws = useWorkspace();
   const overrideUnclearedHold = actorMayOverrideRefundUnclearedPayoutHold(
     ws?.session?.user,
-    ws?.hasPermission
+    ws?.hasPermission,
+    {
+      heldNetNgn: Math.round(
+        Number(refund?.settlementSummary?.heldUnclearedNgn ?? refund?.heldNetNgn ?? 0) || 0
+      ),
+    }
   );
   const [intelligence, setIntelligence] = useState(null);
   const [intelBusy, setIntelBusy] = useState(false);
@@ -121,12 +126,20 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
       refund.calculationLines.some((l) => String(l?.category || '').toLowerCase().includes('overpay')));
   const blockCashPayout = Boolean(looksOverpay && story.cashDueNgn > 0 && overpayResidualNgn < story.cashDueNgn);
   const defaultPayoutNgn = useMemo(
-    () => refundDefaultTreasuryPayoutNgn(refund, null, { overrideUnclearedHold }),
-    [refund, overrideUnclearedHold]
+    () =>
+      refundDefaultTreasuryPayoutNgn(refund, null, {
+        actor: ws?.session?.user,
+        hasPermission: ws?.hasPermission,
+      }),
+    [refund, ws?.session?.user, ws?.hasPermission]
   );
   const recipientTillRows = useMemo(
-    () => refundRecipientTillPayoutRows(refund, { overrideUnclearedHold }),
-    [refund, overrideUnclearedHold]
+    () =>
+      refundRecipientTillPayoutRows(refund, {
+        actor: ws?.session?.user,
+        hasPermission: ws?.hasPermission,
+      }),
+    [refund, ws?.session?.user, ws?.hasPermission]
   );
   const tillDuePayeeCount = recipientTillRows.filter((row) => row.amountDueNgn > 0).length;
   const walletOpenNgn = Math.round(Number(refund?.walletOpenNgn) || 0);
@@ -233,10 +246,10 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 space-y-2">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
               <p className="text-ui-xs text-sky-900/85 leading-relaxed">
-                Payees stay listed even when till cash is held. Cashiers cannot pay the held slice until
-                receipts are confirmed
+                Payees stay listed even when till cash is held. Confirm receipts on this quotation
+                first
                 {overrideUnclearedHold
-                  ? '; you can release held amounts with a note (manager / Head of Accounts / admin).'
+                  ? '; small holds (≤ ₦50,000) can be released with a payment note, or ask BM / Head of Accounts for larger holds.'
                   : '.'}{' '}
                 Overpayment may cover a receipt on Confirm payment.
               </p>

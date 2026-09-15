@@ -10,6 +10,12 @@ import {
   refundSplitTakesStaffDeduction,
   roundRefundStaffMoney,
 } from '../shared/lib/refundStaffAllocationDeduction.js';
+import {
+  CASHIER_UNCLEARED_HOLD_OVERRIDE_MAX_NGN,
+  actorMayOverrideRefundUnclearedPayoutHold as actorMayOverrideRefundUnclearedPayoutHoldShared,
+} from '../shared/lib/refundUnclearedPayoutHold.js';
+
+export { CASHIER_UNCLEARED_HOLD_OVERRIDE_MAX_NGN };
 
 function normalizeRefundSplitRow(raw) {
   const kindRaw = String(raw?.recipientKind ?? raw?.recipient_kind ?? '').trim().toLowerCase();
@@ -74,27 +80,38 @@ function parseUnclearedOffsetFromPaymentNote(refund) {
 }
 
 /**
- * Cashiers cannot till-pay while the payee has unconfirmed receipts.
- * Branch manager, Head of Accounts, or admin may override at payout.
+ * Cashiers may override a small uncleared hold (≤ ₦50k) with a note; larger holds need BM/HoA/admin.
+ * @param {{ roleKey?: string, role_key?: string, permissions?: string[] } | null | undefined} actor
+ * @param {(perm: string) => boolean} [hasPermission]
+ * @param {{ heldNetNgn?: number }} [opts]
  */
-export function actorMayOverrideRefundUnclearedPayoutHold(actor, hasPermission) {
-  if (typeof hasPermission === 'function' && hasPermission('*')) return true;
-  const perms = Array.isArray(actor?.permissions) ? actor.permissions : [];
-  if (perms.includes('*')) return true;
-  const rk = String(actor?.roleKey || actor?.role_key || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '_');
-  if (rk === 'admin') return true;
-  if (rk === 'cashier') return false;
-  if (rk === 'sales_manager' || rk === 'branch_manager' || rk === 'finance_manager') return true;
-  if (typeof hasPermission === 'function') {
-    if (hasPermission('refunds.approve') || hasPermission('finance.approve')) return true;
+export function actorMayOverrideRefundUnclearedPayoutHold(actor, hasPermission, opts = {}) {
+  return actorMayOverrideRefundUnclearedPayoutHoldShared(actor, hasPermission, opts);
+}
+
+export function refundHeldUnclearedNgn(refund) {
+  return Math.max(
+    0,
+    Math.round(
+      Number(
+        refund?.settlementSummary?.heldUnclearedNgn ??
+          refund?.heldNetNgn ??
+          refund?.held_net_ngn ??
+          0
+      ) || 0
+    )
+  );
+}
+
+/** Resolve override for one refund (cashiers need heldNetNgn for the small-hold cap). */
+export function resolveRefundUnclearedOverride(refund, actor, hasPermission, explicitOverride = null) {
+  if (explicitOverride === true && actor == null) return true;
+  if (actor != null) {
+    return actorMayOverrideRefundUnclearedPayoutHold(actor, hasPermission, {
+      heldNetNgn: refundHeldUnclearedNgn(refund),
+    });
   }
-  if (perms.includes('refunds.approve') || perms.includes('finance.approve')) {
-    return true;
-  }
-  return false;
+  return Boolean(explicitOverride);
 }
 
 function refundWalletOpenNgn(refund) {
@@ -340,9 +357,18 @@ export function refundCashierSplitBreakdown(refund) {
  *   amountDueNgn: number,
  * }>}
  */
-function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } = {}) {
+function buildRefundPayeePayoutLines(
+  refund,
+  { overrideUnclearedHold = false, actor = null, hasPermission = null } = {}
+) {
+  const mayOverride = resolveRefundUnclearedOverride(
+    refund,
+    actor,
+    hasPermission,
+    overrideUnclearedHold
+  );
   const story = refundCashierMoneyStory(refund);
-  if (story.cashDueNgn <= 0 && !overrideUnclearedHold) return { story, lines: [] };
+  if (story.cashDueNgn <= 0 && !mayOverride) return { story, lines: [] };
 
   const rid = String(refund?.refundID ?? refund?.refund_id ?? '').trim();
   let breakdown = story.splitBreakdown.filter((row) => row.netPayoutNgn > 0);
@@ -356,11 +382,14 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
   let treasuryRemaining = story.treasuryPaidNgn;
   const lines = breakdown.map((row, idx) => {
     const treasuryPaidToPayeeNgn = Math.min(
-      payeeTillCashDueNgn(row, { overrideUnclearedHold }),
+      payeeTillCashDueNgn(row, { overrideUnclearedHold: mayOverride }),
       Math.max(0, treasuryRemaining)
     );
     treasuryRemaining -= treasuryPaidToPayeeNgn;
-    const amountDueNgn = payeeTillCashDueNgn(row, { treasuryPaidToPayeeNgn, overrideUnclearedHold });
+    const amountDueNgn = payeeTillCashDueNgn(row, {
+      treasuryPaidToPayeeNgn,
+      overrideUnclearedHold: mayOverride,
+    });
     const kindSlug = row.recipientKind === 'associated_staff' ? 'staff' : 'customer';
     const queueKey = `${kindSlug}-${idx}`;
     const payeeBankName =
@@ -399,11 +428,12 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
       treasuryPaidToPayeeNgn,
       amountDueNgn,
       settledAtApprovalNgn: story.settledAtApprovalNgn,
+      mayOverrideUnclearedHold: mayOverride,
     };
   });
 
   let cashRemaining = story.cashDueNgn;
-  const capped = overrideUnclearedHold
+  const capped = mayOverride
     ? lines
     : lines.map((line) => {
         const amountDueNgn = Math.min(line.amountDueNgn, Math.max(0, cashRemaining));
@@ -412,7 +442,7 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
       });
 
   const walletOpenNgn = refundWalletOpenNgn(refund);
-  if (walletOpenNgn <= 0) return { story, lines: capped };
+  if (walletOpenNgn <= 0) return { story, lines: capped, mayOverride };
 
   // Attribute open wallet to non-held payee nets (same order credit was created), then
   // keep till dues only for the non-wallet surplus (and admin held exception).
@@ -431,7 +461,7 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
   const tillBudget =
     summaryTill != null
       ? summaryTill
-      : overrideUnclearedHold
+      : mayOverride
         ? Math.max(0, story.cashDueNgn - walletOpenNgn)
         : Math.max(0, story.cashDueNgn - walletOpenNgn - heldTotal);
 
@@ -465,10 +495,10 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
 
   let tillLeft = tillBudget;
   const nextLines = attributed.map((line) => {
-    if (line.onPartnerWallet && !(overrideUnclearedHold && line.payoutHeldForUnclearedReceipts)) {
+    if (line.onPartnerWallet && !(mayOverride && line.payoutHeldForUnclearedReceipts)) {
       return { ...line, amountDueNgn: 0 };
     }
-    if (overrideUnclearedHold && line.payoutHeldForUnclearedReceipts) {
+    if (mayOverride && line.payoutHeldForUnclearedReceipts) {
       const due = Math.min(
         Math.max(line.amountDueNgn, roundRefundStaffMoney(line.netPayoutNgn)),
         tillLeft
@@ -481,18 +511,28 @@ function buildRefundPayeePayoutLines(refund, { overrideUnclearedHold = false } =
     return { ...line, amountDueNgn: due };
   });
 
-  return { story, lines: nextLines };
+  return { story, lines: nextLines, mayOverride };
 }
 
 /** Per-recipient till status for refund detail — includes payees with ₦0 till due. */
-export function refundRecipientTillPayoutRows(refund, { overrideUnclearedHold = false } = {}) {
-  const { lines } = buildRefundPayeePayoutLines(refund, { overrideUnclearedHold });
+export function refundRecipientTillPayoutRows(
+  refund,
+  { overrideUnclearedHold = false, actor = null, hasPermission = null } = {}
+) {
+  const { lines, mayOverride } = buildRefundPayeePayoutLines(refund, {
+    overrideUnclearedHold,
+    actor,
+    hasPermission,
+  });
   return lines.map((line) => {
+    const override = mayOverride ?? line.mayOverrideUnclearedHold;
     let payoutStatus = 'none';
     let payoutStatusLabel = 'No till payout';
-    if (line.amountDueNgn > 0 && line.payoutHeldForUnclearedReceipts && overrideUnclearedHold) {
+    if (line.amountDueNgn > 0 && line.payoutHeldForUnclearedReceipts && override) {
       payoutStatus = 'admin_override_uncleared';
-      payoutStatusLabel = 'Admin exception — pay despite unconfirmed receipts';
+      payoutStatusLabel = override
+        ? 'Release held amount with note — unconfirmed receipts'
+        : 'Admin exception — pay despite unconfirmed receipts';
     } else if (line.amountDueNgn > 0 && line.unclearedWithheldNgn > 0) {
       payoutStatus = 'till_due_partial_held';
       payoutStatusLabel = 'Pay available balance — part held for uncleared receipts';
@@ -527,24 +567,35 @@ function formatWalletDueLabel(ngn) {
   }
 }
 
-export function refundPayeePayoutQueueLines(refund, { overrideUnclearedHold = false } = {}) {
-  const { lines } = buildRefundPayeePayoutLines(refund, { overrideUnclearedHold });
+export function refundPayeePayoutQueueLines(
+  refund,
+  { overrideUnclearedHold = false, actor = null, hasPermission = null } = {}
+) {
+  const { lines } = buildRefundPayeePayoutLines(refund, {
+    overrideUnclearedHold,
+    actor,
+    hasPermission,
+  });
   return lines.filter((line) => line.amountDueNgn > 0);
 }
 
 /** Expand approved refunds into till-due payee rows only (cash to pay now). */
-export function flattenRefundPayeePayoutQueue(refunds, { overrideUnclearedHold = false } = {}) {
+export function flattenRefundPayeePayoutQueue(
+  refunds,
+  { overrideUnclearedHold = false, actor = null, hasPermission = null } = {}
+) {
   const list = Array.isArray(refunds) ? refunds : [];
   const lines = [];
+  const opts = { overrideUnclearedHold, actor, hasPermission };
   for (const refund of list) {
-    const payeeLines = refundPayeePayoutQueueLines(refund, { overrideUnclearedHold });
+    const payeeLines = refundPayeePayoutQueueLines(refund, opts);
     if (payeeLines.length) {
       lines.push(...payeeLines);
       continue;
     }
     // When splits exist but every payee is held / referral-only / already paid,
     // do not invent a customer till line that bypasses uncleared holds.
-    const { lines: allPayeeLines } = buildRefundPayeePayoutLines(refund, { overrideUnclearedHold });
+    const { lines: allPayeeLines } = buildRefundPayeePayoutLines(refund, opts);
     if (allPayeeLines.length > 0) continue;
     const due = refundOutstandingAmount(refund);
     if (due <= 0) continue;
@@ -573,11 +624,15 @@ export function flattenRefundPayeePayoutQueue(refunds, { overrideUnclearedHold =
 /**
  * Finance desk list — till due plus held / referral rows so pending money is never hidden.
  */
-export function flattenRefundDeskQueue(refunds, { overrideUnclearedHold = false } = {}) {
+export function flattenRefundDeskQueue(
+  refunds,
+  { overrideUnclearedHold = false, actor = null, hasPermission = null } = {}
+) {
   const list = Array.isArray(refunds) ? refunds : [];
   const lines = [];
+  const opts = { overrideUnclearedHold, actor, hasPermission };
   for (const refund of list) {
-    const rows = refundRecipientTillPayoutRows(refund, { overrideUnclearedHold }).filter((row) =>
+    const rows = refundRecipientTillPayoutRows(refund, opts).filter((row) =>
       [
         'till_due',
         'till_due_partial_held',
@@ -591,7 +646,7 @@ export function flattenRefundDeskQueue(refunds, { overrideUnclearedHold = false 
       lines.push(...rows.map((row) => ({ ...row, parentRefund: refund })));
       continue;
     }
-    const tillOnly = flattenRefundPayeePayoutQueue([refund], { overrideUnclearedHold });
+    const tillOnly = flattenRefundPayeePayoutQueue([refund], opts);
     if (tillOnly.length) {
       lines.push(...tillOnly.map((row) => ({ ...row, payoutStatus: 'till_due', payoutStatusLabel: 'Pay from till / bank' })));
       continue;
@@ -719,8 +774,16 @@ export function refundPayeePayoutCaution(
 }
 
 /** Default till payout for one payee — uses queue line cash due, not proportional guess. */
-export function refundDefaultTreasuryPayoutNgn(refund, payeeQueueKey = null, { overrideUnclearedHold = false } = {}) {
-  const lines = refundPayeePayoutQueueLines(refund, { overrideUnclearedHold });
+export function refundDefaultTreasuryPayoutNgn(
+  refund,
+  payeeQueueKey = null,
+  { overrideUnclearedHold = false, actor = null, hasPermission = null } = {}
+) {
+  const lines = refundPayeePayoutQueueLines(refund, {
+    overrideUnclearedHold,
+    actor,
+    hasPermission,
+  });
   if (payeeQueueKey) {
     return lines.find((line) => line.queueKey === payeeQueueKey)?.amountDueNgn ?? 0;
   }
