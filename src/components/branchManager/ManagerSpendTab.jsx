@@ -248,7 +248,7 @@ export function ManagerSpendTab({
 
       <PanelShell
         title="Company cut retention"
-        subtitle="Staff refund % cuts accumulate here. After the hold period, request withdrawal — you approve, Finance pays."
+        subtitle="Staff refund % cuts land here immediately. Next withdrawal is allowed 14 days after the last paid one — you approve, Finance pays."
       >
         <CompanyRetentionPanel
           embedded

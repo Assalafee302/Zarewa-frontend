@@ -1527,10 +1527,10 @@ export function RefundManagerApprovalPreview({
                 After approval, staff/claiming-staff net amounts appear on Finance Desk under{' '}
                 <strong>Staff / partner refund payouts</strong> (not classic Refund payouts). Cashier
                 withdraws there — no second BM approval. The company cut (Admin/MD %) accumulates in{' '}
-                <strong>Company cut retention</strong> (Finance / Manager Spend); after the hold
-                period it can be withdrawn with Branch Manager approval. Uncleared receipts still
-                reduce the staff net at approval. Admin/MD/BM may waive the company cut on this
-                approval screen (one checkbox + note).
+                <strong>Company cut retention</strong> (Finance / Manager Spend) and is withdrawable
+                once settled; another withdrawal waits 14 days after the last paid one (BM
+                approval). Uncleared receipts still reduce the staff net at approval. Admin/MD/BM
+                may waive the company cut on this approval screen (one checkbox + note).
               </AlertBanner>
             ) : null}
             {otherRefunds.length > 0 ? (
