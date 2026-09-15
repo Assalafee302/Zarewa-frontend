@@ -8,12 +8,19 @@ export const PROD_REG = {
   panel:
     'overflow-hidden rounded-xl border border-[var(--z-border-subtle)] bg-white shadow-[var(--shadow-zarewa-card)]',
   panelHeader:
-    'flex flex-col gap-2 border-b border-[var(--z-border-subtle)] bg-gradient-to-r from-[var(--z-surface-muted)]/50 via-white to-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between',
+    'flex flex-col gap-1.5 border-b border-[var(--z-border-subtle)] bg-gradient-to-r from-[var(--z-surface-muted)]/50 via-white to-white px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2',
   panelBody: 'space-y-3 p-3 sm:p-3.5',
-  panelBodyCompact: 'space-y-2 p-2',
-  shopFloorGap: 'space-y-1.5',
+  /** Modal coil log — tight stack so the run grid stays above the fold */
+  panelBodyCompact: 'space-y-1.5 p-1.5 sm:p-2',
+  shopFloorGap: 'space-y-1',
   eyebrow: 'z-label-caps text-zarewa-teal',
   hint: 'text-ui-xs leading-snug text-[var(--z-text-muted)]',
+  /** Secondary blocks (offcut, conversion drill-down) — one click, no permanent height */
+  disclosure:
+    'rounded-lg border border-[var(--z-border-subtle)] bg-[var(--z-surface-muted)]/30 open:bg-white [&[open]_summary_svg]:rotate-90',
+  disclosureSummary:
+    'flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-1.5 text-ui-xs font-semibold text-[var(--z-text)] marker:content-none [&::-webkit-details-marker]:hidden',
+  disclosureChevron: 'shrink-0 text-[var(--z-text-muted)] transition-transform',
 
   /** Live job metrics (modal strip) */
   metricGrid: 'grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-2',
@@ -29,9 +36,10 @@ export const PROD_REG = {
   /** Coil row cards */
   coilRow:
     'rounded-xl border bg-white shadow-sm transition-[box-shadow,border-color]',
-  coilRowInModal: 'rounded-lg border bg-white p-2 shadow-sm transition-[box-shadow,border-color]',
+  /** Modal: flat row (no card shadow) so multiple coils read as a grid, not stacked cards */
+  coilRowInModal: 'rounded-md border bg-white px-1.5 py-1.5 transition-[box-shadow,border-color]',
   coilRowBorder: 'border-[var(--z-border-subtle)]',
-  coilRowUnsaved: 'border-amber-300 ring-2 ring-amber-200/70',
+  coilRowUnsaved: 'border-amber-300 ring-1 ring-amber-200/60',
   coilRowPreviewReady: 'ring-1 ring-teal-400/35',
 
   /** Desktop column header (lg+) */
@@ -42,9 +50,9 @@ export const PROD_REG = {
   actionBar:
     'shrink-0 border-t border-[var(--z-border-subtle)] bg-white px-2.5 py-2 shadow-[0_-6px_16px_rgba(11,28,48,0.06)] sm:px-3',
 
-  /** Modal shell — shop-floor form width (not full desk) */
+  /** Modal shell — slightly wider so coil columns breathe without a taller form */
   modalPanel:
-    'z-modal-panel mx-auto flex h-[min(92dvh,880px)] w-full min-w-0 max-w-[min(42rem,calc(100dvw-1rem))] flex-col overflow-hidden rounded-xl border border-[var(--z-border-subtle)] bg-white shadow-[var(--shadow-zarewa-overlay)] sm:max-w-[min(44rem,calc(100dvw-1.5rem))]',
+    'z-modal-panel mx-auto flex h-[min(92dvh,880px)] w-full min-w-0 max-w-[min(48rem,calc(100dvw-1rem))] flex-col overflow-hidden rounded-xl border border-[var(--z-border-subtle)] bg-white shadow-[var(--shadow-zarewa-overlay)] sm:max-w-[min(52rem,calc(100dvw-1.5rem))]',
 
   /** Coil grid — fixed columns so inputs do not stretch with viewport */
   coilGridHeaderModal:

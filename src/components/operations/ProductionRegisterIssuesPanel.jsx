@@ -42,43 +42,43 @@ export function ProductionRegisterIssuesPanel({ issues = [], compact = false, on
 
   return (
     <section
-      className="space-y-2"
+      className={compact ? 'space-y-1' : 'space-y-2'}
       role="alert"
       aria-live="polite"
       data-testid="production-register-issues-panel"
     >
-      <div className="flex items-center justify-between gap-2">
-        {sorted.length > 1 ? (
-          <button
-            type="button"
-            className="inline-flex items-center gap-0.5 text-ui-xs font-semibold text-[var(--z-text-muted)] hover:text-[var(--z-text)]"
-            onClick={() => setShowAll((v) => !v)}
-          >
-            {showAll ? 'Show less' : `+${sorted.length - 1} more`}
-            <ChevronRight
-              size={14}
-              className={`transition-transform ${showAll ? 'rotate-90' : ''}`}
-              aria-hidden
-            />
-          </button>
-        ) : null}
-      </div>
-      <div className="space-y-2">
-        {visible.map((issue) => {
+      <div className={compact ? 'space-y-1' : 'space-y-2'}>
+        {visible.map((issue, idx) => {
           const style = SEVERITY_STYLES[issue.severity] || SEVERITY_STYLES.info;
           const Icon = style.icon;
           return (
             <div
               key={issue.id}
-              className={`${PROD_REG.bannerIssue} ${style.wrap}`}
+              className={`${PROD_REG.bannerIssue} ${style.wrap} ${compact ? 'gap-2 rounded-lg px-2.5 py-1.5' : ''}`}
             >
               <Icon className={`mt-0.5 size-4 shrink-0 ${style.iconClass}`} aria-hidden />
               <div className={`min-w-0 flex-1 ${textClass}`}>
-                <p className="font-bold">{issue.title}</p>
+                <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+                  <p className="font-bold">{issue.title}</p>
+                  {idx === 0 && sorted.length > 1 ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-0.5 text-ui-xs font-semibold opacity-80 hover:opacity-100"
+                      onClick={() => setShowAll((v) => !v)}
+                    >
+                      {showAll ? 'Less' : `+${sorted.length - 1}`}
+                      <ChevronRight
+                        size={14}
+                        className={`transition-transform ${showAll ? 'rotate-90' : ''}`}
+                        aria-hidden
+                      />
+                    </button>
+                  ) : null}
+                </div>
                 {issue.actionLabel ? (
-                  <p className="mt-1 font-semibold text-inherit">{issue.actionLabel}</p>
+                  <p className={`${compact ? 'mt-0.5' : 'mt-1'} font-semibold text-inherit`}>{issue.actionLabel}</p>
                 ) : (
-                  <p className="mt-1 opacity-95">{issue.detail}</p>
+                  <p className={`${compact ? 'mt-0.5' : 'mt-1'} opacity-95`}>{issue.detail}</p>
                 )}
                 {showAll && issue.actionLabel && issue.detail ? (
                   <p className="mt-1 opacity-80">{issue.detail}</p>
@@ -87,7 +87,7 @@ export function ProductionRegisterIssuesPanel({ issues = [], compact = false, on
                   <button
                     type="button"
                     onClick={onDiscardUnsavedCoils}
-                    className="mt-2.5 rounded-lg border border-current/20 bg-white/90 px-3 py-1.5 text-ui-xs font-semibold shadow-sm hover:bg-white"
+                    className="mt-2 rounded-lg border border-current/20 bg-white/90 px-3 py-1.5 text-ui-xs font-semibold shadow-sm hover:bg-white"
                   >
                     Discard unsaved lines
                   </button>

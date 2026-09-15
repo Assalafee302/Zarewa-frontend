@@ -12,11 +12,11 @@ function numM(value) {
 }
 
 function Dot() {
-  return <span className="mx-1.5 text-[var(--z-border)]" aria-hidden>·</span>;
+  return <span className="mx-1 text-[var(--z-border)]" aria-hidden>·</span>;
 }
 
 /**
- * Modal register summary — 3 text lines + vs-plan bar (line 4).
+ * Modal register summary — refs + KPIs on two tight lines; vs-plan as a thin bar (no card stack).
  */
 export function ProductionRegisterCompactHeader({
   jobSt,
@@ -55,6 +55,9 @@ export function ProductionRegisterCompactHeader({
 
   const hasRcf =
     Number(plannedRoofM) > 0 || Number(plannedCladdingM) > 0 || Number(plannedFlatsheetM) > 0;
+  const rcfTitle = hasRcf
+    ? `Roof ${numM(plannedRoofM)} · Cladding ${numM(plannedCladdingM)} · Flatsheet ${numM(plannedFlatsheetM)}`
+    : undefined;
 
   const specParts = [
     quotationMaterialSpec?.gauge,
@@ -63,10 +66,13 @@ export function ProductionRegisterCompactHeader({
     quotationMaterialSpec?.design,
   ].filter(Boolean);
 
+  const showPlanBar =
+    hasPlannedMeters && (jobSt === 'Running' || jobSt === 'Planned');
+
   return (
-    <div className="space-y-1.5 text-ui-xs leading-snug">
-      {/* Line 1 — dates + refs */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[var(--z-text-muted)]">
+    <div className="space-y-1 text-ui-xs leading-snug">
+      {/* Line 1 — dates · quote · machine · product · spec (single wrap row) */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[var(--z-text-muted)]">
         {showDates ? (
           <ProductionRegisterDateFields
             inline
@@ -85,13 +91,22 @@ export function ProductionRegisterCompactHeader({
         ) : null}
         {machineName ? <span>{machineName}</span> : null}
         {productName ? (
-          <span className="max-w-[14rem] truncate" title={productName}>
+          <span className="max-w-[12rem] truncate" title={productName}>
             {productName}
           </span>
         ) : null}
+        {specParts.length > 0 ? (
+          <>
+            <Dot />
+            <span className="min-w-0 max-w-[18rem] truncate" title={specParts.join(' · ')}>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-zarewa-teal">Spec </span>
+              <span className="font-medium text-[var(--z-text)]">{specParts.join(' · ')}</span>
+            </span>
+          </>
+        ) : null}
       </div>
 
-      {/* Line 2 — live KPIs (single row, no cards) */}
+      {/* Line 2 — live KPIs (+ plan % inline when running) */}
       <p className="z-stencil flex flex-wrap items-baseline gap-x-0 tabular-nums text-[var(--z-text)]">
         <span>
           <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">Rsvd </span>
@@ -103,13 +118,11 @@ export function ProductionRegisterCompactHeader({
           <span className="font-bold">{numKg(usedKg)} kg</span>
         </span>
         <Dot />
-        <span>
+        <span title={rcfTitle}>
           <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">Plan </span>
           <span className="font-bold text-zarewa-teal">{numM(plannedM)} m</span>
-          {hasRcf ? (
-            <span className="ml-1 font-medium text-[var(--z-text-muted)]">
-              (R {numM(plannedRoofM)} · C {numM(plannedCladdingM)} · F {numM(plannedFlatsheetM)})
-            </span>
+          {showPlanBar && planProgressPct != null ? (
+            <span className="ml-1 font-bold text-zarewa-teal">({planProgressPct}%)</span>
           ) : null}
         </span>
         <Dot />
@@ -126,38 +139,29 @@ export function ProductionRegisterCompactHeader({
         </span>
       </p>
 
-      {/* Line 3 — target spec */}
-      {specParts.length > 0 ? (
-        <p className="truncate text-[var(--z-text-muted)]">
-          <span className="text-[10px] font-bold uppercase tracking-wide text-zarewa-teal">Spec </span>
-          <span className="font-medium text-[var(--z-text)]">{specParts.join(' · ')}</span>
-        </p>
-      ) : null}
-
-      {/* Line 4 — vs plan (user requested) */}
-      {hasPlannedMeters && (jobSt === 'Running' || jobSt === 'Planned') ? (
-        <div className="rounded-md border border-[var(--z-border-subtle)] bg-[var(--z-surface-muted)]/40 px-2 py-1.5">
-          <div className="flex items-center justify-between gap-2 font-semibold text-[var(--z-text-muted)]">
-            <span className="text-[10px] font-bold uppercase tracking-wide">vs plan</span>
-            <span className="z-stencil tabular-nums text-[var(--z-text)]">
-              {formatMeters(recordedMeters)} / {formatMeters(plannedMetersValue)}
-              {planProgressPct != null ? (
-                <span className="ml-1 font-bold text-zarewa-teal">({planProgressPct}%)</span>
-              ) : null}
-            </span>
-          </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--z-border-subtle)]">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                planProgressPct != null && planProgressPct > 100
-                  ? 'bg-amber-500'
-                  : 'bg-gradient-to-r from-teal-500 to-zarewa-teal'
-              }`}
-              style={{
-                width: `${Math.min(100, planProgressPct != null ? planProgressPct : 0)}%`,
-              }}
-            />
-          </div>
+      {/* Thin vs-plan bar only — metres already in KPI line */}
+      {showPlanBar ? (
+        <div
+          className="h-1 overflow-hidden rounded-full bg-[var(--z-border-subtle)]"
+          title={`${formatMeters(recordedMeters)} / ${formatMeters(plannedMetersValue)}${
+            planProgressPct != null ? ` (${planProgressPct}%)` : ''
+          }`}
+          role="progressbar"
+          aria-valuenow={planProgressPct != null ? planProgressPct : 0}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Progress versus plan"
+        >
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${
+              planProgressPct != null && planProgressPct > 100
+                ? 'bg-amber-500'
+                : 'bg-gradient-to-r from-teal-500 to-zarewa-teal'
+            }`}
+            style={{
+              width: `${Math.min(100, planProgressPct != null ? planProgressPct : 0)}%`,
+            }}
+          />
         </div>
       ) : null}
     </div>

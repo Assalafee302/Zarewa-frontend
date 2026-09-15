@@ -121,22 +121,26 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
     <div className={`${inModal ? PROD_REG.coilRowInModal : PROD_REG.coilRow} ${inModal ? '' : 'p-2.5 sm:p-3'} ${rowBorder}`}>
       {hasUnsavedCoilData ? (
         <p
-          className="mb-2 flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-ui-xs font-semibold text-amber-950"
+          className={`mb-1 flex items-center gap-1 font-semibold text-amber-950 ${
+            inModal
+              ? 'text-[10px] uppercase tracking-wide text-amber-800'
+              : 'mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-ui-xs'
+          }`}
           title={
             jobSt === 'Planned'
               ? 'Not saved yet — use Save and start production.'
               : 'Not saved yet — use Save while running.'
           }
         >
-          <AlertTriangle size={13} className="shrink-0" aria-hidden />
-          Unsaved — save before completing
+          <AlertTriangle size={inModal ? 11 : 13} className="shrink-0" aria-hidden />
+          {inModal ? 'Unsaved' : 'Unsaved — save before completing'}
         </p>
       ) : null}
 
       <div
         className={`min-w-0 flex flex-col gap-2 pb-0.5 lg:overflow-visible ${
           inModal
-            ? PROD_REG.coilGridRowModal
+            ? `${PROD_REG.coilGridRowModal} gap-1.5`
             : 'lg:grid lg:items-end lg:gap-x-2 lg:grid-cols-[2rem_4rem_minmax(0,1.1fr)_4rem_4rem_4rem_minmax(0,1fr)_2.75rem_2rem]'
         }`}
       >
@@ -287,7 +291,13 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
       Number(row.closingWeightKg) >= 0 &&
       Number(row.closingWeightKg) < coilTailFinishMaxKg &&
       Number(row.closingWeightKg) <= Number(row.openingWeightKg)) ? (
-        <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-lg border border-amber-200/90 bg-amber-50/80 px-3 py-2.5 text-xs font-medium text-amber-950">
+        <label
+          className={`flex cursor-pointer items-start gap-2 text-xs font-medium text-amber-950 ${
+            inModal
+              ? 'mt-1.5 rounded-md border border-amber-200/80 bg-amber-50/70 px-2 py-1.5'
+              : 'mt-3 rounded-lg border border-amber-200/90 bg-amber-50/80 px-3 py-2.5 gap-2.5'
+          }`}
+        >
           <input
             type="checkbox"
             checked={Boolean(row.finishCoil)}
@@ -297,9 +307,9 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
           />
           <span className="min-w-0 flex-1 leading-snug">
             <strong className="font-semibold">Finish roll</strong>
-            <span className="text-amber-900/90"> (&lt;{coilTailFinishMaxKg} kg tail)</span>
+            <span className="text-amber-900/90"> (&lt;{coilTailFinishMaxKg} kg)</span>
             {jobSt === 'Completed' && Number(row.finishCoilTailKg) > 0.05 ? (
-              <span className="mt-1 block text-[10px] font-semibold text-amber-900/80">
+              <span className="mt-0.5 block text-[10px] font-semibold text-amber-900/80">
                 {canUndoFinishRoll
                   ? 'Uncheck to restore the cleared tail (branch manager confirm on Save).'
                   : 'Checked on book — ask a branch manager to uncheck and confirm restore.'}
@@ -308,25 +318,25 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
           </span>
           <button
             type="button"
-            className="shrink-0 rounded-full p-1 text-amber-800/80 hover:bg-amber-100"
+            className="shrink-0 rounded-full p-0.5 text-amber-800/80 hover:bg-amber-100"
             title="Tick only when the tail is unusable and should leave coil stock. Leave unchecked if usable steel remains."
             aria-label="About finish roll"
           >
-            <CircleHelp className="size-4" strokeWidth={2} />
+            <CircleHelp className={inModal ? 'size-3.5' : 'size-4'} strokeWidth={2} />
           </button>
         </label>
       ) : null}
 
       {row.specMismatch || specWarn ? (
-        <div className="mt-2 space-y-1.5 border-t border-[var(--z-border-subtle)] pt-2">
+        <div className={`space-y-1 border-t border-[var(--z-border-subtle)] ${inModal ? 'mt-1.5 pt-1.5' : 'mt-2 space-y-1.5 pt-2'}`}>
           {row.specMismatch ? (
-            <p className="flex items-start gap-1.5 rounded-lg border border-amber-300 bg-amber-100/90 px-2.5 py-1 text-ui-xs font-bold uppercase tracking-wide text-amber-950">
+            <p className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-100/90 px-2 py-1 text-ui-xs font-bold uppercase tracking-wide text-amber-950">
               <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
-              Saved as spec exception — manager review
+              Spec exception — manager review
             </p>
           ) : null}
           {specWarn ? (
-            <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50/90 px-2.5 py-1 text-ui-xs font-semibold text-amber-950">
+            <p className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50/90 px-2 py-1 text-ui-xs font-semibold text-amber-950">
               <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
               {specWarn}
             </p>

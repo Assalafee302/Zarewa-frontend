@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   BarChart3,
   CheckCircle2,
+  ChevronRight,
   CircleHelp,
   FileWarning,
   Gauge,
@@ -3674,9 +3675,9 @@ export function LiveProductionMonitor({
         }
       >
       {inModal ? (
-        <div className="sticky top-0 z-10 border-b border-[var(--z-border-subtle)] bg-white/98 px-2 py-2 backdrop-blur-md sm:px-2.5" data-testid="production-register-compact-shell">
+        <div className="sticky top-0 z-10 border-b border-[var(--z-border-subtle)] bg-white/98 px-2 py-1.5 backdrop-blur-md sm:px-2.5" data-testid="production-register-compact-shell">
           {productionRegisterIssues.length > 0 ? (
-            <div className="mb-2">
+            <div className="mb-1.5">
               <ProductionRegisterIssuesPanel
                 issues={productionRegisterIssues}
                 compact
@@ -4821,39 +4822,80 @@ export function LiveProductionMonitor({
               ) : null}
               {!stonePureNoCoil &&
               (canCaptureRun || canEditPlannedAllocations || canEditCompletedCoilCorrections) ? (
-                <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700 space-y-2">
-                  <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                    Offcut stock metres used
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={offcutInventoryMetersInput}
-                      onChange={(e) => onOffcutInventoryMetersChange(e.target.value)}
-                      placeholder="0"
-                      className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
-                    />
-                  </label>
-                  <p className="text-ui-xs leading-snug text-slate-500">
-                    Metres drawn from existing offcut / scrap stock for this job (not a fresh coil). If this covers
-                    all of the job&rsquo;s output, leave &ldquo;Finished-goods output metres&rdquo; below blank — it
-                    will default to this number.
-                  </p>
-                  <div className="border-t border-slate-100 pt-2 mt-2">
-                    <p className="text-ui-xs font-bold uppercase text-zarewa-teal mb-1">Issue from offcut incidents</p>
-                    <OffcutIncidentPicker
-                      gaugeLabel={quotationMaterialSpec?.gaugeLabel}
-                      colour={quotationMaterialSpec?.colour}
-                      value={offcutSupplySelections}
-                      onChange={setOffcutSupplySelections}
-                    />
-                    {offcutSupplySelections.length > 0 ? (
-                      <p className="mt-1 text-ui-xs font-semibold text-emerald-800">
-                        Supplied from offcut:{' '}
-                        {offcutSupplySelections.map((s) => `${s.materialIncidentId} (${s.meters} m)`).join(', ')}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
+                (() => {
+                  const offcutHasData =
+                    offcutInventoryMetersNum > 0 ||
+                    offcutSupplySelections.length > 0 ||
+                    String(offcutInventoryMetersInput || '').trim() !== '';
+                  const offcutBody = (
+                    <div className="space-y-2">
+                      <label className="block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+                        Offcut stock metres used
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={offcutInventoryMetersInput}
+                          onChange={(e) => onOffcutInventoryMetersChange(e.target.value)}
+                          placeholder="0"
+                          className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
+                        />
+                      </label>
+                      {!inModal ? (
+                        <p className="text-ui-xs leading-snug text-slate-500">
+                          Metres drawn from existing offcut / scrap stock for this job (not a fresh coil). If this covers
+                          all of the job&rsquo;s output, leave &ldquo;Finished-goods output metres&rdquo; below blank — it
+                          will default to this number.
+                        </p>
+                      ) : null}
+                      <div className="border-t border-slate-100 pt-2">
+                        <p className="text-ui-xs font-bold uppercase text-zarewa-teal mb-1">Issue from offcut incidents</p>
+                        <OffcutIncidentPicker
+                          gaugeLabel={quotationMaterialSpec?.gaugeLabel}
+                          colour={quotationMaterialSpec?.colour}
+                          value={offcutSupplySelections}
+                          onChange={setOffcutSupplySelections}
+                        />
+                        {offcutSupplySelections.length > 0 ? (
+                          <p className="mt-1 text-ui-xs font-semibold text-emerald-800">
+                            Supplied from offcut:{' '}
+                            {offcutSupplySelections.map((s) => `${s.materialIncidentId} (${s.meters} m)`).join(', ')}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                  /* Modal coil path: keep offcut one click away so the run grid stays above the fold */
+                  if (inModal && !completionUsesOffcutMode) {
+                    return (
+                      <details
+                        className={PROD_REG.disclosure}
+                        defaultOpen={offcutHasData}
+                      >
+                        <summary className={PROD_REG.disclosureSummary}>
+                          <span>
+                            Offcut / scrap metres
+                            {offcutHasData ? (
+                              <span className="ml-1 font-mono font-bold text-zarewa-teal">
+                                ({offcutInventoryMetersNum > 0
+                                  ? `${offcutInventoryMetersNum.toFixed(2)} m`
+                                  : 'set'})
+                              </span>
+                            ) : (
+                              <span className="ml-1 font-normal text-[var(--z-text-muted)]">optional</span>
+                            )}
+                          </span>
+                          <ChevronRight size={14} className={PROD_REG.disclosureChevron} aria-hidden />
+                        </summary>
+                        <div className="px-2.5 pb-2.5">{offcutBody}</div>
+                      </details>
+                    );
+                  }
+                  return (
+                    <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700">
+                      {offcutBody}
+                    </div>
+                  );
+                })()
               ) : null}
               {isStoneMeterQuote && !isStoneAccessoriesOnlyQuote && stoneMetreConsumptionRequired ? (
                 <div className="rounded-lg border border-teal-100 bg-teal-50/50 p-3 text-xs text-slate-700 space-y-2">
@@ -4895,11 +4937,13 @@ export function LiveProductionMonitor({
                       </span>
                     </p>
                   ) : null}
-                  <p className="text-ui-xs leading-snug text-slate-500">
-                    {canEditCompletedStoneMetresCorrections
-                      ? 'Enter the correct total metres, then use Save stone metres. Positive draws stone stock; negative returns stock. Pure stone jobs also update finished-goods metres.'
-                      : 'Positive metres draw stone stock (balance may go negative). Negative metres return stock. Ensure the quotation header matches the stone SKU (design, colour, gauge).'}
-                  </p>
+                  {!inModal ? (
+                    <p className="text-ui-xs leading-snug text-slate-500">
+                      {canEditCompletedStoneMetresCorrections
+                        ? 'Enter the correct total metres, then use Save stone metres. Positive draws stone stock; negative returns stock. Pure stone jobs also update finished-goods metres.'
+                        : 'Positive metres draw stone stock (balance may go negative). Negative metres return stock. Ensure the quotation header matches the stone SKU (design, colour, gauge).'}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
               {stonePureNoCoil && !isStoneAccessoriesOnlyQuote && !stoneMetreConsumptionRequired ? (
@@ -4929,11 +4973,13 @@ export function LiveProductionMonitor({
                       className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-zarewa-teal"
                     />
                   </label>
-                  <p className="text-ui-xs leading-snug text-slate-500">
-                    This is the job&rsquo;s total production output, posted as this job&rsquo;s completed metres.
-                    Leave blank when all of it came from the offcut stock entered above — only fill this in when the
-                    total differs (e.g. some pieces were hand-cut from elsewhere too).
-                  </p>
+                  {!inModal ? (
+                    <p className="text-ui-xs leading-snug text-slate-500">
+                      This is the job&rsquo;s total production output, posted as this job&rsquo;s completed metres.
+                      Leave blank when all of it came from the offcut stock entered above — only fill this in when the
+                      total differs (e.g. some pieces were hand-cut from elsewhere too).
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
               {!stonePureNoCoil && !completionUsesOffcutMode ? (
@@ -5027,18 +5073,20 @@ export function LiveProductionMonitor({
             <div className="overflow-hidden rounded-lg border border-indigo-200/60 bg-gradient-to-br from-indigo-50/35 via-white to-white shadow-sm">
               <div
                 className={`flex flex-col gap-0.5 border-b border-indigo-100/80 bg-indigo-50/30 sm:flex-row sm:items-center sm:justify-between ${
-                  inModal ? 'px-2 py-2' : 'px-2.5 py-2'
+                  inModal ? 'px-2 py-1.5' : 'px-2.5 py-2'
                 }`}
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <BarChart3 size={15} className="text-indigo-600 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900">Conversion preview</p>
-                    <p className="text-ui-xs text-slate-500">
-                      {jobSt === 'Completed' && canEditCompletedCoilCorrections
-                        ? 'Live estimate for this correction — same kg/m rules as completion.'
-                        : 'Live estimate — nothing posts until Complete.'}
-                    </p>
+                    {!inModal ? (
+                      <p className="text-ui-xs text-slate-500">
+                        {jobSt === 'Completed' && canEditCompletedCoilCorrections
+                          ? 'Live estimate for this correction — same kg/m rules as completion.'
+                          : 'Live estimate — nothing posts until Complete.'}
+                      </p>
+                    ) : null}
                   </div>
                   <button
                     type="button"
@@ -5053,9 +5101,9 @@ export function LiveProductionMonitor({
                   <span className="text-xs font-medium text-indigo-600">Updating…</span>
                 ) : null}
               </div>
-              <div className={inModal ? 'p-2' : 'p-2.5'}>
+              <div className={inModal ? 'p-1.5 sm:p-2' : 'p-2.5'}>
                 {!canRunConversionPreview ? (
-                  <p className="rounded-md border border-dashed border-slate-200 bg-slate-50/80 px-2 py-2 text-xs text-slate-600">
+                  <p className="rounded-md border border-dashed border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-600">
                     {completionUsesOffcutMode ? (
                       stoneCoilHybrid && stoneMetreConsumptionRequired ? (
                         <>
@@ -5078,121 +5126,161 @@ export function LiveProductionMonitor({
                 ) : conversionPreviewError ? (
                   <p className="text-xs text-red-700">{conversionPreviewError}</p>
                 ) : conversionPreview?.rows?.length ? (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-1.5 text-ui-xs text-slate-600">
-                      <span className="font-semibold text-zarewa-teal">
-                        Job rollup:{' '}
-                        {formatMeters(
-                          conversionPreview.totalOutputMeters != null
-                            ? conversionPreview.totalOutputMeters
-                            : conversionPreview.totalMeters
-                        )}
-                        {conversionPreview.offcutInventoryMeters > 0 ? (
-                          <span className="font-normal text-slate-600">
-                            {' '}
-                            (coil {formatMeters(conversionPreview.totalMeters)} + offcut stock{' '}
-                            {formatMeters(conversionPreview.offcutInventoryMeters)})
+                  (() => {
+                    const rollup = (
+                      <div className="flex flex-wrap items-center gap-1.5 text-ui-xs text-slate-600">
+                        <span className="font-semibold text-zarewa-teal">
+                          {inModal ? '' : 'Job rollup: '}
+                          {formatMeters(
+                            conversionPreview.totalOutputMeters != null
+                              ? conversionPreview.totalOutputMeters
+                              : conversionPreview.totalMeters
+                          )}
+                          {conversionPreview.offcutInventoryMeters > 0 ? (
+                            <span className="font-normal text-slate-600">
+                              {' '}
+                              (coil {formatMeters(conversionPreview.totalMeters)} + offcut{' '}
+                              {formatMeters(conversionPreview.offcutInventoryMeters)})
+                            </span>
+                          ) : null}
+                          {' · '}
+                          {formatKg(conversionPreview.totalWeightKg)}
+                          {inModal ? '' : ' consumed'}
+                        </span>
+                        {conversionPreview.previewCoilsTotal != null &&
+                        conversionPreview.previewCoilCount != null &&
+                        conversionPreview.previewCoilCount < conversionPreview.previewCoilsTotal ? (
+                          <span className="rounded-full bg-sky-100 px-2 py-0.5 text-ui-xs font-semibold text-sky-950">
+                            {conversionPreview.previewCoilCount}/{conversionPreview.previewCoilsTotal} coils
                           </span>
                         ) : null}
-                        {' · '}
-                        {formatKg(conversionPreview.totalWeightKg)} consumed
-                      </span>
-                      {conversionPreview.previewCoilsTotal != null &&
-                      conversionPreview.previewCoilCount != null &&
-                      conversionPreview.previewCoilCount < conversionPreview.previewCoilsTotal ? (
-                        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-ui-xs font-semibold text-sky-950">
-                          Showing {conversionPreview.previewCoilCount} of {conversionPreview.previewCoilsTotal} coil(s)
-                          — add closing & metres on other rows when each roll finishes
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide ${
+                            conversionPreview.aggregatedAlertState === 'OK'
+                              ? 'bg-emerald-100 text-emerald-900'
+                              : 'bg-amber-100 text-amber-900'
+                          }`}
+                        >
+                          {conversionPreview.aggregatedAlertState}
                         </span>
-                      ) : null}
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide ${
-                          conversionPreview.aggregatedAlertState === 'OK'
-                            ? 'bg-emerald-100 text-emerald-900'
-                            : 'bg-amber-100 text-amber-900'
-                        }`}
-                      >
-                        {conversionPreview.aggregatedAlertState}
-                      </span>
-                      {conversionPreview.managerReviewRequired ? (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-ui-xs font-black uppercase text-red-900">
-                          Manager review likely
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                      {conversionPreview.rows.map((row, rowIdx) => {
-                        const lot = coilByNo[row.coilNo];
-                        return (
-                          <div
-                            key={
-                              row.allocationId != null && row.allocationId !== ''
-                                ? `conv-${row.allocationId}`
-                                : `conv-${row.coilNo}-${rowIdx}`
-                            }
-                            className={`rounded-lg border p-2 text-xs shadow-sm ${alertTone(row.alertState)}`}
+                        {conversionPreview.managerReviewRequired ? (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-ui-xs font-black uppercase text-red-900">
+                            Manager review
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                    const coilCards = (
+                      <div className={`grid gap-2 ${inModal ? 'sm:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3'}`}>
+                        {conversionPreview.rows.map((row, rowIdx) => {
+                          const lot = coilByNo[row.coilNo];
+                          return (
+                            <div
+                              key={
+                                row.allocationId != null && row.allocationId !== ''
+                                  ? `conv-${row.allocationId}`
+                                  : `conv-${row.coilNo}-${rowIdx}`
+                              }
+                              className={`rounded-lg border p-2 text-xs shadow-sm ${alertTone(row.alertState)}`}
+                            >
+                              <div className="flex flex-wrap items-start justify-between gap-1.5">
+                                <div className="min-w-0">
+                                  <p className="font-mono text-xs font-bold">{row.coilNo}</p>
+                                  <p className="mt-px text-ui-xs font-medium text-slate-700 line-clamp-2">
+                                    {lot?.gaugeLabel || '—'} · {lot?.colour || '—'} ·{' '}
+                                    {lot?.materialTypeName || '—'}
+                                  </p>
+                                </div>
+                                <span className="rounded-md bg-white/80 px-2 py-0.5 text-ui-xs font-bold uppercase tracking-wide">
+                                  {row.alertState}
+                                </span>
+                              </div>
+                              <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-3">
+                                <div className="rounded-md bg-white/70 px-1.5 py-1">
+                                  <p className="text-[7px] font-black uppercase opacity-70">Act</p>
+                                  <p className="text-xs font-black tabular-nums">{formatKgPerM(row.actualConversionKgPerM)}</p>
+                                </div>
+                                <div
+                                  className="rounded-md bg-white/70 px-1.5 py-1"
+                                  title={
+                                    row.standardConversionSource === 'procurement_catalog'
+                                      ? 'Standard kg/m from Procurement → Conversion catalogue'
+                                      : row.standardConversionSource === 'setup_density'
+                                        ? 'Standard kg/m from setup material density × width × gauge'
+                                        : undefined
+                                  }
+                                >
+                                  <p className="text-[7px] font-black uppercase opacity-70">
+                                    Std
+                                    {row.standardConversionSource === 'procurement_catalog' ? (
+                                      <span className="normal-case font-semibold text-slate-600"> · conv.</span>
+                                    ) : null}
+                                  </p>
+                                  <p className="text-xs font-black tabular-nums">{formatKgPerM(row.standardConversionKgPerM)}</p>
+                                </div>
+                                <div className="rounded-md bg-white/70 px-1.5 py-1">
+                                  <p className="text-[7px] font-black uppercase opacity-70">Sup</p>
+                                  <p className="text-xs font-black tabular-nums">{formatKgPerM(row.supplierConversionKgPerM)}</p>
+                                </div>
+                                <div className="rounded-md bg-white/70 px-1.5 py-1">
+                                  <p className="text-[7px] font-black uppercase opacity-70">G hist</p>
+                                  <p className="text-xs font-black tabular-nums">{formatKgPerM(row.gaugeHistoryAvgKgPerM)}</p>
+                                </div>
+                                <div className="rounded-md bg-white/70 px-1.5 py-1">
+                                  <p className="text-[7px] font-black uppercase opacity-70">C hist</p>
+                                  <p className="text-xs font-black tabular-nums">{formatKgPerM(row.coilHistoryAvgKgPerM)}</p>
+                                </div>
+                                <div className="col-span-2 rounded-md bg-white/70 px-1.5 py-1 sm:col-span-3">
+                                  <p className="text-[7px] font-black uppercase opacity-70">Var %</p>
+                                  <p className="text-ui-xs font-semibold tabular-nums leading-tight">
+                                    Std {formatPct(row.variances?.standardPct)} · Supp{' '}
+                                    {formatPct(row.variances?.supplierPct)} · G hist {formatPct(row.variances?.gaugeHistoryPct)}{' '}
+                                    · C hist {formatPct(row.variances?.coilHistoryPct)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                    const alertNeedsAttention =
+                      conversionPreview.aggregatedAlertState !== 'OK' ||
+                      conversionPreview.managerReviewRequired;
+                    if (inModal) {
+                      return (
+                        <div className="space-y-1.5">
+                          {rollup}
+                          <details
+                            key={alertNeedsAttention ? 'conv-attn' : 'conv-ok'}
+                            className={PROD_REG.disclosure}
+                            defaultOpen={alertNeedsAttention}
                           >
-                            <div className="flex flex-wrap items-start justify-between gap-1.5">
-                              <div className="min-w-0">
-                                <p className="font-mono text-xs font-bold">{row.coilNo}</p>
-                                <p className="mt-px text-ui-xs font-medium text-slate-700 line-clamp-2">
-                                  {lot?.gaugeLabel || '—'} · {lot?.colour || '—'} ·{' '}
-                                  {lot?.materialTypeName || '—'}
-                                </p>
-                              </div>
-                              <span className="rounded-md bg-white/80 px-2 py-0.5 text-ui-xs font-bold uppercase tracking-wide">
-                                {row.alertState}
+                            <summary className={PROD_REG.disclosureSummary}>
+                              <span>
+                                Per-coil kg/m
+                                <span className="ml-1 font-normal text-[var(--z-text-muted)]">
+                                  ({conversionPreview.rows.length})
+                                </span>
                               </span>
-                            </div>
-                            <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-3">
-                              <div className="rounded-md bg-white/70 px-1.5 py-1">
-                                <p className="text-[7px] font-black uppercase opacity-70">Act</p>
-                                <p className="text-xs font-black tabular-nums">{formatKgPerM(row.actualConversionKgPerM)}</p>
-                              </div>
-                              <div
-                                className="rounded-md bg-white/70 px-1.5 py-1"
-                                title={
-                                  row.standardConversionSource === 'procurement_catalog'
-                                    ? 'Standard kg/m from Procurement → Conversion catalogue'
-                                    : row.standardConversionSource === 'setup_density'
-                                      ? 'Standard kg/m from setup material density × width × gauge'
-                                      : undefined
-                                }
-                              >
-                                <p className="text-[7px] font-black uppercase opacity-70">
-                                  Std
-                                  {row.standardConversionSource === 'procurement_catalog' ? (
-                                    <span className="normal-case font-semibold text-slate-600"> · conv.</span>
-                                  ) : null}
-                                </p>
-                                <p className="text-xs font-black tabular-nums">{formatKgPerM(row.standardConversionKgPerM)}</p>
-                              </div>
-                              <div className="rounded-md bg-white/70 px-1.5 py-1">
-                                <p className="text-[7px] font-black uppercase opacity-70">Sup</p>
-                                <p className="text-xs font-black tabular-nums">{formatKgPerM(row.supplierConversionKgPerM)}</p>
-                              </div>
-                              <div className="rounded-md bg-white/70 px-1.5 py-1">
-                                <p className="text-[7px] font-black uppercase opacity-70">G hist</p>
-                                <p className="text-xs font-black tabular-nums">{formatKgPerM(row.gaugeHistoryAvgKgPerM)}</p>
-                              </div>
-                              <div className="rounded-md bg-white/70 px-1.5 py-1">
-                                <p className="text-[7px] font-black uppercase opacity-70">C hist</p>
-                                <p className="text-xs font-black tabular-nums">{formatKgPerM(row.coilHistoryAvgKgPerM)}</p>
-                              </div>
-                              <div className="col-span-2 rounded-md bg-white/70 px-1.5 py-1 sm:col-span-3">
-                                <p className="text-[7px] font-black uppercase opacity-70">Var %</p>
-                                <p className="text-ui-xs font-semibold tabular-nums leading-tight">
-                                  Std {formatPct(row.variances?.standardPct)} · Supp{' '}
-                                  {formatPct(row.variances?.supplierPct)} · G hist {formatPct(row.variances?.gaugeHistoryPct)}{' '}
-                                  · C hist {formatPct(row.variances?.coilHistoryPct)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                              <ChevronRight
+                                size={14}
+                                className={PROD_REG.disclosureChevron}
+                                aria-hidden
+                              />
+                            </summary>
+                            <div className="px-2 pb-2 pt-1">{coilCards}</div>
+                          </details>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-2">
+                        {rollup}
+                        {coilCards}
+                      </div>
+                    );
+                  })()
                 ) : (
                   <p className="text-xs text-slate-500">Preview when inputs are valid.</p>
                 )}
