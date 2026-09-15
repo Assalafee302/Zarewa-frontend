@@ -18,6 +18,7 @@
 const AGE_FIELDS = [
   'requestedAtISO',
   'requestDate',
+  'paidAtISO',
   'dateISO',
   'date',
   'createdAtISO',

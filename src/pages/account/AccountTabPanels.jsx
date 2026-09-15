@@ -56,6 +56,7 @@ export function AccountTabPanels() {
     handleDeskCancelRefund,
     handleDeskCancelPaymentRequest,
     handleDeskConfirmReceipt,
+    handleDeskAcknowledgePurchasePayment,
     handleDeskPayPoTransport,
     handleDeskPayRefund,
     handleDeskViewRefund,
@@ -163,6 +164,7 @@ export function AccountTabPanels() {
                 ) : null}
                 <FinanceDeskWorkQueues
                   onConfirmReceipt={handleDeskConfirmReceipt}
+                  onAcknowledgePurchasePayment={handleDeskAcknowledgePurchasePayment}
                   onViewReceipt={handleDeskViewReceipt}
                   onPayRequest={handleDeskPayRequest}
                   onViewPaymentRequest={handleDeskViewPaymentRequest}

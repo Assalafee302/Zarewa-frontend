@@ -438,9 +438,18 @@ const Account = () => {
   }, [workspaceBranchId, ws?.viewAllBranches, branchNameById]);
   const roleKey = String(ws?.session?.user?.roleKey || '').trim().toLowerCase();
   const isAdminRole = roleKey === 'admin';
+  const refundPayActor = ws?.session?.user;
+  const refundPayHasPermission = ws?.hasPermission;
   const overrideUnclearedPayoutHold = actorMayOverrideRefundUnclearedPayoutHold(
-    ws?.session?.user,
-    ws?.hasPermission
+    refundPayActor,
+    refundPayHasPermission,
+    {
+      heldNetNgn: Math.round(
+        Number(
+          refundPayTarget?.settlementSummary?.heldUnclearedNgn ?? refundPayTarget?.heldNetNgn ?? 0
+        ) || 0
+      ),
+    }
   );
   const canAssignTreasuryBranch = roleKey === 'admin' || roleKey === 'md' || roleKey === 'ceo';
   const showAllTreasuryInTab = Boolean(ws?.viewAllBranches && canAssignTreasuryBranch);
@@ -935,7 +944,8 @@ const Account = () => {
         }
       }
       const payeeLines = refundPayeePayoutQueueLines(target, {
-        overrideUnclearedHold: overrideUnclearedPayoutHold,
+        actor: refundPayActor,
+        hasPermission: refundPayHasPermission,
       });
       const walletOpenNgn = Math.round(Number(target?.walletOpenNgn) || 0);
       if (!payeeLines.length && walletOpenNgn <= 0) {
@@ -965,7 +975,7 @@ const Account = () => {
       setRefundReleaseWallet(walletOpenNgn > 0);
       setShowRefundPayModal(true);
     },
-    [bankAccountsForPayout, ws, overrideUnclearedPayoutHold, showToast]
+    [bankAccountsForPayout, ws, refundPayActor, refundPayHasPermission, showToast]
   );
 
   const cancelRefundBeforePay = useCallback(
@@ -1149,66 +1159,33 @@ const Account = () => {
         const treasuryAccountId = Number(
           tillLines[0]?.treasuryAccountId || validLines[0]?.treasuryAccountId || 0
         );
-        if (releaseWallet) {
-          if (!treasuryAccountId) {
-            showToast('Select a treasury account to release partner-wallet balance.', {
-              variant: 'error',
-            });
-            return;
-          }
-          const byParty = new Map();
-          for (const credit of walletCredits) {
-            const key = `${credit.partyKind || 'customer'}::${credit.partyId || ''}`;
-            const prev = byParty.get(key) || {
-              partyKind: credit.partyKind || 'customer',
-              partyId: String(credit.partyId || '').trim(),
-              partyName: credit.partyName || credit.payeeName || '',
-              amountNgn: 0,
-            };
-            prev.amountNgn += Math.round(Number(credit.openNgn) || 0);
-            byParty.set(key, prev);
-          }
-          for (const party of byParty.values()) {
-            if (!party.partyId || party.amountNgn <= 0) continue;
-            const { ok, data } = await apiFetch('/api/partner-wallets/withdraw', {
-              method: 'POST',
-              body: JSON.stringify({
-                partyKind: party.partyKind,
-                partyId: party.partyId,
-                partyName: party.partyName,
-                amountNgn: party.amountNgn,
-                treasuryAccountId,
-                refundId: rid,
-                reference: '',
-                note: refundPaymentNote.trim() || `Refund ${rid} partner wallet release`,
-                paidBy: activeActorLabel,
-              }),
-            });
-            if (!ok || !data?.ok) {
-              showToast(data?.error || 'Could not release partner-wallet balance.', {
-                variant: 'error',
-              });
-              return;
-            }
-          }
-        }
-        let payDelta = null;
-        if (tillLines.length > 0) {
-          const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/pay`, {
-            method: 'POST',
-            body: JSON.stringify({
-              paidBy: activeActorLabel,
-              paymentNote: refundPaymentNote.trim(),
-              note: refundPaymentNote.trim(),
-              paymentLines: tillLines,
-            }),
+        if (releaseWallet && !treasuryAccountId) {
+          showToast('Select a treasury account to release partner-wallet balance.', {
+            variant: 'error',
           });
-          if (!ok || !data?.ok) {
-            showToast(data?.error || 'Could not record refund payout.', { variant: 'error' });
-            return;
-          }
-          payDelta = data?.delta || null;
+          return;
         }
+        const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/pay`, {
+          method: 'POST',
+          body: JSON.stringify({
+            paidBy: activeActorLabel,
+            paymentNote: refundPaymentNote.trim(),
+            note: refundPaymentNote.trim(),
+            paymentLines: tillLines,
+            releasePartnerWallet: releaseWallet,
+            treasuryAccountId: releaseWallet ? treasuryAccountId : undefined,
+          }),
+        });
+        if (!ok || !data?.ok) {
+          const blockerHint = Array.isArray(data?.unclearedReceiptIds) && data.unclearedReceiptIds.length
+            ? ` Confirm: ${data.unclearedReceiptIds.join(', ')}.`
+            : '';
+          showToast((data?.error || 'Could not record refund payout.') + blockerHint, {
+            variant: 'error',
+          });
+          return;
+        }
+        const payDelta = data?.delta || null;
         if (!(payDelta && ws.applyWriteDelta?.(payDelta))) {
           void ws.refreshDomain?.('finance');
         }
@@ -1994,13 +1971,14 @@ const Account = () => {
   const refundPaySelectedPayee = useMemo(() => {
     if (!refundPayTarget) return null;
     const lines = refundPayeePayoutQueueLines(refundPayTarget, {
-      overrideUnclearedHold: overrideUnclearedPayoutHold,
+      actor: refundPayActor,
+      hasPermission: refundPayHasPermission,
     });
     if (refundPayPayeeKey) {
       return lines.find((line) => line.queueKey === refundPayPayeeKey) ?? null;
     }
     return lines.length === 1 ? lines[0] : null;
-  }, [refundPayTarget, refundPayPayeeKey, overrideUnclearedPayoutHold]);
+  }, [refundPayTarget, refundPayPayeeKey, refundPayActor, refundPayHasPermission]);
 
   const receiptsVisibleInReconciliationQueue = useMemo(() => salesReceipts, [salesReceipts]);
 
@@ -2281,6 +2259,28 @@ const Account = () => {
       openReceiptFinance(receipt, receipt._movementId || null);
     },
     [openReceiptFinance]
+  );
+
+  const handleDeskAcknowledgePurchasePayment = useCallback(
+    async (ack) => {
+      const ackId = String(ack?.ackId || '').trim();
+      if (!ackId) return;
+      if (!wsCanMutate) {
+        showToast('Workspace is read-only right now.', { variant: 'error' });
+        return;
+      }
+      const { ok, data } = await apiFetch(
+        `/api/purchase-payment-cashier-acks/${encodeURIComponent(ackId)}/acknowledge`,
+        { method: 'PATCH', body: {} }
+      );
+      if (!ok) {
+        showToast(data?.error || 'Could not acknowledge purchase payment.', { variant: 'error' });
+        return;
+      }
+      void ws?.refreshDomain?.('finance');
+      showToast('Purchase payment acknowledged in your book.', { variant: 'success' });
+    },
+    [showToast, ws, wsCanMutate]
   );
 
   useEffect(() => {
@@ -3770,6 +3770,7 @@ const Account = () => {
       cancelPaymentRequestBeforePay,
       cancelPayRequestBusyId,
       handleDeskConfirmReceipt,
+      handleDeskAcknowledgePurchasePayment,
       handleDeskPayPoTransport,
       handleDeskPayRefund,
       handleDeskViewRefund,
@@ -3903,6 +3904,7 @@ const Account = () => {
       cancelPaymentRequestBeforePay,
       cancelPayRequestBusyId,
       handleDeskConfirmReceipt,
+      handleDeskAcknowledgePurchasePayment,
       handleDeskPayPoTransport,
       handleDeskPayRefund,
       handleDeskViewRefund,
@@ -4542,22 +4544,45 @@ const Account = () => {
                 ) : null}
                 {refundPaySelectedPayee?.payoutHeldForUnclearedReceipts ||
                 refundCashierMoneyStory(refundPayTarget).unclearedHoldNgn > 0 ? (
-                  <p className="text-xs text-amber-950 leading-relaxed">
-                    {overrideUnclearedPayoutHold
-                      ? 'This payee has unconfirmed receipts. You can release the held slice with a short note (manager / Head of Accounts / admin).'
-                      : (() => {
-                          const story = refundCashierMoneyStory(refundPayTarget);
-                          const held = Math.round(Number(story.unclearedHoldNgn) || 0);
-                          const ready = Math.max(
-                            0,
-                            Math.round(Number(story.tillPayableNgn ?? story.cashDueNgn) || 0)
-                          );
-                          if (ready > 0 && held > 0) {
-                            return `₦${held.toLocaleString('en-NG')} held until receipts are confirmed; ₦${ready.toLocaleString('en-NG')} ready to release now.`;
-                          }
-                          return 'Till payout is held until this payee’s unconfirmed receipts are confirmed.';
-                        })()}
-                  </p>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2.5 space-y-1.5 text-xs text-amber-950">
+                    <p className="leading-relaxed">
+                      {overrideUnclearedPayoutHold
+                        ? 'This quotation still has unconfirmed receipts. You can release the held slice with a short payment note (audited).'
+                        : (() => {
+                            const story = refundCashierMoneyStory(refundPayTarget);
+                            const held = Math.round(Number(story.unclearedHoldNgn) || 0);
+                            const ready = Math.max(
+                              0,
+                              Math.round(Number(story.tillPayableNgn ?? story.cashDueNgn) || 0)
+                            );
+                            if (ready > 0 && held > 0) {
+                              return `₦${held.toLocaleString('en-NG')} held until receipts on this quotation are confirmed; ₦${ready.toLocaleString('en-NG')} ready to release now.`;
+                            }
+                            return 'Till payout is held until unconfirmed receipts on this quotation are confirmed.';
+                          })()}
+                    </p>
+                    {(() => {
+                      const ids =
+                        refundPayTarget?.settlementSummary?.unclearedReceiptIds ||
+                        refundPaySelectedPayee?.unclearedReceiptIds ||
+                        [];
+                      if (!Array.isArray(ids) || !ids.length) return null;
+                      return (
+                        <p className="font-semibold text-amber-950">
+                          Confirm receipt{ids.length > 1 ? 's' : ''}:{' '}
+                          <span className="font-mono">{ids.join(', ')}</span>
+                          {' → then Pay.'}
+                        </p>
+                      );
+                    })()}
+                    {Array.isArray(refundPayTarget?.settlementSummary?.payoutBlockers)
+                      ? refundPayTarget.settlementSummary.payoutBlockers.map((b) => (
+                          <p key={b.code} className="text-amber-900/90">
+                            {b.action || b.message}
+                          </p>
+                        ))
+                      : null}
+                  </div>
                 ) : null}
                 {Math.round(Number(refundPayTarget.walletOpenNgn) || 0) > 0 ? (
                   <div className="rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2.5 space-y-2">

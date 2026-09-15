@@ -170,6 +170,8 @@ export function FinanceDeskWorkQueues({
 
   onViewReceipt,
 
+  onAcknowledgePurchasePayment,
+
   onPayRequest,
 
   onViewPaymentRequest,
@@ -340,6 +342,15 @@ export function FinanceDeskWorkQueues({
     [ws?.snapshot?.registerSettlementsAwaitingPayment],
   );
 
+  const purchasePaymentAcksAll = useMemo(() => {
+    const rows = Array.isArray(ws?.snapshot?.purchasePaymentCashierAcksPending)
+      ? ws.snapshot.purchasePaymentCashierAcksPending
+      : [];
+    return sortQueueOldestFirst(
+      rows.filter((r) => String(r?.status || 'Pending') === 'Pending')
+    );
+  }, [ws?.snapshot?.purchasePaymentCashierAcksPending]);
+
   const pendingReceiptsAll = useMemo(
     () =>
       sortQueueOldestFirst(
@@ -350,6 +361,22 @@ export function FinanceDeskWorkQueues({
   );
 
   const deskQuery = String(searchQuery || "").trim();
+
+  const purchasePaymentAcks = useMemo(() => {
+    const list = deskQuery
+      ? purchasePaymentAcksAll.filter((r) =>
+          deskSearchMatches(deskQuery, [
+            r.ackId,
+            r.poId,
+            r.apId,
+            r.supplierName,
+            r.paidByName,
+            r.sourceId,
+          ])
+        )
+      : purchasePaymentAcksAll;
+    return deskQuery ? list : list.slice(0, DESK_QUEUE_CAP);
+  }, [purchasePaymentAcksAll, deskQuery]);
 
   const pendingReceipts = useMemo(() => {
     const list = deskQuery
@@ -567,6 +594,7 @@ export function FinanceDeskWorkQueues({
 
   const moneyInQueueCount =
     pendingReceiptsAll.length +
+    purchasePaymentAcksAll.length +
     staffRecoveriesDue.length +
     staffObligationsDue.length;
 
@@ -948,6 +976,57 @@ export function FinanceDeskWorkQueues({
                     : 'No receipts waiting to confirm.'}
                 </p>
               )}
+
+              {purchasePaymentAcks.length > 0 ? (
+                <FinanceDeskColoredQueuePanel
+                  theme="amber"
+                  title="Acknowledge purchase payments"
+                  icon={<ClipboardList size={16} strokeWidth={2} />}
+                  count={deskQuery ? purchasePaymentAcks.length : purchasePaymentAcksAll.length}
+                  description={
+                    deskQuery
+                      ? `Matching ${purchasePaymentAcks.length} of ${purchasePaymentAcksAll.length}.`
+                      : 'MD/Finance already paid — confirm you recorded it in your book.'
+                  }
+                >
+                  <ul className="space-y-1.5" data-testid="desk-purchase-payment-acks">
+                    {purchasePaymentAcks.map((ack) => {
+                      const refLabel = [ack.poId, ack.apId].filter(Boolean).join(' · ') || ack.sourceId;
+                      const paidDay = String(ack.paidAtISO || '').slice(0, 10);
+                      return (
+                        <FinanceDeskColoredQueueRow
+                          key={ack.ackId}
+                          theme="amber"
+                          title={
+                            <>
+                              <span className="font-medium text-slate-900">
+                                {ack.supplierName || 'Supplier'}
+                              </span>
+                              {refLabel ? (
+                                <span className="font-mono text-slate-600"> {refLabel}</span>
+                              ) : null}
+                            </>
+                          }
+                          meta={[paidDay ? `Paid ${paidDay}` : null, ack.paidByName ? `By ${ack.paidByName}` : null]
+                            .filter(Boolean)
+                            .join(' · ')}
+                          amount={formatNgn(ack.amountNgn)}
+                          actions={
+                            onAcknowledgePurchasePayment ? (
+                              <FinanceDeskQueueActionButton
+                                tone="primary"
+                                onClick={() => onAcknowledgePurchasePayment(ack)}
+                              >
+                                Acknowledge
+                              </FinanceDeskQueueActionButton>
+                            ) : null
+                          }
+                        />
+                      );
+                    })}
+                  </ul>
+                </FinanceDeskColoredQueuePanel>
+              ) : null}
             </section>
 
             <FinanceTreasuryAwaitingPayoutQueues
