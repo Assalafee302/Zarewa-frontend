@@ -1,5 +1,4 @@
 import { hasPermissionInList } from './moduleAccess';
-import { isBranchManagerApprovalAuthority } from '../shared/workspaceGovernance';
 
 const MANAGEMENT_REPORTS_VIEWER_ROLE_KEYS = new Set(['admin', 'md', 'ceo', 'chairman', 'sales_manager', 'finance_manager']);
 
@@ -11,9 +10,9 @@ export function userMayViewManagementReportsClient(roleKey, permissions) {
   return hasPermissionInList(permissions, 'reports.view');
 }
 
-/** Branch manager Command Centre — Intelligence tab only (not full exec dashboard). */
-export function userMayAccessBranchCommandCentreClient(roleKey, permissions) {
-  return isBranchManagerApprovalAuthority(roleKey) && userMayViewManagementReportsClient(roleKey, permissions);
+/** Branch manager Command Centre — retired; BM uses `/manager` only (no `/exec`). */
+export function userMayAccessBranchCommandCentreClient(_roleKey, _permissions) {
+  return false;
 }
 
 /** Full exec Command Centre (overview, decide, finance, etc.). */

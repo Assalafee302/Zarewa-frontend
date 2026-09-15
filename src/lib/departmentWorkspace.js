@@ -90,7 +90,7 @@ const DEFAULT_HOME_BY_ROLE = {
   finance_manager: '/accounting',
   sales_manager: '/manager',
   branch_manager: '/manager',
-  sales_staff: '/',
+  sales_staff: '/sales',
   cashier: '/accounts',
   operations_officer: '/operations',
   hr_portal_only: '/my-profile',

@@ -65,6 +65,7 @@ describe('workspaceZoneConfig', () => {
     expect(cfg.actionChips.some((c) => c.id === 'high_value')).toBe(true);
     expect(cfg.title).toMatch(/Executive/i);
     expect(cfg.apps.some((a) => a.path === '/chairman')).toBe(true);
+    expect(cfg.apps.some((a) => a.path === '/manager')).toBe(false);
     const chairmanCfg = getWorkspaceZoneConfig({
       roleKey: 'chairman',
       permissions: ['exec.dashboard.view', 'office.use'],

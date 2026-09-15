@@ -173,7 +173,7 @@ export function BranchManagerPulseSection({
               </h3>
               {mayViewReports ? (
                 <Link
-                  to="/exec?tab=intelligence"
+                  to="/analytics"
                   className="text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
                 >
                   Business intelligence

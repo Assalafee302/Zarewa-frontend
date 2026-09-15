@@ -26,7 +26,6 @@ import {
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { appConfirm } from '../../lib/appConfirm';
 import {
-  userMayAccessBranchCommandCentreClient,
   userMayAccessExecutiveCommandCentreClient,
   userMayViewManagementReportsClient,
 } from '../../lib/reportsAccess';
@@ -95,8 +94,7 @@ const Sidebar = ({
   const managementPending = Math.max(0, Number(managementAttentionPendingCount) || 0);
   const mayViewBi = userMayViewManagementReportsClient(roleKey, permissions);
   const hasExecNav = userMayAccessExecutiveCommandCentreClient(permissions);
-  const hasBranchCommandCentre = userMayAccessBranchCommandCentreClient(roleKey, permissions);
-  const showCommandCentreNav = hasExecNav || hasBranchCommandCentre;
+  const showCommandCentreNav = hasExecNav;
 
   const hasHqHr = ws?.canAccessModule?.('hr') ?? false;
   const hasExecHr = canAccessExecutiveHr(permissions);
@@ -119,9 +117,9 @@ const Sidebar = ({
     {
       icon: <LayoutDashboard size={18} />,
       label: 'Executive Office',
-      path: hasBranchCommandCentre && !hasExecNav ? '/exec?tab=intelligence' : '/exec',
+      path: '/exec',
       active: pathMatches(p, '/exec'),
-      visible: showCommandCentreNav && roleKey !== 'ceo' && roleKey !== 'chairman' && (hasExecNav ? ['md', 'admin'].includes(roleKey) : hasBranchCommandCentre),
+      visible: hasExecNav && ['md', 'admin'].includes(String(roleKey || '').trim().toLowerCase()),
     },
     {
       icon: <Landmark size={18} />,
@@ -130,7 +128,13 @@ const Sidebar = ({
       active: pathMatches(p, '/chairman'),
       visible: userMayAccessChairmanOfficeClient(roleKey, permissions) && roleKey !== 'chairman',
     },
-    { icon: <Home size={18} />, label: 'Workspace', path: '/', badgeCount: staffCreditPending },
+    {
+      icon: <Home size={18} />,
+      label: 'Workspace',
+      path: '/',
+      badgeCount: staffCreditPending,
+      visible: Boolean(ws?.canAccessModule?.('office')),
+    },
     {
       icon: <Truck size={18} />,
       label: 'Procurement',

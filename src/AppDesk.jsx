@@ -59,6 +59,7 @@ import {
 } from './hooks/useAppShellSummaries';
 import { AiAskButton } from './components/AiAskButton';
 import { buildWorkspaceNotifications, WORKSPACE_NOTIFICATION_DISPLAY_LIMIT } from './lib/workspaceNotifications';
+import { approvalAttentionPathForRole } from './lib/approvalDeskPaths';
 import { apiFetch } from './lib/apiBase';
 import {
   dismissNotification,
@@ -174,7 +175,17 @@ function HomeRoute() {
   if (rk === 'operations_officer' || rk === 'storekeeper' || rk === 'store_keeper') {
     return <Navigate to="/operations" replace />;
   }
-  return <Dashboard />;
+  if (rk === 'sales_staff') {
+    return <Navigate to="/sales" replace />;
+  }
+  if (rk === 'hr_portal_only') {
+    return <Navigate to="/my-profile" replace />;
+  }
+  // Office / Workspace desk paused — only users with explicit office.use land on Dashboard.
+  if (ws?.canAccessModule?.('office')) {
+    return <Dashboard />;
+  }
+  return <Navigate to="/me" replace />;
 }
 
 function AppShell() {
@@ -741,7 +752,11 @@ function AppShell() {
                         type="button"
                         className="mt-3 w-full rounded-lg border border-teal-100 bg-teal-50/80 px-3 py-2 text-left text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal"
                         onClick={() => {
-                          const fallbackPath = canFetchMgmtAttention ? '/manager?inbox=attention' : '/';
+                          const fallbackPath = canFetchMgmtAttention
+                            ? approvalAttentionPathForRole(ws?.session?.user?.roleKey, 'attention')
+                            : ws?.canAccessModule?.('office')
+                              ? '/'
+                              : '/me';
                           guardedNavigate(fallbackPath);
                           setNotifOpen(false);
                         }}
@@ -1133,7 +1148,10 @@ function AppShell() {
             <Route
               path="/manager"
               element={
-                <ModuleRouteGuard moduleKey="sales">
+                <ModuleRouteGuard
+                  moduleKey="sales"
+                  allowRoleKeys={['sales_manager', 'branch_manager', 'admin']}
+                >
                   <ManagerRouteGuard>
                     <ManagerDashboard />
                   </ManagerRouteGuard>

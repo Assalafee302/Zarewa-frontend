@@ -112,7 +112,6 @@ const APPS_BY_PROFILE = {
     { id: 'sales', label: 'Sales', path: '/sales' },
     { id: 'cashier', label: 'Cashier', path: '/cashier' },
     { id: 'operations', label: 'Operations', path: '/operations' },
-    { id: 'monitoring', label: 'Monitoring', path: '/workspace/monitoring' },
   ],
   [DESK_PROFILES.office]: [
     { id: 'sales', label: 'Sales', path: '/sales' },
@@ -125,8 +124,6 @@ const APPS_BY_PROFILE = {
   [DESK_PROFILES.executive]: [
     { id: 'exec', label: 'Executive Office', path: '/exec' },
     { id: 'chairman', label: 'Chairman Office', path: '/chairman' },
-    { id: 'manager', label: 'Branch view', path: '/manager' },
-    { id: 'monitoring', label: 'Monitoring', path: '/workspace/monitoring' },
     { id: 'reports', label: 'Reports', path: '/reports' },
   ],
 };
