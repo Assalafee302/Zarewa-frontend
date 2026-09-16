@@ -340,6 +340,8 @@ export function MaterialPricingWorkbook({
   /** Live price-list ₦/m by `gauge|design` for publish preview deltas. */
   const [liveListByKey, setLiveListByKey] = useState(() => new Map());
   const [publishPreviewLoading, setPublishPreviewLoading] = useState(false);
+  /** Customer list version date (API `effectiveFromIso`). Defaults to today; may be backdated. */
+  const [publishEffectiveFromIso, setPublishEffectiveFromIso] = useState(() => localCalendarDateIso());
 
   useEffect(() => {
     if (isActive) setMaterialKey(initialMaterialKey);
@@ -893,18 +895,24 @@ export function MaterialPricingWorkbook({
     } finally {
       setPublishPreviewLoading(false);
     }
+    setPublishEffectiveFromIso(localCalendarDateIso());
     setPublishPreviewOpen(true);
   }, [canPricingManage, materialKey, branchId, isDirty, publishPreviewRows, showToast]);
 
   const confirmPublish = useCallback(async () => {
     if (!branchId || publishing) return;
+    const effectiveFromIso = String(publishEffectiveFromIso || '').trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFromIso)) {
+      showToast('Choose a valid effective date (YYYY-MM-DD).', { variant: 'error' });
+      return;
+    }
     setPublishing(true);
     const { ok, data } = await apiFetch('/api/pricing/material-sheet/publish', {
       method: 'POST',
       body: JSON.stringify({
         materialKey,
         branchId,
-        effectiveFromIso: localCalendarDateIso(),
+        effectiveFromIso,
       }),
     });
     setPublishing(false);
@@ -917,8 +925,11 @@ export function MaterialPricingWorkbook({
       return;
     }
     const n = Array.isArray(data.published) ? data.published.length : 0;
+    const today = localCalendarDateIso();
     showToast(
-      `Published ${n} row(s) to the price list. Review Material Exceptions for quotes below floor.`
+      effectiveFromIso < today
+        ? `Published ${n} row(s) effective ${effectiveFromIso} (backdated list version).`
+        : `Published ${n} row(s) to the price list effective ${effectiveFromIso}.`
     );
     setPublishPreviewOpen(false);
     // Refresh workspace so quotations immediately resolve from updated price_list_items.
@@ -930,7 +941,7 @@ export function MaterialPricingWorkbook({
       }
     }
     void loadSheet();
-  }, [branchId, publishing, materialKey, showToast, loadSheet, ws]);
+  }, [branchId, publishing, materialKey, publishEffectiveFromIso, showToast, loadSheet, ws]);
 
   const addRidgeRow = () => {
     setRidgeCalcRows((prev) => [...prev, { id: newCalcRowId(), gaugeMm: '', materialKey: 'alu' }]);
@@ -1354,8 +1365,25 @@ export function MaterialPricingWorkbook({
           <h3 className="text-base font-black text-zarewa-teal">Review → go live</h3>
           <p className="text-ui-xs text-slate-600 mt-1 leading-relaxed">
             Drafts stay private until you publish. List ₦/m = Floor + Commission (published rounding).
-            Effective date: <strong className="text-slate-800">{localCalendarDateIso()}</strong>.
+            This versions the <strong className="text-slate-800">customer price list</strong> only — it does not
+            change workbook Floor gates for cutting list / production.
           </p>
+          <label className="mt-3 flex flex-col gap-1 max-w-xs">
+            <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+              List effective from
+            </span>
+            <input
+              type="date"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono tabular-nums text-slate-800"
+              value={publishEffectiveFromIso}
+              disabled={publishing}
+              onChange={(e) => setPublishEffectiveFromIso(String(e.target.value || '').slice(0, 10))}
+            />
+            <span className="text-[10px] text-slate-500 leading-snug">
+              Use today for a new list version, or an earlier date to backdate so older quotes resolve this list
+              on that date. Same-day re-publish updates that day&apos;s row.
+            </span>
+          </label>
           <ol className="mt-2 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wide">
             <li className="rounded-md bg-slate-100 px-2 py-1 text-slate-500">1. Draft</li>
             <li className="rounded-md bg-slate-100 px-2 py-1 text-slate-500">2. Saved</li>
@@ -1434,7 +1462,7 @@ export function MaterialPricingWorkbook({
           <Link to="/operations/material-exceptions" className="font-semibold text-zarewa-teal hover:underline">
             Material Exceptions
           </Link>{' '}
-          for quotations below the new floor.
+          for quotations below workbook Floor (MD gate uses Floor, not this list date).
         </p>
         <div className="flex flex-wrap gap-2 justify-end pt-1">
           <button
