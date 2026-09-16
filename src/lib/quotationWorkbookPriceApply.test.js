@@ -23,22 +23,22 @@ describe('applyWorkbookPricesToProductRows', () => {
       {
         id: '1',
         name: 'Roofing Sheet',
-        unitPrice: '4500',
+        unitPrice: '4000',
         floorPricePerMeter: 4000,
         recommendedPricePerMeter: 4500,
       },
     ];
     const out = applyWorkbookPricesToProductRows(rows, {
       options,
-      resolveUnitPrice: () => 4500,
+      resolveUnitPrice: () => 4000,
       resolveWorkbookLineMeta: () => ({ floorPerMeter: 4000, suggestedListPerMeter: 4500 }),
     });
     expect(out).toBe(rows);
   });
 
-  it('updates once when workbook price differs, then stabilizes', () => {
+  it('defaults unit price to floor and stamps list on recommended', () => {
     const rows = [{ id: '1', name: 'Roofing Sheet', unitPrice: '' }];
-    const resolveUnitPrice = vi.fn(() => 4500);
+    const resolveUnitPrice = vi.fn(() => 4000);
     const resolveWorkbookLineMeta = vi.fn(() => ({
       floorPerMeter: 4000,
       suggestedListPerMeter: 4500,
@@ -50,8 +50,9 @@ describe('applyWorkbookPricesToProductRows', () => {
       resolveWorkbookLineMeta,
     });
     expect(once).not.toBe(rows);
-    expect(once[0].unitPrice).toBe('4500');
+    expect(once[0].unitPrice).toBe('4000');
     expect(once[0].floorPricePerMeter).toBe(4000);
+    expect(once[0].recommendedPricePerMeter).toBe(4500);
 
     const twice = applyWorkbookPricesToProductRows(once, {
       options,
@@ -66,14 +67,14 @@ describe('applyWorkbookPricesToProductRows', () => {
       {
         id: '1',
         name: 'Roofing Sheet',
-        unitPrice: '4500',
+        unitPrice: '4000',
         floorPricePerMeter: 4000,
         recommendedPricePerMeter: 4500,
       },
     ];
     const out = applyWorkbookPricesToProductRows(rows, {
       options,
-      resolveUnitPrice: () => 4500,
+      resolveUnitPrice: () => 4000,
       resolveWorkbookLineMeta: () => null,
     });
     expect(out).toBe(rows);
@@ -90,13 +91,12 @@ describe('applyWorkbookPricesToProductRows', () => {
   });
 
   it('survives repeated apply cycles without allocating new arrays (React #185 guard)', () => {
-    let rows = [{ id: '1', name: 'Roofing Sheet', unitPrice: '4500' }];
+    let rows = [{ id: '1', name: 'Roofing Sheet', unitPrice: '4000' }];
     const ctx = {
       options,
-      resolveUnitPrice: () => 4500,
+      resolveUnitPrice: () => 4000,
       resolveWorkbookLineMeta: () => ({ floorPerMeter: 4000, suggestedListPerMeter: 4500 }),
     };
-    // First apply may attach floor/recommended meta.
     rows = applyWorkbookPricesToProductRows(rows, ctx);
     const stable = rows;
     for (let i = 0; i < 40; i += 1) {
@@ -105,7 +105,7 @@ describe('applyWorkbookPricesToProductRows', () => {
     }
   });
 
-  it('preserves unit price edited above the price list', () => {
+  it('preserves unit price edited above the floor', () => {
     const rows = [
       {
         id: '1',
@@ -117,7 +117,7 @@ describe('applyWorkbookPricesToProductRows', () => {
     ];
     const out = applyWorkbookPricesToProductRows(rows, {
       options,
-      resolveUnitPrice: () => 4500,
+      resolveUnitPrice: () => 4000,
       resolveWorkbookLineMeta: () => ({ floorPerMeter: 4000, suggestedListPerMeter: 4500 }),
     });
     expect(out).toBe(rows);
@@ -136,7 +136,7 @@ describe('applyWorkbookPricesToProductRows', () => {
     ];
     const out = applyWorkbookPricesToProductRows(rows, {
       options,
-      resolveUnitPrice: () => 4800,
+      resolveUnitPrice: () => 4200,
       resolveWorkbookLineMeta: () => ({ floorPerMeter: 4200, suggestedListPerMeter: 4800 }),
     });
     expect(out).not.toBe(rows);
@@ -145,22 +145,23 @@ describe('applyWorkbookPricesToProductRows', () => {
     expect(out[0].recommendedPricePerMeter).toBe(4800);
   });
 
-  it('rolls forward when the line is still on the previous list default', () => {
+  it('rolls forward when the line is still on the previous floor default', () => {
     const rows = [
       {
         id: '1',
         name: 'Roofing Sheet',
-        unitPrice: '4500',
+        unitPrice: '4000',
         floorPricePerMeter: 4000,
         recommendedPricePerMeter: 4500,
       },
     ];
     const out = applyWorkbookPricesToProductRows(rows, {
       options,
-      resolveUnitPrice: () => 4800,
+      resolveUnitPrice: () => 4200,
       resolveWorkbookLineMeta: () => ({ floorPerMeter: 4200, suggestedListPerMeter: 4800 }),
     });
-    expect(out[0].unitPrice).toBe('4800');
+    expect(out[0].unitPrice).toBe('4200');
+    expect(out[0].floorPricePerMeter).toBe(4200);
     expect(out[0].recommendedPricePerMeter).toBe(4800);
   });
 
@@ -176,7 +177,7 @@ describe('applyWorkbookPricesToProductRows', () => {
     ];
     const out = applyWorkbookPricesToProductRows(rows, {
       options,
-      resolveUnitPrice: () => 4500,
+      resolveUnitPrice: () => 4000,
       resolveWorkbookLineMeta: () => ({ floorPerMeter: 4000, suggestedListPerMeter: 4500 }),
     });
     expect(out).toBe(rows);
@@ -187,11 +188,29 @@ describe('applyWorkbookPricesToProductRows', () => {
     const rows = [{ id: '1', name: 'Roofing Sheet', unitPrice: '5100' }];
     const out = applyWorkbookPricesToProductRows(rows, {
       options,
-      resolveUnitPrice: () => 4500,
+      resolveUnitPrice: () => 4000,
       resolveWorkbookLineMeta: () => ({ floorPerMeter: 4000, suggestedListPerMeter: 4500 }),
     });
     expect(out[0].unitPrice).toBe('5100');
     expect(out[0].floorPricePerMeter).toBe(4000);
     expect(out[0].recommendedPricePerMeter).toBe(4500);
+  });
+
+  it('does not treat a prior list-priced line as floor-tracking after policy change', () => {
+    const rows = [
+      {
+        id: '1',
+        name: 'Roofing Sheet',
+        unitPrice: '4500',
+        floorPricePerMeter: 4000,
+        recommendedPricePerMeter: 4500,
+      },
+    ];
+    const out = applyWorkbookPricesToProductRows(rows, {
+      options,
+      resolveUnitPrice: () => 4000,
+      resolveWorkbookLineMeta: () => ({ floorPerMeter: 4000, suggestedListPerMeter: 4500 }),
+    });
+    expect(out[0].unitPrice).toBe('4500');
   });
 });

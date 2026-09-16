@@ -3,11 +3,12 @@
  * Must return the same `prev` reference when nothing changed — rewriting rows
  * every time caused React #185 (product select → options → refresh → rows → …).
  *
- * Default unit price = published/suggested list. Sales may edit above list freely.
- * Below-floor quotes stay editable (MD approval gates cutting list / production).
- * Auto-refresh only fills empty lines or lines still on the previous list default;
- * it must not overwrite a custom unit price. recommendedPricePerMeter tracks the
- * resolved list unit (published preferred), so re-publish can roll list-tracking lines forward.
+ * Default unit price = branch workbook **floor** (minimum ₦/m). Sales may raise
+ * toward/above list freely. Below-floor quotes stay editable (MD approval gates
+ * cutting list / production). Auto-refresh only fills empty lines or lines still
+ * on the previous floor default; it must not overwrite a custom unit price.
+ * recommendedPricePerMeter stores the branch **list** (floor+commission) for the
+ * List badge; floorPricePerMeter is the roll-forward default.
  */
 
 import { isMeterSheetProductLine } from './materialWorkbookQuotationPrice.js';
@@ -50,11 +51,16 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
     const wbMeta = metaOf(name, { girthMm });
     const nextGirthMm =
       isQuotationTrimProductLine(name) && !row.girthMm && girthMm ? girthMm : row.girthMm;
-    const listUnit = String(price);
-    const nextFloorStr = wbMeta?.floorPerMeter != null ? String(wbMeta.floorPerMeter) : '';
-    // Track the resolved list default (published list preferred over draft workbook).
-    // Storing workbook-only suggested when unit is published breaks roll-forward after re-publish.
-    const nextRecStr = listUnit;
+    const floorUnit = String(price);
+    const nextFloorStr =
+      wbMeta?.floorPerMeter != null && Number(wbMeta.floorPerMeter) > 0
+        ? String(wbMeta.floorPerMeter)
+        : floorUnit;
+    // List badge / commission reference — not the default unit.
+    const nextRecStr =
+      wbMeta?.suggestedListPerMeter != null && Number(wbMeta.suggestedListPerMeter) > 0
+        ? String(wbMeta.suggestedListPerMeter)
+        : '';
     const prevFloorStr =
       row.floorPricePerMeter != null && row.floorPricePerMeter !== ''
         ? String(row.floorPricePerMeter)
@@ -66,12 +72,12 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
     const prevUnit = String(row.unitPrice ?? '');
     const prevUnitNum = Number(prevUnit);
     const emptyUnit = !(prevUnitNum > 0);
-    // Still on the prior list default → safe to roll forward when list changes.
-    const trackingListDefault = prevRecStr !== '' && prevUnit === prevRecStr;
-    const shouldApplyListDefault = emptyUnit || trackingListDefault;
-    const nextUnit = shouldApplyListDefault ? listUnit : prevUnit;
+    // Still on the prior floor default → safe to roll forward when floor changes.
+    const trackingFloorDefault = prevFloorStr !== '' && prevUnit === prevFloorStr;
+    const shouldApplyFloorDefault = emptyUnit || trackingFloorDefault;
+    const nextUnit = shouldApplyFloorDefault ? floorUnit : prevUnit;
     const floorSame = nextFloorStr === '' || prevFloorStr === nextFloorStr;
-    const recSame = prevRecStr === nextRecStr;
+    const recSame = nextRecStr === '' || prevRecStr === nextRecStr;
     if (
       prevUnit === nextUnit &&
       String(row.girthMm ?? '') === String(nextGirthMm ?? '') &&
@@ -81,12 +87,17 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
       return row;
     }
     anyChange = true;
+    const nextRecNum = Number(nextRecStr);
     return {
       ...row,
       unitPrice: nextUnit,
       ...(nextGirthMm && nextGirthMm !== row.girthMm ? { girthMm: nextGirthMm } : {}),
-      ...(wbMeta?.floorPerMeter ? { floorPricePerMeter: wbMeta.floorPerMeter } : {}),
-      recommendedPricePerMeter: price,
+      ...(wbMeta?.floorPerMeter ? { floorPricePerMeter: wbMeta.floorPerMeter } : { floorPricePerMeter: price }),
+      ...(nextRecNum > 0
+        ? { recommendedPricePerMeter: nextRecNum }
+        : prevRecStr
+          ? {}
+          : {}),
     };
   });
   return anyChange ? next : prev;

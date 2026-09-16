@@ -69,7 +69,6 @@ import { appConfirm } from '../../lib/appConfirm';
 import {
   materialKeyFromMaterialTypeRow,
   resolveMaterialWorkbookPriceFromRows,
-  resolvePublishedListUnitNgnFromItems,
 } from '../../lib/materialWorkbookQuotationPrice';
 import { selectPriceListRowsAsOf, localCalendarDateIso } from '../../lib/pricingAsOf';
 import {
@@ -78,10 +77,7 @@ import {
   quotationLineKindForProductName,
   TRIM_GIRTH_OPTIONS_MM,
 } from '../../lib/cuttingListBlankConsumption';
-import {
-  resolveTrimListPricePerMeterFromWorkbook,
-  resolveTrimWorkbookMetaFromWorkbook,
-} from '../../lib/materialWorkbookTrimPrice';
+import { resolveTrimWorkbookMetaFromWorkbook } from '../../lib/materialWorkbookTrimPrice';
 import {
   applyWorkbookPricesToProductRows,
   productUsesWorkbookAutoPrice,
@@ -614,24 +610,26 @@ function OrderLinesSection({
                               const isSfLine = isStoneFlatsheetQuotationLine(nextName);
                               const keepLen =
                                 showStoneFlatsheetLength && title === 'Products' && isSfLine;
-                              const listFallback =
+                              const floorFallback =
                                 suggestedPrice > 0
                                   ? suggestedPrice
-                                  : option?.defaultUnitPriceNgn > 0
-                                    ? Number(option.defaultUnitPriceNgn)
-                                    : 0;
+                                  : Number(option?.floorUnitPriceNgn) > 0
+                                    ? Number(option.floorUnitPriceNgn)
+                                    : option?.defaultUnitPriceNgn > 0
+                                      ? Number(option.defaultUnitPriceNgn)
+                                      : 0;
                               const sfFloor =
-                                isSfLine && listFallback > 0
+                                isSfLine && floorFallback > 0
                                   ? Math.round(
                                       Number(option?.floorUnitPriceNgn) > 0
                                         ? Number(option.floorUnitPriceNgn)
-                                        : Math.min(5500, listFallback)
+                                        : Math.min(5500, floorFallback)
                                     )
                                   : 0;
                               updateRow(row.id, {
                                 customLine: false,
                                 name: nextName,
-                                unitPrice: listFallback > 0 ? String(listFallback) : row.unitPrice,
+                                unitPrice: floorFallback > 0 ? String(floorFallback) : row.unitPrice,
                                 ...(wbMeta?.floorPerMeter
                                   ? { floorPricePerMeter: wbMeta.floorPerMeter }
                                   : sfFloor > 0
@@ -639,8 +637,8 @@ function OrderLinesSection({
                                     : {}),
                                 ...(wbMeta?.suggestedListPerMeter
                                   ? { recommendedPricePerMeter: wbMeta.suggestedListPerMeter }
-                                  : listFallback > 0 && isSfLine
-                                    ? { recommendedPricePerMeter: listFallback }
+                                  : floorFallback > 0 && isSfLine
+                                    ? { recommendedPricePerMeter: floorFallback }
                                     : {}),
                                 stoneFlatsheetLengthM: keepLen
                                   ? lmPick != null
@@ -866,15 +864,16 @@ function OrderLinesSection({
                             ? Number(wb.floorPerMeter)
                             : 0;
                       const listN =
-                        Number(row.recommendedPricePerMeter) > 0
-                          ? Number(row.recommendedPricePerMeter)
-                          : Number(wb?.suggestedListPerMeter) > 0
-                            ? Number(wb.suggestedListPerMeter)
+                        Number(wb?.suggestedListPerMeter) > 0
+                          ? Number(wb.suggestedListPerMeter)
+                          : Number(row.recommendedPricePerMeter) > 0
+                            ? Number(row.recommendedPricePerMeter)
                             : 0;
                       if (!(floorN > 0) && !(listN > 0)) return null;
                       const unitN = parseLineNum(row.unitPrice);
+                      // Default is floor — custom means desk moved off the floor default.
                       const isCustom =
-                        listN > 0 && unitN > 0 && Math.abs(unitN - listN) > 0.5;
+                        floorN > 0 && unitN > 0 && Math.abs(unitN - floorN) > 0.5;
                       const belowFloor = floorN > 0 && unitN > 0 && unitN < floorN;
                       const inBandTowardFloor =
                         !belowFloor &&
@@ -882,7 +881,7 @@ function OrderLinesSection({
                         floorN > 0 &&
                         unitN > 0 &&
                         unitN < listN &&
-                        unitN >= floorN;
+                        unitN > floorN;
                       const isTrim = isQuotationTrimProductLine(String(row.name || ''));
                       return (
                         <div className="flex flex-col gap-0.5 min-w-0">
@@ -890,7 +889,7 @@ function OrderLinesSection({
                             {floorN > 0 ? (
                               <span
                                 className="rounded bg-slate-100 px-1 py-px text-[9px] font-bold text-slate-600 tabular-nums"
-                                title="Floor — minimum ₦/m (MD gate)"
+                                title="Floor — default & minimum ₦/m (MD gate below this)"
                               >
                                 Floor {formatNgn(floorN)}
                               </span>
@@ -898,7 +897,7 @@ function OrderLinesSection({
                             {listN > 0 ? (
                               <span
                                 className="rounded bg-teal-50 px-1 py-px text-[9px] font-bold text-zarewa-teal tabular-nums"
-                                title="List — published / workbook customer price"
+                                title="List — published floor + commission (reference)"
                               >
                                 List {formatNgn(listN)}
                               </span>
@@ -907,13 +906,13 @@ function OrderLinesSection({
                           {isCustom ? (
                             <span
                               className="text-center text-[9px] font-bold text-amber-800"
-                              title="Custom unit price — auto-list updates will not overwrite this"
+                              title="Custom unit price — floor auto-updates will not overwrite this"
                             >
                               Custom price locked
                             </span>
-                          ) : listN > 0 ? (
+                          ) : floorN > 0 ? (
                             <span className="text-center text-[9px] font-semibold text-slate-400">
-                              Tracking list
+                              Tracking floor
                             </span>
                           ) : null}
                           {belowFloor ? (
@@ -1740,26 +1739,14 @@ const QuotationModal = ({
       if (isQuotationTrimProductLine(name)) {
         const girth =
           Number(girthOverride) > 0 ? Number(girthOverride) : defaultGirthMmForTrimProduct(name);
-        const trimPrice = resolveTrimListPricePerMeterFromWorkbook({ ...wbCtx, girthMm: girth });
-        if (trimPrice > 0) return trimPrice;
+        const trimMeta = resolveTrimWorkbookMetaFromWorkbook({ ...wbCtx, girthMm: girth });
+        // Default selling ₦/m = branch workbook floor (not list).
+        if (trimMeta?.floorPerMeter > 0) return trimMeta.floorPerMeter;
       }
 
       const usesWorkbook = productUsesWorkbookAutoPrice(name);
 
-      // Prefer published price list (Publish path) over draft workbook suggested list.
-      const publishedListN = usesWorkbook
-        ? resolvePublishedListUnitNgnFromItems(priceListItems, {
-            gaugeLabel: gaugeForLine,
-            designLabel: stoneFlatSheet ? '' : materialDesign,
-            materialTypeKey: materialKey,
-            branchId,
-            skipDesign: stoneFlatSheet,
-          })
-        : 0;
-
-      if (publishedListN > 0) return publishedListN;
-
-      // Fallback only when no published list row exists (legacy / unpublished branch).
+      // Default unit = branch-scoped workbook floor. List stays informational (badge / publish).
       if (usesWorkbook) {
         const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
           materialKey,
@@ -1767,7 +1754,7 @@ const QuotationModal = ({
           branchId,
           designLabel: stoneFlatSheet ? '' : materialDesign,
         });
-        if (hit?.suggestedListPerMeter > 0) return hit.suggestedListPerMeter;
+        if (hit?.floorPerMeter > 0) return hit.floorPerMeter;
       }
 
       const matches = priceListRows
@@ -1787,12 +1774,14 @@ const QuotationModal = ({
             [row.gaugeId, row.colourId, row.materialTypeId, row.profileId].filter(Boolean).length;
           return score(b) - score(a);
         });
+      // Accessories / setup books: prefer branch floor overlay when present.
+      const setupFloor = Number(option?.floorUnitPriceNgn) || 0;
+      if (setupFloor > 0) return setupFloor;
       return matches[0]?.unitPriceNgn || option?.defaultUnitPriceNgn || 0;
     },
     [
       materialPricingRows,
       ridgeAddOnsEffective,
-      priceListItems,
       priceListRows,
       materialGauge,
       materialDesign,
