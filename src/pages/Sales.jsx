@@ -589,19 +589,39 @@ const Sales = () => {
       const id = String(row?.id || '').trim();
       if (id) byId.set(id, row);
     }
+    const q = debouncedSearchQuery.trim().toLowerCase();
     // Keep just-saved rows visible even before the next server page refresh.
+    // When searching, do not re-inject the full recent snapshot — that hid server matches
+    // and made browse look like search was ignored.
     for (const row of quotations) {
       const id = String(row?.id || '').trim();
       if (!id) continue;
       const prev = byId.get(id);
       if (!prev) {
+        if (q) {
+          const blob = [
+            row.id,
+            row.customer,
+            row.customerID,
+            row.date,
+            row.total,
+            row.status,
+            row.paymentStatus,
+            row.paidNgn,
+            row.totalNgn,
+            row.lifecycleNote,
+          ]
+            .join(' ')
+            .toLowerCase();
+          if (!blob.includes(q)) continue;
+        }
         byId.set(id, row);
         continue;
       }
       if (row.quotationLines && !prev.quotationLines) byId.set(id, { ...prev, ...row });
     }
     return [...byId.values()];
-  }, [domainReady, salesTab, serverQuotations.items, quotations]);
+  }, [domainReady, salesTab, serverQuotations.items, quotations, debouncedSearchQuery]);
 
   const quotationsSearchFiltered = useMemo(() => {
     const q = debouncedSearchQuery.trim().toLowerCase();
