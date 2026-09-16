@@ -1815,14 +1815,17 @@ const QuotationModal = ({
 
   /** Stable — must not recreate when productOptions changes after a line select (that was #185). */
   const refreshWorkbookProductPrices = useCallback(() => {
+    const existingQuote = Boolean(editData?.id);
     setProductRows((prev) =>
       applyWorkbookPricesToProductRows(prev, {
         options: productOptionsRef.current,
         resolveUnitPrice: resolveUnitPriceRef.current,
         resolveWorkbookLineMeta: resolveWorkbookLineMetaRef.current,
+        // Saved quotes keep their unit/floor; later publishes must not reprice them.
+        rollForwardFloorDefaults: !existingQuote,
       })
     );
-  }, []);
+  }, [editData?.id]);
 
   useEffect(() => {
     if (!isOpen || readOnly || !materialHeaderReady) return;

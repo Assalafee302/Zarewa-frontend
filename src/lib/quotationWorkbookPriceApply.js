@@ -5,8 +5,9 @@
  *
  * Default unit price = branch workbook **floor** (minimum ₦/m). Sales may raise
  * toward/above list freely. Below-floor quotes stay editable (MD approval gates
- * cutting list / production). Auto-refresh only fills empty lines or lines still
- * on the previous floor default; it must not overwrite a custom unit price.
+ * cutting list / production). Auto-refresh only fills empty lines, or (for **new**
+ * quotes) lines still on the previous floor default. Existing saved quotes pass
+ * `rollForwardFloorDefaults: false` so a later publish cannot reprice them.
  * recommendedPricePerMeter stores the branch **list** (floor+commission) for the
  * List badge; floorPricePerMeter is the roll-forward default.
  */
@@ -30,6 +31,7 @@ export function productUsesWorkbookAutoPrice(name) {
  *   options: { name: string }[];
  *   resolveUnitPrice: (name: string, option: object | null, opts?: { girthMm?: string }) => number;
  *   resolveWorkbookLineMeta: (name: string, opts?: { girthMm?: string | number }) => null | { floorPerMeter?: number; suggestedListPerMeter?: number };
+ *   rollForwardFloorDefaults?: boolean;
  * }} ctx
  * @returns {object[]}
  */
@@ -38,6 +40,8 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
   const priceOf = ctx.resolveUnitPrice;
   const metaOf = ctx.resolveWorkbookLineMeta;
   if (typeof priceOf !== 'function' || typeof metaOf !== 'function') return prev;
+  // Existing quotes: fill empty units only — never roll a saved floor forward after a later publish.
+  const rollForwardFloorDefaults = ctx.rollForwardFloorDefaults !== false;
 
   let anyChange = false;
   const next = prev.map((row) => {
@@ -72,11 +76,17 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
     const prevUnit = String(row.unitPrice ?? '');
     const prevUnitNum = Number(prevUnit);
     const emptyUnit = !(prevUnitNum > 0);
-    // Still on the prior floor default → safe to roll forward when floor changes.
+    // Still on the prior floor default → safe to roll forward when floor changes (new quotes only).
     const trackingFloorDefault = prevFloorStr !== '' && prevUnit === prevFloorStr;
-    const shouldApplyFloorDefault = emptyUnit || trackingFloorDefault;
+    const shouldApplyFloorDefault =
+      emptyUnit || (rollForwardFloorDefaults && trackingFloorDefault);
     const nextUnit = shouldApplyFloorDefault ? floorUnit : prevUnit;
-    const floorSame = nextFloorStr === '' || prevFloorStr === nextFloorStr;
+    // Existing saved quotes freeze their stamped floor; new quotes may refresh the badge floor.
+    const stampedFloorStr =
+      !rollForwardFloorDefaults && prevFloorStr
+        ? prevFloorStr
+        : nextFloorStr || prevFloorStr;
+    const floorSame = stampedFloorStr === '' || prevFloorStr === stampedFloorStr;
     const recSame = nextRecStr === '' || prevRecStr === nextRecStr;
     if (
       prevUnit === nextUnit &&
@@ -88,11 +98,12 @@ export function applyWorkbookPricesToProductRows(prev, ctx) {
     }
     anyChange = true;
     const nextRecNum = Number(nextRecStr);
+    const stampedFloorNum = Number(stampedFloorStr);
     return {
       ...row,
       unitPrice: nextUnit,
       ...(nextGirthMm && nextGirthMm !== row.girthMm ? { girthMm: nextGirthMm } : {}),
-      ...(wbMeta?.floorPerMeter ? { floorPricePerMeter: wbMeta.floorPerMeter } : { floorPricePerMeter: price }),
+      ...(stampedFloorNum > 0 ? { floorPricePerMeter: stampedFloorNum } : {}),
       ...(nextRecNum > 0
         ? { recommendedPricePerMeter: nextRecNum }
         : prevRecStr

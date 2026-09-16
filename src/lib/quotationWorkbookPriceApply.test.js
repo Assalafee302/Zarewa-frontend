@@ -165,6 +165,26 @@ describe('applyWorkbookPricesToProductRows', () => {
     expect(out[0].recommendedPricePerMeter).toBe(4800);
   });
 
+  it('does not roll floor forward on existing quotes after a later publish', () => {
+    const rows = [
+      {
+        id: '1',
+        name: 'Roofing Sheet',
+        unitPrice: '4000',
+        floorPricePerMeter: 4000,
+        recommendedPricePerMeter: 4500,
+      },
+    ];
+    const out = applyWorkbookPricesToProductRows(rows, {
+      options,
+      resolveUnitPrice: () => 4200,
+      resolveWorkbookLineMeta: () => ({ floorPerMeter: 4200, suggestedListPerMeter: 4800 }),
+      rollForwardFloorDefaults: false,
+    });
+    expect(out[0].unitPrice).toBe('4000');
+    expect(out[0].floorPricePerMeter).toBe(4000);
+  });
+
   it('preserves below-floor custom prices (MD approval path)', () => {
     const rows = [
       {
