@@ -1816,16 +1816,18 @@ const QuotationModal = ({
   /** Stable — must not recreate when productOptions changes after a line select (that was #185). */
   const refreshWorkbookProductPrices = useCallback(() => {
     const existingQuote = Boolean(editData?.id);
+    const paidNgn = Math.round(Number(editData?.paidNgn ?? editData?.paid_ngn) || 0);
+    // Unpaid quotes stay open to new floors; payment locks the deal.
+    const rollForwardFloorDefaults = !existingQuote || paidNgn <= 0;
     setProductRows((prev) =>
       applyWorkbookPricesToProductRows(prev, {
         options: productOptionsRef.current,
         resolveUnitPrice: resolveUnitPriceRef.current,
         resolveWorkbookLineMeta: resolveWorkbookLineMetaRef.current,
-        // Saved quotes keep their unit/floor; later publishes must not reprice them.
-        rollForwardFloorDefaults: !existingQuote,
+        rollForwardFloorDefaults,
       })
     );
-  }, [editData?.id]);
+  }, [editData?.id, editData?.paidNgn, editData?.paid_ngn]);
 
   useEffect(() => {
     if (!isOpen || readOnly || !materialHeaderReady) return;
