@@ -640,9 +640,17 @@ export function MaterialPricingWorkbook({
     }
     setSavingAll(true);
 
-    const finishOk = (saved) => {
-      showToast(`Saved ${saved} draft row(s). Use Publish to update the price list.`);
+    const finishOk = async (saved) => {
+      showToast(`Saved ${saved} draft row(s). Quotes use the saved floor now; Publish updates the customer list.`);
       void loadSheet();
+      // Floor defaults come from workspace materialPricingRows — refresh so desks see new floors immediately.
+      if (typeof ws?.refresh === 'function') {
+        try {
+          await ws.refresh();
+        } catch {
+          /* non-fatal */
+        }
+      }
     };
 
     const bulk = await apiFetch('/api/pricing/material-sheet/rows/bulk', {
@@ -651,7 +659,7 @@ export function MaterialPricingWorkbook({
     });
     if (bulk.ok && bulk.data?.ok) {
       setSavingAll(false);
-      finishOk(Number(bulk.data.saved) || rows.length);
+      await finishOk(Number(bulk.data.saved) || rows.length);
       return;
     }
     const bulkMissing =
@@ -680,10 +688,19 @@ export function MaterialPricingWorkbook({
     setSavingAll(false);
     if (firstError) {
       showToast(`${firstError} (stopped at ${saved}/${rows.length} saved)`, { variant: 'error' });
-      if (saved > 0) void loadSheet();
+      if (saved > 0) {
+        void loadSheet();
+        if (typeof ws?.refresh === 'function') {
+          try {
+            await ws.refresh();
+          } catch {
+            /* non-fatal */
+          }
+        }
+      }
       return;
     }
-    finishOk(saved);
+    await finishOk(saved);
   };
 
   const addWorkbookLine = () => {
@@ -859,7 +876,9 @@ export function MaterialPricingWorkbook({
     }
     setPublishPreviewLoading(true);
     try {
-      const { ok, data } = await apiFetch('/api/pricing/price-list');
+      const { ok, data } = await apiFetch(
+        `/api/pricing/price-list?branchId=${encodeURIComponent(branchId)}`
+      );
       const next = new Map();
       if (ok && data?.ok && Array.isArray(data.items)) {
         for (const it of data.items) {
@@ -875,7 +894,7 @@ export function MaterialPricingWorkbook({
       setPublishPreviewLoading(false);
     }
     setPublishPreviewOpen(true);
-  }, [canPricingManage, materialKey, isDirty, publishPreviewRows, showToast]);
+  }, [canPricingManage, materialKey, branchId, isDirty, publishPreviewRows, showToast]);
 
   const confirmPublish = useCallback(async () => {
     if (!branchId || publishing) return;
