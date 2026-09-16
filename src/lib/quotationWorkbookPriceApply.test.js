@@ -185,7 +185,7 @@ describe('applyWorkbookPricesToProductRows', () => {
     expect(out[0].floorPricePerMeter).toBe(4000);
   });
 
-  it('unpaid existing quotes may still roll floor forward', () => {
+  it('new drafts may still roll floor forward when enabled', () => {
     const rows = [
       {
         id: '1',
