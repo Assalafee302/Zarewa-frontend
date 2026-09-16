@@ -292,6 +292,9 @@ const Sales = () => {
     enabled: domainReady && salesTab === 'cuttinglist',
     pageSize: 50,
     itemsKey: 'cuttingLists',
+    query: {
+      ...(debouncedSearchQuery.trim() ? { q: debouncedSearchQuery.trim() } : {}),
+    },
   });
 
   const serverRefunds = usePaginatedWorkspaceList('/api/refunds', {

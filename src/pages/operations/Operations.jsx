@@ -60,6 +60,7 @@ import { useWorkspaceDomain } from '../../hooks/useWorkspaceDomain';
 import { WorkspaceDeskSyncBanner } from '../../components/workspace/WorkspaceDeskSyncBanner';
 import { BootstrapTruncatedBanner } from '../../components/workspace/BootstrapTruncatedBanner';
 import { apiFetch } from '../../lib/apiBase';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDeskRegisterTotals } from '../../hooks/useDeskRegisterTotals';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging, useInfiniteReveal } from '../../lib/appDataTable';
 import { AppTablePager, AppTableInfiniteLoader, AppTableWrap } from '../../components/ui/AppDataTable';
@@ -622,6 +623,9 @@ const Operations = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [materialIncidentFocusId, setMaterialIncidentFocusId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedProductionSearch = useDebouncedValue(searchQuery, 300);
+  const [cuttingListSearchRemoteRows, setCuttingListSearchRemoteRows] = useState([]);
+  const [productionJobSearchRemoteRows, setProductionJobSearchRemoteRows] = useState([]);
   /** Closed-record list: all | completed | cancelled | coils_allocated (in-progress jobs are above). */
   const [productionFilter, setProductionFilter] = useState('all');
   /** In-progress panel: all | coils_allocated | no_coil | running | planned | attention */
@@ -868,7 +872,7 @@ const Operations = () => {
       topMaterials,
     };
   }, [coilLots, setupMasterData]);
-  const productionJobs = useMemo(
+  const productionJobsSnapshot = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
   );
@@ -884,11 +888,70 @@ const Operations = () => {
         : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.productionConversionChecks]
   );
-  const cuttingLists = useMemo(
+  const cuttingListsSnapshot = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
   );
+
+  useEffect(() => {
+    const q = String(debouncedProductionSearch || '').trim();
+    if (activeTab !== 'production' || q.length < 2 || !ws?.hasWorkspaceData) {
+      setCuttingListSearchRemoteRows([]);
+      setProductionJobSearchRemoteRows([]);
+      return undefined;
+    }
+    let cancelled = false;
+    void (async () => {
+      const [clRes, jobRes] = await Promise.all([
+        apiFetch(`/api/cutting-lists/search?q=${encodeURIComponent(q)}&limit=80`),
+        apiFetch(`/api/production-jobs/search?q=${encodeURIComponent(q)}&limit=80`),
+      ]);
+      if (cancelled) return;
+      setCuttingListSearchRemoteRows(
+        clRes.ok && clRes.data?.ok && Array.isArray(clRes.data.cuttingLists) ? clRes.data.cuttingLists : []
+      );
+      setProductionJobSearchRemoteRows(
+        jobRes.ok && jobRes.data?.ok && Array.isArray(jobRes.data.productionJobs)
+          ? jobRes.data.productionJobs
+          : []
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, debouncedProductionSearch, ws?.hasWorkspaceData]);
+
+  const cuttingLists = useMemo(() => {
+    if (!cuttingListSearchRemoteRows.length) return cuttingListsSnapshot;
+    const byId = new Map();
+    for (const row of cuttingListsSnapshot) {
+      const id = String(row?.id || '').trim();
+      if (id) byId.set(id, row);
+    }
+    for (const row of cuttingListSearchRemoteRows) {
+      const id = String(row?.id || '').trim();
+      if (!id) continue;
+      byId.set(id, { ...(byId.get(id) || {}), ...row });
+    }
+    return [...byId.values()];
+  }, [cuttingListsSnapshot, cuttingListSearchRemoteRows]);
+
+  const productionJobs = useMemo(() => {
+    if (!productionJobSearchRemoteRows.length) return productionJobsSnapshot;
+    const byId = new Map();
+    for (const row of productionJobsSnapshot) {
+      const id = String(row?.jobID || '').trim();
+      if (id) byId.set(id, row);
+    }
+    for (const row of productionJobSearchRemoteRows) {
+      const id = String(row?.jobID || '').trim();
+      if (!id) continue;
+      byId.set(id, { ...(byId.get(id) || {}), ...row });
+    }
+    return [...byId.values()];
+  }, [productionJobsSnapshot, productionJobSearchRemoteRows]);
+
   const workspaceQuotations = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
