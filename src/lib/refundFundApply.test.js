@@ -9,6 +9,7 @@ import {
   refundFundPaymentRowsForQuotation,
   restorePaymentLinesAfterRefundFundUnchecked,
   defaultRefundSourceSelection,
+  usableRefundSourceIds,
   stripFinishedOverpayFromConfirmEligible,
 } from './refundFundApply.js';
 
@@ -185,9 +186,9 @@ describe('refund fund apply helpers', () => {
     ).toBeNull();
   });
 
-  it('defaults cashier ticks to overpay on another job, not this quotation’s own extra cash', () => {
+  it('lists usable refund-fund sources a cashier may choose (confirm does not auto-tick)', () => {
     expect(
-      defaultRefundSourceSelection([
+      usableRefundSourceIds([
         { id: 'overpay:QT-OLD', kind: 'overpay', sameQuotation: false, availableNgn: 50_000 },
         { id: 'overpay:QT-NEW', kind: 'overpay', sameQuotation: true, availableNgn: 10_000 },
         { id: 'refund:RF-1', kind: 'refund', sameQuotation: false, availableNgn: 20_000 },
@@ -195,9 +196,9 @@ describe('refund fund apply helpers', () => {
     ).toEqual(['overpay:QT-OLD', 'refund:RF-1']);
   });
 
-  it('does not auto-tick other jobs when the target quotation already has a blocking refund', () => {
+  it('does not include other jobs when the target quotation already has a blocking refund', () => {
     expect(
-      defaultRefundSourceSelection(
+      usableRefundSourceIds(
         [
           { id: 'overpay:QT-OLD', kind: 'overpay', sameQuotation: false, availableNgn: 50_000 },
           { id: 'refund:RF-SAME', kind: 'refund', sameQuotation: true, availableNgn: 12_000 },

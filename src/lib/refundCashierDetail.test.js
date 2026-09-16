@@ -522,7 +522,7 @@ describe('refundCashierCustomerName', () => {
 });
 
 describe('actorMayOverrideRefundUnclearedPayoutHold', () => {
-  it('allows BM, Head of Accounts, and admin; cashier only for small holds', () => {
+  it('allows BM, Head of Accounts, admin, and cashier for any held size', () => {
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'admin' })).toBe(true);
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'cashier' })).toBe(false);
     expect(
@@ -530,7 +530,7 @@ describe('actorMayOverrideRefundUnclearedPayoutHold', () => {
     ).toBe(true);
     expect(
       actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'cashier' }, null, { heldNetNgn: 50_001 })
-    ).toBe(false);
+    ).toBe(true);
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'md' })).toBe(false);
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'finance_manager' })).toBe(true);
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'sales_manager' })).toBe(true);

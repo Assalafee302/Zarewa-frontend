@@ -34,16 +34,24 @@ export function planCashierRefundOffset({ receiptCashNgn, availableNgn }) {
   };
 }
 
-/** Tick every usable source. Skip same-quote overpay on confirm so this receipt’s own extra cash is not offset against itself.
- * When the target job already has a blocking refund, do not auto-tick other jobs’ credit.
+/**
+ * Usable refund-fund source ids a cashier may choose on receipt confirm.
+ * Skip same-quote overpay so this receipt’s own extra cash is not offset against itself.
+ * When the target job already has a blocking refund, do not include other jobs’ credit.
+ * Confirm UI must not auto-tick these — cashier expands details and opts in.
  */
-export function defaultRefundSourceSelection(sources, { blockExternalCredit = false } = {}) {
+export function usableRefundSourceIds(sources, { blockExternalCredit = false } = {}) {
   const list = Array.isArray(sources) ? sources : [];
   return list
     .filter((s) => !(s.kind === 'overpay' && s.sameQuotation))
     .filter((s) => !(blockExternalCredit && !s.sameQuotation))
     .map((s) => String(s.id || '').trim())
     .filter(Boolean);
+}
+
+/** @deprecated Prefer {@link usableRefundSourceIds}; confirm no longer auto-selects. */
+export function defaultRefundSourceSelection(sources, opts = {}) {
+  return usableRefundSourceIds(sources, opts);
 }
 
 export function sumRefundSourceAvailableNgn(sources, selectedIds) {
