@@ -868,7 +868,178 @@ export function refundCashierMoneyStory(refund) {
         ? Math.min(Math.round(Number(summary.tillPayableNgn) || 0), cashDueNgn)
         : undefined,
     publicLabel: String(summary?.publicLabel || '').trim() || undefined,
+    walletOpenNgn: Math.max(
+      0,
+      Math.round(Number(summary?.walletOpenNgn ?? refund?.walletOpenNgn ?? refund?.wallet_open_ngn) || 0)
+    ),
+    walletWithdrawnNgn: Math.max(0, Math.round(Number(summary?.walletWithdrawnNgn) || 0)),
+    cashOutstandingNgn:
+      summary?.cashOutstandingNgn != null
+        ? Math.max(0, Math.round(Number(summary.cashOutstandingNgn) || 0))
+        : cashDueNgn,
+    canCancelBeforePay: Boolean(summary?.canCancelBeforePay),
+    unclearedReceiptIds: Array.isArray(summary?.unclearedReceiptIds)
+      ? summary.unclearedReceiptIds
+      : [],
+    situationBrief:
+      summary?.situationBrief && typeof summary.situationBrief === 'object'
+        ? summary.situationBrief
+        : null,
   };
+}
+
+function fmtSituationNgn(n) {
+  return `₦${Math.max(0, Math.round(Number(n) || 0)).toLocaleString('en-NG')}`;
+}
+
+/**
+ * Cashier-facing "what happened / how to resolve" for payout View + Release refund.
+ * Prefers server settlementSummary.situationBrief when present; otherwise builds locally.
+ */
+export function buildRefundPayoutSituationBrief(refund) {
+  const story = refundCashierMoneyStory(refund);
+  const fromServer = story.situationBrief;
+  if (
+    fromServer &&
+    typeof fromServer === 'object' &&
+    (Array.isArray(fromServer.whatHappened) || Array.isArray(fromServer.howToResolve))
+  ) {
+    return {
+      headline: String(fromServer.headline || story.publicLabel || 'Refund payout').trim(),
+      whatHappened: Array.isArray(fromServer.whatHappened) ? fromServer.whatHappened : [],
+      howToResolve: Array.isArray(fromServer.howToResolve) ? fromServer.howToResolve : [],
+      tone: fromServer.tone === 'sky' || fromServer.tone === 'slate' ? fromServer.tone : 'amber',
+    };
+  }
+
+  const creditAppliedNgn = story.appliedNgn;
+  const treasuryPaidNgn = story.treasuryPaidNgn;
+  const walletOpenNgn = story.walletOpenNgn || 0;
+  const walletWithdrawnNgn = story.walletWithdrawnNgn || 0;
+  const tillPayableNgn =
+    story.tillPayableNgn != null ? story.tillPayableNgn : Math.max(0, story.cashDueNgn);
+  const cashOutstandingNgn =
+    story.cashOutstandingNgn != null ? story.cashOutstandingNgn : story.cashDueNgn;
+  const heldUnclearedNgn = story.unclearedHoldNgn;
+  const unclearedReceiptIds = story.unclearedReceiptIds || [];
+  const appliedTo = story.appliedToQuote;
+
+  const whatHappened = [];
+  const howToResolve = [];
+
+  if (story.approvedNgn > 0) {
+    whatHappened.push(`Manager approved ${fmtSituationNgn(story.approvedNgn)} on this refund.`);
+  }
+  if (story.companyCutNgn > 0) {
+    whatHappened.push(
+      `Company cut ${fmtSituationNgn(story.companyCutNgn)} was retained at approval (never paid to the customer).`
+    );
+  }
+  if (creditAppliedNgn > 0) {
+    whatHappened.push(
+      appliedTo
+        ? `${fmtSituationNgn(creditAppliedNgn)} was already used from this refund onto quotation ${appliedTo} — that is why the cash due dropped.`
+        : `${fmtSituationNgn(creditAppliedNgn)} was already used from this refund onto another quotation — that is why the cash due dropped.`
+    );
+  }
+  if (treasuryPaidNgn > 0) {
+    whatHappened.push(`${fmtSituationNgn(treasuryPaidNgn)} has already been paid from till/bank.`);
+  }
+  if (walletWithdrawnNgn > 0) {
+    whatHappened.push(`${fmtSituationNgn(walletWithdrawnNgn)} was released from partner wallet.`);
+  }
+  if (walletOpenNgn > 0) {
+    whatHappened.push(`${fmtSituationNgn(walletOpenNgn)} is still sitting on partner wallet for this refund.`);
+  }
+  if (heldUnclearedNgn > 0) {
+    whatHappened.push(
+      unclearedReceiptIds.length
+        ? `${fmtSituationNgn(heldUnclearedNgn)} is held until receipt(s) ${unclearedReceiptIds.join(', ')} are confirmed.`
+        : `${fmtSituationNgn(heldUnclearedNgn)} is held until unconfirmed receipts on this quotation are confirmed.`
+    );
+  }
+  if (tillPayableNgn > 0) {
+    whatHappened.push(`Only ${fmtSituationNgn(tillPayableNgn)} is ready to pay from till/bank now.`);
+  } else if (
+    cashOutstandingNgn <= 0 &&
+    walletOpenNgn <= 0 &&
+    (creditAppliedNgn > 0 || treasuryPaidNgn > 0 || walletWithdrawnNgn > 0)
+  ) {
+    whatHappened.push('Nothing is left to pay from till — this refund is already settled for the payee.');
+  }
+
+  if (creditAppliedNgn > 0 && tillPayableNgn > 0) {
+    howToResolve.push(
+      `Pay only the leftover ${fmtSituationNgn(tillPayableNgn)} from till/bank — do not pay the original approved total.`
+    );
+  } else if (creditAppliedNgn > 0 && cashOutstandingNgn <= 0) {
+    howToResolve.push('Do not pay more cash. Confirm the quotation the fund was applied to below.');
+  }
+  if (walletOpenNgn > 0) {
+    howToResolve.push(
+      'Release partner wallet from this Pay dialog (same treasury account), then pay any leftover till due.'
+    );
+  }
+  if (heldUnclearedNgn > 0 && tillPayableNgn <= 0) {
+    howToResolve.push(
+      unclearedReceiptIds.length
+        ? `Confirm receipt(s) ${unclearedReceiptIds.join(', ')} on the receipts desk, then return here to Pay.`
+        : 'Confirm unconfirmed receipts on this quotation, then return here to Pay.'
+    );
+  } else if (heldUnclearedNgn > 0 && tillPayableNgn > 0) {
+    howToResolve.push(
+      `You may pay the ready ${fmtSituationNgn(tillPayableNgn)} now, or confirm receipts first to release the held ${fmtSituationNgn(heldUnclearedNgn)}.`
+    );
+  }
+  if (treasuryPaidNgn > 0) {
+    howToResolve.push(
+      'If till/bank was paid in error or for too much: ask a manager to reverse the treasury payout (finance reverse), then recover the physical cash/transfer.'
+    );
+  }
+  if (creditAppliedNgn > 0) {
+    howToResolve.push(
+      'If the fund was applied to the wrong quotation: ask a manager to reverse the credit apply, then re-check the till due before paying.'
+    );
+  }
+  if (story.canCancelBeforePay) {
+    howToResolve.push(
+      'If nothing should be paid at all: cancel this approved refund before any payee money leaves.'
+    );
+  }
+  if (tillPayableNgn > 0 && creditAppliedNgn <= 0 && heldUnclearedNgn <= 0 && walletOpenNgn <= 0) {
+    howToResolve.push(`Pay ${fmtSituationNgn(tillPayableNgn)} from till/bank to the payee shown on this form.`);
+  }
+  if (!howToResolve.length && cashOutstandingNgn <= 0 && walletOpenNgn <= 0) {
+    howToResolve.push('No further cashier action — refund is settled.');
+  }
+
+  let headline = story.publicLabel || 'Refund payout';
+  let tone = 'slate';
+  if (creditAppliedNgn > 0 && tillPayableNgn > 0) {
+    headline = 'Part of this refund was already used on a quotation — only the leftover is payable';
+    tone = 'amber';
+  } else if (creditAppliedNgn > 0 && cashOutstandingNgn <= 0) {
+    headline = 'Refund fund already applied — no till payout left';
+    tone = 'amber';
+  } else if (heldUnclearedNgn > 0 && tillPayableNgn <= 0) {
+    headline = 'Payout blocked until receipts are confirmed';
+    tone = 'amber';
+  } else if (walletOpenNgn > 0 && tillPayableNgn <= 0) {
+    headline = 'Release partner wallet (no till amount ready)';
+    tone = 'sky';
+  } else if (tillPayableNgn > 0) {
+    headline = `Ready to pay ${fmtSituationNgn(tillPayableNgn)} from till/bank`;
+    tone = 'sky';
+  } else if (treasuryPaidNgn > 0 && cashOutstandingNgn <= 0) {
+    headline = 'Already paid from till/bank';
+    tone = 'slate';
+  } else if (creditAppliedNgn > 0 || heldUnclearedNgn > 0) {
+    tone = 'amber';
+  } else if (tillPayableNgn > 0 || walletOpenNgn > 0) {
+    tone = 'sky';
+  }
+
+  return { headline, whatHappened, howToResolve, tone };
 }
 
 /**

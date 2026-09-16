@@ -83,6 +83,9 @@ describe('RefundCashierDetailModal', () => {
 
     expect(screen.getByText('RF-KD-26-9505')).toBeInTheDocument();
     expect(screen.getAllByText('Kaduna Sheets').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Part of this refund was already used|Refund fund already applied/i)).toBeInTheDocument();
+    expect(screen.getByText(/How to resolve/i)).toBeInTheDocument();
+    expect(screen.getByText(/why the cash due dropped/i)).toBeInTheDocument();
     expect(screen.getAllByText(/applied to/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/QT-KD-26-1282/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/QT-KD-26-1237/).length).toBeGreaterThan(0);

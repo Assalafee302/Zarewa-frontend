@@ -119,6 +119,7 @@ import {
 } from '../../lib/legacyAccountsAccess';
 import { AccountingRegisterSettlementPayModal } from '../../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { RefundCashierDetailModal } from '../../components/finance/RefundCashierDetailModal.jsx';
+import { RefundPayoutSituationPanel } from '../../components/finance/RefundPayoutSituationPanel.jsx';
 import { ExpenseCashierDetailModal } from '../../components/finance/ExpenseCashierDetailModal.jsx';
 import { resolveExpenseCashierTarget } from '../../lib/expenseCashierDetail.js';
 import { StaffRecoveryCashierModal } from '../../components/finance/StaffRecoveryCashierModal.jsx';
@@ -4575,8 +4576,10 @@ const Account = () => {
                     creditAppliedNgn={refundPayTarget.creditAppliedNgn}
                     paidAmountNgn={refundPayTarget.paidAmountNgn}
                     creditAppliedToQuotationRef={refundPayTarget.creditAppliedToQuotationRef}
+                    leftoverHint="payout"
                   />
                 ) : null}
+                <RefundPayoutSituationPanel refund={refundPayTarget} />
                 {refundPaySelectedPayee?.payoutHeldForUnclearedReceipts ||
                 refundCashierMoneyStory(refundPayTarget).unclearedHoldNgn > 0 ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2.5 space-y-1.5 text-xs text-amber-950">

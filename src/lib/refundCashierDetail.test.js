@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   actorMayOverrideRefundUnclearedPayoutHold,
+  buildRefundPayoutSituationBrief,
   flattenRefundDeskQueue,
   flattenRefundPayeePayoutQueue,
   refundCashierCustomerName,
@@ -590,5 +591,52 @@ describe('refundCashierOverpayResidualNgn', () => {
       refunds: [],
     });
     expect(residual).toBe(200_000);
+  });
+});
+
+describe('buildRefundPayoutSituationBrief', () => {
+  it('explains credit-applied drop and tells cashier to pay only leftover', () => {
+    const brief = buildRefundPayoutSituationBrief({
+      refundID: 'RF-1',
+      amountNgn: 100_000,
+      approvedAmountNgn: 100_000,
+      paidAmountNgn: 40_000,
+      creditAppliedNgn: 40_000,
+      creditAppliedToQuotationRef: 'QT-OTHER',
+      status: 'Partially paid',
+      settlementSummary: {
+        approvedNgn: 100_000,
+        creditAppliedNgn: 40_000,
+        treasuryPaidNgn: 0,
+        tillPayableNgn: 60_000,
+        cashOutstandingNgn: 60_000,
+        heldUnclearedNgn: 0,
+        companyCutNgn: 0,
+        walletOpenNgn: 0,
+      },
+    });
+    expect(brief.headline).toMatch(/already used on a quotation/i);
+    expect(brief.whatHappened.some((l) => /QT-OTHER/i.test(l) && /cash due dropped/i.test(l))).toBe(true);
+    expect(brief.howToResolve.some((l) => /Pay only the leftover/i.test(l))).toBe(true);
+    expect(brief.howToResolve.some((l) => /reverse the credit apply/i.test(l))).toBe(true);
+  });
+
+  it('prefers server situationBrief when present', () => {
+    const brief = buildRefundPayoutSituationBrief({
+      amountNgn: 10_000,
+      approvedAmountNgn: 10_000,
+      settlementSummary: {
+        situationBrief: {
+          headline: 'Server headline',
+          whatHappened: ['Server happened'],
+          howToResolve: ['Server resolve'],
+          tone: 'sky',
+        },
+      },
+    });
+    expect(brief.headline).toBe('Server headline');
+    expect(brief.whatHappened).toEqual(['Server happened']);
+    expect(brief.howToResolve).toEqual(['Server resolve']);
+    expect(brief.tone).toBe('sky');
   });
 });

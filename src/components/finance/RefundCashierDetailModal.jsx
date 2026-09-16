@@ -16,6 +16,7 @@ import { refundCreditApplicationIsActive } from '../../lib/refundFundApply.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
 import { RefundApplyToQuotationPanel } from './RefundApplyToQuotationPanel.jsx';
 import { RefundFundBalanceStrip } from './RefundFundBalanceStrip.jsx';
+import { RefundPayoutSituationPanel } from './RefundPayoutSituationPanel.jsx';
 
 function MoneyRow({ label, value, tone }) {
   const cls =
@@ -187,12 +188,14 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
           <RotateCcw className="text-rose-600 shrink-0 mt-1" size={22} aria-hidden />
         </div>
         <ModalScrollBody className="px-5 pb-4 space-y-4">
+          <RefundPayoutSituationPanel refund={refund} />
           {story.appliedNgn > 0 ? (
             <RefundFundBalanceStrip
               amountNgn={story.requestedNgn}
               creditAppliedNgn={story.appliedNgn}
               paidAmountNgn={story.paidNgn}
               creditAppliedToQuotationRef={story.appliedToQuote}
+              leftoverHint="payout"
             />
           ) : null}
           {story.appliedNgn > 0 && creditApplies.length > 0 && onReverseApply ? (
