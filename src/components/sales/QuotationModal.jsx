@@ -1697,7 +1697,7 @@ const QuotationModal = ({
         gaugeMm: materialGauge,
         // Must match resolveUnitPrice — empty branchId makes workbook lookup always miss.
         branchId,
-        designLabel: materialDesign,
+        designLabel: productLineKey(itemName) === 'flat sheet' ? '' : materialDesign,
       });
       if (!hit?.floorPerMeter) return null;
       return {
@@ -1720,20 +1720,22 @@ const QuotationModal = ({
       const name = String(itemName ?? '').trim();
       if (!name) return 0;
 
-      const stoneFlatSheet =
-        isStoneMeter && productLineKey(name) === 'flat sheet';
+      const flatSheetLine = productLineKey(name) === 'flat sheet';
+      const stoneFlatSheet = isStoneMeter && flatSheetLine;
       const materialKey = stoneFlatSheet
         ? STONE_QUOTE_FLAT_SHEET_COIL_MATERIAL_KEY
         : priceListMaterialKeyFromMeta(selectedMaterialTypeMeta);
       const branchId = quotationBranchId;
       const gaugeForLine = String(lineGaugeOverride || materialGauge || '').trim();
+      // Flat sheet uses the gauge's primary workbook Floor (not a product-name "profile").
+      const designLabel = flatSheetLine ? '' : materialDesign;
       const wbCtx = {
         materialPricingRows,
         ridgeAddOns: ridgeAddOnsEffective,
         materialKey,
         gaugeLabel: gaugeForLine,
         branchId,
-        designLabel: stoneFlatSheet ? '' : materialDesign,
+        designLabel,
       };
 
       if (isQuotationTrimProductLine(name)) {
@@ -1752,7 +1754,7 @@ const QuotationModal = ({
           materialKey,
           gaugeMm: gaugeForLine,
           branchId,
-          designLabel: stoneFlatSheet ? '' : materialDesign,
+          designLabel,
         });
         if (hit?.floorPerMeter > 0) return hit.floorPerMeter;
       }
