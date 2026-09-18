@@ -75,8 +75,11 @@ import { touchRefundPayeeAccount } from '../../lib/refundPayeeRecentAccounts';
 import { isStaffLinkedCustomer } from '../../lib/customerPickerSearch';
 import {
   auditRefundCalculationLineArithmetic,
+  buildMdDiscountRefundLine,
   expectedAmountFromRefundLineLabel,
+  parseMdDiscountMetresLabel,
   scaleRefundCalculationLinesToApprovedAmount,
+  validateMdDiscountPerMetreLines,
 } from '../../lib/refundLineArithmetic';
 import { refundWorkspaceSnapshotFingerprint } from '../../lib/refundWorkspaceSnapshot';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
@@ -98,7 +101,7 @@ const REFUND_CATEGORY_HINTS = {
   'Customer commission':
     'Quoted ₦/m minus the material pricing workbook floor ₦/m × produced metres at the quoted gauge. Added automatically when that difference is positive. Thinner-coil credit stays under Substitution.',
   'MD discount':
-    'Typed amount after quotation and production. Not limited by workbook floor. Branch Manager cannot approve — MD/CEO (or administrator) must sign off. A short note is required.',
+    'Enter ₦ per metre (e.g. 100). Total is that rate × quoted metres — 120m × ₦100/m = ₦12,000. Same shape as commission. Branch Manager cannot approve — MD/CEO must sign off. A short note is required.',
   'Substitution Difference':
     'When quoted gauge differs from the coil actually allocated, credit follows quoted ₦/m (from the quote) minus the material pricing workbook minimum ₦/m (floor) for that coil gauge/design when present, else the published list row (see breakdown under the line).',
 };
@@ -696,7 +699,26 @@ const emptyLine = () => ({
   amountNgn: '',
   category: 'Other',
   appliesToCategories: undefined,
+  mdDiscountNgnPerM: '',
+  mdDiscountMetres: 0,
 });
+
+function quotedMetresForMdDiscount(snapshot) {
+  const m = Number(snapshot?.mdDiscountMetres ?? snapshot?.quotedMeters);
+  return Number.isFinite(m) && m > 0.001 ? m : 0;
+}
+
+function applyMdDiscountRate(line, metres, ngnPerMeterRaw) {
+  const built = buildMdDiscountRefundLine(metres, ngnPerMeterRaw);
+  return {
+    ...line,
+    category: 'MD discount',
+    mdDiscountNgnPerM: ngnPerMeterRaw,
+    mdDiscountMetres: metres,
+    label: built.label,
+    amountNgn: built.amountNgn > 0 ? built.amountNgn : '',
+  };
+}
 
 const emptyRequest = {
   customerID: '',
@@ -727,14 +749,19 @@ const initFormFromRecord = (record) => {
 
   const lines =
     Array.isArray(record.calculationLines || record.calculation_lines_json) && (record.calculationLines || record.calculation_lines_json).length > 0
-      ? (record.calculationLines || record.calculation_lines_json).map((l, idx) => ({
+      ? (record.calculationLines || record.calculation_lines_json).map((l, idx) => {
+          const parsedMd = parseMdDiscountMetresLabel(l.label);
+          return {
           lineKey: l.lineKey || `v-${idx}-${String(l.category || '')}`,
           include: l.include !== false,
           label: l.label ?? '',
           amountNgn: l.amountNgn != null ? String(l.amountNgn) : '',
           category: l.category ?? '',
           appliesToCategories: l.appliesToCategories,
-        }))
+          mdDiscountNgnPerM: l.mdDiscountNgnPerM ?? parsedMd?.pricePerMeterNgn ?? '',
+          mdDiscountMetres: l.mdDiscountMetres ?? parsedMd?.metres ?? 0,
+        };
+        })
       : [emptyLine()];
   return {
     customerID: record.customerID || record.customer_id || '',
@@ -2674,6 +2701,7 @@ const RefundModal = ({
         suggestedAmountNgn: Number(preview.suggestedAmountNgn) || 0,
         substitutionPerMeterBreakdown: preview.substitutionPerMeterBreakdown || [],
         quotedMeters: preview.quotedMeters,
+        mdDiscountMetres: preview.mdDiscountMetres ?? preview.quotedMeters,
         actualMeters: preview.actualMeters,
         coilProducedMeters: preview.coilProducedMeters,
         producedMetersForUnproduced: preview.producedMetersForUnproduced,
@@ -3404,8 +3432,14 @@ const RefundModal = ({
       if (mdNote.length < MIN_MD_DISCOUNT_REASON_LEN) {
         setRefundNotesOpen(true);
         setPreviewError(
-          `MD discount requires a note (min ${MIN_MD_DISCOUNT_REASON_LEN} characters) explaining the amount for MD/CEO approval.`
+          `MD discount requires a note (min ${MIN_MD_DISCOUNT_REASON_LEN} characters) explaining the ₦ per metre for MD/CEO approval.`
         );
+        return;
+      }
+      const mdMetres = quotedMetresForMdDiscount(lastPreviewSnapshot);
+      const mdPerM = validateMdDiscountPerMetreLines(form.calculationLines, mdMetres, AMOUNT_LINE_TOL);
+      if (!mdPerM.ok) {
+        setPreviewError(mdPerM.error);
         return;
       }
     }
@@ -3655,6 +3689,12 @@ const RefundModal = ({
         };
         if (Array.isArray(l.appliesToCategories) && l.appliesToCategories.length) {
           row.appliesToCategories = l.appliesToCategories;
+        }
+        if (String(l.category || '').trim() === 'MD discount') {
+          const metres = quotedMetresForMdDiscount(lastPreviewSnapshot) || Number(l.mdDiscountMetres) || 0;
+          const ppm = Number(String(l.mdDiscountNgnPerM ?? '').replace(/,/g, ''));
+          if (metres > 0) row.mdDiscountMetres = metres;
+          if (Number.isFinite(ppm) && ppm > 0) row.mdDiscountNgnPerM = ppm;
         }
         return row;
       })
@@ -4754,8 +4794,8 @@ const RefundModal = ({
                 ) : null}
                 {mode === 'create' && createHasMdDiscount ? (
                   <p className="text-[10px] font-semibold leading-snug text-violet-800">
-                    MD discount is a typed amount after production. Branch Manager cannot approve — it waits for
-                    MD/CEO. Add a short note explaining the amount.
+                    MD discount is ₦ per metre × quoted metres (write 100 for ₦100/m). Branch Manager cannot approve
+                    — it waits for MD/CEO. Add a short note explaining the rate.
                   </p>
                 ) : null}
                 {excludedRefundHints.length > 0 ? (
@@ -4800,6 +4840,8 @@ const RefundModal = ({
                         lineAmount > 0 &&
                         lineAmount > expectedFromLabel + AMOUNT_LINE_TOL;
                       const included = line.include !== false;
+                      const isMdDiscount = String(line.category || '').trim() === 'MD discount';
+                      const mdMetres = quotedMetresForMdDiscount(lastPreviewSnapshot) || Number(line.mdDiscountMetres) || 0;
                       return (
                         <div
                           key={line.lineKey || `line-${idx}`}
@@ -4822,7 +4864,7 @@ const RefundModal = ({
                               </label>
                             ) : null}
                             <div className="min-w-0 flex-1">
-                              {isManual && !readOnly ? (
+                              {isManual && !readOnly && !isMdDiscount ? (
                                 <textarea
                                   rows={2}
                                   value={line.label}
@@ -4842,7 +4884,15 @@ const RefundModal = ({
                                 {isManual && !readOnly ? (
                                   <select
                                     value={line.category || 'Other'}
-                                    onChange={(e) => setLine(idx, { category: e.target.value })}
+                                    onChange={(e) => {
+                                      const nextCat = e.target.value;
+                                      if (nextCat === 'MD discount') {
+                                        const metres = quotedMetresForMdDiscount(lastPreviewSnapshot);
+                                        setLine(idx, applyMdDiscountRate(line, metres, line.mdDiscountNgnPerM));
+                                        return;
+                                      }
+                                      setLine(idx, { category: nextCat });
+                                    }}
                                     className="rounded border border-slate-200 bg-white py-0.5 px-1.5 text-[10px] font-bold uppercase text-slate-600"
                                   >
                                     {REFUND_REASON_CATEGORIES.map((c) => (
@@ -4907,14 +4957,45 @@ const RefundModal = ({
                               ) : null}
                             </div>
                             <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                              <span className="text-[10px] font-bold text-slate-400">₦</span>
-                              <input
-                                type="number"
-                                disabled={readOnly}
-                                value={line.amountNgn}
-                                onChange={(e) => setLine(idx, { amountNgn: e.target.value })}
-                                className="w-[5.5rem] rounded-md border border-slate-200 bg-white py-1 px-1.5 text-right text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-rose-500/10 tabular-nums"
-                              />
+                              {isMdDiscount ? (
+                                <>
+                                  <span className="text-[10px] font-bold text-slate-400">₦/m</span>
+                                  <input
+                                    type="number"
+                                    disabled={readOnly}
+                                    min="0"
+                                    step="1"
+                                    value={line.mdDiscountNgnPerM ?? ''}
+                                    onChange={(e) =>
+                                      setLine(idx, applyMdDiscountRate(line, mdMetres, e.target.value))
+                                    }
+                                    className="w-16 rounded-md border border-violet-200 bg-white py-1 px-1.5 text-right text-xs font-bold text-violet-950 outline-none focus:ring-2 focus:ring-violet-500/15 tabular-nums"
+                                    aria-label="MD discount naira per metre"
+                                  />
+                                  <span className="text-[10px] font-semibold text-slate-500 whitespace-nowrap">
+                                    × {mdMetres > 0 ? mdMetres.toLocaleString('en-NG', { maximumFractionDigits: 2 }) : '—'} m
+                                  </span>
+                                  <span className="text-[10px] font-bold text-slate-400">= ₦</span>
+                                  <input
+                                    type="number"
+                                    disabled
+                                    value={line.amountNgn}
+                                    className="w-[5.5rem] rounded-md border border-slate-200 bg-slate-100 py-1 px-1.5 text-right text-xs font-bold text-slate-900 tabular-nums"
+                                    aria-label="MD discount total"
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-[10px] font-bold text-slate-400">₦</span>
+                                  <input
+                                    type="number"
+                                    disabled={readOnly}
+                                    value={line.amountNgn}
+                                    onChange={(e) => setLine(idx, { amountNgn: e.target.value })}
+                                    className="w-[5.5rem] rounded-md border border-slate-200 bg-white py-1 px-1.5 text-right text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-rose-500/10 tabular-nums"
+                                  />
+                                </>
+                              )}
                               {!readOnly && isManual ? (
                                 <button
                                   type="button"
@@ -5037,7 +5118,7 @@ const RefundModal = ({
                       disabled={readOnly}
                       value={form.reasonNotes}
                       onChange={(e) => setForm((f) => ({ ...f, reasonNotes: e.target.value }))}
-                      placeholder="Required for MD discount — why this amount…"
+                      placeholder="Required for MD discount — why this ₦/m…"
                       className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-rose-500/20 resize-none"
                     />
                   ) : null}
