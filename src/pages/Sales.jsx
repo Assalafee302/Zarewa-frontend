@@ -1411,7 +1411,21 @@ const Sales = () => {
           ? `Refund request ${data.refundID || normalized.refundID} submitted for approval.`
           : `Refund ${normalized.refundID} marked ${normalized.status}.`
       );
-      return { ok: true };
+      return {
+        ok: true,
+        refundID: data.refundID || normalized.refundID,
+        requestedBy:
+          data.requestedBy ||
+          normalized.requestedBy ||
+          ws?.session?.user?.displayName ||
+          ws?.session?.user?.name ||
+          '',
+        approvedBy:
+          data.approvedBy ||
+          ws?.session?.user?.displayName ||
+          ws?.session?.user?.name ||
+          '',
+      };
     }
     showToast(
       ws?.usingCachedData

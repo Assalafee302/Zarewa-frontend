@@ -3656,7 +3656,7 @@ const RefundModal = ({
       if (result?.error) setPreviewError(String(result.error));
       return;
     }
-      if (result?.ok !== false) {
+    if (result?.ok !== false) {
       if (hasCustomerBank && !selectedCustomerHrPayout) {
         touchRefundPayeeAccount({
           payeeName,
@@ -3664,6 +3664,35 @@ const RefundModal = ({
           payeeBankName,
           customerID: String(form.customerID || '').trim(),
         });
+      }
+      // A5 voucher for filing behind the cutting list (applicant / approver / payee signs).
+      const applicantName =
+        result?.requestedBy ||
+        ws?.session?.user?.displayName ||
+        ws?.session?.user?.name ||
+        '';
+      try {
+        printRefundRecord({
+          refundID: result?.refundID || record?.refundID,
+          customerName: form.customerName,
+          customerID: form.customerID,
+          quotationRef: form.quotationRef,
+          reasonCategory,
+          reasonNotes: form.reasonNotes.trim(),
+          amountNgn,
+          calculationLines,
+          calculationNotes: form.calculationNotes.trim(),
+          status: 'Pending',
+          requestedAtISO: new Date().toISOString(),
+          requestedBy: applicantName,
+          payeeName: selectedCustomerHrPayout ? '' : payeeName,
+          payeeAccountNo: selectedCustomerHrPayout ? '' : payeeAccountNo,
+          payeeBankName: selectedCustomerHrPayout ? '' : payeeBankName,
+          refundSplits,
+          splitDistributions: refundSplits,
+        });
+      } catch {
+        /* print is best-effort — do not block save */
       }
       abandonUnsavedAndRun(() => onClose());
     }
@@ -3773,7 +3802,31 @@ const RefundModal = ({
       companyCutWaiverNote: String(companyCutWaiverNoteOverride || '').trim(),
     });
     setSaving(false);
-    if (result?.ok !== false) abandonUnsavedAndRun(() => onClose());
+    if (result?.ok !== false) {
+      if (decisionStatus === 'Approved') {
+        const approverName =
+          result?.approvedBy ||
+          ws?.session?.user?.displayName ||
+          ws?.session?.user?.name ||
+          record?.approvedBy ||
+          '';
+        try {
+          printRefundRecord({
+            ...record,
+            status: 'Approved',
+            approvalDate: approvalDate.trim() || new Date().toISOString().slice(0, 10),
+            managerComments: decisionNote,
+            approvedAmountNgn: nextApprovedAmountNgn,
+            approvedBy: approverName,
+            calculationLines: linesForDecision.map((l) => ({ ...l, amountNgn: Number(l.amountNgn) })),
+            calculationNotes: form.calculationNotes.trim(),
+          });
+        } catch {
+          /* print is best-effort */
+        }
+      }
+      abandonUnsavedAndRun(() => onClose());
+    }
   };
 
   const submitApproval = async () => submitApprovalDecision();
@@ -3983,10 +4036,11 @@ const RefundModal = ({
               <button
                 type="button"
                 onClick={() => printRefundRecord(record, formatNgnPrint)}
+                title="Print A5 refund voucher (back of cutting list)"
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
               >
                 <Printer size={16} aria-hidden />
-                Print
+                Print A5
               </button>
             ) : null}
             <button

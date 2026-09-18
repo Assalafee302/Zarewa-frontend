@@ -91,16 +91,22 @@ export function openPrintWindow(title, innerHtml) {
  * `officeMemoPackPrint.js` (`buildOfficeInternalMemoPackHtml`).
  * @param {string} fullHtml
  * @param {string} [iframeTitle]
+ * @param {{ page?: 'A4' | 'A5' }} [opts] — iframe layout size before print (A5 = cutting-list / refund voucher)
  */
-export function openPrintHtmlDocument(fullHtml, iframeTitle = 'Print') {
+export function openPrintHtmlDocument(fullHtml, iframeTitle = 'Print', opts = {}) {
   const html = String(fullHtml || '');
   if (!html.trim()) return false;
+
+  const page = String(opts?.page || 'A4').toUpperCase();
+  const iframeSize =
+    page === 'A5'
+      ? 'width:148mm;min-height:210mm'
+      : 'width:8.5in;min-height:11in';
 
   const iframe = document.createElement('iframe');
   iframe.setAttribute('title', iframeTitle);
   iframe.setAttribute('aria-hidden', 'true');
-  iframe.style.cssText =
-    'position:fixed;left:0;top:0;width:8.5in;min-height:11in;border:0;opacity:0;pointer-events:none;z-index:-1;';
+  iframe.style.cssText = `position:fixed;left:0;top:0;${iframeSize};border:0;opacity:0;pointer-events:none;z-index:-1;`;
 
   document.body.appendChild(iframe);
 

@@ -3,7 +3,7 @@
  * onto another quotation. Does not approve or pay; Payout stays a separate action.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { Printer, RotateCcw } from 'lucide-react';
 import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalActionFooter } from '../layout';
 import { formatNgn } from '../../Data/mockData';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -13,6 +13,7 @@ import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
 import { refundStatusIsWithdrawn, refundPublicStatusLabel } from '../../lib/refundsStore';
 import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn, refundDefaultTreasuryPayoutNgn, refundRecipientTillPayoutRows, actorMayOverrideRefundUnclearedPayoutHold } from '../../lib/refundCashierDetail';
 import { refundCreditApplicationIsActive } from '../../lib/refundFundApply.js';
+import { printRefundRecord } from '../../lib/refundRecordPrint.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
 import { RefundApplyToQuotationPanel } from './RefundApplyToQuotationPanel.jsx';
 import { RefundFundBalanceStrip } from './RefundFundBalanceStrip.jsx';
@@ -185,7 +186,18 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
               {qref ? ` · ${qref}` : ''}
             </p>
           </div>
-          <RotateCcw className="text-rose-600 shrink-0 mt-1" size={22} aria-hidden />
+          <div className="flex items-center gap-2 shrink-0 mt-1">
+            <button
+              type="button"
+              onClick={() => printRefundRecord(refund, formatNgn)}
+              title="Print A5 refund voucher (back of cutting list)"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            >
+              <Printer size={14} aria-hidden />
+              Print A5
+            </button>
+            <RotateCcw className="text-rose-600" size={22} aria-hidden />
+          </div>
         </div>
         <ModalScrollBody className="px-5 pb-4 space-y-4">
           <RefundPayoutSituationPanel refund={refund} />
