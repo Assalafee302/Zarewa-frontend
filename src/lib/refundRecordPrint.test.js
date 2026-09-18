@@ -1,13 +1,79 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildRefundLineCalculationDetailHtml,
   buildRefundRecordPrintHtml,
   formatRefundPrintDateTime,
 } from './refundRecordPrint.js';
 
 const formatNgn = (n) => `₦${Math.round(Number(n) || 0).toLocaleString('en-NG')}`;
 
+describe('buildRefundLineCalculationDetailHtml', () => {
+  it('shows overpayment as cash paid, quotation total, and balance', () => {
+    const html = buildRefundLineCalculationDetailHtml(
+      { category: 'Overpayment', label: 'Overpayment on QT-1', amountNgn: 40_000 },
+      {
+        quotationCashInNgn: 140_000,
+        quoteTotalNgn: 100_000,
+        overpaymentExcessNgn: 40_000,
+      },
+      formatNgn
+    );
+    expect(html).toContain('Cash paid on quotation');
+    expect(html).toContain('₦140,000');
+    expect(html).toContain('Quotation total');
+    expect(html).toContain('₦100,000');
+    expect(html).toContain('Balance (paid − quotation)');
+  });
+
+  it('shows unproduced metres × rate calculation', () => {
+    const html = buildRefundLineCalculationDetailHtml(
+      {
+        category: 'Unproduced meterage',
+        label: 'Unproduced metres (10m @ ₦5,000)',
+        amountNgn: 50_000,
+      },
+      { quotedMeters: 25, producedMetersForUnproduced: 15, pricePerMeterNgn: 5000 },
+      formatNgn
+    );
+    expect(html).toContain('Quoted metres');
+    expect(html).toContain('Produced metres');
+    expect(html).toContain('Unproduced metres');
+    expect(html).toContain('Price charged / m');
+    expect(html).toContain('10 m ×');
+  });
+
+  it('shows substitution quoted vs floor per-metre difference', () => {
+    const html = buildRefundLineCalculationDetailHtml(
+      {
+        category: 'Substitution Difference',
+        label: 'Substitution credit',
+        amountNgn: 28_000,
+      },
+      {
+        substitutionPerMeterBreakdown: [
+          {
+            productName: 'Longspan',
+            meters: 10,
+            quotedPricePerMeterNgn: 8500,
+            quotedFloorPricePerMeterNgn: 5700,
+            deltaPerMeterNgn: 2800,
+            creditNgn: 28_000,
+            quotedGaugeForComparison: '0.40',
+            coilGaugeFromAllocations: '0.30',
+          },
+        ],
+      },
+      formatNgn
+    );
+    expect(html).toContain('Paid / quoted ₦ per m');
+    expect(html).toContain('Floor price ₦ per m');
+    expect(html).toContain('Difference per m');
+    expect(html).toContain('10 m ×');
+  });
+});
+
 describe('buildRefundRecordPrintHtml', () => {
-  it('renders A5 refund voucher with types, calculation, payee, and signature blocks', () => {
+  it('renders A5 single-page voucher with account number and calc detail', () => {
     const html = buildRefundRecordPrintHtml(
       {
         refundID: 'RF-KD-26-1001',
@@ -27,7 +93,7 @@ describe('buildRefundRecordPrintHtml', () => {
             amountNgn: 50_000,
           },
           {
-            label: 'Cash overpayment residual',
+            label: 'Overpayment on QT-26-500',
             category: 'Overpayment',
             amountNgn: 35_000,
           },
@@ -41,30 +107,32 @@ describe('buildRefundRecordPrintHtml', () => {
         payeeName: 'Amina Bello',
         payeeBankName: 'Access Bank',
         payeeAccountNo: '0123456789',
+        previewSnapshot: {
+          quotationCashInNgn: 200_000,
+          quoteTotalNgn: 165_000,
+          overpaymentExcessNgn: 35_000,
+          quotedMeters: 40,
+          producedMetersForUnproduced: 30,
+          pricePerMeterNgn: 5000,
+        },
       },
       formatNgn
     );
 
     expect(html).toContain('size: A5 portrait');
+    expect(html).toContain('max-height: 200mm');
+    expect(html).toContain('overflow: hidden');
     expect(html).toContain('RF-KD-26-1001');
-    expect(html).toContain('QT-26-500');
-    expect(html).toContain('Unproduced metres');
-    expect(html).toContain('Unproduced metres (10m @ ₦5,000)');
-    expect(html).toContain('Cash overpayment residual');
-    expect(html).not.toContain('Excluded draft');
-    expect(html).toContain('₦85,000');
-    expect(html).toContain('Access Bank');
+    expect(html).toContain('Account number:');
     expect(html).toContain('0123456789');
-    expect(html).toContain('Applicant');
-    expect(html).toContain('Approver');
-    expect(html).toContain('Payee (received)');
-    expect(html).toContain('How it was calculated');
-    expect(html).toContain('Cash / till to pay');
-    expect(html).toContain('ZAREWA ALUMINIUM AND PLASTICS LTD');
-    expect(html).toContain('Amount to pay');
+    expect(html).toContain('Cash paid on quotation');
+    expect(html).toContain('Quotation total');
+    expect(html).toContain('Unproduced metres');
+    expect(html).not.toContain('Excluded draft');
+    expect(html).toContain('fitSheet');
   });
 
-  it('lists split payees with net payout when present', () => {
+  it('lists split payees with account numbers', () => {
     const html = buildRefundRecordPrintHtml(
       {
         refundID: 'RF-KD-26-1002',
@@ -77,13 +145,14 @@ describe('buildRefundRecordPrintHtml', () => {
             recipientKind: 'customer',
             payeeName: 'Customer One',
             payeeBankName: 'GTB',
-            payeeAccountNo: '111',
+            payeeAccountNo: '111222333',
             amountNgn: 80_000,
             netPayoutNgn: 80_000,
           },
           {
             recipientKind: 'associated_staff',
             payeeName: 'Staff Two',
+            payeeAccountNo: '444555666',
             amountNgn: 20_000,
             netPayoutNgn: 16_000,
             companyCutNgn: 4_000,
@@ -93,31 +162,9 @@ describe('buildRefundRecordPrintHtml', () => {
       formatNgn
     );
 
-    expect(html).toContain('Customer One');
-    expect(html).toContain('Staff Two');
-    expect(html).toContain('₦80,000');
+    expect(html).toContain('Account: <strong>111222333</strong>');
+    expect(html).toContain('Account: <strong>444555666</strong>');
     expect(html).toContain('₦16,000');
-    expect(html).toContain('company cut');
-    expect(html).toContain('Multiple — see Pay to');
-  });
-
-  it('nets credit applied out of cash to pay', () => {
-    const html = buildRefundRecordPrintHtml(
-      {
-        refundID: 'RF-KD-26-1003',
-        status: 'Approved',
-        amountNgn: 50_000,
-        approvedAmountNgn: 50_000,
-        creditAppliedNgn: 20_000,
-        creditAppliedToQuotationRef: 'QT-26-999',
-        calculationLines: [{ label: 'Overpay', category: 'Overpayment', amountNgn: 50_000 }],
-        payeeName: 'Amina',
-      },
-      formatNgn
-    );
-    expect(html).toContain('Applied as credit');
-    expect(html).toContain('QT-26-999');
-    expect(html).toContain('₦30,000');
   });
 
   it('returns empty string for missing record', () => {

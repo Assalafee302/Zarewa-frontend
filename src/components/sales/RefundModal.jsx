@@ -3690,6 +3690,7 @@ const RefundModal = ({
           payeeBankName: selectedCustomerHrPayout ? '' : payeeBankName,
           refundSplits,
           splitDistributions: refundSplits,
+          previewSnapshot: lastPreviewSnapshot,
         });
       } catch {
         /* print is best-effort — do not block save */
@@ -3820,6 +3821,7 @@ const RefundModal = ({
             approvedBy: approverName,
             calculationLines: linesForDecision.map((l) => ({ ...l, amountNgn: Number(l.amountNgn) })),
             calculationNotes: form.calculationNotes.trim(),
+            previewSnapshot: lastPreviewSnapshot || record?.previewSnapshot || record?.preview_snapshot_json,
           });
         } catch {
           /* print is best-effort */

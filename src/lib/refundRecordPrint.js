@@ -1,13 +1,13 @@
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../Data/companyQuotation.js';
 import { formatPersonName } from './formatPersonName.js';
 import { escapeHtml, openPrintHtmlDocument } from './officeDeskPrint.js';
+import { parseUnproducedMetresLabel } from '../shared/lib/refundLineArithmetic.js';
 import { refundCategoryDisplayLabel } from '../shared/refundConstants.js';
 import { refundApprovedAmount, refundPublicStatusLabel } from './refundsStore.js';
 
 /**
- * A5 portrait refund voucher — fits the back of a cutting-list sheet.
- * Shows included calculation lines (type + how calculated), amounts, payee(s),
- * and signature lines for applicant, approver, and payee.
+ * A5 portrait refund voucher — single page (back of cutting list).
+ * Detailed calculation math from previewSnapshot + payee account numbers.
  */
 
 function parseJsonArray(raw) {
@@ -19,6 +19,26 @@ function parseJsonArray(raw) {
   } catch {
     return [];
   }
+}
+
+function parseJsonObject(raw) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (raw == null || raw === '') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolvePreviewSnapshot(record) {
+  return (
+    parseJsonObject(record?.previewSnapshot) ||
+    parseJsonObject(record?.preview_snapshot_json) ||
+    parseJsonObject(record?.preview_snapshot) ||
+    null
+  );
 }
 
 function includedCalculationLines(record) {
@@ -76,7 +96,7 @@ function splitPayeeRows(record) {
         const cut = Math.round(Number(row?.companyCutNgn ?? row?.company_cut_ngn ?? 0) || 0);
         return { name, bank, acct, kind, gross, net: net || gross, cut };
       })
-      .filter((r) => r.net > 0 || r.gross > 0 || r.name);
+      .filter((r) => r.net > 0 || r.gross > 0 || r.name || r.acct);
 
   if (Array.isArray(record?.splitDistributions) && record.splitDistributions.length) {
     return fromList(record.splitDistributions);
@@ -94,7 +114,190 @@ function defaultFormatNgn(n) {
   return `₦${v.toLocaleString('en-NG')}`;
 }
 
-/** Local wall-clock for print (avoids UTC-only ISO slices looking “wrong” on the desk). */
+function formatMetres(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '—';
+  if (Number.isInteger(v)) return String(v);
+  return String(Math.round(v * 100) / 100);
+}
+
+function formatPpm(n, formatNgn) {
+  const v = Number(n);
+  if (!Number.isFinite(v) || v <= 0) return '';
+  if (Math.abs(v - Math.round(v)) < 0.005) return `${formatNgn(Math.round(v))}/m`;
+  return `₦${v.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/m`;
+}
+
+function kvRow(label, value) {
+  if (value == null || value === '' || value === '—') return '';
+  return `<div class="kv"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(
+    String(value)
+  )}</span></div>`;
+}
+
+/**
+ * Build structured calculation detail lines for one refund breakdown row.
+ * @param {object} line
+ * @param {object|null} snapshot
+ * @param {(n: number) => string} formatNgn
+ * @returns {string} HTML (inner)
+ */
+export function buildRefundLineCalculationDetailHtml(line, snapshot, formatNgn = defaultFormatNgn) {
+  const cat = String(line?.category || '').trim();
+  const label = String(line?.label || '').trim();
+  const amt = Math.round(Number(line?.amountNgn ?? line?.amount_ngn ?? 0) || 0);
+  const snap = snapshot && typeof snapshot === 'object' ? snapshot : null;
+  const parts = [];
+
+  if (cat === 'Overpayment' || /overpay/i.test(cat) || /overpay/i.test(label)) {
+    const cash = Math.round(
+      Number(snap?.quotationCashInNgn ?? snap?.paidOnQuoteNgn ?? snap?.receiptCashNgn ?? 0) || 0
+    );
+    const quoteTotal = Math.round(Number(snap?.quoteTotalNgn ?? 0) || 0);
+    const excess = Math.round(
+      Number(snap?.overpaymentExcessNgn ?? (cash > 0 && quoteTotal > 0 ? cash - quoteTotal : 0)) || 0
+    );
+    const residual = Math.round(Number(snap?.overpaymentResidualNgn ?? 0) || 0);
+    if (cash > 0) parts.push(kvRow('Cash paid on quotation', formatNgn(cash)));
+    if (quoteTotal > 0) parts.push(kvRow('Quotation total', formatNgn(quoteTotal)));
+    if (cash > 0 && quoteTotal > 0) {
+      parts.push(
+        kvRow(
+          'Balance (paid − quotation)',
+          `${formatNgn(cash)} − ${formatNgn(quoteTotal)} = ${formatNgn(Math.max(0, cash - quoteTotal))}`
+        )
+      );
+    } else if (excess > 0) {
+      parts.push(kvRow('Overpayment balance', formatNgn(excess)));
+    }
+    if (residual > 0 && residual !== excess && residual !== amt) {
+      parts.push(kvRow('Still refundable overpay', formatNgn(residual)));
+    }
+    parts.push(kvRow('This line', formatNgn(amt)));
+  } else if (cat === 'Unproduced meterage' || /unproduced/i.test(label)) {
+    const parsed = parseUnproducedMetresLabel(label);
+    const quotedM = Number(snap?.quotedMeters);
+    const producedM = Number(
+      snap?.producedMetersForUnproduced ?? snap?.coilProducedMeters ?? snap?.actualMeters
+    );
+    const unproducedM =
+      parsed?.metres ??
+      (Number.isFinite(quotedM) && Number.isFinite(producedM) ? Math.max(0, quotedM - producedM) : NaN);
+    const ppm =
+      parsed?.pricePerMeterNgn ??
+      Number(snap?.pricePerMeterNgn) ??
+      (Number.isFinite(unproducedM) && unproducedM > 0 ? amt / unproducedM : NaN);
+
+    if (Number.isFinite(quotedM) && quotedM > 0) parts.push(kvRow('Quoted metres', `${formatMetres(quotedM)} m`));
+    if (Number.isFinite(producedM) && producedM >= 0) {
+      parts.push(kvRow('Produced metres', `${formatMetres(producedM)} m`));
+    }
+    if (Number.isFinite(unproducedM) && unproducedM > 0) {
+      parts.push(kvRow('Unproduced metres', `${formatMetres(unproducedM)} m`));
+    }
+    if (Number.isFinite(ppm) && ppm > 0) {
+      parts.push(kvRow('Price charged / m', formatPpm(ppm, formatNgn)));
+      if (Number.isFinite(unproducedM) && unproducedM > 0) {
+        parts.push(
+          kvRow(
+            'Calculation',
+            `${formatMetres(unproducedM)} m × ${formatPpm(ppm, formatNgn)} = ${formatNgn(amt)}`
+          )
+        );
+      }
+    } else {
+      parts.push(`<div class="detail-fallback">${escapeHtml(label)}</div>`);
+      parts.push(kvRow('This line', formatNgn(amt)));
+    }
+  } else if (cat === 'Substitution Difference' || /substitution/i.test(label)) {
+    const rows = Array.isArray(snap?.substitutionPerMeterBreakdown)
+      ? snap.substitutionPerMeterBreakdown
+      : [];
+    if (rows.length) {
+      for (const row of rows.slice(0, 4)) {
+        const metres = Number(row?.meters);
+        const quotedPpm = Number(
+          row?.quotedPricePerMeterNgn ?? row?.quotedListPricePerMeterNgn ?? row?.quotedSellingPpmNgn
+        );
+        const floorPpm = Number(
+          row?.quotedFloorPricePerMeterNgn ??
+            row?.producedListPricePerMeterNgn ??
+            row?.coilFloorPpmNgn
+        );
+        const delta = Number(
+          row?.deltaPerMeterNgn ??
+            (Number.isFinite(quotedPpm) && Number.isFinite(floorPpm) ? quotedPpm - floorPpm : NaN)
+        );
+        const credit = Math.round(Number(row?.creditNgn ?? 0) || 0);
+        const product = String(row?.productName || row?.jobId || 'Product').trim();
+        const gaugeBits = [row?.quotedGaugeDesignLabel, row?.quotedGaugeForComparison, row?.coilGaugeFromAllocations]
+          .map((x) => String(x || '').trim())
+          .filter(Boolean);
+        parts.push(`<div class="sub-head">${escapeHtml(product)}</div>`);
+        if (gaugeBits.length) parts.push(kvRow('Gauge / design', gaugeBits.join(' → ')));
+        if (Number.isFinite(quotedPpm) && quotedPpm > 0) {
+          parts.push(kvRow('Paid / quoted ₦ per m', formatPpm(quotedPpm, formatNgn)));
+        }
+        if (Number.isFinite(floorPpm) && floorPpm > 0) {
+          parts.push(kvRow('Floor price ₦ per m', formatPpm(floorPpm, formatNgn)));
+        }
+        if (Number.isFinite(delta)) {
+          parts.push(kvRow('Difference per m', formatPpm(Math.abs(delta), formatNgn)));
+        }
+        if (Number.isFinite(metres) && metres > 0 && Number.isFinite(delta)) {
+          parts.push(
+            kvRow(
+              'Calculation',
+              `${formatMetres(metres)} m × ${formatPpm(Math.abs(delta), formatNgn)} = ${formatNgn(
+                credit > 0 ? credit : Math.round(metres * Math.abs(delta))
+              )}`
+            )
+          );
+        } else if (credit > 0) {
+          parts.push(kvRow('Credit', formatNgn(credit)));
+        }
+      }
+      if (rows.length > 4) {
+        parts.push(`<div class="tiny muted">+${rows.length - 4} more substitution row(s)</div>`);
+      }
+    } else {
+      parts.push(`<div class="detail-fallback">${escapeHtml(label)}</div>`);
+      parts.push(kvRow('This line', formatNgn(amt)));
+    }
+  } else if (cat === 'Order cancellation' || /order cancel/i.test(label)) {
+    const cash = Math.round(Number(snap?.quotationCashInNgn ?? snap?.paidOnQuoteNgn ?? 0) || 0);
+    const floor = snap?.economicFloor;
+    const floorVal = Math.round(Number(floor?.floorDeliveredValueNgn ?? 0) || 0);
+    const producedM = Number(floor?.producedOutputMeters ?? snap?.coilProducedMeters);
+    if (cash > 0) parts.push(kvRow('Cash paid on quotation', formatNgn(cash)));
+    if (Number.isFinite(producedM) && producedM > 0) {
+      parts.push(kvRow('Produced (kept)', `${formatMetres(producedM)} m`));
+    }
+    if (floorVal > 0) parts.push(kvRow('Floor value of produced', formatNgn(floorVal)));
+    parts.push(`<div class="detail-fallback">${escapeHtml(label)}</div>`);
+    parts.push(kvRow('This line', formatNgn(amt)));
+  } else if (/accessory|stone|shortfall/i.test(cat) || /shortfall/i.test(label)) {
+    parts.push(`<div class="detail-fallback">${escapeHtml(label)}</div>`);
+    const m = label.match(/\((\d+(?:\.\d+)?)\s*[×x]\s*₦([\d,]+(?:\.\d+)?)\)/i);
+    if (m) {
+      parts.push(
+        kvRow(
+          'Calculation',
+          `${m[1]} × ${formatNgn(Number(String(m[2]).replace(/,/g, '')))} = ${formatNgn(amt)}`
+        )
+      );
+    } else {
+      parts.push(kvRow('This line', formatNgn(amt)));
+    }
+  } else {
+    parts.push(`<div class="detail-fallback">${escapeHtml(label)}</div>`);
+    parts.push(kvRow('This line', formatNgn(amt)));
+  }
+
+  return parts.filter(Boolean).join('');
+}
+
+/** Local wall-clock for print. */
 export function formatRefundPrintDateTime(isoOrDate) {
   const raw = String(isoOrDate || '').trim();
   if (!raw) return '';
@@ -136,8 +339,15 @@ function formatRefundPrintDate(isoOrDate) {
   return formatRefundPrintDateTime(raw);
 }
 
+function densityClass(lineCount, hasSubs) {
+  const weight = lineCount + (hasSubs ? 2 : 0);
+  if (weight >= 6) return 'density-packed';
+  if (weight >= 3) return 'density-tight';
+  return 'density-normal';
+}
+
 /**
- * Build printable HTML for a refund voucher (A5). Exported for unit tests.
+ * Build printable HTML for a refund voucher (A5, single page).
  * @param {object} record
  * @param {(n: number) => string} [formatNgn]
  * @returns {string}
@@ -176,23 +386,26 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
   const headerPayeeAccountNo = String(record.payeeAccountNo || record.payee_account_no || '').trim();
   const headerPayeeBankName = String(record.payeeBankName || record.payee_bank_name || '').trim();
 
+  const snapshot = resolvePreviewSnapshot(record);
   const cats = reasonCategories(record);
   const lines = includedCalculationLines(record);
   const splits = splitPayeeRows(record);
+  const hasSubs = lines.some((l) => String(l.category || '').includes('Substitution'));
 
   const amountToPay = Math.max(0, (approvedAmt > 0 ? approvedAmt : amountReq) - creditApplied);
   const companyLegal = ZAREWA_COMPANY_ACCOUNT_NAME;
+  const dens = densityClass(lines.length, hasSubs);
 
   const rowsHtml = lines.length
     ? lines
         .map((l) => {
-          const label = String(l.label || '—');
           const cat = refundCategoryDisplayLabel(String(l.category || '').trim()) || '—';
           const amt = Math.round(Number(l.amountNgn ?? l.amount_ngn ?? 0) || 0);
+          const detail = buildRefundLineCalculationDetailHtml(l, snapshot, formatNgn);
           return `<tr>
             <td class="cat">${escapeHtml(cat)}</td>
-            <td class="how">${escapeHtml(label)}</td>
-            <td class="right">${escapeHtml(formatNgn(amt))}</td>
+            <td class="how">${detail}</td>
+            <td class="right amt-cell">${escapeHtml(formatNgn(amt))}</td>
           </tr>`;
         })
         .join('')
@@ -209,7 +422,6 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     const splitRows = splits
       .map((s) => {
         const who = [s.kind, s.name].filter(Boolean).join(' · ') || '—';
-        const bankLine = [s.bank, s.acct ? `Acct ${s.acct}` : ''].filter(Boolean).join(' · ');
         const cutNote =
           s.cut > 0
             ? `<div class="tiny muted">Gross ${escapeHtml(formatNgn(s.gross))} · company cut ${escapeHtml(
@@ -217,36 +429,38 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
               )}</div>`
             : '';
         return `<tr>
-          <td>${escapeHtml(who)}${
-            bankLine ? `<div class="tiny muted">${escapeHtml(bankLine)}</div>` : ''
-          }${cutNote}</td>
+          <td>
+            <div class="pay-name">${escapeHtml(who)}</div>
+            ${s.bank ? `<div class="tiny">${escapeHtml(s.bank)}</div>` : ''}
+            <div class="acct-num">${
+              s.acct
+                ? `Account: <strong>${escapeHtml(s.acct)}</strong>`
+                : '<span class="muted">Account: not on file</span>'
+            }</div>
+            ${cutNote}
+          </td>
           <td class="right">${escapeHtml(formatNgn(s.net))}</td>
         </tr>`;
       })
       .join('');
     payeeBlock = `
-      <h2>Pay to</h2>
+      <h2>Pay to (requested / paid)</h2>
       <table class="payees">
-        <thead><tr><th>Recipient</th><th class="right">Net payout</th></tr></thead>
+        <thead><tr><th>Recipient &amp; account</th><th class="right">Net</th></tr></thead>
         <tbody>${splitRows}</tbody>
-      </table>
-      ${
-        splits.length > 1
-          ? `<p class="tiny muted">Each recipient signs when they receive their net payout.</p>`
-          : ''
-      }`;
-  } else if (headerPayeeName || headerPayeeAccountNo || headerPayeeBankName) {
-    payeeBlock = `
-      <h2>Pay to</h2>
-      <div class="pay-single">
-        <div class="pay-name">${escapeHtml(headerPayeeName || '—')}</div>
-        ${headerPayeeBankName ? `<div>${escapeHtml(headerPayeeBankName)}</div>` : ''}
-        ${headerPayeeAccountNo ? `<div>Acct: ${escapeHtml(headerPayeeAccountNo)}</div>` : ''}
-      </div>`;
+      </table>`;
   } else {
     payeeBlock = `
-      <h2>Pay to</h2>
-      <div class="pay-single muted">Payee to be confirmed at payout.</div>`;
+      <h2>Pay to (requested / paid)</h2>
+      <div class="pay-single">
+        <div class="pay-name">${escapeHtml(headerPayeeName || 'Payee to be confirmed')}</div>
+        ${headerPayeeBankName ? `<div>${escapeHtml(headerPayeeBankName)}</div>` : ''}
+        <div class="acct-num">${
+          headerPayeeAccountNo
+            ? `Account number: <strong>${escapeHtml(headerPayeeAccountNo)}</strong>`
+            : '<span class="muted">Account number: not on file</span>'
+        }</div>
+      </div>`;
   }
 
   const catsJoined = cats.join(' · ');
@@ -273,11 +487,11 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
 <style>
   @page {
     size: A5 portrait;
-    margin: 5.5mm 6.5mm;
+    margin: 4.5mm 5.5mm;
   }
   @page refund-a5 {
     size: A5 portrait;
-    margin: 5.5mm 6.5mm;
+    margin: 4.5mm 5.5mm;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -285,42 +499,55 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     padding: 0;
     color: #0f172a;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-    font-size: 8.5pt;
-    line-height: 1.22;
+    font-size: 7.5pt;
+    line-height: 1.18;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   .sheet {
     page: refund-a5;
     width: 148mm;
-    min-height: 198mm;
+    height: 200mm;
+    max-height: 200mm;
     max-width: 148mm;
     margin: 0 auto;
     padding: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    transform-origin: top left;
   }
+  .sheet.density-tight { font-size: 7pt; }
+  .sheet.density-packed { font-size: 6.5pt; }
+  .sheet.density-tight .sig { min-height: 18mm; }
+  .sheet.density-packed .sig { min-height: 14mm; padding: 1mm; }
+  .sheet.density-packed h1 { font-size: 9.5pt; }
+  .sheet.density-packed .badge-amt { font-size: 9pt; }
   header {
-    border-bottom: 2px solid #1a3a5a;
-    padding-bottom: 2.5mm;
-    margin-bottom: 2.5mm;
+    border-bottom: 1.5px solid #1a3a5a;
+    padding-bottom: 1.5mm;
+    margin-bottom: 1.5mm;
+    flex-shrink: 0;
   }
   .brand-row {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 3mm;
+    gap: 2mm;
   }
   .brand {
-    font-size: 7pt;
+    font-size: 6.5pt;
     font-weight: 700;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: #1a3a5a;
   }
   .legal {
-    margin-top: 0.4mm;
-    font-size: 6.5pt;
+    margin-top: 0.2mm;
+    font-size: 5.5pt;
     color: #64748b;
     max-width: 95mm;
   }
@@ -328,27 +555,26 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     flex-shrink: 0;
     text-align: right;
     border: 1px solid #1a3a5a;
-    border-radius: 1mm;
-    padding: 1.2mm 2mm;
-    min-width: 28mm;
+    border-radius: 0.8mm;
+    padding: 1mm 1.6mm;
   }
   .badge .badge-label {
-    font-size: 6pt;
+    font-size: 5.5pt;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #64748b;
   }
   .badge .badge-amt {
-    margin-top: 0.4mm;
-    font-size: 11pt;
+    margin-top: 0.2mm;
+    font-size: 10pt;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
     color: #1a3a5a;
   }
   h1 {
-    margin: 1.2mm 0 0;
-    font-size: 12pt;
+    margin: 0.6mm 0 0;
+    font-size: 10.5pt;
     font-weight: 800;
     letter-spacing: -0.02em;
     text-transform: uppercase;
@@ -356,121 +582,159 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
   .meta {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.8mm 4mm;
-    margin-top: 2mm;
-    font-size: 7.5pt;
+    gap: 0.4mm 3mm;
+    margin-top: 1.2mm;
+    font-size: 7pt;
   }
   .meta strong { font-weight: 700; }
-  .meta .label { color: #64748b; font-weight: 600; font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.03em; }
+  .meta .label {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 5.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
   h2 {
-    margin: 2.5mm 0 1.2mm;
-    font-size: 7.5pt;
+    margin: 1.5mm 0 0.8mm;
+    font-size: 6.5pt;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #1a3a5a;
     border-bottom: 1px solid #cbd5e1;
-    padding-bottom: 0.6mm;
+    padding-bottom: 0.4mm;
   }
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 7.5pt;
+    font-size: inherit;
   }
   th, td {
     border: 1px solid #94a3b8;
-    padding: 1.1mm 1.5mm;
+    padding: 0.8mm 1.2mm;
     vertical-align: top;
     text-align: left;
   }
   th {
     background: #e2e8f0;
     font-weight: 700;
-    font-size: 6.5pt;
+    font-size: 5.5pt;
     text-transform: uppercase;
     letter-spacing: 0.03em;
   }
   .right { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .cat { width: 26%; font-weight: 600; }
-  .how { width: 54%; word-break: break-word; }
+  .amt-cell { font-weight: 800; width: 18%; }
+  .cat { width: 20%; font-weight: 700; }
+  .how { width: 62%; word-break: break-word; }
+  .kv {
+    display: grid;
+    grid-template-columns: 38% 1fr;
+    gap: 0.5mm 1.5mm;
+    margin: 0.2mm 0;
+  }
+  .kv .k { color: #64748b; font-weight: 600; }
+  .kv .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .sub-head { font-weight: 800; margin-top: 0.6mm; color: #1a3a5a; }
+  .detail-fallback { margin-bottom: 0.4mm; }
   .muted { color: #64748b; }
-  .tiny { font-size: 6.5pt; margin-top: 0.4mm; line-height: 1.2; }
-  .block { margin: 1.2mm 0; font-size: 7.5pt; }
+  .tiny { font-size: 5.5pt; margin-top: 0.2mm; line-height: 1.15; }
+  .block { margin: 0.8mm 0; font-size: inherit; }
   .totals {
-    margin-top: 1.8mm;
+    margin-top: 1mm;
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 0.6mm 4mm;
-    font-size: 8pt;
+    gap: 0.3mm 3mm;
+    font-size: inherit;
   }
   .totals .amt { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
   .totals .pay-row {
-    font-size: 9.5pt;
+    font-size: 1.15em;
     font-weight: 800;
     border-top: 1.5px solid #1a3a5a;
-    padding-top: 1mm;
-    margin-top: 0.6mm;
+    padding-top: 0.6mm;
+    margin-top: 0.4mm;
   }
-  .pay-single { font-size: 8pt; line-height: 1.3; }
-  .pay-name { font-weight: 800; font-size: 9.5pt; }
-  .body { flex: 1 1 auto; }
+  .pay-single { font-size: inherit; line-height: 1.25; }
+  .pay-name { font-weight: 800; font-size: 1.05em; }
+  .acct-num {
+    margin-top: 0.6mm;
+    font-size: 1.05em;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+  .acct-num strong { font-size: 1.15em; font-weight: 800; }
+  .body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
   .sigs {
     margin-top: auto;
-    padding-top: 3.5mm;
+    padding-top: 1.5mm;
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    gap: 2.5mm;
+    gap: 1.5mm;
+    flex-shrink: 0;
     page-break-inside: avoid;
   }
   .sig {
     border: 1px solid #64748b;
-    border-radius: 1mm;
-    padding: 1.8mm;
-    min-height: 26mm;
+    border-radius: 0.8mm;
+    padding: 1.2mm;
+    min-height: 20mm;
     display: flex;
     flex-direction: column;
   }
   .sig-title {
-    font-size: 6.5pt;
+    font-size: 5.5pt;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #1a3a5a;
   }
   .sig-name {
-    margin-top: 0.8mm;
-    font-size: 7pt;
+    margin-top: 0.4mm;
+    font-size: 6.5pt;
     font-weight: 600;
-    min-height: 9pt;
+    min-height: 8pt;
     word-break: break-word;
   }
   .sig-line {
     margin-top: auto;
     border-top: 1px solid #334155;
-    padding-top: 0.8mm;
-    font-size: 6.5pt;
+    padding-top: 0.5mm;
+    font-size: 5.5pt;
     color: #475569;
   }
   .foot {
-    margin-top: 2mm;
-    font-size: 6pt;
+    margin-top: 1mm;
+    font-size: 5pt;
     color: #64748b;
     text-align: center;
+    flex-shrink: 0;
   }
   @media print {
-    html, body { width: 148mm; }
-    .sheet { width: 148mm; min-height: auto; }
+    html, body {
+      width: 148mm;
+      height: 210mm;
+      overflow: hidden;
+    }
+    .sheet {
+      width: 148mm;
+      height: 200mm;
+      max-height: 200mm;
+      overflow: hidden;
+    }
   }
   @media screen {
     body { background: #e2e8f0; padding: 8mm; }
     .sheet {
       background: #fff;
-      padding: 5.5mm 6.5mm;
+      padding: 4.5mm 5.5mm;
       box-shadow: 0 2px 12px rgba(15, 23, 42, 0.12);
+      height: auto;
+      max-height: none;
+      min-height: 200mm;
     }
   }
 </style></head><body>
-  <div class="sheet">
+  <div class="sheet ${dens}" id="refund-a5-sheet">
     <header>
       <div class="brand-row">
         <div>
@@ -498,25 +762,25 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     <div class="body">
       ${
         cats.length
-          ? `<div class="block"><strong>Refund types</strong><br/>${escapeHtml(catsJoined)}</div>`
+          ? `<div class="block"><strong>Refund types</strong> — ${escapeHtml(catsJoined)}</div>`
           : ''
       }
       ${
         reasonText && !notesDuplicateCats
-          ? `<div class="block"><strong>Notes</strong><br/>${escapeHtml(reasonText)}</div>`
+          ? `<div class="block"><strong>Notes</strong> — ${escapeHtml(reasonText)}</div>`
           : ''
       }
 
       <h2>How it was calculated</h2>
       <table>
         <thead>
-          <tr><th>Type</th><th>Calculation</th><th class="right">Amount</th></tr>
+          <tr><th>Type</th><th>Calculation detail</th><th class="right">Amount</th></tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       ${
         calcNotes
-          ? `<div class="block muted"><strong>Calculation notes</strong><br/>${escapeHtml(calcNotes)}</div>`
+          ? `<div class="block muted"><strong>Notes</strong> — ${escapeHtml(calcNotes)}</div>`
           : ''
       }
 
@@ -554,7 +818,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
       </div>
       ${
         managerComments
-          ? `<div class="block"><strong>Approver note</strong><br/>${escapeHtml(managerComments)}</div>`
+          ? `<div class="block"><strong>Approver note</strong> — ${escapeHtml(managerComments)}</div>`
           : ''
       }
 
@@ -578,13 +842,30 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
         <div class="sig-line">Signature / date</div>
       </div>
     </div>
-    <div class="foot">A5 · Print on back of cutting list · Keep with job file</div>
+    <div class="foot">A5 single page · Back of cutting list · Keep with job file</div>
   </div>
+  <script>
+    (function () {
+      function fitSheet() {
+        var sheet = document.getElementById('refund-a5-sheet');
+        if (!sheet) return;
+        sheet.style.transform = '';
+        var maxH = sheet.clientHeight || 0;
+        var need = sheet.scrollHeight || 0;
+        if (!maxH || need <= maxH + 1) return;
+        var scale = Math.max(0.72, Math.min(1, maxH / need));
+        sheet.style.transform = 'scale(' + scale.toFixed(4) + ')';
+      }
+      fitSheet();
+      window.addEventListener('beforeprint', fitSheet);
+      setTimeout(fitSheet, 50);
+    })();
+  </script>
 </body></html>`;
 }
 
 /**
- * Print-friendly refund voucher (A5 filing copy).
+ * Print-friendly refund voucher (A5 filing copy, single page).
  * @param {object} record
  * @param {(n: number) => string} [formatNgn]
  * @returns {boolean}
