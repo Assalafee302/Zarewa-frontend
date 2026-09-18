@@ -94,7 +94,7 @@ const REFUND_CATEGORY_HINTS = {
   'Stone flatsheet shortfall':
     'Quoted stone flatsheet m² exceeds supplied + deduction recorded on completed/cancelled production jobs (same basis as the intelligence panel).',
   'Customer commission':
-    'Not added automatically — use “Add commission to preview”. Capped by minimum selling ₦/m and refundable headroom.',
+    'Quoted ₦/m minus the material pricing workbook floor ₦/m × produced metres at the quoted gauge. Added automatically when that difference is positive. Thinner-coil credit stays under Substitution.',
   'Substitution Difference':
     'When quoted gauge differs from the coil actually allocated, credit follows quoted ₦/m (from the quote) minus the material pricing workbook minimum ₦/m (floor) for that coil gauge/design when present, else the published list row (see breakdown under the line).',
 };
@@ -1149,7 +1149,7 @@ const RefundModal = ({
   const [previewRemainingNgn, setPreviewRemainingNgn] = useState(null);
   const [eligibleRefundCategoriesFromPreview, setEligibleRefundCategoriesFromPreview] = useState(null);
   /** When true, next preview includes Customer commission (opt-in; capped server-side by floor + headroom). */
-  const [includeCommissionInPreview, setIncludeCommissionInPreview] = useState(false);
+  const [includeCommissionInPreview, setIncludeCommissionInPreview] = useState(true);
   /** Optional list ₦/m for the **produced** coil when `price_list_items` has no row for coil gauge + design (substitution preview). */
   const [substitutionWorkbookPpmOverride, setSubstitutionWorkbookPpmOverride] = useState('');
   const [refundIntelExpanded, setRefundIntelExpanded] = useState(() => mode === 'view');
@@ -1314,7 +1314,7 @@ const RefundModal = ({
     setLastPreviewSnapshot(null);
     setPreviewRemainingNgn(null);
     setEligibleRefundCategoriesFromPreview(null);
-    setIncludeCommissionInPreview(false);
+    setIncludeCommissionInPreview(true);
     setSubstitutionWorkbookPpmOverride('');
     setManualQuotationVerifyBusy(false);
     setManualQuotationVerifyError('');
@@ -2819,7 +2819,7 @@ const RefundModal = ({
     setPreviewRemainingNgn(null);
     setLastPreviewSnapshot(null);
     setEligibleRefundCategoriesFromPreview(null);
-    setIncludeCommissionInPreview(false);
+    setIncludeCommissionInPreview(true);
     setSubstitutionWorkbookPpmOverride('');
     setSubstitutionBreakdownLineKey('');
     setOpenProductionJob(null);
