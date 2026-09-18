@@ -341,8 +341,8 @@ function formatRefundPrintDate(isoOrDate) {
 
 function densityClass(lineCount, hasSubs) {
   const weight = lineCount + (hasSubs ? 2 : 0);
-  if (weight >= 6) return 'density-packed';
-  if (weight >= 3) return 'density-tight';
+  if (weight >= 7) return 'density-packed';
+  if (weight >= 4) return 'density-tight';
   return 'density-normal';
 }
 
@@ -528,10 +528,11 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
   html, body {
     margin: 0;
     padding: 0;
-    color: #0f172a;
+    color: #000;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-    font-size: 7pt;
-    line-height: 1.15;
+    font-size: 10.5pt;
+    font-weight: 700;
+    line-height: 1.22;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -546,7 +547,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     width: 210mm;
     height: 148.5mm;
     max-height: 148.5mm;
-    padding: 3.5mm 5mm 2.5mm;
+    padding: 3mm 4.5mm 2mm;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -554,25 +555,26 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     break-inside: avoid;
     transform-origin: top left;
   }
-  .sheet.density-tight { font-size: 6.5pt; }
-  .sheet.density-packed { font-size: 6pt; }
+  .sheet.density-tight { font-size: 9.5pt; }
+  .sheet.density-packed { font-size: 9pt; }
   .sheet.density-tight .sig,
-  .sheet.density-packed .sig { min-height: 12mm; padding: 1mm; }
-  .sheet.density-packed h1 { font-size: 9pt; }
-  .sheet.density-packed .badge-amt { font-size: 9pt; }
+  .sheet.density-packed .sig { min-height: 11mm; padding: 1mm; }
+  .sheet.density-packed h1 { font-size: 13pt; }
+  .sheet.density-packed .badge-amt { font-size: 14pt; }
   .cut-guide {
     height: 0;
-    border-top: 1px dashed #94a3b8;
+    border-top: 1.5px dashed #334155;
     position: relative;
     margin: 0 8mm;
   }
   .cut-guide::after {
     content: "✂ Cut here — half A4 = A5 landscape";
     position: absolute;
-    top: -2.2mm;
+    top: -2.6mm;
     right: 0;
-    font-size: 5.5pt;
-    color: #64748b;
+    font-size: 8pt;
+    font-weight: 800;
+    color: #000;
     background: #fff;
     padding: 0 1.5mm;
   }
@@ -580,9 +582,9 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     height: 148.5mm;
   }
   header {
-    border-bottom: 1.5px solid #1a3a5a;
-    padding-bottom: 1.2mm;
-    margin-bottom: 1.2mm;
+    border-bottom: 2.5px solid #000;
+    padding-bottom: 1mm;
+    margin-bottom: 1mm;
     flex-shrink: 0;
   }
   .brand-row {
@@ -592,68 +594,71 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     gap: 3mm;
   }
   .brand {
-    font-size: 6pt;
-    font-weight: 700;
+    font-size: 9pt;
+    font-weight: 900;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: #1a3a5a;
+    color: #000;
   }
   .legal {
     margin-top: 0.2mm;
-    font-size: 5pt;
-    color: #64748b;
+    font-size: 8pt;
+    font-weight: 700;
+    color: #000;
   }
   .badge {
     flex-shrink: 0;
     text-align: right;
-    border: 1px solid #1a3a5a;
+    border: 2.5px solid #000;
     border-radius: 0.8mm;
-    padding: 1mm 2mm;
+    padding: 1.4mm 2.4mm;
+    background: #f1f5f9;
   }
   .badge .badge-label {
-    font-size: 5pt;
-    font-weight: 700;
+    font-size: 8pt;
+    font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #64748b;
+    color: #000;
   }
   .badge .badge-amt {
     margin-top: 0.2mm;
-    font-size: 11pt;
-    font-weight: 800;
+    font-size: 16pt;
+    font-weight: 900;
     font-variant-numeric: tabular-nums;
-    color: #1a3a5a;
+    color: #000;
   }
   h1 {
     margin: 0.4mm 0 0;
-    font-size: 10pt;
-    font-weight: 800;
+    font-size: 15pt;
+    font-weight: 900;
     letter-spacing: -0.02em;
     text-transform: uppercase;
+    color: #000;
   }
   .meta {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
     gap: 0.4mm 2.5mm;
     margin-top: 1mm;
-    font-size: 6.5pt;
+    font-size: 9.5pt;
   }
-  .meta strong { font-weight: 700; }
+  .meta strong { font-weight: 900; color: #000; }
   .meta .label {
-    color: #64748b;
-    font-weight: 600;
-    font-size: 5pt;
+    color: #000;
+    font-weight: 900;
+    font-size: 7.5pt;
     text-transform: uppercase;
     letter-spacing: 0.03em;
   }
   h2 {
     margin: 0 0 0.6mm;
-    font-size: 6pt;
-    font-weight: 800;
+    font-size: 9.5pt;
+    font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #1a3a5a;
-    border-bottom: 1px solid #cbd5e1;
+    color: #000;
+    border-bottom: 2px solid #000;
     padding-bottom: 0.3mm;
   }
   .main-cols {
@@ -676,99 +681,109 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     font-size: inherit;
   }
   th, td {
-    border: 1px solid #94a3b8;
-    padding: 0.6mm 1mm;
+    border: 1.5px solid #000;
+    padding: 0.8mm 1.3mm;
     vertical-align: top;
     text-align: left;
   }
   th {
     background: #e2e8f0;
-    font-weight: 700;
-    font-size: 5pt;
+    font-weight: 900;
+    font-size: 8pt;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    color: #000;
   }
   .right { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .amt-cell { font-weight: 800; width: 16%; }
-  .cat { width: 18%; font-weight: 700; }
-  .how { width: 66%; word-break: break-word; }
+  .amt-cell { font-weight: 900; width: 16%; color: #000; font-size: 1.05em; }
+  .cat { width: 18%; font-weight: 900; color: #000; }
+  .how { width: 66%; word-break: break-word; font-weight: 700; color: #000; }
   .kv {
     display: grid;
     grid-template-columns: 40% 1fr;
     gap: 0.2mm 1.2mm;
     margin: 0.15mm 0;
   }
-  .kv .k { color: #64748b; font-weight: 600; }
-  .kv .v { font-variant-numeric: tabular-nums; font-weight: 600; }
-  .sub-head { font-weight: 800; margin-top: 0.4mm; color: #1a3a5a; }
-  .detail-fallback { margin-bottom: 0.3mm; }
-  .muted { color: #64748b; }
-  .tiny { font-size: 5pt; margin-top: 0.15mm; line-height: 1.12; }
-  .block { margin: 0.5mm 0; font-size: inherit; }
+  .kv .k { color: #000; font-weight: 800; }
+  .kv .v { font-variant-numeric: tabular-nums; font-weight: 900; color: #000; }
+  .sub-head { font-weight: 900; margin-top: 0.4mm; color: #000; font-size: 1.05em; }
+  .detail-fallback { margin-bottom: 0.3mm; font-weight: 800; color: #000; }
+  .muted { color: #000; font-weight: 800; }
+  .tiny { font-size: 8pt; margin-top: 0.15mm; line-height: 1.12; font-weight: 800; color: #000; }
+  .block { margin: 0.5mm 0; font-size: inherit; font-weight: 800; color: #000; }
+  .block strong { font-weight: 900; }
   .totals {
     margin: 1mm 0;
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 0.25mm 2.5mm;
-    font-size: inherit;
-  }
-  .totals .amt { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
-  .totals .pay-row {
-    font-size: 1.12em;
+    gap: 0.3mm 2.5mm;
+    font-size: 1.05em;
     font-weight: 800;
-    border-top: 1.5px solid #1a3a5a;
+    color: #000;
+  }
+  .totals .amt { font-variant-numeric: tabular-nums; font-weight: 900; text-align: right; color: #000; }
+  .totals .pay-row {
+    font-size: 1.25em;
+    font-weight: 900;
+    border-top: 2.5px solid #000;
     padding-top: 0.5mm;
     margin-top: 0.3mm;
+    color: #000;
   }
-  .pay-single { font-size: inherit; line-height: 1.22; }
-  .pay-name { font-weight: 800; font-size: 1.05em; }
+  .pay-single { font-size: inherit; line-height: 1.22; color: #000; }
+  .pay-name { font-weight: 900; font-size: 1.2em; color: #000; }
   .acct-num {
     margin-top: 0.4mm;
-    font-size: 1.05em;
+    font-size: 1.2em;
+    font-weight: 900;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
+    color: #000;
   }
-  .acct-num strong { font-size: 1.12em; font-weight: 800; }
+  .acct-num strong { font-size: 1.25em; font-weight: 900; color: #000; }
   .sigs {
-    margin-top: 1.2mm;
+    margin-top: 1mm;
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 2mm;
     flex-shrink: 0;
   }
   .sig {
-    border: 1px solid #64748b;
+    border: 2.5px solid #000;
     border-radius: 0.8mm;
-    padding: 1mm;
-    min-height: 14mm;
+    padding: 1.2mm;
+    min-height: 13mm;
     display: flex;
     flex-direction: column;
   }
   .sig-title {
-    font-size: 5pt;
-    font-weight: 800;
+    font-size: 8pt;
+    font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #1a3a5a;
+    color: #000;
   }
   .sig-name {
     margin-top: 0.3mm;
-    font-size: 6pt;
-    font-weight: 600;
-    min-height: 7pt;
+    font-size: 9.5pt;
+    font-weight: 900;
+    min-height: 8pt;
     word-break: break-word;
+    color: #000;
   }
   .sig-line {
     margin-top: auto;
-    border-top: 1px solid #334155;
+    border-top: 2px solid #000;
     padding-top: 0.4mm;
-    font-size: 5pt;
-    color: #475569;
+    font-size: 7.5pt;
+    font-weight: 800;
+    color: #000;
   }
   .foot {
-    margin-top: 0.8mm;
-    font-size: 4.5pt;
-    color: #64748b;
+    margin-top: 0.6mm;
+    font-size: 7.5pt;
+    font-weight: 800;
+    color: #000;
     text-align: center;
     flex-shrink: 0;
   }
@@ -901,7 +916,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
         var maxH = sheet.clientHeight || 0;
         var need = sheet.scrollHeight || 0;
         if (!maxH || need <= maxH + 1) return;
-        var scale = Math.max(0.7, Math.min(1, maxH / need));
+        var scale = Math.max(0.78, Math.min(1, maxH / need));
         sheet.style.transform = 'scale(' + scale.toFixed(4) + ')';
       }
       fitSheet();
