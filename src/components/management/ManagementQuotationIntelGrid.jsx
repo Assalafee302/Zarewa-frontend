@@ -241,15 +241,20 @@ export function ManagementQuotationIntelGrid({
         ) : null}
         {accLines.length > 0 ? (
           <ul className="mb-2 space-y-0.5 rounded-lg border border-slate-200 bg-slate-50/50 p-2">
-            {accLines.map((a, i) => (
-              <li key={i} className="flex justify-between gap-2 text-ui-xs">
-                <span className="min-w-0 truncate font-medium text-slate-800">{a.label || a.name || '—'}</span>
-                <span className="shrink-0 tabular-nums text-slate-600">
-                  {a.issuedQty != null ? `${a.issuedQty} issued` : ''}
-                  {a.quotedQty != null ? ` / ${a.quotedQty} quoted` : ''}
-                </span>
-              </li>
-            ))}
+            {accLines.map((a, i) => {
+              const quoted = a.ordered ?? a.quotedQty;
+              const issued = a.supplied ?? a.issuedQty;
+              return (
+                <li key={i} className="flex justify-between gap-2 text-ui-xs">
+                  <span className="min-w-0 truncate font-medium text-slate-800">{a.label || a.name || '—'}</span>
+                  <span className="shrink-0 tabular-nums text-slate-600">
+                    {issued != null ? `${issued} supplied` : ''}
+                    {quoted != null ? ` / ${quoted} ordered` : ''}
+                    {Number(a.shortfall) > 0 ? ` · short ${a.shortfall}` : ''}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
         {stone && (stone.totalSuppliedM2 > 0 || stone.totalDeductionM2 > 0 || (stone.lines || []).length > 0) ? (

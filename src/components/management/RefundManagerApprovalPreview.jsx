@@ -1111,18 +1111,48 @@ export function RefundManagerApprovalPreview({
                 )}
                 {lines.filter((l) => l.category !== 'products').length > 0 ? (
                   <div className="mt-1.5 space-y-0.5">
-                    <p className="text-ui-xs font-bold uppercase text-slate-400">Other lines</p>
+                    <p className="text-ui-xs font-bold uppercase text-slate-400">Accessories &amp; services</p>
                     {lines
                       .filter((l) => l.category !== 'products')
-                      .slice(0, 6)
-                      .map((ln, idx) => (
-                        <div key={idx} className="flex justify-between gap-2 text-ui-xs">
-                          <span className="truncate text-slate-700">{ln.name}</span>
-                          <span className="shrink-0 tabular-nums text-slate-600">
-                            {ln.lineTotal !== '' && ln.lineTotal != null ? formatNgn(ln.lineTotal) : '?'}
-                          </span>
-                        </div>
-                      ))}
+                      .map((ln, idx) => {
+                        const cat =
+                          ln.category === 'accessories'
+                            ? 'Acc'
+                            : ln.category === 'services'
+                              ? 'Svc'
+                              : '';
+                        const acc =
+                          ln.category === 'accessories'
+                            ? accLines.find(
+                                (a) =>
+                                  String(a.name || a.label || '')
+                                    .trim()
+                                    .toLowerCase() === String(ln.name || '').trim().toLowerCase()
+                              )
+                            : null;
+                        const ordered = acc ? (acc.ordered ?? acc.quotedQty) : null;
+                        const supplied = acc ? (acc.supplied ?? acc.issuedQty) : null;
+                        const shortfall = acc ? Number(acc.shortfall) || 0 : null;
+                        return (
+                          <div key={idx} className="flex justify-between gap-2 text-ui-xs">
+                            <span className="min-w-0 truncate text-slate-700">
+                              {cat ? (
+                                <span className="mr-1 font-bold uppercase text-slate-400">{cat}</span>
+                              ) : null}
+                              {ln.name}
+                            </span>
+                            <span className="shrink-0 tabular-nums text-slate-600">
+                              {acc
+                                ? `${supplied ?? 0}/${ordered ?? '?'} supplied${
+                                    shortfall > 0 ? ` · short ${shortfall}` : ''
+                                  }`
+                                : ln.lineTotal !== '' && ln.lineTotal != null
+                                  ? formatNgn(ln.lineTotal)
+                                  : '—'}
+                            </span>
+                          </div>
+                        );
+                      })}
                   </div>
                 ) : null}
               </Fragment>
@@ -1326,7 +1356,10 @@ export function RefundManagerApprovalPreview({
                 <p className="mb-0.5 text-ui-xs font-bold uppercase text-slate-400">Accessories supply</p>
                 <ul className="space-y-0.5 rounded-md border border-slate-200 bg-slate-50/50 p-1.5">
                   {accLines.map((a, i) => {
-                    const st = accessorySupplyLabel(a.issuedQty, a.quotedQty);
+                    // Intelligence uses ordered/supplied; older payloads used quotedQty/issuedQty.
+                    const quoted = a.ordered ?? a.quotedQty;
+                    const issued = a.supplied ?? a.issuedQty;
+                    const st = accessorySupplyLabel(issued, quoted);
                     const toneCls =
                       st.tone === 'emerald'
                         ? 'text-emerald-700 bg-emerald-50'
@@ -1342,7 +1375,8 @@ export function RefundManagerApprovalPreview({
                           {st.text}
                         </span>
                         <span className="shrink-0 tabular-nums text-slate-600">
-                          {a.issuedQty ?? 0}/{a.quotedQty ?? '?'}
+                          {issued ?? 0}/{quoted ?? '?'}
+                          {Number(a.shortfall) > 0 ? ` · short ${a.shortfall}` : ''}
                         </span>
                       </li>
                     );
