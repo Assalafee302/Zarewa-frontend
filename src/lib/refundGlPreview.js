@@ -46,8 +46,12 @@ export const REFUND_CATEGORY_GL_HINTS = {
     note: 'Gauge substitution credit — quoted ₦/m minus workbook floor for allocated coil.',
   },
   'Customer commission': {
-    posting: 'Dr 2500 · selling expense / margin review',
-    note: 'Agent commission — capped by minimum selling ₦/m and refundable headroom.',
+    posting: 'Dr 4000 Sales · Cr 1000 Cash/Bank',
+    note: 'Agent commission / quoted ₦/m minus workbook floor — till payout reduces recognised sales, not leftover deposits.',
+  },
+  'MD discount': {
+    posting: 'Dr 4000 Sales · Cr 1000 Cash/Bank',
+    note: 'MD discount (₦/m × quoted metres) — till payout reduces recognised sales after production.',
   },
   Other: {
     posting: 'Dr 2500 · manual GL review',
@@ -67,8 +71,12 @@ export function refundGlImpactRows(categories, ctx = {}) {
   const postProd = Boolean(ctx.hasCompletedProduction);
   return uniq.map((category) => {
     const hint = REFUND_CATEGORY_GL_HINTS[category] || DEFAULT_GL_HINT;
+    const concessionPosting = String(hint.posting).includes('4000');
     const revenueReview =
-      postProd && category !== 'Overpayment' && !String(hint.posting).includes('2500 only');
+      postProd &&
+      !concessionPosting &&
+      category !== 'Overpayment' &&
+      !String(hint.posting).includes('2500 only');
     return {
       category,
       posting: hint.posting,

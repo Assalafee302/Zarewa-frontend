@@ -62,6 +62,7 @@ import {
   refundAmountExceedsEconomicFloorCap,
   refundFloorGatedAmountNgn,
   refundRequestIsEconomicFloorExempt,
+  refundRequestIsPriceConcession,
   refundRequestRequiresMdApproval,
 } from '../../shared/refundConstants.js';
 import { userMayOverrideProductionAlignment, isExecutiveRoleKey } from '../../lib/workspaceGovernanceClient';
@@ -1405,13 +1406,17 @@ const RefundModal = ({
     () => refundFormIsOverpaymentOnly(form.calculationLines),
     [form.calculationLines]
   );
+  const priceConcessionRefund = useMemo(
+    () => refundRequestIsPriceConcession({ calculationLines: form.calculationLines }),
+    [form.calculationLines]
+  );
   const selectedCustomerHrPayout = useMemo(() => {
-    // Overpayment returns to the quote customer's bank — not HR payroll / staff cut path.
-    if (overpaymentOnlyRefund) return null;
+    // Overpayment / commission / MD discount return to the quote customer's bank — not HR payroll cut path.
+    if (overpaymentOnlyRefund || priceConcessionRefund) return null;
     const cid = String(form.customerID || '').trim();
     if (!cid) return null;
     return claimingStaffRows.find((r) => String(r.customerID || '').trim() === cid && r.hasBank) || null;
-  }, [claimingStaffRows, form.customerID, overpaymentOnlyRefund]);
+  }, [claimingStaffRows, form.customerID, overpaymentOnlyRefund, priceConcessionRefund]);
   const payoutAccountReady = Boolean(
     (String(form.payeeName || '').trim() &&
       String(form.payeeAccountNo || '').trim() &&
@@ -4026,6 +4031,7 @@ const RefundModal = ({
             String(r.recipientCustomerID || '').trim()
           ),
           overpaymentOnly: overpaymentOnlyRefund,
+          priceConcession: priceConcessionRefund,
         }
       )
     );
@@ -4054,6 +4060,7 @@ const RefundModal = ({
     refundSplitDeductionOpts,
     unclearedFloatByClaimingCustomerId,
     overpaymentOnlyRefund,
+    priceConcessionRefund,
   ]);
 
   const appendPayoutSplitRow = useCallback((rowFactory) => {
@@ -6090,6 +6097,7 @@ const RefundModal = ({
                                         String(row.recipientCustomerID || '').trim()
                                       ),
                                       overpaymentOnly: overpaymentOnlyRefund,
+                                      priceConcession: priceConcessionRefund,
                                     }
                                   );
                                   if (isQuoteCustomerRow) {

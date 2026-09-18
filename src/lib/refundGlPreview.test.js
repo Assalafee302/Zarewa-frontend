@@ -13,6 +13,13 @@ describe('refundGlPreview', () => {
     expect(rows[0].revenueReview).toBe(true);
   });
 
+  it('posts commission and MD discount to sales 4000 without a 2500 overlay', () => {
+    const rows = refundGlImpactRows(['Customer commission', 'MD discount'], { hasCompletedProduction: true });
+    expect(rows.every((r) => r.posting.includes('4000'))).toBe(true);
+    expect(rows.every((r) => r.revenueReview !== true)).toBe(true);
+    expect(rows.every((r) => !r.note.includes('Dr 2500/Cr 1000'))).toBe(true);
+  });
+
   it('derives categories from included calculation lines only', () => {
     const rows = refundGlImpactFromLines(
       [

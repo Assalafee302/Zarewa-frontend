@@ -32,7 +32,23 @@ export function RefundGlImpactPreview({ calculationLines, hasCompletedProduction
       {open ? (
         <div className="space-y-2 border-t border-slate-200 px-3 pb-3 pt-2">
           <p className="text-ui-xs text-slate-500 leading-snug">
-            Typical payout: <span className="font-mono font-semibold">Dr 2500 · Cr 1000</span>. Not automatic journals.
+            {rows.length > 0 && rows.every((r) => String(r.posting).includes('4000'))
+              ? (
+                <>
+                  Typical payout: <span className="font-mono font-semibold">Dr 4000 · Cr 1000</span> (sales concession).
+                </>
+              )
+              : rows.some((r) => String(r.posting).includes('4000'))
+                ? (
+                  <>
+                    Deposits: <span className="font-mono font-semibold">Dr 2500 · Cr 1000</span>. Commission / MD discount / floor difference: <span className="font-mono font-semibold">Dr 4000 · Cr 1000</span>.
+                  </>
+                )
+                : (
+                  <>
+                    Typical payout: <span className="font-mono font-semibold">Dr 2500 · Cr 1000</span>.
+                  </>
+                )}
           </p>
           <ul className="space-y-1.5">
             {rows.map((row) => (

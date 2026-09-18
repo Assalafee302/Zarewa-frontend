@@ -179,6 +179,8 @@ function ledgerTypeLabel(t) {
       return 'Overpayment refunded';
     case 'REFUND_ADVANCE':
       return 'Advance refunded';
+    case 'REFUND_CONCESSION':
+      return 'Commission / MD discount refunded';
     default:
       return t;
   }

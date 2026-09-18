@@ -1,5 +1,6 @@
 import { refundApprovedAmount, refundOutstandingAmount, refundLooksPaidWithoutTillPayout } from './refundsStore';
 import { refundCategoriesAreOverpaymentOnly } from '../shared/lib/refundCreditApply.js';
+import { normalizeRefundReasonCategoriesForApi, refundRequestIsPriceConcession } from '../shared/refundConstants.js';
 import {
   overpaymentAlreadyRefundedNgn,
   quotationOverpaymentResidualNgn,
@@ -265,6 +266,12 @@ export function refundCashierSplitBreakdown(refund) {
     refund?.reasonCategory ?? refund?.reason_category,
     calculationLines
   );
+  const priceConcession = refundRequestIsPriceConcession({
+    categories: normalizeRefundReasonCategoriesForApi(
+      refund?.reasonCategory ?? refund?.reason_category
+    ),
+    calculationLines,
+  });
 
   if (!rawSplits.length) {
     return [
@@ -291,6 +298,7 @@ export function refundCashierSplitBreakdown(refund) {
     return applyRefundStaffAllocationDeduction({ ...row, amountNgn: share }, quoteCustomerId, {
       honorCompanyCutWaiver: true,
       overpaymentOnly,
+      priceConcession,
       unclearedReceiptHoldNgn:
         roundRefundStaffMoney(row?.unclearedReceiptHoldNgn ?? row?.uncleared_receipt_hold_ngn) ||
         roundRefundStaffMoney(row?.unclearedReceiptOffsetNgn ?? row?.uncleared_receipt_offset_ngn),
