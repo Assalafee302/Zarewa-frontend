@@ -56,11 +56,13 @@ import {
   REFUND_REASON_CATEGORY_VALUES as REFUND_REASON_CATEGORIES,
   REFUND_PREVIEW_VERSION,
   MIN_REFUND_QUOTATION_REMAINING_NGN,
+  MIN_MD_DISCOUNT_REASON_LEN,
   quotationMeetsRefundPickerFloor,
   refundCategoryDisplayLabel,
   refundAmountExceedsEconomicFloorCap,
   refundFloorGatedAmountNgn,
   refundRequestIsEconomicFloorExempt,
+  refundRequestRequiresMdApproval,
 } from '../../shared/refundConstants.js';
 import { userMayOverrideProductionAlignment, isExecutiveRoleKey } from '../../lib/workspaceGovernanceClient';
 import { quotationRefundsBlocked } from '../../lib/refundEligibility';
@@ -95,6 +97,8 @@ const REFUND_CATEGORY_HINTS = {
     'Quoted stone flatsheet m² exceeds supplied + deduction recorded on completed/cancelled production jobs (same basis as the intelligence panel).',
   'Customer commission':
     'Quoted ₦/m minus the material pricing workbook floor ₦/m × produced metres at the quoted gauge. Added automatically when that difference is positive. Thinner-coil credit stays under Substitution.',
+  'MD discount':
+    'Typed amount after quotation and production. Not limited by workbook floor. Branch Manager cannot approve — MD/CEO (or administrator) must sign off. A short note is required.',
   'Substitution Difference':
     'When quoted gauge differs from the coil actually allocated, credit follows quoted ₦/m (from the quote) minus the material pricing workbook minimum ₦/m (floor) for that coil gauge/design when present, else the published list row (see breakdown under the line).',
 };
@@ -1110,6 +1114,12 @@ const RefundModal = ({
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const canApproveRefunds = userMayApproveRefundRequests(ws);
+  const mayApproveMdDiscount = useMemo(() => {
+    const rk = String(ws?.session?.user?.roleKey || ws?.user?.roleKey || '')
+      .trim()
+      .toLowerCase();
+    return Boolean(ws?.hasPermission?.('*') || rk === 'admin' || isExecutiveRoleKey(rk));
+  }, [ws]);
   const workspaceBranchId = String(
     ws?.session?.currentBranchId ||
       ws?.session?.branchId ||
@@ -3096,6 +3106,20 @@ const RefundModal = ({
     () => deriveReasonCategoriesFromLines(form.calculationLines),
     [form.calculationLines]
   );
+  const createHasMdDiscount = refundRequestRequiresMdApproval({
+    categories: derivedReasonCategories,
+    calculationLines: form.calculationLines,
+  });
+  const recordHasMdDiscount = refundRequestRequiresMdApproval({
+    categories: record?.reasonCategory ?? record?.reason_category,
+    calculationLines: record?.calculationLines,
+  });
+  const canApproveThisRefund =
+    canApproveRefunds && (!recordHasMdDiscount || mayApproveMdDiscount);
+
+  useEffect(() => {
+    if (mode === 'create' && createHasMdDiscount) setRefundNotesOpen(true);
+  }, [mode, createHasMdDiscount]);
 
   const canOverrideProductionAlignment = useMemo(
     () => userMayOverrideProductionAlignment(ws?.session?.user?.roleKey),
@@ -3374,6 +3398,16 @@ const RefundModal = ({
     if (reasonCategory.length === 0) {
       setPreviewError('Include at least one line with a positive amount (check the Include box).');
       return;
+    }
+    if (refundRequestRequiresMdApproval({ categories: reasonCategory, calculationLines: form.calculationLines })) {
+      const mdNote = String(form.reasonNotes || form.calculationNotes || '').trim();
+      if (mdNote.length < MIN_MD_DISCOUNT_REASON_LEN) {
+        setRefundNotesOpen(true);
+        setPreviewError(
+          `MD discount requires a note (min ${MIN_MD_DISCOUNT_REASON_LEN} characters) explaining the amount for MD/CEO approval.`
+        );
+        return;
+      }
     }
     if (reasonCategory.some((c) => blockedRefundCategories.includes(c))) {
       setPreviewError('Uncheck or remove lines for categories that are not allowed for this quotation.');
@@ -3767,6 +3801,12 @@ const RefundModal = ({
       }
     }
 
+    if (decisionStatus === 'Approved' && recordHasMdDiscount && !mayApproveMdDiscount) {
+      setPreviewError(
+        'MD discount refunds require Managing Director, CEO, or Administrator approval. Branch Manager cannot approve this category.'
+      );
+      return;
+    }
     if (decisionStatus === 'Approved') {
       const approvalArithmeticIssues = auditRefundCalculationLineArithmetic(linesForDecision);
       if (approvalArithmeticIssues.length > 0) {
@@ -4364,16 +4404,18 @@ const RefundModal = ({
 
           {showApprovalReview ? (
             <>
-              {!canApproveRefunds || ws?.canMutate === false || refundBlockedByMdPricing ? (
+              {!canApproveThisRefund || ws?.canMutate === false || refundBlockedByMdPricing ? (
                 <ZareApprovalHint
                   context={{
                     referenceNo: record?.refundID,
                     documentType: 'refund_request',
                     status: record?.status,
-                    canApprove: canApproveRefunds && ws?.canMutate !== false && !refundBlockedByMdPricing,
+                    canApprove: canApproveThisRefund && ws?.canMutate !== false && !refundBlockedByMdPricing,
                     canMutate: ws?.canMutate !== false,
                     missingPermission: !canApproveRefunds
                       ? 'Refund approval requires refunds.approve or finance.approve.'
+                      : recordHasMdDiscount && !mayApproveMdDiscount
+                        ? 'MD discount refunds require Managing Director, CEO, or Administrator approval.'
                       : refundBlockedByMdPricing
                         ? 'Managing Director must confirm below-floor pricing after production before this refund can be approved.'
                         : undefined,
@@ -4710,6 +4752,12 @@ const RefundModal = ({
                     ))}
                   </div>
                 ) : null}
+                {mode === 'create' && createHasMdDiscount ? (
+                  <p className="text-[10px] font-semibold leading-snug text-violet-800">
+                    MD discount is a typed amount after production. Branch Manager cannot approve — it waits for
+                    MD/CEO. Add a short note explaining the amount.
+                  </p>
+                ) : null}
                 {excludedRefundHints.length > 0 ? (
                   <div>
                     {!excludedCatsOpen ? (
@@ -4989,7 +5037,7 @@ const RefundModal = ({
                       disabled={readOnly}
                       value={form.reasonNotes}
                       onChange={(e) => setForm((f) => ({ ...f, reasonNotes: e.target.value }))}
-                      placeholder="Optional note for finance / BM…"
+                      placeholder="Required for MD discount — why this amount…"
                       className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-rose-500/20 resize-none"
                     />
                   ) : null}
@@ -6162,16 +6210,18 @@ const RefundModal = ({
 
                   {showApproval && (
                     <div className="pt-4 border-t border-slate-100 space-y-4">
-                      {!canApproveRefunds || ws?.canMutate === false || refundBlockedByMdPricing ? (
+                      {!canApproveThisRefund || ws?.canMutate === false || refundBlockedByMdPricing ? (
                         <ZareApprovalHint
                           context={{
                             referenceNo: record?.refundID,
                             documentType: 'refund_request',
                             status: record?.status,
-                            canApprove: canApproveRefunds && ws?.canMutate !== false && !refundBlockedByMdPricing,
+                            canApprove: canApproveThisRefund && ws?.canMutate !== false && !refundBlockedByMdPricing,
                             canMutate: ws?.canMutate !== false,
                             missingPermission: !canApproveRefunds
                               ? 'Refund approval requires refunds.approve or finance.approve.'
+                              : recordHasMdDiscount && !mayApproveMdDiscount
+                                ? 'MD discount refunds require Managing Director, CEO, or Administrator approval.'
                               : refundBlockedByMdPricing
                                 ? 'Managing Director must confirm below-floor pricing after production before this refund can be approved.'
                                 : undefined,

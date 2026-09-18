@@ -21,6 +21,7 @@ import { DecisionActionBar, DecisionBand } from './DecisionSurface';
 import {
   refundAmountExceedsEconomicFloorCap,
   refundRequestIsEconomicFloorExempt,
+  refundRequestRequiresMdApproval,
 } from '../../shared/refundConstants.js';
 
 function refundCategoryTokens(value) {
@@ -561,20 +562,30 @@ export function RefundManagerApprovalPreview({
     return s + (paidAmt > 0 ? paidAmt : Number(r.amount_ngn ?? r.amountNgn) || 0);
   }, 0);
   const maxApprovableNgn = Math.max(0, paidOnQuoteNgn - reservedOtherRefundsNgn);
+  const currentCategories = useMemo(
+    () => refundCategoryTokens(refund?.reasonCategory ?? inboxRow?.reason_category),
+    [refund?.reasonCategory, inboxRow?.reason_category]
+  );
+  const mdDiscountRequiresMd = refundRequestRequiresMdApproval({
+    categories: currentCategories,
+    calculationLines: refund?.calculationLines,
+  });
+  const actorMayApproveMdDiscount = useMemo(() => {
+    const rk = String(ws?.user?.roleKey ?? ws?.session?.user?.roleKey ?? '')
+      .trim()
+      .toLowerCase();
+    return Boolean(ws?.hasPermission?.('*') || rk === 'admin' || isExecutiveRoleKey(rk));
+  }, [ws]);
   const requiresMdApproval =
+    mdDiscountRequiresMd ||
     (creditAppliedNgn > 0 ? leftoverAfterCreditNgn : requestedAmountNgn) >
-    Number(refundExecutiveThresholdNgn) || 0;
+      Number(refundExecutiveThresholdNgn);
   const orderTotalNgn = Number(sum?.orderTotalNgn) || 0;
   const paymentPct =
     orderTotalNgn > 0 ? Math.round((paidOnQuoteNgn / orderTotalNgn) * 1000) / 10 : null;
   const deliveryGateActive = deliveryPaymentGate === 'enforce' || deliveryPaymentGate === 'warn';
   const deliveryGateBreached =
     deliveryPaymentGate === 'enforce' && paymentPct != null && paymentPct < 70;
-
-  const currentCategories = useMemo(
-    () => refundCategoryTokens(refund?.reasonCategory ?? inboxRow?.reason_category),
-    [refund?.reasonCategory, inboxRow?.reason_category]
-  );
 
   useEffect(() => {
     setApprovedAmountNgn(String(defaultApproveNgn || ''));
@@ -644,6 +655,12 @@ export function RefundManagerApprovalPreview({
 
   const handleApproveClick = () => {
     if (alignmentBlocksApprove || lineArithmeticBlocksApprove) return;
+    if (mdDiscountRequiresMd && !actorMayApproveMdDiscount) {
+      setApprovalAmountError(
+        'MD discount refunds require Managing Director, CEO, or Administrator approval. Branch Manager cannot approve this category.'
+      );
+      return;
+    }
     const approved = Math.round(Number(approvedAmountNgn) || 0);
     if (approved <= 0) {
       setApprovalAmountError('Approved amount must be positive.');
@@ -829,8 +846,12 @@ export function RefundManagerApprovalPreview({
     if (requiresMdApproval) {
       alerts.push({
         tone: 'violet',
-        title: `MD approval required ? above ?${Number(refundExecutiveThresholdNgn).toLocaleString('en-NG')}`,
-        body: `Requested ${formatNgn(requestedAmountNgn)} exceeds the executive refund threshold. Only MD/CEO (or administrator) may approve this amount.`,
+        title: mdDiscountRequiresMd
+          ? 'MD approval required — MD discount'
+          : `MD approval required — above ₦${Number(refundExecutiveThresholdNgn).toLocaleString('en-NG')}`,
+        body: mdDiscountRequiresMd
+          ? `This request includes MD discount. Only MD/CEO (or administrator) may approve, regardless of amount (requested ${formatNgn(requestedAmountNgn)}).`
+          : `Requested ${formatNgn(requestedAmountNgn)} exceeds the executive refund threshold. Only MD/CEO (or administrator) may approve this amount.`,
       });
     }
     if (lineArithmeticIssues.length > 0) {
@@ -939,6 +960,7 @@ export function RefundManagerApprovalPreview({
     leftoverAfterCreditNgn,
     creditDest,
     requiresMdApproval,
+    mdDiscountRequiresMd,
     refundExecutiveThresholdNgn,
     requestedAmountNgn,
     formatNgn,
@@ -1728,7 +1750,8 @@ export function RefundManagerApprovalPreview({
               loading ||
               alignmentBlocksApprove ||
               lineArithmeticBlocksApprove ||
-              (creditAppliedNgn > 0 && leftoverAfterCreditNgn <= 0)
+              (creditAppliedNgn > 0 && leftoverAfterCreditNgn <= 0) ||
+              (mdDiscountRequiresMd && !actorMayApproveMdDiscount)
             }
             onClick={handleApproveClick}
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-4 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-emerald-500 disabled:opacity-50"
