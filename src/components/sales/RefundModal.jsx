@@ -2618,6 +2618,16 @@ const RefundModal = ({
       if (mode === 'create') {
         const blockers = dq
           .filter((i) => String(i.severity || '').toLowerCase() === 'error')
+          .filter((i) => {
+            const code = String(i.code || '').trim();
+            if (
+              code === 'cutting_list_quotation_metre_under' ||
+              code === 'cutting_list_missing_for_quotation'
+            ) {
+              return false;
+            }
+            return true;
+          })
           .map((i) => ({
             ...i,
             submitAction: 'block',
