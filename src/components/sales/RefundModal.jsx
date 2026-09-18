@@ -4038,7 +4038,7 @@ const RefundModal = ({
               <button
                 type="button"
                 onClick={() => printRefundRecord(record, formatNgnPrint)}
-                title="Print A5 refund voucher (back of cutting list)"
+                title="Print A5 landscape refund voucher (top half of A4 — cut in two)"
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
               >
                 <Printer size={16} aria-hidden />

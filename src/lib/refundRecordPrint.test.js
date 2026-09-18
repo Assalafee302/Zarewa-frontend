@@ -119,9 +119,11 @@ describe('buildRefundRecordPrintHtml', () => {
       formatNgn
     );
 
-    expect(html).toContain('size: A5 portrait');
-    expect(html).toContain('max-height: 200mm');
-    expect(html).toContain('overflow: hidden');
+    expect(html).toContain('size: A4 portrait');
+    expect(html).toContain('height: 148.5mm');
+    expect(html).toContain('A5 landscape');
+    expect(html).toContain('Cut here');
+    expect(html).toContain('main-cols');
     expect(html).toContain('RF-KD-26-1001');
     expect(html).toContain('Account number:');
     expect(html).toContain('0123456789');

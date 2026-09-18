@@ -190,7 +190,7 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             <button
               type="button"
               onClick={() => printRefundRecord(refund, formatNgn)}
-              title="Print A5 refund voucher (back of cutting list)"
+              title="Print A5 landscape refund voucher (top half of A4 — cut in two)"
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
             >
               <Printer size={14} aria-hidden />
