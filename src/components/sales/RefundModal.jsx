@@ -2834,7 +2834,7 @@ const RefundModal = ({
       setQuotationSearchText(id);
       setQuotationSuggestOpen(false);
       setManualQuotationVerifyError('');
-      if (id) void generatePreview(id, false);
+      if (id) void generatePreview(id);
     },
     [generatePreview, resetPreviewStateForQuoteChange]
   );
