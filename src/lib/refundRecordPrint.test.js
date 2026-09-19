@@ -164,9 +164,42 @@ describe('buildRefundRecordPrintHtml', () => {
       formatNgn
     );
 
-    expect(html).toContain('Account: <strong>111222333</strong>');
-    expect(html).toContain('Account: <strong>444555666</strong>');
+    expect(html).toContain('Account number: <strong>111222333</strong>');
+    expect(html).toContain('Account number: <strong>444555666</strong>');
     expect(html).toContain('₦16,000');
+    expect(html).toContain('Company deduction');
+    expect(html).toContain('₦4,000');
+  });
+
+  it('reads payoutAccount.payeeAccountNo and companyDeductionNgn from stored splits', () => {
+    const html = buildRefundRecordPrintHtml(
+      {
+        refundID: 'RF-KD-26-1004',
+        status: 'Approved',
+        amountNgn: 50_000,
+        approvedAmountNgn: 50_000,
+        calculationLines: [{ label: 'Unproduced', category: 'Unproduced meterage', amountNgn: 50_000 }],
+        splitDistributions: [
+          {
+            recipientKind: 'associated_staff',
+            amountNgn: 50_000,
+            companyDeductionNgn: 10_000,
+            netPayoutNgn: 40_000,
+            payoutAccount: {
+              payeeName: 'Musa Staff',
+              payeeBankName: 'Access Bank',
+              payeeAccountNo: '0129988776',
+            },
+          },
+        ],
+      },
+      formatNgn
+    );
+    expect(html).toContain('0129988776');
+    expect(html).toContain('Access Bank');
+    expect(html).toContain('Company deduction ₦10,000');
+    expect(html).toContain('Company deduction (retained)');
+    expect(html).toContain('₦40,000');
   });
 
   it('returns empty string for missing record', () => {

@@ -67,34 +67,103 @@ function recipientKindLabel(kindRaw) {
   return '';
 }
 
+function payoutAccountFromRow(row) {
+  return row?.payoutAccount ?? row?.payout_account ?? null;
+}
+
+/**
+ * Resolve payee name / bank / account from a split row or header refund fields.
+ * Stored splits use payoutAccount.payeeAccountNo (not accountNo).
+ */
+function resolvePayeeBankFields(row, header = null) {
+  const pa = payoutAccountFromRow(row);
+  const name = formatPersonName(
+    String(
+      pa?.payeeName ??
+        pa?.payee_name ??
+        row?.payeeName ??
+        row?.payee_name ??
+        row?.recipientName ??
+        header?.payeeName ??
+        header?.payee_name ??
+        ''
+    ).trim()
+  );
+  const bank = String(
+    pa?.payeeBankName ??
+      pa?.payee_bank_name ??
+      pa?.bankName ??
+      row?.payeeBankName ??
+      row?.payee_bank_name ??
+      header?.payeeBankName ??
+      header?.payee_bank_name ??
+      ''
+  ).trim();
+  const acct = String(
+    pa?.payeeAccountNo ??
+      pa?.payee_account_no ??
+      pa?.accountNo ??
+      pa?.account_no ??
+      row?.payeeAccountNo ??
+      row?.payee_account_no ??
+      header?.payeeAccountNo ??
+      header?.payee_account_no ??
+      ''
+  ).trim();
+  return { name, bank, acct };
+}
+
+function splitDeductionNgn(row) {
+  return Math.round(
+    Number(
+      row?.companyDeductionNgn ??
+        row?.company_deduction_ngn ??
+        row?.companyCutNgn ??
+        row?.company_cut_ngn ??
+        0
+    ) || 0
+  );
+}
+
+function headerCompanyCutNgn(record) {
+  return Math.round(
+    Number(
+      record?.companyCutNgn ??
+        record?.company_cut_ngn ??
+        record?.settlementSummary?.companyCutNgn ??
+        0
+    ) || 0
+  );
+}
+
 function splitPayeeRows(record) {
+  const header = {
+    payeeName: record?.payeeName ?? record?.payee_name,
+    payeeBankName: record?.payeeBankName ?? record?.payee_bank_name,
+    payeeAccountNo: record?.payeeAccountNo ?? record?.payee_account_no,
+  };
   const fromList = (list) =>
     (Array.isArray(list) ? list : [])
       .map((row) => {
-        const name = formatPersonName(
-          String(row?.payeeName ?? row?.payee_name ?? row?.recipientName ?? '').trim()
+        const { name, bank, acct } = resolvePayeeBankFields(row, header);
+        const kind = recipientKindLabel(
+          row?.recipientKind ?? row?.recipient_kind ?? payoutAccountFromRow(row)?.partyKind
         );
-        const bank = String(
-          row?.payeeBankName ??
-            row?.payee_bank_name ??
-            row?.payoutAccount?.bankName ??
-            row?.payout_account?.bank_name ??
-            ''
-        ).trim();
-        const acct = String(
-          row?.payeeAccountNo ??
-            row?.payee_account_no ??
-            row?.payoutAccount?.accountNo ??
-            row?.payout_account?.account_no ??
-            ''
-        ).trim();
-        const kind = recipientKindLabel(row?.recipientKind ?? row?.recipient_kind);
-        const gross = Math.round(Number(row?.amountNgn ?? row?.amount_ngn ?? 0) || 0);
-        const net = Math.round(
-          Number(row?.netPayoutNgn ?? row?.net_payout_ngn ?? row?.amountNgn ?? row?.amount_ngn ?? 0) || 0
+        const gross = Math.round(Number(row?.amountNgn ?? row?.amount_ngn ?? row?.grossNgn ?? 0) || 0);
+        const cut = splitDeductionNgn(row);
+        const netRaw = Math.round(
+          Number(row?.netPayoutNgn ?? row?.net_payout_ngn ?? 0) || 0
         );
-        const cut = Math.round(Number(row?.companyCutNgn ?? row?.company_cut_ngn ?? 0) || 0);
-        return { name, bank, acct, kind, gross, net: net || gross, cut };
+        const net = netRaw > 0 ? netRaw : Math.max(0, gross - cut);
+        const uncleared = Math.round(
+          Number(
+            row?.unclearedReceiptHoldNgn ??
+              row?.uncleared_receipt_hold_ngn ??
+              row?.unclearedReceiptOffsetNgn ??
+              0
+          ) || 0
+        );
+        return { name, bank, acct, kind, gross, net: net || gross, cut, uncleared };
       })
       .filter((r) => r.net > 0 || r.gross > 0 || r.name || r.acct);
 
@@ -391,8 +460,25 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
   const lines = includedCalculationLines(record);
   const splits = splitPayeeRows(record);
   const hasSubs = lines.some((l) => String(l.category || '').includes('Substitution'));
+  const headerCut = headerCompanyCutNgn(record);
+  const splitCutsTotal = splits.reduce((s, r) => s + (r.cut || 0), 0);
+  const totalDeduction = splitCutsTotal > 0 ? splitCutsTotal : headerCut;
+  const netPayoutTotal =
+    splits.length > 0
+      ? splits.reduce((s, r) => s + (r.net || 0), 0)
+      : Math.max(0, (approvedAmt > 0 ? approvedAmt : amountReq) - creditApplied - totalDeduction);
 
-  const amountToPay = Math.max(0, (approvedAmt > 0 ? approvedAmt : amountReq) - creditApplied);
+  const amountToPay = Math.max(
+    0,
+    splits.length > 0
+      ? netPayoutTotal
+      : (approvedAmt > 0 ? approvedAmt : amountReq) - creditApplied - (totalDeduction > 0 && splits.length === 0 ? totalDeduction : 0)
+  );
+  // Prefer till net when we have deductions; otherwise approved/requested minus credit.
+  const displayPay =
+    totalDeduction > 0 || splits.length > 0
+      ? Math.max(0, netPayoutTotal > 0 ? netPayoutTotal : amountToPay)
+      : Math.max(0, (approvedAmt > 0 ? approvedAmt : amountReq) - creditApplied);
   const companyLegal = ZAREWA_COMPANY_ACCOUNT_NAME;
   const dens = densityClass(lines.length, hasSubs);
 
@@ -422,20 +508,29 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     const splitRows = splits
       .map((s) => {
         const who = [s.kind, s.name].filter(Boolean).join(' · ') || '—';
-        const cutNote =
-          s.cut > 0
-            ? `<div class="tiny muted">Gross ${escapeHtml(formatNgn(s.gross))} · company cut ${escapeHtml(
-                formatNgn(s.cut)
-              )}</div>`
-            : '';
+        const acct = s.acct || (splits.length === 1 ? headerPayeeAccountNo : '');
+        const bank = s.bank || (splits.length === 1 ? headerPayeeBankName : '');
+        const cutBits = [];
+        if (s.gross > 0 && s.cut > 0) {
+          cutBits.push(`Gross ${formatNgn(s.gross)}`);
+          cutBits.push(`Company deduction ${formatNgn(s.cut)}`);
+        } else if (s.cut > 0) {
+          cutBits.push(`Company deduction ${formatNgn(s.cut)}`);
+        }
+        if (s.uncleared > 0) {
+          cutBits.push(`Uncleared hold ${formatNgn(s.uncleared)}`);
+        }
+        const cutNote = cutBits.length
+          ? `<div class="tiny">${escapeHtml(cutBits.join(' · '))}</div>`
+          : '';
         return `<tr>
           <td>
             <div class="pay-name">${escapeHtml(who)}</div>
-            ${s.bank ? `<div class="tiny">${escapeHtml(s.bank)}</div>` : ''}
+            ${bank ? `<div class="tiny"><strong>Bank:</strong> ${escapeHtml(bank)}</div>` : ''}
             <div class="acct-num">${
-              s.acct
-                ? `Account: <strong>${escapeHtml(s.acct)}</strong>`
-                : '<span class="muted">Account: not on file</span>'
+              acct
+                ? `Account number: <strong>${escapeHtml(acct)}</strong>`
+                : '<span class="muted">Account number: not on file</span>'
             }</div>
             ${cutNote}
           </td>
@@ -446,7 +541,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     payeeBlock = `
       <h2>Pay to (requested / paid)</h2>
       <table class="payees">
-        <thead><tr><th>Recipient &amp; account</th><th class="right">Net</th></tr></thead>
+        <thead><tr><th>Recipient, bank &amp; account</th><th class="right">Net payout</th></tr></thead>
         <tbody>${splitRows}</tbody>
       </table>`;
   } else {
@@ -454,12 +549,23 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
       <h2>Pay to (requested / paid)</h2>
       <div class="pay-single">
         <div class="pay-name">${escapeHtml(headerPayeeName || 'Payee to be confirmed')}</div>
-        ${headerPayeeBankName ? `<div>${escapeHtml(headerPayeeBankName)}</div>` : ''}
+        ${
+          headerPayeeBankName
+            ? `<div><strong>Bank:</strong> ${escapeHtml(headerPayeeBankName)}</div>`
+            : ''
+        }
         <div class="acct-num">${
           headerPayeeAccountNo
             ? `Account number: <strong>${escapeHtml(headerPayeeAccountNo)}</strong>`
             : '<span class="muted">Account number: not on file</span>'
         }</div>
+        ${
+          totalDeduction > 0
+            ? `<div class="tiny">Gross ${escapeHtml(formatNgn(approvedAmt > 0 ? approvedAmt : amountReq))} · Company deduction ${escapeHtml(
+                formatNgn(totalDeduction)
+              )} · Net ${escapeHtml(formatNgn(displayPay))}</div>`
+            : ''
+        }
       </div>`;
   }
 
@@ -498,6 +604,13 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
             : ''
         }
         ${
+          totalDeduction > 0
+            ? `<div>Company deduction (retained)</div><div class="amt">−${escapeHtml(
+                formatNgn(totalDeduction)
+              )}</div>`
+            : ''
+        }
+        ${
           creditApplied > 0
             ? `<div>Applied as credit${creditTo ? ` → ${escapeHtml(creditTo)}` : ''}</div><div class="amt">${escapeHtml(
                 formatNgn(creditApplied)
@@ -512,7 +625,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
             : ''
         }
         <div class="pay-row">Cash / till to pay</div><div class="amt pay-row">${escapeHtml(
-          formatNgn(amountToPay)
+          formatNgn(displayPay)
         )}</div>
       </div>`;
 
@@ -833,7 +946,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
           </div>
           <div class="badge">
             <div class="badge-label">Amount to pay</div>
-            <div class="badge-amt">${escapeHtml(formatNgn(amountToPay))}</div>
+            <div class="badge-amt">${escapeHtml(formatNgn(displayPay))}</div>
           </div>
         </div>
         <div class="meta">

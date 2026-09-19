@@ -3774,11 +3774,20 @@ const RefundModal = ({
           status: 'Pending',
           requestedAtISO: new Date().toISOString(),
           requestedBy: applicantName,
-          payeeName: selectedCustomerHrPayout ? '' : payeeName,
-          payeeAccountNo: selectedCustomerHrPayout ? '' : payeeAccountNo,
-          payeeBankName: selectedCustomerHrPayout ? '' : payeeBankName,
+          payeeName: selectedCustomerHrPayout
+            ? String(selectedCustomerHrPayout.name || '').trim()
+            : payeeName,
+          payeeAccountNo: selectedCustomerHrPayout
+            ? String(selectedCustomerHrPayout.bankAccountNo || selectedCustomerHrPayout.bank_account_no || '').trim()
+            : payeeAccountNo,
+          payeeBankName: selectedCustomerHrPayout
+            ? String(selectedCustomerHrPayout.bankName || selectedCustomerHrPayout.bank_name || '').trim()
+            : payeeBankName,
           refundSplits,
           splitDistributions: refundSplits,
+          companyCutNgn: Array.isArray(refundSplits)
+            ? refundSplits.reduce((s, r) => s + (Math.round(Number(r?.companyDeductionNgn || r?.companyCutNgn || 0)) || 0), 0)
+            : 0,
           previewSnapshot: lastPreviewSnapshot,
         });
       } catch {
