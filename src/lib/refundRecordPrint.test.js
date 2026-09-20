@@ -192,6 +192,7 @@ describe('buildRefundRecordPrintHtml', () => {
             },
           },
         ],
+        settlementSummary: { tillPayableNgn: 40_000, companyCutNgn: 10_000 },
       },
       formatNgn
     );
@@ -199,7 +200,58 @@ describe('buildRefundRecordPrintHtml', () => {
     expect(html).toContain('Access Bank');
     expect(html).toContain('Company deduction ₦10,000');
     expect(html).toContain('Company deduction (retained)');
+    expect(html).toContain('Till due now');
     expect(html).toContain('₦40,000');
+  });
+
+  it('does not inflate till due when uncleared hold zeros netPayoutNgn', () => {
+    const html = buildRefundRecordPrintHtml(
+      {
+        refundID: 'RF-KD-26-1005',
+        status: 'Approved',
+        amountNgn: 100_000,
+        approvedAmountNgn: 100_000,
+        calculationLines: [{ label: 'Cancel', category: 'Order cancellation', amountNgn: 100_000 }],
+        splitDistributions: [
+          {
+            recipientKind: 'customer',
+            amountNgn: 100_000,
+            companyDeductionNgn: 0,
+            netPayoutNgn: 0,
+            unclearedReceiptHoldNgn: 100_000,
+            payoutHeldForUnclearedReceipts: true,
+            payoutAccount: {
+              payeeName: 'Amina',
+              payeeBankName: 'GTB',
+              payeeAccountNo: '999888777',
+            },
+          },
+        ],
+        settlementSummary: { tillPayableNgn: 0, heldUnclearedNgn: 100_000 },
+        heldNetNgn: 100_000,
+      },
+      formatNgn
+    );
+    expect(html).toContain('999888777');
+    expect(html).toContain('Uncleared hold');
+    expect(html).toContain('Held (uncleared receipts)');
+    // Badge / till due must stay ₦0, not fall back to gross.
+    expect(html).toMatch(/Till due now[\s\S]*₦0/);
+  });
+
+  it('shows MD discount metres × ₦/m calculation', () => {
+    const detail = buildRefundLineCalculationDetailHtml(
+      {
+        category: 'MD discount',
+        label: 'MD discount (120m @ ₦100/m)',
+        amountNgn: 12_000,
+      },
+      { quotedMeters: 120 },
+      formatNgn
+    );
+    expect(detail).toContain('Quoted metres');
+    expect(detail).toContain('120 m ×');
+    expect(detail).toContain('₦12,000');
   });
 
   it('returns empty string for missing record', () => {

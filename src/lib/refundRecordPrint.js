@@ -1,9 +1,13 @@
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../Data/companyQuotation.js';
 import { formatPersonName } from './formatPersonName.js';
 import { escapeHtml, openPrintHtmlDocument } from './officeDeskPrint.js';
-import { parseUnproducedMetresLabel } from '../shared/lib/refundLineArithmetic.js';
+import {
+  parseMdDiscountMetresLabel,
+  parseUnproducedMetresLabel,
+} from '../shared/lib/refundLineArithmetic.js';
 import { refundCategoryDisplayLabel } from '../shared/refundConstants.js';
 import { refundApprovedAmount, refundPublicStatusLabel } from './refundsStore.js';
+import { refundCashierMoneyStory } from './refundCashierDetail.js';
 
 /**
  * A5 landscape refund voucher — prints on the top half of A4 (cut A4 in two).
@@ -151,10 +155,6 @@ function splitPayeeRows(record) {
         );
         const gross = Math.round(Number(row?.amountNgn ?? row?.amount_ngn ?? row?.grossNgn ?? 0) || 0);
         const cut = splitDeductionNgn(row);
-        const netRaw = Math.round(
-          Number(row?.netPayoutNgn ?? row?.net_payout_ngn ?? 0) || 0
-        );
-        const net = netRaw > 0 ? netRaw : Math.max(0, gross - cut);
         const uncleared = Math.round(
           Number(
             row?.unclearedReceiptHoldNgn ??
@@ -163,9 +163,41 @@ function splitPayeeRows(record) {
               0
           ) || 0
         );
-        return { name, bank, acct, kind, gross, net: net || gross, cut, uncleared };
+        const held = Boolean(row?.payoutHeldForUnclearedReceipts) || uncleared > 0;
+        const netStored = Number(row?.netPayoutNgn ?? row?.net_payout_ngn);
+        const netRaw = Number.isFinite(netStored) ? Math.round(netStored) : NaN;
+        // When hold zeros netPayoutNgn, do NOT fall back to gross−cut (that overstates till due).
+        let net;
+        if (Number.isFinite(netRaw)) {
+          net = Math.max(0, netRaw);
+        } else {
+          net = Math.max(0, gross - cut);
+        }
+        const tillDue = held ? Math.max(0, net - Math.min(net, uncleared)) : net;
+        const waived = Boolean(
+          row?.companyCutWaived === true ||
+            row?.company_cut_waived === true ||
+            row?.waiveCompanyCut === true
+        );
+        const waiverNote = String(
+          row?.companyCutWaiverNote ?? row?.company_cut_waiver_note ?? ''
+        ).trim();
+        return {
+          name,
+          bank,
+          acct,
+          kind,
+          gross,
+          net,
+          tillDue,
+          cut,
+          uncleared,
+          held,
+          waived,
+          waiverNote,
+        };
       })
-      .filter((r) => r.net > 0 || r.gross > 0 || r.name || r.acct);
+      .filter((r) => r.net > 0 || r.gross > 0 || r.tillDue > 0 || r.name || r.acct || r.cut > 0);
 
   if (Array.isArray(record?.splitDistributions) && record.splitDistributions.length) {
     return fromList(record.splitDistributions);
@@ -333,6 +365,50 @@ export function buildRefundLineCalculationDetailHtml(line, snapshot, formatNgn =
       parts.push(`<div class="detail-fallback">${escapeHtml(label)}</div>`);
       parts.push(kvRow('This line', formatNgn(amt)));
     }
+  } else if (
+    cat === 'MD discount' ||
+    /md\s*discount/i.test(cat) ||
+    /md\s*discount/i.test(label) ||
+    cat === 'Customer commission' ||
+    /commission/i.test(cat) ||
+    /commission/i.test(label)
+  ) {
+    const parsed =
+      parseMdDiscountMetresLabel(label) ||
+      (() => {
+        const m = label.match(
+          /(?:commission|agent commission)[^(]*\(([\d.]+)\s*m\s*@\s*₦\s*([\d,]+(?:\.\d+)?)\s*(?:\/\s*m)?\)/i
+        );
+        if (!m) return null;
+        const metres = Number(m[1]);
+        const pricePerMeterNgn = Number(String(m[2]).replace(/,/g, ''));
+        if (!Number.isFinite(metres) || metres <= 0 || !(pricePerMeterNgn > 0)) return null;
+        return { metres, pricePerMeterNgn };
+      })();
+    const metres =
+      parsed?.metres ??
+      Number(line?.mdDiscountMetres) ??
+      Number(snap?.quotedMeters);
+    const ppm =
+      parsed?.pricePerMeterNgn ??
+      Number(line?.mdDiscountNgnPerM) ??
+      (Number.isFinite(metres) && metres > 0 ? amt / metres : NaN);
+    const kindLabel = /commission/i.test(cat) || /commission/i.test(label) ? 'Commission' : 'MD discount';
+    if (Number.isFinite(metres) && metres > 0) parts.push(kvRow('Quoted metres', `${formatMetres(metres)} m`));
+    if (Number.isFinite(ppm) && ppm > 0) {
+      parts.push(kvRow(`${kindLabel} ₦ per m`, formatPpm(ppm, formatNgn)));
+      if (Number.isFinite(metres) && metres > 0) {
+        parts.push(
+          kvRow(
+            'Calculation',
+            `${formatMetres(metres)} m × ${formatPpm(ppm, formatNgn)} = ${formatNgn(amt)}`
+          )
+        );
+      }
+    } else {
+      parts.push(`<div class="detail-fallback">${escapeHtml(label)}</div>`);
+      parts.push(kvRow('This line', formatNgn(amt)));
+    }
   } else if (cat === 'Order cancellation' || /order cancel/i.test(label)) {
     const cash = Math.round(Number(snap?.quotationCashInNgn ?? snap?.paidOnQuoteNgn ?? 0) || 0);
     const floor = snap?.economicFloor;
@@ -463,22 +539,43 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
   const headerCut = headerCompanyCutNgn(record);
   const splitCutsTotal = splits.reduce((s, r) => s + (r.cut || 0), 0);
   const totalDeduction = splitCutsTotal > 0 ? splitCutsTotal : headerCut;
-  const netPayoutTotal =
-    splits.length > 0
-      ? splits.reduce((s, r) => s + (r.net || 0), 0)
-      : Math.max(0, (approvedAmt > 0 ? approvedAmt : amountReq) - creditApplied - totalDeduction);
+  const heldTotal =
+    Math.round(Number(record?.heldNetNgn ?? record?.settlementSummary?.heldUnclearedNgn ?? 0) || 0) ||
+    splits.reduce((s, r) => s + (r.uncleared || 0), 0);
+  const anyWaived = splits.some((s) => s.waived);
+  const waiverNote =
+    String(record?.companyCutWaiverNote ?? record?.company_cut_waiver_note ?? '').trim() ||
+    splits.map((s) => s.waiverNote).find(Boolean) ||
+    '';
 
-  const amountToPay = Math.max(
-    0,
-    splits.length > 0
-      ? netPayoutTotal
-      : (approvedAmt > 0 ? approvedAmt : amountReq) - creditApplied - (totalDeduction > 0 && splits.length === 0 ? totalDeduction : 0)
-  );
-  // Prefer till net when we have deductions; otherwise approved/requested minus credit.
+  // Match Finance desk: prefer settlementSummary.tillPayableNgn via cashier money story.
+  let story = null;
+  try {
+    story = refundCashierMoneyStory(record);
+  } catch {
+    story = null;
+  }
+  const storyTill =
+    story?.tillPayableNgn != null ? Math.max(0, Math.round(Number(story.tillPayableNgn) || 0)) : null;
+  const storyCashDue =
+    story?.cashDueNgn != null ? Math.max(0, Math.round(Number(story.cashDueNgn) || 0)) : null;
+  const splitTillTotal = splits.reduce((s, r) => s + (r.tillDue ?? r.net ?? 0), 0);
+
   const displayPay =
-    totalDeduction > 0 || splits.length > 0
-      ? Math.max(0, netPayoutTotal > 0 ? netPayoutTotal : amountToPay)
-      : Math.max(0, (approvedAmt > 0 ? approvedAmt : amountReq) - creditApplied);
+    storyTill != null
+      ? storyTill
+      : storyCashDue != null
+        ? storyCashDue
+        : splits.length > 0
+          ? splitTillTotal
+          : Math.max(0, (approvedAmt > 0 ? approvedAmt : amountReq) - creditApplied - totalDeduction);
+
+  const badgeLabel =
+    displayPay <= 0 && (creditApplied > 0 || paidAmt > 0 || heldTotal > 0)
+      ? heldTotal > 0 && displayPay <= 0
+        ? 'Held / not till-ready'
+        : 'Till due now'
+      : 'Till due now';
   const companyLegal = ZAREWA_COMPANY_ACCOUNT_NAME;
   const dens = densityClass(lines.length, hasSubs);
 
@@ -517,12 +614,16 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
         } else if (s.cut > 0) {
           cutBits.push(`Company deduction ${formatNgn(s.cut)}`);
         }
+        if (s.waived) {
+          cutBits.push(s.waiverNote ? `Cut waived — ${s.waiverNote}` : 'Company cut waived');
+        }
         if (s.uncleared > 0) {
           cutBits.push(`Uncleared hold ${formatNgn(s.uncleared)}`);
         }
         const cutNote = cutBits.length
           ? `<div class="tiny">${escapeHtml(cutBits.join(' · '))}</div>`
           : '';
+        const showAmt = s.tillDue != null ? s.tillDue : s.net;
         return `<tr>
           <td>
             <div class="pay-name">${escapeHtml(who)}</div>
@@ -534,14 +635,14 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
             }</div>
             ${cutNote}
           </td>
-          <td class="right">${escapeHtml(formatNgn(s.net))}</td>
+          <td class="right">${escapeHtml(formatNgn(showAmt))}</td>
         </tr>`;
       })
       .join('');
     payeeBlock = `
       <h2>Pay to (requested / paid)</h2>
       <table class="payees">
-        <thead><tr><th>Recipient, bank &amp; account</th><th class="right">Net payout</th></tr></thead>
+        <thead><tr><th>Recipient, bank &amp; account</th><th class="right">Till due</th></tr></thead>
         <tbody>${splitRows}</tbody>
       </table>`;
   } else {
@@ -564,6 +665,13 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
             ? `<div class="tiny">Gross ${escapeHtml(formatNgn(approvedAmt > 0 ? approvedAmt : amountReq))} · Company deduction ${escapeHtml(
                 formatNgn(totalDeduction)
               )} · Net ${escapeHtml(formatNgn(displayPay))}</div>`
+            : ''
+        }
+        ${
+          anyWaived || waiverNote
+            ? `<div class="tiny">${escapeHtml(
+                waiverNote ? `Company cut waived — ${waiverNote}` : 'Company cut waived'
+              )}</div>`
             : ''
         }
       </div>`;
@@ -611,8 +719,22 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
             : ''
         }
         ${
+          anyWaived || waiverNote
+            ? `<div>Company cut waived</div><div class="amt">${escapeHtml(
+                waiverNote ? waiverNote.slice(0, 40) : 'Yes'
+              )}</div>`
+            : ''
+        }
+        ${
+          heldTotal > 0
+            ? `<div>Held (uncleared receipts)</div><div class="amt">−${escapeHtml(
+                formatNgn(heldTotal)
+              )}</div>`
+            : ''
+        }
+        ${
           creditApplied > 0
-            ? `<div>Applied as credit${creditTo ? ` → ${escapeHtml(creditTo)}` : ''}</div><div class="amt">${escapeHtml(
+            ? `<div>Applied as credit${creditTo ? ` → ${escapeHtml(creditTo)}` : ''}</div><div class="amt">−${escapeHtml(
                 formatNgn(creditApplied)
               )}</div>`
             : ''
@@ -624,7 +746,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
               }</div><div class="amt">${escapeHtml(formatNgn(paidAmt))}</div>`
             : ''
         }
-        <div class="pay-row">Cash / till to pay</div><div class="amt pay-row">${escapeHtml(
+        <div class="pay-row">Till due now</div><div class="amt pay-row">${escapeHtml(
           formatNgn(displayPay)
         )}</div>
       </div>`;
@@ -945,7 +1067,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
             <h1>Refund details</h1>
           </div>
           <div class="badge">
-            <div class="badge-label">Amount to pay</div>
+            <div class="badge-label">${escapeHtml(badgeLabel)}</div>
             <div class="badge-amt">${escapeHtml(formatNgn(displayPay))}</div>
           </div>
         </div>
