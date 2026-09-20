@@ -25,6 +25,11 @@ export function isWorkspaceV3Enabled() {
   }
 }
 
+/** Server-gated Teams-style rooms / SSE. Missing field means off (backend default). */
+export function workspaceRoomsEnabledFromSnapshot(snapshot) {
+  return snapshot?.workspaceProduct?.roomsEnabled === true;
+}
+
 /** @returns {boolean} True when env explicitly disables V3 (for dual-path tests). */
 export function isWorkspaceV3ExplicitlyDisabled() {
   try {

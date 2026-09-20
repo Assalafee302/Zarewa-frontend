@@ -55,6 +55,30 @@ describe('workspaceV3Api helpers', () => {
     globalThis.EventSource = prev;
   });
 
+  it('closes the stream when the API says rooms are disabled', () => {
+    const instances = [];
+    class FakeEventSource {
+      constructor() {
+        this.readyState = 1;
+        this.closed = false;
+        instances.push(this);
+      }
+      close() {
+        this.closed = true;
+        this.readyState = 2;
+      }
+    }
+    const prev = globalThis.EventSource;
+    globalThis.EventSource = FakeEventSource;
+    const onError = vi.fn();
+    const es = openWorkspaceRealtime({ onError });
+    expect(es).toBeTruthy();
+    es.onmessage({ data: JSON.stringify({ type: 'disabled', code: 'WORKSPACE_ROOMS_DISABLED' }) });
+    expect(instances[0].closed).toBe(true);
+    expect(onError).toHaveBeenCalled();
+    globalThis.EventSource = prev;
+  });
+
   it('clamps activity limit via fetch path', async () => {
     apiFetch.mockResolvedValue({ ok: true, data: { ok: true, events: [] } });
     const { fetchWorkspaceActivity } = await import('./workspaceV3Api.js');

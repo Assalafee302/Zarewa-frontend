@@ -9,6 +9,7 @@ vi.mock('../context/WorkspaceContext', () => ({
   useWorkspace: () => ({
     session: { user: { id: 'u1', roleKey: 'sales', displayName: 'Sales' } },
     permissions: {},
+    snapshot: { workspaceProduct: { roomsEnabled: true } },
   }),
 }));
 

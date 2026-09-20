@@ -32,6 +32,16 @@ describe('workspaceV3FeatureFlag', () => {
   });
 });
 
+describe('workspaceRoomsEnabledFromSnapshot', () => {
+  it('is off unless the API explicitly enables rooms', async () => {
+    const { workspaceRoomsEnabledFromSnapshot } = await import('./workspaceV3FeatureFlag.js');
+    expect(workspaceRoomsEnabledFromSnapshot(null)).toBe(false);
+    expect(workspaceRoomsEnabledFromSnapshot({})).toBe(false);
+    expect(workspaceRoomsEnabledFromSnapshot({ workspaceProduct: { roomsEnabled: false } })).toBe(false);
+    expect(workspaceRoomsEnabledFromSnapshot({ workspaceProduct: { roomsEnabled: true } })).toBe(true);
+  });
+});
+
 describe('Dashboard workspace priority order', () => {
   beforeEach(() => {
     vi.resetModules();

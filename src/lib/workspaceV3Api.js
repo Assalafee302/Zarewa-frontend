@@ -193,6 +193,15 @@ export function openWorkspaceRealtime({ onEvent, onError, onOpen } = {}) {
     es.onmessage = (ev) => {
       try {
         const payload = JSON.parse(ev.data);
+        if (payload?.type === 'disabled' || payload?.code === 'WORKSPACE_ROOMS_DISABLED') {
+          try {
+            es.close();
+          } catch {
+            /* ignore */
+          }
+          onError?.(payload);
+          return;
+        }
         onEvent?.(payload);
       } catch {
         /* ignore malformed */

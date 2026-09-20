@@ -58,6 +58,7 @@ import {
 } from '../lib/hqBranchConfirm.js';
 import { readDeskDomainCache, writeDeskDomainCache } from '../lib/deskDomainPersist.js';
 import { openWorkspaceRealtime } from '../lib/workspaceV3Api';
+import { workspaceRoomsEnabledFromSnapshot } from '../lib/workspaceV3FeatureFlag';
 
 const WorkspaceContext = createContext(null);
 
@@ -1518,6 +1519,7 @@ export function WorkspaceProvider({ children }) {
    */
   useEffect(() => {
     if (status !== 'ok' && status !== 'unstable') return undefined;
+    if (!workspaceRoomsEnabledFromSnapshot(snapshot)) return undefined;
 
     /**
      * Writes arrive in bursts — a cashier confirming five payments is five events for the
@@ -1595,7 +1597,7 @@ export function WorkspaceProvider({ children }) {
         /* ignore */
       }
     };
-  }, [status, ensureDomainLoaded, refresh]);
+  }, [status, snapshot?.workspaceProduct?.roomsEnabled, ensureDomainLoaded, refresh]);
 
   const session = snapshot?.session ?? null;
   const branchScope = snapshot?.branchScope ?? null;

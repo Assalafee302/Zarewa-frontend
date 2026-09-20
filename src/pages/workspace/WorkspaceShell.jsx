@@ -30,6 +30,7 @@ import RecordsZone from '../../components/workspace/v3/RecordsZone';
 import AppsGrid from '../../components/workspace/v3/AppsGrid';
 import ActivityFeed from '../../components/workspace/v3/ActivityFeed';
 import { openTeamChat } from '../../lib/teamChatEvents';
+import { workspaceRoomsEnabledFromSnapshot } from '../../lib/workspaceV3FeatureFlag';
 import {
   fetchWorkspaceActivity,
   markWorkspaceActivityRead,
@@ -102,6 +103,7 @@ export default function WorkspaceShell() {
   const [activityLoading, setActivityLoading] = useState(false);
   const [presence, setPresence] = useState([]);
   const [realtimeStatus, setRealtimeStatus] = useState('polling');
+  const roomsEnabled = workspaceRoomsEnabledFromSnapshot(ws?.snapshot);
 
   // Refs keep callbacks referentially stable so effects (SSE, initial load)
   // don't tear down and refire whenever work items or the toast change.
@@ -281,11 +283,13 @@ export default function WorkspaceShell() {
   }, [visibleWorkItems, selectedItem]);
 
   useEffect(() => {
+    if (!roomsEnabled) return;
     void loadActivity();
     void loadPresence();
-  }, [loadActivity, loadPresence]);
+  }, [loadActivity, loadPresence, roomsEnabled]);
 
   useEffect(() => {
+    if (!roomsEnabled) return undefined;
     if (realtimeStatus !== 'polling') return undefined;
     const t = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
@@ -298,6 +302,7 @@ export default function WorkspaceShell() {
   // Presence heartbeat pauses while the tab is hidden and reports away/online
   // transitions on visibility change.
   useEffect(() => {
+    if (!roomsEnabled) return undefined;
     const beat = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       void postPresenceHeartbeat({ status: 'online', deskKey: activeZone });
@@ -315,11 +320,15 @@ export default function WorkspaceShell() {
       clearInterval(t);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [activeZone]);
+  }, [activeZone, roomsEnabled]);
 
   // Single SSE connection for the life of the shell — room switches read
   // from the ref instead of tearing the socket down.
   useEffect(() => {
+    if (!roomsEnabled) {
+      setRealtimeStatus('polling');
+      return undefined;
+    }
     const es = openWorkspaceRealtime({
       onOpen: () => setRealtimeStatus('connected'),
       onEvent: (payload) => {
@@ -338,7 +347,7 @@ export default function WorkspaceShell() {
         /* ignore */
       }
     };
-  }, [loadActivity, loadPresence]);
+  }, [loadActivity, loadPresence, roomsEnabled]);
 
   useEffect(() => {
     const st = location.state;

@@ -6,6 +6,7 @@ import { useAiAssistant } from '../context/AiAssistantContext';
 import { appFabRightClass, appFabSlots } from '../lib/appFabLayout';
 import { TEAM_CHAT_OPEN_EVENT } from '../lib/teamChatEvents';
 import { isTeamChatEnabled } from '../lib/deskOptionalFeatures';
+import { workspaceRoomsEnabledFromSnapshot } from '../lib/workspaceV3FeatureFlag';
 
 const TeamChatDock = lazyWithRetry(
   () => import('./workspace/v3/TeamChatDock.jsx').then((m) => ({ default: m.TeamChatDock })),
@@ -63,14 +64,15 @@ export function TeamChatDockGate() {
   const [dockMounted, setDockMounted] = useState(false);
   const [openOnMount, setOpenOnMount] = useState(false);
   const [pendingRoomId, setPendingRoomId] = useState(null);
-  const chatOn = isTeamChatEnabled();
+  const chatOn = isTeamChatEnabled() && workspaceRoomsEnabledFromSnapshot(ws?.snapshot);
 
   const mountDock = useCallback((opts = {}) => {
     if (!isTeamChatEnabled()) return;
+    if (!workspaceRoomsEnabledFromSnapshot(ws?.snapshot)) return;
     if (opts.roomId) setPendingRoomId(String(opts.roomId));
     if (opts.open !== false) setOpenOnMount(true);
     setDockMounted(true);
-  }, []);
+  }, [ws?.snapshot]);
 
   useEffect(() => {
     if (!chatOn) return undefined;
