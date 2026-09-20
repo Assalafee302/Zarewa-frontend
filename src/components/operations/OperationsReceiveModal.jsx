@@ -174,7 +174,7 @@ export function OperationsReceiveModal({
                           step="0.01"
                           value={row.weightKg ?? ''}
                           onChange={(e) => patchLine(setGrnLines, idx, { weightKg: e.target.value })}
-                          placeholder={row.meterBasis ? 'Weight kg' : 'Weight kg'}
+                          placeholder="Weight kg"
                           className={FIELD.compact}
                         />
                       </FormField>

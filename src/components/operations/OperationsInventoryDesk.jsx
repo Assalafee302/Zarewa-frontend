@@ -246,6 +246,7 @@ export function OperationsInventoryDesk({
                           <button
                             type="button"
                             disabled={!canReceiveInventory}
+                            aria-haspopup="dialog"
                             aria-expanded={receivingPoId === p.poID}
                             title={
                               canReceiveInventory
