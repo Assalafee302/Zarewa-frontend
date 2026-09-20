@@ -133,6 +133,7 @@ const COL_ALIASES = {
     'qty remaining',
     'qty_remaining',
     'on hand kg',
+    'stock kg',
     'balance kg',
     'kg',
     'weight',
@@ -279,7 +280,8 @@ function findHeaderRowIndex(aoa) {
         c === 'qty remaining' ||
         c === 'qty_remaining' ||
         c === 'balance kg' ||
-        c === 'on hand kg'
+        c === 'on hand kg' ||
+        c === 'stock kg'
     );
     const hasMaterial = cells.some(
       (c) =>

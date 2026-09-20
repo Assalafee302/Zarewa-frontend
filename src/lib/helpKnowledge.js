@@ -1025,11 +1025,11 @@ const CORE_HELP_ARTICLES = [
       'offcut incident kg',
     ],
     answer:
-      'Production register **Used** is only job opening − closing. Material-incident scrap reduces **coil book** on-hand and **Kg used** only after branch manager **approval**. Pending incidents do not move stock.',
+      'Production register **Used** is only job opening − closing. Material-incident scrap reduces **coil book** stock and **Kg used** only after branch manager **approval**. Pending incidents do not move stock.',
     steps: [
       'Record the incident (Production register → Material incident, or Material exceptions).',
       'Submit for BM approval — status **submitted** does not change coil kg yet.',
-      'After BM approves, stock posts as **COIL_SCRAP** — coil on-hand drops; Coil Profile **Kg used** includes Incident/scrap.',
+      'After BM approves, stock posts as **COIL_SCRAP** — coil stock drops; Coil Profile **Kg used** includes Incident/scrap.',
       'Do not expect Production register **Used** to rise for the incident — that figure stays production consumption only.',
       'Open Coil Profile for the coil to see Prod vs Incident/scrap breakdown under Kg used.',
     ],
@@ -1059,7 +1059,7 @@ const CORE_HELP_ARTICLES = [
       'Uncheck **Finish roll** (branch manager / admin / MD only when a finish-roll tail is on book).',
       'Save correction with a 12+ character reason, and tick **Confirm undo Finish roll**.',
       'Or on Coil profile: **Undo finish roll** → confirm usable steel remains → note → restore.',
-      'Confirm Coil Profile on-hand matches the corrected closing (Available again when kg > 0).',
+      'Confirm Coil Profile stock kg matches the corrected closing (Available again when kg > 0).',
     ],
     links: [
       { label: 'Operations · Production', to: '/operations', state: { focusOpsTab: 'production' } },

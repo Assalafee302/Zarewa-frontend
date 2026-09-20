@@ -175,7 +175,7 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
           ? Number(data.freeKg)
           : Math.max(0, curNum - asNum(data.qtyReserved ?? reservedKg));
       const parts = [`Coil ${coil.coilNo} updated`];
-      parts.push(`on-hand ${formatKg(data.recalc?.qtyRemaining ?? curNum)} kg`);
+      parts.push(`stock ${formatKg(data.recalc?.qtyRemaining ?? curNum)} kg`);
       parts.push(`free ${formatKg(free)} kg`);
       if (data.reservationReconcile && !data.reservationReconcile.unchanged) {
         parts.push(`reservation reconciled`);
@@ -314,7 +314,7 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
                     }}
                   />
                   <span>
-                    Keep <strong>on-hand kg</strong> matched to <strong>received kg</strong> (use when correcting a
+                    Keep <strong>stock kg</strong> matched to <strong>received kg</strong> (use when correcting a
                     bulk-import typo and the full roll is still on the floor).
                   </span>
                 </label>
@@ -333,7 +333,7 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
                     <p className="mt-1 text-ui-xs text-slate-500">Original receipt / import figure.</p>
                   </label>
                   <label className="block">
-                    <span className="text-ui-xs font-bold text-slate-500 uppercase">Current on-hand kg</span>
+                    <span className="text-ui-xs font-bold text-slate-500 uppercase">Current stock kg</span>
                     <input
                       className="z-input w-full mt-0.5 font-semibold tabular-nums"
                       type="number"

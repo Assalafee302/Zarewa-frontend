@@ -104,7 +104,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
     }
     const kg = Number(String(form.currentKg || '').replace(/,/g, ''));
     if (!Number.isFinite(kg) || kg <= 0) {
-      showToast('Enter a valid on-hand kg greater than zero.', { variant: 'error' });
+      showToast('Enter a valid stock kg greater than zero.', { variant: 'error' });
       return;
     }
     const mat = MATERIAL_OPTIONS.find((m) => m.id === form.materialId) || MATERIAL_OPTIONS[0];

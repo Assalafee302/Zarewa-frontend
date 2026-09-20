@@ -781,7 +781,7 @@ export default function CoilProfile() {
               <strong className="text-violet-900">Stock vs production vs incidents:</strong> Coil book{' '}
               <strong>Kg used</strong> = production consumption + approved material-incident scrap (and finish-roll
               tails). Production register <strong>Used</strong> is only opening − closing on the job — recording an
-              incident does not change that figure. Coil on-hand drops only after the branch manager{' '}
+              incident does not change that figure. Coil stock drops only after the branch manager{' '}
               <strong>approves</strong> the incident (pending incidents do not move stock yet).
             </p>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">

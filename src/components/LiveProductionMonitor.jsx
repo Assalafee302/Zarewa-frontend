@@ -3234,7 +3234,7 @@ export function LiveProductionMonitor({
         const w = prev.data.accessoryStockWarnings.join('\n');
         const proceedAcc = await askProductionConfirm({
           title: 'Accessory stock warning',
-          message: `On-hand accessory stock is less than the quantities entered. Balances can go negative.\n\n${w}\n\nComplete production anyway?`,
+          message: `Accessory stock is less than the quantities entered. Balances can go negative.\n\n${w}\n\nComplete production anyway?`,
           confirmLabel: 'Complete with exception',
           tone: 'amber',
         });
