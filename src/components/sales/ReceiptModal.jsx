@@ -48,7 +48,9 @@ import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../../lib/editApprovalUi';
 import {
   isReceiptCleared,
+  receiptConfirmedByLabel,
   receiptMayPrint,
+  receiptRegisteredByLabel,
   receiptSalesPaymentStatusChipClass,
   receiptSalesPaymentStatusDetail,
   receiptSalesPaymentStatusLabel,
@@ -623,16 +625,15 @@ const ReceiptModal = ({
     [quotationRef, importedReceiptsForHistory]
   );
 
-  const receiptCashierPrintStatus = useMemo(() => {
-    const row = isExistingPayment ? editData : null;
-    if (!row) {
-      return { label: receiptSalesPaymentStatusLabel({}), detail: receiptSalesPaymentStatusDetail({}) || '' };
-    }
-    return {
-      label: receiptSalesPaymentStatusLabel(row),
-      detail: receiptSalesPaymentStatusDetail(row) || '',
-    };
-  }, [isExistingPayment, editData]);
+  const receiptPrintConfirmedBy = useMemo(
+    () => (isExistingPayment ? receiptConfirmedByLabel(editData) : ''),
+    [isExistingPayment, editData]
+  );
+  const receiptPrintPreparedBy = useMemo(() => {
+    const registered = receiptRegisteredByLabel(isExistingPayment ? editData : null, loadLedgerEntries());
+    if (registered) return registered;
+    return String(ws?.session?.user?.displayName || '').trim() || handledByLabel;
+  }, [isExistingPayment, editData, handledByLabel, ws?.session?.user?.displayName, ledgerNonce]);
 
   /** Max new cash that can be posted on this quote after any refund-fund slice. */
   const postingHeadroomNgn = useMemo(() => {
@@ -1774,8 +1775,8 @@ const ReceiptModal = ({
               lines={printLinesPayload}
               totalNgn={lineTotalNgn}
               reference={remarks}
-              handledBy={handledByLabel}
-              cashierStatusLabel={receiptCashierPrintStatus.label}
+              handledBy={receiptPrintPreparedBy}
+              cashierStatusLabel={receiptPrintConfirmedBy}
             />
           </div>
           <div className="no-print mt-4 flex flex-wrap justify-center gap-2">

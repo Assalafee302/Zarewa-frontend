@@ -6,6 +6,7 @@ import {
   pendingClearanceTotalNgn,
   receiptClearanceBadgeLabel,
   receiptMayPrint,
+  receiptConfirmedByLabel,
   receiptRegisteredByLabel,
   receiptSalesPaymentStatusChipClass,
   receiptSalesPaymentStatusDetail,
@@ -87,6 +88,11 @@ describe('receiptClearance', () => {
     expect(receiptSalesPaymentStatusChipClass(cleared)).toContain('teal');
     expect(receiptSalesPaymentStatusDetail(cleared)).toBe('Confirmed by Cashier Hauwa · 20/05/2026');
     expect(receiptSalesPaymentStatusDetail(pending)).toBe('Draft — awaiting cashier clearance before print.');
+    expect(receiptConfirmedByLabel(cleared)).toBe('Cashier Hauwa');
+    expect(receiptConfirmedByLabel({ financeReconciliationSavedBy: 'Cashier' })).toBe('Cashier');
+    expect(receiptConfirmedByLabel({ financeReconciliationSavedBy: 'Cashier', bankConfirmedBy: 'Hauwa Bello' })).toBe(
+      'Hauwa Bello'
+    );
     expect(receiptMatchesSalesPaymentFilter(pending, 'awaiting')).toBe(true);
     expect(receiptMatchesSalesPaymentFilter(cleared, 'awaiting')).toBe(false);
     expect(receiptMatchesSalesPaymentFilter(cleared, 'confirmed')).toBe(true);

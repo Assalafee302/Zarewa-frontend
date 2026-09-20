@@ -103,14 +103,55 @@ export function receiptSalesPaymentStatusChipClass(row) {
   return 'border-amber-200 bg-amber-50 text-amber-900';
 }
 
+/** Login role titles that must not appear as the confirmer on a customer receipt. */
+function isGenericConfirmRoleLabel(label) {
+  const n = String(label || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  return (
+    n === 'cashier' ||
+    n === 'finance' ||
+    n === 'finance manager' ||
+    n === 'head of accounts' ||
+    n === 'accounts' ||
+    n === 'accountant'
+  );
+}
+
+/**
+ * Person who confirmed bank/cash on this receipt (print + Sales subtitle).
+ * Skips leftover role titles such as "Cashier".
+ * @param {object | null | undefined} row
+ * @returns {string}
+ */
+export function receiptConfirmedByLabel(row) {
+  const names = [
+    row?.financeReconciliationSavedBy,
+    row?.bankConfirmedBy,
+    row?.financeDeliveryClearedBy,
+  ];
+  let fallback = '';
+  for (const raw of names) {
+    const name = String(raw || '').trim();
+    if (!name || name === '—') continue;
+    if (!isGenericConfirmRoleLabel(name)) return name;
+    if (!fallback) fallback = name;
+  }
+  return fallback;
+}
+
 export function receiptSalesPaymentStatusTitle(row) {
   if (isReceiptReversed(row)) return 'This payment was reversed on the ledger.';
   if (isReceiptCleared(row)) {
-    const by = String(row?.financeReconciliationSavedBy || '').trim();
-    const at = String(row?.financeReconciliationSavedAtISO || '').trim();
+    const by = receiptConfirmedByLabel(row);
+    const at = String(
+      row?.financeReconciliationSavedAtISO || row?.bankConfirmedAtISO || ''
+    ).trim();
     if (by && at) return `Confirmed by ${by} · ${at.slice(0, 10)}`;
-    if (at) return `Cashier confirmed · ${at.slice(0, 10)}`;
-    return 'Cashier confirmed this payment against bank or cash.';
+    if (by) return `Confirmed by ${by}`;
+    if (at) return `Confirmed · ${at.slice(0, 10)}`;
+    return 'This payment was confirmed against bank or cash.';
   }
   return 'Draft — posted but not cleared. Printing unlocks after cashier confirmation.';
 }
@@ -126,11 +167,14 @@ function formatConfirmDateIso(iso) {
 export function receiptSalesPaymentStatusDetail(row) {
   if (!row || isReceiptReversed(row)) return null;
   if (isReceiptCleared(row)) {
-    const by = String(row?.financeReconciliationSavedBy || '').trim();
-    const dateStr = formatConfirmDateIso(row?.financeReconciliationSavedAtISO);
+    const by = receiptConfirmedByLabel(row);
+    const dateStr = formatConfirmDateIso(
+      row?.financeReconciliationSavedAtISO || row?.bankConfirmedAtISO
+    );
     if (by && dateStr) return `Confirmed by ${by} · ${dateStr}`;
-    if (dateStr) return `Cashier confirmed · ${dateStr}`;
-    return 'Cashier confirmed this payment.';
+    if (by) return `Confirmed by ${by}`;
+    if (dateStr) return `Confirmed · ${dateStr}`;
+    return 'Payment confirmed.';
   }
   return 'Draft — awaiting cashier clearance before print.';
 }

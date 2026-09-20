@@ -47,6 +47,10 @@ export function normalizeWorkspacePersonNames(snapshot) {
     financeReconciliationSavedBy: r.financeReconciliationSavedBy
       ? fmt(r.financeReconciliationSavedBy)
       : r.financeReconciliationSavedBy,
+    bankConfirmedBy: r.bankConfirmedBy ? fmt(r.bankConfirmedBy) : r.bankConfirmedBy,
+    financeDeliveryClearedBy: r.financeDeliveryClearedBy
+      ? fmt(r.financeDeliveryClearedBy)
+      : r.financeDeliveryClearedBy,
   }));
 
   next.refunds = mapList(next.refunds, (r) => ({

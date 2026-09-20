@@ -29,6 +29,7 @@ export function ReceiptPrintThermal({
   totalNgn = 0,
   reference = '',
   handledBy = '',
+  /** Person who confirmed the payment (not the "Cashier confirmed" status chip). */
   cashierStatusLabel = '',
 }) {
   const total = Number(totalNgn) || lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
@@ -84,7 +85,7 @@ export function ReceiptPrintThermal({
         ) : null}
         {cashierStatusLabel ? (
           <div>
-            <dt>Cashier</dt>
+            <dt>Confirmed by</dt>
             <dd>{cashierStatusLabel}</dd>
           </div>
         ) : null}
