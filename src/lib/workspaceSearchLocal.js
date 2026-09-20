@@ -33,6 +33,7 @@ export function searchWorkspaceSnapshot(snapshot, rawQuery, hasPermission, limit
   byKind.nav = filterNavSearchCommands(q, perm, canModule, {
     roleKey: opts.roleKey || snapshot.session?.user?.roleKey,
     limit: 4,
+    glPostingEnabled: snapshot.localAccounting?.glPostingEnabled !== false,
   });
 
   if (perm('sales.view') || perm('customers.manage')) {
@@ -302,7 +303,7 @@ export function searchWorkspaceSnapshot(snapshot, rawQuery, hasPermission, limit
     }
   }
 
-  if (perm('finance.view')) {
+  if (perm('finance.view') && snapshot.localAccounting?.glPostingEnabled !== false) {
     byKind.gl_journal = [];
     for (const row of snapshot.glJournalSearchSlice || []) {
       if (byKind.gl_journal.length >= perKindCap) break;

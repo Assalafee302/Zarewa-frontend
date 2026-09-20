@@ -3,6 +3,9 @@
  * Frontend copies via `npm run sync:shared` → src/shared/lib/workspaceSearchCore.js
  */
 
+import { accountingNavForLocalGl } from './localAccountingSurfaces.js';
+import { ACCOUNTS_TAB_EXPENSES, ACCOUNTS_TAB_REQUESTS } from './accountsExpenseTabs.js';
+
 /** @typedef {{ kind: string, id: string, label: string, sublabel?: string, path: string, state?: object, _score?: number }} WorkspaceSearchHit */
 
 export const WORKSPACE_SEARCH_KIND_LABELS = {
@@ -349,6 +352,56 @@ export const WORKSPACE_NAV_SEARCH_COMMANDS = [
   },
   {
     kind: 'nav',
+    id: 'nav-refund-lock',
+    label: 'Lock refunds',
+    sublabel: 'Close quotations and receipts in a date window',
+    path: '/refund-lock',
+    keywords: ['refund lock', 'block refunds', 'freeze refunds', 'yola refund', 'historical refund'],
+    roleKeys: ['admin'],
+  },
+  {
+    kind: 'nav',
+    id: 'nav-expense-cash-catchup',
+    label: 'Post imported expenses to cash',
+    sublabel: 'Deduct imported refunds from Cash/POS and fix the live till',
+    path: '/expense-cash-catchup',
+    keywords: [
+      'expense import',
+      'post expenses',
+      'cashier statement',
+      'balance not changing',
+      'upload refunds',
+      'unposted expenses',
+      'attach treasury',
+    ],
+    permissions: ['finance.post', 'expenses.create'],
+  },
+  {
+    kind: 'nav',
+    id: 'nav-cashier-statement',
+    label: 'Cashier statement (full dates)',
+    sublabel: 'Print POS or Cash including 5–11 Sep',
+    path: '/expense-cash-catchup?view=statement',
+    keywords: [
+      'cashier statement',
+      'pos statement',
+      'before 12th',
+      'account statement',
+      'till print',
+    ],
+    permissions: ['cashier.desk.view', 'finance.view', 'finance.post', 'finance.pay'],
+  },
+  {
+    kind: 'nav',
+    id: 'nav-expense-duplicates',
+    label: 'Delete duplicate expenses',
+    sublabel: 'Remove extra import copies and put cash back',
+    path: '/expense-cash-catchup?view=duplicates',
+    keywords: ['duplicate expenses', 'delete duplicate', 'double refund', 'import twice'],
+    permissions: ['finance.post', 'expenses.create'],
+  },
+  {
+    kind: 'nav',
     id: 'nav-manager',
     label: 'Management',
     sublabel: 'Manager dashboard',
@@ -371,20 +424,21 @@ export const WORKSPACE_NAV_SEARCH_COMMANDS = [
  * @param {string} rawQuery
  * @param {(p: string) => boolean} hasPermission
  * @param {(moduleKey: string) => boolean} [canAccessModule]
- * @param {{ roleKey?: string, limit?: number }} [opts]
+ * @param {{ roleKey?: string, limit?: number, glPostingEnabled?: boolean }} [opts]
  */
 export function filterNavSearchCommands(rawQuery, hasPermission, canAccessModule, opts = {}) {
   const q = String(rawQuery || '').trim().toLowerCase();
   if (q.length < 2) return [];
   const limit = Math.max(1, opts.limit ?? 4);
   const roleKey = String(opts.roleKey || '').trim().toLowerCase();
+  const glPostingEnabled = opts.glPostingEnabled !== false;
 
   const visible = WORKSPACE_NAV_SEARCH_COMMANDS.filter((cmd) => {
     if (cmd.roleKeys?.length && !cmd.roleKeys.includes(roleKey)) return false;
     if (cmd.module && canAccessModule && !canAccessModule(cmd.module)) return false;
     if (cmd.permissions?.length && !cmd.permissions.some((p) => hasPermission(p))) return false;
     return true;
-  });
+  }).map((cmd) => accountingNavForLocalGl(cmd, glPostingEnabled));
 
   const hits = [];
   for (const cmd of visible) {
@@ -498,10 +552,10 @@ export function resolveGlobalSearchEnterFallback(rawQuery, opts = {}) {
     return { path: '/operations', state: { focusOpsTab: 'deliveries', globalSearchQuery: q } };
   }
   if (lower.startsWith('exp-')) {
-    return { path: '/accounts', state: { accountsTab: 'expenses', highlightExpenseId: q } };
+    return { path: '/accounts', state: { accountsTab: ACCOUNTS_TAB_EXPENSES, highlightExpenseId: q } };
   }
-  if (lower.startsWith('pr-') || lower.startsWith('pay-')) {
-    return { path: '/accounts', state: { accountsTab: 'payment-requests', highlightPaymentRequestId: q } };
+  if (lower.startsWith('pr-') || lower.startsWith('pay-') || lower.startsWith('preq-')) {
+    return { path: '/accounts', state: { accountsTab: ACCOUNTS_TAB_REQUESTS, highlightPaymentRequestId: q } };
   }
   if (lower.startsWith('cl-')) {
     if (/^cl-\d/i.test(q) || q.split('-').length >= 3) {

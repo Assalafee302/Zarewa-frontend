@@ -9,10 +9,10 @@ import {
 
 /**
  * Two-level desk navigation: zones (primary) + leaf tabs (secondary).
- * @param {{ tab: string; onTabChange: (tabId: string) => void; readOnlyExecutive?: boolean }} props
+ * @param {{ tab: string; onTabChange: (tabId: string) => void; readOnlyExecutive?: boolean; glPostingEnabled?: boolean }} props
  */
-export function AccountingDeskNav({ tab, onTabChange, readOnlyExecutive = false }) {
-  const navOpts = { readOnlyExecutive };
+export function AccountingDeskNav({ tab, onTabChange, readOnlyExecutive = false, glPostingEnabled = true }) {
+  const navOpts = { readOnlyExecutive, glPostingEnabled };
   const zones = accountingZonesForActor(navOpts);
   const zoneId = zoneForTabWithMode(tab, navOpts);
   const secondary = secondaryTabsForZoneWithMode(zoneId, navOpts);

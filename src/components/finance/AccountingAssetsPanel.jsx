@@ -32,6 +32,7 @@ import {
   ACCOUNTING_ASSET_CATEGORY_LABELS as CATEGORY_LABELS,
   ACCOUNTING_ASSET_CATEGORY_OPTIONS as CATEGORY_OPTIONS,
 } from '../../lib/accountingAssetCategories';
+import { isLocalGlEnabled } from '../../lib/accountingPolicyFlags';
 
 const ASSETS_PAGE_SIZE = 15;
 
@@ -56,12 +57,13 @@ export function AccountingAssetsPanel({
   onFocusTab,
 }) {
   const ws = useWorkspace();
+  const glPostingEnabled = isLocalGlEnabled(ws?.snapshot);
   const { periodKey } = useAccountingDesk();
   const tieOut = useAccountingRegisterTieOut({
     registerKind: 'assets',
     periodKey,
     branchId,
-    enabled: Boolean(periodKey),
+    enabled: Boolean(periodKey) && glPostingEnabled,
     deskRefresh,
   });
   const { show: showToast } = useToast();
@@ -190,8 +192,8 @@ export function AccountingAssetsPanel({
   }, [depPeriod, showToast]);
 
   useEffect(() => {
-    if (enabled) loadDepPreview();
-  }, [enabled, loadDepPreview]);
+    if (enabled && glPostingEnabled) loadDepPreview();
+  }, [enabled, glPostingEnabled, loadDepPreview]);
 
   const postDepreciation = async () => {
     setDepBusy(true);
@@ -240,6 +242,7 @@ export function AccountingAssetsPanel({
 
   return (
     <div className="space-y-4 min-w-0">
+      {glPostingEnabled ? (
       <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -279,17 +282,24 @@ export function AccountingAssetsPanel({
           </button>
         ) : null}
       </div>
+      ) : null}
 
+      {glPostingEnabled ? (
       <AccountingRegisterTieOutStrip
         checks={tieOut.checks}
         loading={tieOut.loading}
         thresholdPct={tieOut.thresholdPct}
         onFocusTab={onFocusTab}
       />
+      ) : null}
 
       <AccountingRegisterHeader
         title="Fixed assets register"
-        subtitle="Cost, depreciation, and NBV. Capex purchases auto-register; sales post treasury and GL."
+        subtitle={
+          glPostingEnabled
+            ? 'Cost, depreciation, and NBV. Capex purchases auto-register; sales post treasury and GL.'
+            : 'Cost, depreciation, and NBV. Capex purchases auto-register; sales post treasury.'
+        }
         totalLabel="Net book value"
         totalValue={formatNgn(summary.nbvNgn)}
         compact

@@ -17,7 +17,8 @@ import { userMayViewAp1cDryRunClient } from '../../lib/financeTrialExceptionsAcc
 
 import { userIsAccountingExecutiveReadOnlyClient } from '../../lib/financeDeskAccess';
 
-import { EXECUTIVE_READONLY_HIDDEN_TABS } from '../../lib/accountingDeskNav';
+import { EXECUTIVE_READONLY_HIDDEN_TABS, accountingTabAllowed, defaultAccountingTab } from '../../lib/accountingDeskNav';
+import { isLocalGlEnabled } from '../../lib/accountingPolicyFlags';
 
 import { CreditExceptionPanel } from '../../components/finance/CreditExceptionPanel';
 
@@ -155,13 +156,14 @@ export default function AccountingDesk() {
   const [openingPosted, setOpeningPosted] = useState(false);
 
   const hasFinanceView = Boolean(ws?.hasPermission?.('finance.view'));
+  const glPostingEnabled = isLocalGlEnabled(ws?.snapshot);
 
   const {
     overview,
     loading: overviewLoading,
     error: overviewError,
     reload: reloadOverview,
-  } = useAccountingDeskOverview({ periodKey, deskRefresh, enabled: hasFinanceView });
+  } = useAccountingDeskOverview({ periodKey, deskRefresh, enabled: hasFinanceView && glPostingEnabled });
 
   const endDate = useMemo(() => defaultPeriodEndDate(periodKey), [periodKey]);
 
@@ -182,6 +184,8 @@ export default function AccountingDesk() {
   const mayRegisters = userMayViewAp1cDryRunClient(roleKey, permissions);
 
   const readOnlyExecutive = userIsAccountingExecutiveReadOnlyClient(roleKey, permissions);
+
+  const deskNavOpts = { readOnlyExecutive, glPostingEnabled };
 
   const canManageRegisters = mayRegisters && Boolean(ws?.hasPermission?.('finance.post'));
 
@@ -233,16 +237,18 @@ export default function AccountingDesk() {
 
 
   useEffect(() => {
-
     if (readOnlyExecutive && EXECUTIVE_READONLY_HIDDEN_TABS.has(tab)) {
-
-      setTabState('overview');
-
-      navigate({ pathname: location.pathname, search: '?tab=overview' }, { replace: true });
-
+      const next = defaultAccountingTab(deskNavOpts);
+      setTabState(next);
+      navigate({ pathname: location.pathname, search: `?tab=${encodeURIComponent(next)}` }, { replace: true });
+      return;
     }
-
-  }, [readOnlyExecutive, tab, location.pathname, navigate]);
+    if (!accountingTabAllowed(tab, deskNavOpts)) {
+      const next = defaultAccountingTab(deskNavOpts);
+      setTabState(next);
+      navigate({ pathname: location.pathname, search: `?tab=${encodeURIComponent(next)}` }, { replace: true });
+    }
+  }, [readOnlyExecutive, tab, location.pathname, navigate, glPostingEnabled]);
 
 
 
@@ -256,9 +262,10 @@ export default function AccountingDesk() {
 
   useEffect(() => {
 
-    document.title = `${TAB_LABELS[tab] ? `${TAB_LABELS[tab]} · ` : ''}Accounting Desk | ${DOCUMENT_TITLE_BASE}`;
+    const deskTitle = glPostingEnabled ? 'Accounting Desk' : 'Collections';
+    document.title = `${TAB_LABELS[tab] ? `${TAB_LABELS[tab]} · ` : ''}${deskTitle} | ${DOCUMENT_TITLE_BASE}`;
 
-  }, [tab]);
+  }, [tab, glPostingEnabled]);
 
 
 
@@ -334,10 +341,10 @@ export default function AccountingDesk() {
       <PageShell>
 
         <PageHeader
-          title="Accounting Desk"
+          title={glPostingEnabled ? 'Accounting Desk' : 'Collections'}
           subtitle={TAB_HINTS[tab] || ''}
 
-          tabs={<AccountingDeskNav tab={tab} onTabChange={setTab} readOnlyExecutive={readOnlyExecutive} />}
+          tabs={<AccountingDeskNav tab={tab} onTabChange={setTab} readOnlyExecutive={readOnlyExecutive} glPostingEnabled={glPostingEnabled} />}
 
           toolbar={
 

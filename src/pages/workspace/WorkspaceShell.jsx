@@ -13,6 +13,7 @@ import {
 } from '../../lib/workspaceZoneConfig';
 import { workItemShowsOnWorkspaceUnifiedInbox } from '../../lib/workItemPersonalInbox';
 import { workItemMatchesTaskQueueTab } from '../../lib/workspaceTaskQueue';
+import { isLocalGlEnabled } from '../../lib/accountingPolicyFlags';
 import { computeWorkspaceIntelligence } from '../../lib/workspaceIntelligence';
 import { officeThreadIdFromWorkItem } from '../../lib/officeThreadFromWorkItem';
 import { useOfficeRecordActions } from '../../lib/useOfficeRecordActions';
@@ -75,8 +76,13 @@ export default function WorkspaceShell() {
   );
 
   const zoneConfig = useMemo(
-    () => getWorkspaceZoneConfig({ roleKey, permissions: ws?.permissions }),
-    [roleKey, ws?.permissions]
+    () =>
+      getWorkspaceZoneConfig({
+        roleKey,
+        permissions: ws?.permissions,
+        glPostingEnabled: isLocalGlEnabled(ws?.snapshot),
+      }),
+    [roleKey, ws?.permissions, ws?.snapshot]
   );
 
   const [activeZone, setActiveZone] = useState(() => {

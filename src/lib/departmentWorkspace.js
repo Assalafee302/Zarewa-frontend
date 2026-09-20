@@ -91,7 +91,7 @@ const DEFAULT_HOME_BY_ROLE = {
   sales_manager: '/manager',
   branch_manager: '/manager',
   sales_staff: '/sales',
-  cashier: '/accounts',
+  cashier: '/cashier',
   operations_officer: '/operations',
   hr_portal_only: '/my-profile',
 };

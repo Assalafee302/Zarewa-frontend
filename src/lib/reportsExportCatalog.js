@@ -219,13 +219,14 @@ export function flattenExportCatalog(sections) {
   );
 }
 
-export function filterExportCatalog(items, { query = '', sectionId = 'all', hasFinanceView = true } = {}) {
+export function filterExportCatalog(items, { query = '', sectionId = 'all', hasFinanceView = true, glPostingEnabled = true } = {}) {
   const q = String(query || '')
     .trim()
     .toLowerCase();
   return items.filter((item) => {
     if (sectionId && sectionId !== 'all' && item.sectionId !== sectionId) return false;
     if (!hasFinanceView && item.requiresFinanceView) return false;
+    if (!glPostingEnabled && item.requiresLocalGl) return false;
     if (!q) return true;
     const hay = `${item.title} ${item.desc} ${item.sectionTitle} ${item.workbook || ''} ${item.pack || ''}`.toLowerCase();
     return hay.includes(q);
@@ -441,6 +442,7 @@ export const EXPORT_SECTIONS = [
         icon: Scale,
         formats: ['Excel', 'CSV'],
         requiresFinanceView: true,
+        requiresLocalGl: true,
         printCoverage: 'summary',
       },
     ],

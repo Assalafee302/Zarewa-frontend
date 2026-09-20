@@ -145,6 +145,9 @@ describe('reportsExportCatalog', () => {
     );
     const noFinance = filterExportCatalog(flat, { hasFinanceView: false });
     expect(noFinance.some((i) => i.requiresFinanceView)).toBe(false);
+    const noLocalGl = filterExportCatalog(flat, { glPostingEnabled: false });
+    expect(noLocalGl.some((i) => i.id === 'gl-audit-pack')).toBe(false);
+    expect(noLocalGl.some((i) => i.id === 'cash-bank-ar')).toBe(true);
   });
 
   it('period presets and labels', () => {

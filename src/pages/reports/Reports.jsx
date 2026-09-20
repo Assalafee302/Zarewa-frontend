@@ -5,6 +5,7 @@ import { ReportPrintModal } from '../../components/reports/ReportPrintModal';
 import { useToast } from '../../context/ToastContext';
 import { useInventory } from '../../context/InventoryContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { isLocalGlEnabled } from '../../lib/accountingPolicyFlags';
 import { apiFetch } from '../../lib/apiBase';
 import { MaterialTransactionPrintModal } from '../../components/reports/MaterialTransactionPrintModal.jsx';
 import { PurchaseReportPrintModal } from '../../components/reports/PurchaseReportPrintModal.jsx';
@@ -226,11 +227,13 @@ const Reports = () => {
   );
   const stockReady = stockStatus.ready;
 
-  const showAccountingSections =
-    ws.hasPermission('finance.view') &&
-    userMayViewAccountingSectionsOnReportsClient(ws?.session?.user?.roleKey, ws?.permissions);
-
   const hasFinanceView = ws.hasPermission('finance.view');
+  const glPostingEnabled = isLocalGlEnabled(ws?.snapshot);
+
+  const showAccountingSections =
+    glPostingEnabled &&
+    hasFinanceView &&
+    userMayViewAccountingSectionsOnReportsClient(ws?.session?.user?.roleKey, ws?.permissions);
   const showExec = ws.hasPermission('exec.dashboard.view');
   const showIntelligence = userMayAccessExecutiveCommandCentreClient(ws?.permissions) || showExec;
 
@@ -468,6 +471,7 @@ const Reports = () => {
                   <ReportsKpiStrip salesKpis={salesKpis} onExportKpi={onExportKpi} />
                   <ReportsExportCatalog
                     hasFinanceView={hasFinanceView}
+                    glPostingEnabled={glPostingEnabled}
                     periodValid={periodValid}
                     onRequestExport={onRequestExport}
                     onOpenJob={setJob}
@@ -525,9 +529,9 @@ const Reports = () => {
                   {showMoreOversight ? (
                     <div className="border-t border-slate-100 px-4 py-4 space-y-4">
                       <p className="text-xs text-slate-600">
-                        GL, AP diagnostics, and cash confirmation live on{' '}
+                        {glPostingEnabled ? 'GL, AP diagnostics, and cash confirmation live on ' : 'Collections, AP diagnostics, and cash confirmation live on '}
                         <Link to="/accounting" className="font-bold text-teal-800 underline-offset-2 hover:underline">
-                          Accounting Desk
+                          {glPostingEnabled ? 'Accounting Desk' : 'Collections'}
                         </Link>
                         . Daily/weekly packs stay here for leadership.
                       </p>

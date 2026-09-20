@@ -31,6 +31,8 @@ import {
 import { AccountingRegisterTieOutStrip } from './accounting/AccountingRegisterTieOutStrip';
 import { useAccountingDesk } from './accounting/AccountingDeskContext';
 import { useAccountingRegisterTieOut } from '../../hooks/useAccountingRegisterTieOut';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { isLocalGlEnabled } from '../../lib/accountingPolicyFlags';
 
 const REGISTER_PAGE_SIZE = 15;
 
@@ -64,12 +66,14 @@ export function AccountingRegisterPanel({
 }) {
   const config = registerConfigFor(registerSide);
   const { show: showToast } = useToast();
+  const ws = useWorkspace();
+  const glPostingEnabled = isLocalGlEnabled(ws?.snapshot);
   const { periodKey } = useAccountingDesk();
   const tieOut = useAccountingRegisterTieOut({
     registerKind: registerSide,
     periodKey,
     branchId,
-    enabled: Boolean(periodKey),
+    enabled: Boolean(periodKey) && glPostingEnabled,
     deskRefresh,
   });
 
@@ -240,12 +244,14 @@ export function AccountingRegisterPanel({
         compact
       />
 
+      {glPostingEnabled ? (
       <AccountingRegisterTieOutStrip
         checks={tieOut.checks}
         loading={tieOut.loading}
         thresholdPct={tieOut.thresholdPct}
         onFocusTab={onFocusTab}
       />
+      ) : null}
 
       {registerSide === 'debtor' && (data?.summary?.pendingFinanceClearanceCount ?? 0) > 0 ? (
         <AccountingDeskNotice tone="info">

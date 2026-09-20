@@ -16,6 +16,7 @@ export function ReportsFinanceToolsPanel({
   branchId = '',
   mayViewAp2,
   mayViewAp3,
+  glPostingEnabled = true,
 }) {
   const [open, setOpen] = useState(false);
 
@@ -23,7 +24,7 @@ export function ReportsFinanceToolsPanel({
 
   const toolLabels = [
     'Cash confirmation pack',
-    'GL pilot',
+    glPostingEnabled ? 'GL pilot' : null,
     mayViewAp2 ? 'Supplier payables diagnostics' : null,
     mayViewAp3 ? 'Production costing' : null,
   ].filter(Boolean);
@@ -39,13 +40,13 @@ export function ReportsFinanceToolsPanel({
         <div className="min-w-0 flex-1">
           <h3 className="z-section-title !mb-1">Finance tools</h3>
           <p className="text-sm font-medium text-slate-600 max-w-3xl leading-relaxed">
-            Reconciliation pack, GL pilot, and supplier/costing diagnostics. Full GL workflows also live on{' '}
+            Reconciliation pack{glPostingEnabled ? ', GL pilot,' : ''} and supplier/costing diagnostics. Full workflows also live on{' '}
             <Link
               to="/accounting"
               className="font-bold text-teal-800 underline-offset-2 hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
-              Accounting Desk
+              {glPostingEnabled ? 'Accounting Desk' : 'Collections'}
             </Link>
             ; cashiers should use Cashier Desk for receipt confirmation.
           </p>
@@ -76,6 +77,7 @@ export function ReportsFinanceToolsPanel({
             showToast={showToast}
             branchScopeLabel={branchScopeLabel}
           />
+          {glPostingEnabled ? (
           <ReportsGlPilotSection
             startDate={startDate}
             endDate={endDate}
@@ -83,6 +85,7 @@ export function ReportsFinanceToolsPanel({
             showToast={showToast}
             branchId={branchId}
           />
+          ) : null}
           <Ap2ReportsSection mayView={mayViewAp2} />
           <Ap3ReportsSection mayView={mayViewAp3} />
         </div>

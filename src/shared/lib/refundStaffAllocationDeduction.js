@@ -188,7 +188,7 @@ export function applyRefundStaffAllocationDeduction(split, quoteCustomerId = '',
     staffBankAccountMatch,
   };
   if (!forceClaimingStaffCut && !refundSplitTakesStaffDeduction(base, quoteCustomerId)) {
-    // Quote customer overpayment / price concession: customer's own cash — no uncleared-receipt hold.
+    // Quote customer overpayment: customer's own money — no uncleared-receipt hold (RefundModal).
     const skipUnclearedHold = overpaymentOnly || opts.priceConcession === true;
     const holdForGate = skipUnclearedHold ? 0 : unclearedHoldNgn;
     return {

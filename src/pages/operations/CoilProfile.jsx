@@ -541,6 +541,14 @@ export default function CoilProfile() {
       const onHandDelta = Number(book?.onHandDeltaKg);
       if (count === 0) {
         showToast('No production jobs linked to this coil.', { variant: 'info' });
+      } else if (book?.restoreBlocked) {
+        const blocked = Number(book.onHandDeltaKg);
+        showToast(
+          `Recalculated ${count} job(s). Remaining was not increased` +
+            (Number.isFinite(blocked) && blocked > 0.05 ? ` (${blocked.toFixed(1)} kg restore blocked)` : '') +
+            ' — reversing events only, not silent kg restore.',
+          { variant: 'info', duration: 8000 }
+        );
       } else if (aligned && Number.isFinite(onHandDelta) && Math.abs(onHandDelta) > 0.05) {
         showToast(
           `Production stock recalculated for ${count} job(s). On-hand adjusted ${onHandDelta > 0 ? '+' : ''}${onHandDelta.toFixed(1)} kg — kg used now matches job consumption.`,
@@ -880,17 +888,17 @@ export default function CoilProfile() {
                   {(productionTotals.gapKg || 0) > 0.05 ? (
                     <>
                       Jobs record <strong>more</strong> kg consumed than the coil book shows — often after completion
-                      corrections or import drift.
+                      corrections or import drift. Recalc can take that leftover consumption off remaining.
                     </>
                   ) : (
                     <>
-                      The coil book shows <strong>more</strong> kg used than jobs sum — often scrap, finish-roll tail,
-                      or consumption posted without updating job rows.
+                      The coil book shows <strong>more</strong> kg used than jobs sum. Recalc will{' '}
+                      <strong>not</strong> put kg back onto this coil — remaining only increases via a reversing
+                      control event (completion correction / undo finish roll / scrap reverse).
                     </>
                   )}{' '}
-                  <strong>Recalc production stock</strong> rebuilds kg used and on-hand from job consumption (plus
-                  scrap, returns, and splits), syncs allocation consumed kg from opening − closing, and clears orphan
-                  reservations.
+                  <strong>Recalc production stock</strong> syncs allocation consumed kg from opening − closing and
+                  clears orphan reservations. It never silently restores steel.
                 </p>
                 {canReconcileReservation ? (
                   <button

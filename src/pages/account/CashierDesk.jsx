@@ -1,10 +1,10 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import Account from './Account.jsx';
 
 /**
- * Cashier Desk is consolidated into Finance → Desk tab.
- * Deep links and bookmarks to `/cashier` continue to work.
+ * Cashier home is `/cashier` (role dashboard matrix). Renders the finance desk
+ * with the cashier tab set; do not bounce to `/accounts` or login lands wrong.
  */
 export default function CashierDesk() {
-  return <Navigate to="/accounts?tab=desk" replace />;
+  return <Account />;
 }

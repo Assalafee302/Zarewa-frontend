@@ -33,6 +33,7 @@ import {
   treasuryDeskBalanceSplit,
 } from '../../lib/financeDeskTreasury.js';
 import { useAccountPage } from './AccountPageContext.jsx';
+import { isLocalGlEnabled } from '../../lib/accountingPolicyFlags.js';
 
 export function AccountTabPanels() {
   const {
@@ -546,7 +547,11 @@ export function AccountTabPanels() {
                   testId="finance-audit-intro"
                   tone="slate"
                   title="Audit & period close — accountant surface"
-                  body="Cashiers do not see this tab. Use it before month-end: reconcile receipts, match bank lines, clear exceptions, and post manual GL journals when needed. Daily payout work stays on Desk/Treasury."
+                  body={
+                    isLocalGlEnabled(ws?.snapshot)
+                      ? 'Cashiers do not see this tab. Use it before month-end: reconcile receipts, match bank lines, clear exceptions, and post manual GL journals when needed. Daily payout work stays on Desk/Treasury.'
+                      : 'Cashiers do not see this tab. Use it to reconcile receipts, match bank lines, and clear exceptions. Daily payout work stays on Desk/Treasury.'
+                  }
                   action={
                     <button
                       type="button"
@@ -607,7 +612,7 @@ export function AccountTabPanels() {
                   </div>
                 </div>
 
-                {ws.hasPermission('finance.post') ? (
+                {ws.hasPermission('finance.post') && isLocalGlEnabled(ws?.snapshot) ? (
                   <AccountGlManualJournalCard
                     canPost
                     showToast={showToast}

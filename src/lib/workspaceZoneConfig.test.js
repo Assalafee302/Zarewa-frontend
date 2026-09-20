@@ -133,4 +133,18 @@ describe('workspaceZoneConfig', () => {
     }
     expect(getWorkspaceZoneLabel('nope')).toBe('nope');
   });
+
+  it('relabels Accounting app to Collections when local GL is off', () => {
+    const on = getWorkspaceZoneConfig({
+      roleKey: 'finance_manager',
+      permissions: ['*', 'accounting.desk.view', 'finance.view'],
+    });
+    expect(on.apps.find((a) => a.path === '/accounting')?.label).toBe('Accounting');
+    const off = getWorkspaceZoneConfig({
+      roleKey: 'finance_manager',
+      permissions: ['*', 'accounting.desk.view', 'finance.view'],
+      glPostingEnabled: false,
+    });
+    expect(off.apps.find((a) => a.path === '/accounting')?.label).toBe('Collections');
+  });
 });

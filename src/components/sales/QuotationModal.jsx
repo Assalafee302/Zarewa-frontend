@@ -2833,6 +2833,9 @@ const QuotationModal = ({
                   <span className="text-slate-400"> · entered by {currentUserHandledByLabel}</span>
                 ) : null}
               </p>
+              {editData?.pricingFloor?.freezeWhy ? (
+                <p className="text-[11px] leading-snug text-slate-600 mt-1">{editData.pricingFloor.freezeWhy}</p>
+              ) : null}
             </div>
           </div>
           <button
@@ -2881,6 +2884,9 @@ const QuotationModal = ({
                     ? 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and production stay blocked until the Managing Director or an administrator approves a below-floor price exception.'
                     : 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and production stay blocked. MD approval is requested only after a customer receipt is posted.'}
               </p>
+              {editData?.pricingFloor?.freezeWhy ? (
+                <p className="text-ui-xs text-amber-950/80 leading-relaxed">{editData.pricingFloor.freezeWhy}</p>
+              ) : null}
               {(() => {
                 const totalGap = pricingViolationsList.reduce((sum, v) => {
                   const quoted = Number(v.quotedPerMeter) || 0;
@@ -2934,6 +2940,9 @@ const QuotationModal = ({
                           </span>
                         ) : null}
                       </div>
+                      {v.floorWhy ? (
+                        <p className="text-[10px] leading-snug text-amber-950/80">{v.floorWhy}</p>
+                      ) : null}
                     </li>
                   );
                 })}

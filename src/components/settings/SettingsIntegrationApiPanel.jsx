@@ -71,9 +71,11 @@ export function SettingsIntegrationApiPanel({ showToast, onRefresh }) {
     <section className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-sm">
       <h3 className="z-section-title">Read-only integration API (Track G)</h3>
       <p className="text-xs text-slate-500 mb-4 max-w-2xl leading-relaxed">
-        Bearer tokens for automation: <span className="font-mono">GET /api/integration/v1/trial-balance</span> and{' '}
-        <span className="font-mono">GET /api/integration/v1/journals</span>. Keys cannot post money. Usage is rate-limited
-        and written to the audit log (no secret values logged).
+        Bearer tokens for automation:{' '}
+        <span className="font-mono">GET /api/integration/v1/money-events</span> (cash and ops events), plus{' '}
+        <span className="font-mono">trial-balance</span> / <span className="font-mono">journals</span> while local GL
+        posting is on. Keys cannot post money. Usage is rate-limited and written to the audit log (no secret values
+        logged).
       </p>
       <div className="flex flex-wrap items-end gap-3 mb-4">
         <div className="min-w-[12rem]">

@@ -7,7 +7,7 @@ import {
 
 describe('departmentWorkspace routing', () => {
   it('maps cashier home to finance module', () => {
-    expect(defaultHomePathForDepartment('cashier')).toBe('/accounts');
+    expect(defaultHomePathForDepartment('cashier')).toBe('/cashier');
     expect(defaultHomePathForDepartment('chairman')).toBe('/chairman');
     expect(pathToModuleKey('/accounts?tab=desk')).toBe('finance');
     expect(pathToModuleKey('/cashier')).toBe('finance');
@@ -30,7 +30,7 @@ describe('departmentWorkspace routing', () => {
     ).toBe('/accounting');
     expect(
       resolvePostLoginPath({ roleKey: 'cashier' }, ['office.use', 'finance.view', 'finance.pay', 'dashboard.view'])
-    ).toBe('/accounts');
+    ).toBe('/cashier');
     expect(resolvePostLoginPath({ roleKey: 'chairman' }, ['exec.dashboard.view', 'reports.view'])).toBe(
       '/chairman'
     );

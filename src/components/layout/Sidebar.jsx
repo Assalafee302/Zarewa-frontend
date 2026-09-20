@@ -30,6 +30,7 @@ import {
   userMayViewManagementReportsClient,
 } from '../../lib/reportsAccess';
 import { userMayViewAccountingDeskClient } from '../../lib/financeDeskAccess';
+import { isLocalGlEnabled } from '../../lib/accountingPolicyFlags';
 import { userMaySeeLegacyAccountsNav } from '../../lib/legacyAccountsAccess';
 import { canAccessExecutiveHr, canAccessMyProfileHr } from '../../lib/hrAccess';
 import { userMayAccessChairmanOfficeClient } from '../../lib/chairmanOfficeAccess';
@@ -99,6 +100,7 @@ const Sidebar = ({
   const hasHqHr = ws?.canAccessModule?.('hr') ?? false;
   const hasExecHr = canAccessExecutiveHr(permissions);
   const hasAccountingDesk = userMayViewAccountingDeskClient(roleKey, permissions);
+  const localGlEnabled = isLocalGlEnabled(ws?.snapshot);
   const hasLegacyFinanceNav = userMaySeeLegacyAccountsNav(roleKey, permissions);
   const financeNavRole = String(roleKey || '').trim().toLowerCase();
   const financeNavLabel =
@@ -161,17 +163,19 @@ const Sidebar = ({
     },
     {
       icon: <Calculator size={18} />,
-      label: 'Accounting',
+      label: localGlEnabled ? 'Accounting' : 'Collections',
       path: '/accounting',
       active: pathMatches(p, '/accounting'),
       visible: hasAccountingDesk,
-      title: 'GL, reconciliation, and period close',
+      title: localGlEnabled
+        ? 'GL, reconciliation, and period close'
+        : 'Receivables, payables, and registers',
     },
     {
       icon: <Landmark size={18} />,
       label: financeNavLabel,
       to:
-        String(roleKey || '').trim().toLowerCase() === 'cashier' ? '/accounts?tab=desk' : '/accounts',
+        String(roleKey || '').trim().toLowerCase() === 'cashier' ? '/cashier' : '/accounts',
       path: '/accounts',
       active: pathMatches(p, '/accounts') || pathMatches(p, '/cashier'),
       visible: hasLegacyFinanceNav,

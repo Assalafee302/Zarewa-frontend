@@ -14,10 +14,12 @@ import {
   ACCOUNTING_INPUT,
 } from './accounting/AccountingDeskUi';
 import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
+import { isLocalGlEnabled } from '../../lib/accountingPolicyFlags';
 
 /** Approved / locked payroll runs — bank bulk payment file and treasury posting. */
 export function FinancePayrollPaymentsPanel() {
   const ws = useWorkspace();
+  const glPostingEnabled = isLocalGlEnabled(ws?.snapshot);
   const [searchParams] = useSearchParams();
   const treasuryAccounts = useMemo(
     () => (Array.isArray(ws?.snapshot?.treasuryAccounts) ? ws.snapshot.treasuryAccounts : []).filter(Boolean),
@@ -91,13 +93,15 @@ export function FinancePayrollPaymentsPanel() {
       const [runRes, totalsRes, glRes] = await Promise.all([
         apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}`),
         apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/totals`),
-        apiFetch(`/api/finance/payroll-runs/${encodeURIComponent(selectedId)}/gl-status`),
+        glPostingEnabled
+          ? apiFetch(`/api/finance/payroll-runs/${encodeURIComponent(selectedId)}/gl-status`)
+          : Promise.resolve({ ok: false, data: null }),
       ]);
       setRun(runRes.ok && runRes.data?.ok ? runRes.data.run : null);
       setTotals(totalsRes.ok && totalsRes.data?.ok ? totalsRes.data.totals : null);
-      setGlStatus(glRes.ok && glRes.data?.ok ? glRes.data : null);
+      setGlStatus(glPostingEnabled && glRes.ok && glRes.data?.ok ? glRes.data : null);
     })();
-  }, [selectedId]);
+  }, [selectedId, glPostingEnabled]);
 
   useEffect(() => {
     if (!totals?.amountsRedacted) {
@@ -296,7 +300,7 @@ export function FinancePayrollPaymentsPanel() {
                 PAYE total: <span className="font-bold tabular-nums">{formatNgn(totals.taxTotalNgn)}</span>
               </p>
             ) : null}
-            {glStatus ? (
+            {glPostingEnabled && glStatus ? (
               <div className="mt-3 flex flex-wrap gap-2 text-ui-xs font-semibold">
                 <span
                   className={`rounded-md px-2 py-0.5 ${glStatus.accrualPosted ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}
@@ -313,7 +317,7 @@ export function FinancePayrollPaymentsPanel() {
           </ProcurementFormSection>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            {(selected?.status === 'locked' || selected?.status === 'paid') && !glStatus?.accrualPosted ? (
+            {glPostingEnabled && (selected?.status === 'locked' || selected?.status === 'paid') && !glStatus?.accrualPosted ? (
               <button
                 type="button"
                 onClick={postAccrualGl}
@@ -350,7 +354,7 @@ export function FinancePayrollPaymentsPanel() {
         </>
       ) : null}
 
-      {runs.length > 0 && totals && !totals.amountsRedacted ? (
+      {glPostingEnabled && runs.length > 0 && totals && !totals.amountsRedacted ? (
         <ProcurementFormSection letter="2" title="Statutory remittance (PAYE / pension)" compact>
           <p className="text-ui-xs text-slate-600 mb-3">
             When you pay FIRS / pension administrator, post Dr 2300/2400 and Cr bank to clear payables.

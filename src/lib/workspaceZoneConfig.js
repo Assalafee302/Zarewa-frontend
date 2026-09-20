@@ -129,17 +129,23 @@ const APPS_BY_PROFILE = {
 };
 
 /**
- * @param {{ roleKey?: string; permissions?: string[] }} ctx
+ * @param {{ roleKey?: string; permissions?: string[]; glPostingEnabled?: boolean }} ctx
  */
 export function getWorkspaceZoneConfig(ctx = {}) {
   const profile = resolveDeskProfile(ctx);
   const perms = ctx.permissions || [];
+  const glPostingEnabled = ctx.glPostingEnabled !== false;
   const apps = (APPS_BY_PROFILE[profile] || APPS_BY_PROFILE[DESK_PROFILES.staff]).filter((app) => {
     if (app.id === 'chairman') return userMayAccessChairmanOfficeClient(ctx.roleKey, perms);
     if (app.id === 'sales') return userMayAccessSalesModule(ctx.roleKey, perms);
     const moduleKey = APP_MODULE_BY_ID[app.id];
     if (!moduleKey) return Boolean(app.path);
     return canAccessModuleWithPermissions(perms, moduleKey);
+  }).map((app) => {
+    if (app.id === 'accounting' && !glPostingEnabled) {
+      return { ...app, label: 'Collections' };
+    }
+    return app;
   });
   return {
     profile,

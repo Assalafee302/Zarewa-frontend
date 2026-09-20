@@ -1065,7 +1065,9 @@ function AppShell() {
               element={
                 <ModuleRouteGuard moduleKey="finance" altModuleKeys={['cashier_desk']}>
                   <FinanceDeskRouteGuard desk="cashier">
-                    <CashierDesk />
+                    <AccountRouteErrorBoundary>
+                      <CashierDesk />
+                    </AccountRouteErrorBoundary>
                   </FinanceDeskRouteGuard>
                 </ModuleRouteGuard>
               }

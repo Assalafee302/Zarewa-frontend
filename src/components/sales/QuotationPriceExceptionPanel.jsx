@@ -175,6 +175,9 @@ export function QuotationPriceExceptionPanel({
             ? 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and production are blocked until the Managing Director or an administrator approves this exception.'
             : 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and production stay blocked. MD approval is requested only after a customer receipt is posted.'}
       </p>
+      {quoteRow?.pricingFloor?.freezeWhy ? (
+        <p className="text-ui-xs text-amber-950/80 leading-relaxed">{quoteRow.pricingFloor.freezeWhy}</p>
+      ) : null}
       {totalGapNgn > 0 && !mdApproved ? (
         <p className="text-ui-xs font-semibold text-amber-950 bg-amber-100/80 border border-amber-200 rounded-lg px-2 py-1.5">
           Margin impact: ~{formatNgn(totalGapNgn)}/m total shortfall vs minimum across flagged lines (before qty).
@@ -219,6 +222,9 @@ export function QuotationPriceExceptionPanel({
                   </span>
                 ) : null}
               </div>
+              {v.floorWhy ? (
+                <p className="text-[10px] leading-snug text-amber-950/80">{v.floorWhy}</p>
+              ) : null}
             </li>
           );
         })}

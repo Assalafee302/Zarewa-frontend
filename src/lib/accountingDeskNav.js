@@ -193,33 +193,71 @@ export function currentAccountingPeriodKey() {
   return new Date().toISOString().slice(0, 7);
 }
 
+/** Tabs that are statutory GL / statements — hidden when local GL posting is off. */
+export const LOCAL_GL_DESK_TABS = new Set([
+  'overview',
+  'statements',
+  'gl',
+  'opening',
+  'close',
+  'branchPl',
+  'policy',
+  'supplierAp',
+]);
+
 /**
  * Desk zones visible in executive read-only mode (MD oversight — no posting or policy cutover).
- * @param {{ readOnlyExecutive?: boolean }} opts
+ * @param {{ readOnlyExecutive?: boolean, glPostingEnabled?: boolean }} opts
  */
-export function accountingZonesForActor({ readOnlyExecutive = false } = {}) {
-  if (!readOnlyExecutive) return ACCOUNTING_ZONES;
-  return ACCOUNTING_ZONES.filter((z) => z.id !== 'policy' && z.id !== 'operations').map((z) => {
-    if (z.id === 'close') {
-      return { ...z, tabs: z.tabs.filter((t) => t !== 'opening') };
-    }
-    return z;
-  });
+export function accountingZonesForActor({ readOnlyExecutive = false, glPostingEnabled = true } = {}) {
+  let zones = ACCOUNTING_ZONES;
+  if (readOnlyExecutive) {
+    zones = zones.filter((z) => z.id !== 'policy' && z.id !== 'operations').map((z) => {
+      if (z.id === 'close') {
+        return { ...z, tabs: z.tabs.filter((t) => t !== 'opening') };
+      }
+      return z;
+    });
+  }
+  if (!glPostingEnabled) {
+    zones = zones
+      .map((z) => ({ ...z, tabs: z.tabs.filter((t) => !LOCAL_GL_DESK_TABS.has(t)) }))
+      .filter((z) => z.tabs.length > 0);
+    const closeTabs = zones.find((z) => z.id === 'close')?.tabs || [];
+    zones = zones
+      .filter((z) => z.id !== 'close')
+      .map((z) => (z.id === 'registers' ? { ...z, tabs: [...z.tabs, ...closeTabs] } : z));
+    const registers = zones.filter((z) => z.id === 'registers');
+    const rest = zones.filter((z) => z.id !== 'registers');
+    zones = [...registers, ...rest];
+  }
+  return zones;
 }
 
-/** @param {string} zoneId @param {{ readOnlyExecutive?: boolean }} opts */
+/** First visible tab for the current actor / GL mode. */
+export function defaultAccountingTab(opts = {}) {
+  const zones = accountingZonesForActor(opts);
+  return zones[0]?.tabs[0] || 'creditors';
+}
+
+/** @param {string} tabId @param {{ readOnlyExecutive?: boolean, glPostingEnabled?: boolean }} opts */
+export function accountingTabAllowed(tabId, opts = {}) {
+  return accountingZonesForActor(opts).some((z) => z.tabs.includes(tabId));
+}
+
+/** @param {string} zoneId @param {{ readOnlyExecutive?: boolean, glPostingEnabled?: boolean }} opts */
 export function defaultTabForZoneWithMode(zoneId, opts = {}) {
   const zone = accountingZonesForActor(opts).find((z) => z.id === zoneId);
   return zone?.tabs[0] || 'overview';
 }
 
-/** @param {AccountingDeskTabId} tabId @param {{ readOnlyExecutive?: boolean }} opts */
+/** @param {AccountingDeskTabId} tabId @param {{ readOnlyExecutive?: boolean, glPostingEnabled?: boolean }} opts */
 export function zoneForTabWithMode(tabId, opts = {}) {
   const found = accountingZonesForActor(opts).find((z) => z.tabs.includes(tabId));
   return found?.id || 'home';
 }
 
-/** @param {string} zoneId @param {{ readOnlyExecutive?: boolean }} opts */
+/** @param {string} zoneId @param {{ readOnlyExecutive?: boolean, glPostingEnabled?: boolean }} opts */
 export function secondaryTabsForZoneWithMode(zoneId, opts = {}) {
   const zone = accountingZonesForActor(opts).find((z) => z.id === zoneId);
   if (!zone || zone.tabs.length <= 1) return [];

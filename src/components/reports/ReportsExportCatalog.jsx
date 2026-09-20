@@ -46,6 +46,7 @@ function CoverageChip({ item }) {
  */
 export function ReportsExportCatalog({
   hasFinanceView,
+  glPostingEnabled = true,
   periodValid,
   recommendedOnly = false,
   onRequestExport,
@@ -80,10 +81,10 @@ export function ReportsExportCatalog({
   const allItems = useMemo(() => flattenExportCatalog(), []);
 
   const items = useMemo(() => {
-    let list = filterExportCatalog(allItems, { query, sectionId, hasFinanceView });
+    let list = filterExportCatalog(allItems, { query, sectionId, hasFinanceView, glPostingEnabled });
     if (recommendedOnly) list = list.filter((i) => i.monthEndRecommended);
     return list;
-  }, [allItems, query, sectionId, recommendedOnly, hasFinanceView]);
+  }, [allItems, query, sectionId, recommendedOnly, hasFinanceView, glPostingEnabled]);
 
   const rows = useMemo(() => {
     if (recommendedOnly) return items.map((item) => ({ type: 'single', item }));
