@@ -108,13 +108,10 @@ export function inferLoadedWorkspaceDomains(snapshot) {
   if (!deferred.has('coilLots') && Array.isArray(snapshot.coilLots) && snapshot.coilLots.length > 0) {
     loaded.add('operations');
   }
-  // Keyed on purchase orders, not suppliers: suppliers now ship on the shell as reference
-  // data, so their presence says nothing about whether the procurement pack has arrived.
-  if (
-    !deferred.has('purchaseOrders') &&
-    Array.isArray(snapshot.purchaseOrders) &&
-    snapshot.purchaseOrders.length > 0
-  ) {
+  // Keyed on the procurement pack's outstanding-payments array, not purchaseOrders:
+  // operations also ships GRN POs, and treating those as procurement would skip the
+  // pack MD needs for Purchases → outstanding supplier payments.
+  if (Array.isArray(snapshot.outstandingPaymentLines)) {
     loaded.add('procurement');
   }
 
@@ -192,10 +189,9 @@ export function snapshotHasUsableDomainData(snapshot, domain) {
         (Array.isArray(snapshot.productionJobCoils) && snapshot.productionJobCoils.length > 0)
       );
     case 'procurement':
-      // Suppliers ride the shell now, so they cannot stand in for the pack — a user who
-      // has suppliers but no purchase orders has not loaded procurement.
-      if (deferred.has('purchaseOrders')) return false;
-      return Array.isArray(snapshot.purchaseOrders) && snapshot.purchaseOrders.length > 0;
+      // Operations GRN POs must not stand in for the procurement pack (supplier payables).
+      if (deferred.has('outstandingPaymentLines') && deferred.has('purchaseOrders')) return false;
+      return Array.isArray(snapshot.outstandingPaymentLines);
     default:
       return false;
   }

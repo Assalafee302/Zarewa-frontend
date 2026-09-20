@@ -55,7 +55,7 @@ import {
   purchaseOrderCanAssignTransport,
 } from '../lib/purchaseOrderWorkflow';
 import { defaultTransportAgentProfile, mergeTransportAgentProfile } from '../lib/transportAgentIntel';
-import { sortAccountsPayableList } from '../lib/procurementPayablesSorting';
+import { sortAccountsPayableList, mergeOpenPayablesSources } from '../lib/procurementPayablesSorting';
 import { useAppTablePaging } from '../lib/appDataTable';
 
 import {
@@ -101,7 +101,7 @@ const Procurement = () => {
   const navigate = useNavigate();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
-  const { domainLoading, domainReady } = useWorkspaceDomain('procurement');
+  const { domainLoading, domainReady } = useWorkspaceDomain(['procurement', 'finance']);
   const {
     purchaseOrders,
     inTransitLoads,
@@ -321,10 +321,19 @@ const Procurement = () => {
 
   const payables = useMemo(
     () =>
-      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.accountsPayable)
-        ? ws.snapshot.accountsPayable.map((x) => ({ ...x }))
+      ws?.hasWorkspaceData
+        ? mergeOpenPayablesSources({
+            accountsPayable: ws?.snapshot?.accountsPayable,
+            purchaseOrders,
+            outstandingPaymentLines: ws?.snapshot?.outstandingPaymentLines,
+          }).map((x) => ({ ...x }))
         : [],
-    [ws?.hasWorkspaceData, ws?.snapshot?.accountsPayable]
+    [
+      ws?.hasWorkspaceData,
+      ws?.snapshot?.accountsPayable,
+      ws?.snapshot?.outstandingPaymentLines,
+      purchaseOrders,
+    ]
   );
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -343,7 +352,11 @@ const Procurement = () => {
 
   const payablesOpenSource = useMemo(
     () =>
-      payables.filter((p) => (Number(p.paidNgn) || 0) < (Number(p.amountNgn) || 0)),
+      payables.filter((p) => {
+        const outstanding = Number(p.outstandingNgn);
+        if (Number.isFinite(outstanding) && outstanding > 0) return true;
+        return (Number(p.paidNgn) || 0) < (Number(p.amountNgn) || 0);
+      }),
     [payables]
   );
   const payablesSettledSource = useMemo(

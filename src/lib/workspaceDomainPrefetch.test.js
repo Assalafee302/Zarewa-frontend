@@ -72,6 +72,7 @@ describe('workspaceDomainPrefetch', () => {
       coilLots: [{ coilNo: 'CL-1' }],
       suppliers: [{ supplierID: 'S1' }],
       purchaseOrders: [{ poID: 'PO-1' }],
+      outstandingPaymentLines: [],
     });
     expect([...loaded]).toEqual(expect.arrayContaining(['sales', 'finance', 'operations', 'procurement']));
   });
@@ -90,12 +91,17 @@ describe('workspaceDomainPrefetch', () => {
     expect(loaded.has('procurement')).toBe(false);
   });
 
-  it('snapshotHasUsableDomainData agrees: suppliers alone are not procurement', () => {
+  it('does not call procurement loaded just because operations shipped GRN purchase orders', () => {
+    const loaded = inferLoadedWorkspaceDomains({
+      ok: true,
+      purchaseOrders: [{ poID: 'PO-GRN-1' }],
+    });
+    expect(loaded.has('procurement')).toBe(false);
     expect(
-      snapshotHasUsableDomainData({ ok: true, suppliers: [{ supplierID: 'S1' }], purchaseOrders: [] }, 'procurement')
+      snapshotHasUsableDomainData({ ok: true, purchaseOrders: [{ poID: 'PO-GRN-1' }] }, 'procurement')
     ).toBe(false);
     expect(
-      snapshotHasUsableDomainData({ ok: true, purchaseOrders: [{ poID: 'PO-1' }] }, 'procurement')
+      snapshotHasUsableDomainData({ ok: true, outstandingPaymentLines: [] }, 'procurement')
     ).toBe(true);
   });
 

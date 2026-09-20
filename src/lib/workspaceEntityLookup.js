@@ -47,7 +47,7 @@ export const WORKSPACE_ARRAY_DOMAINS = Object.freeze({
   treasuryMovements: ['finance'],
   expenses: ['finance'],
   paymentRequests: ['finance'],
-  accountsPayable: ['finance'],
+  accountsPayable: ['finance', 'procurement'],
   bankReconciliation: ['finance'],
   registerSettlementsAwaitingPayment: ['finance'],
 
