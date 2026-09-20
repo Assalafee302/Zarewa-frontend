@@ -3,6 +3,7 @@ import {
   Receipt as ReceiptIcon,
   Wallet,
   Landmark,
+  CircleDollarSign,
   MoreVertical,
   Eye,
   Link2,
@@ -10,7 +11,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { loadLedgerEntries } from '../../lib/customerLedgerStore';
-import { pendingAdvanceDepositRowsFromEntries } from '../../lib/customerLedgerCore';
+import { pendingAdvanceDepositRowsFromEntries, pendingOverpayCreditRowsFromEntries } from '../../lib/customerLedgerCore';
 import { dismissAdvanceEntryId, loadDismissedAdvanceIds } from '../../lib/advanceEntryUiStore';
 import { formatNgn } from '../../Data/mockData';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
@@ -116,7 +117,7 @@ export function ReceiptsTransactionsPanel({
         </p>
         <p className="text-xs text-slate-500 mt-1 leading-snug">
           <strong>Quotation receipts only</strong> (money booked to a job). The same bank account in Finance shows{' '}
-          <strong>every</strong> inflow—also <strong>advance deposits</strong>, transfers, expenses—so you may see a line
+          <strong>every</strong> inflow—also <strong>customer advances</strong>, transfers, expenses—so you may see a line
           on the treasury statement that is not listed here (check the statement badge: Sales receipt vs Advance).
         </p>
         <div className="relative mt-3">
@@ -182,7 +183,7 @@ export function ReceiptsTransactionsPanel({
   );
 }
 
-/** Column 2: unlinked advances */
+/** Column: known-customer ADVANCE_IN with no quotation yet. */
 export function ReceiptsAdvancesPanel({
   ledgerNonce = 0,
   onSelectAdvance,
@@ -216,15 +217,16 @@ export function ReceiptsAdvancesPanel({
       <div className="p-4 border-b border-amber-100/80 shrink-0">
         <p className="text-ui-xs font-semibold uppercase tracking-widest text-amber-900/80 flex items-center gap-1.5">
           <Wallet size={14} className="shrink-0" />
-          Advance deposits
+          Customer advances — no quote yet
         </p>
         <p className="text-ui-xs text-amber-900/70 mt-1 leading-snug">
-          Not yet linked to a quote. <strong>Link</strong> applies to a quotation; fully applied advances drop off this list.
+          Known customer parked ₦ without a quotation. <strong>Link</strong> applies it to a job. This is not
+          unidentified bank money.
         </p>
       </div>
       <ul className="flex-1 min-h-0 overflow-y-auto overflow-x-visible custom-scrollbar p-2 space-y-1.5">
         {advanceRows.length === 0 ? (
-          <li className="text-ui-xs text-amber-800/60 px-2 py-4 text-center">No pending advances.</li>
+          <li className="text-ui-xs text-amber-800/60 px-2 py-4 text-center">No customer advances waiting for a quote.</li>
         ) : (
           advanceRows.map((e) => (
             <li
@@ -262,7 +264,7 @@ export function ReceiptsAdvancesPanel({
   );
 }
 
-/** Column: unlinked bank deposits (Finance registered, Sales can link). */
+/** Column: Finance-registered bank credits (customer not named). */
 export function ReceiptsUnlinkedDepositsPanel({
   snapshot,
   onUseDeposit,
@@ -276,16 +278,16 @@ export function ReceiptsUnlinkedDepositsPanel({
       <div className="p-4 border-b border-sky-100/80 shrink-0">
         <p className="text-ui-xs font-semibold uppercase tracking-widest text-sky-900/80 flex items-center gap-1.5">
           <Landmark size={14} className="shrink-0" />
-          Unlinked bank payments
+          Bank credits — customer unknown
         </p>
         <p className="text-ui-xs text-sky-900/70 mt-1 leading-snug">
-          Money Finance/Cashier registered from the bank — not yet linked to a customer. Use when posting a receipt or
-          advance.
+          Finance already booked this transfer. Use it on a receipt or advance so cash is not counted twice. This is not
+          a customer advance.
         </p>
       </div>
       <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5 max-h-[min(280px,40vh)]">
         {rows.length === 0 ? (
-          <li className="text-ui-xs text-sky-800/60 px-2 py-4 text-center">No unlinked bank payments.</li>
+          <li className="text-ui-xs text-sky-800/60 px-2 py-4 text-center">No unidentified bank credits.</li>
         ) : (
           rows.map((d) => (
             <li
@@ -308,6 +310,59 @@ export function ReceiptsUnlinkedDepositsPanel({
                 className="shrink-0 rounded-md bg-sky-700 px-2 py-1 text-ui-xs font-black uppercase text-white hover:bg-sky-800"
               >
                 Use
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
+    </section>
+  );
+}
+
+/** Column: hanging quotation overpay credit (not Link Advance). */
+export function ReceiptsQuoteOverpayPanel({
+  ledgerNonce = 0,
+  onOpenQuotation,
+  className = '',
+}) {
+  const rows = useMemo(() => {
+    void ledgerNonce;
+    return pendingOverpayCreditRowsFromEntries(loadLedgerEntries());
+  }, [ledgerNonce]);
+
+  return (
+    <section className={`${PANEL_CLASS} border-violet-200/90 bg-violet-50/10 ${className}`}>
+      <div className="h-1 bg-violet-600 shrink-0" aria-hidden />
+      <div className="p-4 border-b border-violet-100/80 shrink-0">
+        <p className="text-ui-xs font-semibold uppercase tracking-widest text-violet-900/80 flex items-center gap-1.5">
+          <CircleDollarSign size={14} className="shrink-0" />
+          Quote overpay credit
+        </p>
+        <p className="text-ui-xs text-violet-900/70 mt-1 leading-snug">
+          Paid more than the quotation due. Refund from hanging credit — do not <strong>Link</strong> as an advance.
+        </p>
+      </div>
+      <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5 max-h-[min(280px,40vh)]">
+        {rows.length === 0 ? (
+          <li className="text-ui-xs text-violet-800/60 px-2 py-4 text-center">No hanging quote credit.</li>
+        ) : (
+          rows.map((r) => (
+            <li
+              key={r.id}
+              className="flex items-center justify-between gap-2 rounded-lg border border-violet-100 bg-white/90 px-2.5 py-2"
+            >
+              <div className="min-w-0">
+                <p className="text-ui-xs font-black text-zarewa-teal tabular-nums">{formatNgn(r.remainingNgn)}</p>
+                <p className="text-ui-xs font-semibold text-slate-700 truncate">{r.customerName || r.customerID}</p>
+                <p className="text-ui-xs font-mono text-slate-600 truncate">{r.quotationRef}</p>
+                <p className="text-ui-xs text-slate-400">{(r.atISO || '').slice(0, 10)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenQuotation?.(r)}
+                className="shrink-0 rounded-md bg-violet-700 px-2 py-1 text-ui-xs font-black uppercase text-white hover:bg-violet-800"
+              >
+                Open quote
               </button>
             </li>
           ))

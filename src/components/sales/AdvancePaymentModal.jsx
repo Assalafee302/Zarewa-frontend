@@ -10,12 +10,13 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { recordAdvancePayment } from '../../lib/customerLedgerStore';
 import { formatNgn } from '../../Data/mockData';
 import { apiFetch } from '../../lib/apiBase';
-import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../../lib/ledgerPostingGuidance';
+import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod, newLedgerIdempotencyKey, promptUnlinkedBankTillOverride } from '../../lib/ledgerPostingGuidance';
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../../lib/selectOptionSort';
 import { AdvancePaymentPrintView } from '../receipt/ReceiptPrintViews';
 import { BankDepositPicker } from './BankDepositPicker';
 import { bankDepositRemainingNgn } from '../../lib/bankDeposits';
+import { staffPrintName } from '../../lib/staffPrintName';
 
 /**
  * Standalone advance / deposit — no quotation. Liability until applied or refunded.
@@ -44,6 +45,7 @@ const AdvancePaymentModal = ({
   const [bankDepositId, setBankDepositId] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const postingRef = useRef(false);
+  const printHandledBy = staffPrintName(ws?.session?.user, handledByLabel);
 
   const depositSnapshot = workspaceSnapshot ?? ws?.snapshot;
   const linkedDeposit = useMemo(() => {
@@ -189,10 +191,7 @@ const AdvancePaymentModal = ({
             },
           ];
         }
-        const idempotencyKey =
-          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-            ? crypto.randomUUID()
-            : `adv-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+        const idempotencyKey = newLedgerIdempotencyKey('adv');
 
         const postAdvance = async (payload, key) =>
           apiFetch('/api/ledger/advance', {
@@ -201,6 +200,7 @@ const AdvancePaymentModal = ({
             headers: { 'Idempotency-Key': key },
           });
 
+        let extra = {};
         let { ok, data } = await postAdvance(body, idempotencyKey);
         if (!ok && data?.code === 'POSSIBLE_DUPLICATE_ADVANCE') {
           const lines = (data?.duplicateSignals || [])
@@ -213,14 +213,17 @@ const AdvancePaymentModal = ({
             showToast('Posting cancelled to avoid duplicate entry.', { variant: 'info' });
             return;
           }
-          const secondKey =
-            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-              ? crypto.randomUUID()
-              : `adv-dup-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-          ({ ok, data } = await postAdvance(
-            { ...body, forceDuplicatePost: true, duplicateOverrideReason: reason.trim() },
-            secondKey
-          ));
+          extra = { forceDuplicatePost: true, duplicateOverrideReason: reason.trim() };
+          ({ ok, data } = await postAdvance({ ...body, ...extra }, newLedgerIdempotencyKey('adv-dup')));
+        }
+        if (!ok && data?.code === 'LINK_OPEN_BANK_DEPOSIT_REQUIRED') {
+          const reason = promptUnlinkedBankTillOverride(data);
+          if (!reason) {
+            showToast('Posting cancelled so cash is not counted twice.', { variant: 'info' });
+            return;
+          }
+          extra = { ...extra, forceUnlinkedBankPost: true, unlinkedBankOverrideReason: reason };
+          ({ ok, data } = await postAdvance({ ...body, ...extra }, newLedgerIdempotencyKey('adv-bank')));
         }
         if (!ok || !data?.ok) {
           setPostingHint(guidanceForLedgerPostFailure(data) || null);
@@ -284,7 +287,7 @@ const AdvancePaymentModal = ({
             <div className="min-w-0">
               <h2 className="text-base font-bold text-zarewa-teal tracking-tight">Advance payment</h2>
               <p className="text-ui-xs font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
-                Deposit before quotation — liability, not revenue
+                Known customer, no quotation — liability, not revenue
               </p>
             </div>
           </div>
@@ -329,6 +332,11 @@ const AdvancePaymentModal = ({
             ) : null}
           </div>
         ) : null}
+
+        <div className="px-5 py-2.5 bg-amber-50/80 border-b border-amber-100 text-ui-xs text-amber-950 leading-snug">
+          Use this when the customer is known and there is no quotation yet. If Finance already registered the transfer,
+          pick it below — do not post the same cash again.
+        </div>
 
         <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
           <div>
@@ -463,7 +471,7 @@ const AdvancePaymentModal = ({
               accountLabel={accountLabelForPrint}
               reference={reference || '—'}
               purpose={purpose || '—'}
-              handledBy={handledByLabel}
+              handledBy={printHandledBy}
             />
           </div>
           <div className="no-print mt-4 flex flex-wrap justify-center gap-2">

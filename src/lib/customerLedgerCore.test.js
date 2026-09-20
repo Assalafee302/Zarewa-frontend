@@ -6,6 +6,7 @@ import {
   overpayCreditBalanceFromEntries,
   overpayCreditRemainingOnQuotationFromEntries,
   pendingAdvanceDepositRowsFromEntries,
+  pendingOverpayCreditRowsFromEntries,
   advanceInRemainingNgnByIdFromEntries,
 } from './customerLedgerCore.js';
 
@@ -88,5 +89,30 @@ describe('companionOverpayNgnByReceiptId', () => {
     expect(plan.rows).toHaveLength(1);
     expect(plan.rows[0].type).toBe('RECEIPT');
     expect(plan.rows[0].amountNgn).toBe(3_500_000);
+  });
+});
+
+describe('pending overpay credit rows', () => {
+  it('lists hanging quote credit and hides reversed remaining', () => {
+    const entries = [
+      {
+        customerID: 'C1',
+        customerName: 'Ada',
+        quotationRef: 'Q1',
+        type: 'OVERPAY_ADVANCE',
+        amountNgn: 40_000,
+        atISO: '2026-03-01T10:00:00.000Z',
+      },
+      {
+        customerID: 'C1',
+        quotationRef: 'Q1',
+        type: 'OVERPAY_REVERSAL',
+        amountNgn: 10_000,
+      },
+    ];
+    const rows = pendingOverpayCreditRowsFromEntries(entries);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].quotationRef).toBe('Q1');
+    expect(rows[0].remainingNgn).toBe(30_000);
   });
 });

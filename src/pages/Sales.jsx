@@ -22,6 +22,7 @@ import SalesCustomerCreateModal from '../components/sales/SalesCustomerCreateMod
 import SalesCuttingListMaterialPanel from '../components/sales/SalesCuttingListMaterialPanel';
 import {
   ReceiptsAdvancesPanel,
+  ReceiptsQuoteOverpayPanel,
   ReceiptsUnlinkedDepositsPanel,
 } from '../components/sales/SalesReceiptsSidebar';
 import {
@@ -70,6 +71,7 @@ import { SALES_STATUS_CHIP } from '../lib/salesStatusUi';
 import { WorkspaceDeskSyncBanner } from '../components/workspace/WorkspaceDeskSyncBanner';
 import { BootstrapTruncatedBanner } from '../components/workspace/BootstrapTruncatedBanner';
 import { formatNgn } from '../lib/formatNgn';
+import { staffPrintName, voucherRecordedByLabel } from '../lib/staffPrintName';
 import { useToast } from '../context/ToastContext';
 import { useCustomers } from '../context/CustomersContext';
 import { useInventory } from '../context/InventoryContext';
@@ -208,6 +210,7 @@ const Sales = () => {
   const isAdminRole = roleKey === 'admin';
   const canDeleteSalesRecord = ['admin', 'md', 'sales_manager', 'branch_manager'].includes(roleKey);
   const salesRoleLabel = ws?.session?.user?.roleLabel ?? SALES_ROLE_LABELS[salesRole] ?? salesRole;
+  const salesStaffName = staffPrintName(ws?.session?.user, salesRoleLabel);
   /** Branch manager & MD hold refunds.approve; finance holds finance.approve; admin has *. Cashiers pay only (Phase 11A). */
   const canApproveRefunds = userMayApproveRefundRequests(ws);
   const confirmDangerousDelete = useCallback(async (recordLabel, typedPhrase = 'DELETE') => {
@@ -2068,6 +2071,20 @@ const Sales = () => {
                   onLinkAdvance={setLinkAdvanceEntry}
                   onDeleteAdvance={deleteAdvance}
                 />
+                <ReceiptsQuoteOverpayPanel
+                  className="!h-auto !min-h-0 shadow-sm"
+                  ledgerNonce={ledgerNonce}
+                  onOpenQuotation={(row) => {
+                    const q = quotations.find((x) => String(x.id) === String(row.quotationRef));
+                    if (!q) {
+                      showToast(`Quotation ${row.quotationRef} not found.`, { variant: 'error' });
+                      return;
+                    }
+                    setSelectedItem(q);
+                    setQuotationAccessMode('view');
+                    setShowQuotationModal(true);
+                  }}
+                />
               </div>
             ) : salesTab === 'cuttinglist' ? (
               <SalesCuttingListMaterialPanel
@@ -2389,7 +2406,7 @@ const Sales = () => {
         workspaceSnapshot={ws?.snapshot}
         onPosted={onLedgerSynced}
         useLedgerApi={Boolean(ws?.canMutate)}
-        handledByLabel={salesRoleLabel}
+        handledByLabel={salesStaffName}
       />
       </Suspense>
       ) : null}
@@ -2467,7 +2484,7 @@ const Sales = () => {
                     accountLabel={advancePrintEntry.paymentMethod || '—'}
                     reference={advancePrintEntry.bankReference || '—'}
                     purpose={advancePrintEntry.purpose || advancePrintEntry.note || '—'}
-                    handledBy={salesRoleLabel}
+                    handledBy={voucherRecordedByLabel(advancePrintEntry, ws?.session?.user, salesStaffName)}
                   />
                 </div>
                 <div className="no-print mt-4 flex flex-wrap justify-center gap-2">

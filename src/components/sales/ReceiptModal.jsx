@@ -29,6 +29,8 @@ import {
   formatLedgerApiError,
   guidanceForLedgerPostFailure,
   isVoucherDateInLockedPeriod,
+  newLedgerIdempotencyKey,
+  promptUnlinkedBankTillOverride,
 } from '../../lib/ledgerPostingGuidance';
 import {
   treasuryAccountDisplayName,
@@ -966,16 +968,16 @@ const ReceiptModal = ({
         if (total >= 100_000) {
           receiptBody.confirmAmountNgn = total;
         }
-        const idempotencyKey =
-          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-            ? crypto.randomUUID()
-            : `rc-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+        const idempotencyKey = newLedgerIdempotencyKey('rc');
+        const postReceipt = (payload, key) =>
+          apiFetch('/api/ledger/receipt', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Idempotency-Key': key },
+          });
 
-        const { ok, data, status } = await apiFetch('/api/ledger/receipt', {
-          method: 'POST',
-          body: JSON.stringify(receiptBody),
-          headers: { 'Idempotency-Key': idempotencyKey },
-        });
+        let workingBody = { ...receiptBody };
+        let { ok, data, status } = await postReceipt(workingBody, idempotencyKey);
         if (!ok && data?.code === 'QUOTATION_ALREADY_SETTLED') {
           const proceed = await appConfirm({
             message: `${data?.error || 'This quotation is already paid.'}\n\nPost anyway? The full amount will be recorded on this quotation.`,
@@ -984,38 +986,8 @@ const ReceiptModal = ({
             showToast('Posting cancelled.', { variant: 'info' });
             return;
           }
-          const settledKey =
-            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-              ? crypto.randomUUID()
-              : `rc-settled-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-          const retrySettled = await apiFetch('/api/ledger/receipt', {
-            method: 'POST',
-            body: JSON.stringify({
-              ...receiptBody,
-              confirmSettledQuoteOverpay: true,
-              fullAmountAsReceipt: true,
-            }),
-            headers: { 'Idempotency-Key': settledKey },
-          });
-          if (!retrySettled.ok || !retrySettled.data?.ok) {
-            setPostingHint(guidanceForLedgerPostFailure(retrySettled.data) || null);
-            showToast(
-              formatLedgerApiError(retrySettled.data, retrySettled.status, 'Could not post receipt.'),
-              { variant: 'error' }
-            );
-            return;
-          }
-          setPostingHint(null);
-          showToast(
-            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.`
-          );
-          await onLedgerChange?.({
-            delta: retrySettled.data?.delta,
-            domains: [],
-            skipShellRefresh: true,
-          });
-          abandonUnsavedAndRun(() => onClose());
-          return;
+          workingBody = { ...workingBody, confirmSettledQuoteOverpay: true, fullAmountAsReceipt: true };
+          ({ ok, data, status } = await postReceipt(workingBody, newLedgerIdempotencyKey('rc-settled')));
         }
         if (!ok && data?.code === 'POSSIBLE_DUPLICATE_RECEIPT') {
           const lines = (data?.duplicateSignals || [])
@@ -1028,36 +1000,26 @@ const ReceiptModal = ({
             showToast('Posting cancelled to avoid duplicate entry.', { variant: 'info' });
             return;
           }
-          const secondKey =
-            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-              ? crypto.randomUUID()
-              : `rc-retry-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-          const retry = await apiFetch('/api/ledger/receipt', {
-            method: 'POST',
-            body: JSON.stringify({
-              ...receiptBody,
-              forceDuplicatePost: true,
-              duplicateOverrideReason: reason.trim(),
-              confirmSettledQuoteOverpay: true,
-            }),
-            headers: { 'Idempotency-Key': secondKey },
-          });
-          if (!retry.ok || !retry.data?.ok) {
-            setPostingHint(guidanceForLedgerPostFailure(retry.data) || null);
-            showToast(formatLedgerApiError(retry.data, retry.status, 'Could not post receipt.'), { variant: 'error' });
+          workingBody = {
+            ...workingBody,
+            forceDuplicatePost: true,
+            duplicateOverrideReason: reason.trim(),
+            confirmSettledQuoteOverpay: true,
+          };
+          ({ ok, data, status } = await postReceipt(workingBody, newLedgerIdempotencyKey('rc-retry')));
+        }
+        if (!ok && data?.code === 'LINK_OPEN_BANK_DEPOSIT_REQUIRED') {
+          const reason = promptUnlinkedBankTillOverride(data);
+          if (!reason) {
+            showToast('Posting cancelled so cash is not counted twice.', { variant: 'info' });
             return;
           }
-          setPostingHint(null);
-          showToast(
-            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.`
-          );
-          await onLedgerChange?.({
-            delta: retry.data?.delta,
-            domains: [],
-            skipShellRefresh: true,
-          });
-          abandonUnsavedAndRun(() => onClose());
-          return;
+          workingBody = {
+            ...workingBody,
+            forceUnlinkedBankPost: true,
+            unlinkedBankOverrideReason: reason,
+          };
+          ({ ok, data, status } = await postReceipt(workingBody, newLedgerIdempotencyKey('rc-bank')));
         }
         if (!ok || !data?.ok) {
           setPostingHint(guidanceForLedgerPostFailure(data) || null);

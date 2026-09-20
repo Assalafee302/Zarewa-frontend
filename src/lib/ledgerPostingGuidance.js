@@ -31,6 +31,33 @@ export function formatLedgerApiError(body, httpStatus, fallback = 'Request faile
   return out;
 }
 
+/** Idempotency key for a ledger POST retry. */
+export function newLedgerIdempotencyKey(prefix = 'ledger') {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/**
+ * Prompt when the server refuses a second till credit against an exact-amount open bank deposit.
+ * @returns {string} override reason, or empty if the clerk cancelled
+ */
+export function promptUnlinkedBankTillOverride(data) {
+  const matches = (Array.isArray(data?.similarUnlinkedDeposits) ? data.similarUnlinkedDeposits : [])
+    .slice(0, 8)
+    .map((d) => {
+      const amt = Number(d.remainingNgn ?? d.amountNgn || 0).toLocaleString('en-NG');
+      return `- ${d.id || 'bank'} · ₦${amt} · ${d.bankDateISO || ''}`.trim();
+    })
+    .join('\n');
+  const reason = window.prompt(
+    `An unidentified bank credit of the same amount is already on the till.\n${
+      matches || '- Same-amount bank row exists.'
+    }\n\nLink that bank row on this form, or type a reason if this is different money:`
+  );
+  return String(reason || '').trim();
+}
+
 /**
  * Maps ledger posting API errors to user-facing copy and in-app navigation targets.
  * @param {{ code?: string; error?: string; message?: string } | null | undefined} body
@@ -89,6 +116,29 @@ export function guidanceForLedgerPostFailure(body) {
         'Wait a minute, then post again (the limit resets on a rolling window).',
         'For bulk entry, split work across time or ask IT about higher limits for trusted automation.',
       ],
+      links: [],
+    };
+  }
+
+  if (code === 'LINK_OPEN_BANK_DEPOSIT_REQUIRED') {
+    return {
+      title: 'Link the bank credit first',
+      detail:
+        msg ||
+        'An unidentified bank credit of the same amount is already on the till. Linking it avoids counting cash twice.',
+      steps: [
+        'Cancel this post and pick the matching bank credit on the form (Use / link deposit).',
+        'If this cash is genuinely different, type a reason when asked to continue.',
+      ],
+      links: [{ label: 'Sales — receipts', to: '/sales?tab=receipts' }],
+    };
+  }
+
+  if (code === 'UNLINKED_BANK_OVERRIDE_REASON_REQUIRED') {
+    return {
+      title: 'Override reason required',
+      detail: msg || 'Type why this cash is not the unidentified bank credit already on the till.',
+      steps: ['Enter a short reason, or cancel and link the bank row instead.'],
       links: [],
     };
   }
