@@ -145,9 +145,9 @@ describe('managerWatchQueues', () => {
     expect(model.millBlocked.count).toBe(1);
 
     expect(model.banks.accounts).toHaveLength(2);
-    expect(model.banks.bankNgn).toBe(2_250_000);
+    expect(model.banks.bankNgn).toBe(2_000_000);
     expect(model.banks.cashNgn).toBe(80_000);
-    expect(model.banks.totalNgn).toBe(2_330_000);
+    expect(model.banks.totalNgn).toBe(2_080_000);
 
     expect(model.totals.waitingCount).toBe(6);
     expect(model.totals.agedCount).toBeGreaterThanOrEqual(2);

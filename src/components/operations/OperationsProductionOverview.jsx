@@ -240,7 +240,7 @@ export function OperationsProductionOverview({
 
         <OperationsDeskSection
           title="Stone-coated stock"
-          hint="Metres and flatsheet are separate on-hand views."
+          hint="Metres and flatsheet are separate stock views."
           icon={<Package size={16} />}
           actions={
             <div className="flex flex-wrap justify-end gap-x-3">

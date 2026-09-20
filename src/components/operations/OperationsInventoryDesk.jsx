@@ -50,17 +50,9 @@ export function OperationsInventoryDesk({
   setTransitSort,
   transitOrders,
   poSearchRemoteLoading = false,
-  expandedReceivePoId,
-  setExpandedReceivePoId,
-  setReceiveDraft,
-  receiveDraft,
+  receivingPoId,
+  onOpenReceive,
   canReceiveInventory,
-  setGrnLines,
-  grnLines,
-  applyTransitReceipt,
-  grnSubmitting,
-  grnConversionOverride,
-  setGrnConversionOverride,
   ws,
   coilLiveSearch,
   setCoilLiveSearch,
@@ -162,10 +154,13 @@ export function OperationsInventoryDesk({
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8 lg:items-start">
             <section className="z-soft-panel overflow-hidden w-full min-w-0 flex flex-col lg:col-span-1">
             <div className="p-3 sm:p-4 flex flex-col">
-              <h3 className={`${OPS_SECTION_TITLE} mb-2 flex items-center gap-2`}>
+              <h3 className={`${OPS_SECTION_TITLE} mb-1 flex items-center gap-2`}>
                 <Truck size={14} className="text-zarewa-teal" aria-hidden />
                 Receive
               </h3>
+              <p className="mb-2 text-ui-xs font-medium leading-snug text-[var(--z-text-muted)]">
+                Pick a purchase order to open the receive form.
+              </p>
               {!anyReceivablePo && inTransitLoads.length === 0 ? (
                 <p className="text-ui-xs font-medium text-slate-400">Nothing on road or loading.</p>
               ) : transitOrders.length === 0 ? (
@@ -236,7 +231,11 @@ export function OperationsInventoryDesk({
                     return (
                     <li
                       key={p.poID}
-                      className="rounded-md border border-[var(--z-border)] bg-white py-1 px-2"
+                      className={`rounded-md border bg-white py-1 px-2 ${
+                        receivingPoId === p.poID
+                          ? 'border-zarewa-teal/50 ring-1 ring-zarewa-teal/20'
+                          : 'border-[var(--z-border)]'
+                      }`}
                     >
                       <div className="min-w-0 leading-tight">
                         <div className="flex items-center justify-between gap-2 min-w-0">
@@ -244,38 +243,20 @@ export function OperationsInventoryDesk({
                             {p.poID}
                             <span className="font-semibold text-[var(--z-text)]"> · {p.supplierName}</span>
                           </p>
-                          {expandedReceivePoId !== p.poID ? (
-                            <button
-                              type="button"
-                              disabled={!canReceiveInventory}
-                              aria-expanded="false"
-                              title={
-                                canReceiveInventory
-                                  ? 'Enter receipt quantities'
-                                  : 'Store, operations, or branch manager role required to receive into stock'
-                              }
-                              onClick={() => {
-                                setExpandedReceivePoId(p.poID);
-                                setReceiveDraft((d) => ({ ...d, poID: p.poID }));
-                              }}
-                              className={`${OPS_TOOL_BTN_PRIMARY} shrink-0 px-2.5 py-1 text-ui-xs`}
-                            >
-                              Receive
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              aria-expanded="true"
-                              onClick={() => {
-                                setExpandedReceivePoId(null);
-                                setReceiveDraft({ poID: '', location: '' });
-                                setGrnLines([]);
-                              }}
-                              className={`${OPS_TOOL_BTN} shrink-0 px-2.5 py-1 text-ui-xs`}
-                            >
-                              Cancel
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            disabled={!canReceiveInventory}
+                            aria-expanded={receivingPoId === p.poID}
+                            title={
+                              canReceiveInventory
+                                ? 'Open receive form'
+                                : 'Store, operations, or branch manager role required to receive into stock'
+                            }
+                            onClick={() => onOpenReceive?.(p.poID)}
+                            className={`${OPS_TOOL_BTN_PRIMARY} shrink-0 px-2.5 py-1 text-ui-xs`}
+                          >
+                            Receive
+                          </button>
                         </div>
                         <p
                           className="text-ui-xs font-semibold text-slate-600 mt-0.5 leading-snug line-clamp-2"
@@ -284,233 +265,6 @@ export function OperationsInventoryDesk({
                           {meta2}
                         </p>
                       </div>
-                      {expandedReceivePoId === p.poID ? (
-                        <form
-                          noValidate
-                          className="mt-1.5 space-y-2 border-t border-dashed border-slate-200 pt-1.5"
-                          onSubmit={applyTransitReceipt}
-                        >
-                          <fieldset
-                            disabled={!canReceiveInventory}
-                            className="border-0 p-0 m-0 min-w-0 space-y-2 disabled:opacity-60"
-                          >
-                          <input
-                            value={receiveDraft.location}
-                            onChange={(e) =>
-                              setReceiveDraft((s) => ({ ...s, location: e.target.value }))
-                            }
-                            placeholder="Location (optional)"
-                            aria-label="Storage location"
-                            className="w-full rounded-lg border border-slate-200 py-1.5 px-2 text-xs font-semibold text-slate-800"
-                          />
-                          {grnLines.length === 0 ? (
-                            <p className="text-ui-xs text-amber-700">No open lines on this order.</p>
-                          ) : (
-                            grnLines.map((row, idx) => {
-                              const maxU =
-                                row.grnKind === 'stone'
-                                  ? 'm'
-                                  : row.grnKind === 'stone_flatsheet'
-                                    ? 'sheets'
-                                    : row.grnKind === 'accessory'
-                                      ? 'units'
-                                      : row.meterBasis
-                                        ? 'm'
-                                        : 'kg';
-                              const gaugeS = String(row.gauge ?? '').trim() || '—';
-                              const colourS = String(row.color ?? '').trim() || '—';
-                              return (
-                              <div
-                                key={row.lineKey || idx}
-                                className="rounded-md border border-slate-200/90 bg-white p-2 space-y-1.5"
-                              >
-                                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 min-w-0">
-                                  <p className="text-xs font-black text-zarewa-teal leading-snug min-w-0 flex-1">
-                                    {row.productName}
-                                  </p>
-                                  <span
-                                    className="text-ui-xs font-black tabular-nums text-slate-700 shrink-0"
-                                    title="Open on PO; you can post more if the delivery was heavier than ordered."
-                                  >
-                                    Open{' '}
-                                    {row.remaining.toLocaleString()}
-                                    {maxU === 'm'
-                                      ? ' m'
-                                      : maxU === 'units'
-                                        ? ' u'
-                                        : maxU === 'sheets'
-                                          ? ' sheets'
-                                          : ' kg'}
-                                  </span>
-                                </div>
-                                <p className="text-ui-xs font-bold text-slate-800 leading-tight">
-                                  <span className="font-black text-slate-950">{gaugeS}</span>
-                                  <span className="text-slate-400 font-semibold"> · </span>
-                                  <span className="font-black text-slate-950">{colourS}</span>
-                                </p>
-                                {row.grnKind === 'stone' ||
-                                row.grnKind === 'accessory' ||
-                                row.grnKind === 'stone_flatsheet' ? (
-                                  <div className="space-y-1.5">
-                                    <div>
-                                      <label className="sr-only">
-                                        {row.grnKind === 'stone'
-                                          ? 'Metres received'
-                                          : row.grnKind === 'stone_flatsheet'
-                                            ? 'Sheets received'
-                                            : 'Units received'}
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        step={row.grnKind === 'stone' ? '0.01' : '1'}
-                                        value={row.qtyReceived}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
-                                          setGrnLines((prev) =>
-                                            prev.map((r, i) => (i === idx ? { ...r, qtyReceived: v } : r))
-                                          );
-                                        }}
-                                        placeholder={
-                                          row.grnKind === 'stone'
-                                            ? 'Metres'
-                                            : row.grnKind === 'stone_flatsheet'
-                                              ? 'Sheets'
-                                              : 'Units'
-                                        }
-                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
-                                      />
-                                      {row.grnKind === 'stone_flatsheet' ? (
-                                        <p className="mt-1 text-ui-xs font-semibold text-slate-600">
-                                          Posted to stock as m² (sheets × length × 1.2 m width).
-                                        </p>
-                                      ) : null}
-                                    </div>
-                                    <div>
-                                      <label className="block text-ui-xs font-bold text-slate-500 uppercase mb-0.5">
-                                        Date of receival
-                                      </label>
-                                      <input
-                                        type="date"
-                                        value={row.receivedAtISO || ''}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
-                                          setGrnLines((prev) =>
-                                            prev.map((r, i) => (i === idx ? { ...r, receivedAtISO: v } : r))
-                                          );
-                                        }}
-                                        required
-                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
-                                      />
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                    <div>
-                                      <label className="sr-only">
-                                        {row.meterBasis ? 'Metres received' : 'Kilograms received'}
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={row.qtyReceived}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
-                                          setGrnLines((prev) =>
-                                            prev.map((r, i) => (i === idx ? { ...r, qtyReceived: v } : r))
-                                          );
-                                        }}
-                                        placeholder={row.meterBasis ? 'Metres' : 'Kg'}
-                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="sr-only">
-                                        {row.meterBasis ? 'Weight in kg (required)' : 'Weight in kg (optional)'}
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={row.weightKg ?? ''}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
-                                          setGrnLines((prev) =>
-                                            prev.map((r, i) => (i === idx ? { ...r, weightKg: v } : r))
-                                          );
-                                        }}
-                                        placeholder={row.meterBasis ? 'Weight kg *' : 'Weight kg (optional)'}
-                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
-                                      />
-                                    </div>
-                                    <div className="sm:col-span-2">
-                                      <label className="sr-only">Coil number</label>
-                                      <input
-                                        value={row.coilNo}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
-                                          setGrnLines((prev) =>
-                                            prev.map((r, i) => (i === idx ? { ...r, coilNo: v } : r))
-                                          );
-                                        }}
-                                        placeholder="Coil #"
-                                        title="Suggested from register; edit if tag differs."
-                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black font-mono text-slate-900"
-                                      />
-                                    </div>
-                                    <div className="sm:col-span-2">
-                                      <label className="block text-ui-xs font-bold text-slate-500 uppercase mb-0.5">
-                                        Date of receival
-                                      </label>
-                                      <input
-                                        type="date"
-                                        value={row.receivedAtISO || ''}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
-                                          setGrnLines((prev) =>
-                                            prev.map((r, i) => (i === idx ? { ...r, receivedAtISO: v } : r))
-                                          );
-                                        }}
-                                        required
-                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-zarewa-teal"
-                                      />
-                                    </div>
-                                    {row.meterBasis ? (
-                                      <p className="sm:col-span-2 text-ui-xs font-semibold text-amber-700">
-                                        Metre-basis PO line: enter metres received and actual kg weight.
-                                      </p>
-                                    ) : null}
-                                  </div>
-                                )}
-                              </div>
-                              );
-                            })
-                          )}
-                          {grnLines.length > 0 &&
-                          grnLines.some((r) => r.grnKind === 'coil') &&
-                          ws?.hasPermission?.('purchase_orders.manage') ? (
-                            <label className="flex cursor-pointer items-start gap-2 rounded-md border border-amber-200 bg-amber-50/90 p-2 text-ui-xs font-bold text-amber-950">
-                              <input
-                                type="checkbox"
-                                checked={grnConversionOverride}
-                                onChange={(e) => setGrnConversionOverride(e.target.checked)}
-                                className="mt-0.5 h-3.5 w-3.5 rounded border-amber-400"
-                              />
-                              <span>Override conversion checks (audited).</span>
-                            </label>
-                          ) : null}
-                          </fieldset>
-                          {grnLines.length > 0 ? (
-                            <button
-                              type="submit"
-                              disabled={!canReceiveInventory || grnSubmitting}
-                              className={`${OPS_TOOL_BTN_PRIMARY} w-full`}
-                            >
-                              {grnSubmitting ? 'Posting…' : 'Confirm receipt'}
-                            </button>
-                          ) : null}
-                        </form>
-                      ) : null}
                     </li>
                     );
                   })}
@@ -559,7 +313,7 @@ export function OperationsInventoryDesk({
                     </div>
                     {coilLotsReceiptSorted.length === 0 && !hasCoilReceiptSearch ? (
                       <p className="text-xs font-medium text-slate-400">
-                        No coils yet — confirm a receipt in the panel on the left
+                        No coils yet — receive stock from a purchase order on the left
                         {canRegisterCoil ? (
                           <>
                             {' '}
@@ -728,7 +482,7 @@ export function OperationsInventoryDesk({
                         </h4>
                         <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 mb-2 shrink-0">
                           <label className="relative min-w-0 w-full flex-1 sm:min-w-[140px]">
-                            <span className="sr-only">Search on-hand SKUs</span>
+                            <span className="sr-only">Search stock SKUs</span>
                             <Search
                               size={14}
                               className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"

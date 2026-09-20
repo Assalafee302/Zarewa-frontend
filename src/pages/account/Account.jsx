@@ -109,6 +109,7 @@ import {
   downloadTreasuryAccountStatementXlsx,
 } from '../../lib/treasuryAccountStatementExcel.js';
 import { findTreasuryPayoutShortAccount } from '../../lib/financeDeskTreasury';
+import { treasuryPayoutAvailableNgn } from '../../shared/lib/treasuryTillLane.js';
 import {
   getAllowedLegacyAccountTabs,
   getDefaultLegacyAccountTab,
@@ -521,12 +522,9 @@ const Account = () => {
     return map;
   }, [bankAccounts, liveTreasuryMovements]);
 
+  /** Live treasury_accounts.balance — same column payouts debit. */
   function treasuryBookDisplayNgn(acc) {
-    if (!acc) return 0;
-    const id = Number(acc.id);
-    if (!Number.isFinite(id)) return Number(acc.balance) || 0;
-    const implied = treasuryDisplayedBookNgnById.get(id);
-    return implied !== undefined ? implied : Number(acc.balance) || 0;
+    return treasuryPayoutAvailableNgn(acc);
   }
 
   /** Edit-account modal: book balance = opening (form) + net posted movements for this account. */
@@ -2868,7 +2866,7 @@ const Account = () => {
       id: acc.id,
       name: acc.name || '',
       bankName: acc.bankName || '',
-      type: acc.type === 'Cash' ? 'Cash' : 'Bank',
+      type: acc.type === 'Cash' ? 'Cash' : acc.type === 'POS' ? 'POS' : 'Bank',
       accNo: acc.accNo || '',
       balance: acc.balance != null ? String(acc.balance) : '',
       openingBalanceNgn: opening,
@@ -5085,7 +5083,7 @@ const Account = () => {
                   className="w-full z-finance-field rounded-xl font-bold outline-none"
                 />
               </div>
-              {newBank.type === 'Bank' ? (
+              {newBank.type === 'Bank' || newBank.type === 'POS' ? (
                 <div>
                   <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                     Bank name (for quotations & receipts)
@@ -5109,6 +5107,7 @@ const Account = () => {
                     className="w-full z-finance-field rounded-xl font-bold outline-none"
                   >
                     <option value="Bank">Bank</option>
+                    <option value="POS">POS</option>
                     <option value="Cash">Cash</option>
                   </select>
                 </div>

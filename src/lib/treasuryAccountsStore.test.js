@@ -73,4 +73,11 @@ describe('treasuryAccountsForWorkspace', () => {
     const rows = treasuryAccountsFromSnapshot(snapshot);
     expect(rows[1].branchId).toBe('BR-YL');
   });
+
+  it('preserves POS type instead of collapsing it to Bank', () => {
+    const rows = treasuryAccountsFromSnapshot({
+      treasuryAccounts: [{ id: 9, name: 'Yola POS', type: 'POS', bankName: 'POS', accNo: '3' }],
+    });
+    expect(rows[0].type).toBe('POS');
+  });
 });

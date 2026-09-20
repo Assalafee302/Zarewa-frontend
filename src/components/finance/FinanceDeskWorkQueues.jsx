@@ -60,6 +60,8 @@ import {
   treasuryDeskBalanceSplit,
 } from "../../lib/financeDeskTreasury";
 
+import { composeTreasuryTillTruth } from "../../shared/lib/treasuryTillLane.js";
+
 import { useFinanceTrialExceptions } from "../../hooks/useFinanceTrialExceptions";
 
 import { FinanceTrialExceptionPanel } from "./FinanceTrialExceptionPanel";
@@ -537,6 +539,7 @@ export function FinanceDeskWorkQueues({
   );
 
   const [partnerWalletsDue, setPartnerWalletsDue] = useState(NO_PARTNER_WALLETS);
+  const [tillTruthFresh, setTillTruthFresh] = useState(null);
 
   const loadPartnerWallets = React.useCallback(async () => {
     const policyOn = Boolean(ws?.snapshot?.partnerWalletPolicy?.enabled);
@@ -565,6 +568,25 @@ export function FinanceDeskWorkQueues({
     void loadPartnerWallets();
   }, [loadPartnerWallets]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch("/api/cashier/till-truth");
+      if (cancelled || !ok || !data?.tillTruth) return;
+      setTillTruthFresh(data.tillTruth);
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [ws?.snapshot?.cashierTillTruth, wsBranchScope]);
+
+  const tillTruth = useMemo(() => {
+    if (tillTruthFresh && typeof tillTruthFresh.totalNgn === "number") return tillTruthFresh;
+    const snap = ws?.snapshot?.cashierTillTruth;
+    if (snap && typeof snap.totalNgn === "number") return snap;
+    return composeTreasuryTillTruth({ accounts: treasuryAccounts });
+  }, [tillTruthFresh, ws?.snapshot?.cashierTillTruth, treasuryAccounts]);
+
   const staffObligationsTotalNgn = useMemo(
     () =>
       staffObligationsDue.reduce(
@@ -578,11 +600,9 @@ export function FinanceDeskWorkQueues({
   const liquidity = useMemo(
     () => ({
       ...liquidityClearanceSplit(treasuryAccounts, receipts),
-
-      bookTotalNgn,
+      bookTotalNgn: tillTruth?.totalNgn ?? bookTotalNgn,
     }),
-
-    [treasuryAccounts, receipts, bookTotalNgn],
+    [treasuryAccounts, receipts, tillTruth, bookTotalNgn],
   );
 
   const payoutQueueCount =
@@ -657,6 +677,7 @@ export function FinanceDeskWorkQueues({
 
       {isCashier ? (
         <FinanceDeskTillStrip
+          tillTruth={tillTruth}
           bookTotalNgn={liquidity.bookTotalNgn}
           pendingReceipts={pendingReceiptsAll.length}
           pendingReceiptsNgn={pendingClearanceTotalNgn(receipts)}

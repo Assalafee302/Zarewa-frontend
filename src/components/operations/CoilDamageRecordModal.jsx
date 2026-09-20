@@ -301,7 +301,7 @@ export default function CoilDamageRecordModal({
               <p className="font-bold text-zarewa-teal uppercase text-ui-xs tracking-wide">Stock &amp; production</p>
               <ul className="list-disc pl-4 space-y-1">
                 <li>
-                  <strong>Coil kg / on-hand</strong> — updates only after branch manager{' '}
+                  <strong>Coil kg / stock</strong> — updates only after branch manager{' '}
                   <strong>approves</strong> this incident. Until then, production register{' '}
                   <strong>Used</strong> and coil free kg stay unchanged.
                 </li>

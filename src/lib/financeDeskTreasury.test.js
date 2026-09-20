@@ -9,12 +9,20 @@ import {
 } from './financeDeskTreasury.js';
 
 describe('financeDeskTreasury', () => {
-  it('computes book balance from opening plus movements', () => {
+  it('computes reconstructed book from opening plus movements', () => {
     const accounts = [{ id: 1, balance: 0, openingBalanceNgn: 1000 }];
     const movements = [{ treasuryAccountId: 1, amountNgn: 250 }, { treasuryAccountId: 1, amountNgn: -50 }];
     const bookById = treasuryBookBalanceByAccountId(accounts, movements);
-    expect(treasuryBookDisplayNgn(accounts[0], bookById)).toBe(1200);
-    expect(treasuryBookTotalNgn(accounts, bookById)).toBe(1200);
+    expect(bookById.get(1)).toBe(1200);
+    expect(treasuryBookDisplayNgn(accounts[0], bookById)).toBe(0);
+    expect(treasuryBookTotalNgn(accounts, bookById)).toBe(0);
+  });
+
+  it('displays live treasury_accounts.balance even when reconstructed book differs', () => {
+    const acc = { id: 1, balance: 5000, openingBalanceNgn: 100000 };
+    const bookById = treasuryBookBalanceByAccountId([acc], []);
+    expect(bookById.get(1)).toBe(100000);
+    expect(treasuryBookDisplayNgn(acc, bookById)).toBe(5000);
   });
 
   it('falls back to stored balance when account id is not numeric', () => {
@@ -33,7 +41,7 @@ describe('financeDeskTreasury', () => {
     expect(findTreasuryPayoutShortAccount(lines, accounts, bookById)).toBeNull();
   });
 
-  it('flags only the paying account when its balance is insufficient', () => {
+  it('flags only the paying account when its live balance is insufficient', () => {
     const accounts = [
       { id: 1, name: 'Main bank', balance: 5000, openingBalanceNgn: 5000 },
       { id: 2, name: 'Petty cash', balance: 200, openingBalanceNgn: 200 },
@@ -44,8 +52,20 @@ describe('financeDeskTreasury', () => {
     expect(short?.name).toBe('Petty cash');
   });
 
+  it('flags payout shortfall from live balance, not truncated reconstructed book', () => {
+    const accounts = [{ id: 2, name: 'Till', balance: 200, openingBalanceNgn: 50000 }];
+    const bookById = treasuryBookBalanceByAccountId(accounts, []);
+    expect(bookById.get(2)).toBe(50000);
+    const short = findTreasuryPayoutShortAccount(
+      [{ treasuryAccountId: 2, amountNgn: 500 }],
+      accounts,
+      bookById
+    );
+    expect(short?.name).toBe('Till');
+  });
+
   it('splits each account live balance into confirmed, confirmed+unlinked, and all total', () => {
-    const accounts = [{ id: 7, name: 'GTB', openingBalanceNgn: 100_000, balance: 0 }];
+    const accounts = [{ id: 7, name: 'GTB', openingBalanceNgn: 100_000, balance: 190_000 }];
     const receipts = [
       { id: 'RC-1', ledgerEntryId: 'LE-1', amountNgn: 50_000, financeReconciliationSavedAtISO: '2026-08-01' },
       { id: 'RC-2', ledgerEntryId: 'LE-2', amountNgn: 20_000, status: 'Pending clearance' },

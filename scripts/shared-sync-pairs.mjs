@@ -54,6 +54,7 @@ export const SHARED_SYNC_PAIRS = [
   ['shared/lib/commandCentreRoutes.js', 'src/shared/lib/commandCentreRoutes.js'],
   ['shared/lib/quotationPriceException.js', 'src/shared/lib/quotationPriceException.js'],
   ['shared/lib/quoteFloorPolicy.js', 'src/shared/lib/quoteFloorPolicy.js'],
+  ['shared/lib/treasuryTillLane.js', 'src/shared/lib/treasuryTillLane.js'],
   ['shared/lib/hrLegalDisplayName.js', 'src/shared/lib/hrLegalDisplayName.js'],
   ['shared/lib/hrStaffIdentity.js', 'src/shared/lib/hrStaffIdentity.js'],
   ['shared/lib/hrRoleCompliance.js', 'src/shared/lib/hrRoleCompliance.js'],

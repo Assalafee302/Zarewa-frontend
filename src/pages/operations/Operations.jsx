@@ -17,6 +17,7 @@ import RegisterCoilModal from '../../components/operations/RegisterCoilModal';
 import { OperationsProductionOverview } from '../../components/operations/OperationsProductionOverview';
 import { OperationsDeskToolbar } from '../../components/operations/OperationsDeskToolbar';
 import { OperationsInventoryDesk } from '../../components/operations/OperationsInventoryDesk';
+import { OperationsReceiveModal } from '../../components/operations/OperationsReceiveModal';
 import {
   OPS_FILTER_CHIP,
   OPS_FILTER_CHIP_OFF,
@@ -1648,6 +1649,15 @@ const Operations = () => {
     [purchaseOrders, poSearchRemoteRows]
   );
 
+  const selectedReceivePo = useMemo(() => {
+    if (!expandedReceivePoId) return null;
+    return (
+      transitOrders.find((p) => p.poID === expandedReceivePoId) ||
+      purchaseOrders.find((p) => p.poID === expandedReceivePoId) ||
+      null
+    );
+  }, [expandedReceivePoId, transitOrders, purchaseOrders]);
+
   const skuProductsLiveSorted = useMemo(() => {
     if (stockReceiveKind === 'coil') return [];
     const pred =
@@ -1778,6 +1788,25 @@ const Operations = () => {
     });
   }, [receiveDraft.poID, purchaseOrders, transitOrders, coilLots]);
 
+  const resetReceiveForm = () => {
+    setExpandedReceivePoId(null);
+    setReceiveDraft({ poID: '', location: '' });
+    setGrnLines([]);
+    setGrnConversionOverride(false);
+  };
+
+  const closeReceiveModal = () => {
+    if (grnSubmitting) return;
+    resetReceiveForm();
+  };
+
+  const openReceiveForPo = (poID) => {
+    const id = String(poID || '').trim();
+    if (!id) return;
+    setExpandedReceivePoId(id);
+    setReceiveDraft({ poID: id, location: '' });
+  };
+
   const applyTransitReceipt = async (e) => {
     e.preventDefault();
     if (!canReceiveInventory) {
@@ -1861,10 +1890,7 @@ const Operations = () => {
       } else {
         showToast(`Receipt posted — stock updated${coils ? ` · ${coils}` : ''}.`);
       }
-      setReceiveDraft({ poID: '', location: '' });
-      setGrnLines([]);
-      setGrnConversionOverride(false);
-      setExpandedReceivePoId(null);
+      resetReceiveForm();
     } finally {
       setGrnSubmitting(false);
     }
@@ -2038,6 +2064,7 @@ const Operations = () => {
     showStockAdjust ||
     showCoilRequest ||
     showRegisterCoil ||
+    Boolean(expandedReceivePoId) ||
     completeChecklistModal != null ||
     productionTraceModal != null ||
     productMovementModal != null;
@@ -2209,17 +2236,9 @@ const Operations = () => {
             setTransitSort={setTransitSort}
             transitOrders={transitOrders}
             poSearchRemoteLoading={poSearchRemoteLoading}
-            expandedReceivePoId={expandedReceivePoId}
-            setExpandedReceivePoId={setExpandedReceivePoId}
-            setReceiveDraft={setReceiveDraft}
-            receiveDraft={receiveDraft}
+            receivingPoId={expandedReceivePoId}
+            onOpenReceive={openReceiveForPo}
             canReceiveInventory={canReceiveInventory}
-            setGrnLines={setGrnLines}
-            grnLines={grnLines}
-            applyTransitReceipt={applyTransitReceipt}
-            grnSubmitting={grnSubmitting}
-            grnConversionOverride={grnConversionOverride}
-            setGrnConversionOverride={setGrnConversionOverride}
             ws={ws}
             coilLiveSearch={coilLiveSearch}
             setCoilLiveSearch={setCoilLiveSearch}
@@ -2787,6 +2806,22 @@ const Operations = () => {
             </form>
         </div>
       </ModalFrame>
+
+      <OperationsReceiveModal
+        isOpen={Boolean(expandedReceivePoId)}
+        onClose={closeReceiveModal}
+        purchaseOrder={selectedReceivePo}
+        receiveDraft={receiveDraft}
+        setReceiveDraft={setReceiveDraft}
+        grnLines={grnLines}
+        setGrnLines={setGrnLines}
+        onSubmit={applyTransitReceipt}
+        grnSubmitting={grnSubmitting}
+        grnConversionOverride={grnConversionOverride}
+        setGrnConversionOverride={setGrnConversionOverride}
+        canReceiveInventory={canReceiveInventory}
+        canOverrideConversion={Boolean(ws?.hasPermission?.('purchase_orders.manage'))}
+      />
 
       <RegisterCoilModal
         isOpen={showRegisterCoil}

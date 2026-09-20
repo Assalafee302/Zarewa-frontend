@@ -3,6 +3,7 @@ import {
   isReceiptReversed,
 } from './receiptClearance.js';
 import { BANK_DEPOSIT_LINKABLE_STATUSES, bankDepositRemainingNgn } from './bankDeposits.js';
+import { treasuryPayoutAvailableNgn } from '../shared/lib/treasuryTillLane.js';
 
 /**
  * Cashier desk treasury display — book balance from opening + movements (matches Treasury tab).
@@ -27,9 +28,14 @@ export function treasuryBookBalanceByAccountId(accounts = [], movements = []) {
 /** @param {object | null | undefined} acc @param {Map<number, number>} bookById */
 export function treasuryBookDisplayNgn(acc, bookById) {
   if (!acc) return 0;
+  // Live treasury_accounts.balance is the column payouts debit. Opening +
+  // truncated shell movements is not till truth.
+  if (acc.balance != null && String(acc.balance).trim() !== '') {
+    return treasuryPayoutAvailableNgn(acc);
+  }
   const id = Number(acc.id);
   if (Number.isFinite(id) && bookById?.has(id)) return bookById.get(id);
-  return Number(acc.balance) || 0;
+  return 0;
 }
 
 /** @param {object[]} accounts @param {Map<number, number>} bookById */
@@ -58,7 +64,11 @@ export function findTreasuryPayoutShortAccount(validLines, accounts, bookById) {
       .filter((line) => Number(line.treasuryAccountId) === accountId)
       .reduce((sum, line) => sum + (Number(line.amountNgn) || 0), 0);
     if (applied <= 0) continue;
-    if (applied > treasuryBookDisplayNgn(account, bookById)) return account;
+    const available =
+      account.balance != null && String(account.balance).trim() !== ''
+        ? treasuryPayoutAvailableNgn(account)
+        : treasuryBookDisplayNgn(account, bookById);
+    if (applied > available) return account;
   }
   return null;
 }

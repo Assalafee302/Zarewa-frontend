@@ -14,6 +14,7 @@ import {
   treasuryAccountsForWorkspace,
 } from './treasuryAccountsStore.js';
 import { treasuryBookBalanceByAccountId, treasuryBookDisplayNgn } from './financeDeskTreasury.js';
+import { TILL_LANE, treasuryTillLane } from '../shared/lib/treasuryTillLane.js';
 
 export const MANAGER_WATCH_WARN_HOURS = 24;
 export const MANAGER_WATCH_URGENT_HOURS = 48;
@@ -329,10 +330,11 @@ function bankBalances(snapshot, session) {
   const bookById = treasuryBookBalanceByAccountId(accounts, movements);
   const mapped = accounts.map((acc) => {
     const bookNgn = treasuryBookDisplayNgn(acc, bookById);
+    const lane = treasuryTillLane(acc);
     return {
       id: acc.id,
       name: treasuryAccountDisplayName(acc) || acc.name || 'Account',
-      type: acc.type === 'Cash' ? 'Cash' : 'Bank',
+      type: lane === TILL_LANE.CASH ? 'Cash' : lane === TILL_LANE.POS ? 'POS' : 'Bank',
       accNo: acc.accNo || '',
       bookNgn,
     };
@@ -341,7 +343,8 @@ function bankBalances(snapshot, session) {
   const totalNgn = mapped.reduce((s, a) => s + a.bookNgn, 0);
   const bankNgn = mapped.filter((a) => a.type === 'Bank').reduce((s, a) => s + a.bookNgn, 0);
   const cashNgn = mapped.filter((a) => a.type === 'Cash').reduce((s, a) => s + a.bookNgn, 0);
-  return { accounts: mapped, totalNgn, bankNgn, cashNgn };
+  const posNgn = mapped.filter((a) => a.type === 'POS').reduce((s, a) => s + a.bookNgn, 0);
+  return { accounts: mapped, totalNgn, bankNgn, cashNgn, posNgn };
 }
 
 /**

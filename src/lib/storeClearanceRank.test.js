@@ -3,6 +3,7 @@ import {
   buildStoreClearanceRows,
   buildStorePulseCounts,
   normalizeOpsFocusTab,
+  OPS_INVENTORY_TAB_LABEL,
 } from './storeClearanceRank.js';
 
 describe('storeClearanceRank', () => {
@@ -104,5 +105,11 @@ describe('storeClearanceRank', () => {
     expect(normalizeOpsFocusTab('exceptions')?.tab).toBe('materialExceptions');
     expect(normalizeOpsFocusTab('overtime')?.navigateTo).toBe('/operations/overtime');
     expect(normalizeOpsFocusTab('ot')?.navigateTo).toBe('/operations/overtime');
+  });
+
+  it('names the inventory tab Stock (inventory) and uses Open stock for thin coils', () => {
+    expect(OPS_INVENTORY_TAB_LABEL).toBe('Stock (inventory)');
+    const rows = buildStoreClearanceRows({ thinCoilCount: 3 });
+    expect(rows.find((r) => r.kind === 'thin')?.cta).toBe('Open stock');
   });
 });

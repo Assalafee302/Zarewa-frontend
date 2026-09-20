@@ -66,6 +66,13 @@ export function treasuryAccountBranchLabel(branchId, branchNameById = {}) {
   return branchNameById[id] || id;
 }
 
+function mapTreasuryAccountType(type) {
+  const t = String(type || '').trim();
+  if (/^cash$/i.test(t)) return 'Cash';
+  if (/^pos$/i.test(t)) return 'POS';
+  return 'Bank';
+}
+
 /** @param {{ treasuryAccounts?: object[] } | null | undefined} snapshot */
 export function treasuryAccountsFromSnapshot(snapshot) {
   if (!snapshot || !Array.isArray(snapshot.treasuryAccounts)) return [];
@@ -75,7 +82,7 @@ export function treasuryAccountsFromSnapshot(snapshot) {
     bankName: String(a.bankName ?? ''),
     balance: Number(a.balance) || 0,
     openingBalanceNgn: Number(a.openingBalanceNgn) || 0,
-    type: a.type === 'Cash' ? 'Cash' : 'Bank',
+    type: mapTreasuryAccountType(a.type),
     accNo: String(a.accNo ?? 'N/A'),
     accountOfficerName: String(a.accountOfficerName ?? ''),
     accountOfficerPhone: String(a.accountOfficerPhone ?? ''),
@@ -140,7 +147,7 @@ export function loadTreasuryAccounts() {
       name: String(a.name ?? ''),
       bankName: String(a.bankName ?? ''),
       balance: Number(a.balance) || 0,
-      type: a.type === 'Cash' ? 'Cash' : 'Bank',
+      type: mapTreasuryAccountType(a.type),
       accNo: String(a.accNo ?? 'N/A'),
     }));
   } catch {
@@ -178,7 +185,7 @@ export function hasSettlableCustomerAccountNumber(accNo) {
 export function bankAccountsForCustomerPayment(accounts) {
   return (accounts ?? []).filter((a) => {
     if (!hasSettlableCustomerAccountNumber(a.accNo)) return false;
-    if (a.type === 'Bank') return true;
+    if (a.type === 'Bank' || a.type === 'POS') return true;
     if (a.type === 'Cash' && String(a.bankName ?? '').trim()) return true;
     return false;
   });
