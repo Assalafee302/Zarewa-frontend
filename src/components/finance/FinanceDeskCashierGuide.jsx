@@ -8,7 +8,7 @@ const STEPS = [
   {
     icon: Landmark,
     title: 'Check Till now',
-    body: 'Book balance, receipts to confirm, and payouts to post are on the strip at the top. Tap a tile to jump to that queue.',
+    body: 'Live Cash, POS, and Bank (the same balances payouts debit), receipts to confirm, and payouts to post are on the strip at the top. Tap a tile to jump to that queue.',
   },
   {
     icon: Banknote,

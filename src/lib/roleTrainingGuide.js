@@ -200,7 +200,7 @@ const ROLE_TRAINING = {
     steps: [
       {
         heading: 'Receiving stock',
-        body: 'Post GRNs against purchase orders in transit. Accessories and stone update branch stock; coil receipts update coil lots for your workspace branch.',
+        body: 'On Stock management, click Receive on a purchase order. The GRN form opens as a popup — enter coil number, weight or qty, then confirm. Accessories and stone update branch stock; coil receipts update coil lots for your workspace branch.',
         tips: ['If stock looks wrong, confirm you are on the correct branch in the top bar.'],
       },
       {
