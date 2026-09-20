@@ -20,17 +20,9 @@ const emptyDeskProps = {
   setTransitSort: vi.fn(),
   transitOrders: [],
   poSearchRemoteLoading: false,
-  expandedReceivePoId: null,
-  setExpandedReceivePoId: vi.fn(),
-  setReceiveDraft: vi.fn(),
-  receiveDraft: { poID: '', location: '' },
+  receivingPoId: null,
+  onOpenReceive: vi.fn(),
   canReceiveInventory: true,
-  setGrnLines: vi.fn(),
-  grnLines: [],
-  applyTransitReceipt: vi.fn(),
-  grnSubmitting: false,
-  grnConversionOverride: false,
-  setGrnConversionOverride: vi.fn(),
   ws: { canMutate: true, hasPermission: () => false },
   coilLiveSearch: '',
   setCoilLiveSearch: vi.fn(),
@@ -69,5 +61,31 @@ describe('OperationsInventoryDesk', () => {
     expect(screen.getByRole('heading', { name: /^receive$/i })).toBeTruthy();
     expect(screen.queryByTestId('ops-coil-spec-board')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Colour × gauge' })).toBeNull();
+  });
+
+  it('opens receive from the PO list without an inline form', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    const onOpenReceive = vi.fn();
+    render(
+      <OperationsInventoryDesk
+        {...emptyDeskProps}
+        anyReceivablePo
+        onOpenReceive={onOpenReceive}
+        transitOrders={[
+          {
+            poID: 'PO-KD-26-0099',
+            supplierName: 'Kano Coils',
+            status: 'In Transit',
+            procurementKind: 'coil',
+            lines: [{ lineKey: 'L1', productID: 'PRD-102', qtyOrdered: 4000, qtyReceived: 0 }],
+          },
+        ]}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /^receive$/i }));
+    expect(onOpenReceive).toHaveBeenCalledWith('PO-KD-26-0099');
+    expect(screen.queryByRole('button', { name: /confirm receipt/i })).toBeNull();
+    expect(screen.queryByLabelText(/coil number/i)).toBeNull();
   });
 });

@@ -228,7 +228,7 @@ export function ManagerWatchTab({ model, loading = false }) {
         <KpiTile
           label="Cash on hand"
           value={formatNgn(m.banks.totalNgn)}
-          hint={`Bank ${formatNgn(m.banks.bankNgn)} · Till ${formatNgn(m.banks.cashNgn)}`}
+          hint={`Cash ${formatNgn(m.banks.cashNgn)} · POS ${formatNgn(m.banks.posNgn || 0)} · Bank ${formatNgn(m.banks.bankNgn)}`}
         />
       </div>
 
