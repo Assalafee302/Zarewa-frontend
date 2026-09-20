@@ -14,7 +14,7 @@ import {
   buildPendingProductionsOverview,
   liveCoilWeightKgForOverview,
 } from '../../lib/operationsProductionOverviewCore';
-import { buildStoreClearanceRows, buildStorePulseCounts } from '../../lib/storeClearanceRank';
+import { buildStoreClearanceRows, buildStorePulseCounts, OPS_INVENTORY_TAB_LABEL } from '../../lib/storeClearanceRank';
 import { buildIdleClearanceRows, buildLastUsedByCoilNo, IDLE_CLEAR_NOW_MAX } from '../../lib/storeIdle';
 import { DeliveryPodPanel } from './DeliveryPodPanel';
 import { ReportFaultPanel } from './ReportFaultPanel';
@@ -228,7 +228,7 @@ export function StoreClearNow({
             Desk clear
           </p>
           <p className="mt-0.5 text-xs font-medium text-emerald-900/80">
-            No urgent register, receive, POD, restock, or idle items. Optional: review On hand stock.
+            No urgent register, receive, POD, restock, or idle items. Optional: review stock (inventory).
           </p>
         </div>
       )}
@@ -396,7 +396,7 @@ export function StoreClearNow({
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
           >
             <Factory size={12} aria-hidden />
-            On hand
+            {OPS_INVENTORY_TAB_LABEL}
           </button>
           <button
             type="button"

@@ -17,7 +17,7 @@ import { poLineIsOpenForReceiving, poLineOpenQtyForReceiving } from '../../lib/p
 import { liveCoilWeightKgForOverview as liveCoilWeightKg } from '../../lib/operationsProductionOverviewCore.js';
 
 /**
- * On-hand desk: stock-kind switch, receive/GRN, live lots, KPIs, and stock tools.
+ * Stock (inventory) desk: stock-kind switch, receive/GRN, live lots, KPIs, and stock tools.
  */
 
 function CoilReceiptSortTh({ label, sortKey: columnKey, sort, onToggle, className = '' }) {

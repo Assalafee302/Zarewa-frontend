@@ -154,7 +154,7 @@ const Sidebar = ({
       icon: <LayoutGrid size={18} />,
       label: 'Operations',
       path: '/operations',
-      // Only force Clear now when navigating in from another module — preserve Register/On hand when already here.
+      // Only force Clear now when navigating in from another module — preserve Register/Stock when already here.
       to: pathMatches(p, '/operations')
         ? '/operations'
         : { pathname: '/operations', state: { focusOpsTab: 'clear' } },

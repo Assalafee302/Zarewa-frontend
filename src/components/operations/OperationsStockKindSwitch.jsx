@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- stock-kind constants colocated with the switch */
 import React, { useRef } from 'react';
 
-/** Coil / stone metres / stone flatsheet m² / accessory — receive and on-hand. */
+/** Coil / stone metres / stone flatsheet m² / accessory — receive and stock. */
 export const STOCK_RECEIVE_KIND_TABS = [
   { id: 'coil', label: 'Coil' },
   { id: 'stone_meter', label: 'Stone (m)' },
@@ -10,7 +10,7 @@ export const STOCK_RECEIVE_KIND_TABS = [
 ];
 
 /**
- * Stock family for receive + on-hand. Radio group (not a second PageTabs)
+ * Stock family for receive + live inventory. Radio group (not a second PageTabs)
  * so arrows stay on this control only.
  */
 export function OperationsStockKindSwitch({ value, onChange }) {
@@ -33,7 +33,7 @@ export function OperationsStockKindSwitch({ value, onChange }) {
   return (
     <div
       role="radiogroup"
-      aria-label="Stock category (receive and on-hand)"
+      aria-label="Stock category (receive and inventory)"
       className="flex flex-wrap gap-1"
     >
       {tabs.map((t, i) => {

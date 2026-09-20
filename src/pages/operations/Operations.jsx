@@ -35,7 +35,7 @@ import {
   matchesProductionActiveFilter,
   PRODUCTION_ACTIVE_FILTERS,
 } from '../../components/operations/productionQueueFilters';
-import { normalizeOpsFocusTab } from '../../lib/storeClearanceRank';
+import { normalizeOpsFocusTab, OPS_INVENTORY_TAB_LABEL } from '../../lib/storeClearanceRank';
 import {
   buildCoilSpecBoardRows,
   buildTransitKgBySpec,
@@ -1445,7 +1445,7 @@ const Operations = () => {
       {
         id: 'inventory',
         icon: <Box size={16} />,
-        label: 'On hand',
+        label: OPS_INVENTORY_TAB_LABEL,
         badge: transitOrdersAll.length,
       },
       {

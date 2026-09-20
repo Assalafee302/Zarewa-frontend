@@ -5,6 +5,9 @@
 
 const SEVERITY_RANK = { critical: 0, high: 1, warn: 2, info: 3 };
 
+/** User-facing name of Operations tab `inventory` (aliases: onhand, stock). */
+export const OPS_INVENTORY_TAB_LABEL = 'Stock (inventory)';
+
 /**
  * @param {object} params
  * @param {Array<{ id: string, customer?: string, label?: string, reason?: string, severity?: string }>} params.pendingProductions
@@ -130,7 +133,7 @@ export function buildStoreClearanceRows({
       refId: '',
       severity: 'info',
       score: 40,
-      cta: 'Open on hand',
+      cta: 'Open stock',
       action: 'onhand_coil',
       count: thinCoilCount,
     });
