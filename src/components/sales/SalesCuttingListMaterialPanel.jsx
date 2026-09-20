@@ -20,7 +20,7 @@ export default function SalesCuttingListMaterialPanel({ ready, waitingNoMatch = 
         </p>
         <p className="text-xs text-slate-500 mt-1 leading-snug">
           Waiting lists whose quote expects coil stock and has a spec that matches at least one{' '}
-          <strong className="font-semibold text-slate-600">available</strong> coil lot (weight still on hand, not consumed)
+          <strong className="font-semibold text-slate-600">available</strong> coil lot (weight still in stock, not consumed)
           or yard register line — same gauge / colour / material check as Operations. Book-only SKU totals are not used
           here.
         </p>

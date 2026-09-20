@@ -55,7 +55,7 @@ function InventoryFamilyCard({ fam }) {
       </div>
       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
-          <dt className="text-ui-xs font-bold uppercase text-slate-500">Kg on hand</dt>
+          <dt className="text-ui-xs font-bold uppercase text-slate-500">Kg stock</dt>
           <dd className="font-black tabular-nums text-slate-900">{fam.kgOnHand.toLocaleString()}</dd>
         </div>
         <div>
@@ -174,7 +174,7 @@ function SkuActionList({ title, rows, tone }) {
             </div>
             <p className="text-slate-600 mt-0.5">{row.reason}</p>
             {row.valuationNgn > 0 ? (
-              <p className="text-ui-xs text-slate-500 tabular-nums">{formatNgn(row.valuationNgn)} on hand</p>
+              <p className="text-ui-xs text-slate-500 tabular-nums">{formatNgn(row.valuationNgn)} in stock</p>
             ) : null}
             {row.suggestedOrderKg > 0 ? (
               <p className="text-ui-xs font-bold text-emerald-800 tabular-nums">
@@ -366,7 +366,7 @@ export default function CommandCentreIntelligenceTab({ autoLoad = true, branchId
                   <div key={fam.family} className="rounded-lg bg-white/80 border border-white px-3 py-2 text-xs">
                     <p className="font-bold text-slate-800">{fam.label}</p>
                     <p className="text-slate-600 tabular-nums">
-                      {fam.kgOnHand.toLocaleString()} kg on hand · {fam.dailyConsumptionKg} kg/day ·{' '}
+                      {fam.kgOnHand.toLocaleString()} kg stock · {fam.dailyConsumptionKg} kg/day ·{' '}
                       {fam.incomingKg.toLocaleString()} kg incoming
                     </p>
                     {fam.suggestedOrderKg > 0 ? (
