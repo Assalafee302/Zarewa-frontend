@@ -190,7 +190,7 @@ export default function OrganizationSettingsPanel() {
       <div className="border-t border-slate-100 pt-6">
         <h3 className="z-section-title mb-1">Store restock mins</h3>
         <p className="mb-4 max-w-xl text-xs leading-relaxed text-slate-500">
-          On-hand desk and Clear now alert when free + in-transit stock falls below these mins. Defaults: 700 kg
+          Stock (inventory) and Clear now alert when free + in-transit stock falls below these mins. Defaults: 700 kg
           coils · 400 m stone. Per-spec overrides win over the coil default.
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

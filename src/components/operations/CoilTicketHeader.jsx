@@ -34,14 +34,13 @@ export function CoilTicketHeader({
         <div className="flex min-w-0 flex-wrap items-end gap-6 lg:justify-end">
           <div>
             <p className="text-[11px] font-medium text-slate-500">
-              {metresLabel != null ? 'Remaining' : 'On hand'}
+              {metresLabel != null ? 'Remaining' : 'Stock'}
             </p>
             {metresLabel != null ? (
               <>
                 <p className="z-stencil text-2xl text-slate-900 sm:text-3xl">{metresLabel} m</p>
                 <p className="mt-0.5 text-xs tabular-nums text-slate-500">
-                  {Number(onHandKg).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg on
-                  hand
+                  {Number(onHandKg).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg stock
                   {freeKg != null
                     ? ` · ${Number(freeKg).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg free`
                     : ''}

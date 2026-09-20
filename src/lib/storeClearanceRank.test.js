@@ -98,6 +98,7 @@ describe('storeClearanceRank', () => {
   it('normalizes focus tab aliases', () => {
     expect(normalizeOpsFocusTab('clear')).toEqual({ tab: 'overview' });
     expect(normalizeOpsFocusTab('onhand')).toEqual({ tab: 'inventory' });
+    expect(normalizeOpsFocusTab('stock')).toEqual({ tab: 'inventory' });
     expect(normalizeOpsFocusTab('register')).toEqual({ tab: 'production' });
     expect(normalizeOpsFocusTab('deliveries')).toEqual({ tab: 'overview', deliveriesFocus: true });
     expect(normalizeOpsFocusTab('exceptions')?.tab).toBe('materialExceptions');

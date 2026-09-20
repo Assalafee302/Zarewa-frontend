@@ -130,12 +130,12 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
       return;
     }
     if (!Number.isFinite(curNum) || curNum < 0) {
-      showToast('Enter a valid current on-hand kg.', { variant: 'error' });
+      showToast('Enter a valid current stock kg.', { variant: 'error' });
       return;
     }
     if (curNum + 1e-9 < asNum(reservedKg)) {
       showToast(
-        `On-hand kg cannot be below reserved kg (${formatKg(reservedKg)} kg on active jobs).`,
+        `Stock kg cannot be below reserved kg (${formatKg(reservedKg)} kg on active jobs).`,
         { variant: 'error' }
       );
       return;
@@ -224,14 +224,14 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
                 <PreviewTile label="Received (GRN)" value={draftReceived != null ? `${formatKg(draftReceived)} kg` : '—'} />
-                <PreviewTile label="Kg used" value={`${formatKg(draftUsed)} kg`} hint="Received − on-hand" />
-                <PreviewTile label="On-hand kg" value={`${formatKg(draftOnHand)} kg`} />
+                <PreviewTile label="Kg used" value={`${formatKg(draftUsed)} kg`} hint="Received − stock" />
+                <PreviewTile label="Stock kg" value={`${formatKg(draftOnHand)} kg`} />
                 <PreviewTile label="Reserved" value={`${formatKg(reservedKg)} kg`} hint="Active production jobs" />
                 <PreviewTile label="Free to use" value={`${formatKg(draftFree)} kg`} accent />
               </div>
               <p className="mt-2 text-ui-xs text-slate-500 leading-snug tabular-nums">
-                received {formatKg(draftReceived ?? coilReceivedKg(coil))} − used {formatKg(draftUsed)} = on-hand{' '}
-                {formatKg(draftOnHand)} · on-hand {formatKg(draftOnHand)} − reserved {formatKg(reservedKg)} = free{' '}
+                received {formatKg(draftReceived ?? coilReceivedKg(coil))} − used {formatKg(draftUsed)} = stock{' '}
+                {formatKg(draftOnHand)} · stock {formatKg(draftOnHand)} − reserved {formatKg(reservedKg)} = free{' '}
                 {formatKg(draftFree)} kg
               </p>
             </div>

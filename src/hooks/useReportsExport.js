@@ -460,7 +460,7 @@ export function useReportsExport({
           columns: [
             { key: 'productID', label: 'SKU' },
             { key: 'name', label: 'Description' },
-            { key: 'onHand', label: 'On hand' },
+            { key: 'onHand', label: 'Stock' },
             { key: 'reorderAt', label: 'Reorder at' },
             { key: 'flag', label: 'Stock flag' },
           ],

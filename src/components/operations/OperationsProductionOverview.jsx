@@ -305,7 +305,7 @@ export function OperationsProductionOverview({
 
       <OperationsDeskSection
         title="Suggested coil purchases"
-        hint="From low kg on hand and jobs waiting for coil."
+        hint="From low stock kg and jobs waiting for coil."
         icon={<ShoppingCart size={16} />}
       >
         {buySuggestions.length === 0 ? (
@@ -327,7 +327,7 @@ export function OperationsProductionOverview({
                   <span className="font-semibold text-[var(--z-text)]">{s.family}</span>
                   {s.kgOnHand != null ? (
                     <span className="text-ui-xs font-semibold tabular-nums text-zarewa-teal">
-                      {s.kgOnHand.toLocaleString()} kg on hand
+                      {s.kgOnHand.toLocaleString()} kg stock
                     </span>
                   ) : null}
                 </div>

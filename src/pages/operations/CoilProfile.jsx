@@ -27,6 +27,7 @@ import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 import { apiFetch } from '../../lib/apiBase';
 import { fmtConv2 } from '../../lib/conversionKgPerM.js';
 import { coilFreeKg, coilKgUsed, coilOnHandKg, coilReceivedKg } from '../../lib/coilStockKg.js';
+import { OPS_INVENTORY_TAB_LABEL } from '../../lib/storeClearanceRank';
 import { buildCoilProfileJobRows, coilProfileProductionTotals } from '../../lib/coilProfileJobRows.js';
 import { buildCoilStatementPayload } from '../../lib/coilStatementPrint.js';
 
@@ -551,7 +552,7 @@ export default function CoilProfile() {
         );
       } else if (aligned && Number.isFinite(onHandDelta) && Math.abs(onHandDelta) > 0.05) {
         showToast(
-          `Production stock recalculated for ${count} job(s). On-hand adjusted ${onHandDelta > 0 ? '+' : ''}${onHandDelta.toFixed(1)} kg — kg used now matches job consumption.`,
+          `Production stock recalculated for ${count} job(s). Stock adjusted ${onHandDelta > 0 ? '+' : ''}${onHandDelta.toFixed(1)} kg — kg used now matches job consumption.`,
           { variant: 'info', duration: 8000 }
         );
       } else if (aligned) {
@@ -601,7 +602,7 @@ export default function CoilProfile() {
         className="mb-4"
         items={[
           { label: 'Operations', to: '/operations' },
-          { label: 'Inventory', to: '/operations' },
+          { label: OPS_INVENTORY_TAB_LABEL, to: '/operations', state: { focusOpsTab: 'inventory' } },
           { label: `Coil ${coil.coilNo}` },
         ]}
       />
@@ -666,7 +667,7 @@ export default function CoilProfile() {
             </div>
             <div className="flex flex-wrap gap-2 justify-end">
               <Link to="/operations" state={{ focusOpsTab: 'inventory' }} className="z-btn-secondary inline-flex">
-                <ArrowLeft size={16} /> Inventory
+                <ArrowLeft size={16} /> {OPS_INVENTORY_TAB_LABEL}
               </Link>
               <button
                 type="button"
@@ -756,7 +757,7 @@ export default function CoilProfile() {
                 </p>
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50/50 px-3 py-3">
-                <p className="text-ui-xs font-medium text-slate-500">On-hand kg</p>
+                <p className="text-ui-xs font-medium text-slate-500">Stock kg</p>
                 <p className="text-lg font-semibold text-slate-900 tabular-nums">{currentKg.toLocaleString()}</p>
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50/50 px-3 py-3">
@@ -771,9 +772,9 @@ export default function CoilProfile() {
             <p className="mt-3 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs text-slate-600 leading-relaxed tabular-nums">
               <strong className="text-slate-700">Book arithmetic:</strong>{' '}
               received <strong>{receivedKg.toLocaleString()}</strong> − used <strong>{kgUsed.toLocaleString()}</strong>{' '}
-              = on-hand <strong>{currentKg.toLocaleString()}</strong>
+              = stock <strong>{currentKg.toLocaleString()}</strong>
               {' · '}
-              on-hand <strong>{currentKg.toLocaleString()}</strong> − reserved <strong>{reservedKg.toLocaleString()}</strong>{' '}
+              stock <strong>{currentKg.toLocaleString()}</strong> − reserved <strong>{reservedKg.toLocaleString()}</strong>{' '}
               = free <strong>{freeKg.toLocaleString()}</strong> kg
             </p>
             <p className="mt-2 rounded-lg border border-violet-100 bg-violet-50/70 px-3 py-2 text-xs text-violet-950/90 leading-relaxed">

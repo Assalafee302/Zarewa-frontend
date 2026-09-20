@@ -81,7 +81,7 @@ function BalancesSection({ statement }) {
             <th className={`${TH} text-right`}>Prod used</th>
             <th className={`${TH} text-right`}>Incident/scrap</th>
             <th className={`${TH} text-right`}>Book used</th>
-            <th className={`${TH} text-right`}>On-hand</th>
+            <th className={`${TH} text-right`}>Stock</th>
             <th className={`${TH} text-right`}>Reserved</th>
             <th className={`${TH} text-right`}>Free</th>
           </tr>
@@ -99,9 +99,9 @@ function BalancesSection({ statement }) {
         </tbody>
       </table>
       <p className="mt-1.5 text-[10px] text-slate-600 tabular-nums">
-        Book: received {b.received} − used {b.used} = on-hand {b.onHand}
+        Book: received {b.received} − used {b.used} = stock {b.onHand}
         {' · '}
-        on-hand {b.onHand} − reserved {b.reserved} = free {b.free}
+        stock {b.onHand} − reserved {b.reserved} = free {b.free}
         {totals.jobsConsumedKgSum != null ? (
           <>
             {' · '}

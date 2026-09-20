@@ -242,7 +242,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
             </label>
           </div>
           <label className="block">
-            <span className="text-ui-xs font-bold text-slate-500 uppercase">On-hand kg</span>
+            <span className="text-ui-xs font-bold text-slate-500 uppercase">Stock kg</span>
             <input
               className="z-input w-full mt-0.5"
               type="number"

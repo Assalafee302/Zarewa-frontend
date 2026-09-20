@@ -6,6 +6,7 @@ import { formatNgn } from '../../lib/formatNgn';
 import { formatPersonName } from '../../lib/formatPersonName';
 import { MANAGER_METRIC_PERIODS } from '../../lib/managementLiveFromWorkspace';
 import { TEAM_HR_ATTENDANCE_PATH } from '../../lib/managerPageTabs';
+import { OPS_INVENTORY_TAB_LABEL } from '../../lib/storeClearanceRank';
 import { useInventory } from '../../context/InventoryContext';
 import { FinanceSequencePanel } from '../layout';
 import {
@@ -84,7 +85,7 @@ function StockAtRisk({ products, onOpenStockRegister }) {
             state={{ focusOpsTab: 'inventory' }}
             className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 no-underline hover:border-zarewa-teal hover:text-zarewa-teal"
           >
-            Inventory
+            {OPS_INVENTORY_TAB_LABEL}
           </RouterLink>
         </div>
       </div>
@@ -95,7 +96,7 @@ function StockAtRisk({ products, onOpenStockRegister }) {
           <thead>
             <tr className="border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
               <th className="py-1.5 pr-3 font-semibold">SKU</th>
-              <th className="py-1.5 pr-3 text-right font-semibold">On hand</th>
+              <th className="py-1.5 pr-3 text-right font-semibold">Stock</th>
               <th className="py-1.5 font-semibold">Status</th>
             </tr>
           </thead>

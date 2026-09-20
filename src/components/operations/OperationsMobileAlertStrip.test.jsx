@@ -7,7 +7,7 @@ import OperationsMobileAlertStrip from './OperationsMobileAlertStrip';
 afterEach(() => cleanup());
 
 describe('OperationsMobileAlertStrip', () => {
-  it('tapping in-transit jumps to On hand', async () => {
+  it('tapping in-transit jumps to Stock (inventory)', async () => {
     const user = userEvent.setup();
     const onGoInventory = vi.fn();
     render(
