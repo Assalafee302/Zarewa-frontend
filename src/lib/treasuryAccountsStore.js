@@ -42,13 +42,15 @@ export function workspaceTreasuryBranchId(session, opts = {}) {
  * include them when the workspace is on that default branch.
  * @param {{ treasuryAccounts?: object[]; branchScope?: string } | null | undefined} snapshot
  * @param {{ currentBranchId?: string; viewAllBranches?: boolean } | null | undefined} session
- * @param {{ branchScope?: string | null; viewAllBranches?: boolean; defaultBranchId?: string } | null | undefined} [opts]
+ * @param {{ branchScope?: string | null; viewAllBranches?: boolean; defaultBranchId?: string; payableBranchId?: string } | null | undefined} [opts]
  */
 export function treasuryAccountsForWorkspace(snapshot, session, opts = {}) {
   const accounts = treasuryAccountsFromSnapshot(snapshot);
-  const branchId = workspaceTreasuryBranchId(session, {
-    branchScope: snapshot?.branchScope ?? opts.branchScope,
-  });
+  const branchId =
+    String(opts.payableBranchId || '').trim() ||
+    workspaceTreasuryBranchId(session, {
+      branchScope: snapshot?.branchScope ?? opts.branchScope,
+    });
   if (!branchId) return accounts;
   const defaultBranchId = String(opts.defaultBranchId || 'BR-KD').trim() || 'BR-KD';
   return accounts.filter((a) => {

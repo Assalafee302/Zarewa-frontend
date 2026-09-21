@@ -55,7 +55,7 @@ import {
   purchaseOrderCanAssignTransport,
 } from '../lib/purchaseOrderWorkflow';
 import { defaultTransportAgentProfile, mergeTransportAgentProfile } from '../lib/transportAgentIntel';
-import { sortAccountsPayableList, mergeOpenPayablesSources } from '../lib/procurementPayablesSorting';
+import { sortAccountsPayableList, mergeOpenPayablesSources, payableOutstandingNgn } from '../lib/procurementPayablesSorting';
 import { useAppTablePaging } from '../lib/appDataTable';
 
 import {
@@ -295,6 +295,7 @@ const Procurement = () => {
         ? treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
             branchScope: ws?.branchScope,
             viewAllBranches: ws?.viewAllBranches,
+            payableBranchId: selectedAp?.branchId,
           })
         : [],
     [
@@ -303,6 +304,7 @@ const Procurement = () => {
       ws?.session,
       ws?.branchScope,
       ws?.viewAllBranches,
+      selectedAp?.branchId,
     ]
   );
 
@@ -1032,9 +1034,14 @@ const Procurement = () => {
   };
 
   const openApPaymentModal = (ap) => {
-    const outstanding = Math.max(0, (Number(ap?.amountNgn) || 0) - (Number(ap?.paidNgn) || 0));
+    const outstanding = payableOutstandingNgn(ap);
     setSelectedAp(ap);
-    setApPayLines([createRequestPayLine(treasuryAccounts[0]?.id ?? '', outstanding)]);
+    const payAccounts = treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
+      branchScope: ws?.branchScope,
+      viewAllBranches: ws?.viewAllBranches,
+      payableBranchId: ap?.branchId,
+    });
+    setApPayLines([createRequestPayLine(payAccounts[0]?.id ?? treasuryAccounts[0]?.id ?? '', outstanding)]);
     setShowApPayModal(true);
   };
 
@@ -1043,7 +1050,7 @@ const Procurement = () => {
     if (!selectedAp || apPayBusy) return;
     const invoiceRef = selectedAp.invoiceRef || selectedAp.poRef || selectedAp.apID;
     const paidBy = currentActorLabel;
-    const remaining = Math.max(0, (Number(selectedAp.amountNgn) || 0) - (Number(selectedAp.paidNgn) || 0));
+    const remaining = payableOutstandingNgn(selectedAp);
     const validLines = mapTreasuryPayoutLinesForApi(apPayLines);
     if (validLines.length === 0) {
       showToast('Add at least one payout line.', { variant: 'error' });
@@ -1071,8 +1078,8 @@ const Procurement = () => {
       return;
     }
     const method = 'Bank Transfer';
-    const newPaidTotal = (Number(selectedAp.paidNgn) || 0) + apPayTotalNgn;
-    const fullySettled = newPaidTotal >= (Number(selectedAp.amountNgn) || 0);
+    const remainingAfterPay = Math.max(0, remaining - apPayTotalNgn);
+    const fullySettled = remainingAfterPay <= 0;
     const poRef = selectedAp.poRef?.trim?.() ?? '';
     const poForAdvance = poRef ? purchaseOrders.find((p) => p.poID === poRef) : null;
     const hasQuotedTransport =
@@ -1888,7 +1895,7 @@ const Procurement = () => {
                   <div>
                     <p className="uppercase text-gray-400">Balance</p>
                     <p className="text-sm font-black text-rose-700">
-                      {formatNgn(Math.max(0, (Number(selectedAp.amountNgn) || 0) - (Number(selectedAp.paidNgn) || 0)))}
+                      {formatNgn(payableOutstandingNgn(selectedAp))}
                     </p>
                   </div>
                 </div>

@@ -38,8 +38,6 @@ export function sortAccountsPayableList(items, field, dir) {
     const amtY = Number(y.amountNgn) || 0;
     const paidX = Number(x.paidNgn) || 0;
     const paidY = Number(y.paidNgn) || 0;
-    const outX = Math.max(0, amtX - paidX);
-    const outY = Math.max(0, amtY - paidY);
     let c = 0;
     switch (field) {
       case 'id':
@@ -58,7 +56,7 @@ export function sortAccountsPayableList(items, field, dir) {
         c = cmpNum(paidX, paidY);
         break;
       case 'outstanding':
-        c = cmpNum(outX, outY);
+        c = cmpNum(payableOutstandingNgn(x), payableOutstandingNgn(y));
         break;
       default:
         c = cmpDate(x.dueDateISO, y.dueDateISO);
@@ -68,9 +66,11 @@ export function sortAccountsPayableList(items, field, dir) {
   return m;
 }
 
-function payableOutstandingNgn(row) {
-  const outstanding = Number(row?.outstandingNgn);
-  if (Number.isFinite(outstanding) && outstanding > 0) return outstanding;
+export function payableOutstandingNgn(row) {
+  if (row?.outstandingNgn != null && row?.outstandingNgn !== '') {
+    const outstanding = Number(row.outstandingNgn);
+    if (Number.isFinite(outstanding)) return Math.max(0, outstanding);
+  }
   return Math.max(0, (Number(row?.amountNgn) || 0) - (Number(row?.paidNgn) || 0));
 }
 

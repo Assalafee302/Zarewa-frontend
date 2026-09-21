@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   mergeOpenPayablesSources,
   payablesFromOutstandingPurchaseOrders,
+  payableOutstandingNgn,
 } from './procurementPayablesSorting';
 
 describe('mergeOpenPayablesSources', () => {
@@ -32,6 +33,11 @@ describe('mergeOpenPayablesSources', () => {
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].apID).toBe('AP-1');
+  });
+
+  it('payableOutstandingNgn prefers the snapshot outstanding field', () => {
+    expect(payableOutstandingNgn({ amountNgn: 0, paidNgn: 0, outstandingNgn: 75_000 })).toBe(75_000);
+    expect(payableOutstandingNgn({ amountNgn: 100_000, paidNgn: 40_000 })).toBe(60_000);
   });
 
   it('payablesFromOutstandingPurchaseOrders skips rejected POs', () => {

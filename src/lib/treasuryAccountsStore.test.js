@@ -23,6 +23,16 @@ describe('treasuryAccountsForWorkspace', () => {
     expect(list[0].name).toBe('Kaduna Main');
   });
 
+  it('filters to the payable factory when HQ is viewing all branches', () => {
+    const list = treasuryAccountsForWorkspace(
+      snapshot,
+      { currentBranchId: 'BR-KD', viewAllBranches: true },
+      { payableBranchId: 'BR-YL' }
+    );
+    expect(list).toHaveLength(1);
+    expect(list[0].name).toBe('Yola Main');
+  });
+
   it('always filters by workspace branch even when bootstrap scope is single-branch', () => {
     const scoped = {
       branchScope: 'BR-KD',
