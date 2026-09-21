@@ -115,12 +115,13 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
       Number(quote?.paidNgn ?? quote?.paid_ngn) ||
       0
   );
+  const creditAppliedOutNgn = Math.max(0, Math.round(Number(intelligence?.creditAppliedOutNgn) || 0));
   const overpayResidualNgn = refundCashierOverpayResidualNgn({
     cashInNgn: ledgerCashIn,
     quoteTotalNgn: quoteTotal,
     refunds: priorRefunds,
     excludeRefundId: refund?.refundID,
-    creditAppliedOutNgn: Number(intelligence?.creditAppliedOutNgn) || 0,
+    creditAppliedOutNgn,
   });
   const looksOverpay =
     String(refund?.reasonCategory || refund?.reason_category || '').toLowerCase().includes('overpay') ||
@@ -132,17 +133,23 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
         sourceQuotationRef: qref,
         applications: ws?.snapshot?.refundCreditApplications,
         settlementSummary: refund?.settlementSummary,
+        intelligence,
       }),
-    [qref, ws?.snapshot?.refundCreditApplications, refund?.settlementSummary]
+    [qref, ws?.snapshot?.refundCreditApplications, refund?.settlementSummary, intelligence]
   );
   const overpayTillGate = refundCashierOverpayTillGate({
     looksOverpay,
     cashDueNgn: story.cashDueNgn,
     overpayResidualNgn,
     releasableCredits: releasableOverpayCredits,
+    creditAppliedOutNgn,
   });
   const blockCashPayout = overpayTillGate.blockCashPayout;
   const willReleaseOverpayCreditOnPay = overpayTillGate.willReleaseOverpayCreditOnPay;
+  const freeableOverpayCreditNgn = Math.max(
+    0,
+    Math.round(Number(overpayTillGate.freeableNgn) || 0)
+  );
   const defaultPayoutNgn = useMemo(
     () =>
       refundDefaultTreasuryPayoutNgn(refund, null, {
@@ -397,8 +404,7 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
           ) : willReleaseOverpayCreditOnPay ? (
             <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-950 leading-relaxed" role="status">
               Overpayment left on this quotation is {formatNgn(overpayResidualNgn)} because{' '}
-              {formatNgn(releasableOverpayCredits.reduce((s, a) => s + a.amountNgn, 0))} was used to confirm another
-              receipt
+              {formatNgn(freeableOverpayCreditNgn)} was used to confirm another receipt
               {releasableOverpayCredits.some((a) => a.targetQuotationRef)
                 ? ` (${[...new Set(releasableOverpayCredits.map((a) => a.targetQuotationRef).filter(Boolean))].join(', ')})`
                 : ''}

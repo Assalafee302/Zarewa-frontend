@@ -621,6 +621,19 @@ describe('refundCashierOverpayTillGate', () => {
     expect(gate.willReleaseOverpayCreditOnPay).toBe(true);
   });
 
+  it('unlocks from intelligence creditAppliedOut when application rows are missing', () => {
+    const gate = refundCashierOverpayTillGate({
+      looksOverpay: true,
+      cashDueNgn: 47_450,
+      overpayResidualNgn: 0,
+      releasableCredits: [],
+      creditAppliedOutNgn: 47_450,
+    });
+    expect(gate.blockCashPayout).toBe(false);
+    expect(gate.willReleaseOverpayCreditOnPay).toBe(true);
+    expect(gate.freeableNgn).toBe(47_450);
+  });
+
   it('still blocks when releasable credit is less than the till shortfall', () => {
     const gate = refundCashierOverpayTillGate({
       looksOverpay: true,

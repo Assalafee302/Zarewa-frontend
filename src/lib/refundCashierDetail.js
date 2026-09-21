@@ -1088,7 +1088,20 @@ export function refundCashierReleasableOverpayCredits({
   sourceQuotationRef,
   applications,
   settlementSummary,
+  intelligence,
 } = {}) {
+  const fromIntel = intelligence?.releasableOverpayCreditApplications;
+  if (Array.isArray(fromIntel) && fromIntel.length > 0) {
+    return fromIntel
+      .map((a) => ({
+        applicationId: String(a.applicationId || a.application_id || '').trim(),
+        amountNgn: Math.round(Number(a.amountNgn ?? a.amount_ngn) || 0),
+        targetQuotationRef: String(a.targetQuotationRef || a.target_quotation_ref || '').trim(),
+        sourceReceiptId: a.sourceReceiptId || a.source_receipt_id || null,
+        refundId: a.refundId || a.refund_id || null,
+      }))
+      .filter((a) => a.amountNgn > 0);
+  }
   const fromServer = settlementSummary?.releasableOverpayCreditApplications;
   if (Array.isArray(fromServer) && fromServer.length > 0) {
     return fromServer
@@ -1126,29 +1139,48 @@ export function refundCashierReleasableOverpayCredits({
  * the server undoes those confirmations first, then posts treasury.
  * Only unlock when released credit plus residual can cover the cash due (avoids undoing
  * confirmations and still failing pay).
- * @returns {{ blockCashPayout: boolean, willReleaseOverpayCreditOnPay: boolean, releasableCredits: object[] }}
+ *
+ * `creditAppliedOutNgn` is the intelligence/server residual subtraction for unlinked leftover
+ * credit — use it as freeable even when application rows are missing from the workspace snapshot.
+ *
+ * @returns {{ blockCashPayout: boolean, willReleaseOverpayCreditOnPay: boolean, releasableCredits: object[], freeableNgn: number }}
  */
 export function refundCashierOverpayTillGate({
   looksOverpay,
   cashDueNgn,
   overpayResidualNgn,
   releasableCredits,
+  creditAppliedOutNgn = 0,
 } = {}) {
   const due = Math.round(Number(cashDueNgn) || 0);
   const residual = Math.round(Number(overpayResidualNgn) || 0);
   const credits = Array.isArray(releasableCredits) ? releasableCredits : [];
+  const fromApps = credits.reduce((sum, a) => sum + Math.round(Number(a?.amountNgn) || 0), 0);
+  const fromIntel = Math.max(0, Math.round(Number(creditAppliedOutNgn) || 0));
+  // Residual already subtracts creditAppliedOut — freeable is the larger of listed apps or that out amount.
+  const freeableNgn = Math.max(fromApps, fromIntel);
   if (!looksOverpay || due <= 0 || residual >= due) {
-    return { blockCashPayout: false, willReleaseOverpayCreditOnPay: false, releasableCredits: credits };
+    return {
+      blockCashPayout: false,
+      willReleaseOverpayCreditOnPay: false,
+      releasableCredits: credits,
+      freeableNgn,
+    };
   }
-  const freeableNgn = credits.reduce((sum, a) => sum + Math.round(Number(a?.amountNgn) || 0), 0);
   if (freeableNgn > 0 && residual + freeableNgn >= due) {
     return {
       blockCashPayout: false,
       willReleaseOverpayCreditOnPay: true,
       releasableCredits: credits,
+      freeableNgn,
     };
   }
-  return { blockCashPayout: true, willReleaseOverpayCreditOnPay: false, releasableCredits: credits };
+  return {
+    blockCashPayout: true,
+    willReleaseOverpayCreditOnPay: false,
+    releasableCredits: credits,
+    freeableNgn,
+  };
 }
 
 export function refundCashierCustomerName(refund, quote) {
