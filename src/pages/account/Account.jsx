@@ -168,7 +168,6 @@ import {
   isReceiptPendingClearance,
   isReceiptReversed,
   receiptRegisteredByLabel,
-  RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE,
 } from '../../lib/receiptClearance.js';
 import {
   expandReceiptsToPaymentConfirmQueue,
@@ -184,6 +183,13 @@ const AccountTabPanels = lazyWithRetry(() => import('./AccountTabPanels.jsx').th
 const ExpenseBulkImportModal = lazyWithRetry(
   () => import('../../components/account/ExpenseBulkImportModal.jsx').then((m) => ({ default: m.ExpenseBulkImportModal })),
   { id: 'ExpenseBulkImportModal' }
+);
+const FinanceBulkUnconfirmReceiptsModal = lazyWithRetry(
+  () =>
+    import('../../components/finance/FinanceBulkUnconfirmReceiptsModal.jsx').then((m) => ({
+      default: m.FinanceBulkUnconfirmReceiptsModal,
+    })),
+  { id: 'FinanceBulkUnconfirmReceiptsModal' }
 );
 
 function parseNgnInput(raw) {
@@ -325,6 +331,7 @@ const Account = () => {
   const [waitingReceiptsPage, setWaitingReceiptsPage] = useState(0);
   const [confirmedReceiptsPage, setConfirmedReceiptsPage] = useState(0);
   const [adminFinanceReapplyBusy, setAdminFinanceReapplyBusy] = useState(false);
+  const [bulkUnconfirmReceiptsOpen, setBulkUnconfirmReceiptsOpen] = useState(false);
 
   useEffect(() => {
     if (!expenseOutflowEdit?.rows?.length) {
@@ -627,7 +634,8 @@ const Account = () => {
     expenseViewTarget != null ||
     statementAccount != null ||
     receiptFinanceRow != null ||
-    reclassifyTarget != null;
+    reclassifyTarget != null ||
+    bulkUnconfirmReceiptsOpen;
 
   const accountStatementLines = useMemo(() => {
     if (!statementAccount) return [];
@@ -3822,6 +3830,7 @@ const Account = () => {
       bankAccountsVisible,
       bankReconciliation,
       branchNameById,
+      bulkUnconfirmReceiptsOpen,
       canApprovePaymentRequests,
       canDeleteRolloutExpenseOrRequest,
       canEditTreasuryTransfer,
@@ -3918,6 +3927,7 @@ const Account = () => {
       reversingRefundTreasuryPayoutId,
       reversingTreasuryPayoutId,
       runAdminReapplyFinanceReconciledReceipts,
+      setBulkUnconfirmReceiptsOpen,
       setConfirmedReceiptsPage,
       setDisbursementsPayRequestQueue,
       setDisbursementsSearch,
@@ -3956,6 +3966,7 @@ const Account = () => {
       bankAccountsVisible,
       bankReconciliation,
       branchNameById,
+      bulkUnconfirmReceiptsOpen,
       canApprovePaymentRequests,
       canDeleteRolloutExpenseOrRequest,
       canEditTreasuryTransfer,
@@ -4052,6 +4063,7 @@ const Account = () => {
       reversingRefundTreasuryPayoutId,
       reversingTreasuryPayoutId,
       runAdminReapplyFinanceReconciledReceipts,
+      setBulkUnconfirmReceiptsOpen,
       setConfirmedReceiptsPage,
       setDisbursementsPayRequestQueue,
       setDisbursementsSearch,
@@ -5307,6 +5319,25 @@ const Account = () => {
               const n = Number(data?.createdCount) || 0;
               showToast(n ? `Imported ${n} expense(s).` : 'Expenses imported.');
               await ws?.refresh?.();
+            }}
+          />
+        </Suspense>
+      ) : null}
+
+      {bulkUnconfirmReceiptsOpen ? (
+        <Suspense fallback={null}>
+          <FinanceBulkUnconfirmReceiptsModal
+            open={bulkUnconfirmReceiptsOpen}
+            onClose={() => setBulkUnconfirmReceiptsOpen(false)}
+            branchLabel={
+              workspaceBranchLabel ||
+              (ws?.viewAllBranches ? 'All branches in workspace' : workspaceBranchId) ||
+              ''
+            }
+            canMutate={Boolean(ws?.canMutate)}
+            showToast={showToast}
+            onDone={() => {
+              void ws.refreshDomain?.('finance');
             }}
           />
         </Suspense>

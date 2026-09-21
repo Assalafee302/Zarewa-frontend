@@ -9,6 +9,7 @@ import {
   Pencil,
   Trash2,
   CheckCircle2,
+  Undo2,
 } from 'lucide-react';
 
 import { formatNgn } from '../../Data/mockData';
@@ -45,6 +46,7 @@ export function AccountTabPanels() {
     bankAccountsVisible,
     bankReconciliation,
     branchNameById,
+    canApprovePaymentRequests,
     canEditTreasuryTransfer,
     canExecTreasuryDelete,
     canFinanceReceiptSettlement,
@@ -93,6 +95,7 @@ export function AccountTabPanels() {
     removeTreasuryAccount,
     runAdminReapplyFinanceReconciledReceipts,
     searchQuery,
+    setBulkUnconfirmReceiptsOpen,
     setConfirmedReceiptsPage,
     setEditingTransferBatchId,
     setReceiptsNoCuttingListOnly,
@@ -300,6 +303,22 @@ export function AccountTabPanels() {
                             >
                               <RefreshCw size={12} className={adminFinanceReapplyBusy ? 'animate-spin' : ''} />
                               {adminFinanceReapplyBusy ? 'Recalculating…' : 'Fix reconciled amounts'}
+                            </button>
+                          ) : null}
+                          {canApprovePaymentRequests ? (
+                            <button
+                              type="button"
+                              disabled={!ws?.canMutate || Boolean(ws?.viewAllBranches)}
+                              onClick={() => setBulkUnconfirmReceiptsOpen(true)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-ui-xs font-black uppercase tracking-wide text-rose-950 hover:bg-rose-100 disabled:opacity-50"
+                              title={
+                                ws?.viewAllBranches
+                                  ? 'Switch to a single branch workspace before bulk-unconfirming receipts'
+                                  : 'Unconfirm all confirmed receipts for a chosen month in this branch so Finance can reconfirm them'
+                              }
+                            >
+                              <Undo2 size={12} />
+                              Bulk unconfirm month
                             </button>
                           ) : null}
                         </div>
