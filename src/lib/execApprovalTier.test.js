@@ -7,10 +7,11 @@ import {
 } from './execApprovalTier.js';
 
 describe('execApprovalTier', () => {
-  it('classifies price exception as MD only', () => {
+  it('classifies price exception as BM or MD', () => {
     expect(classifyExecWorkTrayApprovalTier({ kind: 'price_exception' }).tier).toBe(
-      EXEC_APPROVAL_TIER_MD_ONLY
+      EXEC_APPROVAL_TIER_SHARED
     );
+    expect(classifyExecWorkTrayApprovalTier({ kind: 'price_exception' }).label).toBe('BM or MD');
   });
 
   it('classifies low refund as shared', () => {

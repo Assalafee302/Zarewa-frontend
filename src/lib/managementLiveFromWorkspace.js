@@ -9,6 +9,7 @@ import {
   cuttingListInProductionGate,
   quotationIsFlaggedForAudit,
   quotationNeedsManagerClearance,
+  quotationNeedsBelowFloorManagerApproval,
 } from './managementQueueFilters.js';
 import { purchaseOrderIsPendingApproval, purchaseOrderLineTotalNgn } from './procurementStatus.js';
 import { productionAttributedRevenueNgn, productionOutputDateISO } from './liveAnalytics.js';
@@ -50,7 +51,7 @@ export function managementPeriodStartISO(periodKey) {
 /**
  * Mirrors server `listManagementItems` shapes for the SPA inbox (snake_case row fields).
  * @param {object} snapshot
- * @returns {{ pendingClearance: object[]; flagged: object[]; productionOverrides: object[]; pendingRefunds: object[]; pendingExpenses: object[]; pendingConversionReviews: object[]; pendingMaterialIncidents: object[] }}
+ * @returns {{ pendingClearance: object[]; flagged: object[]; productionOverrides: object[]; pendingRefunds: object[]; pendingExpenses: object[]; pendingConversionReviews: object[]; pendingMaterialIncidents: object[]; pendingPriceExceptions: object[] }}
  */
 export function buildManagementQueuesFromSnapshot(snapshot) {
   const quotations = Array.isArray(snapshot?.quotations) ? snapshot.quotations : [];
@@ -73,6 +74,19 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
       date_iso: q.dateISO,
       status: q.status,
       branch_id: q.branchId || '',
+    }))
+    .sort((a, b) => String(b.date_iso || '').localeCompare(String(a.date_iso || '')));
+
+  const pendingPriceExceptions = quotations
+    .filter((q) => quotationNeedsBelowFloorManagerApproval(q))
+    .map((q) => ({
+      id: q.id,
+      customer_name: formatPersonName(q.customer),
+      total_ngn: Number(q.totalNgn) || 0,
+      paid_ngn: Number(q.paidNgn) || 0,
+      date_iso: q.dateISO,
+      branch_id: q.branchId || '',
+      price_exception_md_review_required: q.priceExceptionMdReviewRequired ? 1 : 0,
     }))
     .sort((a, b) => String(b.date_iso || '').localeCompare(String(a.date_iso || '')));
 
@@ -201,6 +215,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
     pendingConversionReviews,
     pendingMaterialIncidents,
     pendingPurchaseOrders,
+    pendingPriceExceptions,
   };
 }
 

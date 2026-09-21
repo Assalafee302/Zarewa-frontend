@@ -144,6 +144,7 @@ export function useBranchManagerWorkstation() {
     pendingConversionReviews: [],
     pendingMaterialIncidents: [],
     pendingPurchaseOrders: [],
+    pendingPriceExceptions: [],
   });
   /** @type {[null | { kind: string; quoteId?: string; refundId?: string; requestId?: string; jobId?: string; materialIncidentId?: string; row: object; cuttingListId?: string; fromProductionGate?: boolean; reviewContext?: string }, Function]} */
   const [selectedIntel, setSelectedIntel] = useState(null);
@@ -360,7 +361,9 @@ export function useBranchManagerWorkstation() {
           ? 'Flagged quotation review'
           : selectedIntel.reviewContext === 'production'
             ? 'Production gate review'
-            : 'Clearance review'
+            : selectedIntel.reviewContext === 'price_exception'
+              ? 'Below-floor price approval'
+              : 'Clearance review'
         : selectedIntel?.kind === 'purchase_order'
           ? 'Purchase order lifecycle'
           : selectedIntel?.kind === 'payment'
@@ -678,6 +681,7 @@ export function useBranchManagerWorkstation() {
             pendingConversionReviews: d.pendingConversionReviews ?? [],
             pendingMaterialIncidents: d.pendingMaterialIncidents ?? [],
             pendingPurchaseOrders: d.pendingPurchaseOrders ?? [],
+            pendingPriceExceptions: d.pendingPriceExceptions ?? [],
           });
         } else {
           const msg =
@@ -837,12 +841,21 @@ export function useBranchManagerWorkstation() {
     if (quoteDeepLinked.current === ref) return;
     quoteDeepLinked.current = ref;
 
+    const reviewParam = String(searchParams.get('review') || '').trim().toLowerCase();
     const fromClearance = displayItems.pendingClearance.find((q) => q.id === ref);
     const fromFlagged = displayItems.flagged.find((q) => q.id === ref);
     const fromProd = displayItems.productionOverrides.find((o) => o.quotation_ref === ref);
+    const fromPrice = (displayItems.pendingPriceExceptions || []).find((q) => q.id === ref);
     setRefundIntelExtras(null);
-    const row = fromClearance || fromFlagged;
-    if (row) {
+    const row = fromPrice || fromClearance || fromFlagged;
+    if (reviewParam === 'price_exception' || fromPrice) {
+      setSelectedIntel({
+        kind: 'quotation',
+        quoteId: ref,
+        row: { ...(fromPrice || row || { id: ref, customer_name: '' }) },
+        reviewContext: 'price_exception',
+      });
+    } else if (row) {
       setSelectedIntel({
         kind: 'quotation',
         quoteId: ref,
@@ -866,6 +879,7 @@ export function useBranchManagerWorkstation() {
   }, [
     displayItems.flagged,
     displayItems.pendingClearance,
+    displayItems.pendingPriceExceptions,
     displayItems.productionOverrides,
     fetchAudit,
     loading,
@@ -1332,6 +1346,14 @@ export function useBranchManagerWorkstation() {
         stayOnAttention(kind === 'flagged' ? 'flagged' : 'orders');
         return;
       }
+      if (kind === 'price_exception') {
+        const qid = item.quotationRef || row.id;
+        openQuotationIntel(qid, row, {
+          reviewContext: 'price_exception',
+        });
+        stayOnAttention('orders');
+        return;
+      }
       if (kind === 'production') {
         const qref = item.quotationRef || row.quotation_ref;
         openQuotationIntel(
@@ -1429,7 +1451,10 @@ export function useBranchManagerWorkstation() {
       if (selectedIntel.kind === 'quotation') {
         const qid = selectedIntel.quoteId;
         return (
-          (it.kind === 'clearance' || it.kind === 'flagged' || it.kind === 'production') &&
+          (it.kind === 'clearance' ||
+            it.kind === 'flagged' ||
+            it.kind === 'production' ||
+            it.kind === 'price_exception') &&
           String(it.quotationRef || it.row?.id || it.row?.quotation_ref || '') === String(qid)
         );
       }
@@ -1471,7 +1496,7 @@ export function useBranchManagerWorkstation() {
   }, [attentionItems, selectedIntel]);
 
   const handleReview = useCallback(
-    async (quotationId, decision, reason = '') => {
+    async (quotationId, decision, reason = '', opts = {}) => {
       if (!quotationId) return;
       if ((decision === 'clear' || decision === 'flag' || decision === 'waive_balance') && !canManagerClearance) {
         showToast('Quotation clearance requires Branch Manager, MD, or Administrator authority.', {
@@ -1483,6 +1508,19 @@ export function useBranchManagerWorkstation() {
         showToast('Releasing payment holds requires Managing Director or Administrator authority.', {
           variant: 'error',
         });
+        return;
+      }
+      if (decision === 'approve_price_exception' && opts?.alreadyApproved) {
+        showToast('Below-floor price exception approved.', { variant: 'success' });
+        const nextItem = findNextAttentionItemAfterDecision();
+        await fetchData({ background: true });
+        if (selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === quotationId) {
+          setSelectedIntel(null);
+          setAuditData(null);
+          if (nextItem) {
+            queueMicrotask(() => openAttentionItem(nextItem));
+          }
+        }
         return;
       }
       if (decision === 'release_payments') {
@@ -1581,6 +1619,7 @@ export function useBranchManagerWorkstation() {
       }
       const labels = {
         clear: 'Clearance approved.',
+        approve_price_exception: 'Below-floor price exception approved.',
         approve_production: 'Production override saved. Cutting list can proceed in Sales.',
         flag: 'Moved to flagged queue for audit.',
         release_payments: 'Payment hold released — sales can post receipts on this quotation again.',

@@ -27,6 +27,11 @@ export function managerWorkItemPath(item) {
       ? `/manager?inbox=orders&quoteRef=${enc(sourceId)}`
       : '/manager?inbox=orders';
   }
+  if (dt === 'price_exception') {
+    return sourceId
+      ? `/manager?inbox=orders&quoteRef=${enc(sourceId)}&review=price_exception`
+      : '/manager?inbox=orders';
+  }
   if (dt === 'production_gate') {
     const qref = quoteFromData || sourceId;
     return qref ? `/manager?inbox=orders&quoteRef=${enc(qref)}` : '/manager?inbox=orders';

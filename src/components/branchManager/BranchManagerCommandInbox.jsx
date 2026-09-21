@@ -242,6 +242,31 @@ export function BranchManagerCommandInbox(props) {
         );
       }
 
+      if (row._inboxKind === 'price_exception') {
+        return (
+          <button
+            key={row._rowKey}
+            type="button"
+            data-pac-row="1"
+            onClick={() => openQuotationIntel?.(row.id, row, { reviewContext: 'price_exception' })}
+            className={`${inboxRowBase} hover:bg-amber-50/40 border-l-4 border-l-amber-500 focus-visible:ring-2 focus-visible:ring-zarewa-teal/40 ${
+              selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-amber-50/50' : ''
+            }`}
+          >
+            <KindPill label="price" tone="pending" />
+            <span className="shrink-0 text-xs font-mono font-bold text-zarewa-teal">{row.id}</span>
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
+              {asPersonName(row.customer_name)}
+              {' · '}
+              <span className="text-amber-900/80">Below-floor price</span>
+            </span>
+            <span className="shrink-0 text-ui-xs font-bold tabular-nums text-slate-700">{asMoney(row.total_ngn)}</span>
+            <SlaChip kind="price_exception" row={row} />
+            <ChevronRight size={14} className="shrink-0 text-slate-300" />
+          </button>
+        );
+      }
+
       return (
         <button
           key={row._rowKey}

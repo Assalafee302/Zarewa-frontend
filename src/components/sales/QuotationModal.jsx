@@ -1869,8 +1869,9 @@ const QuotationModal = ({
   const canApproveMdPriceException = useMemo(() => {
     if (wsHasPermission?.('*')) return true;
     if (wsHasPermission?.('md.price_exception.approve')) return true;
+    if (wsHasPermission?.('bm.price_exception.approve')) return true;
     const rk = String(ws?.session?.user?.roleKey ?? '').trim().toLowerCase();
-    return rk === 'md' || rk === 'admin';
+    return rk === 'md' || rk === 'admin' || rk === 'sales_manager' || rk === 'branch_manager';
   }, [ws?.session?.user?.roleKey, wsHasPermission]);
 
   const validateProductWorkbookFloors = useCallback(() => {
@@ -2733,20 +2734,22 @@ const QuotationModal = ({
   const onMdPriceExceptionApprove = async () => {
     if (!editData?.id || !useQuotationApi || !ws?.canMutate) return;
     if (!canApproveMdPriceException) {
-      showToast('Only the Managing Director or an administrator may approve a below-floor price exception.', {
-        variant: 'error',
-      });
+      showToast(
+        'Only a branch manager, the Managing Director, or an administrator may approve a below-floor price exception.',
+        { variant: 'error' }
+      );
       return;
     }
     if (!quotationHasPaymentForMdBelowFloorQueue(quotationPaidNgn)) {
-      showToast('Post a customer receipt before asking the Managing Director to approve below-floor pricing.', {
+      showToast('Post a customer receipt before approving below-floor pricing.', {
         variant: 'error',
       });
       return;
     }
     if (
       !(await appConfirm({
-        message: 'Approve below-floor pricing for this quotation? Cutting lists and production may proceed after this step.',
+        message:
+          'Approve below-floor pricing for this quotation? Cutting lists and refunds may proceed after this step.',
       }))
     )
       return;
@@ -2760,7 +2763,7 @@ const QuotationModal = ({
         }
       );
       if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not record MD approval.', { variant: 'error' });
+        showToast(data?.error || 'Could not record below-floor approval.', { variant: 'error' });
         return;
       }
       if (data.delta && ws?.applyWriteDelta?.(data.delta)) {
@@ -2768,7 +2771,7 @@ const QuotationModal = ({
       } else if (data.quotation) {
         ws?.mergeQuotationIntoSnapshot?.(data.quotation);
       }
-      showToast('MD below-floor approval recorded.');
+      showToast('Below-floor price exception approved.');
       await onLedgerChange?.({ domains: [], skipShellRefresh: true });
       abandonUnsavedAndRun(() => onClose());
     } finally {
@@ -2879,10 +2882,10 @@ const QuotationModal = ({
               <p className="text-ui-xs font-black text-amber-950 uppercase tracking-wide">Pricing policy</p>
               <p className="text-ui-xs text-amber-950/90 leading-relaxed">
                 {quotationBelowFloorExceptionApproved(editData)
-                  ? 'MD below-floor approval is on file — cutting lists and production may proceed if other gates are satisfied.'
+                  ? 'Below-floor approval is on file — cutting lists and refunds may proceed if other gates are satisfied.'
                   : quotationHasPaymentForMdBelowFloorQueue(quotationPaidNgn)
-                    ? 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and production stay blocked until the Managing Director or an administrator approves a below-floor price exception.'
-                    : 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and production stay blocked. MD approval is requested only after a customer receipt is posted.'}
+                    ? 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and refunds stay blocked until a branch manager, the Managing Director, or an administrator approves a below-floor price exception.'
+                    : 'One or more lines are below the material pricing workbook floor (or the trading band on services). Cutting lists and refunds stay blocked. Approval is requested only after a customer receipt is posted.'}
               </p>
               {editData?.pricingFloor?.freezeWhy ? (
                 <p className="text-ui-xs text-amber-950/80 leading-relaxed">{editData.pricingFloor.freezeWhy}</p>
@@ -2959,7 +2962,7 @@ const QuotationModal = ({
                   disabled={mdApproving}
                   className="inline-flex items-center justify-center rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
                 >
-                  {mdApproving ? 'Recording…' : 'MD: approve below-floor pricing'}
+                  {mdApproving ? 'Recording…' : 'Approve below-floor pricing'}
                 </button>
               ) : null}
               {useQuotationApi &&
@@ -2968,7 +2971,7 @@ const QuotationModal = ({
               quotationHasPaymentForMdBelowFloorQueue(quotationPaidNgn) &&
               !canApproveMdPriceException ? (
                 <p className="text-ui-xs text-amber-900/85 mt-2">
-                  Awaiting Managing Director or administrator approval before cutting list or production.
+                  Awaiting branch manager, Managing Director, or administrator approval before cutting list or refunds.
                 </p>
               ) : null}
               {useQuotationApi &&
@@ -2976,7 +2979,7 @@ const QuotationModal = ({
               quotationBelowFloorPendingMdApproval(editData) &&
               !quotationHasPaymentForMdBelowFloorQueue(quotationPaidNgn) ? (
                 <p className="text-ui-xs text-amber-900/85 mt-2">
-                  Not on the MD desk until a receipt is posted.
+                  Not on the approval queue until a receipt is posted.
                 </p>
               ) : null}
             </div>

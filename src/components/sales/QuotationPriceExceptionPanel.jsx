@@ -12,7 +12,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 
 /**
- * Below-floor pricing gate: MD or administrator approves before cutting list and production.
+ * Below-floor pricing gate: branch manager, MD, or administrator approves before cutting list / refunds.
  *
  * @param {{
  *   quotationId: string;
@@ -21,6 +21,15 @@ import { useToast } from '../../context/ToastContext';
  *   className?: string;
  * }} props
  */
+function actorMayApproveBelowFloorPriceException(ws) {
+  if (!ws) return false;
+  if (ws.hasPermission?.('*')) return true;
+  if (ws.hasPermission?.('md.price_exception.approve')) return true;
+  if (ws.hasPermission?.('bm.price_exception.approve')) return true;
+  const rk = String(ws.session?.user?.roleKey ?? '').trim().toLowerCase();
+  return rk === 'md' || rk === 'admin' || rk === 'sales_manager' || rk === 'branch_manager';
+}
+
 export function QuotationPriceExceptionPanel({
   quotationId,
   quotation,
@@ -28,22 +37,15 @@ export function QuotationPriceExceptionPanel({
   className = '',
 }) {
   const ws = useWorkspace();
-  const wsHasPermission = ws?.hasPermission;
-  const wsRoleKey = ws?.session?.user?.roleKey;
   const { show: showToast } = useToast();
   const qid = String(quotationId || '').trim();
   const [violations, setViolations] = useState([]);
   const [hasFloorRows, setHasFloorRows] = useState(false);
   const [quoteRow, setQuoteRow] = useState(quotation ?? null);
   const [loading, setLoading] = useState(false);
-  const [mdApproving, setMdApproving] = useState(false);
+  const [approving, setApproving] = useState(false);
 
-  const canApproveMdPriceException = useMemo(() => {
-    if (wsHasPermission?.('*')) return true;
-    if (wsHasPermission?.('md.price_exception.approve')) return true;
-    const rk = String(wsRoleKey ?? '').trim().toLowerCase();
-    return rk === 'md' || rk === 'admin';
-  }, [wsHasPermission, wsRoleKey]);
+  const canApproveBelowFloor = useMemo(() => actorMayApproveBelowFloorPriceException(ws), [ws]);
 
   const mergeQuote = useCallback(
     (q) => {
@@ -93,37 +95,40 @@ export function QuotationPriceExceptionPanel({
     };
   }, [qid, quotation?.pricingViolations, mergeQuote]);
 
-  const mdApproved = quotationBelowFloorExceptionApproved(quoteRow);
-  const paidForMdQueue = quotationHasPaymentForMdBelowFloorQueue(quoteRow);
-  const showMdApproveAction = paidForMdQueue && !mdApproved;
+  const approved = quotationBelowFloorExceptionApproved(quoteRow);
+  const paidForQueue = quotationHasPaymentForMdBelowFloorQueue(quoteRow);
+  const showApproveAction = paidForQueue && !approved;
   const showPanel = hasFloorRows && violations.length > 0;
   if (!qid || !showPanel) return null;
 
-  const onMdPriceExceptionApprove = async () => {
+  const onApproveBelowFloor = async () => {
     if (!ws?.canMutate) {
       showToast('You do not have permission to record approvals.', { variant: 'error' });
       return;
     }
-    if (!canApproveMdPriceException) {
-      showToast('Only the Managing Director or an administrator may approve a below-floor price exception.', {
-        variant: 'error',
-      });
+    if (!canApproveBelowFloor) {
+      showToast(
+        'Only a branch manager, the Managing Director, or an administrator may approve a below-floor price exception.',
+        { variant: 'error' }
+      );
       return;
     }
     if (!quotationHasPaymentForMdBelowFloorQueue(quoteRow)) {
-      showToast('Post a customer receipt before asking the Managing Director to approve below-floor pricing.', {
+      showToast('Post a customer receipt before approving below-floor pricing.', {
         variant: 'error',
       });
       return;
     }
     if (
       !(await appConfirm({
-        message: 'Approve below-floor pricing for this quotation? Cutting lists and production may proceed after this step.',
+        message:
+          'Approve below-floor pricing for this quotation? Cutting lists and refunds may proceed after this step.',
       }))
     )
       return;
-    setMdApproving(true);
+    setApproving(true);
     try {
+      // Shared endpoint: MD/admin stamp MD columns; branch manager stamps BM columns and notifies MD.
       const { ok, data } = await apiFetch(
         `/api/quotations/${encodeURIComponent(qid)}/md-price-exception-approve`,
         {
@@ -132,7 +137,7 @@ export function QuotationPriceExceptionPanel({
         }
       );
       if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not record MD approval.', { variant: 'error' });
+        showToast(data?.error || 'Could not record below-floor approval.', { variant: 'error' });
         return;
       }
       if (data.delta && ws?.applyWriteDelta?.(data.delta)) {
@@ -145,13 +150,13 @@ export function QuotationPriceExceptionPanel({
       } else if (data.quotation) {
         mergeQuote(data.quotation);
       }
-      showToast('MD below-floor approval recorded — cutting list and production may proceed.');
+      showToast('Below-floor price exception approved — cutting list and refunds may proceed.');
       if (!(data.delta && typeof ws?.applyWriteDelta === 'function')) {
         if (typeof ws?.refreshDomain === 'function') void ws.refreshDomain('sales');
         else if (typeof ws?.refresh === 'function') await ws.refresh();
       }
     } finally {
-      setMdApproving(false);
+      setApproving(false);
     }
   };
 
@@ -169,16 +174,16 @@ export function QuotationPriceExceptionPanel({
     >
       <p className="text-ui-xs font-black text-amber-950 uppercase tracking-wide">Pricing policy</p>
       <p className="text-ui-xs text-amber-950/90 leading-relaxed">
-        {mdApproved
-          ? 'MD below-floor approval is on file — cutting lists and production may proceed if other gates are satisfied.'
-          : paidForMdQueue
-            ? 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and production are blocked until the Managing Director or an administrator approves this exception.'
-            : 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and production stay blocked. MD approval is requested only after a customer receipt is posted.'}
+        {approved
+          ? 'Below-floor approval is on file — cutting lists and refunds may proceed if other gates are satisfied.'
+          : paidForQueue
+            ? 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and refunds are blocked until a branch manager, the Managing Director, or an administrator approves this exception.'
+            : 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and refunds stay blocked. Approval is requested only after a customer receipt is posted.'}
       </p>
       {quoteRow?.pricingFloor?.freezeWhy ? (
         <p className="text-ui-xs text-amber-950/80 leading-relaxed">{quoteRow.pricingFloor.freezeWhy}</p>
       ) : null}
-      {totalGapNgn > 0 && !mdApproved ? (
+      {totalGapNgn > 0 && !approved ? (
         <p className="text-ui-xs font-semibold text-amber-950 bg-amber-100/80 border border-amber-200 rounded-lg px-2 py-1.5">
           Margin impact: ~{formatNgn(totalGapNgn)}/m total shortfall vs minimum across flagged lines (before qty).
         </p>
@@ -229,17 +234,17 @@ export function QuotationPriceExceptionPanel({
           );
         })}
       </ul>
-      {ws?.canMutate && canApproveMdPriceException && showMdApproveAction ? (
+      {ws?.canMutate && canApproveBelowFloor && showApproveAction ? (
         <button
           type="button"
-          onClick={() => void onMdPriceExceptionApprove()}
-          disabled={mdApproving}
+          onClick={() => void onApproveBelowFloor()}
+          disabled={approving}
           className="inline-flex items-center justify-center rounded-lg bg-zarewa-teal px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
         >
-          {mdApproving ? 'Recording…' : 'MD: approve below-floor pricing'}
+          {approving ? 'Recording…' : 'Approve below-floor pricing'}
         </button>
       ) : null}
-      {!mdApproved && !canApproveMdPriceException ? (
+      {!approved && !canApproveBelowFloor ? (
         <ZareApprovalHint
           compact
           context={{
@@ -248,17 +253,17 @@ export function QuotationPriceExceptionPanel({
             status: 'pricing_blocked',
             canApprove: false,
             missingPermission:
-              'Below-floor pricing needs Managing Director or administrator approval before cutting list or production.',
+              'Below-floor pricing needs branch manager, Managing Director, or administrator approval before cutting list or refunds.',
             zareQuery: `Why can't I create a cutting list on quotation ${qid} with below-floor pricing?`,
           }}
         />
       ) : null}
-      {mdApproved ? (
-        <p className="text-ui-xs text-emerald-900/90 font-medium">MD approval on file.</p>
-      ) : quotationBelowFloorPendingMdApproval(quoteRow) && paidForMdQueue ? (
-        <p className="text-ui-xs text-amber-900/85">Awaiting MD or administrator approval.</p>
-      ) : quotationBelowFloorPendingMdApproval(quoteRow) && !paidForMdQueue ? (
-        <p className="text-ui-xs text-amber-900/85">Not on the MD desk until a receipt is posted.</p>
+      {approved ? (
+        <p className="text-ui-xs text-emerald-900/90 font-medium">Below-floor approval on file.</p>
+      ) : quotationBelowFloorPendingMdApproval(quoteRow) && paidForQueue ? (
+        <p className="text-ui-xs text-amber-900/85">Awaiting branch manager, MD, or administrator approval.</p>
+      ) : quotationBelowFloorPendingMdApproval(quoteRow) && !paidForQueue ? (
+        <p className="text-ui-xs text-amber-900/85">Not on the approval queue until a receipt is posted.</p>
       ) : null}
     </div>
   );

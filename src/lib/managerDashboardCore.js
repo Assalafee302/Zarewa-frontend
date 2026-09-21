@@ -55,7 +55,7 @@ export const MANAGER_ATTENTION_FILTERS = [
   {
     key: 'orders',
     label: 'Orders',
-    kinds: ['clearance', 'production', 'flagged', 'staff_purchase_credit'],
+    kinds: ['clearance', 'production', 'flagged', 'staff_purchase_credit', 'price_exception'],
   },
   {
     key: 'cash',
@@ -104,6 +104,8 @@ const ATTENTION_FILTER_ALIASES = {
   staff_purchase_credit: 'orders',
   clearance: 'orders',
   production: 'orders',
+  price_exception: 'orders',
+  price: 'orders',
   qc: 'operations',
   conversions: 'operations',
   material: 'operations',
@@ -177,6 +179,7 @@ export function managerKindShortLabel(kind) {
     clearance: 'sign-off',
     production: 'gate',
     flagged: 'flagged',
+    price_exception: 'price',
     refunds: 'refund',
     register_settlement: 'withdrawal',
     payments: 'expense',
@@ -209,6 +212,7 @@ export function managerKindTone(kind, opts = {}) {
   if (opts.breached || opts.flagged || kind === 'governance' || kind === 'flagged') return 'urgent';
   if (
     kind === 'clearance' ||
+    kind === 'price_exception' ||
     kind === 'refunds' ||
     kind === 'payments' ||
     kind === 'overtime' ||
@@ -347,7 +351,7 @@ export function filterAttentionItems(items, filterKey) {
 }
 
 /**
- * @param {{ pendingClearance?: object[]; productionOverrides?: object[]; flagged?: object[] }} displayItems
+ * @param {{ pendingClearance?: object[]; productionOverrides?: object[]; flagged?: object[]; pendingPriceExceptions?: object[] }} displayItems
  */
 export function buildOrdersInboxRows(displayItems) {
   const flagged = (displayItems?.flagged || []).map((row) => ({
@@ -365,7 +369,12 @@ export function buildOrdersInboxRows(displayItems) {
     _inboxKind: 'production',
     _rowKey: `production:${row.id}`,
   }));
-  return [...flagged, ...clearance, ...production];
+  const priceExceptions = (displayItems?.pendingPriceExceptions || []).map((row) => ({
+    ...row,
+    _inboxKind: 'price_exception',
+    _rowKey: `price:${row.id}`,
+  }));
+  return [...flagged, ...priceExceptions, ...clearance, ...production];
 }
 
 /**

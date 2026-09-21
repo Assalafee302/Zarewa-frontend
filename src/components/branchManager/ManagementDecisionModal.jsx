@@ -8,7 +8,9 @@ import { formatPersonName as formatPersonNameUtil } from '../../lib/formatPerson
 import { canApproveProductionGate } from '../../lib/productionGateAccess';
 import { useToast } from '../../context/ToastContext';
 import { ClearanceManagerApprovalPreview } from '../management/ClearanceManagerApprovalPreview';
+import { QuotationPriceExceptionPanel } from '../sales/QuotationPriceExceptionPanel';
 import { RefundManagerApprovalPreview } from '../management/RefundManagerApprovalPreview';
+import { quotationBelowFloorExceptionApproved } from '../../lib/quotationPriceException';
 import { ConversionRecordPanel } from '../management/ConversionRecordPanel';
 import { ManagerPoAuditSections } from '../management/ManagerPoAuditSections';
 import { OfficialRecordBanner } from '../management/OfficialRecordBanner';
@@ -319,6 +321,32 @@ export function ManagementDecisionModal({
               />
             ) : selectedIntel?.kind === 'quotation' ? (
               <>
+                {selectedIntel.reviewContext === 'price_exception' ? (
+                  <QuotationPriceExceptionPanel
+                    quotationId={selectedIntel.quoteId}
+                    quotation={
+                      auditData?.quotation ||
+                      (selectedIntel.row
+                        ? {
+                            id: selectedIntel.quoteId,
+                            paidNgn: selectedIntel.row.paid_ngn ?? selectedIntel.row.paidNgn,
+                            priceExceptionMdReviewRequired:
+                              selectedIntel.row.price_exception_md_review_required ??
+                              selectedIntel.row.priceExceptionMdReviewRequired ??
+                              1,
+                          }
+                        : null)
+                    }
+                    onQuotationUpdated={(q) => {
+                      // Panel already PATCHed approval — close the work item registry entry without re-approving.
+                      if (!quotationBelowFloorExceptionApproved(q)) return;
+                      void handleReview?.(selectedIntel.quoteId, 'approve_price_exception', '', {
+                        alreadyApproved: true,
+                      });
+                    }}
+                  />
+                ) : null}
+                {selectedIntel.reviewContext !== 'price_exception' ? (
                 <ClearanceManagerApprovalPreview
                   quoteId={selectedIntel.quoteId}
                   inboxRow={selectedIntel.row}
@@ -360,6 +388,7 @@ export function ManagementDecisionModal({
                   onWriteOffReceivable={() => void handleWriteOffReceivableSelectedQuotation?.()}
                   onProductionOverride={() => void handleProductionOverrideSelectedQuotation?.()}
                 />
+                ) : null}
               </>
             ) : selectedIntel?.kind === 'purchase_order' ? (
               <>

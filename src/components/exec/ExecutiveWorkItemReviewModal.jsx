@@ -8,6 +8,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { QuotationPriceExceptionPanel } from '../sales/QuotationPriceExceptionPanel';
 import { ClearanceManagerApprovalPreview } from '../management/ClearanceManagerApprovalPreview';
+import { quotationBelowFloorExceptionApproved } from '../../lib/quotationPriceException';
 import { RefundManagerApprovalPreview } from '../management/RefundManagerApprovalPreview';
 import { ManagementAuditSections } from '../management/ManagementAuditSections';
 import { ConversionRecordPanel } from '../management/ConversionRecordPanel';
@@ -677,7 +678,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 onQuotationUpdated={(q) => {
                   setQuotationRow(q);
                   ws?.mergeQuotationIntoSnapshot?.(q);
-                  if (String(q?.mdPriceExceptionApprovedAtISO || '').trim()) {
+                  if (quotationBelowFloorExceptionApproved(q)) {
                     void finish();
                   }
                 }}

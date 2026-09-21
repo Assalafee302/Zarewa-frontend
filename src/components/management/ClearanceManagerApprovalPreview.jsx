@@ -276,7 +276,7 @@ export function ClearanceManagerApprovalPreview({
               <DecisionActionTile
                 variant="approve"
                 icon={CheckCircle2}
-                label="Approve"
+                label={reviewContext === 'clearance' ? 'Clear' : 'Approve'}
                 disabled={decisionBusy}
                 onClick={onApprove}
               />

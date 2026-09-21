@@ -5,6 +5,7 @@ const ATTENTION_KIND_LABELS = {
   clearance: 'Sign-off',
   flagged: 'Flagged quote',
   production: 'Production gate',
+  price_exception: 'Below-floor price',
   conversions: 'Production QC',
   refunds: 'Refund approval',
   register_settlement: 'Payable withdrawal',
@@ -20,10 +21,12 @@ const ATTENTION_KIND_LABELS = {
  */
 export function managementAttentionItemPath(item) {
   const kind = String(item?.kind || '').trim();
-  if (kind === 'clearance' || kind === 'flagged' || kind === 'production') {
+  if (kind === 'clearance' || kind === 'flagged' || kind === 'production' || kind === 'price_exception') {
     const qref = String(item.quotationRef || item.title || '').trim();
     return qref
-      ? `/manager?inbox=orders&quoteRef=${encodeURIComponent(qref)}`
+      ? `/manager?inbox=orders&quoteRef=${encodeURIComponent(qref)}${
+          kind === 'price_exception' ? '&review=price_exception' : ''
+        }`
       : '/manager?inbox=orders';
   }
   if (kind === 'refunds') {
