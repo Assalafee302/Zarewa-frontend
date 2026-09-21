@@ -105,6 +105,7 @@ import { PROD_REG, prodRegBtnClass } from '../lib/productionRegisterUi';
 import { LiveProductionMonitorJobSidebar } from './production/LiveProductionMonitorJobSidebar';
 import {
   LiveProductionMonitorCancelModal,
+  LiveProductionMonitorForceRecallModal,
   LiveProductionMonitorReturnModal,
 } from './production/LiveProductionMonitorReturnCancelModals';
 import {
@@ -172,6 +173,10 @@ export function LiveProductionMonitor({
   const [materialIncidentModalOpen, setMaterialIncidentModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelSaving, setCancelSaving] = useState(false);
+  /** Admin: delete completed/open duplicate job + cutting list (force-recall). */
+  const [forceRecallModalOpen, setForceRecallModalOpen] = useState(false);
+  const [forceRecallReason, setForceRecallReason] = useState('');
+  const [forceRecallSaving, setForceRecallSaving] = useState(false);
   /** When cancel/return opened via Recall entry — clearer modal copy. */
   const [recallModalIntent, setRecallModalIntent] = useState(false);
   /** Highlight completed-job correction guidance after Fix wrong entry. */
@@ -1955,6 +1960,16 @@ export function LiveProductionMonitor({
     Boolean(ws?.hasPermission?.('production.release')) ||
     Boolean(ws?.hasPermission?.('operations.manage')) ||
     Boolean(ws?.hasPermission?.('production.manage'));
+  /** Backend `admin-force-recall` is admin role only (allowed even when the register is view-only for Completed). */
+  const isAdminUser =
+    String(ws?.session?.user?.roleKey || ws?.session?.user?.role_key || '')
+      .trim()
+      .toLowerCase() === 'admin';
+  const canAdminForceRecall =
+    isAdminUser &&
+    !viewOnly &&
+    Boolean(selectedJob?.jobID) &&
+    (jobSt === 'Planned' || jobSt === 'Running' || jobSt === 'Completed');
 
   const openRecallEntry = useCallback(() => {
     if (viewOnly) {
@@ -2275,6 +2290,48 @@ export function LiveProductionMonitor({
       showToast(e?.message || 'Network error.', { variant: 'error' });
     } finally {
       setReturnSaving(false);
+    }
+  };
+
+  const submitAdminForceRecall = async () => {
+    if (!selectedJob?.jobID) return;
+    if (!isAdminUser) {
+      showToast('Only an administrator can remove a job and its cutting list this way.', {
+        variant: 'error',
+      });
+      return;
+    }
+    const reason = forceRecallReason.trim();
+    if (reason.length < 12) {
+      showToast('Enter a detailed reason (at least 12 characters) for the audit trail.', {
+        variant: 'error',
+      });
+      return;
+    }
+    if (!ws?.canMutate) {
+      showToast('Reconnect to apply changes — workspace is read-only.', { variant: 'error' });
+      return;
+    }
+    const path = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}/admin-force-recall`;
+    setForceRecallSaving(true);
+    try {
+      const { ok, data } = await apiFetch(path, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not remove this job and cutting list.', { variant: 'error' });
+        return;
+      }
+      setForceRecallModalOpen(false);
+      setForceRecallReason('');
+      await refreshAfterWrite(data);
+      showToast('Job and cutting list removed. Stock restored where this job had drawn supply.');
+      if (typeof onModalClose === 'function') onModalClose();
+    } catch (e) {
+      showToast(e?.message || 'Network error.', { variant: 'error' });
+    } finally {
+      setForceRecallSaving(false);
     }
   };
 
@@ -3644,6 +3701,21 @@ export function LiveProductionMonitor({
                       {jobSt === 'Completed' ? 'Fix wrong entry' : 'Recall entry'}
                     </button>
                   ) : null}
+                  {canAdminForceRecall ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForceRecallReason('');
+                        setForceRecallModalOpen(true);
+                      }}
+                      disabled={savingAction !== '' || forceRecallSaving || cancelSaving || returnSaving}
+                      title="Admin only: restore supply and delete this job plus its cutting list (duplicate / wrong entry)."
+                      className="inline-flex items-center gap-1 rounded-md border border-rose-400 bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-950 hover:bg-rose-200 disabled:opacity-45"
+                    >
+                      <Ban size={13} />
+                      Remove job & list
+                    </button>
+                  ) : null}
                   {jobSt === 'Planned' || jobSt === 'Running' ? (
                     <button
                       type="button"
@@ -3752,7 +3824,24 @@ export function LiveProductionMonitor({
           <p className="text-ui-xs font-black uppercase tracking-widest text-violet-900/90">Fix wrong entry</p>
           <p className="mt-1 text-xs leading-snug text-violet-950/95">
             Edit the fields above, then use the matching Save correction action (reason required).
+            {canAdminForceRecall
+              ? ' If this whole job was registered twice by mistake, use Remove job & list instead.'
+              : null}
           </p>
+          {canAdminForceRecall ? (
+            <button
+              type="button"
+              className="mt-2 mr-3 inline-flex items-center gap-1 rounded-md border border-rose-400 bg-rose-100 px-2 py-1 text-ui-xs font-semibold text-rose-950 hover:bg-rose-200"
+              onClick={() => {
+                setForceRecallReason('');
+                setForceRecallModalOpen(true);
+              }}
+              disabled={forceRecallSaving}
+            >
+              <Ban size={12} />
+              Remove job & list
+            </button>
+          ) : null}
           <button
             type="button"
             className="mt-2 text-ui-xs font-semibold text-violet-800 underline-offset-2 hover:underline"
@@ -5416,6 +5505,21 @@ export function LiveProductionMonitor({
                   Fix wrong entry
                 </button>
               ) : null}
+              {canAdminForceRecall ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForceRecallReason('');
+                    setForceRecallModalOpen(true);
+                  }}
+                  disabled={forceRecallSaving}
+                  title="Admin only: restore supply and delete this job plus its cutting list."
+                  className={`${PROD_REG.btnBase} border border-rose-400 bg-rose-100 text-rose-950 hover:bg-rose-200`}
+                >
+                  <Ban size={14} />
+                  Remove job & list
+                </button>
+              ) : null}
             </div>
           ) : (
             <div className={PROD_REG.actionCluster}>
@@ -5565,6 +5669,20 @@ export function LiveProductionMonitor({
                       {jobSt === 'Completed' ? 'Fix wrong entry' : 'Recall entry'}
                     </button>
                   ) : null}
+                  {canAdminForceRecall ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForceRecallReason('');
+                        setForceRecallModalOpen(true);
+                      }}
+                      disabled={savingAction !== '' || forceRecallSaving || cancelSaving || returnSaving}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-left text-ui-xs font-semibold text-rose-950 hover:bg-rose-50 disabled:opacity-45"
+                    >
+                      <Ban size={12} />
+                      Remove job & list
+                    </button>
+                  ) : null}
                   {canRecalculateJobStock ? (
                     <button
                       type="button"
@@ -5646,6 +5764,20 @@ export function LiveProductionMonitor({
           setRecallModalIntent(false);
         }}
         onConfirm={submitCancelJob}
+      />
+
+      <LiveProductionMonitorForceRecallModal
+        open={forceRecallModalOpen}
+        reason={forceRecallReason}
+        saving={forceRecallSaving}
+        jobId={selectedJob?.jobID || ''}
+        cuttingListId={selectedJob?.cuttingListId || selectedJob?.cutting_list_id || ''}
+        onReasonChange={setForceRecallReason}
+        onClose={() => {
+          setForceRecallModalOpen(false);
+          setForceRecallReason('');
+        }}
+        onConfirm={submitAdminForceRecall}
       />
 
       {correctionModalKind ? (

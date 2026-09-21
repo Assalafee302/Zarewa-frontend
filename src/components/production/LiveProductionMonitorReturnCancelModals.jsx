@@ -176,3 +176,88 @@ export function LiveProductionMonitorCancelModal({
     </div>
   );
 }
+
+/**
+ * Admin-only: reverse completed/open supply, delete the production job and its cutting list
+ * (duplicate stone-coated / wrong-entry cleanup).
+ *
+ * @param {{
+ *   open: boolean;
+ *   reason: string;
+ *   saving: boolean;
+ *   jobId?: string;
+ *   cuttingListId?: string;
+ *   onReasonChange: (v: string) => void;
+ *   onClose: () => void;
+ *   onConfirm: () => void | Promise<void>;
+ * }} props
+ */
+export function LiveProductionMonitorForceRecallModal({
+  open,
+  reason,
+  saving,
+  jobId = '',
+  cuttingListId = '',
+  onReasonChange,
+  onClose,
+  onConfirm,
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[var(--z-layer-modal)] flex items-center justify-center bg-slate-900/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-force-recall-title"
+    >
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-rose-300 bg-white p-4 shadow-xl">
+        <h4 id="admin-force-recall-title" className="text-sm font-bold text-rose-950">
+          Remove this job & cutting list?
+        </h4>
+        <p className="mt-2 text-xs leading-snug text-slate-600">
+          Admin cleanup for a <strong className="font-semibold">duplicate or wrong</strong> production
+          entry. This restores stone/coil/accessory stock when the job was completed, then{' '}
+          <strong className="font-semibold">deletes the production job</strong> and its{' '}
+          <strong className="font-semibold">cutting list</strong>. Keep the correct registration —
+          only remove the extra one.
+        </p>
+        {(jobId || cuttingListId) ? (
+          <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 font-mono text-ui-xs text-slate-700">
+            {jobId ? <span>Job {jobId}</span> : null}
+            {jobId && cuttingListId ? <span> · </span> : null}
+            {cuttingListId ? <span>List {cuttingListId}</span> : null}
+          </p>
+        ) : null}
+        <label className="mt-3 block text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+          Reason (≥12 characters)
+        </label>
+        <textarea
+          value={reason}
+          onChange={(e) => onReasonChange(e.target.value)}
+          rows={3}
+          className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-rose-200"
+          placeholder="e.g. Duplicate stone-coated production registered twice — remove wrong job and cutting list."
+        />
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            disabled={saving || reason.trim().length < 12}
+            onClick={() => void onConfirm()}
+            className="rounded-md bg-rose-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-900 disabled:opacity-45"
+          >
+            {saving ? 'Removing…' : 'Remove job & cutting list'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
