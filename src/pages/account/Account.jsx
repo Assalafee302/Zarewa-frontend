@@ -2330,7 +2330,10 @@ const Account = () => {
       const hasUsableCredit = Number(eligible.totalAvailableNgn) > 0;
       const hasUnavailable =
         Array.isArray(eligible.unavailableSources) && eligible.unavailableSources.length > 0;
-      if (!hasUsableCredit && !hasUnavailable) {
+      const hasPriorReleases =
+        Array.isArray(eligible.priorConfirmPaymentReleases) &&
+        eligible.priorConfirmPaymentReleases.length > 0;
+      if (!hasUsableCredit && !hasUnavailable && !hasPriorReleases) {
         setCashierRefundCreditInfo(null);
         setApplyRefundOnConfirm(false);
         setSelectedRefundSourceIds([]);
@@ -5550,6 +5553,38 @@ const Account = () => {
                         String(receiptFinanceRow.customerID || '').trim()
                       )}
                     />
+
+                    {Array.isArray(cashierRefundCreditInfo?.priorConfirmPaymentReleases) &&
+                    cashierRefundCreditInfo.priorConfirmPaymentReleases.length > 0 ? (
+                      <div
+                        className="rounded-xl border border-sky-300 bg-sky-50 px-3 py-2.5 text-ui-xs text-sky-950 space-y-1.5"
+                        role="status"
+                      >
+                        <p className="font-bold text-sky-950">Why this quotation needs cash/bank again</p>
+                        <p className="text-sky-900/90 leading-relaxed">
+                          Confirm-payment credit that previously covered this job was released so an overpayment
+                          refund could be paid from till/bank. Use the reason below when you re-confirm.
+                        </p>
+                        <ul className="space-y-1.5">
+                          {cashierRefundCreditInfo.priorConfirmPaymentReleases.map((rel) => (
+                            <li
+                              key={rel.applicationId || `${rel.releasedForRefundId}-${rel.reversedAtISO}`}
+                              className="rounded-lg border border-sky-200 bg-white/80 px-2.5 py-2 text-sky-950"
+                            >
+                              <p className="font-semibold leading-snug">{rel.reverseReason}</p>
+                              <p className="mt-1 text-sky-800/90 tabular-nums">
+                                {formatNgn(rel.amountNgn)}
+                                {rel.releasedForRefundId ? ` · refund ${rel.releasedForRefundId}` : ''}
+                                {rel.reversedByName ? ` · by ${rel.reversedByName}` : ''}
+                                {rel.reversedAtISO
+                                  ? ` · ${String(rel.reversedAtISO).slice(0, 10)}`
+                                  : ''}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
 
                     {cashierRefundCreditLoading ? (
                       <p className="text-ui-xs text-slate-500">Checking overpay and refund fund…</p>
