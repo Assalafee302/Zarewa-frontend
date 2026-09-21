@@ -88,4 +88,57 @@ describe('SalesCustomersTab', () => {
     );
     expect(await screen.findByText(/could not load customers/i)).toBeTruthy();
   });
+
+  it('ranks Network Intel paid revenue from quotation paidNgn, not quoted totals', async () => {
+    const recentISO = new Date().toISOString().slice(0, 10);
+    apiFetch.mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        customers: [
+          CUSTOMER,
+          {
+            customerID: 'CUS-KD-26-0002',
+            name: 'Big Quote Unpaid',
+            phoneNumber: '08099999999',
+            email: '',
+            status: 'active',
+            tier: 'standard',
+          },
+        ],
+        total: 2,
+      },
+    });
+
+    renderWithProviders(
+      withRouter(
+        <SalesCustomersTab
+          searchQuery=""
+          onSearchChange={() => {}}
+          quotations={[
+            {
+              customerID: 'CUS-KD-26-0001',
+              dateISO: recentISO,
+              totalNgn: 100_000,
+              paidNgn: 80_000,
+            },
+            {
+              customerID: 'CUS-KD-26-0002',
+              dateISO: recentISO,
+              totalNgn: 5_000_000,
+              paidNgn: 0,
+            },
+          ]}
+          receipts={[]}
+          cuttingLists={[]}
+        />
+      )
+    );
+
+    expect(await screen.findAllByText('Amina Traders')).toBeTruthy();
+    // Network Intel + list amount use paid (₦80k), not quoted total; unpaid ₦5M excluded.
+    expect(screen.getAllByText('₦80,000').length).toBe(2);
+    expect(screen.queryByText('₦5,000,000')).toBeNull();
+    expect(screen.queryByText('₦100,000')).toBeNull();
+  });
 });

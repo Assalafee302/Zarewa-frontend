@@ -64,8 +64,13 @@ const CUSTOMER_SORT_FIELDS = [
   { id: 'customerID', label: 'Customer ID' },
   { id: 'tier', label: 'Tier' },
   { id: 'phoneNumber', label: 'Phone' },
-  { id: 'revenue', label: 'Total revenue' },
+  { id: 'revenue', label: 'Paid revenue' },
 ];
+
+/** Booked cash on a quotation — unpaid quotes contribute 0. */
+function quotationPaidNgn(q) {
+  return Math.max(0, Math.round(Number(q?.paidNgn ?? q?.paid_ngn) || 0));
+}
 
 export default function SalesCustomersTab({
   searchQuery,
@@ -109,12 +114,14 @@ export default function SalesCustomersTab({
     }
   };
 
-  /** Calculate total spend per customer for sorting */
+  /** Paid revenue per customer (sum of quotation paidNgn — not quoted totals). */
   const customerRevenue = useMemo(() => {
     const rev = new Map();
-    quotations.forEach(q => {
+    quotations.forEach((q) => {
       if (!q.customerID) return;
-      rev.set(q.customerID, (rev.get(q.customerID) || 0) + (q.totalNgn || 0));
+      const paid = quotationPaidNgn(q);
+      if (paid <= 0) return;
+      rev.set(q.customerID, (rev.get(q.customerID) || 0) + paid);
     });
     return rev;
   }, [quotations]);
@@ -172,8 +179,10 @@ export default function SalesCustomersTab({
     const byCustomer = new Map();
     quotations.forEach((q) => {
       if (!q.customerID || !q.dateISO || q.dateISO < ciso) return;
+      const paid = quotationPaidNgn(q);
+      if (paid <= 0) return;
       const cur = byCustomer.get(q.customerID) || { spend: 0, meters: 0 };
-      cur.spend += q.totalNgn || 0;
+      cur.spend += paid;
       byCustomer.set(q.customerID, cur);
     });
     cuttingLists.forEach((cl) => {
@@ -220,7 +229,7 @@ export default function SalesCustomersTab({
             <div className="space-y-6">
               <section>
                 <p className="text-ui-xs font-black text-slate-400 uppercase flex items-center gap-2 mb-3 tracking-widest">
-                  <TrendingUp size={14} className="text-teal-500" /> Revenue
+                  <TrendingUp size={14} className="text-teal-500" /> Paid revenue
                 </p>
                 {insights.topSpend.length === 0 ? (
                   <p className="text-ui-xs text-slate-300 italic">No activity</p>
