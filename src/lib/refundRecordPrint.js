@@ -484,8 +484,17 @@ function formatRefundPrintDate(isoOrDate) {
   return formatRefundPrintDateTime(raw);
 }
 
-function densityClass(lineCount, hasSubs) {
-  const weight = lineCount + (hasSubs ? 2 : 0);
+/**
+ * Pick tighter CSS density from how much content the voucher must carry.
+ * Runtime fitSheet still scales further if needed.
+ */
+function densityClass({ lineCount = 0, hasSubs = false, splitCount = 0, noteLen = 0 } = {}) {
+  const weight =
+    Number(lineCount) +
+    (hasSubs ? 2 : 0) +
+    Math.max(0, Number(splitCount) - 1) +
+    (noteLen > 180 ? 2 : noteLen > 80 ? 1 : 0);
+  if (weight >= 10) return 'density-ultra';
   if (weight >= 7) return 'density-packed';
   if (weight >= 4) return 'density-tight';
   return 'density-normal';
@@ -577,7 +586,12 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
         : 'Till due now'
       : 'Till due now';
   const companyLegal = ZAREWA_COMPANY_ACCOUNT_NAME;
-  const dens = densityClass(lines.length, hasSubs);
+  const dens = densityClass({
+    lineCount: lines.length,
+    hasSubs,
+    splitCount: splits.length,
+    noteLen: reasonText.length + calcNotes.length + managerComments.length,
+  });
 
   const rowsHtml = lines.length
     ? lines
@@ -782,20 +796,38 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     width: 210mm;
     height: 148.5mm;
     max-height: 148.5mm;
-    padding: 3mm 4.5mm 2mm;
-    display: flex;
-    flex-direction: column;
     overflow: hidden;
     page-break-inside: avoid;
     break-inside: avoid;
+    position: relative;
+  }
+  /* Inner fit box grows naturally; JS scales it into the fixed A5 sheet. */
+  .sheet-fit {
+    width: 100%;
+    padding: 3mm 4.5mm 2mm;
+    display: flex;
+    flex-direction: column;
     transform-origin: top left;
   }
-  .sheet.density-tight { font-size: 9.5pt; }
-  .sheet.density-packed { font-size: 9pt; }
+  .sheet.density-tight .sheet-fit { font-size: 9.5pt; line-height: 1.16; padding: 2.4mm 4mm 1.6mm; }
+  .sheet.density-packed .sheet-fit { font-size: 8.5pt; line-height: 1.12; padding: 2mm 3.5mm 1.4mm; }
+  .sheet.density-ultra .sheet-fit { font-size: 7.5pt; line-height: 1.08; padding: 1.6mm 3mm 1.2mm; }
   .sheet.density-tight .sig,
-  .sheet.density-packed .sig { min-height: 11mm; padding: 1mm; }
-  .sheet.density-packed h1 { font-size: 13pt; }
-  .sheet.density-packed .badge-amt { font-size: 14pt; }
+  .sheet.density-packed .sig,
+  .sheet.density-ultra .sig { min-height: 9mm; padding: 0.8mm; }
+  .sheet.density-packed h1,
+  .sheet.density-ultra h1 { font-size: 12pt; }
+  .sheet.density-packed .badge-amt,
+  .sheet.density-ultra .badge-amt { font-size: 12pt; }
+  .sheet.density-ultra th, .sheet.density-ultra td { padding: 0.35mm 0.8mm; }
+  .sheet.density-ultra .meta { font-size: 8pt; gap: 0.2mm 1.5mm; }
+  .sheet.density-ultra .sigs { gap: 1.2mm; margin-top: 0.6mm; }
+  .sheet.density-ultra .sig-name { font-size: 8pt; }
+  .sheet.density-ultra .tiny { font-size: 6.5pt; }
+  .sheet.density-packed .main-cols,
+  .sheet.density-ultra .main-cols { gap: 2mm; }
+  .sheet.density-packed h2,
+  .sheet.density-ultra h2 { margin-bottom: 0.3mm; font-size: 8pt; }
   .cut-guide {
     height: 0;
     border-top: 1.5px dashed #334155;
@@ -902,11 +934,9 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     gap: 3mm;
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
   }
   .col-calc, .col-side {
     min-height: 0;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
   }
@@ -1059,6 +1089,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
 </style></head><body>
   <div class="a4-host">
     <div class="sheet ${dens}" id="refund-a5-sheet">
+      <div class="sheet-fit" id="refund-a5-fit">
       <header>
         <div class="brand-row">
           <div>
@@ -1138,6 +1169,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
         </div>
       </div>
       <div class="foot">A5 landscape on A4 · Cut on dashed line · File behind cutting list</div>
+      </div>
     </div>
     <div class="cut-guide" aria-hidden="true"></div>
     <div class="a4-spare" aria-hidden="true"></div>
@@ -1146,17 +1178,24 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     (function () {
       function fitSheet() {
         var sheet = document.getElementById('refund-a5-sheet');
-        if (!sheet) return;
-        sheet.style.transform = '';
+        var fit = document.getElementById('refund-a5-fit');
+        if (!sheet || !fit) return;
+        fit.style.transform = '';
+        fit.style.width = '100%';
+        // Natural height of full voucher content (outer sheet clips; measure the inner fit box).
         var maxH = sheet.clientHeight || 0;
-        var need = sheet.scrollHeight || 0;
+        var need = Math.max(fit.scrollHeight || 0, fit.offsetHeight || 0);
         if (!maxH || need <= maxH + 1) return;
-        var scale = Math.max(0.78, Math.min(1, maxH / need));
-        sheet.style.transform = 'scale(' + scale.toFixed(4) + ')';
+        // Scale down to fit A5; widen first so after scale the content still fills sheet width.
+        var scale = Math.max(0.5, Math.min(1, maxH / need));
+        fit.style.width = (100 / scale).toFixed(4) + '%';
+        fit.style.transform = 'scale(' + scale.toFixed(4) + ')';
       }
       fitSheet();
       window.addEventListener('beforeprint', fitSheet);
+      window.addEventListener('resize', fitSheet);
       setTimeout(fitSheet, 50);
+      setTimeout(fitSheet, 200);
     })();
   </script>
 </body></html>`;

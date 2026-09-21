@@ -132,6 +132,65 @@ describe('buildRefundRecordPrintHtml', () => {
     expect(html).toContain('Unproduced metres');
     expect(html).not.toContain('Excluded draft');
     expect(html).toContain('fitSheet');
+    expect(html).toContain('refund-a5-fit');
+    expect(html).toContain('sheet-fit');
+    expect(html).toContain('Math.max(0.5');
+  });
+
+  it('uses ultra density when many refund types and notes would overflow', () => {
+    const lines = [
+      { label: 'Unproduced metres (10m @ ₦5,000)', category: 'Unproduced meterage', amountNgn: 50_000 },
+      { label: 'Overpayment on QT-1', category: 'Overpayment', amountNgn: 35_000 },
+      { label: 'MD discount (120m @ ₦100/m)', category: 'MD discount', amountNgn: 12_000 },
+      { label: 'Commission (50m @ ₦200/m)', category: 'Customer commission', amountNgn: 10_000 },
+      { label: 'Substitution credit', category: 'Substitution Difference', amountNgn: 28_000 },
+      { label: 'Order cancel balance', category: 'Order cancellation', amountNgn: 5_000 },
+      { label: 'Other credit', category: 'Other', amountNgn: 3_000 },
+    ];
+    const html = buildRefundRecordPrintHtml(
+      {
+        refundID: 'RF-KD-26-1999',
+        status: 'Approved',
+        amountNgn: 143_000,
+        approvedAmountNgn: 143_000,
+        reasonCategory: lines.map((l) => l.category),
+        reasonNotes: 'A'.repeat(100),
+        calculationNotes: 'B'.repeat(100),
+        calculationLines: lines,
+        previewSnapshot: {
+          substitutionPerMeterBreakdown: [
+            {
+              productName: 'Longspan',
+              meters: 10,
+              quotedPricePerMeterNgn: 8500,
+              quotedFloorPricePerMeterNgn: 5700,
+              deltaPerMeterNgn: 2800,
+              creditNgn: 28_000,
+            },
+          ],
+        },
+        splitDistributions: [
+          {
+            recipientKind: 'customer',
+            payeeName: 'Customer',
+            payeeAccountNo: '111',
+            amountNgn: 100_000,
+            netPayoutNgn: 100_000,
+          },
+          {
+            recipientKind: 'associated_staff',
+            payeeName: 'Staff',
+            payeeAccountNo: '222',
+            amountNgn: 43_000,
+            netPayoutNgn: 40_000,
+            companyCutNgn: 3_000,
+          },
+        ],
+      },
+      formatNgn
+    );
+    expect(html).toContain('density-ultra');
+    expect(html).toContain('refund-a5-fit');
   });
 
   it('lists split payees with account numbers', () => {
