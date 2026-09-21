@@ -333,7 +333,7 @@ export function AccountTabPanels() {
                       <FinanceReceiptsClearanceTable
                         tone="emerald"
                         title="Confirmed"
-                        description="Receipts already confirmed and reconciled by finance."
+                        description="Receipts already confirmed and reconciled by finance. Open to revise amounts or unconfirm a mistaken confirmation."
                         listWindow={receiptsListWindow}
                         onPrev={() => setConfirmedReceiptsPage((p) => Math.max(0, p - 1))}
                         onNext={() => setConfirmedReceiptsPage((p) => p + 1)}

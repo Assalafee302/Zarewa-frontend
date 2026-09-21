@@ -6066,7 +6066,8 @@ const Account = () => {
                   {receiptReverseBusy ? 'Reversing…' : 'Reverse mistaken receipt'}
                 </button>
               ) : null}
-              {receiptFinanceRow?.financeReconciliationSavedAtISO &&
+              {(receiptFinanceRow?.financeReconciliationSavedAtISO ||
+                receiptFinanceRow?.bankConfirmedAtISO) &&
               (ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('finance.post')) ? (
                 <button
                   type="button"
