@@ -74,6 +74,8 @@ export const SHARED_SYNC_PAIRS = [
   ['shared/lib/refundCreditApply.js', 'src/shared/lib/refundCreditApply.js'],
   ['shared/lib/customerLedgerCore.js', 'src/shared/lib/customerLedgerCore.js'],
   ['shared/lib/managementQueueFilters.js', 'src/shared/lib/managementQueueFilters.js'],
+  ['shared/lib/accountsExpenseTabs.js', 'src/shared/lib/accountsExpenseTabs.js'],
+  ['shared/lib/paymentRequestStatus.js', 'src/shared/lib/paymentRequestStatus.js'],
   ['shared/lib/managementQueueCounts.js', 'src/shared/lib/managementQueueCounts.js'],
   ['shared/lib/helpZareBriefing.js', 'src/shared/lib/helpZareBriefing.js'],
   ['shared/lib/stockRegisterCore.js', 'src/shared/lib/stockRegisterCore.js'],

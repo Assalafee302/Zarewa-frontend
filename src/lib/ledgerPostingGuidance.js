@@ -46,7 +46,7 @@ export function promptUnlinkedBankTillOverride(data) {
   const matches = (Array.isArray(data?.similarUnlinkedDeposits) ? data.similarUnlinkedDeposits : [])
     .slice(0, 8)
     .map((d) => {
-      const amt = Number(d.remainingNgn ?? d.amountNgn || 0).toLocaleString('en-NG');
+      const amt = Number((d.remainingNgn ?? d.amountNgn) || 0).toLocaleString('en-NG');
       return `- ${d.id || 'bank'} · ₦${amt} · ${d.bankDateISO || ''}`.trim();
     })
     .join('\n');
