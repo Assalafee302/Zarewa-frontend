@@ -15,6 +15,7 @@ import {
   CASHIER_UNCLEARED_HOLD_OVERRIDE_MAX_NGN,
   actorMayOverrideRefundUnclearedPayoutHold as actorMayOverrideRefundUnclearedPayoutHoldShared,
 } from '../shared/lib/refundUnclearedPayoutHold.js';
+import { refundCreditApplicationIsActive } from './refundFundApply.js';
 
 export { CASHIER_UNCLEARED_HOLD_OVERRIDE_MAX_NGN };
 
@@ -1051,7 +1052,9 @@ export function buildRefundPayoutSituationBrief(refund) {
 }
 
 /**
- * Remaining overpayment on the quote after other refunds. 0 means do not pay more cash.
+ * Remaining overpayment on the quote after other refunds. 0 means do not pay more cash
+ * unless confirm-payment credit on this quote can be released (see
+ * {@link refundCashierReleasableOverpayCredits} / {@link refundCashierOverpayTillGate}).
  * @param {number} [creditAppliedOutNgn] overpayment already redirected as credit to another
  *   quotation (not via a refund record) — from GET /api/refunds/intelligence. The server's
  *   pay-time check subtracts this; omitting it here can show a live "Pay" button the server
@@ -1070,6 +1073,79 @@ export function refundCashierOverpayResidualNgn({
     overpaymentAlreadyRefundedNgn: overpaymentAlreadyRefundedNgn(refunds, excludeRefundId),
     creditAppliedOutNgn,
   });
+}
+
+/**
+ * Active credit applies that took overpayment from this quotation (Confirm payment / leftover).
+ * Prefer settlementSummary from the API when present.
+ * @param {{
+ *   sourceQuotationRef?: string,
+ *   applications?: object[],
+ *   settlementSummary?: object | null,
+ * }} [p]
+ */
+export function refundCashierReleasableOverpayCredits({
+  sourceQuotationRef,
+  applications,
+  settlementSummary,
+} = {}) {
+  const fromServer = settlementSummary?.releasableOverpayCreditApplications;
+  if (Array.isArray(fromServer) && fromServer.length > 0) {
+    return fromServer
+      .map((a) => ({
+        applicationId: String(a.applicationId || a.application_id || '').trim(),
+        amountNgn: Math.round(Number(a.amountNgn ?? a.amount_ngn) || 0),
+        targetQuotationRef: String(a.targetQuotationRef || a.target_quotation_ref || '').trim(),
+        sourceReceiptId: a.sourceReceiptId || a.source_receipt_id || null,
+        refundId: a.refundId || a.refund_id || null,
+      }))
+      .filter((a) => a.amountNgn > 0);
+  }
+  const qref = String(sourceQuotationRef || '').trim();
+  if (!qref) return [];
+  const list = Array.isArray(applications) ? applications : [];
+  return list
+    .filter((a) => {
+      if (!refundCreditApplicationIsActive(a)) return false;
+      const src = String(a.sourceQuotationRef || a.source_quotation_ref || '').trim();
+      return src === qref;
+    })
+    .map((a) => ({
+      applicationId: String(a.applicationId || a.application_id || '').trim(),
+      amountNgn: Math.round(Number(a.amountNgn ?? a.amount_ngn) || 0),
+      targetQuotationRef: String(a.targetQuotationRef || a.target_quotation_ref || '').trim(),
+      sourceReceiptId: a.sourceReceiptId || a.source_receipt_id || null,
+      refundId: a.refundId || a.refund_id || null,
+    }))
+    .filter((a) => a.amountNgn > 0);
+}
+
+/**
+ * Till/bank gate for overpayment refunds.
+ * When residual is short but confirm-payment credit still sits on this quote, allow pay —
+ * the server undoes those confirmations first, then posts treasury.
+ * @returns {{ blockCashPayout: boolean, willReleaseOverpayCreditOnPay: boolean, releasableCredits: object[] }}
+ */
+export function refundCashierOverpayTillGate({
+  looksOverpay,
+  cashDueNgn,
+  overpayResidualNgn,
+  releasableCredits,
+} = {}) {
+  const due = Math.round(Number(cashDueNgn) || 0);
+  const residual = Math.round(Number(overpayResidualNgn) || 0);
+  const credits = Array.isArray(releasableCredits) ? releasableCredits : [];
+  if (!looksOverpay || due <= 0 || residual >= due) {
+    return { blockCashPayout: false, willReleaseOverpayCreditOnPay: false, releasableCredits: credits };
+  }
+  if (credits.length > 0) {
+    return {
+      blockCashPayout: false,
+      willReleaseOverpayCreditOnPay: true,
+      releasableCredits: credits,
+    };
+  }
+  return { blockCashPayout: true, willReleaseOverpayCreditOnPay: false, releasableCredits: credits };
 }
 
 export function refundCashierCustomerName(refund, quote) {

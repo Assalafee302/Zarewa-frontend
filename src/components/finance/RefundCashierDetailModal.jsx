@@ -11,7 +11,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { flattenQuotationLineItems } from '../../lib/managerDashboardCore';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
 import { refundStatusIsWithdrawn, refundPublicStatusLabel } from '../../lib/refundsStore';
-import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn, refundDefaultTreasuryPayoutNgn, refundRecipientTillPayoutRows, actorMayOverrideRefundUnclearedPayoutHold } from '../../lib/refundCashierDetail';
+import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn, refundCashierReleasableOverpayCredits, refundCashierOverpayTillGate, refundDefaultTreasuryPayoutNgn, refundRecipientTillPayoutRows, actorMayOverrideRefundUnclearedPayoutHold } from '../../lib/refundCashierDetail';
 import { refundCreditApplicationIsActive } from '../../lib/refundFundApply.js';
 import { printRefundRecord } from '../../lib/refundRecordPrint.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
@@ -126,7 +126,23 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
     String(refund?.reasonCategory || refund?.reason_category || '').toLowerCase().includes('overpay') ||
     (Array.isArray(refund?.calculationLines) &&
       refund.calculationLines.some((l) => String(l?.category || '').toLowerCase().includes('overpay')));
-  const blockCashPayout = Boolean(looksOverpay && story.cashDueNgn > 0 && overpayResidualNgn < story.cashDueNgn);
+  const releasableOverpayCredits = useMemo(
+    () =>
+      refundCashierReleasableOverpayCredits({
+        sourceQuotationRef: qref,
+        applications: ws?.snapshot?.refundCreditApplications,
+        settlementSummary: refund?.settlementSummary,
+      }),
+    [qref, ws?.snapshot?.refundCreditApplications, refund?.settlementSummary]
+  );
+  const overpayTillGate = refundCashierOverpayTillGate({
+    looksOverpay,
+    cashDueNgn: story.cashDueNgn,
+    overpayResidualNgn,
+    releasableCredits: releasableOverpayCredits,
+  });
+  const blockCashPayout = overpayTillGate.blockCashPayout;
+  const willReleaseOverpayCreditOnPay = overpayTillGate.willReleaseOverpayCreditOnPay;
   const defaultPayoutNgn = useMemo(
     () =>
       refundDefaultTreasuryPayoutNgn(refund, null, {
@@ -378,6 +394,17 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
               Do not pay this from the till. Overpayment left on the quotation is {formatNgn(overpayResidualNgn)} after
               other refunds on this quote. Paying {formatNgn(story.cashDueNgn)} would double-pay the customer.
             </div>
+          ) : willReleaseOverpayCreditOnPay ? (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-950 leading-relaxed" role="status">
+              Overpayment left on this quotation is {formatNgn(overpayResidualNgn)} because{' '}
+              {formatNgn(releasableOverpayCredits.reduce((s, a) => s + a.amountNgn, 0))} was used to confirm another
+              receipt
+              {releasableOverpayCredits.some((a) => a.targetQuotationRef)
+                ? ` (${[...new Set(releasableOverpayCredits.map((a) => a.targetQuotationRef).filter(Boolean))].join(', ')})`
+                : ''}
+              . Paying {formatNgn(story.cashDueNgn)} will undo those confirmations first, then post till/bank. The other
+              quotation may show unpaid again.
+            </div>
           ) : null}
 
           <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 space-y-2">
@@ -493,9 +520,11 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                 ? `Release wallet ${formatNgn(walletOpenNgn)}`
                 : walletOpenNgn > 0
                   ? `Release ${formatNgn(defaultPayoutNgn + walletOpenNgn)}`
-                  : `Pay ${formatNgn(defaultPayoutNgn)}${
-                      tillDuePayeeCount > 1 ? ' (this payee)' : tillDuePayeeCount === 1 ? '' : ' (customer)'
-                    }`
+                  : willReleaseOverpayCreditOnPay
+                    ? `Undo credit & pay ${formatNgn(defaultPayoutNgn)}`
+                    : `Pay ${formatNgn(defaultPayoutNgn)}${
+                        tillDuePayeeCount > 1 ? ' (this payee)' : tillDuePayeeCount === 1 ? '' : ' (customer)'
+                      }`
               : 'Save'
           }
         />

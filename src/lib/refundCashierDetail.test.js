@@ -7,6 +7,8 @@ import {
   refundCashierCustomerName,
   refundCashierMoneyStory,
   refundCashierOverpayResidualNgn,
+  refundCashierOverpayTillGate,
+  refundCashierReleasableOverpayCredits,
   refundDefaultTreasuryPayoutNgn,
   refundPayeePayoutCaution,
   refundPayeePayoutQueueLines,
@@ -591,6 +593,61 @@ describe('refundCashierOverpayResidualNgn', () => {
       refunds: [],
     });
     expect(residual).toBe(200_000);
+  });
+});
+
+describe('refundCashierOverpayTillGate', () => {
+  it('blocks when residual is short and no releasable confirm-payment credit', () => {
+    const gate = refundCashierOverpayTillGate({
+      looksOverpay: true,
+      cashDueNgn: 47_450,
+      overpayResidualNgn: 0,
+      releasableCredits: [],
+    });
+    expect(gate.blockCashPayout).toBe(true);
+    expect(gate.willReleaseOverpayCreditOnPay).toBe(false);
+  });
+
+  it('allows pay when residual is short but confirm-payment credit can be undone', () => {
+    const gate = refundCashierOverpayTillGate({
+      looksOverpay: true,
+      cashDueNgn: 47_450,
+      overpayResidualNgn: 0,
+      releasableCredits: [
+        { applicationId: 'RCA-1', amountNgn: 47_450, targetQuotationRef: 'QT-OTHER' },
+      ],
+    });
+    expect(gate.blockCashPayout).toBe(false);
+    expect(gate.willReleaseOverpayCreditOnPay).toBe(true);
+  });
+
+  it('lists releasable credits from settlement summary first', () => {
+    const credits = refundCashierReleasableOverpayCredits({
+      sourceQuotationRef: 'QT-SRC',
+      applications: [
+        {
+          applicationId: 'snap-1',
+          sourceQuotationRef: 'QT-SRC',
+          targetQuotationRef: 'QT-DST',
+          amountNgn: 10_000,
+          status: 'Credit confirmation',
+        },
+      ],
+      settlementSummary: {
+        releasableOverpayCreditApplications: [
+          { applicationId: 'api-1', amountNgn: 40_000, targetQuotationRef: 'QT-DST' },
+        ],
+      },
+    });
+    expect(credits).toEqual([
+      {
+        applicationId: 'api-1',
+        amountNgn: 40_000,
+        targetQuotationRef: 'QT-DST',
+        sourceReceiptId: null,
+        refundId: null,
+      },
+    ]);
   });
 });
 
