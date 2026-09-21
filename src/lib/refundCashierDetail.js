@@ -1124,6 +1124,8 @@ export function refundCashierReleasableOverpayCredits({
  * Till/bank gate for overpayment refunds.
  * When residual is short but confirm-payment credit still sits on this quote, allow pay —
  * the server undoes those confirmations first, then posts treasury.
+ * Only unlock when released credit plus residual can cover the cash due (avoids undoing
+ * confirmations and still failing pay).
  * @returns {{ blockCashPayout: boolean, willReleaseOverpayCreditOnPay: boolean, releasableCredits: object[] }}
  */
 export function refundCashierOverpayTillGate({
@@ -1138,7 +1140,8 @@ export function refundCashierOverpayTillGate({
   if (!looksOverpay || due <= 0 || residual >= due) {
     return { blockCashPayout: false, willReleaseOverpayCreditOnPay: false, releasableCredits: credits };
   }
-  if (credits.length > 0) {
+  const freeableNgn = credits.reduce((sum, a) => sum + Math.round(Number(a?.amountNgn) || 0), 0);
+  if (freeableNgn > 0 && residual + freeableNgn >= due) {
     return {
       blockCashPayout: false,
       willReleaseOverpayCreditOnPay: true,

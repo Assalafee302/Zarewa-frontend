@@ -621,6 +621,19 @@ describe('refundCashierOverpayTillGate', () => {
     expect(gate.willReleaseOverpayCreditOnPay).toBe(true);
   });
 
+  it('still blocks when releasable credit is less than the till shortfall', () => {
+    const gate = refundCashierOverpayTillGate({
+      looksOverpay: true,
+      cashDueNgn: 47_450,
+      overpayResidualNgn: 0,
+      releasableCredits: [
+        { applicationId: 'RCA-1', amountNgn: 8_925, targetQuotationRef: 'QT-OTHER' },
+      ],
+    });
+    expect(gate.blockCashPayout).toBe(true);
+    expect(gate.willReleaseOverpayCreditOnPay).toBe(false);
+  });
+
   it('lists releasable credits from settlement summary first', () => {
     const credits = refundCashierReleasableOverpayCredits({
       sourceQuotationRef: 'QT-SRC',
