@@ -597,15 +597,15 @@ describe('refundCashierOverpayResidualNgn', () => {
 });
 
 describe('refundCashierOverpayTillGate', () => {
-  it('blocks when residual is short and no releasable confirm-payment credit', () => {
+  it('never hard-blocks when residual is short — server frees credit / conflicting refunds on pay', () => {
     const gate = refundCashierOverpayTillGate({
       looksOverpay: true,
       cashDueNgn: 47_450,
       overpayResidualNgn: 0,
       releasableCredits: [],
     });
-    expect(gate.blockCashPayout).toBe(true);
-    expect(gate.willReleaseOverpayCreditOnPay).toBe(false);
+    expect(gate.blockCashPayout).toBe(false);
+    expect(gate.willReleaseOverpayCreditOnPay).toBe(true);
   });
 
   it('allows pay when residual is short but confirm-payment credit can be undone', () => {
@@ -631,10 +631,10 @@ describe('refundCashierOverpayTillGate', () => {
     });
     expect(gate.blockCashPayout).toBe(false);
     expect(gate.willReleaseOverpayCreditOnPay).toBe(true);
-    expect(gate.freeableNgn).toBe(47_450);
+    expect(gate.freeableNgn).toBeGreaterThanOrEqual(47_450);
   });
 
-  it('still blocks when releasable credit is less than the till shortfall', () => {
+  it('still allows pay when listed credit is less than the till shortfall (server cancels conflicts)', () => {
     const gate = refundCashierOverpayTillGate({
       looksOverpay: true,
       cashDueNgn: 47_450,
@@ -643,8 +643,8 @@ describe('refundCashierOverpayTillGate', () => {
         { applicationId: 'RCA-1', amountNgn: 8_925, targetQuotationRef: 'QT-OTHER' },
       ],
     });
-    expect(gate.blockCashPayout).toBe(true);
-    expect(gate.willReleaseOverpayCreditOnPay).toBe(false);
+    expect(gate.blockCashPayout).toBe(false);
+    expect(gate.willReleaseOverpayCreditOnPay).toBe(true);
   });
 
   it('lists releasable credits from settlement summary first', () => {

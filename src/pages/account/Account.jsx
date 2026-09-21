@@ -299,6 +299,7 @@ const Account = () => {
   /** When set, confirm modal handles one treasury split (TM-…) only. */
   const [receiptFinanceFocusMovementId, setReceiptFinanceFocusMovementId] = useState(null);
   const [receiptReverseBusy, setReceiptReverseBusy] = useState(false);
+  const [receiptUnconfirmBusy, setReceiptUnconfirmBusy] = useState(false);
   const [receiptBankAmtInput, setReceiptBankAmtInput] = useState('');
   /** When true, confirm payment but do not set finance delivery clearance. */
   const [receiptHoldDelivery, setReceiptHoldDelivery] = useState(false);
@@ -2510,6 +2511,60 @@ const Account = () => {
       setReceiptReverseBusy(false);
     }
   }, [receiptFinanceRow, receiptReverseBusy, showToast, ws]);
+
+  const unconfirmReceiptFinanceRow = useCallback(async () => {
+    const row = receiptFinanceRow;
+    if (!row?.id || receiptUnconfirmBusy) return;
+    if (!ws?.hasPermission?.('finance.pay') && !ws?.hasPermission?.('finance.post')) {
+      showToast('Finance permission is required to unconfirm a payment.', { variant: 'error' });
+      return;
+    }
+    if (!ws?.canMutate) {
+      showToast('Connect to the API server to unconfirm payments.', { variant: 'error' });
+      return;
+    }
+    const reason = window.prompt(
+      `Unconfirm payment on ${row.id}? It returns to Pending clearance so you can confirm the correct one. Enter reason (required):`,
+      'Confirmed by mistake'
+    );
+    if (reason == null) return;
+    if (String(reason).trim().length < 3) {
+      showToast('A short reason is required to unconfirm.', { variant: 'error' });
+      return;
+    }
+    setReceiptUnconfirmBusy(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/sales-receipts/${encodeURIComponent(row.id)}/unconfirm`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: String(reason).trim() }),
+        }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not unconfirm payment.', { variant: 'error' });
+        return;
+      }
+      const reversedCredits = Array.isArray(data?.reversedRefundCreditApplications)
+        ? data.reversedRefundCreditApplications
+        : [];
+      if (reversedCredits.length) {
+        const total = reversedCredits.reduce((s, r) => s + (Number(r?.amountNgn) || 0), 0);
+        showToast(
+          `Payment unconfirmed — back to Pending clearance. Also undid ₦${total.toLocaleString('en-NG')} refund credit applied on confirm.`
+        );
+      } else {
+        showToast('Payment unconfirmed — back to Pending clearance.');
+      }
+      setReceiptFinanceRow(null);
+      setReceiptFinanceFocusMovementId(null);
+      setPaymentCorrectionDrafts({});
+      void ws.refreshDomain?.('finance');
+    } finally {
+      setReceiptUnconfirmBusy(false);
+    }
+  }, [receiptFinanceRow, receiptUnconfirmBusy, showToast, ws]);
 
   const saveReceiptFinance = useCallback(
     async (e) => {
@@ -5450,9 +5505,13 @@ const Account = () => {
         showCloseButton={false}>
         <div className="z-modal-panel z-modal-scroll-y max-w-2xl w-full p-4 sm:p-8">
           <div className="flex justify-between items-start gap-3 mb-4">
-            <h3 className="text-lg font-bold text-zarewa-teal">
-              {receiptFinanceFocusMovementId ? 'Confirm this payment line' : 'Confirm payment received'}
-            </h3>
+              <h3 className="text-lg font-bold text-zarewa-teal">
+              {receiptFinanceFocusMovementId
+                ? 'Confirm this payment line'
+                : receiptFinanceRow?.financeReconciliationSavedAtISO
+                  ? 'Revise or unconfirm payment'
+                  : 'Confirm payment received'}
+              </h3>
             <button
               type="button"
               onClick={() => {
@@ -5529,7 +5588,9 @@ const Account = () => {
                       {receiptFinanceFocusMovementId && allSettleSplits.length > 1
                         ? '; other lines on this receipt stay in the queue until confirmed separately'
                         : ''}
-                      , and clears for delivery unless you hold it below. Revisions after the first save may need
+                      , and clears for delivery unless you hold it below. Use{' '}
+                      <span className="font-semibold">Unconfirm payment</span> if this was confirmed by
+                      mistake (returns to Pending clearance). Revisions after the first save may need
                       manager approval.
                     </div>
 
@@ -5998,16 +6059,27 @@ const Account = () => {
               (ws?.hasPermission?.('finance.reverse') || ws?.hasPermission?.('finance.pay')) ? (
                 <button
                   type="button"
-                  disabled={receiptFinanceBusy || receiptReverseBusy || !ws?.canMutate}
+                  disabled={receiptFinanceBusy || receiptReverseBusy || receiptUnconfirmBusy || !ws?.canMutate}
                   onClick={() => void reverseReceiptFinanceRow()}
                   className="w-full rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-ui-xs font-bold uppercase tracking-wide text-rose-900 hover:bg-rose-100 disabled:opacity-50"
                 >
                   {receiptReverseBusy ? 'Reversing…' : 'Reverse mistaken receipt'}
                 </button>
               ) : null}
+              {receiptFinanceRow?.financeReconciliationSavedAtISO &&
+              (ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('finance.post')) ? (
+                <button
+                  type="button"
+                  disabled={receiptFinanceBusy || receiptUnconfirmBusy || receiptReverseBusy || !ws?.canMutate}
+                  onClick={() => void unconfirmReceiptFinanceRow()}
+                  className="w-full rounded-xl border border-amber-300 bg-amber-50 py-2.5 text-ui-xs font-bold uppercase tracking-wide text-amber-950 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  {receiptUnconfirmBusy ? 'Unconfirming…' : 'Unconfirm payment'}
+                </button>
+              ) : null}
               <button
                 type="submit"
-                disabled={receiptFinanceBusy || !ws?.canMutate}
+                disabled={receiptFinanceBusy || receiptUnconfirmBusy || !ws?.canMutate}
                 className="z-btn-primary w-full justify-center py-3 disabled:opacity-50"
               >
                 {receiptFinanceBusy

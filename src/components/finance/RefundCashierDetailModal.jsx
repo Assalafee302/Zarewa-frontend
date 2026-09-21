@@ -396,20 +396,15 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
             </div>
           ) : null}
 
-          {blockCashPayout ? (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-950 leading-relaxed" role="alert">
-              Do not pay this from the till. Overpayment left on the quotation is {formatNgn(overpayResidualNgn)} after
-              other refunds on this quote. Paying {formatNgn(story.cashDueNgn)} would double-pay the customer.
-            </div>
-          ) : willReleaseOverpayCreditOnPay ? (
+          {willReleaseOverpayCreditOnPay ? (
             <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-950 leading-relaxed" role="status">
-              Overpayment left on this quotation is {formatNgn(overpayResidualNgn)} because{' '}
-              {formatNgn(freeableOverpayCreditNgn)} was used to confirm another receipt
-              {releasableOverpayCredits.some((a) => a.targetQuotationRef)
-                ? ` (${[...new Set(releasableOverpayCredits.map((a) => a.targetQuotationRef).filter(Boolean))].join(', ')})`
+              Overpayment left on this quotation shows {formatNgn(overpayResidualNgn)}
+              {freeableOverpayCreditNgn > 0
+                ? ` (about ${formatNgn(freeableOverpayCreditNgn)} was used on confirm-payment / other unpaid overpay refunds)`
                 : ''}
-              . Paying {formatNgn(story.cashDueNgn)} will undo those confirmations first, then post till/bank. The other
-              quotation may show unpaid again.
+              . Paying {formatNgn(story.cashDueNgn)} will free that residual first (undo confirm credit and/or cancel
+              other unpaid overpayment refunds on this quote), then post till/bank. Other quotations may need cash
+              re-confirmed.
             </div>
           ) : null}
 

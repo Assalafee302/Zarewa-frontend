@@ -1135,13 +1135,9 @@ export function refundCashierReleasableOverpayCredits({
 
 /**
  * Till/bank gate for overpayment refunds.
- * When residual is short but confirm-payment credit still sits on this quote, allow pay —
- * the server undoes those confirmations first, then posts treasury.
- * Only unlock when released credit plus residual can cover the cash due (avoids undoing
- * confirmations and still failing pay).
- *
- * `creditAppliedOutNgn` is the intelligence/server residual subtraction for unlinked leftover
- * credit — use it as freeable even when application rows are missing from the workspace snapshot.
+ * When residual looks short, still allow Pay — the server frees confirm-payment credit and
+ * cancels conflicting unpaid overpayment refunds on the same quote, then posts till/bank.
+ * Hard-blocking here trapped cashiers who already paid the customer outside the ERP.
  *
  * @returns {{ blockCashPayout: boolean, willReleaseOverpayCreditOnPay: boolean, releasableCredits: object[], freeableNgn: number }}
  */
@@ -1157,8 +1153,7 @@ export function refundCashierOverpayTillGate({
   const credits = Array.isArray(releasableCredits) ? releasableCredits : [];
   const fromApps = credits.reduce((sum, a) => sum + Math.round(Number(a?.amountNgn) || 0), 0);
   const fromIntel = Math.max(0, Math.round(Number(creditAppliedOutNgn) || 0));
-  // Residual already subtracts creditAppliedOut — freeable is the larger of listed apps or that out amount.
-  const freeableNgn = Math.max(fromApps, fromIntel);
+  const freeableNgn = Math.max(fromApps, fromIntel, Math.max(0, due - residual));
   if (!looksOverpay || due <= 0 || residual >= due) {
     return {
       blockCashPayout: false,
@@ -1167,17 +1162,10 @@ export function refundCashierOverpayTillGate({
       freeableNgn,
     };
   }
-  if (freeableNgn > 0 && residual + freeableNgn >= due) {
-    return {
-      blockCashPayout: false,
-      willReleaseOverpayCreditOnPay: true,
-      releasableCredits: credits,
-      freeableNgn,
-    };
-  }
+  // Residual short: allow pay anyway — server undoes credit / cancels conflicting unpaid overpays.
   return {
-    blockCashPayout: true,
-    willReleaseOverpayCreditOnPay: false,
+    blockCashPayout: false,
+    willReleaseOverpayCreditOnPay: true,
     releasableCredits: credits,
     freeableNgn,
   };
