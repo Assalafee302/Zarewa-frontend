@@ -284,10 +284,11 @@ export function buildRefundLineCalculationDetailHtml(line, snapshot, formatNgn =
     const unproducedM =
       parsed?.metres ??
       (Number.isFinite(quotedM) && Number.isFinite(producedM) ? Math.max(0, quotedM - producedM) : NaN);
-    const ppm =
-      parsed?.pricePerMeterNgn ??
-      Number(snap?.pricePerMeterNgn) ??
-      (Number.isFinite(unproducedM) && unproducedM > 0 ? amt / unproducedM : NaN);
+    const snapPpm = Number(snap?.pricePerMeterNgn);
+    const parsedPpm = Number(parsed?.pricePerMeterNgn);
+    let ppm = Number.isFinite(parsedPpm) && parsedPpm > 0 ? parsedPpm : NaN;
+    if (!(ppm > 0) && Number.isFinite(snapPpm) && snapPpm > 0) ppm = snapPpm;
+    if (!(ppm > 0) && Number.isFinite(unproducedM) && unproducedM > 0) ppm = amt / unproducedM;
 
     if (Number.isFinite(quotedM) && quotedM > 0) parts.push(kvRow('Quoted metres', `${formatMetres(quotedM)} m`));
     if (Number.isFinite(producedM) && producedM >= 0) {
@@ -385,14 +386,17 @@ export function buildRefundLineCalculationDetailHtml(line, snapshot, formatNgn =
         if (!Number.isFinite(metres) || metres <= 0 || !(pricePerMeterNgn > 0)) return null;
         return { metres, pricePerMeterNgn };
       })();
-    const metres =
-      parsed?.metres ??
-      Number(line?.mdDiscountMetres) ??
-      Number(snap?.quotedMeters);
-    const ppm =
-      parsed?.pricePerMeterNgn ??
-      Number(line?.mdDiscountNgnPerM) ??
-      (Number.isFinite(metres) && metres > 0 ? amt / metres : NaN);
+    const lineMetres = Number(line?.mdDiscountMetres);
+    const snapMetres = Number(snap?.quotedMeters);
+    const parsedMetres = Number(parsed?.metres);
+    let metres = Number.isFinite(parsedMetres) && parsedMetres > 0 ? parsedMetres : NaN;
+    if (!(metres > 0) && Number.isFinite(lineMetres) && lineMetres > 0) metres = lineMetres;
+    if (!(metres > 0) && Number.isFinite(snapMetres) && snapMetres > 0) metres = snapMetres;
+    const linePpm = Number(line?.mdDiscountNgnPerM);
+    const parsedPpm = Number(parsed?.pricePerMeterNgn);
+    let ppm = Number.isFinite(parsedPpm) && parsedPpm > 0 ? parsedPpm : NaN;
+    if (!(ppm > 0) && Number.isFinite(linePpm) && linePpm > 0) ppm = linePpm;
+    if (!(ppm > 0) && Number.isFinite(metres) && metres > 0) ppm = amt / metres;
     const kindLabel = /commission/i.test(cat) || /commission/i.test(label) ? 'Commission' : 'MD discount';
     if (Number.isFinite(metres) && metres > 0) parts.push(kvRow('Quoted metres', `${formatMetres(metres)} m`));
     if (Number.isFinite(ppm) && ppm > 0) {
