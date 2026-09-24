@@ -527,7 +527,7 @@ describe('refundCashierCustomerName', () => {
 describe('actorMayOverrideRefundUnclearedPayoutHold', () => {
   it('allows BM, Head of Accounts, admin, and cashier for any held size', () => {
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'admin' })).toBe(true);
-    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'cashier' })).toBe(false);
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'cashier' })).toBe(true);
     expect(
       actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'cashier' }, null, { heldNetNgn: 25_000 })
     ).toBe(true);
