@@ -72,7 +72,20 @@ import {
   productLineKey,
   resolveStoneFlatsheetLengthM,
 } from '../../lib/stoneCoatedQuotationPolicy';
-import { touchRefundPayeeAccount } from '../../lib/refundPayeeRecentAccounts';
+import {
+  listRecentRefundPayoutRecipientKeys,
+  listRefundPayeeSuggestions,
+  touchRefundPayeeAccount,
+  touchRefundPayoutRecipient,
+} from '../../lib/refundPayeeRecentAccounts';
+import {
+  allocatedRefundSplitGrossNgn,
+  isQuoteCustomerSplitRow,
+  rebalanceQuoteCustomerRemainder,
+  refundSplitRowHasPayee,
+  remainingRefundSplitNgn,
+  withFilledSplitAmountIfEmpty,
+} from '../../lib/refundPayoutSplitBalance';
 import { isStaffLinkedCustomer } from '../../lib/customerPickerSearch';
 import {
   auditRefundCalculationLineArithmetic,
@@ -1997,6 +2010,13 @@ const RefundModal = ({
         return;
       }
       applySavedPayoutBankLocally(data);
+      touchRefundPayeeAccount({
+        payeeName: data.bankAccountName || bank.bankAccountName,
+        payeeAccountNo: data.bankAccountNo || bank.bankAccountNo,
+        payeeBankName: data.bankName || bank.bankName,
+        customerID:
+          payoutBankDraft.kind === 'customer' ? String(payoutBankDraft.id || '').trim() : String(form.customerID || '').trim(),
+      });
       if (payoutBankDraft.forQuoteCustomer || String(payoutBankDraft.id) === String(form.customerID)) {
         setForm((f) => ({
           ...f,
@@ -4026,11 +4046,27 @@ const RefundModal = ({
   );
   const createAmountDerivedFromLines = mode === 'create' && lineSum > 0;
 
+  const payoutRecipientRecentKeys = useMemo(
+    () => listRecentRefundPayoutRecipientKeys({ customerID: form.customerID }),
+    [form.customerID, form.refundSplits]
+  );
+
+  const payoutBankSuggestions = useMemo(
+    () =>
+      listRefundPayeeSuggestions({
+        customerID: form.customerID,
+        refunds,
+        includeDeviceWide: payoutBankDraft?.kind === 'associated_staff',
+      }),
+    [form.customerID, refunds, payoutBankDraft?.kind]
+  );
+
   /** Running payout allocation totals — gross must match refund; net is after company cut. */
   const payoutAllocationTotals = useMemo(() => {
     const refundTotal = roundMoneyLocal(form.amountNgn);
     const splitRows = Array.isArray(form.refundSplits) ? form.refundSplits : [];
-    const enriched = splitRows.map((r) =>
+    const payeeRows = splitRows.filter(refundSplitRowHasPayee);
+    const enriched = payeeRows.map((r) =>
       applyRefundStaffAllocationDeduction(
         { ...r, amountNgn: roundMoneyLocal(r.amountNgn) },
         form.customerID,
@@ -4044,14 +4080,14 @@ const RefundModal = ({
         }
       )
     );
-    const allocatedGross = enriched.reduce((sum, row) => sum + (Number(row.grossNgn) || 0), 0);
+    const allocatedGross = allocatedRefundSplitGrossNgn(splitRows);
     const companyCut = sumRefundStaffCompanyDeductionNgn(enriched);
     const unclearedHold = enriched.reduce(
       (sum, row) => sum + (Number(row.unclearedReceiptHoldNgn) || 0),
       0
     );
     const netToPayout = sumRefundStaffNetPayoutNgn(enriched);
-    const remaining = Math.round(refundTotal - allocatedGross);
+    const remaining = remainingRefundSplitNgn(splitRows, refundTotal);
     return {
       refundTotal,
       allocatedGross,
@@ -4060,6 +4096,7 @@ const RefundModal = ({
       unclearedHold,
       netToPayout,
       hasSplits: splitRows.length > 0,
+      incompleteRows: splitRows.some((r) => roundMoneyLocal(r.amountNgn) > 0 && !refundSplitRowHasPayee(r)),
       balanced: Math.abs(remaining) <= AMOUNT_LINE_TOL,
     };
   }, [
@@ -4076,25 +4113,28 @@ const RefundModal = ({
     setForm((f) => {
       const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
       const refundTotal = roundMoneyLocal(f.amountNgn);
-      const allocated = existing.reduce((s, r) => s + roundMoneyLocal(r.amountNgn), 0);
-      const remaining = Math.max(0, refundTotal - allocated);
+      const leftover = Math.max(0, remainingRefundSplitNgn(existing, refundTotal));
       const base = typeof rowFactory === 'function' ? rowFactory(f) : rowFactory;
-      return {
-        ...f,
-        refundSplits: [
-          ...existing,
-          {
-            ...base,
-            _manual: '1',
-            amountNgn:
-              base.amountNgn != null && String(base.amountNgn).trim() !== ''
-                ? String(base.amountNgn)
-                : remaining > 0
-                  ? String(remaining)
-                  : '',
-          },
-        ],
+      const nextRow = {
+        ...base,
+        _manual: '1',
       };
+      const isQuoteCust = isQuoteCustomerSplitRow(nextRow, f.customerID);
+      const hasPayee = refundSplitRowHasPayee(nextRow);
+      const explicit = base.amountNgn != null && String(base.amountNgn).trim() !== '';
+      const amountNgn = explicit
+        ? String(base.amountNgn)
+        : isQuoteCust && leftover > 0
+          ? String(leftover)
+          : hasPayee && leftover > 0 && !existing.some((r) => isQuoteCustomerSplitRow(r, f.customerID))
+            ? String(leftover)
+            : '';
+      const nextRows = rebalanceQuoteCustomerRemainder(
+        [...existing, { ...nextRow, amountNgn }],
+        refundTotal,
+        f.customerID
+      );
+      return { ...f, refundSplits: nextRows };
     });
   }, []);
 
@@ -5823,9 +5863,9 @@ const RefundModal = ({
                             </p>
                           </div>
                           <p className="text-ui-xs text-slate-400 leading-snug">
-                            With no split lines below, the full refund goes to this account after approval. Add
-                            lines to pay associated staff or quotation sales staff — allocated amounts total
-                            automatically and must equal the refund.
+                            With no split lines, the full refund goes to this customer account. Add staff
+                            lines and type their share — leftover on the quote customer updates as you type.
+                            Only rows with a chosen person count toward the total.
                           </p>
                         </>
                       ) : (
@@ -5939,7 +5979,12 @@ const RefundModal = ({
                                   loading={payoutDirectoryLoading}
                                   value={selectedKey}
                                   options={rowPayoutOptions}
-                                  placeholder="Search quotation staff, driver, installer, or customer…"
+                                  recentKeys={payoutRecipientRecentKeys}
+                                  placeholder={
+                                    isStaff
+                                      ? 'Search driver or installer…'
+                                      : 'Search quotation staff or customer…'
+                                  }
                                   emptyHint={
                                     payoutAssociatedStaffError
                                       ? payoutAssociatedStaffError
@@ -5976,25 +6021,49 @@ const RefundModal = ({
                                       Boolean(opt?.meta?.needsSalesCustomer) ||
                                       Boolean(parsed.recipientUserId);
                                     const applySplit = (patch) => {
-                                      setForm((f) => ({
-                                        ...f,
-                                        refundSplits: (Array.isArray(f.refundSplits) ? f.refundSplits : []).map(
-                                          (x, i) =>
-                                            i === idx
-                                              ? {
-                                                  ...x,
-                                                  _manual: '1',
-                                                  recipientKind: parsed.recipientKind || 'customer',
-                                                  recipientAssociatedStaffID: parsed.recipientAssociatedStaffID,
-                                                  recipientCustomerID: parsed.recipientCustomerID,
-                                                  recipientUserId: parsed.recipientUserId || '',
-                                                  ...patch,
-                                                }
-                                              : x
-                                        ),
-                                      }));
+                                      setForm((f) => {
+                                        const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
+                                        const refundTotal = roundMoneyLocal(f.amountNgn);
+                                        const leftover = Math.max(
+                                          0,
+                                          remainingRefundSplitNgn(existing, refundTotal, { excludeIndex: idx })
+                                        );
+                                        const mapped = existing.map((x, i) => {
+                                          if (i !== idx) return x;
+                                          const next = {
+                                            ...x,
+                                            _manual: '1',
+                                            recipientKind: parsed.recipientKind || 'customer',
+                                            recipientAssociatedStaffID: parsed.recipientAssociatedStaffID,
+                                            recipientCustomerID: parsed.recipientCustomerID,
+                                            recipientUserId: parsed.recipientUserId || '',
+                                            ...patch,
+                                          };
+                                          const fillLeftover =
+                                            isQuoteCustomerSplitRow(next, f.customerID) || leftover < refundTotal
+                                              ? leftover
+                                              : 0;
+                                          return withFilledSplitAmountIfEmpty(next, fillLeftover);
+                                        });
+                                        return {
+                                          ...f,
+                                          refundSplits: rebalanceQuoteCustomerRemainder(
+                                            mapped,
+                                            refundTotal,
+                                            f.customerID
+                                          ),
+                                        };
+                                      });
                                     };
                                     applySplit({});
+                                    if (key && opt) {
+                                      touchRefundPayoutRecipient({
+                                        key,
+                                        customerID: String(form.customerID || '').trim(),
+                                        quotationRef: String(form.quotationRef || '').trim(),
+                                        label: opt.label,
+                                      });
+                                    }
                                     if (needsLink && opt?.meta?.userId) {
                                       void (async () => {
                                         const { ok, data } = await apiFetch(
@@ -6071,22 +6140,40 @@ const RefundModal = ({
                                     Add account number for this recipient
                                   </button>
                                 ) : null}
+                                {!readOnly && !selectedKey && roundMoneyLocal(row.amountNgn) > 0 ? (
+                                  <p className="text-[10px] leading-snug text-amber-200">
+                                    Pick who receives this ₦{roundMoneyLocal(row.amountNgn).toLocaleString('en-NG')} —
+                                    it does not count until a person is selected.
+                                  </p>
+                                ) : null}
                                 <input
                                   type="number"
                                   disabled={readOnly}
                                   value={row.amountNgn ?? ''}
                                   onChange={(e) =>
-                                    setForm((f) => ({
-                                      ...f,
-                                      refundSplits: (Array.isArray(f.refundSplits) ? f.refundSplits : []).map(
-                                        (x, i) =>
-                                          i === idx
-                                            ? { ...x, _manual: '1', amountNgn: e.target.value }
-                                            : x
-                                      ),
-                                    }))
+                                    setForm((f) => {
+                                      const raw = e.target.value;
+                                      const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
+                                      const mapped = existing.map((x, i) =>
+                                        i === idx ? { ...x, _manual: '1', amountNgn: raw } : x
+                                      );
+                                      const editingQuote = isQuoteCustomerSplitRow(
+                                        { ...row, amountNgn: raw },
+                                        f.customerID
+                                      );
+                                      return {
+                                        ...f,
+                                        refundSplits: editingQuote
+                                          ? mapped
+                                          : rebalanceQuoteCustomerRemainder(
+                                              mapped,
+                                              roundMoneyLocal(f.amountNgn),
+                                              f.customerID
+                                            ),
+                                      };
+                                    })
                                   }
-                                  placeholder="Amount ₦"
+                                  placeholder="Amount ₦ — leftover stays on the quote customer"
                                   className="w-full bg-slate-800 border border-slate-600 rounded-lg py-2 px-2 text-xs text-white tabular-nums"
                                 />
                                 {(() => {
@@ -6159,6 +6246,7 @@ const RefundModal = ({
                               unclearedHold,
                               netToPayout,
                               balanced,
+                              incompleteRows,
                             } = payoutAllocationTotals;
                             const cutPct = Math.round(staffAllocationDeductionRate * 100);
                             const assocCutPct = Math.round(associatedStaffDeductionRate * 100);
@@ -6191,6 +6279,45 @@ const RefundModal = ({
                                       ? ` · ₦${remaining.toLocaleString('en-NG')} still to allocate`
                                       : ` · ₦${Math.abs(remaining).toLocaleString('en-NG')} over allocated`}
                                 </p>
+                                {incompleteRows ? (
+                                  <p className="text-[10px] text-amber-200 leading-snug">
+                                    A line still has an amount with no person selected — it is not counted yet.
+                                  </p>
+                                ) : null}
+                                {!readOnly && remaining > 0 && String(form.customerID || '').trim() ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setForm((f) => {
+                                        const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
+                                        const cid = String(f.customerID || '').trim();
+                                        const refundTotalNgn = roundMoneyLocal(f.amountNgn);
+                                        const leftover = Math.max(0, remainingRefundSplitNgn(existing, refundTotalNgn));
+                                        let next = existing;
+                                        if (!existing.some((r) => isQuoteCustomerSplitRow(r, cid)) && leftover > 0) {
+                                          next = [
+                                            ...existing,
+                                            {
+                                              recipientKind: 'customer',
+                                              recipientAssociatedStaffID: '',
+                                              recipientCustomerID: cid,
+                                              note: 'Overpayment · quote customer',
+                                              amountNgn: String(leftover),
+                                              _manual: '1',
+                                            },
+                                          ];
+                                        }
+                                        return {
+                                          ...f,
+                                          refundSplits: rebalanceQuoteCustomerRemainder(next, refundTotalNgn, cid),
+                                        };
+                                      })
+                                    }
+                                    className="text-[10px] font-semibold text-violet-200 hover:text-violet-100"
+                                  >
+                                    Put leftover on quote customer
+                                  </button>
+                                ) : null}
                                 {companyCut > 0 || unclearedHold > 0 ? (
                                   <p className="text-[10px] text-amber-100/90 leading-snug">
                                     {companyCut > 0
@@ -6248,12 +6375,15 @@ const RefundModal = ({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  appendPayoutSplitRow({
+                                  appendPayoutSplitRow(() => ({
                                     recipientKind: 'customer',
                                     recipientAssociatedStaffID: '',
-                                    recipientCustomerID: '',
-                                    note: 'Quotation sales staff',
-                                  })
+                                    recipientCustomerID: String(defaultRefundPayee?.customerID || '').trim(),
+                                    recipientUserId: String(defaultRefundPayee?.userId || '').trim(),
+                                    note: defaultRefundPayee?.name
+                                      ? `Quotation sales staff · ${defaultRefundPayee.name}`
+                                      : 'Quotation sales staff',
+                                  }))
                                 }
                                 className="text-ui-xs font-semibold text-sky-300 hover:text-sky-200"
                               >
@@ -6624,6 +6754,7 @@ const RefundModal = ({
       }}
       saving={payoutBankSaving}
       error={payoutBankError}
+      suggestions={payoutBankSuggestions}
       onClose={() => {
         if (payoutBankSaving) return;
         setPayoutBankDraft(null);

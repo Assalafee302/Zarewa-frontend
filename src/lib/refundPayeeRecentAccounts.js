@@ -4,8 +4,10 @@
  */
 
 const STORAGE_KEY = 'zarewa.refundPayeeRecentAccounts.v2';
+const RECIPIENT_STORAGE_KEY = 'zarewa.refundPayoutRecipientMemory.v1';
 const MAX_STORED = 30;
 const MAX_SUGGESTIONS = 12;
+const MAX_RECIPIENTS = 20;
 
 function digitsOnly(s) {
   return String(s ?? '').replace(/\D/g, '');
@@ -78,6 +80,72 @@ export function touchRefundPayeeAccount(entry) {
   }
 }
 
+/**
+ * Remember which payout picker keys this desk used (quote customer / staff).
+ * @param {{ key?: string; customerID?: string; quotationRef?: string; label?: string }} entry
+ */
+export function touchRefundPayoutRecipient(entry) {
+  const key = String(entry?.key ?? '').trim();
+  if (!key || typeof window === 'undefined') return;
+  const customerID = String(entry?.customerID ?? '').trim();
+  const quotationRef = String(entry?.quotationRef ?? '').trim();
+  const label = String(entry?.label ?? '').trim();
+  let raw = null;
+  try {
+    raw = localStorage.getItem(RECIPIENT_STORAGE_KEY);
+  } catch {
+    return;
+  }
+  const list = parseStored(raw);
+  const now = new Date().toISOString();
+  const idx = list.findIndex(
+    (e) =>
+      String(e.key || '').trim() === key &&
+      String(e.customerID ?? '').trim() === customerID
+  );
+  const nextEntry = { key, customerID, quotationRef, label, lastUsedAt: now, uses: 1 };
+  if (idx >= 0) {
+    nextEntry.uses = (Number(list[idx].uses) || 0) + 1;
+    nextEntry.label = label || String(list[idx].label || '').trim();
+    list.splice(idx, 1);
+  }
+  list.unshift(nextEntry);
+  try {
+    localStorage.setItem(RECIPIENT_STORAGE_KEY, JSON.stringify(list.slice(0, MAX_RECIPIENTS)));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Recent picker keys, quote-customer first then this customer’s desk memory.
+ * @param {{ customerID?: string }} opts
+ * @returns {string[]}
+ */
+export function listRecentRefundPayoutRecipientKeys({ customerID } = {}) {
+  if (typeof window === 'undefined') return [];
+  const cid = String(customerID ?? '').trim();
+  let raw = null;
+  try {
+    raw = localStorage.getItem(RECIPIENT_STORAGE_KEY);
+  } catch {
+    return [];
+  }
+  const list = parseStored(raw);
+  const keys = [];
+  const seen = new Set();
+  for (const e of list) {
+    const ec = String(e.customerID ?? '').trim();
+    if (cid && ec && ec !== cid) continue;
+    const key = String(e.key || '').trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    keys.push(key);
+    if (keys.length >= MAX_SUGGESTIONS) break;
+  }
+  return keys;
+}
+
 function refundRowPayee(r) {
   const name = String(r?.payeeName ?? r?.payee_name ?? '').trim();
   const acct = String(r?.payeeAccountNo ?? r?.payee_account_no ?? '').trim();
@@ -89,17 +157,18 @@ function refundRowPayee(r) {
 /**
  * Recent (this browser) + payees from past refunds for the same customer.
  *
- * @param {{ customerID?: string; refunds?: object[] }} opts
+ * @param {{ customerID?: string; refunds?: object[]; includeDeviceWide?: boolean }} opts
  * @returns {Array<{ payeeName: string; payeeAccountNo: string; payeeBankName: string; source: 'recent' | 'history' }>}
  */
-export function listRefundPayeeSuggestions({ customerID, refunds = [] }) {
+export function listRefundPayeeSuggestions({ customerID, refunds = [], includeDeviceWide = false } = {}) {
   const cid = String(customerID ?? '').trim();
   const allRecent = loadRefundPayeeRecentAccounts();
 
   const recentFiltered = allRecent.filter((e) => {
     const ec = String(e.customerID ?? '').trim();
-    if (!cid) return !ec;
-    return ec === cid;
+    if (!cid) return includeDeviceWide || !ec;
+    if (ec === cid) return true;
+    return Boolean(includeDeviceWide);
   });
 
   const recent = recentFiltered.map((e) => ({

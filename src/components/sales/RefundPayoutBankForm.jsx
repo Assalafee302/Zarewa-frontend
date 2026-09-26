@@ -1,22 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CreditCard } from 'lucide-react';
 import { ModalFrame } from '../layout';
+import { RecentPayeeSuggestionChips } from '../office/RecentPayeeSuggestionChips.jsx';
+
+const COMMON_BANKS = [
+  'Access Bank',
+  'GTBank',
+  'UBA',
+  'Zenith Bank',
+  'First Bank',
+  'Fidelity Bank',
+  'FCMB',
+  'Sterling Bank',
+  'Union Bank',
+  'Wema Bank',
+  'Ecobank',
+  'OPay',
+  'Palmpay',
+  'Moniepoint',
+  'Kuda',
+];
 
 /**
  * Compact nested modal to capture bank details for a refund recipient.
- * Must sit above RefundModal (ModalFrame layer nested) — a plain z-80 overlay
- * opens behind the refund dialog and looks like “Add bank” does nothing.
- *
- * @param {{
- *   open: boolean;
- *   title?: string;
- *   subtitle?: string;
- *   initial?: { bankAccountName?: string; bankName?: string; bankAccountNo?: string };
- *   saving?: boolean;
- *   error?: string;
- *   onClose: () => void;
- *   onSave: (bank: { bankAccountName: string; bankName: string; bankAccountNo: string }) => void | Promise<void>;
- * }} props
  */
 export function RefundPayoutBankForm({
   open,
@@ -25,6 +31,7 @@ export function RefundPayoutBankForm({
   initial = {},
   saving = false,
   error = '',
+  suggestions = [],
   onClose,
   onSave,
 }) {
@@ -38,6 +45,14 @@ export function RefundPayoutBankForm({
     setBankName(String(initial.bankName || '').trim());
     setBankAccountNo(String(initial.bankAccountNo || '').trim());
   }, [open, initial.bankAccountName, initial.bankName, initial.bankAccountNo]);
+
+  const bankListId = 'refund-payout-bank-names';
+  const rememberedBanks = useMemo(() => {
+    const extra = suggestions
+      .map((s) => String(s.payeeBankName || '').trim())
+      .filter(Boolean);
+    return [...new Set([...COMMON_BANKS, ...extra])];
+  }, [suggestions]);
 
   const submit = (e) => {
     e.preventDefault();
@@ -78,6 +93,16 @@ export function RefundPayoutBankForm({
           </div>
         </div>
         <form onSubmit={submit} className="space-y-3 px-4 py-4">
+          <RecentPayeeSuggestionChips
+            variant="dark"
+            heading="Remembered accounts"
+            suggestions={suggestions}
+            onSelect={(s) => {
+              setBankAccountName(s.payeeName || bankAccountName);
+              setBankName(s.payeeBankName || '');
+              setBankAccountNo(String(s.payeeAccountNo || '').replace(/\D/g, ''));
+            }}
+          />
           <label className="block space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Account name</span>
             <input
@@ -93,17 +118,23 @@ export function RefundPayoutBankForm({
             <input
               value={bankName}
               onChange={(e) => setBankName(e.target.value)}
-              placeholder="e.g. Access Bank"
+              placeholder="e.g. Access Bank, OPay"
               required
+              list={bankListId}
               className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white outline-none focus:border-sky-500/60"
             />
+            <datalist id={bankListId}>
+              {rememberedBanks.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
           </label>
           <label className="block space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Account number</span>
             <input
               value={bankAccountNo}
               onChange={(e) => setBankAccountNo(e.target.value.replace(/[^\d]/g, '').slice(0, 20))}
-              placeholder="NUBAN / account number"
+              placeholder="NUBAN / wallet number"
               inputMode="numeric"
               required
               className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white tabular-nums outline-none focus:border-sky-500/60"
