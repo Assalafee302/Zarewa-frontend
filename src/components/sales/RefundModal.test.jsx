@@ -135,8 +135,8 @@ describe('payoutRowRequiredRole', () => {
     expect(payoutRowRequiredRole({ note: 'Transport' })).toBe('driver');
   });
 
-  it('routes an Installation split to the installer role', () => {
-    expect(payoutRowRequiredRole({ note: 'Installation' })).toBe('installer');
+  it('routes labour notes to the installer role', () => {
+    expect(payoutRowRequiredRole({ note: 'Installation / labour' })).toBe('installer');
   });
 
   it('is case-insensitive on the note text', () => {
@@ -157,9 +157,10 @@ describe('associatedStaffPayoutRole', () => {
     expect(associatedStaffPayoutRole({ staff_type: 'Transporter' })).toBe('driver');
   });
 
-  it('maps Installer / roofer types to installer', () => {
+  it('maps Installer / roofer / labour types to installer', () => {
     expect(associatedStaffPayoutRole({ staffType: 'Installer' })).toBe('installer');
     expect(associatedStaffPayoutRole({ staffType: 'Roofer' })).toBe('installer');
+    expect(associatedStaffPayoutRole({ staffType: 'Labour' })).toBe('installer');
   });
 
   it('honours preferred quote role when provided', () => {

@@ -86,6 +86,7 @@ import {
   remainingRefundSplitNgn,
   withFilledSplitAmountIfEmpty,
 } from '../../lib/refundPayoutSplitBalance';
+import { quotedServiceAssigneeRole } from '../../shared/lib/refundQuotedServiceKind.js';
 import { isStaffLinkedCustomer } from '../../lib/customerPickerSearch';
 import {
   auditRefundCalculationLineArithmetic,
@@ -336,15 +337,12 @@ function quotationTransactionPeople(quotation) {
 
   for (const line of services) {
     const serviceName = String(line?.name || '').trim();
-    const lower = serviceName.toLowerCase();
     const id = String(line?.assigneeAssociatedStaffID || line?.assigneeCustomerID || '').trim();
     const name = String(line?.assigneeName || '').trim();
     if (!id && !name) continue;
     let role = String(line?.assigneeRole || '').trim().toLowerCase();
     if (!role) {
-      if (lower.includes('transport')) role = 'driver';
-      else if (lower.includes('install')) role = 'installer';
-      else role = 'service';
+      role = quotedServiceAssigneeRole(serviceName) || 'service';
     }
     push({
       id,
@@ -883,7 +881,9 @@ function associatedStaffMatchesRole(row, role) {
     .trim()
     .toLowerCase();
   if (r === 'driver') return t.includes('driver') || t.includes('transport');
-  if (r === 'installer') return t.includes('install') || t.includes('roof');
+  if (r === 'installer') {
+    return t.includes('install') || t.includes('roof') || t.includes('labour') || t.includes('labor');
+  }
   return true;
 }
 
@@ -908,8 +908,15 @@ export function associatedStaffPayoutRole(row, preferredRole = '') {
  */
 export function payoutRowRequiredRole(row) {
   const note = String(row?.note || '').trim().toLowerCase();
-  if (note === 'transport') return 'driver';
-  if (note === 'installation') return 'installer';
+  if (note === 'transport' || note.startsWith('transport')) return 'driver';
+  if (
+    note === 'installation' ||
+    note.startsWith('installation') ||
+    note.includes('labour') ||
+    note.includes('labor')
+  ) {
+    return 'installer';
+  }
   return null;
 }
 
@@ -2348,15 +2355,16 @@ const RefundModal = ({
       return;
     }
 
-    // Customer bank on file: payout splits are optional (default is full payee until user adds lines).
-    if (payoutAccountReady) return;
-
+    // Customer bank: still split quoted transport / installation (labour) to assignees.
+    // If those amounts are zero, the full refund stays on the customer account.
     const transportAmt = sumIncludedRefundLinesByCategoryMatch(form.calculationLines, (c) =>
       String(c).toLowerCase().includes('transport')
     );
-    const installAmt = sumIncludedRefundLinesByCategoryMatch(form.calculationLines, (c) =>
-      String(c).toLowerCase().includes('install')
-    );
+    const installAmt = sumIncludedRefundLinesByCategoryMatch(form.calculationLines, (c) => {
+      const n = String(c).toLowerCase();
+      return n.includes('install') || n.includes('labour') || n.includes('labor');
+    });
+    if (payoutAccountReady && transportAmt <= 0 && installAmt <= 0) return;
     const overpayAmt = sumIncludedRefundLinesByCategoryMatch(
       form.calculationLines,
       (c) => String(c).trim() === 'Overpayment'
@@ -2432,7 +2440,15 @@ const RefundModal = ({
     }
 
     if (remainder > 0) {
-      if (claimCustomerDefault?.customerID) {
+      if (payoutAccountReady && quoteCustomerId) {
+        next.push({
+          recipientKind: 'customer',
+          recipientAssociatedStaffID: '',
+          recipientCustomerID: quoteCustomerId,
+          amountNgn: String(remainder),
+          note: overpayToCustomer > 0 || overpayAmt > 0 ? 'Overpayment · quote customer' : 'Remainder · quote customer',
+        });
+      } else if (claimCustomerDefault?.customerID) {
         next.push({
           recipientKind: 'customer',
           recipientAssociatedStaffID: '',

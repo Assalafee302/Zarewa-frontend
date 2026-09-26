@@ -43,6 +43,7 @@ import {
   validateQuotationLineIntegrity,
   productLineAllowedForStone,
 } from '../../lib/stoneCoatedQuotationPolicy';
+import { quotedServiceAssigneeRole } from '../../shared/lib/refundQuotedServiceKind.js';
 import {
   QUOTATION_MATERIAL_HEADER_CODE,
   quotationMaterialHeaderErrorMessage,
@@ -176,7 +177,7 @@ const DEFAULT_ACCESSORY_ITEMS = [
   'Spool',
   'Hooks and bolts',
 ];
-const DEFAULT_SERVICE_ITEMS = ['Commission', 'Transportation', 'Installation', 'Corrugation', 'Bending'];
+const DEFAULT_SERVICE_ITEMS = ['Commission', 'Transportation', 'Installation', 'Labour', 'Corrugation', 'Bending'];
 
 /** Same normalization as server `pricingPolicyResolve.normKey` (used for price_list_items keys). */
 function pricingNormKey(s) {
@@ -422,12 +423,7 @@ function normalizeOptionItems(optionItems) {
 }
 
 function serviceAssigneeRole(name) {
-  const n = String(name ?? '')
-    .trim()
-    .toLowerCase();
-  if (n.includes('transport')) return 'driver';
-  if (n.includes('install')) return 'installer';
-  return '';
+  return quotedServiceAssigneeRole(name);
 }
 
 function OrderLinesSection({
