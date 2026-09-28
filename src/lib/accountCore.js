@@ -20,6 +20,7 @@ export const TREASURY_STATEMENT_TYPE_LABEL = {
   PO_SUPPLIER_PAYMENT: 'Supplier payment',
   REFUND_PAYOUT: 'Customer refund payout',
   REFUND_PAYOUT_REVERSAL_IN: 'Customer refund payout (reversal)',
+  REFUND_COMPANY_CUT_PAYOUT: 'Company cut withdrawal',
   ADVANCE_REFUND_OUT: 'Advance refund',
   PAYMENT_REQUEST_OUT: 'Payment request payout',
   OT_PAYOUT: 'Overtime pay payout',
@@ -38,6 +39,7 @@ export const TREASURY_SOURCE_KIND_LABEL = {
   EXPENSE: 'Posted expense (direct debit)',
   PAYMENT_REQUEST: 'Expense payment request (payout)',
   OT_REQUEST: 'Overtime pay request (payout)',
+  REFUND_COMPANY_RETENTION: 'Company cut withdrawal',
 };
 
 /**
@@ -165,6 +167,7 @@ export const TREASURY_PAYMENTS_TABLE_OUTFLOW_TYPES = new Set([
   'SUPPLIER_PAYMENT',
   'PO_SUPPLIER_PAYMENT',
   'REFUND_PAYOUT',
+  'REFUND_COMPANY_CUT_PAYOUT',
   'ADVANCE_REFUND_OUT',
   'PAYMENT_REQUEST_OUT',
   'TRANSPORT_PAYMENT',
@@ -305,6 +308,9 @@ export function treasuryMovementSourceBadge(m) {
   }
   if (sk === 'REFUND' || tp === 'REFUND_PAYOUT') {
     return { label: 'Refund', className: 'bg-rose-100 text-rose-900 ring-1 ring-rose-200/70' };
+  }
+  if (sk === 'REFUND_COMPANY_RETENTION' || tp === 'REFUND_COMPANY_CUT_PAYOUT') {
+    return { label: 'Company cut', className: 'bg-violet-100 text-violet-900 ring-1 ring-violet-200/70' };
   }
   if (sk === 'PAYMENT_REQUEST') {
     return { label: 'Payment req', className: 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-200/70' };

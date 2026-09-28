@@ -19,6 +19,7 @@ import {
   purchaseOrderAccrualBridgeRows,
   quotationPaidNgnReceiptDiscrepancies,
   receiptAdvanceTreasuryReconciliationRows,
+  companyCutWithdrawalsInPeriodRows,
   refundPeriodOverviewRows,
   refundPeriodOverviewSummary,
   refundsPaidInPeriodRows,
@@ -137,7 +138,7 @@ export function useReportsExport({
         });
       }
       if (name === PACK_REFUND_PERIOD) {
-        return refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate).map((r) => ({
+        const overview = refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate).map((r) => ({
           reportSection: 'Refund overview (period)',
           receiptPaymentDateISO: r.receiptPaymentDateISO,
           customerName: r.customerName,
@@ -149,6 +150,19 @@ export function useReportsExport({
           status: r.status,
           requestedAtISO: r.requestedAtISO,
         }));
+        const cuts = companyCutWithdrawalsInPeriodRows(treasuryMovements, startDate, endDate).map((r) => ({
+          reportSection: 'Company cut withdrawn',
+          receiptPaymentDateISO: '',
+          customerName: r.customerName,
+          quotationRef: r.quotationRef,
+          amountRefundPaidNgn: r.amountNgn,
+          refundPaymentDateISO: r.payoutDateISO,
+          amountRefundNotPaidNgn: 0,
+          refundId: r.refundId,
+          status: r.status,
+          requestedAtISO: '',
+        }));
+        return [...overview, ...cuts];
       }
       if (name === PACK_OPS_PROCUREMENT) {
         return rowsOpsProcurementPack(liveProducts, purchaseOrders, coilLots, accessoryUsage, startDate, endDate);
@@ -229,6 +243,7 @@ export function useReportsExport({
       if (name === PACK_EXPENSES_REFUNDS) {
         const exRows = buildPaidExpensePrintRows(expenses, paymentRequests, startDate, endDate);
         const refundPaid = refundsPaidInPeriodRows(refunds, startDate, endDate);
+        const companyCutPaid = companyCutWithdrawalsInPeriodRows(treasuryMovements, startDate, endDate);
         const expensePrintRows = exRows.map((e) => {
           const category = String(e._category || e.category || 'Uncategorized').trim() || 'Uncategorized';
           return {
@@ -254,7 +269,18 @@ export function useReportsExport({
           status: r.status || 'Paid',
           _amountNgn: Number(r.amountNgn) || 0,
         }));
-        const rows = [...expensePrintRows, ...refundPrintRows].sort((a, b) => {
+        const companyCutPrintRows = companyCutPaid.map((r) => ({
+          groupKey: 'Company cut withdrawn',
+          section: 'Company cut',
+          date: r.payoutDateISO || '—',
+          ref: displayDocNumber(r.refundId) || r.refundId || '—',
+          party: r.customerName || 'Company',
+          detail: r.bankAccount || 'Company cut',
+          amount: formatNgn(r.amountNgn),
+          status: 'Withdrawn',
+          _amountNgn: Number(r.amountNgn) || 0,
+        }));
+        const rows = [...expensePrintRows, ...refundPrintRows, ...companyCutPrintRows].sort((a, b) => {
           const ga = String(a.groupKey || '');
           const gb = String(b.groupKey || '');
           const aRefund = ga === 'Refunds paid';
@@ -268,6 +294,7 @@ export function useReportsExport({
         });
         const expenseTotal = expensePrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
         const refundPaidTotal = refundPrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
+        const companyCutTotal = companyCutPrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
         return {
           title: PACK_EXPENSES_REFUNDS,
           columns: [
@@ -293,7 +320,8 @@ export function useReportsExport({
             { label: 'Expenses total', value: formatNgn(expenseTotal) },
             { label: 'Refund payout lines', value: String(refundPrintRows.length) },
             { label: 'Refunds paid', value: formatNgn(refundPaidTotal) },
-            { label: 'Combined amount', value: formatNgn(expenseTotal + refundPaidTotal) },
+            { label: 'Company cut withdrawn', value: formatNgn(companyCutTotal) },
+            { label: 'Combined amount', value: formatNgn(expenseTotal + refundPaidTotal + companyCutTotal) },
           ],
         };
       }
@@ -351,6 +379,11 @@ export function useReportsExport({
           (sum, r) => sum + (Number(r.amountNgn) || 0),
           0
         );
+        const companyCutInPeriodNgn = companyCutWithdrawalsInPeriodRows(
+          treasuryMovements,
+          startDate,
+          endDate
+        ).reduce((sum, r) => sum + (Number(r.amountNgn) || 0), 0);
         const s = salesPaymentsReceivedSummary(raw, refundedInPeriodNgn);
         const rows = raw.map((r) => {
           const isDebt = r.group === 'Outstanding balance (debtors)';
@@ -405,6 +438,7 @@ export function useReportsExport({
             { label: 'Materials produced in period (sales)', value: formatNgn(s.producedNgn) },
             { label: 'Materials not produced in period (credit)', value: formatNgn(s.notProducedNgn) },
             { label: 'Less: Refunds paid in period', value: formatNgn(s.refundsNgn) },
+            { label: 'Company cut withdrawn in period', value: formatNgn(companyCutInPeriodNgn) },
             { label: 'Net sales (Total sales − Refunds)', value: formatNgn(s.netSalesNgn) },
             {
               label: 'Outstanding balance (debtors)',
@@ -415,8 +449,11 @@ export function useReportsExport({
       }
       if (name === PACK_REFUND_PERIOD) {
         const raw = refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate);
+        const cuts = companyCutWithdrawalsInPeriodRows(treasuryMovements, startDate, endDate);
         const s = refundPeriodOverviewSummary(raw);
-        const rows = raw.map((r) => ({
+        const companyCutNgn = cuts.reduce((sum, r) => sum + (Number(r.amountNgn) || 0), 0);
+        const rows = [
+          ...raw.map((r) => ({
           receiptPaymentDateISO: r.receiptPaymentDateISO || '—',
           customerName: r.customerName || '—',
           quotationRef: displayDocNumber(r.quotationRef) || r.quotationRef || '—',
@@ -424,7 +461,17 @@ export function useReportsExport({
           refundPaymentDateISO: r.refundPaymentDateISO || '—',
           amountRefundNotPaidNgn: formatNgn(r.amountRefundNotPaidNgn),
           status: r.status || '—',
-        }));
+        })),
+          ...cuts.map((r) => ({
+            receiptPaymentDateISO: '—',
+            customerName: r.customerName || 'Company',
+            quotationRef: 'Company cut',
+            amountRefundPaidNgn: formatNgn(r.amountNgn),
+            refundPaymentDateISO: r.payoutDateISO || '—',
+            amountRefundNotPaidNgn: formatNgn(0),
+            status: 'Company cut withdrawn',
+          })),
+        ];
         return {
           title: PACK_REFUND_PERIOD,
           columns: [
@@ -438,8 +485,9 @@ export function useReportsExport({
           ],
           rows,
           summaryLines: [
-            { label: 'Rows', value: String(s.rowCount) },
+            { label: 'Rows', value: String(s.rowCount + cuts.length) },
             { label: 'Refund paid in period', value: formatNgn(s.refundPaidNgn) },
+            { label: 'Company cut withdrawn', value: formatNgn(companyCutNgn) },
             { label: 'Refund not paid (outstanding)', value: formatNgn(s.refundNotPaidNgn) },
           ],
         };
@@ -705,17 +753,30 @@ export function useReportsExport({
     }
 
     if (name === PACK_REFUND_PERIOD && fmt === 'Excel') {
-      const rows = refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate).map((r) => ({
-        receiptPaymentDateISO: r.receiptPaymentDateISO,
-        customerName: r.customerName,
-        quotationRef: r.quotationRef,
-        amountRefundPaidNgn: r.amountRefundPaidNgn,
-        refundPaymentDateISO: r.refundPaymentDateISO,
-        amountRefundNotPaidNgn: r.amountRefundNotPaidNgn,
-        refundId: r.refundId,
-        status: r.status,
-        requestedAtISO: r.requestedAtISO,
-      }));
+      const rows = [
+        ...refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate).map((r) => ({
+          receiptPaymentDateISO: r.receiptPaymentDateISO,
+          customerName: r.customerName,
+          quotationRef: r.quotationRef,
+          amountRefundPaidNgn: r.amountRefundPaidNgn,
+          refundPaymentDateISO: r.refundPaymentDateISO,
+          amountRefundNotPaidNgn: r.amountRefundNotPaidNgn,
+          refundId: r.refundId,
+          status: r.status,
+          requestedAtISO: r.requestedAtISO,
+        })),
+        ...companyCutWithdrawalsInPeriodRows(treasuryMovements, startDate, endDate).map((r) => ({
+          receiptPaymentDateISO: '',
+          customerName: r.customerName,
+          quotationRef: 'Company cut',
+          amountRefundPaidNgn: r.amountNgn,
+          refundPaymentDateISO: r.payoutDateISO,
+          amountRefundNotPaidNgn: 0,
+          refundId: r.refundId,
+          status: 'Company cut withdrawn',
+          requestedAtISO: '',
+        })),
+      ];
       if (!rows.length) {
         showToast('No rows for this pack in the selected range.', { variant: 'info' });
         return;

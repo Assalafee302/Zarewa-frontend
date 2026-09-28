@@ -603,6 +603,7 @@ const Account = () => {
             'SUPPLIER_PAYMENT',
             'PO_SUPPLIER_PAYMENT',
             'REFUND_PAYOUT',
+            'REFUND_COMPANY_CUT_PAYOUT',
             'ADVANCE_REFUND_OUT',
             'PAYMENT_REQUEST_OUT',
             'TRANSPORT_PAYMENT',

@@ -924,6 +924,41 @@ export function salesPaymentsReceivedSummary(rows = [], refundedNgn = 0) {
  * Flat refund payout lines dated in the period (matches Excel Refunds_paid sheet).
  * One row per payout history line; falls back to refund.paidAtISO when history is empty/unusable.
  */
+/**
+ * Paid company-cut retention withdrawals in the period (treasury outflow).
+ * These are not customer refund payouts; they are the company share leaving the till.
+ */
+export function companyCutWithdrawalsInPeriodRows(movements = [], startDate, endDate) {
+  const rows = [];
+  for (const m of movements || []) {
+    if (String(m.type || '').trim() !== 'REFUND_COMPANY_CUT_PAYOUT') continue;
+    if (m.reversesMovementId) continue;
+    const iso = toIsoDate(m.postedAtISO || m.posted_at_iso);
+    if (!iso) continue;
+    if (startDate && iso < startDate) continue;
+    if (endDate && iso > endDate) continue;
+    const amountNgn = Math.abs(Math.round(Number(m.amountNgn ?? m.amount_ngn) || 0));
+    if (amountNgn <= 0) continue;
+    rows.push({
+      payoutDateISO: iso,
+      refundId: String(m.sourceId || m.reference || m.id || '').trim(),
+      customerName: String(m.counterpartyName || 'Company').trim() || 'Company',
+      quotationRef: 'Company cut',
+      amountNgn,
+      bankAccount: String(m.accountName || m.bankName || '').trim() || '—',
+      reference: String(m.reference || m.note || '').trim() || '—',
+      status: 'Company cut withdrawn',
+      payoutKind: 'Company cut',
+    });
+  }
+  rows.sort(
+    (a, b) =>
+      String(a.payoutDateISO).localeCompare(String(b.payoutDateISO)) ||
+      String(a.refundId).localeCompare(String(b.refundId))
+  );
+  return rows;
+}
+
 export function refundsPaidInPeriodRows(refunds = [], startDate, endDate) {
   const paidInPeriod = [];
   for (const r of refunds || []) {

@@ -170,6 +170,20 @@ describe('accountCore', () => {
       'Sales receipt'
     );
     expect(treasuryMovementSourceBadge({ sourceKind: 'LEDGER_ADVANCE', type: 'ADVANCE_IN' }).label).toBe('Advance');
+    expect(
+      treasuryMovementSourceBadge({
+        sourceKind: 'REFUND_COMPANY_RETENTION',
+        type: 'REFUND_COMPANY_CUT_PAYOUT',
+      }).label
+    ).toBe('Company cut');
+    expect(
+      treasuryMovementStatementLabel({
+        type: 'REFUND_COMPANY_CUT_PAYOUT',
+        sourceKind: 'REFUND_COMPANY_RETENTION',
+        counterpartyName: 'Mansur Lawal Matazu',
+        reference: 'RCW-KD-26-0002',
+      })
+    ).toContain('Company cut withdrawal');
   });
 
   it('builds payment request audit trail rows', () => {

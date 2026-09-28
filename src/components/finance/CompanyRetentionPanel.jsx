@@ -87,6 +87,8 @@ export function CompanyRetentionPanel({
   const nextAllowedLabel = formatWhen(summary?.nextWithdrawalAllowedAtIso);
   const lastPaidLabel = formatWhen(summary?.lastWithdrawalPaidAtIso);
   const pending = Array.isArray(summary?.pendingWithdrawals) ? summary.pendingWithdrawals : [];
+  const recent = Array.isArray(summary?.recentWithdrawals) ? summary.recentWithdrawals : [];
+  const paidOut = Math.round(Number(summary?.paidOutNgn) || 0);
   const credits = Array.isArray(summary?.credits) ? summary.credits : [];
   const hasPending = pending.length > 0;
   const canOpenRequest = canRequest && available > 0 && !cooldownActive && !hasPending;
@@ -126,13 +128,22 @@ export function CompanyRetentionPanel({
     }
   };
 
-  const decide = async (id, decision) => {
+  const decide = async (id, decision, amountNgn) => {
     if (busy) return;
+    if (decision === 'approve') {
+      const label = amountNgn ? ` of ${formatNgn(amountNgn)}` : '';
+      if (!window.confirm(`Cash-approve this company-cut withdrawal${label}? Finance can pay it after this.`)) {
+        return;
+      }
+    }
     setBusy(true);
     try {
       const { ok, data } = await apiFetch(
         `/api/refund-company-retention/withdrawals/${encodeURIComponent(id)}/decide`,
-        { method: 'POST', body: JSON.stringify({ decision }) }
+        {
+          method: 'POST',
+          body: JSON.stringify({ decision, cashConfirmed: decision === 'approve' }),
+        }
       );
       if (!ok || !data?.ok) {
         showToast(String(data?.error || `Could not ${decision}.`), { variant: 'error' });
@@ -141,6 +152,28 @@ export function CompanyRetentionPanel({
       showToast(decision === 'approve' ? 'Approved for cashier payout.' : 'Withdrawal rejected.', {
         variant: 'success',
       });
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelWithdrawal = async (id) => {
+    if (busy) return;
+    if (!window.confirm('Cancel this company-cut withdrawal? Nothing is paid, and the balance stays available.')) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/refund-company-retention/withdrawals/${encodeURIComponent(id)}/cancel`,
+        { method: 'POST', body: JSON.stringify({ reason: 'Cancelled from company cut retention' }) }
+      );
+      if (!ok || !data?.ok) {
+        showToast(String(data?.error || 'Could not cancel withdrawal.'), { variant: 'error' });
+        return;
+      }
+      showToast('Withdrawal cancelled. The company-cut balance is available again.', { variant: 'success' });
       await load();
     } finally {
       setBusy(false);
@@ -180,7 +213,7 @@ export function CompanyRetentionPanel({
       ? `Next withdrawal after ${nextAllowedLabel}`
       : `Next withdrawal ${cooldownDays} days after last payout`
     : hasPending
-      ? 'Finish or reject the open withdrawal first'
+      ? 'Cancel the open withdrawal first'
       : available <= 0
         ? 'No available balance'
         : null;
@@ -289,13 +322,22 @@ export function CompanyRetentionPanel({
                   <>
                     {canApprove && w.status === 'pending_bm' ? (
                       <>
-                        <FinanceDeskQueueActionButton tone="teal" onClick={() => void decide(w.id, 'approve')}>
+                        <FinanceDeskQueueActionButton
+                          tone="teal"
+                          onClick={() => void decide(w.id, 'approve', w.amountNgn)}
+                        >
                           Approve
                         </FinanceDeskQueueActionButton>
                         <FinanceDeskQueueActionButton tone="rose" onClick={() => void decide(w.id, 'reject')}>
                           Reject
                         </FinanceDeskQueueActionButton>
                       </>
+                    ) : null}
+                    {(canRequest || canApprove || canPay) &&
+                    (w.status === 'approved' || (w.status === 'pending_bm' && !canApprove)) ? (
+                      <FinanceDeskQueueActionButton tone="rose" onClick={() => void cancelWithdrawal(w.id)}>
+                        Cancel
+                      </FinanceDeskQueueActionButton>
                     ) : null}
                     {canPay && w.status === 'approved' ? (
                       <FinanceDeskQueueActionButton
@@ -313,6 +355,37 @@ export function CompanyRetentionPanel({
                   </>
                 }
               />
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {recent.length ? (
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            Recent withdrawals{paidOut > 0 ? ` · paid out ${formatNgn(paidOut)}` : ''}
+          </p>
+          <ul className="space-y-1">
+            {recent.slice(0, 8).map((w) => (
+              <li
+                key={w.id}
+                className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white/70 px-2.5 py-1.5 text-[11px]"
+              >
+                <span className="min-w-0 truncate text-slate-700">
+                  <span className="font-mono font-semibold text-slate-900">{w.id}</span>
+                  {' · '}
+                  {w.status === 'paid' ? 'Paid' : w.status === 'cancelled' ? 'Cancelled' : 'Rejected'}
+                  {w.paidAtIso ? ` · ${formatDay(w.paidAtIso)}` : ''}
+                  {w.payeeBankName ? ` · ${w.payeeBankName}` : ''}
+                </span>
+                <span
+                  className={`shrink-0 tabular-nums font-bold ${
+                    w.status === 'paid' ? 'text-rose-800' : 'text-slate-500'
+                  }`}
+                >
+                  {w.status === 'paid' ? `−${formatNgn(w.amountNgn)}` : formatNgn(w.amountNgn)}
+                </span>
+              </li>
             ))}
           </ul>
         </div>
