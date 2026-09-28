@@ -15,6 +15,7 @@ import { OPS_SECTION_TITLE, OPS_TOOL_BTN, OPS_TOOL_BTN_PRIMARY } from './operati
 import { procurementKindFromPo } from '../../lib/procurementPoKind';
 import { poLineIsOpenForReceiving, poLineOpenQtyForReceiving } from '../../lib/poLineTypes.js';
 import { liveCoilWeightKgForOverview as liveCoilWeightKg } from '../../lib/operationsProductionOverviewCore.js';
+import CoilNumberCorrectionPanel from './CoilNumberCorrectionPanel';
 
 /**
  * Stock (inventory) desk: stock-kind switch, receive/GRN, live lots, KPIs, and stock tools.
@@ -289,6 +290,7 @@ export function OperationsInventoryDesk({
                 </h3>
                 {stockReceiveKind === 'coil' ? (
                   <>
+                    <CoilNumberCorrectionPanel />
                     <div className="flex flex-col gap-1.5 mb-2 shrink-0">
                       <label className="relative min-w-0 w-full">
                         <span className="sr-only">Search received coils</span>

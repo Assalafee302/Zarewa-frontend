@@ -30,6 +30,7 @@ import { coilFreeKg, coilKgUsed, coilOnHandKg, coilReceivedKg } from '../../lib/
 import { OPS_INVENTORY_TAB_LABEL } from '../../lib/storeClearanceRank';
 import { buildCoilProfileJobRows, coilProfileProductionTotals } from '../../lib/coilProfileJobRows.js';
 import { buildCoilStatementPayload } from '../../lib/coilStatementPrint.js';
+import CoilNumberCorrectionPanel from '../../components/operations/CoilNumberCorrectionPanel';
 
 function asNum(v) {
   const n = Number(v);
@@ -734,6 +735,7 @@ export default function CoilProfile() {
         </aside>
 
         <MainPanel className="flex-1 min-w-0 !pt-0">
+          <CoilNumberCorrectionPanel coilNo={coil.coilNo} />
           <section id="coil-overview" className="rounded-lg border border-slate-200 bg-white p-5 mb-8 scroll-mt-28">
             <h3 className="z-section-title">Overview</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
