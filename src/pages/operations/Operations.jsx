@@ -350,6 +350,12 @@ function transitPoSearchBlob(p) {
 /** Matches server GRN default `CL-YY-####` (writeOps.postPurchaseOrderGrn). */
 const CL_COIL_NO_RE = /^CL-(\d{2})-(\d{1,6})$/i;
 
+function clSequenceForYear(coilNo, yy2) {
+  const m = String(coilNo || '').trim().match(CL_COIL_NO_RE);
+  if (!m || m[1] !== yy2) return 0;
+  return parseInt(m[2], 10) || 0;
+}
+
 function maxClSequenceForYear(coilLots, yy2, extraCoilNos = []) {
   let max = 0;
   for (const lot of coilLots || []) {
@@ -679,6 +685,7 @@ const Operations = () => {
   const [receiveDraft, setReceiveDraft] = useState({ poID: '', location: '' });
   const [expandedReceivePoId, setExpandedReceivePoId] = useState(null);
   const [grnLines, setGrnLines] = useState([]);
+  const [nextFreeCoilNo, setNextFreeCoilNo] = useState('');
   const [grnConversionOverride, setGrnConversionOverride] = useState(false);
   const [grnSubmitting, setGrnSubmitting] = useState(false);
   const [stockAdjustSubmitting, setStockAdjustSubmitting] = useState(false);
@@ -1729,7 +1736,8 @@ const Operations = () => {
       const openLines = po.lines.filter((l) => poLineIsOpenForReceiving(l));
       const prevByKey = new Map(prev.map((r) => [r.lineKey, r]));
       const numsInForm = prev.map((r) => r.coilNo).filter(Boolean);
-      let nextSeq = maxClSequenceForYear(coilLots, yy, numsInForm);
+      const serverFloor = Math.max(0, clSequenceForYear(nextFreeCoilNo, yy) - 1);
+      let nextSeq = Math.max(maxClSequenceForYear(coilLots, yy, numsInForm), serverFloor);
 
       return openLines.map((l) => {
         const remaining = poLineOpenQtyForReceiving(l);
@@ -1738,7 +1746,12 @@ const Operations = () => {
         const meterBasis = grnKind === 'coil' && isCoilMeterBasisLine(l);
         const receivedAtISO = String(old?.receivedAtISO || '').slice(0, 10) || todayISO;
         if (grnKind === 'coil') {
-          if (old) {
+          const started =
+            String(old?.qtyReceived || '').trim() !== '' || String(old?.weightKg || '').trim() !== '';
+          const stillAuto = Boolean(old?.autoCoilNo) && String(old.coilNo || '') === String(old.autoCoilNo);
+          const serverNext = clSequenceForYear(nextFreeCoilNo, yy);
+          const currentSeq = clSequenceForYear(old?.coilNo, yy);
+          if (old && (started || !stillAuto || serverNext === 0 || currentSeq >= serverNext)) {
             return {
               lineKey: l.lineKey,
               productID: l.productID,
@@ -1748,6 +1761,7 @@ const Operations = () => {
               remaining,
               qtyReceived: old.qtyReceived,
               coilNo: old.coilNo,
+              autoCoilNo: old.autoCoilNo,
               weightKg: old.weightKg ?? '',
               receivedAtISO,
               meterBasis,
@@ -1755,6 +1769,7 @@ const Operations = () => {
             };
           }
           nextSeq += 1;
+          const coilNo = `CL-${yy}-${String(nextSeq).padStart(4, '0')}`;
           return {
             lineKey: l.lineKey,
             productID: l.productID,
@@ -1762,10 +1777,11 @@ const Operations = () => {
             color: l.color,
             gauge: l.gauge,
             remaining,
-            qtyReceived: '',
-            coilNo: `CL-${yy}-${String(nextSeq).padStart(4, '0')}`,
-            weightKg: '',
-            receivedAtISO: todayISO,
+            qtyReceived: old?.qtyReceived ?? '',
+            coilNo,
+            autoCoilNo: coilNo,
+            weightKg: old?.weightKg ?? '',
+            receivedAtISO,
             meterBasis,
             grnKind,
           };
@@ -1786,7 +1802,20 @@ const Operations = () => {
         };
       });
     });
-  }, [receiveDraft.poID, purchaseOrders, transitOrders, coilLots]);
+  }, [receiveDraft.poID, purchaseOrders, transitOrders, coilLots, nextFreeCoilNo]);
+
+  useEffect(() => {
+    if (!receiveDraft.poID) return undefined;
+    let cancelled = false;
+    void (async () => {
+      const r = await apiFetch('/api/coil-lots/next-number');
+      if (cancelled || !r.ok || !r.data?.ok || !r.data.coilNo) return;
+      setNextFreeCoilNo(String(r.data.coilNo));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [receiveDraft.poID]);
 
   const resetReceiveForm = () => {
     setExpandedReceivePoId(null);
@@ -1875,6 +1904,17 @@ const Operations = () => {
         { allowConversionMismatch: grnConversionOverride, purchaseOrder: selectedPo || undefined }
       );
       if (!res.ok) {
+        if (res.code === 'COIL_NO_TAKEN' && res.nextCoilNo) {
+          const taken = String(res.takenCoilNo || '').trim().toLowerCase();
+          setGrnLines((prev) =>
+            prev.map((row) =>
+              taken && String(row.coilNo || '').trim().toLowerCase() === taken
+                ? { ...row, coilNo: res.nextCoilNo, autoCoilNo: res.nextCoilNo }
+                : row
+            )
+          );
+          setNextFreeCoilNo(res.nextCoilNo);
+        }
         showToast(res.error, { variant: 'error' });
         return;
       }

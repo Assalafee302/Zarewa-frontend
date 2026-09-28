@@ -731,7 +731,13 @@ export function InventoryProvider({ children }) {
           }
         );
         if (!ok || !data?.ok) {
-          return { ok: false, error: data?.error || 'GRN failed on server.' };
+          return {
+            ok: false,
+            error: data?.error || 'GRN failed on server.',
+            code: data?.code,
+            nextCoilNo: data?.nextCoilNo,
+            takenCoilNo: data?.takenCoilNo,
+          };
         }
         // Merge PO status immediately; coil/SKU stock still needs operations pack.
         if (data?.delta) ws?.applyWriteDelta?.(data.delta);

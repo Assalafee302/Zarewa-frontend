@@ -78,7 +78,14 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
   // Reset only when the modal opens — not when coilLots refreshes in the background.
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
-      setForm(defaultForm(coilLots));
+      const base = defaultForm(coilLots);
+      setForm(base);
+      void (async () => {
+        const r = await apiFetch('/api/coil-lots/next-number');
+        if (!r.ok || !r.data?.ok || !r.data.coilNo) return;
+        const next = String(r.data.coilNo);
+        setForm((prev) => (prev.coilNo === base.coilNo ? { ...prev, coilNo: next } : prev));
+      })();
     }
     wasOpenRef.current = isOpen;
   }, [isOpen, coilLots]);
