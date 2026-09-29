@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi, afterEach } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { FinanceCashierPayoutsPanel } from './FinanceCashierPayoutsPanel.jsx';
 import { AccountPageContext } from '../../pages/account/AccountPageContext.jsx';
 
@@ -61,6 +61,8 @@ function renderPanel() {
   return page;
 }
 
+afterEach(() => cleanup());
+
 describe('FinanceCashierPayoutsPanel', () => {
   it('shows ready total and sorts the queue by age', () => {
     renderPanel();
@@ -75,5 +77,13 @@ describe('FinanceCashierPayoutsPanel', () => {
     const ada = payees.findIndex((text) => text.includes('Ada Musa'));
     expect(diesel).toBeGreaterThan(0);
     expect(diesel).toBeLessThan(ada);
+  });
+
+  it('expands a payout row to show payee account details', () => {
+    renderPanel();
+    const dieselCell = screen.getByText('Diesel Yard');
+    fireEvent.click(dieselCell.closest('tr'));
+    expect(screen.getByText(/No bank account on this line/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Execute payout' })).toBeTruthy();
   });
 });

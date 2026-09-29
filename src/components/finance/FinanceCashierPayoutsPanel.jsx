@@ -118,6 +118,7 @@ export function FinanceCashierPayoutsPanel() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dueSortKey, setDueSortKey] = useState('date');
   const [dueSortDir, setDueSortDir] = useState('desc');
+  const [expandedPayoutKey, setExpandedPayoutKey] = useState('');
   const refundQueueActor = workspace?.session?.user || ws?.session?.user;
   const refundQueueHasPermission = workspace?.hasPermission || ws?.hasPermission;
   const today = useMemo(() => new Date(), []);
@@ -144,6 +145,10 @@ export function FinanceCashierPayoutsPanel() {
         statusLabel: 'Ready',
         pay: () => handleDeskPayRequest(String(pr.requestID || pr.id || '')),
         view: () => handleDeskViewPaymentRequest?.(String(pr.requestID || pr.id || '')),
+        payeeBankName: pr.payeeBankName || '',
+        payeeAccountNo: pr.payeeAccountNo || '',
+        approvedBy: pr.approvedByName || pr.approvedBy || '',
+        note: pr.purpose || pr.notes || pr.description || '',
       });
     }
     for (const line of flattenRefundDeskQueue(refundsOnFinanceRefundQueue(snap.refunds || []), {
@@ -170,6 +175,10 @@ export function FinanceCashierPayoutsPanel() {
         statusLabel: canPay ? 'Ready' : 'Held',
         pay: canPay ? () => handleDeskPayRefund(String(line.refundID || ''), line.queueKey) : null,
         view: () => handleDeskViewRefund?.(String(line.refundID || '')),
+        payeeBankName: line.payeeBankName || r.payeeBankName || '',
+        payeeAccountNo: line.payeeAccountNo || r.payeeAccountNo || '',
+        approvedBy: r.approvedByName || r.approvedBy || '',
+        note: r.reason || r.notes || '',
       });
     }
     for (const s of registerSettlementsAwaitingPayment(snap.registerSettlementsAwaitingPayment || [])) {
@@ -188,6 +197,9 @@ export function FinanceCashierPayoutsPanel() {
         payable: true,
         statusLabel: 'Ready',
         pay: () => handleDeskPayRegisterSettlement(String(s.settlementId || '')),
+        payeeBankName: s.payeeBankName || '',
+        payeeAccountNo: s.payeeAccountNo || '',
+        note: s.notes || '',
       });
     }
     for (const row of Array.isArray(snap.poTransportAwaitingTreasury) ? snap.poTransportAwaitingTreasury : []) {
@@ -441,8 +453,16 @@ export function FinanceCashierPayoutsPanel() {
                     </AppTableTd>
                   </AppTableTr>
                 ) : (
-                  visibleDue.map((row) => (
-                    <AppTableTr key={`${row.kindKey}-${row.id}`} className={row.payable ? '' : 'bg-amber-50/50'}>
+                  visibleDue.map((row) => {
+                    const rowKey = `${row.kindKey}-${row.id}`;
+                    const expanded = expandedPayoutKey === rowKey;
+                    const bankLine = [row.payeeBankName, row.payeeAccountNo].filter(Boolean).join(' · ');
+                    return (
+                    <React.Fragment key={rowKey}>
+                    <AppTableTr
+                      className={row.payable ? '' : 'bg-amber-50/50'}
+                      onClick={() => setExpandedPayoutKey(expanded ? '' : rowKey)}
+                    >
                       <AppTableTd>{row.date || '—'}</AppTableTd>
                       <AppTableTd>
                         <span className={ageClass(row.ageDays)}>{ageLabel(row.ageDays)}</span>
@@ -481,7 +501,7 @@ export function FinanceCashierPayoutsPanel() {
                         )}
                       </AppTableTd>
                       <AppTableTd align="right" truncate={false}>
-                        <div className="inline-flex items-center justify-end gap-1">
+                        <div className="inline-flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                           {row.view ? (
                             <button
                               type="button"
@@ -505,7 +525,44 @@ export function FinanceCashierPayoutsPanel() {
                         </div>
                       </AppTableTd>
                     </AppTableTr>
-                  ))
+                    {expanded ? (
+                      <AppTableTr className="bg-slate-50/90">
+                        <AppTableTd colSpan={8} truncate={false}>
+                          <div className="flex flex-wrap items-start justify-between gap-3 py-1 text-[12px] text-slate-700">
+                            <div className="space-y-1 min-w-0">
+                              {bankLine ? (
+                                <p>
+                                  <span className="font-semibold text-slate-500">Payee account</span>{' '}
+                                  <span className="font-mono font-bold tabular-nums">{bankLine}</span>
+                                </p>
+                              ) : (
+                                <p className="text-slate-500">No bank account on this line — open View if you need details.</p>
+                              )}
+                              {row.approvedBy ? (
+                                <p>
+                                  <span className="font-semibold text-slate-500">Approved by</span> {row.approvedBy}
+                                </p>
+                              ) : null}
+                              {row.note ? (
+                                <p className="text-slate-600 leading-snug">{row.note}</p>
+                              ) : null}
+                            </div>
+                            {canPayRequests && row.pay ? (
+                              <button
+                                type="button"
+                                onClick={row.pay}
+                                className="rounded-md bg-zarewa-teal px-3 py-1.5 text-[11px] font-semibold text-white hover:brightness-110 shrink-0"
+                              >
+                                Execute payout
+                              </button>
+                            ) : null}
+                          </div>
+                        </AppTableTd>
+                      </AppTableTr>
+                    ) : null}
+                    </React.Fragment>
+                    );
+                  })
                 )}
               </AppTableBody>
             </AppTable>

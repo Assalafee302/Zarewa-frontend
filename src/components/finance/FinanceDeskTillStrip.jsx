@@ -27,6 +27,7 @@ export function FinanceDeskTillStrip({
   pendingReceiptsNgn = 0,
   payouts = 0,
   confirmedToday = 0,
+  onCloseDay,
 }) {
   const cashNgn = tillTruth?.cashNgn ?? 0;
   const posNgn = tillTruth?.posNgn ?? 0;
@@ -143,7 +144,7 @@ export function FinanceDeskTillStrip({
       <div className="mt-2 flex justify-end">
         <button
           type="button"
-          onClick={() => scrollToId('desk-eod')}
+          onClick={() => (onCloseDay ? onCloseDay() : scrollToId('desk-eod'))}
           className="text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline underline-offset-2"
         >
           Close day · count till

@@ -7,6 +7,7 @@ import {
   Printer,
   CheckCircle2,
   Undo2,
+  X,
 } from 'lucide-react';
 
 import { formatNgn } from '../../Data/mockData';
@@ -108,7 +109,10 @@ export function AccountTabPanels() {
     setReceiptsSortDir,
     setReceiptsSortKey,
     setReceiptsTableSearch,
+    receiptsPageSize,
+    setReceiptsPageSize,
     setShowTransferModal,
+    setTransferPrintSlip,
     setStatementAccount,
     setTransferForm,
     setWaitingReceiptsPage,
@@ -254,11 +258,6 @@ export function AccountTabPanels() {
                   hideAccountGrid={canManageTreasury}
                   searchQuery={searchQuery}
                 />
-                {isCashierRole ? (
-                  <div className="pt-2">
-                    <CashierEndOfDayPanel onGoToTab={handleAccountTabChange} />
-                  </div>
-                ) : null}
               </>
             )}
 
@@ -316,13 +315,23 @@ export function AccountTabPanels() {
                             />
                             <input
                               type="search"
-                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-2 text-ui-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
+                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-7 text-ui-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-zarewa-teal/15"
                               placeholder="Search receipts…"
                               value={receiptsTableSearch}
                               onChange={(e) => setReceiptsTableSearch(e.target.value)}
                               autoComplete="off"
                               aria-label="Filter receipts table"
                             />
+                            {String(receiptsTableSearch || '').trim() ? (
+                              <button
+                                type="button"
+                                onClick={() => setReceiptsTableSearch('')}
+                                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700"
+                                aria-label="Clear receipts filter"
+                              >
+                                <X size={12} />
+                              </button>
+                            ) : null}
                           </div>
                           <span className="text-ui-xs font-bold text-slate-500 uppercase">Sort by</span>
                           <select
@@ -342,6 +351,16 @@ export function AccountTabPanels() {
                           >
                             {receiptsSortDir === 'asc' ? 'Ascending' : 'Descending'}
                           </button>
+                          <select
+                            value={receiptsPageSize || 15}
+                            onChange={(e) => setReceiptsPageSize?.(Number(e.target.value) || 15)}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-ui-xs font-semibold text-zarewa-teal outline-none focus:ring-2 focus:ring-zarewa-teal/15"
+                            aria-label="Receipts per page"
+                          >
+                            <option value={15}>15 / page</option>
+                            <option value={30}>30 / page</option>
+                            <option value={50}>50 / page</option>
+                          </select>
                           <button
                             type="button"
                             onClick={() => setReceiptsNoCuttingListOnly((v) => !v)}
@@ -494,6 +513,7 @@ export function AccountTabPanels() {
                             : undefined
                         }
                         onSelectAll={handleSelectAllReceipts}
+                        highlightQuery={String(receiptsTableSearch || searchQuery || '').trim()}
                       />
                       ) : null}
                       {receiptsViewMode !== 'pending' ? (
@@ -517,6 +537,7 @@ export function AccountTabPanels() {
                         canConfirm={Boolean(canFinanceReceiptSettlement && ws?.canMutate)}
                         onConfirm={openReceiptFinance}
                         confirmLabel={(r) => (r.financeReconciliationSavedAtISO ? 'Revise' : 'Confirm')}
+                        highlightQuery={String(receiptsTableSearch || searchQuery || '').trim()}
                       />
                       ) : null}
                       </div>
@@ -624,6 +645,7 @@ export function AccountTabPanels() {
                       reference: '',
                       dateISO: new Date().toISOString().slice(0, 10),
                     });
+                    setTransferPrintSlip?.(true);
                     setShowTransferModal(true);
                   }}
                 />
@@ -654,6 +676,9 @@ export function AccountTabPanels() {
             )}
 
             {activeTab === 'audit' && (
+              isCashierRole ? (
+                <CashierEndOfDayPanel onGoToTab={handleAccountTabChange} />
+              ) : (
               <div className="space-y-5 animate-in slide-in-from-left-5">
                 <FinanceTabContextBanner
                   testId="finance-audit-intro"
@@ -802,6 +827,7 @@ export function AccountTabPanels() {
                   fully paid.
                 </div>
               </div>
+              )
             )}
             </>
   );

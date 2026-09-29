@@ -11,13 +11,13 @@ import {
 } from './legacyAccountsAccess.js';
 
 describe('legacyAccountsAccess (client)', () => {
-  it('branch manager can open cashier desk (cover) but not audit', () => {
+  it('branch manager can open cashier desk (cover) including daily close', () => {
     expect(userMayAccessLegacyAccountsRoute('sales_manager', ['finance.approve'])).toBe(true);
     expect(resolveLegacyAccountsRedirect('sales_manager', ['finance.approve'])).toBeNull();
     expect(userMaySeeLegacyAccountsNav('sales_manager', ['finance.approve'])).toBe(true);
     expect(getAllowedLegacyAccountTabs('sales_manager', ['finance.pay', 'cashier.desk.view'])).toContain('desk');
-    expect(getAllowedLegacyAccountTabs('sales_manager', ['finance.pay', 'cashier.desk.view'])).not.toContain('audit');
-    expect(resolveLegacyAccountsRedirect('sales_manager', ['finance.pay'], 'audit')?.to).toBe('/accounts?tab=desk');
+    expect(getAllowedLegacyAccountTabs('sales_manager', ['finance.pay', 'cashier.desk.view'])).toContain('audit');
+    expect(resolveLegacyAccountsRedirect('sales_manager', ['finance.pay'], 'audit')).toBeNull();
     expect(legacyAccountTabLabelForRole('desk', 'sales_manager')).toBe('Cashier');
   });
 
@@ -31,12 +31,10 @@ describe('legacyAccountsAccess (client)', () => {
     expect(userMaySeeLegacyAccountsNav('cashier', ['cashier.desk.view', 'finance.view'])).toBe(true);
     expect(getDefaultLegacyAccountTab('cashier', ['cashier.desk.view'])).toBe('desk');
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).toContain('desk');
-    expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('audit');
+    expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).toContain('audit');
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).toContain('disbursements');
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).toContain('movements');
-    expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'audit')?.to).toBe(
-      '/accounts?tab=desk'
-    );
+    expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'audit')).toBeNull();
     expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'disbursements')).toBeNull();
   });
 
@@ -47,6 +45,10 @@ describe('legacyAccountsAccess (client)', () => {
     expect(resolveAccountsNavigationTab('treasury', 'cashier', ['cashier.desk.view'])).toBe('desk');
     expect(resolveAccountsNavigationTab('treasury', 'finance_manager', ['accounting.desk.view'])).toBe('desk');
     expect(legacyAccountTabLabelForRole('desk', 'cashier')).toBe('Cashier');
+    expect(legacyAccountTabLabelForRole('audit', 'cashier')).toBe('Close');
+    expect(legacyAccountTabLabelForRole('movements', 'cashier')).toBe('Transfers');
+    expect(legacyAccountTabLabelForRole('disbursements', 'cashier')).toBe('Payouts');
+    expect(legacyAccountTabLabelForRole('audit', 'finance_manager')).toBeNull();
     expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'treasury')).toBeNull();
   });
 

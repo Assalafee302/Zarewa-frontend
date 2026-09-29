@@ -9,10 +9,32 @@ import {
   quotationColourGaugeLabel,
   receiptDateLabel,
 } from '../../lib/quotationColourGauge.js';
+import { splitSearchHighlight } from '../../shared/lib/workspaceSearchCore.js';
 
 const TH =
   'px-1.5 py-1 text-left text-[10px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap';
 const TD = 'px-1.5 py-1 align-middle text-[11px] leading-tight text-slate-800';
+
+function HighlightQuery({ text, query }) {
+  const src = text == null ? '' : String(text);
+  if (!src) return '—';
+  const q = String(query || '').trim();
+  if (!q) return src;
+  const parts = splitSearchHighlight(src, q);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.match ? (
+          <mark key={i} className="rounded bg-amber-100 px-0.5 text-inherit">
+            {part.text}
+          </mark>
+        ) : (
+          <span key={i}>{part.text}</span>
+        )
+      )}
+    </>
+  );
+}
 
 /**
  * Pending / confirmed receipts as one compact line per row (no sideways scroll).
@@ -36,6 +58,7 @@ export function FinanceReceiptsClearanceTable({
   selectedReceiptIds = [],
   onToggleSelect,
   onSelectAll,
+  highlightQuery = '',
 }) {
   const headerCls =
     tone === 'emerald'
@@ -199,13 +222,28 @@ export function FinanceReceiptsClearanceTable({
                     <td className={TD} title={receiptTitle}>
                       <div className="flex min-w-0 items-center gap-1">
                         <span className="min-w-0 truncate font-mono text-[11px] font-semibold text-zarewa-teal">
-                          {isSplitRow ? r._movementId : r.id}
+                          {isSplitRow ? (
+                            <HighlightQuery text={r._movementId} query={highlightQuery} />
+                          ) : (
+                            <HighlightQuery text={r.id} query={highlightQuery} />
+                          )}
                           {isSplitRow && r._parentReceiptId ? (
-                            <span className="text-slate-500 font-normal"> · {r._parentReceiptId}</span>
+                            <span className="text-slate-500 font-normal">
+                              {' '}
+                              · <HighlightQuery text={r._parentReceiptId} query={highlightQuery} />
+                            </span>
                           ) : null}
-                          {!isSplitRow && r.quotationRef ? ` · ${r.quotationRef}` : null}
+                          {!isSplitRow && r.quotationRef ? (
+                            <>
+                              {' '}
+                              · <HighlightQuery text={r.quotationRef} query={highlightQuery} />
+                            </>
+                          ) : null}
                           {isSplitRow && r.quotationRef ? (
-                            <span className="text-slate-500 font-normal"> · {r.quotationRef}</span>
+                            <span className="text-slate-500 font-normal">
+                              {' '}
+                              · <HighlightQuery text={r.quotationRef} query={highlightQuery} />
+                            </span>
                           ) : null}
                         </span>
                         <span
@@ -221,7 +259,7 @@ export function FinanceReceiptsClearanceTable({
                       </div>
                     </td>
                     <td className={`${TD} truncate`} title={r.customer || ''}>
-                      {r.customer || '—'}
+                      <HighlightQuery text={r.customer} query={highlightQuery} />
                     </td>
                     <td className={`${TD} hidden truncate sm:table-cell`} title={spec || ''}>
                       {spec || '—'}

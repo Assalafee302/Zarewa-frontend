@@ -9,6 +9,7 @@ import {
   Wallet,
   ArrowRight,
   Plus,
+  X,
 } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData.js';
 import { useWorkspace } from '../../context/WorkspaceContext.jsx';
@@ -151,8 +152,18 @@ export function FinanceTransfersPanel({
               placeholder="Search reference, account, ID…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-zarewa-teal/15 focus:border-teal-400"
+              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-8 text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-zarewa-teal/15 focus:border-teal-400"
             />
+            {search.trim() ? (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700"
+                aria-label="Clear transfer search"
+              >
+                <X size={12} />
+              </button>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-0.5">
@@ -186,6 +197,12 @@ export function FinanceTransfersPanel({
           New Transfer
         </button>
       </div>
+
+      {search.trim() ? (
+        <p className="text-ui-xs font-semibold tabular-nums text-slate-600">
+          {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'} for “{search.trim()}”
+        </p>
+      ) : null}
 
       {/* List / Table */}
       {filteredRows.length === 0 ? (

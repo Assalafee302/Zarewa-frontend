@@ -107,7 +107,24 @@ import {
   quotationColourGaugeLabel,
   receiptDateLabel,
 } from "../../lib/quotationColourGauge.js";
+import { splitSearchHighlight } from "../../shared/lib/workspaceSearchCore.js";
 import { sortQueueOldestFirst } from "../../lib/deskQueueOrder.js";
+
+function DeskHighlight({ text, query }) {
+  const src = text == null ? "" : String(text);
+  if (!src) return null;
+  const q = String(query || "").trim();
+  if (!q) return src;
+  return splitSearchHighlight(src, q).map((part, i) =>
+    part.match ? (
+      <mark key={i} className="rounded bg-amber-100 px-0.5 text-inherit">
+        {part.text}
+      </mark>
+    ) : (
+      <span key={i}>{part.text}</span>
+    )
+  );
+}
 
 /**
  * How many rows a desk queue renders at once.
@@ -679,6 +696,7 @@ export function FinanceDeskWorkQueues({
           pendingReceiptsNgn={pendingClearanceTotalNgn(receipts)}
           payouts={payoutQueueCount}
           confirmedToday={trialData?.confirmedReceipts?.today ?? confirmedTodayCount}
+          onCloseDay={() => onGoToTab?.('audit')}
         />
       ) : null}
 
@@ -918,11 +936,13 @@ export function FinanceDeskWorkQueues({
                         theme="amber"
                         title={
                           <>
-                            <span className="font-mono">{r.id}</span>
+                            <span className="font-mono">
+                              <DeskHighlight text={r.id} query={deskQuery} />
+                            </span>
 
                             <span className="font-medium text-slate-600">
                               {" "}
-                              · {r.customer || r.customerID}
+                              · <DeskHighlight text={r.customer || r.customerID} query={deskQuery} />
                             </span>
                           </>
                         }
@@ -1017,10 +1037,13 @@ export function FinanceDeskWorkQueues({
                           title={
                             <>
                               <span className="font-medium text-slate-900">
-                                {ack.supplierName || 'Supplier'}
+                                <DeskHighlight text={ack.supplierName || 'Supplier'} query={deskQuery} />
                               </span>
                               {refLabel ? (
-                                <span className="font-mono text-slate-600"> {refLabel}</span>
+                                <span className="font-mono text-slate-600">
+                                  {' '}
+                                  <DeskHighlight text={refLabel} query={deskQuery} />
+                                </span>
                               ) : null}
                             </>
                           }
@@ -1200,10 +1223,7 @@ export function FinanceDeskWorkQueues({
               {isCashier ? (
                 <FinanceActionButton
                   variant="secondary"
-                  onClick={() => {
-                    if (typeof document === "undefined") return;
-                    document.getElementById("desk-eod")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
+                  onClick={() => onGoToTab?.('audit')}
                 >
                   Close day
                 </FinanceActionButton>

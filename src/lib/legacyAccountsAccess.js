@@ -17,8 +17,8 @@ const OVERSIGHT_ROLES = new Set(['admin', 'md']);
 /** Canonical BM is `sales_manager`; `branch_manager` accepted as alias. */
 const BRANCH_MANAGER_ROLES = new Set([ROLE_BRANCH_MANAGER, 'branch_manager']);
 
-/** Cashier (+ BM cover): desk, receipts, transfers, and payouts. */
-const CASHIER_LEGACY_TABS = new Set(['desk', 'receipts', 'movements', 'disbursements']);
+/** Cashier (+ BM cover): desk, receipts, transfers, payouts, and daily close. */
+const CASHIER_LEGACY_TABS = new Set(['desk', 'receipts', 'movements', 'disbursements', 'audit']);
 /** Accountant — Finance desk replaces legacy Treasury tab. */
 const ACCOUNTANT_LEGACY_TABS = new Set(['desk', 'receipts', 'movements', 'disbursements', 'audit']);
 
@@ -163,6 +163,7 @@ export function legacyAccountTabLabelForRole(tabId, roleKey) {
       receipts: 'Receipts',
       movements: 'Transfers',
       disbursements: 'Payouts',
+      audit: 'Close',
     };
     return labels[tab] || null;
   }

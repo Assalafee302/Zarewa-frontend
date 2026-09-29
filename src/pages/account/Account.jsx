@@ -70,6 +70,7 @@ import {
   receiptLedgerReceiptTreasurySplits,
 } from '../../lib/salesReceiptsList';
 import { openPrintHtmlDocument } from '../../lib/officeDeskPrint';
+import { printTreasuryLodgementVoucher } from '../../lib/treasuryLodgementPrint.js';
 import { ExpenseRequestFormFields } from '../../components/office/ExpenseRequestFormFields.jsx';
 import { ExpenseCategorySelect } from '../../components/office/ExpenseCategorySelect.jsx';
 import { ExpenseCategoryLaneBadge } from '../../components/office/ExpenseCategoryLaneBadge.jsx';
@@ -299,6 +300,7 @@ const Account = () => {
     reference: '',
     dateISO: new Date().toISOString().slice(0, 10),
   });
+  const [transferPrintSlip, setTransferPrintSlip] = useState(true);
   const [expenses, setExpenses] = useState([]);
   const [payRequests, setPayRequests] = useState([]);
   const [bankReconciliation, setBankReconciliation] = useState([]);
@@ -327,7 +329,7 @@ const Account = () => {
   /** movementId -> drafts for per-payment treasury correction */
   const [paymentCorrectionDrafts, setPaymentCorrectionDrafts] = useState({});
   /** Receipts tab: list paging & sort */
-  const RECEIPTS_PAGE_SIZE = 10;
+  const [receiptsPageSize, setReceiptsPageSize] = useState(15);
   const PAYMENTS_PAGE_SIZE = 20;
   const [receiptsSortKey, setReceiptsSortKey] = useState('date');
   const [receiptsSortDir, setReceiptsSortDir] = useState('desc');
@@ -1555,13 +1557,12 @@ const Account = () => {
     const rk = ws?.session?.user?.roleKey;
     const permissions = ws?.permissions;
     const allowed = getAllowedLegacyAccountTabs(rk, permissions);
-    if (!allowed.length) return all;
-    return all
-      .filter((t) => allowed.includes(t.id))
-      .map((t) => {
-        const cashierLabel = legacyAccountTabLabelForRole(t.id, rk);
-        return cashierLabel ? { ...t, label: cashierLabel } : t;
-      });
+    const filtered = !allowed.length ? all : all.filter((t) => allowed.includes(t.id));
+    return filtered.map((t, i) => {
+      const cashierLabel = legacyAccountTabLabelForRole(t.id, rk);
+      const labeled = cashierLabel ? { ...t, label: cashierLabel } : t;
+      return { ...labeled, title: `${labeled.title || labeled.label} · Alt+${i + 1}` };
+    });
   }, [ws?.session?.user?.roleKey, ws?.permissions]);
 
   const handleAccountTabChange = useCallback(
@@ -1823,6 +1824,7 @@ const Account = () => {
         reference: '',
         dateISO: new Date().toISOString().slice(0, 10),
       });
+      setTransferPrintSlip(true);
       setShowTransferModal(true);
     }
   };
@@ -1838,6 +1840,7 @@ const Account = () => {
       dateISO: movement.at || new Date().toISOString().slice(0, 10),
     });
     setShowTransferModal(true);
+    setTransferPrintSlip(false);
   };
 
   const closeTransferModal = () => {
@@ -2170,26 +2173,28 @@ const Account = () => {
   );
 
   const waitingReceiptsListWindow = useMemo(() => {
+    const pageSize = receiptsPageSize || 15;
     const total = waitingPaymentConfirmQueue.length;
-    const pageCount = Math.max(1, Math.ceil(total / RECEIPTS_PAGE_SIZE) || 1);
+    const pageCount = Math.max(1, Math.ceil(total / pageSize) || 1);
     const safePage = Math.min(waitingReceiptsPage, pageCount - 1);
-    const start = safePage * RECEIPTS_PAGE_SIZE;
-    const slice = waitingPaymentConfirmQueue.slice(start, start + RECEIPTS_PAGE_SIZE);
+    const start = safePage * pageSize;
+    const slice = waitingPaymentConfirmQueue.slice(start, start + pageSize);
     const from = total === 0 ? 0 : start + 1;
-    const to = Math.min(start + RECEIPTS_PAGE_SIZE, total);
+    const to = Math.min(start + pageSize, total);
     return { total, pageCount, safePage, slice, from, to };
-  }, [waitingPaymentConfirmQueue, waitingReceiptsPage]);
+  }, [waitingPaymentConfirmQueue, waitingReceiptsPage, receiptsPageSize]);
 
   const receiptsListWindow = useMemo(() => {
+    const pageSize = receiptsPageSize || 15;
     const total = confirmedReceipts.length;
-    const pageCount = Math.max(1, Math.ceil(total / RECEIPTS_PAGE_SIZE) || 1);
+    const pageCount = Math.max(1, Math.ceil(total / pageSize) || 1);
     const safePage = Math.min(confirmedReceiptsPage, pageCount - 1);
-    const start = safePage * RECEIPTS_PAGE_SIZE;
-    const slice = confirmedReceipts.slice(start, start + RECEIPTS_PAGE_SIZE);
+    const start = safePage * pageSize;
+    const slice = confirmedReceipts.slice(start, start + pageSize);
     const from = total === 0 ? 0 : start + 1;
-    const to = Math.min(start + RECEIPTS_PAGE_SIZE, total);
+    const to = Math.min(start + pageSize, total);
     return { total, pageCount, safePage, slice, from, to };
-  }, [confirmedReceipts, confirmedReceiptsPage]);
+  }, [confirmedReceipts, confirmedReceiptsPage, receiptsPageSize]);
 
   const receiptsPendingClearanceNgn = useMemo(
     () =>
@@ -2211,19 +2216,21 @@ const Account = () => {
   useEffect(() => {
     setWaitingReceiptsPage(0);
     setConfirmedReceiptsPage(0);
-  }, [receiptsSortKey, receiptsSortDir, debouncedSearchQuery, receiptsTableSearch, receiptsNoCuttingListOnly]);
+  }, [receiptsSortKey, receiptsSortDir, debouncedSearchQuery, receiptsTableSearch, receiptsNoCuttingListOnly, receiptsPageSize]);
 
   useEffect(() => {
+    const pageSize = receiptsPageSize || 15;
     const total = waitingPaymentConfirmQueue.length;
-    const pageCount = Math.max(1, Math.ceil(total / RECEIPTS_PAGE_SIZE) || 1);
+    const pageCount = Math.max(1, Math.ceil(total / pageSize) || 1);
     setWaitingReceiptsPage((p) => Math.min(p, pageCount - 1));
-  }, [waitingPaymentConfirmQueue.length]);
+  }, [waitingPaymentConfirmQueue.length, receiptsPageSize]);
 
   useEffect(() => {
+    const pageSize = receiptsPageSize || 15;
     const total = confirmedReceipts.length;
-    const pageCount = Math.max(1, Math.ceil(total / RECEIPTS_PAGE_SIZE) || 1);
+    const pageCount = Math.max(1, Math.ceil(total / pageSize) || 1);
     setConfirmedReceiptsPage((p) => Math.min(p, pageCount - 1));
-  }, [confirmedReceipts.length]);
+  }, [confirmedReceipts.length, receiptsPageSize]);
 
   const canFinanceReceiptSettlement = Boolean(
     ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('finance.post')
@@ -3146,6 +3153,19 @@ const Account = () => {
       showToast(data?.error || 'Could not sync treasury.', { variant: 'error' });
       return;
     }
+    if (transferPrintSlip && !editingBatchId) {
+      const toAcc = bankAccounts.find((a) => a.id === toId);
+      printTreasuryLodgementVoucher({
+        transferId: data.batchId || data.id || data.transferId || '',
+        dateISO: transferForm.dateISO,
+        fromAccountName: treasuryAccountDisplayName(fromAcc),
+        toAccountName: toAcc ? treasuryAccountDisplayName(toAcc) : '',
+        amountNgn: amount,
+        reference: transferForm.reference.trim(),
+        branchLabel: workspaceBranchLabel,
+        postedBy: activeActorLabel,
+      });
+    }
     void ws.refreshDomain?.('finance');
     setTransferForm({
       fromId: '',
@@ -3854,6 +3874,9 @@ const Account = () => {
       if (activeTab === 'disbursements') {
         return 'Posted outflows, expense requests, and corrections. Pay new items from Desk.';
       }
+      if (activeTab === 'audit') {
+        return 'Period close — receipts, bank lines, exceptions, and journals.';
+      }
       return 'Treasury, customer receipt settlement, and approvals';
     }
     if (activeTab === 'receipts') {
@@ -3862,8 +3885,42 @@ const Account = () => {
     if (activeTab === 'movements') {
       return 'Record lodgements, withdrawals, and internal transfers between accounts.';
     }
+    if (activeTab === 'disbursements') {
+      return 'Pay approved expenses, refunds, and haulage from till or bank.';
+    }
+    if (activeTab === 'audit') {
+      return 'Count till, print the close slip, and lock the day.';
+    }
     return 'Branch finance';
   })();
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.defaultPrevented || e.repeat) return;
+      const el = e.target;
+      const tag = String(el?.tagName || '').toLowerCase();
+      const typing =
+        tag === 'input' || tag === 'textarea' || tag === 'select' || Boolean(el?.isContentEditable);
+      if (e.key === 'Escape' && !isAnyModalOpen && searchQuery && el?.id === financeSearchId) {
+        e.preventDefault();
+        setSearchQuery('');
+        return;
+      }
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !typing) {
+        e.preventDefault();
+        document.getElementById(financeSearchId)?.focus();
+        return;
+      }
+      if (!e.altKey || e.ctrlKey || e.metaKey || !/^[1-5]$/.test(e.key)) return;
+      if (isAnyModalOpen) return;
+      const tab = accountTabs[Number(e.key) - 1];
+      if (!tab) return;
+      e.preventDefault();
+      handleAccountTabChange(tab.id);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [accountTabs, financeSearchId, handleAccountTabChange, isAnyModalOpen, searchQuery]);
 
   const pageContextValue = useMemo(
     () => ({
@@ -3963,6 +4020,7 @@ const Account = () => {
       receiptsSortDir,
       receiptsSortKey,
       receiptsTableSearch,
+      receiptsPageSize,
       reconciliationFlags,
       refundById,
       refundPayoutPrimaryMovementId,
@@ -3983,6 +4041,8 @@ const Account = () => {
       setReceiptsSortDir,
       setReceiptsSortKey,
     setReceiptsTableSearch,
+    setReceiptsPageSize,
+    setTransferPrintSlip,
     openExpenseRequestForCorrection,
     setShowTransferModal,
       setStatementAccount,
@@ -4099,6 +4159,7 @@ const Account = () => {
       receiptsSortDir,
       receiptsSortKey,
       receiptsTableSearch,
+      receiptsPageSize,
       reconciliationFlags,
       refundById,
       refundPayoutPrimaryMovementId,
@@ -4119,6 +4180,8 @@ const Account = () => {
       setReceiptsSortDir,
       setReceiptsSortKey,
     setReceiptsTableSearch,
+    setReceiptsPageSize,
+    setTransferPrintSlip,
     openExpenseRequestForCorrection,
     setShowTransferModal,
       setStatementAccount,
@@ -4171,11 +4234,27 @@ const Account = () => {
                   ? 'Search receipts, refunds, payees…'
                   : 'Search this tab…'
               }
-              className="z-input-search"
+              className="z-input-search pr-16"
               autoComplete="off"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              title="Press / to focus · Esc to clear"
             />
+            {searchQuery.trim() ? (
+              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-1">
+                <span className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-zarewa-teal">
+                  On
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            ) : null}
           </div>
         }
         trailing={
@@ -4202,7 +4281,9 @@ const Account = () => {
                   : activeTab === 'receipts'
                       ? 'Summarize pending customer receipt settlement and which receipts need review first.'
                       : activeTab === 'audit'
-                        ? 'Summarize the audit and reconciliation queue and what needs action first.'
+                      ? isCashierRole
+                        ? 'Summarize the cashier end-of-day close — pending receipts, till count, and what still needs sign-off.'
+                        : 'Summarize the audit and reconciliation queue and what needs action first.'
                         : 'Summarize the current finance workload and the next best actions.'
               }
               pageContext={{
@@ -4247,6 +4328,16 @@ const Account = () => {
             <p className="text-xs text-gray-600 mb-4 font-mono">{editingTransferBatchId}</p>
           ) : null}
           <form className="space-y-4" onSubmit={saveTransfer}>
+            {(() => {
+              const fromAcc = bankAccounts.find((a) => String(a.id) === String(transferForm.fromId));
+              const fromBal = fromAcc ? treasuryBookDisplayNgn(fromAcc) : 0;
+              const amt = Number(transferForm.amountNgn) || 0;
+              const remaining = fromBal - amt;
+              const over = amt > 0 && fromAcc && remaining < 0 && !editingTransferBatchId;
+              const setAmt = (n) =>
+                setTransferForm((f) => ({ ...f, amountNgn: n > 0 ? String(Math.floor(n)) : '' }));
+              return (
+            <>
             <div>
               <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                 From
@@ -4255,7 +4346,11 @@ const Account = () => {
                 required
                 value={transferForm.fromId}
                 onChange={(e) =>
-                  setTransferForm((f) => ({ ...f, fromId: e.target.value }))
+                  setTransferForm((f) => ({
+                    ...f,
+                    fromId: e.target.value,
+                    toId: String(f.toId) === String(e.target.value) ? '' : f.toId,
+                  }))
                 }
                 className="w-full z-finance-field rounded-xl font-bold outline-none"
               >
@@ -4266,6 +4361,18 @@ const Account = () => {
                   </option>
                 ))}
               </select>
+              {fromAcc ? (
+                <p className="mt-1.5 text-ui-xs font-semibold tabular-nums text-slate-600">
+                  Available {formatNgn(fromBal)}
+                  {amt > 0 ? (
+                    <span className={over ? ' text-rose-700' : ' text-emerald-800'}>
+                      {' '}
+                      · after transfer {formatNgn(Math.max(0, remaining))}
+                      {over ? ' — more than the till holds' : ' (sufficient)'}
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
             </div>
             <div>
               <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
@@ -4280,9 +4387,11 @@ const Account = () => {
                 className="w-full z-finance-field rounded-xl font-bold outline-none"
               >
                 <option value="">Select account…</option>
-                {bankAccountsSelectOrder.map((a) => (
+                {bankAccountsSelectOrder
+                  .filter((a) => String(a.id) !== String(transferForm.fromId))
+                  .map((a) => (
                   <option key={a.id} value={a.id}>
-                    {treasuryAccountDisplayName(a)}
+                    {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                   </option>
                 ))}
               </select>
@@ -4301,7 +4410,28 @@ const Account = () => {
                 }
                 className="w-full z-finance-field rounded-xl font-bold outline-none"
               />
+              {fromAcc && fromBal > 0 ? (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {[
+                    { label: '25%', n: fromBal * 0.25 },
+                    { label: '50%', n: fromBal * 0.5 },
+                    { label: 'Max', n: fromBal },
+                  ].map((chip) => (
+                    <button
+                      key={chip.label}
+                      type="button"
+                      onClick={() => setAmt(chip.n)}
+                      className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:border-teal-300 hover:bg-teal-50"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
+            </>
+              );
+            })()}
             <div>
               <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
                 Transfer date
@@ -4329,8 +4459,28 @@ const Account = () => {
                 className="w-full z-finance-field rounded-xl font-bold outline-none"
               />
             </div>
-            <button type="submit" className="z-btn-primary w-full justify-center py-3">
-              {editingTransferBatchId ? 'Save changes' : 'Post transfer'}
+            {!editingTransferBatchId ? (
+              <label className="flex items-start gap-2 text-ui-xs font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                  checked={transferPrintSlip}
+                  onChange={(e) => setTransferPrintSlip(e.target.checked)}
+                />
+                Print lodgement slip after posting
+              </label>
+            ) : null}
+            <button
+              type="submit"
+              disabled={(() => {
+                if (editingTransferBatchId) return false;
+                const fromAcc = bankAccounts.find((a) => String(a.id) === String(transferForm.fromId));
+                const amt = Number(transferForm.amountNgn) || 0;
+                return Boolean(fromAcc && amt > 0 && treasuryBookDisplayNgn(fromAcc) < amt);
+              })()}
+              className="z-btn-primary w-full justify-center py-3 disabled:opacity-50"
+            >
+              {editingTransferBatchId ? 'Save changes' : transferPrintSlip ? 'Post transfer & print slip' : 'Post transfer'}
             </button>
           </form>
         </div>
@@ -5654,6 +5804,25 @@ const Account = () => {
 
                 return (
                   <>
+                    {(() => {
+                      const priorN = Array.isArray(cashierRefundCreditInfo?.priorConfirmPaymentReleases)
+                        ? cashierRefundCreditInfo.priorConfirmPaymentReleases.length
+                        : 0;
+                      const hasOffsets = hangingForReceipt.length > 0 || priorN > 0;
+                      return (
+                    <details
+                      className="rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-2 text-ui-xs text-slate-800"
+                      open={hasOffsets}
+                    >
+                      <summary className="cursor-pointer select-none font-bold text-slate-800">
+                        Audit & offsets
+                        {hasOffsets ? (
+                          <span className="ml-1.5 font-semibold text-amber-800">· review before confirming</span>
+                        ) : (
+                          <span className="ml-1.5 font-normal text-slate-500">· how confirm works</span>
+                        )}
+                      </summary>
+                      <div className="mt-2 space-y-2">
                     <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-ui-xs text-teal-950 leading-snug">
                       <span className="font-bold">
                         {receiptFinanceFocusMovementId ? 'One payment line' : 'One confirm step'}
@@ -5722,6 +5891,10 @@ const Account = () => {
                         </ul>
                       </div>
                     ) : null}
+                      </div>
+                    </details>
+                      );
+                    })()}
 
                     {cashierRefundCreditLoading ? (
                       <p className="text-ui-xs text-slate-500">Checking overpay and refund fund…</p>
@@ -6178,7 +6351,10 @@ const Account = () => {
                     ? 'Save revision'
                     : receiptHoldDelivery
                       ? 'Confirm payment (hold delivery)'
-                      : 'Confirm payment & clear for delivery'}
+                      : cashierRefundCreditPanelVisible ||
+                          hangingRefundsForCustomer(customerRefunds, receiptFinanceRow.customerID).length > 0
+                        ? 'Confirm payment & clear for delivery'
+                        : `Quick confirm (${formatNgn(cashierReceiptCashNgn)})`}
               </button>
             </form>
           ) : null}
