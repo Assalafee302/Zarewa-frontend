@@ -35,6 +35,8 @@ export function ProductionRegisterCompactHeader({
   plannedRoofM,
   plannedCladdingM,
   plannedFlatsheetM,
+  stoneHybrid = false,
+  stoneMeters = 0,
   hasPlannedMeters,
   plannedMetersValue,
   recordedMeters,
@@ -66,8 +68,11 @@ export function ProductionRegisterCompactHeader({
     quotationMaterialSpec?.design,
   ].filter(Boolean);
 
-  const showPlanBar =
-    hasPlannedMeters && (jobSt === 'Running' || jobSt === 'Planned');
+  const roofPlan = Number(plannedRoofM) > 0 ? Number(plannedRoofM) : Number(plannedM) || 0;
+  const roofLive = Number(stoneMeters) || 0;
+  const barRecorded = stoneHybrid ? roofLive : Number(recordedMeters) || 0;
+  const barPlanned = stoneHybrid ? roofPlan : Number(plannedMetersValue) || 0;
+  const showPlanBar = hasPlannedMeters && (jobSt === 'Running' || jobSt === 'Planned');
 
   return (
     <div className="space-y-1 text-ui-xs leading-snug">
@@ -118,20 +123,40 @@ export function ProductionRegisterCompactHeader({
           <span className="font-bold">{numKg(usedKg)} kg</span>
         </span>
         <Dot />
-        <span title={rcfTitle}>
-          <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">Plan </span>
-          <span className="font-bold text-zarewa-teal">{numM(plannedM)} m</span>
-          {showPlanBar && planProgressPct != null ? (
-            <span className="ml-1 font-bold text-zarewa-teal">({planProgressPct}%)</span>
-          ) : null}
-        </span>
-        <Dot />
-        <span>
-          <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">Out </span>
-          <span className="font-bold text-zarewa-teal">
-            {metresMatch ? `${numM(liveM)} m` : `${numM(liveM)} / ${numM(postedM)} m`}
-          </span>
-        </span>
+        {stoneHybrid ? (
+          <>
+            <span title="Stone roofing metres drawn from stone stock. Not coil flatsheet.">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">Roof </span>
+              <span className="font-bold text-zarewa-teal">
+                {numM(roofLive)} / {numM(roofPlan)} m
+              </span>
+            </span>
+            <Dot />
+            <span title="Coil metres plus offcut flatsheet. Stone roofing is not included.">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">Sheet </span>
+              <span className="font-bold text-zarewa-teal">
+                {metresMatch ? `${numM(liveM)} m` : `${numM(liveM)} / ${numM(postedM)} m`}
+              </span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span title={rcfTitle}>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">Plan </span>
+              <span className="font-bold text-zarewa-teal">{numM(plannedM)} m</span>
+              {showPlanBar && planProgressPct != null ? (
+                <span className="ml-1 font-bold text-zarewa-teal">({planProgressPct}%)</span>
+              ) : null}
+            </span>
+            <Dot />
+            <span>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">Out </span>
+              <span className="font-bold text-zarewa-teal">
+                {metresMatch ? `${numM(liveM)} m` : `${numM(liveM)} / ${numM(postedM)} m`}
+              </span>
+            </span>
+          </>
+        )}
         <Dot />
         <span>
           <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">Alert </span>
@@ -143,9 +168,13 @@ export function ProductionRegisterCompactHeader({
       {showPlanBar ? (
         <div
           className="h-1 overflow-hidden rounded-full bg-[var(--z-border-subtle)]"
-          title={`${formatMeters(recordedMeters)} / ${formatMeters(plannedMetersValue)}${
-            planProgressPct != null ? ` (${planProgressPct}%)` : ''
-          }`}
+          title={
+            stoneHybrid
+              ? `Roof ${formatMeters(barRecorded)} / ${formatMeters(barPlanned)}`
+              : `${formatMeters(recordedMeters)} / ${formatMeters(plannedMetersValue)}${
+                  planProgressPct != null ? ` (${planProgressPct}%)` : ''
+                }`
+          }
           role="progressbar"
           aria-valuenow={planProgressPct != null ? planProgressPct : 0}
           aria-valuemin={0}

@@ -27,6 +27,7 @@ import {
   coilVersusQuotationAndProductWarning,
   quotationExpectsCoilAllocation,
 } from '../lib/coilSpecVersusProduct';
+import { assessProductionMetreOverrun } from '../lib/productionMetreVariance';
 import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
 import { normalizeJobStatus, pickProductionJobForFocusId } from '../lib/productionJobPick';
 import { useToast } from '../context/ToastContext';
@@ -133,6 +134,20 @@ import {
 } from '../lib/liveProductionMonitorUi';
 import { compareCoilsFifo } from '../lib/storeIdle';
 import { useHydratedQuotationLines } from '../hooks/useHydratedQuotationLines';
+
+/**
+ * Posted coil/offcut flatsheet metres on a hybrid stone job.
+ * `actual_meters` duplicates `actual_roof_m` when the job was completed as pure stone roofing —
+ * that figure is stone stock, not flatsheet.
+ */
+function postedHybridFlatsheetMetres(job) {
+  const roof = Number(job?.actualRoofM) || 0;
+  const flatsheet = Number(job?.actualFlatsheetM) || 0;
+  const actual = Number(job?.actualMeters) || 0;
+  if (flatsheet > 1e-9) return flatsheet;
+  if (roof > 1e-9 && Math.abs(actual - roof) <= 0.001) return 0;
+  return Math.max(0, actual);
+}
 
 /**
  * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean; operationsRegisterEdit?: boolean; initialRecallIntent?: boolean; onRegisterHeaderMeta?: (meta: { status?: string; quotationRef?: string; machineName?: string; materialLabel?: string } | null) => void }} [props]
@@ -979,17 +994,20 @@ export function LiveProductionMonitor({
     return Number.isFinite(m) ? m : NaN;
   }, [stoneMetersConsumed]);
 
-  /**
-   * Hybrid stone draft metres for live Out / vs-plan. On Roof+Flatsheet jobs the operator enters
-   * stone roofing separately from coil/offcut flatsheet; omitting this made Out stay 0.00 m after
-   * typing "Metres consumed (stone stock)" (e.g. QT-KD-26-1457 / CL-KD-26-1195).
-   */
-  const hybridStoneDraftMeters = useMemo(() => {
-    if (!stoneCoilHybrid || !stoneMetreConsumptionRequired) return 0;
-    if (!Number.isFinite(stoneMetersDraftNum) || Math.abs(stoneMetersDraftNum) < 1e-9) return 0;
-    return stoneMetersDraftNum;
-  }, [stoneCoilHybrid, stoneMetreConsumptionRequired, stoneMetersDraftNum]);
+  const coilDraftMetres = useMemo(
+    () =>
+      draftAllocations.reduce((sum, row) => {
+        const meters = Number(row.metersProduced);
+        return sum + (Number.isFinite(meters) ? meters : 0);
+      }, 0),
+    [draftAllocations]
+  );
 
+  /**
+   * Coil / offcut flatsheet metres only.
+   * Stone roofing metres stay in `stoneRecordedMeters`. Adding them here made 423 m of stone
+   * look like coil flatsheet output against the roof plan (Out 438 = 423 stone + 15 offcut).
+   */
   const recordedMeters = useMemo(() => {
     if (stonePureNoCoil && !completionUsesOffcutMode && jobSt === 'Running') {
       return Number.isFinite(stoneMetersDraftNum) && Math.abs(stoneMetersDraftNum) > 1e-9
@@ -1003,58 +1021,48 @@ export function LiveProductionMonitor({
         ? stoneMetersDraftNum
         : 0;
     }
-    /* Completed hybrid: prefer split roof/cladding/flatsheet columns over flatsheet-only actualMeters. */
-    if (jobSt === 'Completed' && stoneCoilHybrid) {
-      const split =
-        (Number(selectedJob?.actualRoofM) || 0) +
-        (Number(selectedJob?.actualCladdingM) || 0) +
-        (Number(selectedJob?.actualFlatsheetM) || 0);
-      if (split > 1e-9) {
-        if (canEditCompletedStoneMetresCorrections && hybridStoneDraftMeters > 0) {
-          return (
-            hybridStoneDraftMeters +
-            (Number(selectedJob?.actualCladdingM) || 0) +
-            (Number(selectedJob?.actualFlatsheetM) || 0)
-          );
-        }
-        return split;
+    if (stoneCoilHybrid) {
+      const editingCoil =
+        jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
+      if (!editingCoil && jobSt === 'Completed') return postedHybridFlatsheetMetres(selectedJob);
+      if (resolvesToOffcutCompletion || completionUsesOffcutMode) {
+        return effectiveOffcutOutputMeters + coilDraftMetres;
       }
-      return Number(selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters ?? 0) || 0;
+      return coilDraftMetres + offcutInventoryMetersNum;
     }
     if (resolvesToOffcutCompletion && jobSt === 'Running') {
-      return effectiveOffcutOutputMeters + hybridStoneDraftMeters;
+      return effectiveOffcutOutputMeters;
     }
-    const coilM = draftAllocations.reduce((sum, row) => {
-      const meters = Number(row.metersProduced);
-      return sum + (Number.isFinite(meters) ? meters : 0);
-    }, 0);
     if (
       !completionUsesOffcutMode &&
-      !stonePureNoCoil &&
       (jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections))
     ) {
-      return coilM + offcutInventoryMetersNum + hybridStoneDraftMeters;
+      return coilDraftMetres + offcutInventoryMetersNum;
     }
-    return coilM + hybridStoneDraftMeters;
+    return coilDraftMetres;
   }, [
     canEditCompletedCoilCorrections,
-    canEditCompletedStoneMetresCorrections,
+    coilDraftMetres,
     completionUsesOffcutMode,
-    draftAllocations,
     effectiveOffcutOutputMeters,
-    hybridStoneDraftMeters,
     stoneCoilHybrid,
     stonePureNoCoil,
     jobSt,
     offcutInventoryMetersNum,
     resolvesToOffcutCompletion,
-    selectedJob?.actualCladdingM,
-    selectedJob?.actualFlatsheetM,
-    selectedJob?.actualMeters,
-    selectedJob?.actualRoofM,
-    selectedJob?.effectiveOutputMeters,
+    selectedJob,
     stoneMetersDraftNum,
   ]);
+
+  /** Stone roofing metres. Never folded into coil / offcut flatsheet. */
+  const stoneRecordedMeters = useMemo(() => {
+    if (stonePureNoCoil) return recordedMeters;
+    if (!stoneCoilHybrid) return 0;
+    if (Number.isFinite(stoneMetersDraftNum) && Math.abs(stoneMetersDraftNum) > 1e-9) {
+      return stoneMetersDraftNum;
+    }
+    return Number(selectedJob?.actualRoofM) || 0;
+  }, [recordedMeters, selectedJob?.actualRoofM, stoneCoilHybrid, stoneMetersDraftNum, stonePureNoCoil]);
   const recordedConsumedKg = useMemo(
     () =>
       draftAllocations.reduce((sum, row) => {
@@ -2051,14 +2059,60 @@ export function LiveProductionMonitor({
   const canPostFgCompletionAdjustment =
     Boolean(ws?.hasPermission?.('production.release')) || Boolean(ws?.hasPermission?.('operations.manage'));
   const hasPlannedMeters = Number.isFinite(plannedMetersValue) && plannedMetersValue > 0;
-  const overProducedMeters =
-    hasPlannedMeters && Number.isFinite(recordedMeters) ? recordedMeters - plannedMetersValue : 0;
-  const requiresManagerOverrunApproval = overProducedMeters > 0.01;
-  const underProducedMeters =
-    hasPlannedMeters && Number.isFinite(recordedMeters) && recordedMeters < plannedMetersValue - 0.01
+  const hybridMetreVariance = useMemo(() => {
+    if (!stoneCoilHybrid) return null;
+    return assessProductionMetreOverrun({
+      stoneHybrid: true,
+      plannedMeters: selectedJob?.plannedMeters,
+      plannedRoofM: selectedJob?.plannedRoofM,
+      plannedFlatsheetM: selectedJob?.plannedFlatsheetM,
+      stoneMetersConsumed: stoneRecordedMeters,
+      flatsheetMeters: recordedMeters,
+    });
+  }, [
+    recordedMeters,
+    selectedJob?.plannedFlatsheetM,
+    selectedJob?.plannedMeters,
+    selectedJob?.plannedRoofM,
+    stoneCoilHybrid,
+    stoneRecordedMeters,
+  ]);
+  const overProducedMeters = stoneCoilHybrid
+    ? Number(hybridMetreVariance?.overMeters) || 0
+    : hasPlannedMeters && Number.isFinite(recordedMeters)
+      ? recordedMeters - plannedMetersValue
+      : 0;
+  const requiresManagerOverrunApproval = stoneCoilHybrid
+    ? Boolean(hybridMetreVariance?.overrun)
+    : overProducedMeters > 0.01;
+  const roofPlanForUnder = Number(selectedJob?.plannedRoofM) || plannedMetersValue;
+  const underProducedMeters = stoneCoilHybrid
+    ? Math.max(0, roofPlanForUnder - stoneRecordedMeters)
+    : hasPlannedMeters && Number.isFinite(recordedMeters) && recordedMeters < plannedMetersValue - 0.01
       ? plannedMetersValue - recordedMeters
       : 0;
-  const requiresUnderProductionConfirm = underProducedMeters > 0.01;
+  const requiresUnderProductionConfirm =
+    underProducedMeters > 0.01 && (!stoneCoilHybrid || stoneMetreConsumptionRequired);
+
+  const liveCoilSpecMismatch = useMemo(() => {
+    const rows = (draftAllocations || []).filter((row) => String(row.coilNo || '').trim());
+    if (!rows.length) return Boolean(selectedJob?.coilSpecMismatchPending);
+    return rows.some((row) => {
+      const lot = coilByNo[String(row.coilNo).trim()];
+      const specEvaluated = Boolean(lot && (linkedQuotation || jobProductAttrs));
+      if (!specEvaluated) return Boolean(row.specMismatch);
+      return Boolean(
+        coilVersusQuotationAndProductWarning(lot, linkedQuotation, jobProductAttrs, masterDataForCoilSpec)
+      );
+    });
+  }, [
+    draftAllocations,
+    coilByNo,
+    linkedQuotation,
+    jobProductAttrs,
+    masterDataForCoilSpec,
+    selectedJob?.coilSpecMismatchPending,
+  ]);
 
   const productionRegisterIssues = useMemo(
     () =>
@@ -2077,7 +2131,7 @@ export function LiveProductionMonitor({
         hasPersistedCoilAllocations,
         canEditPlannedAllocations,
         canCaptureRun,
-        coilSpecMismatchPending: Boolean(selectedJob?.coilSpecMismatchPending),
+        coilSpecMismatchPending: liveCoilSpecMismatch,
         completionValidation,
         requiresManagerOverrunApproval,
         overProducedMeters,
@@ -2102,7 +2156,7 @@ export function LiveProductionMonitor({
       hasPersistedCoilAllocations,
       canEditPlannedAllocations,
       canCaptureRun,
-      selectedJob?.coilSpecMismatchPending,
+      liveCoilSpecMismatch,
       completionValidation,
       requiresManagerOverrunApproval,
       overProducedMeters,
@@ -2157,10 +2211,15 @@ export function LiveProductionMonitor({
   }, [stonePureNoCoil, draftAllocations, coilByNo, savedOpeningKgByCoil]);
 
   const planProgressPct = useMemo(() => {
+    if (stoneCoilHybrid) {
+      const plan = Number(selectedJob?.plannedRoofM) || plannedMetersValue;
+      if (!(plan > 0)) return null;
+      return Math.min(200, Math.round((stoneRecordedMeters / plan) * 1000) / 10);
+    }
     if (!hasPlannedMeters) return null;
     const pct = (recordedMeters / plannedMetersValue) * 100;
     return Math.min(200, Math.round(pct * 10) / 10);
-  }, [hasPlannedMeters, recordedMeters, plannedMetersValue]);
+  }, [hasPlannedMeters, plannedMetersValue, recordedMeters, selectedJob?.plannedRoofM, stoneCoilHybrid, stoneRecordedMeters]);
 
   const splitPosted =
     (Number(selectedJob?.actualRoofM) || 0) +
@@ -3207,7 +3266,9 @@ export function LiveProductionMonitor({
       if (requiresManagerOverrunApproval) {
         if (!canManageConversionSignoff) {
           showToast(
-            `Recorded metres (${recordedMeters.toFixed(2)}m) exceed planned (${plannedMetersValue.toFixed(2)}m). Seek manager approval to complete.`,
+            stoneCoilHybrid && hybridMetreVariance?.message
+              ? hybridMetreVariance.message
+              : `Recorded metres (${recordedMeters.toFixed(2)}m) exceed planned (${plannedMetersValue.toFixed(2)}m). Seek manager approval to complete.`,
             { variant: 'error' }
           );
           setSavingAction('');
@@ -3223,7 +3284,9 @@ export function LiveProductionMonitor({
         }
         const proceedOverrun = await askProductionConfirm({
           title: 'Meter overrun',
-          message: `Metres recorded exceed plan by ${overProducedMeters.toFixed(2)}m. Continue as manager-approved overrun?`,
+          message: stoneCoilHybrid && hybridMetreVariance?.message
+            ? hybridMetreVariance.message
+            : `Metres recorded exceed plan by ${overProducedMeters.toFixed(2)}m. Continue as manager-approved overrun?`,
           confirmLabel: 'Complete with overrun',
           tone: 'amber',
         });
@@ -3235,7 +3298,9 @@ export function LiveProductionMonitor({
       if (requiresUnderProductionConfirm) {
         const proceedUnder = await askProductionConfirm({
           title: 'Under planned metres',
-          message: `Recorded ${recordedMeters.toFixed(2)} m is less than the cutting list plan (${plannedMetersValue.toFixed(2)} m). Are the remaining ${underProducedMeters.toFixed(2)} m for another coil or job, or is this intentional partial production?`,
+          message: stoneCoilHybrid
+            ? `Stone roofing ${stoneRecordedMeters.toFixed(2)} m is less than the roof plan (${roofPlanForUnder.toFixed(2)} m). Are the remaining ${underProducedMeters.toFixed(2)} m for another job, or is this intentional partial production?`
+            : `Recorded ${recordedMeters.toFixed(2)} m is less than the cutting list plan (${plannedMetersValue.toFixed(2)} m). Are the remaining ${underProducedMeters.toFixed(2)} m for another coil or job, or is this intentional partial production?`,
           confirmLabel: 'Complete with shortfall',
           tone: 'amber',
         });
@@ -3769,11 +3834,17 @@ export function LiveProductionMonitor({
             usedKg={recordedConsumedKg}
             plannedM={selectedJob.plannedMeters}
             outputM={recordedMeters}
-            outputPostedM={selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters}
+            outputPostedM={
+              stoneCoilHybrid
+                ? postedHybridFlatsheetMetres(selectedJob)
+                : (selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters)
+            }
             alertState={selectedJob.conversionAlertState}
             plannedRoofM={selectedJob.plannedRoofM}
             plannedCladdingM={selectedJob.plannedCladdingM}
             plannedFlatsheetM={selectedJob.plannedFlatsheetM}
+            stoneHybrid={stoneCoilHybrid}
+            stoneMeters={stoneRecordedMeters}
             hasPlannedMeters={hasPlannedMeters}
             plannedMetersValue={plannedMetersValue}
             recordedMeters={recordedMeters}
@@ -3990,9 +4061,15 @@ export function LiveProductionMonitor({
                     </div>
                     <div
                       className="rounded-lg border border-teal-200/80 bg-white/95 px-2 py-1.5 text-center shadow-sm ring-1 ring-teal-500/10"
-                      title="Output metres"
+                      title={
+                        stoneCoilHybrid
+                          ? 'Coil and offcut flatsheet metres. Stone roofing is not included.'
+                          : 'Output metres'
+                      }
                     >
-                      <p className="text-[7px] font-bold uppercase tracking-wider text-teal-800/90">Out</p>
+                      <p className="text-[7px] font-bold uppercase tracking-wider text-teal-800/90">
+                        {stoneCoilHybrid ? 'Sheet' : 'Out'}
+                      </p>
                       <p className="mt-0.5 text-sm font-black tabular-nums leading-none text-zarewa-teal">
                         {formatMeters(recordedMeters)}
                       </p>
@@ -4100,10 +4177,22 @@ export function LiveProductionMonitor({
                   <div className="flex items-center justify-between gap-2 text-ui-xs font-semibold text-slate-600">
                     <span className="uppercase tracking-wide text-slate-500">vs plan</span>
                     <span className="tabular-nums text-slate-800">
-                      {formatMeters(recordedMeters)} / {formatMeters(plannedMetersValue)}
-                      {planProgressPct != null ? (
-                        <span className="ml-1 font-bold text-zarewa-teal">({planProgressPct}%)</span>
-                      ) : null}
+                      {stoneCoilHybrid ? (
+                        <>
+                          Roof {formatMeters(stoneRecordedMeters)} /{' '}
+                          {formatMeters(Number(selectedJob?.plannedRoofM) || plannedMetersValue)}
+                          {' · '}
+                          Sheet {formatMeters(recordedMeters)} /{' '}
+                          {formatMeters(Number(selectedJob?.plannedFlatsheetM) || 0)}
+                        </>
+                      ) : (
+                        <>
+                          {formatMeters(recordedMeters)} / {formatMeters(plannedMetersValue)}
+                          {planProgressPct != null ? (
+                            <span className="ml-1 font-bold text-zarewa-teal">({planProgressPct}%)</span>
+                          ) : null}
+                        </>
+                      )}
                     </span>
                   </div>
                   <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-200/90">
@@ -5091,15 +5180,15 @@ export function LiveProductionMonitor({
                       jobSt === 'Running' &&
                       !draftRow &&
                       !canPickCoilAndOpening;
-                    const specWarn =
-                      lot && (linkedQuotation || jobProductAttrs)
-                        ? coilVersusQuotationAndProductWarning(
-                            lot,
-                            linkedQuotation,
-                            jobProductAttrs,
-                            masterDataForCoilSpec
-                          )
-                        : null;
+                    const specEvaluated = Boolean(lot && (linkedQuotation || jobProductAttrs));
+                    const specWarn = specEvaluated
+                      ? coilVersusQuotationAndProductWarning(
+                          lot,
+                          linkedQuotation,
+                          jobProductAttrs,
+                          masterDataForCoilSpec
+                        )
+                      : null;
                     const showRemove =
                       !readOnly &&
                       (canEditPlannedAllocations ||
@@ -5144,6 +5233,7 @@ export function LiveProductionMonitor({
                         draftRow={draftRow}
                         showRemove={showRemove}
                         specWarn={specWarn}
+                        specEvaluated={specEvaluated}
                         coilTailFinishMaxKg={COIL_TAIL_FINISH_MAX_KG}
                         recommendedOptions={recommendedCoilPickerOptions}
                         otherOptions={otherCoilPickerOptions}

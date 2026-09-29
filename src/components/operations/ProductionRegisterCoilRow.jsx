@@ -88,6 +88,7 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
   draftRow,
   showRemove,
   specWarn,
+  specEvaluated = false,
   coilTailFinishMaxKg,
   recommendedOptions,
   otherOptions,
@@ -101,6 +102,7 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
   const lotMat = lot ? String(lot.materialTypeName || '').trim() : '';
   const finishCoilLocked =
     jobSt === 'Completed' && Number(row.finishCoilTailKg) > 0.05 && !canUndoFinishRoll;
+  const persistedSpecMismatch = Boolean(row.specMismatch) && !(specEvaluated && !specWarn);
   const hasUnsavedCoilData =
     draftRow &&
     Boolean(
@@ -327,9 +329,9 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
         </label>
       ) : null}
 
-      {row.specMismatch || specWarn ? (
+      {(persistedSpecMismatch || specWarn) ? (
         <div className={`space-y-1 border-t border-[var(--z-border-subtle)] ${inModal ? 'mt-1.5 pt-1.5' : 'mt-2 space-y-1.5 pt-2'}`}>
-          {row.specMismatch ? (
+          {persistedSpecMismatch ? (
             <p className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-100/90 px-2 py-1 text-ui-xs font-bold uppercase tracking-wide text-amber-950">
               <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
               Spec exception — manager review
