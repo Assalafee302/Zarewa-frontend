@@ -145,10 +145,12 @@ import {
   applyRefundFundDeductionToPaymentLines,
   buildRefundFundClearanceSummary,
   usableRefundSourceIds,
+  defaultRefundFundConfirmChoice,
   planCashierRefundOffset,
   restorePaymentLinesAfterRefundFundUnchecked,
   stripFinishedOverpayFromConfirmEligible,
   sumRefundSourceAvailableNgn,
+  refundFundSkipReasonIsValid,
 } from '../../lib/refundFundApply.js';
 import {
   hangingRefundHowToUse,
@@ -311,11 +313,12 @@ const Account = () => {
   const [receiptHoldDelivery, setReceiptHoldDelivery] = useState(false);
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
   const [applyRefundOnConfirm, setApplyRefundOnConfirm] = useState(false);
+  const [receiptRefundFundSkipReason, setReceiptRefundFundSkipReason] = useState('');
   const [cashierRefundCreditInfo, setCashierRefundCreditInfo] = useState(null);
   const [cashierRefundCreditLoading, setCashierRefundCreditLoading] = useState(false);
-  /** Expanded only when cashier opens refund-fund details (never auto-applied). */
+  /** Expanded when refund fund can cover this receipt (cashier may still untick). */
   const [cashierRefundCreditDetailsOpen, setCashierRefundCreditDetailsOpen] = useState(false);
-  /** Refund-credit source ids chosen after cashier opts in (see usableRefundSourceIds). */
+  /** Refund-credit source ids (pre-selected when fund is available). */
   const [selectedRefundSourceIds, setSelectedRefundSourceIds] = useState([]);
   /** Correct bank/cash account for expense or payment-request treasury outflows (same idea as receipt splits). */
   const [expenseOutflowEdit, setExpenseOutflowEdit] = useState(null);
@@ -2299,6 +2302,7 @@ const Account = () => {
     if (!receiptFinanceRow?.id) {
       setCashierRefundCreditInfo(null);
       setApplyRefundOnConfirm(false);
+      setReceiptRefundFundSkipReason('');
       setSelectedRefundSourceIds([]);
       setCashierRefundCreditDetailsOpen(false);
       setCashierRefundCreditLoading(false);
@@ -2307,6 +2311,7 @@ const Account = () => {
     if (receiptFinanceRow.financeReconciliationSavedAtISO) {
       setCashierRefundCreditInfo(null);
       setApplyRefundOnConfirm(false);
+      setReceiptRefundFundSkipReason('');
       setSelectedRefundSourceIds([]);
       setCashierRefundCreditDetailsOpen(false);
       setCashierRefundCreditLoading(false);
@@ -2317,6 +2322,7 @@ const Account = () => {
     if (!cid || !qid) {
       setCashierRefundCreditInfo(null);
       setApplyRefundOnConfirm(false);
+      setReceiptRefundFundSkipReason('');
       setSelectedRefundSourceIds([]);
       setCashierRefundCreditDetailsOpen(false);
       return;
@@ -2332,29 +2338,31 @@ const Account = () => {
       if (!ok || !data?.ok) {
         setCashierRefundCreditInfo(null);
         setApplyRefundOnConfirm(false);
+        setReceiptRefundFundSkipReason('');
         setSelectedRefundSourceIds([]);
         setCashierRefundCreditDetailsOpen(false);
         return;
       }
       const eligible = stripFinishedOverpayFromConfirmEligible(data);
-      const hasUsableCredit = Number(eligible.totalAvailableNgn) > 0;
+      const choice = defaultRefundFundConfirmChoice(eligible);
       const hasUnavailable =
         Array.isArray(eligible.unavailableSources) && eligible.unavailableSources.length > 0;
       const hasPriorReleases =
         Array.isArray(eligible.priorConfirmPaymentReleases) &&
         eligible.priorConfirmPaymentReleases.length > 0;
-      if (!hasUsableCredit && !hasUnavailable && !hasPriorReleases) {
+      if (!choice.availableNgn && !hasUnavailable && !hasPriorReleases) {
         setCashierRefundCreditInfo(null);
         setApplyRefundOnConfirm(false);
+        setReceiptRefundFundSkipReason('');
         setSelectedRefundSourceIds([]);
         setCashierRefundCreditDetailsOpen(false);
         return;
       }
-      // Show that refund fund exists; do not auto-tick or auto-reduce bank cash.
       setCashierRefundCreditInfo(eligible);
-      setSelectedRefundSourceIds([]);
-      setApplyRefundOnConfirm(false);
-      setCashierRefundCreditDetailsOpen(false);
+      setSelectedRefundSourceIds(choice.sourceIds);
+      setApplyRefundOnConfirm(choice.apply);
+      setCashierRefundCreditDetailsOpen(choice.detailsOpen);
+      setReceiptRefundFundSkipReason('');
     })().catch(() => {
       if (!cancelled) {
         setCashierRefundCreditLoading(false);
@@ -2598,6 +2606,19 @@ const Account = () => {
           : applyRefundOnConfirm && cashierRefundOffset?.offsetNgn > 0
             ? Math.round(Number(cashierRefundOffset.offsetNgn) || 0)
             : 0;
+      const skipReason = String(receiptRefundFundSkipReason || '').trim();
+      const fundLeftUnused =
+        !cashierRefundCreditInfo?.targetBlocksExternalCredit &&
+        cashierUsableRefundAvailableNgn > 0 &&
+        offsetNgn <= 0;
+      if (fundLeftUnused && !refundFundSkipReasonIsValid(skipReason)) {
+        showToast(
+          'This customer has refund fund waiting to be paid out. Leave it ticked to cover this receipt, or write why the customer paid fresh cash.',
+          { variant: 'error' }
+        );
+        setCashierRefundCreditDetailsOpen(true);
+        return;
+      }
       const paymentLineCorrections = [];
       for (const s of settleSplits) {
         const d = paymentCorrectionDrafts[s.movementId];
@@ -2658,7 +2679,9 @@ const Account = () => {
                         : [],
                     },
                   }
-                : {}),
+                : fundLeftUnused
+                  ? { refundFundNotUsedReason: skipReason }
+                  : {}),
             }),
           }
         );
@@ -2714,7 +2737,9 @@ const Account = () => {
       applyRefundOnConfirm,
       cashierRefundOffset,
       cashierRefundCreditInfo,
+      cashierUsableRefundAvailableNgn,
       selectedRefundSourceIds,
+      receiptRefundFundSkipReason,
     ]
   );
 
@@ -5719,14 +5744,16 @@ const Account = () => {
                             onClick={() => setCashierRefundCreditDetailsOpen(true)}
                           >
                             <p className="font-bold text-amber-950">
-                              Customer has refund fund on file
-                              {Number(cashierRefundCreditInfo?.totalAvailableNgn) > 0
-                                ? ` · ${formatNgn(cashierRefundCreditInfo.totalAvailableNgn)}`
-                                : ''}
+                              {applyRefundOnConfirm && cashierRefundOffsetPreview
+                                ? `Using ${formatNgn(cashierRefundOffsetPreview.offsetNgn)} refund fund on this receipt`
+                                : Number(cashierRefundCreditInfo?.totalAvailableNgn) > 0
+                                  ? `Customer has refund fund on file · ${formatNgn(cashierRefundCreditInfo.totalAvailableNgn)}`
+                                  : 'Customer has refund fund on file'}
                             </p>
                             <p className="text-amber-900/90">
-                              Click to see details and choose whether to use it on this receipt. Cash to confirm
-                              stays full until you opt in.
+                              {applyRefundOnConfirm
+                                ? 'Click to change sources or confirm this as new cash instead.'
+                                : 'Click to apply it on this receipt, or write why the cash is genuinely new.'}
                             </p>
                           </button>
                         ) : (
@@ -5737,11 +5764,7 @@ const Account = () => {
                                 type="button"
                                 className="text-amber-800/80 underline font-semibold"
                                 disabled={receiptFinanceBusy}
-                                onClick={() => {
-                                  setCashierRefundCreditDetailsOpen(false);
-                                  setApplyRefundOnConfirm(false);
-                                  setSelectedRefundSourceIds([]);
-                                }}
+                                onClick={() => setCashierRefundCreditDetailsOpen(false)}
                               >
                                 Hide
                               </button>
@@ -5768,10 +5791,10 @@ const Account = () => {
                                   }}
                                 />
                                 <span>
-                                  <span className="font-bold">Use this refund on this receipt? </span>
+                                  <span className="font-bold">Use this refund on this receipt </span>
                                   {cashierRefundOffsetPreview
-                                    ? `${formatNgn(cashierRefundOffsetPreview.offsetNgn)} can cover part of this receipt and reduce cash to confirm. That slice is not paid out in cash.`
-                                    : 'Pick a source below, then tick this to reduce cash to confirm.'}
+                                    ? `— ${formatNgn(cashierRefundOffsetPreview.offsetNgn)} covers this receipt and is not paid out in cash.`
+                                    : '— pick a source below, then leave this ticked to reduce cash to confirm.'}
                                   {applyRefundOnConfirm && cashierRefundOffset?.leftoverRefundNgn > 0
                                     ? ` Leftover ${formatNgn(cashierRefundOffset.leftoverRefundNgn)} stays on the payout queue.`
                                     : applyRefundOnConfirm && cashierRefundOffset
@@ -5785,6 +5808,21 @@ const Account = () => {
                                 reasons. Confirm cash only, or apply from the refund record after fixing the blocker.
                               </p>
                             )}
+                            {!applyRefundOnConfirm && cashierUsableRefundAvailableNgn > 0 ? (
+                              <label className="block space-y-1">
+                                <span className="font-bold text-rose-950">
+                                  Why is this new cash, not refund fund?
+                                </span>
+                                <textarea
+                                  className="w-full rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-ui-xs text-slate-900"
+                                  rows={2}
+                                  value={receiptRefundFundSkipReason}
+                                  disabled={receiptFinanceBusy}
+                                  onChange={(e) => setReceiptRefundFundSkipReason(e.target.value)}
+                                  placeholder="Customer paid a fresh transfer; refund still goes to their account"
+                                />
+                              </label>
+                            ) : null}
                             {(cashierRefundCreditInfo?.sources || []).length > 0 ? (
                               <ul className="pl-0 list-none text-slate-800 space-y-2">
                                 {(cashierRefundCreditInfo.sources || []).map((s) => (

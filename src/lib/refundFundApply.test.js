@@ -9,6 +9,7 @@ import {
   refundFundPaymentRowsForQuotation,
   restorePaymentLinesAfterRefundFundUnchecked,
   defaultRefundSourceSelection,
+  defaultRefundFundConfirmChoice,
   usableRefundSourceIds,
   stripFinishedOverpayFromConfirmEligible,
 } from './refundFundApply.js';
@@ -186,7 +187,7 @@ describe('refund fund apply helpers', () => {
     ).toBeNull();
   });
 
-  it('lists usable refund-fund sources a cashier may choose (confirm does not auto-tick)', () => {
+  it('lists usable refund-fund sources a cashier may choose', () => {
     expect(
       usableRefundSourceIds([
         { id: 'overpay:QT-OLD', kind: 'overpay', sameQuotation: false, availableNgn: 50_000 },
@@ -206,6 +207,24 @@ describe('refund fund apply helpers', () => {
         { blockExternalCredit: true }
       )
     ).toEqual(['refund:RF-SAME']);
+  });
+
+  it('defaults Confirm payment to apply open refund fund', () => {
+    const choice = defaultRefundFundConfirmChoice({
+      sources: [
+        {
+          id: 'refund:RF-KD-26-9693',
+          kind: 'refund',
+          sameQuotation: false,
+          availableNgn: 861_575,
+        },
+      ],
+      targetBlocksExternalCredit: false,
+    });
+    expect(choice.apply).toBe(true);
+    expect(choice.sourceIds).toEqual(['refund:RF-KD-26-9693']);
+    expect(choice.availableNgn).toBe(861_575);
+    expect(choice.detailsOpen).toBe(true);
   });
 
   it('plans cashier receipt offset against approved refund fund', () => {

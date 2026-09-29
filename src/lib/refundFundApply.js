@@ -8,7 +8,11 @@ export const REFUND_FUND_USE_LABEL = 'Use from refund fund';
 export const REFUND_FUND_DEDUCTED_LABEL = 'Deducted from refund fund';
 export const REFUND_FUND_CASHIER_OFFSET_LABEL = 'Use overpay / refund fund on this receipt';
 
-export { stripFinishedOverpayFromConfirmEligible } from '../shared/lib/refundCreditApply.js';
+export {
+  REFUND_FUND_SKIP_REASON_MIN_LENGTH,
+  refundFundSkipReasonIsValid,
+  stripFinishedOverpayFromConfirmEligible,
+} from '../shared/lib/refundCreditApply.js';
 
 export function refundCreditApplicationIsActive(app) {
   const s = String(app?.status || '').trim().toLowerCase();
@@ -38,7 +42,6 @@ export function planCashierRefundOffset({ receiptCashNgn, availableNgn }) {
  * Usable refund-fund source ids a cashier may choose on receipt confirm.
  * Skip same-quote overpay so this receipt’s own extra cash is not offset against itself.
  * When the target job already has a blocking refund, do not include other jobs’ credit.
- * Confirm UI must not auto-tick these — cashier expands details and opts in.
  */
 export function usableRefundSourceIds(sources, { blockExternalCredit = false } = {}) {
   const list = Array.isArray(sources) ? sources : [];
@@ -49,9 +52,31 @@ export function usableRefundSourceIds(sources, { blockExternalCredit = false } =
     .filter(Boolean);
 }
 
-/** @deprecated Prefer {@link usableRefundSourceIds}; confirm no longer auto-selects. */
+/** Usable sources to pre-select on Confirm payment so leftover refund is not paid out twice. */
 export function defaultRefundSourceSelection(sources, opts = {}) {
   return usableRefundSourceIds(sources, opts);
+}
+
+/**
+ * Confirm payment defaults: apply open refund fund and reduce cash to confirm.
+ * Cashier can untick and write why the cash is genuinely new.
+ */
+export function defaultRefundFundConfirmChoice(eligible) {
+  const ids = usableRefundSourceIds(eligible?.sources, {
+    blockExternalCredit: Boolean(eligible?.targetBlocksExternalCredit),
+  });
+  const availableNgn = sumRefundSourceAvailableNgn(eligible?.sources, ids);
+  const hasUnavailable =
+    Array.isArray(eligible?.unavailableSources) && eligible.unavailableSources.length > 0;
+  const hasPriorReleases =
+    Array.isArray(eligible?.priorConfirmPaymentReleases) &&
+    eligible.priorConfirmPaymentReleases.length > 0;
+  return {
+    sourceIds: ids,
+    apply: availableNgn > 0,
+    detailsOpen: availableNgn > 0 || hasUnavailable || hasPriorReleases,
+    availableNgn,
+  };
 }
 
 export function sumRefundSourceAvailableNgn(sources, selectedIds) {

@@ -158,7 +158,7 @@ export function refundIsEligibleCreditSourceKind(refund) {
   if (!refundCreditPayeeIsQuoteCustomerOnly(refund)) {
     return false;
   }
-  return status === 'Pending' || status === 'Approved';
+  return status === 'Pending' || status === 'Approved' || status === 'Partially paid';
 }
 
 /** True when a ledger/credit error is the quotation-has-open-refund payment lock. */
@@ -534,6 +534,16 @@ export function planCashierRefundOffset({ receiptCashNgn, availableNgn }) {
     cashToConfirmNgn: Math.max(0, receipt - offsetNgn),
     leftoverRefundNgn: Math.max(0, available - offsetNgn),
   };
+}
+
+/** Minimum characters a cashier must write to confirm cash while refund fund sits unused. */
+export const REFUND_FUND_SKIP_REASON_MIN_LENGTH = 6;
+
+/**
+ * @param {unknown} reason
+ */
+export function refundFundSkipReasonIsValid(reason) {
+  return String(reason ?? '').trim().length >= REFUND_FUND_SKIP_REASON_MIN_LENGTH;
 }
 
 /**
