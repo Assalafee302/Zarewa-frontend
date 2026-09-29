@@ -3464,6 +3464,25 @@ const Account = () => {
           sensitivity: 'base',
         });
         if (t !== 0) return t;
+      } else if (paymentsTableSortKey === 'payee') {
+        const payeeOf = (row) => {
+          const pr = row.sourceKind === 'PAYMENT_REQUEST' ? payRequestById[row.sourceId] : null;
+          const ex = row.sourceKind === 'EXPENSE' ? expenseById[row.sourceId] : null;
+          const rf = row.sourceKind === 'REFUND' ? refundById[row.sourceId] : null;
+          return String(
+            row.counterpartyName ||
+              pr?.payeeName ||
+              pr?.payee_name ||
+              ex?.payeeName ||
+              ex?.payee_name ||
+              rf?.payeeName ||
+              rf?.customerName ||
+              rf?.customer ||
+              ''
+          ).trim();
+        };
+        const t = mult * payeeOf(a).localeCompare(payeeOf(b), undefined, { sensitivity: 'base' });
+        if (t !== 0) return t;
       } else if (paymentsTableSortKey === 'source') {
         const sa = `${String(a.sourceKind || '')}\u0000${String(a.sourceId || '')}`;
         const sb = `${String(b.sourceKind || '')}\u0000${String(b.sourceId || '')}`;

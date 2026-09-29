@@ -542,7 +542,7 @@ export function AccountTabPanels() {
                 <div className="space-y-4 animate-in fade-in duration-300">
                   <AccountingRegisterHeader
                     title="Payment register"
-                    subtitle="Pay approved items, then switch to Paid to confirm they left treasury."
+                    subtitle="Ready cash, holds, and age sit above the queue. Search, filter by type, and sort before you pay. Paid confirms what already left the till or bank."
                     actions={
                       <button
                         type="button"

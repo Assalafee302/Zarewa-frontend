@@ -404,7 +404,14 @@ function PostedOutflowsTable() {
                   onClick={() => togglePaymentsSort('type')}
                 />
               </AppTableTh>
-              <AppTableTh>Payee</AppTableTh>
+              <AppTableTh>
+                <SortLabel
+                  label="Payee"
+                  active={paymentsTableSortKey === 'payee'}
+                  dir={paymentsTableSortDir}
+                  onClick={() => togglePaymentsSort('payee')}
+                />
+              </AppTableTh>
               <AppTableTh>
                 <SortLabel
                   label="Description"

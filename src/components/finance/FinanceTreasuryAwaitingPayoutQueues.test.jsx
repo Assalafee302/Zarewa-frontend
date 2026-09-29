@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { FinanceTreasuryAwaitingPayoutQueues } from './FinanceTreasuryAwaitingPayoutQueues.jsx';
 
 vi.mock('../../context/WorkspaceContext', () => ({
@@ -67,5 +67,27 @@ describe('FinanceTreasuryAwaitingPayoutQueues', () => {
     expect(screen.getByText('Fuel & lubricant')).toBeTruthy();
     expect(screen.getAllByText(/Work order MWO-1/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Accommodation/).length).toBeGreaterThan(0);
+  });
+
+  it('filters the payout queue by payee or reference', () => {
+    render(
+      <FinanceTreasuryAwaitingPayoutQueues
+        refunds={[
+          { refundID: 'RF-1', customer: 'Acme', approvedAmountNgn: 1000, paidAmountNgn: 0 },
+          { refundID: 'RF-2', customer: 'Grace Emmanuel', approvedAmountNgn: 45000, paidAmountNgn: 0 },
+        ]}
+        paymentRequests={[]}
+        registerSettlements={[]}
+        poTransport={[]}
+        renderRefundActions={() => <button type="button">Pay refund</button>}
+        renderPaymentRequestActions={() => null}
+        renderRegisterSettlementActions={() => null}
+        renderPoTransportActions={() => null}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Search payout queue'), { target: { value: 'Grace' } });
+    expect(screen.queryByTestId('finance-refund-awaiting-row-RF-1-customer-0')).toBeNull();
+    expect(screen.getByTestId('finance-refund-awaiting-row-RF-2-customer-0')).toBeTruthy();
+    expect(screen.getByText(/1 match/)).toBeTruthy();
   });
 });
