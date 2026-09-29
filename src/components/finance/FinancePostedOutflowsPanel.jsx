@@ -11,6 +11,7 @@ import {
   paymentRequestOutstandingNgn,
   paymentRequestPayoutMetaLine,
 } from '../../lib/financeTreasuryPayoutQueueMeta';
+import { sortKeyedRows } from '../../lib/financePayoutDesk';
 import { useAppTablePaging } from '../../lib/appDataTable';
 import {
   refundApprovedAmount,
@@ -533,13 +534,38 @@ function RequestPipelineList() {
     canApprovePaymentRequests,
     ws,
   } = useAccountPage();
+  const [requestSortKey, setRequestSortKey] = useState('date');
+  const [requestSortDir, setRequestSortDir] = useState('desc');
+  const sortedRequests = useMemo(
+    () =>
+      sortKeyedRows(disbursementsVisiblePayRequests || [], requestSortKey, requestSortDir, {
+        date: (req) => String(req.approvedAtISO || req.requestDate || '').slice(0, 10),
+        payee: (req) => partyName(req),
+        amount: (req) => Math.round(Number(req.amountRequestedNgn) || 0),
+        status: (req) => String(req.approvalStatus || ''),
+      }),
+    [disbursementsVisiblePayRequests, requestSortKey, requestSortDir]
+  );
 
   const paging = useAppTablePaging(
-    disbursementsVisiblePayRequests || [],
+    sortedRequests,
     LIST_PAGE,
     disbursementsPayRequestQueue,
-    disbursementsSearch
+    disbursementsSearch,
+    requestSortKey,
+    requestSortDir
   );
+
+  function onRequestSort(key) {
+    setRequestSortKey((prev) => {
+      if (prev === key) {
+        setRequestSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
+      setRequestSortDir(key === 'payee' || key === 'status' ? 'asc' : 'desc');
+      return key;
+    });
+  }
 
   return (
     <div className="space-y-3">
@@ -656,12 +682,41 @@ function RequestPipelineList() {
             <AppTableWrap>
               <AppTable role="numeric">
                 <AppTableThead>
-                  <AppTableTh>Date</AppTableTh>
+                  <AppTableTh>
+                    <SortLabel
+                      label="Date"
+                      active={requestSortKey === 'date'}
+                      dir={requestSortDir}
+                      onClick={() => onRequestSort('date')}
+                    />
+                  </AppTableTh>
                   <AppTableTh>Request</AppTableTh>
-                  <AppTableTh>Payee</AppTableTh>
+                  <AppTableTh>
+                    <SortLabel
+                      label="Payee"
+                      active={requestSortKey === 'payee'}
+                      dir={requestSortDir}
+                      onClick={() => onRequestSort('payee')}
+                    />
+                  </AppTableTh>
                   <AppTableTh>Category</AppTableTh>
-                  <AppTableTh>Status</AppTableTh>
-                  <AppTableTh align="right">Amount</AppTableTh>
+                  <AppTableTh>
+                    <SortLabel
+                      label="Status"
+                      active={requestSortKey === 'status'}
+                      dir={requestSortDir}
+                      onClick={() => onRequestSort('status')}
+                    />
+                  </AppTableTh>
+                  <AppTableTh align="right">
+                    <SortLabel
+                      label="Amount"
+                      active={requestSortKey === 'amount'}
+                      dir={requestSortDir}
+                      onClick={() => onRequestSort('amount')}
+                      align="right"
+                    />
+                  </AppTableTh>
                   <AppTableTh align="right"> </AppTableTh>
                 </AppTableThead>
                 <AppTableBody>
@@ -1102,8 +1157,42 @@ function RefundRegisterList() {
     disbursementsSearch,
   } = useAccountPage();
   const [refundQueue, setRefundQueue] = useState('paid');
+  const [refundSortKey, setRefundSortKey] = useState('date');
+  const [refundSortDir, setRefundSortDir] = useState('desc');
   const rows = refundQueue === 'open' ? disbursementsOpenRefunds : disbursementsPaidRefunds;
-  const paging = useAppTablePaging(rows, LIST_PAGE, [refundQueue, disbursementsSearch]);
+  const sortedRefunds = useMemo(
+    () =>
+      sortKeyedRows(rows, refundSortKey, refundSortDir, {
+        date: (refund) =>
+          String(refund.paidAtISO || '').trim().slice(0, 10) ||
+          refundPayoutRegisterLines(refund)[0]?.postedAtISO?.slice(0, 10) ||
+          String(refund.approvalDate || refund.approvedAtISO || '').slice(0, 10),
+        customer: (refund) => partyName(refund) || String(refund.customer || ''),
+        status: (refund) => refundPublicStatusLabel(refund),
+        approved: (refund) => refundApprovedAmount(refund),
+        till: (refund) => refundTreasuryPaidNgn(refund),
+      }),
+    [rows, refundSortKey, refundSortDir]
+  );
+  const paging = useAppTablePaging(
+    sortedRefunds,
+    LIST_PAGE,
+    refundQueue,
+    disbursementsSearch,
+    refundSortKey,
+    refundSortDir
+  );
+
+  function onRefundSort(key) {
+    setRefundSortKey((prev) => {
+      if (prev === key) {
+        setRefundSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
+      setRefundSortDir(key === 'customer' || key === 'status' ? 'asc' : 'desc');
+      return key;
+    });
+  }
 
   return (
     <div className="space-y-3">
@@ -1185,14 +1274,51 @@ function RefundRegisterList() {
             <AppTableWrap>
               <AppTable role="numeric">
                 <AppTableThead>
-                  <AppTableTh>Date</AppTableTh>
+                  <AppTableTh>
+                    <SortLabel
+                      label="Date"
+                      active={refundSortKey === 'date'}
+                      dir={refundSortDir}
+                      onClick={() => onRefundSort('date')}
+                    />
+                  </AppTableTh>
                   <AppTableTh>Refund</AppTableTh>
-                  <AppTableTh>Customer</AppTableTh>
+                  <AppTableTh>
+                    <SortLabel
+                      label="Customer"
+                      active={refundSortKey === 'customer'}
+                      dir={refundSortDir}
+                      onClick={() => onRefundSort('customer')}
+                    />
+                  </AppTableTh>
                   <AppTableTh>Quote</AppTableTh>
-                  <AppTableTh>Status</AppTableTh>
+                  <AppTableTh>
+                    <SortLabel
+                      label="Status"
+                      active={refundSortKey === 'status'}
+                      dir={refundSortDir}
+                      onClick={() => onRefundSort('status')}
+                    />
+                  </AppTableTh>
                   <AppTableTh>How paid (till/bank)</AppTableTh>
-                  <AppTableTh align="right">Approved</AppTableTh>
-                  <AppTableTh align="right">Till paid</AppTableTh>
+                  <AppTableTh align="right">
+                    <SortLabel
+                      label="Approved"
+                      active={refundSortKey === 'approved'}
+                      dir={refundSortDir}
+                      onClick={() => onRefundSort('approved')}
+                      align="right"
+                    />
+                  </AppTableTh>
+                  <AppTableTh align="right">
+                    <SortLabel
+                      label="Till paid"
+                      active={refundSortKey === 'till'}
+                      dir={refundSortDir}
+                      onClick={() => onRefundSort('till')}
+                      align="right"
+                    />
+                  </AppTableTh>
                   <AppTableTh align="right"> </AppTableTh>
                 </AppTableThead>
                 <AppTableBody>

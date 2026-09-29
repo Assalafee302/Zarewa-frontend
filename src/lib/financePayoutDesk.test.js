@@ -4,6 +4,7 @@ import {
   matchesPayoutQuery,
   nextPayoutSort,
   payoutAgeDays,
+  sortKeyedRows,
   sortPayoutDueRows,
   sortPayoutQueue,
   summarizePayoutDue,
@@ -99,5 +100,16 @@ describe('financePayoutDesk', () => {
     expect(matchesPayoutQuery('RF-2 Ada', 'ada')).toBe(true);
     expect(nextPayoutSort('date', 'desc', 'date')).toEqual({ key: 'date', dir: 'asc' });
     expect(nextPayoutSort('date', 'desc', 'payee')).toEqual({ key: 'payee', dir: 'asc' });
+    expect(
+      sortKeyedRows(
+        [
+          { refundID: 'B', amount: 10 },
+          { refundID: 'A', amount: 40 },
+        ],
+        'amount',
+        'desc',
+        { amount: (row) => row.amount }
+      ).map((row) => row.refundID)
+    ).toEqual(['A', 'B']);
   });
 });

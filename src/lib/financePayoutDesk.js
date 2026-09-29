@@ -113,6 +113,31 @@ export function sortPayoutQueue(items, mode, getAmount, getDate) {
   });
 }
 
+/**
+ * @template T
+ * @param {T[]} rows
+ * @param {string} key
+ * @param {'asc' | 'desc'} dir
+ * @param {Record<string, (row: T) => string | number>} getters
+ */
+export function sortKeyedRows(rows, key, dir, getters) {
+  const mult = dir === 'asc' ? 1 : -1;
+  const get = getters?.[key] || getters?.date;
+  if (!get) return [...(rows || [])];
+  return [...(rows || [])].sort((a, b) => {
+    const left = get(a);
+    const right = get(b);
+    const cmp =
+      typeof left === 'number' || typeof right === 'number'
+        ? (Number(left) || 0) - (Number(right) || 0)
+        : String(left || '').localeCompare(String(right || ''), undefined, { sensitivity: 'base' });
+    if (cmp !== 0) return cmp * mult;
+    return String(a?.id || a?.requestID || a?.refundID || '').localeCompare(
+      String(b?.id || b?.requestID || b?.refundID || '')
+    );
+  });
+}
+
 /** @param {string} prevKey @param {'asc'|'desc'} prevDir @param {string} key */
 export function nextPayoutSort(prevKey, prevDir, key) {
   if (prevKey === key) {
