@@ -86,11 +86,7 @@ import { FinanceMobileAlertStrip } from "./FinanceMobileAlertStrip";
 
 import { CashierDeskReports } from "./CashierDeskReports";
 
-import { StaffPaymentsCashierPanel } from "./StaffPaymentsCashierPanel";
-import { PartnerWalletCashierPanel } from "./PartnerWalletCashierPanel";
-import { CompanyRetentionPanel } from "./CompanyRetentionPanel";
-import { RefundCreditApplicationsPanel } from "./RefundCreditApplicationsPanel";
-import { CashierOtPayPanel } from "./CashierOtPayPanel";
+import { CashierSecondaryServicesPanel } from "./CashierSecondaryServicesPanel";
 import { apiFetch } from "../../lib/apiBase";
 
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
@@ -686,7 +682,7 @@ export function FinanceDeskWorkQueues({
         />
       ) : null}
 
-      {!isCashier && !hideAccountGrid ? (
+      {!hideAccountGrid ? (
         <FinanceDeskTreasuryAccountGrid
           accounts={treasuryAccounts}
           bookById={bookById}
@@ -1144,55 +1140,23 @@ export function FinanceDeskWorkQueues({
                 orphanRows={orphanHaulageRows}
                 canAccessProcurement={Boolean(ws?.canAccessModule?.("procurement"))}
               />
-              <CashierOtPayPanel embedded />
-              <PartnerWalletCashierPanel
-                balances={partnerWalletsDue}
-                treasuryAccounts={treasuryAccounts}
-                canPay={Boolean(ws?.hasPermission?.("finance.pay"))}
-                onWithdrawn={() => void loadPartnerWallets()}
-              />
-              <CompanyRetentionPanel
-                treasuryAccounts={treasuryAccounts}
-                canPay={Boolean(ws?.hasPermission?.("finance.pay"))}
-                canApprove={Boolean(
-                  ws?.hasPermission?.("refunds.approve") || ws?.hasPermission?.("finance.approve")
-                )}
-                canRequest={Boolean(
-                  ws?.hasPermission?.("finance.pay") ||
-                    ws?.hasPermission?.("refunds.approve") ||
-                    ws?.hasPermission?.("finance.approve")
-                )}
-              />
             </FinanceTreasuryAwaitingPayoutQueues>
           </div>
 
-          {(staffRecoveriesDue.length > 0 || staffObligationsDue.length > 0) ? (
-            <StaffPaymentsCashierPanel
-              recoveries={staffRecoveriesDue}
-              obligations={staffObligationsDue}
-              onReceiveRecovery={onReceiveStaffRecovery}
-              onReceiveObligation={onReceiveStaffObligation}
-              expanded={staffPaymentsExpanded}
-              onExpandedChange={setStaffPaymentsExpanded}
-            />
-          ) : null}
-
-          <RefundCreditApplicationsPanel
-            applications={ws?.snapshot?.refundCreditApplications}
-            canReverse={Boolean(ws?.hasPermission?.('finance.reverse') && onReverseRefundCredit)}
-            onReverse={onReverseRefundCredit}
+          <CashierSecondaryServicesPanel
+            staffRecoveriesDue={staffRecoveriesDue}
+            staffObligationsDue={staffObligationsDue}
+            staffRecoveriesTotalNgn={staffRecoveriesTotalNgn}
+            staffObligationsTotalNgn={staffObligationsTotalNgn}
+            partnerWalletsDue={partnerWalletsDue}
+            treasuryAccounts={treasuryAccounts}
+            onWithdrawnPartnerWallets={() => void loadPartnerWallets()}
+            onReceiveStaffRecovery={onReceiveStaffRecovery}
+            onReceiveStaffObligation={onReceiveStaffObligation}
+            onReverseRefundCredit={onReverseRefundCredit}
+            defaultOpen={staffPaymentsExpanded || partnerWalletsDue.length > 0}
+            initialTab={staffPaymentsExpanded ? 'staff' : (partnerWalletsDue.length > 0 ? 'partner' : 'staff')}
           />
-
-          {isCashier && !hideAccountGrid ? (
-            <FinanceDeskTreasuryAccountGrid
-              accounts={treasuryAccounts}
-              bookById={bookById}
-              balanceByAccountId={deskBalanceSplit.byAccountId}
-              onGoToTab={onAccountClick ? undefined : onGoToTab}
-              onAccountClick={onAccountClick}
-              cardActionLabel={onAccountClick ? 'View statement' : undefined}
-            />
-          ) : null}
 
           {isCashier ? (
             <details className="rounded-md border border-slate-200 bg-white group">
@@ -1226,12 +1190,25 @@ export function FinanceDeskWorkQueues({
               Lodgements and internal transfers between accounts.
             </p>
 
-            <FinanceActionButton
-              variant="primary"
-              onClick={() => onGoToTab("movements")}
-            >
-              Record transfer
-            </FinanceActionButton>
+            <div className="flex flex-wrap items-center gap-2">
+              <FinanceActionButton
+                variant="primary"
+                onClick={() => onGoToTab("movements")}
+              >
+                Record transfer
+              </FinanceActionButton>
+              {isCashier ? (
+                <FinanceActionButton
+                  variant="secondary"
+                  onClick={() => {
+                    if (typeof document === "undefined") return;
+                    document.getElementById("desk-eod")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  Close day
+                </FinanceActionButton>
+              ) : null}
+            </div>
           </div>
 
           {mayTrialApi ? (

@@ -29,6 +29,7 @@ import {
   AppTableWrap,
 } from '../ui/AppDataTable';
 import { useAccountPage } from '../../pages/account/AccountPageContext.jsx';
+import { printPayoutVoucher } from '../../lib/payoutVoucherPrint.js';
 
 const KIND_META = {
   expense: { label: 'Expenses', chip: 'border-teal-200 bg-teal-50 text-teal-900' },
@@ -612,22 +613,46 @@ export function FinanceCashierPayoutsPanel() {
                         <AppTableTd title={row.accountName}>{row.accountName || '—'}</AppTableTd>
                         <AppTableTd align="right">{formatNgn(row.amountAbs)}</AppTableTd>
                         <AppTableTd align="right" truncate={false}>
-                          {canViewExpense ? (
+                          <div className="inline-flex items-center justify-end gap-1">
                             <button
                               type="button"
+                              title="Print payout voucher"
                               onClick={() =>
-                                handleDeskViewPaymentRequest?.(
-                                  row.sourceKind === 'PAYMENT_REQUEST' ? row.sourceId : '',
-                                  { expenseId: row.sourceKind === 'EXPENSE' ? row.sourceId : '' }
-                                )
+                                printPayoutVoucher({
+                                  voucherId: row.movementId || row.sourceId,
+                                  dateISO: row.postedAtISO,
+                                  kind: TREASURY_STATEMENT_TYPE_LABEL[row.type] || row.type,
+                                  payeeName: row.counterpartyName,
+                                  amountNgn: row.amountAbs,
+                                  description: row.description,
+                                  accountName: row.accountName,
+                                  postedBy:
+                                    workspace?.session?.user?.name ||
+                                    workspace?.session?.user?.email ||
+                                    'Cashier',
+                                  branchLabel:
+                                    snap?.branch?.name || workspace?.workspaceBranchId || '',
+                                })
                               }
                               className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
                             >
-                              View
+                              Print
                             </button>
-                          ) : (
-                            <span className="text-[11px] text-slate-400">—</span>
-                          )}
+                            {canViewExpense ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleDeskViewPaymentRequest?.(
+                                    row.sourceKind === 'PAYMENT_REQUEST' ? row.sourceId : '',
+                                    { expenseId: row.sourceKind === 'EXPENSE' ? row.sourceId : '' }
+                                  )
+                                }
+                                className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                              >
+                                View
+                              </button>
+                            ) : null}
+                          </div>
                         </AppTableTd>
                       </AppTableTr>
                     );

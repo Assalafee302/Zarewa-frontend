@@ -1,13 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search,
-  ArrowRightLeft,
   AlertCircle,
   RefreshCw,
   Printer,
-  Pencil,
-  Trash2,
   CheckCircle2,
   Undo2,
 } from 'lucide-react';
@@ -21,6 +18,8 @@ import { FinanceDepositQuoteMatchPanel } from '../../components/finance/FinanceD
 import { FinanceReceiptsClearanceTable } from '../../components/finance/FinanceReceiptsClearanceTable.jsx';
 import { FinanceTabContextBanner } from '../../components/finance/FinanceTabContextBanner.jsx';
 import { FinanceReceiptsWorkflowStrip } from '../../components/finance/FinanceReceiptsWorkflowStrip.jsx';
+import { FinanceTransfersPanel } from '../../components/finance/FinanceTransfersPanel.jsx';
+import { CashierEndOfDayPanel } from '../../components/finance/CashierEndOfDayPanel.jsx';
 import { AccountingRegisterHeader } from '../../components/finance/accounting/AccountingRegisterLayout.jsx';
 import { FinanceTreasuryManageAccountsPanel } from '../../components/finance/FinanceTreasuryManageAccountsPanel.jsx';
 import { AccountBankReconciliationPanel } from '../../components/account/AccountBankReconciliationPanel.jsx';
@@ -35,6 +34,13 @@ import {
 } from '../../lib/financeDeskTreasury.js';
 import { useAccountPage } from './AccountPageContext.jsx';
 import { isLocalGlEnabled } from '../../lib/accountingPolicyFlags.js';
+import { paymentConfirmQueueRowAmountNgn } from '../../shared/lib/receiptPaymentConfirmQueue.js';
+
+function receiptClearanceRowKey(r) {
+  return r?._confirmKind === 'payment_split'
+    ? `${r._parentReceiptId}:${r._movementId}`
+    : r?.id;
+}
 
 export function AccountTabPanels() {
   const {
@@ -144,6 +150,67 @@ export function AccountTabPanels() {
     });
   }, [filteredBankAccounts, liveTreasuryMovements, liveReceipts, ws?.snapshot?.bankDeposits]);
 
+  const [receiptsViewMode, setReceiptsViewMode] = useState('pending');
+  const [selectedReceiptsByKey, setSelectedReceiptsByKey] = useState({});
+
+  const selectedReceiptEntries = useMemo(
+    () => Object.entries(selectedReceiptsByKey).filter(([, row]) => row),
+    [selectedReceiptsByKey]
+  );
+  const selectedReceiptIds = useMemo(
+    () => selectedReceiptEntries.map(([key]) => key),
+    [selectedReceiptEntries]
+  );
+  const selectedReceiptsNgn = useMemo(
+    () =>
+      selectedReceiptEntries.reduce(
+        (sum, [, row]) => sum + paymentConfirmQueueRowAmountNgn(row),
+        0
+      ),
+    [selectedReceiptEntries]
+  );
+
+  const handleToggleSelectReceipt = (rowKey, receipt) => {
+    setSelectedReceiptsByKey((prev) => {
+      if (prev[rowKey]) {
+        const next = { ...prev };
+        delete next[rowKey];
+        return next;
+      }
+      return { ...prev, [rowKey]: receipt };
+    });
+  };
+
+  const handleSelectAllReceipts = (slice, select) => {
+    setSelectedReceiptsByKey((prev) => {
+      const next = { ...prev };
+      for (const r of slice || []) {
+        const key = receiptClearanceRowKey(r);
+        if (!key) continue;
+        if (select) next[key] = r;
+        else delete next[key];
+      }
+      return next;
+    });
+  };
+
+  const handleReceiptsViewMode = (mode) => {
+    setReceiptsViewMode(mode);
+    setSelectedReceiptsByKey({});
+  };
+
+  const handleConfirmSelectedReceipts = () => {
+    const first = selectedReceiptEntries[0]?.[1];
+    if (!first || !openReceiptFinance) return;
+    openReceiptFinance(first, first._movementId || null);
+    const key = selectedReceiptEntries[0][0];
+    setSelectedReceiptsByKey((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
   return (
             <>
             {activeTab === 'desk' && (
@@ -187,6 +254,11 @@ export function AccountTabPanels() {
                   hideAccountGrid={canManageTreasury}
                   searchQuery={searchQuery}
                 />
+                {isCashierRole ? (
+                  <div className="pt-2">
+                    <CashierEndOfDayPanel onGoToTab={handleAccountTabChange} />
+                  </div>
+                ) : null}
               </>
             )}
 
@@ -322,12 +394,79 @@ export function AccountTabPanels() {
                             </button>
                           ) : null}
                         </div>
-                        <div className="text-ui-xs text-slate-600 tabular-nums">
-                          {sortedFilteredSalesReceipts.length} receipt
-                          {sortedFilteredSalesReceipts.length !== 1 ? 's' : ''} in view
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <div
+                            className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5"
+                            role="tablist"
+                            aria-label="Receipts view"
+                          >
+                            {[
+                              {
+                                id: 'pending',
+                                label: 'Pending',
+                                count: waitingReceiptsListWindow.total,
+                              },
+                              {
+                                id: 'confirmed',
+                                label: 'Confirmed',
+                                count: receiptsListWindow.total,
+                              },
+                              { id: 'both', label: 'Both', count: null },
+                            ].map((tab) => (
+                              <button
+                                key={tab.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={receiptsViewMode === tab.id}
+                                onClick={() => handleReceiptsViewMode(tab.id)}
+                                className={`rounded-md px-2 py-1 text-ui-xs font-black uppercase tracking-wide transition ${
+                                  receiptsViewMode === tab.id
+                                    ? 'bg-zarewa-teal text-white'
+                                    : 'text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                {tab.label}
+                                {tab.count != null ? (
+                                  <span className="ml-1 tabular-nums opacity-80">({tab.count})</span>
+                                ) : null}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="text-ui-xs text-slate-600 tabular-nums">
+                            {sortedFilteredSalesReceipts.length} receipt
+                            {sortedFilteredSalesReceipts.length !== 1 ? 's' : ''} in view
+                          </div>
                         </div>
                       </div>
+                      {selectedReceiptIds.length > 0 && canFinanceReceiptSettlement && ws?.canMutate ? (
+                        <div className="sticky bottom-2 z-20 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-teal-200 bg-teal-50/95 px-3 py-2 shadow-sm">
+                          <p className="text-ui-xs font-semibold text-teal-950">
+                            {selectedReceiptIds.length} selected
+                            <span className="ml-1.5 font-black tabular-nums">{formatNgn(selectedReceiptsNgn)}</span>
+                            <span className="ml-1 font-medium text-teal-800/80">
+                              — confirm one at a time so till and bank stay correct
+                            </span>
+                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedReceiptsByKey({})}
+                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-ui-xs font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50"
+                            >
+                              Clear
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleConfirmSelectedReceipts}
+                              className="rounded-lg bg-zarewa-teal px-2.5 py-1 text-ui-xs font-black uppercase tracking-wide text-white hover:brightness-110"
+                            >
+                              Confirm next
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                       <div className="grid min-w-0 grid-cols-1 gap-3">
+                      {receiptsViewMode !== 'confirmed' ? (
                       <FinanceReceiptsClearanceTable
                         tone="amber"
                         title="Pending clearance"
@@ -348,7 +487,16 @@ export function AccountTabPanels() {
                         canConfirm={Boolean(canFinanceReceiptSettlement && ws?.canMutate)}
                         onConfirm={openReceiptFinance}
                         confirmLabel="Confirm"
+                        selectedReceiptIds={selectedReceiptIds}
+                        onToggleSelect={
+                          canFinanceReceiptSettlement && ws?.canMutate
+                            ? handleToggleSelectReceipt
+                            : undefined
+                        }
+                        onSelectAll={handleSelectAllReceipts}
                       />
+                      ) : null}
+                      {receiptsViewMode !== 'pending' ? (
                       <FinanceReceiptsClearanceTable
                         tone="emerald"
                         title="Confirmed"
@@ -370,6 +518,7 @@ export function AccountTabPanels() {
                         onConfirm={openReceiptFinance}
                         confirmLabel={(r) => (r.financeReconciliationSavedAtISO ? 'Revise' : 'Confirm')}
                       />
+                      ) : null}
                       </div>
                     </>
                   )}
@@ -455,9 +604,14 @@ export function AccountTabPanels() {
                   </div>
                 ) : null}
 
-                <button
-                  type="button"
-                  onClick={() => {
+                <FinanceTransfersPanel
+                  movementRows={movementRows}
+                  canEdit={canEditTreasuryTransfer}
+                  canDelete={canExecTreasuryDelete}
+                  deletingBatchId={deletingTransferBatchId}
+                  onEditTransfer={openEditTreasuryTransfer}
+                  onDeleteTransfer={(id) => void deleteTreasuryTransfer(id)}
+                  onNewTransfer={() => {
                     setEditingTransferBatchId('');
                     setTransferForm({
                       fromId: bankAccountsForBranch[0] ? String(bankAccountsForBranch[0].id) : '',
@@ -472,68 +626,7 @@ export function AccountTabPanels() {
                     });
                     setShowTransferModal(true);
                   }}
-                  className="z-btn-secondary"
-                >
-                  <ArrowRightLeft size={16} /> New transfer
-                </button>
-                {movementRows.length === 0 ? (
-                  <div className="z-empty-state py-12">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                      No internal transfers yet
-                    </p>
-                  </div>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {movementRows.map((m) => (
-                      <li
-                        key={m.id}
-                        className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm"
-                      >
-                        <div className="flex items-center justify-between gap-2 min-w-0">
-                          <p className="text-[11px] font-bold text-zarewa-teal truncate min-w-0">
-                            <span className="font-mono">{m.id}</span>
-                            <span className="font-medium text-slate-600">
-                              {' '}
-                              · {m.fromName} → {m.toName}
-                            </span>
-                          </p>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="text-[11px] font-black text-zarewa-teal tabular-nums">
-                              {formatNgn(m.amountNgn)}
-                            </span>
-                            {m.isTreasuryTransfer && canEditTreasuryTransfer ? (
-                              <button
-                                type="button"
-                                title="Edit transfer"
-                                onClick={() => openEditTreasuryTransfer(m)}
-                                className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:text-zarewa-teal hover:bg-teal-50 transition-colors"
-                                aria-label="Edit transfer"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                            ) : null}
-                            {m.isTreasuryTransfer && canExecTreasuryDelete ? (
-                              <button
-                                type="button"
-                                title="Delete transfer (Admin, MD, or CEO)"
-                                disabled={deletingTransferBatchId === m.id}
-                                onClick={() => void deleteTreasuryTransfer(m.id)}
-                                className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-300 hover:text-rose-600 hover:bg-rose-50/80 transition-colors disabled:opacity-40"
-                                aria-label="Delete transfer"
-                              >
-                                <Trash2 size={12} strokeWidth={1.65} />
-                              </button>
-                            ) : null}
-                          </div>
-                        </div>
-                        <p className="text-ui-xs text-slate-500 mt-0.5 tabular-nums">
-                          {m.at}
-                          {m.displayReference ? ` · ${m.displayReference}` : ''}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                />
               </div>
             )}
 

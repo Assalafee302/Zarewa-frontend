@@ -33,6 +33,9 @@ export function FinanceReceiptsClearanceTable({
   canConfirm,
   onConfirm,
   confirmLabel = 'Confirm',
+  selectedReceiptIds = [],
+  onToggleSelect,
+  onSelectAll,
 }) {
   const headerCls =
     tone === 'emerald'
@@ -84,16 +87,37 @@ export function FinanceReceiptsClearanceTable({
         <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200/90 bg-white">
           <table className="w-full table-fixed border-collapse">
             <colgroup>
+              {onToggleSelect ? <col className="w-[4%]" /> : null}
               <col className="w-[9%]" />
-              <col className="w-[26%]" />
-              <col className="w-[18%]" />
-              <col className="w-[14%]" />
+              <col className={onToggleSelect ? 'w-[24%]' : 'w-[26%]'} />
+              <col className={onToggleSelect ? 'w-[17%]' : 'w-[18%]'} />
+              <col className={onToggleSelect ? 'w-[13%]' : 'w-[14%]'} />
               <col className="w-[12%]" />
               <col className="w-[13%]" />
               <col className="w-[8%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
+                {onToggleSelect ? (
+                  <th className="px-1.5 py-1 text-center w-6">
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-300 text-zarewa-teal focus:ring-zarewa-teal/20"
+                      checked={
+                        listWindow.slice.length > 0 &&
+                        listWindow.slice.every((r) =>
+                          selectedReceiptIds.includes(
+                            r._confirmKind === 'payment_split'
+                              ? `${r._parentReceiptId}:${r._movementId}`
+                              : r.id
+                          )
+                        )
+                      }
+                      onChange={(e) => onSelectAll?.(listWindow.slice, e.target.checked)}
+                      aria-label="Select all on this page"
+                    />
+                  </th>
+                ) : null}
                 <th className={TH}>Date</th>
                 <th className={TH}>Receipt</th>
                 <th className={TH}>Customer</th>
@@ -149,8 +173,26 @@ export function FinanceReceiptsClearanceTable({
                 ]
                   .filter(Boolean)
                   .join(' · ');
+                const rowKey = isSplitRow ? `${r._parentReceiptId}:${r._movementId}` : r.id;
+                const isSelected = selectedReceiptIds.includes(rowKey);
                 return (
-                  <tr key={isSplitRow ? `${r._parentReceiptId}:${r._movementId}` : r.id} className="border-t border-slate-100 hover:bg-teal-50/30">
+                  <tr
+                    key={rowKey}
+                    className={`border-t border-slate-100 hover:bg-teal-50/30 transition-colors ${
+                      isSelected ? 'bg-teal-50/70 font-semibold' : ''
+                    }`}
+                  >
+                    {onToggleSelect ? (
+                      <td className="px-1.5 py-1 text-center align-middle">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-zarewa-teal focus:ring-zarewa-teal/20"
+                          checked={isSelected}
+                          onChange={() => onToggleSelect?.(rowKey, r)}
+                          aria-label={`Select receipt ${rowKey}`}
+                        />
+                      </td>
+                    ) : null}
                     <td className={`${TD} whitespace-nowrap tabular-nums text-slate-600`} title={date}>
                       {date || '—'}
                     </td>
