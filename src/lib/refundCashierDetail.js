@@ -117,7 +117,20 @@ export function resolveRefundUnclearedOverride(refund, actor, hasPermission, exp
 }
 
 function refundWalletOpenNgn(refund) {
-  return Math.max(0, Math.round(Number(refund?.walletOpenNgn ?? refund?.wallet_open_ngn) || 0));
+  const raw = Math.max(0, Math.round(Number(refund?.walletOpenNgn ?? refund?.wallet_open_ngn) || 0));
+  const summaryWallet = refund?.settlementSummary?.walletOpenNgn;
+  let n = raw;
+  if (summaryWallet != null && Number.isFinite(Number(summaryWallet))) {
+    n = Math.min(n, Math.max(0, Math.round(Number(summaryWallet) || 0)));
+  }
+  // Approval can accrue the full net onto partner wallet. Receipt credit already used
+  // from this refund must come off that balance too.
+  const creditOutside = receiptCreditStillOutsideApprovedNgn(refund);
+  if (creditOutside > 0) {
+    const payable = Math.max(0, refundApprovedAmount(refund) - creditOutside);
+    n = Math.min(n, payable);
+  }
+  return n;
 }
 
 function refundSplitLooksUnclearedHeld(split) {
@@ -171,6 +184,14 @@ export function enrichRefundForCashierPayout(row, apiRefund) {
     paymentNote: apiRefund.paymentNote ?? apiRefund.payment_note ?? row?.paymentNote,
     paidAmountNgn:
       apiRefund.paidAmountNgn ?? apiRefund.paid_amount_ngn ?? row?.paidAmountNgn,
+    creditAppliedNgn:
+      apiRefund.creditAppliedNgn ?? apiRefund.credit_applied_ngn ?? row?.creditAppliedNgn,
+    creditAppliedToQuotationRef:
+      apiRefund.creditAppliedToQuotationRef ??
+      apiRefund.credit_applied_to_quotation_ref ??
+      row?.creditAppliedToQuotationRef,
+    settlementSummary: apiRefund.settlementSummary ?? row?.settlementSummary,
+    outstandingAmountNgn: apiRefund.outstandingAmountNgn ?? row?.outstandingAmountNgn,
     approvedAmountNgn:
       apiRefund.approvedAmountNgn ?? apiRefund.approved_amount_ngn ?? row?.approvedAmountNgn,
     amountNgn: apiRefund.amountNgn ?? apiRefund.amount_ngn ?? row?.amountNgn,
@@ -182,7 +203,17 @@ export function enrichRefundForCashierPayout(row, apiRefund) {
     payoutHistory: Array.isArray(apiRefund.payoutHistory)
       ? apiRefund.payoutHistory
       : row?.payoutHistory,
-    walletOpenNgn: apiRefund.walletOpenNgn ?? apiRefund.wallet_open_ngn ?? row?.walletOpenNgn,
+    walletOpenNgn: refundWalletOpenNgn({
+      ...row,
+      ...apiRefund,
+      walletOpenNgn: apiRefund.walletOpenNgn ?? apiRefund.wallet_open_ngn ?? row?.walletOpenNgn,
+      creditAppliedNgn:
+        apiRefund.creditAppliedNgn ?? apiRefund.credit_applied_ngn ?? row?.creditAppliedNgn,
+      settlementSummary: apiRefund.settlementSummary ?? row?.settlementSummary,
+      approvedAmountNgn:
+        apiRefund.approvedAmountNgn ?? apiRefund.approved_amount_ngn ?? row?.approvedAmountNgn,
+      amountNgn: apiRefund.amountNgn ?? apiRefund.amount_ngn ?? row?.amountNgn,
+    }),
     heldNetNgn: apiRefund.heldNetNgn ?? apiRefund.held_net_ngn ?? row?.heldNetNgn,
   };
 }
@@ -349,6 +380,23 @@ export function refundCashierSplitBreakdown(refund) {
 }
 
 /**
+ * Receipt credit applied after the manager approved the full requested amount.
+ * When approval already stored only the leftover, this is 0 so it is not subtracted twice.
+ */
+function receiptCreditStillOutsideApprovedNgn(refund) {
+  const requested = Math.round(Number(refund?.amountNgn ?? refund?.amount_ngn) || 0);
+  const approved = refundApprovedAmount(refund);
+  const credit = Math.max(
+    Math.round(Number(refund?.creditAppliedNgn ?? refund?.credit_applied_ngn) || 0),
+    Math.round(Number(refund?.settlementSummary?.creditAppliedNgn) || 0)
+  );
+  if (credit <= 0 || approved <= 0) return 0;
+  const leftover = Math.max(0, requested - credit);
+  if (approved <= leftover + 1) return 0;
+  return Math.min(credit, approved);
+}
+
+/**
  * One Finance desk row per payee still owed cash (after company cut settled at approval).
  * @returns {Array<{
  *   queueKey: string,
@@ -442,13 +490,33 @@ function buildRefundPayeePayoutLines(
   });
 
   let cashRemaining = story.cashDueNgn;
-  const capped = mayOverride
+  const cashCapped = mayOverride
     ? lines
     : lines.map((line) => {
         const amountDueNgn = Math.min(line.amountDueNgn, Math.max(0, cashRemaining));
         cashRemaining -= amountDueNgn;
         return { ...line, amountDueNgn };
       });
+  // Override skips the cash-due ceiling so a held slice can still be paid. Receipt
+  // credit already used from this refund (₦555,000 + ₦72,300 off ₦861,575) must
+  // still come off, or the payout keeps showing the original approved total.
+  let creditLeft = mayOverride ? receiptCreditStillOutsideApprovedNgn(refund) : 0;
+  const capped = cashCapped.map((line) => {
+    const cut = Math.min(line.amountDueNgn, creditLeft);
+    creditLeft -= cut;
+    const amountDueNgn = Math.max(0, line.amountDueNgn - cut);
+    const netPayoutNgn =
+      line.unclearedWithheldNgn > 0 || !(amountDueNgn > 0) || amountDueNgn >= line.netPayoutNgn
+        ? line.netPayoutNgn
+        : amountDueNgn;
+    return {
+      ...line,
+      amountDueNgn,
+      netPayoutNgn,
+      originalNetPayoutNgn:
+        netPayoutNgn === line.netPayoutNgn ? line.originalNetPayoutNgn : line.netPayoutNgn,
+    };
+  });
 
   const walletOpenNgn = refundWalletOpenNgn(refund);
   if (walletOpenNgn <= 0) return { story, lines: capped, mayOverride };
@@ -810,7 +878,10 @@ export function refundDefaultTreasuryPayoutNgn(
  */
 export function refundCashierMoneyStory(refund) {
   const requestedNgn = Math.round(Number(refund?.amountNgn ?? refund?.amount_ngn) || 0);
-  const appliedNgn = Math.round(Number(refund?.creditAppliedNgn ?? refund?.credit_applied_ngn) || 0);
+  const appliedNgn = Math.max(
+    Math.round(Number(refund?.creditAppliedNgn ?? refund?.credit_applied_ngn) || 0),
+    Math.round(Number(refund?.settlementSummary?.creditAppliedNgn) || 0)
+  );
   const appliedToQuote = String(
     refund?.creditAppliedToQuotationRef ?? refund?.credit_applied_to_quotation_ref ?? ''
   ).trim();
@@ -877,10 +948,7 @@ export function refundCashierMoneyStory(refund) {
         ? Math.min(Math.round(Number(summary.tillPayableNgn) || 0), cashDueNgn)
         : undefined,
     publicLabel: String(summary?.publicLabel || '').trim() || undefined,
-    walletOpenNgn: Math.max(
-      0,
-      Math.round(Number(summary?.walletOpenNgn ?? refund?.walletOpenNgn ?? refund?.wallet_open_ngn) || 0)
-    ),
+    walletOpenNgn: refundWalletOpenNgn(refund),
     walletWithdrawnNgn: Math.max(0, Math.round(Number(summary?.walletWithdrawnNgn) || 0)),
     cashOutstandingNgn:
       summary?.cashOutstandingNgn != null

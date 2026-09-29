@@ -167,7 +167,7 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
     [refund, ws?.session?.user, ws?.hasPermission]
   );
   const tillDuePayeeCount = recipientTillRows.filter((row) => row.amountDueNgn > 0).length;
-  const walletOpenNgn = Math.round(Number(refund?.walletOpenNgn) || 0);
+  const walletOpenNgn = story.walletOpenNgn;
   const canRelease =
     !blockCashPayout && (tillDuePayeeCount > 0 || walletOpenNgn > 0);
 

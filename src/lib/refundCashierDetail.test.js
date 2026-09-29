@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   actorMayOverrideRefundUnclearedPayoutHold,
   buildRefundPayoutSituationBrief,
+  enrichRefundForCashierPayout,
   flattenRefundDeskQueue,
   flattenRefundPayeePayoutQueue,
   refundCashierCustomerName,
@@ -33,6 +34,60 @@ describe('refundCashierMoneyStory', () => {
     expect(story.cashDueNgn).toBe(128_300);
     expect(story.companyCutNgn).toBe(0);
     expect(story.settledAtApprovalNgn).toBe(0);
+  });
+});
+
+describe('refund payout after receipt credit', () => {
+  it('shows the balance after confirmed receipt use, not the original approved total', () => {
+    const refund = {
+      refundID: 'RF-BAL-861575',
+      customerID: 'CUS-1',
+      customer: 'Customer',
+      amountNgn: 861_575,
+      approvedAmountNgn: 861_575,
+      paidAmountNgn: 0,
+      creditAppliedNgn: 555_000 + 72_300,
+      status: 'Approved',
+      payeeName: 'Customer',
+      payeeAccountNo: '0123456789',
+      payeeBankName: 'GTBank',
+    };
+    const cashier = { id: 'u-cashier', roleKey: 'cashier', displayName: 'Cashier' };
+    const lines = flattenRefundDeskQueue([refund], {
+      actor: cashier,
+      hasPermission: () => false,
+    });
+    expect(lines).toHaveLength(1);
+    expect(lines[0].amountDueNgn).toBe(234_275);
+    expect(lines[0].netPayoutNgn).toBe(234_275);
+    expect(refundDefaultTreasuryPayoutNgn(refund, null, { actor: cashier, hasPermission: () => false })).toBe(
+      234_275
+    );
+  });
+
+  it('does not keep the original partner-wallet accrual after those receipts', () => {
+    const refund = {
+      refundID: 'RF-BAL-861575',
+      customerID: 'CUS-1',
+      customer: 'Customer',
+      amountNgn: 861_575,
+      approvedAmountNgn: 861_575,
+      paidAmountNgn: 0,
+      creditAppliedNgn: 555_000 + 72_300,
+      walletOpenNgn: 861_575,
+      status: 'Approved',
+      payeeName: 'Customer',
+      payeeAccountNo: '0123456789',
+      payeeBankName: 'GTBank',
+    };
+    const story = refundCashierMoneyStory(refund);
+    expect(story.walletOpenNgn).toBe(234_275);
+    expect(story.cashDueNgn).toBe(234_275);
+    const enriched = enrichRefundForCashierPayout(
+      { refundID: 'RF-BAL-861575', walletOpenNgn: 861_575, amountNgn: 861_575, approvedAmountNgn: 861_575 },
+      refund
+    );
+    expect(enriched.walletOpenNgn).toBe(234_275);
   });
 });
 
