@@ -12,6 +12,7 @@ import {
 } from './operationsDeskUi';
 
 const APPROVER_ROLES = new Set(['admin', 'md', 'ceo', 'chairman', 'sales_manager', 'branch_manager']);
+const REQUEST_ROLES = new Set(['operations_officer', 'storekeeper', 'store_keeper']);
 
 function sessionUser(ws) {
   return ws?.session?.user || ws?.user || null;
@@ -56,8 +57,13 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
   const navigate = useNavigate();
   const user = sessionUser(ws);
   const roleKey = String(user?.roleKey || user?.role_key || '').trim().toLowerCase();
+  const department = String(user?.department || '').trim().toLowerCase().replace(/\s+/g, '_');
   const userId = String(user?.id || '').trim();
-  const canRequest = Boolean(ws?.hasPermission?.('inventory.receive'));
+  const canRequest =
+    Boolean(ws?.hasPermission?.('inventory.receive')) ||
+    Boolean(ws?.hasPermission?.('*')) ||
+    REQUEST_ROLES.has(roleKey) ||
+    REQUEST_ROLES.has(department);
   const canApprove = Boolean(ws?.hasPermission?.('*')) || APPROVER_ROLES.has(roleKey);
   const focusedCoil = String(coilNo || '').trim();
 
@@ -65,6 +71,7 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
   const [loading, setLoading] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [step, setStep] = useState('edit');
+  const [fromDraft, setFromDraft] = useState('');
   const [toCoilNo, setToCoilNo] = useState('');
   const [reason, setReason] = useState('');
   const [preview, setPreview] = useState(null);
@@ -87,14 +94,17 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
     void load();
   }, [load]);
 
+  const sourceCoil = focusedCoil || fromDraft.trim();
   const pendingForCoil = useMemo(
     () =>
-      rows.find((row) => String(row.fromCoilNo || '').toLowerCase() === focusedCoil.toLowerCase()) || null,
-    [focusedCoil, rows]
+      sourceCoil
+        ? rows.find((row) => String(row.fromCoilNo || '').toLowerCase() === sourceCoil.toLowerCase()) || null
+        : null,
+    [rows, sourceCoil]
   );
 
   useEffect(() => {
-    if (!composerOpen || !focusedCoil) return undefined;
+    if (!composerOpen || !sourceCoil) return undefined;
     const typed = toCoilNo.trim();
     if (typed.length < 2) {
       setPreview(null);
@@ -106,7 +116,7 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
     setChecking(true);
     const timer = setTimeout(async () => {
       const r = await apiFetch(
-        `/api/coil-lots/${encodeURIComponent(focusedCoil)}/number-correction/preview?toCoilNo=${encodeURIComponent(typed)}`
+        `/api/coil-lots/${encodeURIComponent(sourceCoil)}/number-correction/preview?toCoilNo=${encodeURIComponent(typed)}`
       );
       if (cancelled) return;
       setChecking(false);
@@ -122,11 +132,12 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [composerOpen, focusedCoil, toCoilNo]);
+  }, [composerOpen, sourceCoil, toCoilNo]);
 
   function resetComposer() {
     setComposerOpen(false);
     setStep('edit');
+    setFromDraft('');
     setToCoilNo('');
     setReason('');
     setPreview(null);
@@ -134,9 +145,9 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
   }
 
   async function submitRequest() {
-    if (!focusedCoil || busy || !preview?.available) return;
+    if (!sourceCoil || busy || !preview?.available) return;
     setBusy(true);
-    const r = await apiFetch(`/api/coil-lots/${encodeURIComponent(focusedCoil)}/number-correction`, {
+    const r = await apiFetch(`/api/coil-lots/${encodeURIComponent(sourceCoil)}/number-correction`, {
       method: 'POST',
       body: JSON.stringify({ toCoilNo: preview.toCoilNo || toCoilNo, reason }),
     });
@@ -202,7 +213,8 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
   }
 
   if (!canRequest && !canApprove) return null;
-  if (!focusedCoil && rows.length === 0) return null;
+  // The stock desk is where store starts a correction. Hide it there only for approvers with an empty queue.
+  if (!focusedCoil && !canRequest && rows.length === 0) return null;
   if (focusedCoil && !canRequest && !pendingForCoil) return null;
 
   const hint = previewHint(preview);
@@ -213,22 +225,22 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className={OPS_SECTION_TITLE}>
-            {focusedCoil ? 'Coil number' : 'Coil numbers waiting for approval'}
+            {focusedCoil || canRequest ? 'Coil number' : 'Coil numbers waiting for approval'}
           </h3>
           <p className={OPS_SECTION_HINT}>
-            {focusedCoil
+            {focusedCoil || canRequest
               ? 'A wrong number stays on the coil until a branch manager approves the correction.'
               : 'Check the mill tag, then confirm the new number before you approve.'}
           </p>
         </div>
-        {focusedCoil && canRequest && !pendingForCoil && !composerOpen ? (
+        {canRequest && !composerOpen && !(focusedCoil && pendingForCoil) ? (
           <button type="button" className={OPS_TOOL_BTN} onClick={() => setComposerOpen(true)}>
             Correct number
           </button>
         ) : null}
       </div>
 
-      {focusedCoil && composerOpen && !pendingForCoil ? (
+      {composerOpen && !(focusedCoil && pendingForCoil) ? (
         <div className="mt-3 rounded-md border border-[var(--z-border)] bg-[var(--z-surface-muted)]/40 p-3">
           {step === 'edit' ? (
             <div className="grid gap-3">
@@ -236,9 +248,15 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
                 <label className="block text-ui-xs font-semibold text-[var(--z-text)]">
                   Number on the coil now
                   <input
-                    value={focusedCoil}
-                    readOnly
+                    value={focusedCoil || fromDraft}
+                    readOnly={Boolean(focusedCoil)}
+                    onChange={(e) => {
+                      if (focusedCoil) return;
+                      setFromDraft(e.target.value);
+                      setStep('edit');
+                    }}
                     className="mt-1 w-full rounded-md border border-[var(--z-border)] bg-white px-2.5 py-2 font-mono text-sm text-[var(--z-text-muted)]"
+                    placeholder="As it was entered at receipt"
                   />
                 </label>
                 <label className="block text-ui-xs font-semibold text-[var(--z-text)]">
@@ -286,7 +304,7 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
           ) : (
             <div className="grid gap-2">
               <p className="font-mono text-sm font-semibold text-[var(--z-text)]">
-                {focusedCoil} → {preview?.toCoilNo || toCoilNo}
+                {sourceCoil} → {preview?.toCoilNo || toCoilNo}
               </p>
               <p className="text-ui-xs text-[var(--z-text-muted)]">{reason.trim()}</p>
               <p className="text-ui-xs text-[var(--z-text-muted)]">{impactSummary(preview?.impact)}</p>
