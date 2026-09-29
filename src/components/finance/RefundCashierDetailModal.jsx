@@ -302,7 +302,10 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
                         {row.recipientKind === 'associated_staff' ? 'Staff: ' : ''}
                         {row.recipientLabel}
                       </span>
-                      <span className="tabular-nums font-bold">{formatNgn(row.netPayoutNgn)} net</span>
+                      <span className="tabular-nums font-bold">
+                        {formatNgn(row.amountDueNgn > 0 ? row.amountDueNgn : row.netPayoutNgn)}
+                        {row.amountDueNgn > 0 && row.amountDueNgn < row.netPayoutNgn ? ' left' : ' net'}
+                      </span>
                     </div>
                     {row.payeeAccountNo || row.payeeBankName ? (
                       <p className="text-ui-xs text-sky-900/80 truncate">

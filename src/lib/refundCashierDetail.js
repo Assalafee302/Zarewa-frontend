@@ -130,6 +130,8 @@ function refundWalletOpenNgn(refund) {
     const payable = Math.max(0, refundApprovedAmount(refund) - creditOutside);
     n = Math.min(n, payable);
   }
+  const stillDue = refundOutstandingAmount(refund);
+  if (Number.isFinite(stillDue)) n = Math.min(n, Math.max(0, stillDue));
   return n;
 }
 
@@ -489,22 +491,15 @@ function buildRefundPayeePayoutLines(
     };
   });
 
-  let cashRemaining = story.cashDueNgn;
-  const cashCapped = mayOverride
-    ? lines
-    : lines.map((line) => {
-        const amountDueNgn = Math.min(line.amountDueNgn, Math.max(0, cashRemaining));
-        cashRemaining -= amountDueNgn;
-        return { ...line, amountDueNgn };
-      });
-  // Override skips the cash-due ceiling so a held slice can still be paid. Receipt
-  // credit already used from this refund (₦555,000 + ₦72,300 off ₦861,575) must
-  // still come off, or the payout keeps showing the original approved total.
-  let creditLeft = mayOverride ? receiptCreditStillOutsideApprovedNgn(refund) : 0;
-  const capped = cashCapped.map((line) => {
-    const cut = Math.min(line.amountDueNgn, creditLeft);
-    creditLeft -= cut;
-    const amountDueNgn = Math.max(0, line.amountDueNgn - cut);
+  // Cashiers can release a held uncleared slice. That must not put back receipt
+  // credit already used (approved ₦861,575 with ₦627,300 used as receipts → ₦234,275).
+  const heldReleaseNgn = mayOverride
+    ? lines.reduce((sum, line) => sum + (line.unclearedWithheldNgn > 0 ? line.amountDueNgn : 0), 0)
+    : 0;
+  let cashRemaining = story.cashDueNgn + heldReleaseNgn;
+  const capped = lines.map((line) => {
+    const amountDueNgn = Math.min(line.amountDueNgn, Math.max(0, cashRemaining));
+    cashRemaining -= amountDueNgn;
     const netPayoutNgn =
       line.unclearedWithheldNgn > 0 || !(amountDueNgn > 0) || amountDueNgn >= line.netPayoutNgn
         ? line.netPayoutNgn

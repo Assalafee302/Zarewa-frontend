@@ -65,6 +65,30 @@ describe('refund payout after receipt credit', () => {
     );
   });
 
+  it('uses paid amount already taken as receipts when credit is not stamped on the row', () => {
+    const refund = {
+      refundID: 'RF-BAL-861575',
+      customerID: 'CUS-1',
+      customer: 'Customer',
+      amountNgn: 861_575,
+      approvedAmountNgn: 861_575,
+      paidAmountNgn: 555_000 + 72_300,
+      creditAppliedNgn: 0,
+      status: 'Approved',
+      payeeName: 'Customer',
+      payeeAccountNo: '0123456789',
+      payeeBankName: 'GTBank',
+    };
+    const cashier = { id: 'u-cashier', roleKey: 'cashier', displayName: 'Cashier' };
+    const lines = flattenRefundDeskQueue([refund], {
+      actor: cashier,
+      hasPermission: () => false,
+    });
+    expect(lines).toHaveLength(1);
+    expect(lines[0].amountDueNgn).toBe(234_275);
+    expect(lines[0].netPayoutNgn).toBe(234_275);
+  });
+
   it('does not keep the original partner-wallet accrual after those receipts', () => {
     const refund = {
       refundID: 'RF-BAL-861575',
