@@ -104,7 +104,12 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
   );
 
   useEffect(() => {
-    if (!composerOpen || !sourceCoil) return undefined;
+    if (!composerOpen || !sourceCoil) {
+      setPreview(null);
+      setPreviewError('');
+      setChecking(false);
+      return undefined;
+    }
     const typed = toCoilNo.trim();
     if (typed.length < 2) {
       setPreview(null);
@@ -255,8 +260,9 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
                       setFromDraft(e.target.value);
                       setStep('edit');
                     }}
-                    className="mt-1 w-full rounded-md border border-[var(--z-border)] bg-white px-2.5 py-2 font-mono text-sm text-[var(--z-text-muted)]"
+                    className={`mt-1 w-full rounded-md border border-[var(--z-border)] bg-white px-2.5 py-2 font-mono text-sm ${focusedCoil ? 'text-[var(--z-text-muted)]' : 'text-[var(--z-text)]'}`}
                     placeholder="As it was entered at receipt"
+                    autoFocus={!focusedCoil}
                   />
                 </label>
                 <label className="block text-ui-xs font-semibold text-[var(--z-text)]">
@@ -269,7 +275,7 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
                     }}
                     className="mt-1 w-full rounded-md border border-[var(--z-border)] bg-white px-2.5 py-2 font-mono text-sm"
                     placeholder="As printed on the mill tag"
-                    autoFocus
+                    autoFocus={Boolean(focusedCoil)}
                   />
                 </label>
               </div>
@@ -283,6 +289,9 @@ export default function CoilNumberCorrectionPanel({ coilNo = '' }) {
                   placeholder="The mill tag does not match what was entered at receipt"
                 />
               </label>
+              {!sourceCoil && (toCoilNo.trim() || reason.trim()) ? (
+                <p className="text-ui-xs font-medium text-rose-800">Enter the number that is on the coil now.</p>
+              ) : null}
               {checking ? <p className="text-ui-xs text-[var(--z-text-muted)]">Checking the register…</p> : null}
               {!checking && previewError ? <p className="text-ui-xs font-medium text-rose-800">{previewError}</p> : null}
               {!checking && hint ? <p className={`text-ui-xs font-medium ${hintTone}`}>{hint}</p> : null}
