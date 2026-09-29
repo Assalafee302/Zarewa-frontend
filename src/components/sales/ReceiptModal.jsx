@@ -654,15 +654,12 @@ const ReceiptModal = ({
           'This quotation is flagged by manager for review.',
       };
     }
-    if (selectedQuotation.managerClearedAtISO) {
-      return {
-        kind: 'cleared',
-        detail:
-          'This quotation has been cleared by manager and is closed for new payments. Unconfirmed receipts can still be confirmed in Finance & accounts.',
-      };
-    }
     return null;
   }, [selectedQuotation]);
+
+  const clearedQuoteReopensOnReceipt = Boolean(
+    selectedQuotation?.managerClearedAtISO && !selectedQuotation?.managerFlaggedAtISO
+  );
 
   const balanceAfterNgn = useMemo(() => {
     if (dueNgn == null) return null;
@@ -1029,7 +1026,9 @@ const ReceiptModal = ({
         setPostingHint(null);
         const linkNote = activeBankDepositId ? ` Linked to ${activeBankDepositId}.` : '';
         showToast(
-          `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.${linkNote}`
+          data?.managerClearanceReopened
+            ? `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id}. Sent back for manager clearance.${linkNote}`
+            : `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.${linkNote}`
         );
         if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !activeBankDepositId) {
           showToast(
@@ -1208,9 +1207,7 @@ const ReceiptModal = ({
             <p className="text-xs font-bold">Customer ledger posting is paused</p>
             <p className="leading-snug opacity-95">{quotationLedgerHold.detail}</p>
             <p className="leading-snug">
-              {quotationLedgerHold.kind === 'cleared' && (dueNgn ?? 0) > 0
-                ? 'This quote was manager-cleared while money is still due. A manager must use Release for payments on the Manager dashboard before you can post the balance.'
-                : 'Open the Manager dashboard → Transaction Intel, finish or withdraw any refund, then release the hold if payments should continue.'}
+              Open the Manager dashboard → Transaction Intel, finish or withdraw any refund, then release the hold if payments should continue.
             </p>
             <div className="flex flex-wrap gap-x-3 gap-y-1">
               <Link to="/manager" className="font-semibold text-rose-900 underline underline-offset-2">
@@ -1220,6 +1217,14 @@ const ReceiptModal = ({
                 Sales — customers
               </Link>
             </div>
+          </div>
+        ) : null}
+
+        {!readOnly && useLedgerApi && clearedQuoteReopensOnReceipt ? (
+          <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-ui-xs text-amber-950">
+            <p className="leading-snug">
+              This quotation was already cleared by the manager. Posting this receipt sends it back for clearance.
+            </p>
           </div>
         ) : null}
 
