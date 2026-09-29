@@ -45,6 +45,7 @@ import {
 import { SalesListSearchInput } from '../sales/SalesListTableFrame';
 import { AccountingDeskNotice } from './accounting/AccountingDeskUi';
 import { AccountingRegisterHeader, AccountingSectionNav } from './accounting/AccountingRegisterLayout';
+import { PaymentRegisterLineDetailModal } from './PaymentRegisterLineDetailModal.jsx';
 import { useAccountPage } from '../../pages/account/AccountPageContext.jsx';
 
 const LIST_PAGE = 15;
@@ -119,7 +120,7 @@ function StatusChip({ status }) {
   );
 }
 
-function PostedRowActions({ row }) {
+function PostedRowActions({ row, onOpen }) {
   const {
     payRequestById,
     expenseById,
@@ -139,7 +140,6 @@ function PostedRowActions({ row }) {
     deleteRolloutPaymentRequest,
     deletingExpenseId,
     deletingPayRequestId,
-    handleDeskViewPaymentRequest,
   } = useAccountPage();
 
   const pr = row.sourceKind === 'PAYMENT_REQUEST' ? payRequestById[row.sourceId] : null;
@@ -174,24 +174,9 @@ function PostedRowActions({ row }) {
     pr &&
     paidPr <= 0 &&
     isPrPrimary;
-  const canView = row.sourceKind === 'PAYMENT_REQUEST' || row.sourceKind === 'EXPENSE';
-
-  if (!canView && !showPayFrom && !showReverse && !showDeleteExpenseRow && !showDeletePrRow) return null;
-
   return (
-    <div className="inline-flex flex-wrap justify-end gap-1">
-      {canView ? (
-        <QuietAction
-          onClick={() =>
-            handleDeskViewPaymentRequest?.(
-              row.sourceKind === 'PAYMENT_REQUEST' ? row.sourceId : '',
-              { expenseId: row.sourceKind === 'EXPENSE' ? row.sourceId : '' }
-            )
-          }
-        >
-          View
-        </QuietAction>
-      ) : null}
+    <div className="inline-flex flex-wrap justify-end gap-1" onClick={(event) => event.stopPropagation()}>
+      <QuietAction onClick={() => onOpen?.(row)}>Open</QuietAction>
       {showPayFrom ? (
         <QuietAction tone="teal" onClick={() => openPayFromEditForTableRow(row)}>
           Pay-from
@@ -332,9 +317,29 @@ function PostedOutflowsTable() {
     payRequestById,
     expenseById,
     refundById,
+    liveTreasuryMovements,
+    handleDeskViewRefund,
+    handleDeskViewPaymentRequest,
   } = useAccountPage();
+  const [openRow, setOpenRow] = useState(null);
 
   const slice = paymentsListWindow?.slice || [];
+  const openRefund = openRow?.sourceKind === 'REFUND' ? refundById[openRow.sourceId] : null;
+  const openRequest = openRow?.sourceKind === 'PAYMENT_REQUEST' ? payRequestById[openRow.sourceId] : null;
+  const openExpense = openRow?.sourceKind === 'EXPENSE' ? expenseById[openRow.sourceId] : null;
+
+  const openSource = () => {
+    if (!openRow) return;
+    const sourceId = openRow.sourceId;
+    const sourceKind = openRow.sourceKind;
+    setOpenRow(null);
+    if (sourceKind === 'REFUND') handleDeskViewRefund?.(sourceId);
+    else if (sourceKind === 'PAYMENT_REQUEST' || sourceKind === 'EXPENSE') {
+      handleDeskViewPaymentRequest?.(sourceKind === 'PAYMENT_REQUEST' ? sourceId : '', {
+        expenseId: sourceKind === 'EXPENSE' ? sourceId : '',
+      });
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -353,7 +358,8 @@ function PostedOutflowsTable() {
             return (
               <li
                 key={row.movementId || `m-${idx}`}
-                className="rounded-md border border-[var(--z-border)] bg-white px-3 py-2.5"
+                className="cursor-pointer rounded-md border border-[var(--z-border)] bg-white px-3 py-2.5 hover:bg-teal-50/40"
+                onClick={() => setOpenRow(row)}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -370,7 +376,7 @@ function PostedOutflowsTable() {
                   <p className="z-stencil shrink-0 text-sm text-zarewa-teal">{formatNgn(row.amountAbs)}</p>
                 </div>
                 <div className="mt-2">
-                  <PostedRowActions row={row} />
+                  <PostedRowActions row={row} onOpen={setOpenRow} />
                 </div>
               </li>
             );
@@ -449,7 +455,11 @@ function PostedOutflowsTable() {
                   const badge = treasuryMovementSourceBadge(row);
                   const payee = postedParty(row, pr, ex, rf);
                   return (
-                    <AppTableTr key={row.movementId || `${idx}`}>
+                    <AppTableTr
+                      key={row.movementId || `${idx}`}
+                      onClick={() => setOpenRow(row)}
+                      title="Open this payment line"
+                    >
                       <AppTableTd>{dateCell(row.postedAtISO)}</AppTableTd>
                       <AppTableTd>
                         <span className={`inline-flex rounded-sm px-1.5 py-0.5 text-ui-xs font-semibold ${badge.className}`}>
@@ -466,7 +476,7 @@ function PostedOutflowsTable() {
                         {row.sourceId || '—'}
                       </AppTableTd>
                       <AppTableTd align="right" truncate={false}>
-                        <PostedRowActions row={row} />
+                        <PostedRowActions row={row} onOpen={setOpenRow} />
                       </AppTableTd>
                     </AppTableTr>
                   );
@@ -486,6 +496,17 @@ function PostedOutflowsTable() {
         onPrev={() => setPaymentsTablePage((p) => Math.max(0, p - 1))}
         onNext={() => setPaymentsTablePage((p) => p + 1)}
         pageSize={PAYMENTS_PAGE_SIZE}
+      />
+
+      <PaymentRegisterLineDetailModal
+        row={openRow}
+        isOpen={Boolean(openRow)}
+        onClose={() => setOpenRow(null)}
+        movements={liveTreasuryMovements}
+        refund={openRefund}
+        paymentRequest={openRequest}
+        expense={openExpense}
+        onOpenSource={openSource}
       />
     </div>
   );
@@ -1226,7 +1247,8 @@ function RefundRegisterList() {
 }
 
 const SECTION_HINT = {
-  posted: 'Treasury lines that already left till or bank. View opens the source request or expense.',
+  posted:
+    'Treasury lines that already left till or bank. Open a line to see this debit, the other payments on the same refund or request, and what is still unpaid.',
   requests: 'Open payment requests. Pay approved items here or from Desk.',
   refunds: 'Confirm how approved refunds were paid from till/bank. View opens payout lines, splits, and settlement notes.',
   expenses: 'Posted expense cards after payout. Open View to compare payee, memo, and lines.',
