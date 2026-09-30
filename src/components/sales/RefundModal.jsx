@@ -1121,6 +1121,13 @@ function normalizeQuoteForRefundSelect(q, { skipPickerFloor = false } = {}) {
     remaining_ngn,
     eligible_refund_categories: eligibleRefundCategories,
     suggested_preview_amount_ngn: suggestedPreviewNgn,
+    receipts_pending_clearance: Boolean(
+      q.receipts_pending_clearance ?? q.receiptsPendingClearance
+    ),
+    uncleared_receipt_count: Math.max(
+      0,
+      Math.round(Number(q.uncleared_receipt_count ?? q.unclearedReceiptCount) || 0)
+    ),
     dateISO: String(q.dateISO ?? q.date_iso ?? '').trim(),
     status: String(q.status ?? '').trim(),
   };
@@ -1193,6 +1200,9 @@ const RefundModal = ({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
   const [warnings, setWarnings] = useState([]);
+  /** Set as soon as a quotation is chosen so staff see uncleared payments before filling the form. */
+  const [receiptClearanceRequired, setReceiptClearanceRequired] = useState(false);
+  const [unclearedReceipts, setUnclearedReceipts] = useState([]);
   const [substitutionPerMeterBreakdown, setSubstitutionPerMeterBreakdown] = useState([]);
   const [pricingAsAtIso, setPricingAsAtIso] = useState('');
   const [blockedRefundCategories, setBlockedRefundCategories] = useState([]);
@@ -2796,6 +2806,11 @@ const RefundModal = ({
       );
 
       setWarnings(preview.warnings || []);
+      const clearanceFromWarning = (preview.warnings || []).some((w) =>
+        /pending Finance clearance/i.test(String(w))
+      );
+      setReceiptClearanceRequired(Boolean(preview.receiptClearanceRequired) || clearanceFromWarning);
+      setUnclearedReceipts(Array.isArray(preview.unclearedReceipts) ? preview.unclearedReceipts : []);
       if (
         (Array.isArray(preview.warnings) && preview.warnings.length > 0) ||
         (Array.isArray(preview.productionAlignmentIssues) && preview.productionAlignmentIssues.length > 0)
@@ -2912,6 +2927,8 @@ const RefundModal = ({
     setSubstitutionWorkbookPpmOverride('');
     setSubstitutionBreakdownLineKey('');
     setOpenProductionJob(null);
+    setReceiptClearanceRequired(false);
+    setUnclearedReceipts([]);
   }, []);
 
   const applyVerifiedQuotationRef = useCallback(
@@ -2919,13 +2936,15 @@ const RefundModal = ({
       const id = String(ref || '').trim();
       setQuotationServerVerifiedRef(id);
       resetPreviewStateForQuoteChange();
+      const pick = quotationPickMerged.find((q) => q.id === id);
+      setReceiptClearanceRequired(Boolean(pick?.receipts_pending_clearance));
       setForm((f) => ({ ...f, quotationRef: id, reasonCategory: [] }));
       setQuotationSearchText(id);
       setQuotationSuggestOpen(false);
       setManualQuotationVerifyError('');
       if (id) void generatePreview(id);
     },
-    [generatePreview, resetPreviewStateForQuoteChange]
+    [generatePreview, resetPreviewStateForQuoteChange, quotationPickMerged]
   );
 
   const verifyAndApplyQuotationId = useCallback(async () => {
@@ -2998,6 +3017,8 @@ const RefundModal = ({
   const handleQuoteChange = (ref) => {
     setQuotationServerVerifiedRef('');
     resetPreviewStateForQuoteChange();
+    const pick = quotationPickMerged.find((q) => q.id === ref);
+    setReceiptClearanceRequired(Boolean(pick?.receipts_pending_clearance));
     setManualQuotationVerifyError('');
     setForm((f) => ({ ...f, quotationRef: ref, reasonCategory: [] }));
     setQuotationSearchText(String(ref || '').trim());
@@ -4689,6 +4710,11 @@ const RefundModal = ({
                                         {previewHint}
                                         {dateBit}
                                       </span>
+                                      {q.receipts_pending_clearance ? (
+                                        <span className="mt-0.5 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+                                          Payment not cleared
+                                        </span>
+                                      ) : null}
                                     </button>
                                   );
                                 })}
@@ -4759,6 +4785,36 @@ const RefundModal = ({
                               ? `${selectedQuotationRefundsBlocked.byName ? ' · ' : ''}${selectedQuotationRefundsBlocked.atISO.slice(0, 16).replace('T', ' ')}`
                               : ''}
                           </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {mode === 'create' && form.quotationRef && receiptClearanceRequired ? (
+                      <div
+                        className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 space-y-1.5"
+                        role="alert"
+                      >
+                        <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-950">
+                          Payment not cleared
+                        </p>
+                        <p className="text-xs text-amber-950 leading-snug">
+                          Finance has not confirmed the payment on this quotation. A refund cannot be
+                          submitted until those receipts are cleared on Finance &amp; accounts. Stop here
+                          so you do not fill the rest of this form for nothing.
+                        </p>
+                        {unclearedReceipts.length > 0 ? (
+                          <ul className="space-y-0.5">
+                            {unclearedReceipts.map((r) => {
+                              const amt = Math.round(Number(r.amountNgn) || 0);
+                              const status = String(r.status || 'Pending clearance').trim();
+                              return (
+                                <li key={r.id || `${status}-${amt}`} className="text-ui-xs text-amber-900 font-medium">
+                                  {r.id ? <span className="font-mono">{r.id}</span> : 'Receipt'}
+                                  {amt > 0 ? ` · ₦${amt.toLocaleString('en-NG')}` : ''}
+                                  {` · ${status}`}
+                                </li>
+                              );
+                            })}
+                          </ul>
                         ) : null}
                       </div>
                     ) : null}
@@ -6731,6 +6787,7 @@ const RefundModal = ({
                   (mode === 'create' && !form.quotationRef) ||
                   (mode === 'create' && exceedsRefundableHeadroom) ||
                   (mode === 'create' && selectedQuotationRefundsBlocked.blocked) ||
+                  (mode === 'create' && receiptClearanceRequired) ||
                   (mode === 'create' && Boolean(openProductionJob?.jobId)) ||
                   (mode === 'create' && createPath === 'quick' && lineSum <= 0 && Boolean(form.quotationRef))
                 }

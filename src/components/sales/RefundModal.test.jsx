@@ -584,6 +584,89 @@ describe('RefundModal', () => {
     expect((await screen.findAllByText(/Test audit flag: verify receipts/i)).length).toBeGreaterThanOrEqual(1);
   });
 
+  it('shows payment-not-cleared before the rest of the refund form is filled', async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      const u = String(url);
+      if (u.includes('eligible-quotations')) {
+        return {
+          ok: true,
+          data: {
+            ok: true,
+            quotations: [
+              {
+                id: 'QT-SEED',
+                customer_id: 'C1',
+                customer_name: 'Co',
+                handled_by: 'Mary Sales',
+                paid_ngn: 5000,
+                total_ngn: 5000,
+                total_refunded_ngn: 0,
+                suggested_preview_amount_ngn: 5000,
+                eligible_refund_categories: ['Overpayment'],
+                receipts_pending_clearance: true,
+                uncleared_receipt_count: 1,
+              },
+            ],
+          },
+        };
+      }
+      if (u.includes('/api/refunds/preview')) {
+        return {
+          ok: true,
+          data: {
+            ok: true,
+            preview: {
+              customerID: 'C1',
+              customerName: 'Co',
+              paidOnQuoteNgn: 5000,
+              overpayAdvanceNgn: 0,
+              quotationCashInNgn: 5000,
+              quoteTotalNgn: 5000,
+              suggestedLines: [{ label: 'Overpayment hint', amountNgn: 100, category: 'Overpayment' }],
+              warnings: [
+                'One or more receipts on this quotation are pending Finance clearance. Clear them on Finance & accounts before requesting a refund.',
+              ],
+              receiptClearanceRequired: true,
+              unclearedReceipts: [{ id: 'RCT-PENDING', amountNgn: 5000, status: 'Pending clearance' }],
+              substitutionPerMeterBreakdown: [],
+              alreadyRefundedCategories: [],
+              blockedRefundCategories: [],
+              eligibleRefundCategories: ['Overpayment'],
+            },
+          },
+        };
+      }
+      if (u.includes('intelligence')) {
+        return {
+          ok: true,
+          data: {
+            ok: true,
+            receipts: [],
+            cuttingLists: [],
+            summary: { producedMeters: 0, accessoriesSummary: { lines: [] } },
+          },
+        };
+      }
+      return { ok: false, data: { ok: false } };
+    });
+
+    renderWithToast(
+      <RefundModal {...baseProps} mode="create" productionJobs={SEED_PRODUCTION_JOBS} />
+    );
+
+    const quoteInput = await screen.findByLabelText(/search finished quotation/i);
+    await waitFor(() => expect(quoteInput).not.toBeDisabled());
+    await user.click(quoteInput);
+    await user.type(quoteInput, 'QT-SEED');
+    expect(await screen.findByText(/Payment not cleared/i)).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: /QT-SEED · Co/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/do not fill the rest of this form/i);
+    expect(screen.getByText(/RCT-PENDING/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Submit refund/i })).toBeDisabled();
+  });
+
   it('auto-syncs requested refund amount from included line totals', async () => {
     const user = userEvent.setup();
     vi.mocked(apiFetch).mockImplementation(async (url) => {
