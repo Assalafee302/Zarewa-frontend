@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Flag, History, Paperclip, Printer, Scale, ShoppingCart } from 'lucide-react';
+import { Banknote, History, Scale, ShoppingCart, Tag } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { Card, Button } from '../ui';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
@@ -13,17 +13,15 @@ import { RefundManagerApprovalPreview } from '../management/RefundManagerApprova
 import { quotationBelowFloorExceptionApproved } from '../../lib/quotationPriceException';
 import { ConversionReviewApprovalPreview } from '../management/ConversionReviewApprovalPreview';
 import { ConversionReviewConfirmBar } from '../management/ConversionReviewConfirmBar';
-import { ManagerPoAuditSections } from '../management/ManagerPoAuditSections';
-import { OfficialRecordBanner } from '../management/OfficialRecordBanner';
+import { PaymentRequestApprovalPreview } from '../management/PaymentRequestApprovalPreview';
+import { RegisterSettlementApprovalPreview } from '../management/RegisterSettlementApprovalPreview';
+import { PurchaseOrderApprovalPreview } from '../management/PurchaseOrderApprovalPreview';
+import { ApproveRejectConfirmBar } from '../management/ApproveRejectConfirmBar';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal';
 import { GovernanceDetailPanel } from './GovernanceDetailPanel';
 import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
-import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx';
 import {
-  DecisionActionTile,
-  DecisionBand,
-  DecisionChip,
   DecisionModalBody,
   DecisionModalHeader,
   DecisionStickyActions,
@@ -88,7 +86,24 @@ export function ManagementDecisionModal({
 
   const asMoney = typeof formatNgn === 'function' ? formatNgn : formatNgnUtil;
   const asPersonName = formatPersonNameUtil;
-  const isLight = intelModalLight !== false;
+  const isPriceExceptionDesk =
+    selectedIntel?.kind === 'quotation' && selectedIntel?.reviewContext === 'price_exception';
+  const focusedReview =
+    selectedIntel?.kind === 'conversion' ||
+    selectedIntel?.kind === 'payment' ||
+    selectedIntel?.kind === 'register_settlement' ||
+    selectedIntel?.kind === 'purchase_order' ||
+    isPriceExceptionDesk;
+  const headerIcon =
+    selectedIntel?.kind === 'conversion'
+      ? Scale
+      : selectedIntel?.kind === 'payment' || selectedIntel?.kind === 'register_settlement'
+        ? Banknote
+        : selectedIntel?.kind === 'purchase_order'
+          ? ShoppingCart
+          : isPriceExceptionDesk
+            ? Tag
+            : History;
 
   useEffect(() => {
     if (selectedIntel?.kind === 'material') {
@@ -182,7 +197,7 @@ export function ManagementDecisionModal({
 
   const stickyFooter =
     selectedIntel?.kind === 'register_settlement' ? (
-      <DecisionStickyActions hint="Approve to send this payable withdrawal to Finance for treasury payout.">
+      <>
         {!canApproveRefunds ? (
           <ZareApprovalHint
             context={{
@@ -197,25 +212,21 @@ export function ManagementDecisionModal({
             }}
           />
         ) : null}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <DecisionActionTile
-            variant="reject"
-            icon={Flag}
-            label="Reject"
-            disabled={modalBusy || !canApproveRefunds}
-            onClick={() => handleRegisterSettlementDecision?.('Rejected')}
-          />
-          <DecisionActionTile
-            variant="approve"
-            icon={CheckCircle2}
-            label="Approve"
-            disabled={modalBusy || !canApproveRefunds}
-            onClick={() => handleRegisterSettlementDecision?.('Approved')}
-          />
-        </div>
-      </DecisionStickyActions>
+        <ApproveRejectConfirmBar
+          hint="Reject keeps this cash on the register. You will be asked for a short note."
+          restatement={`Approve pays out ${asMoney(selectedIntel.row?.amountNgn ?? selectedIntel.row?.amount_ngn)}.`}
+          busy={modalBusy}
+          canApprove={canApproveRefunds}
+          canReject={canApproveRefunds}
+          approveLabel="Approve withdrawal"
+          rejectLabel="Reject"
+          resetKey={selectedIntel.settlementId}
+          onApprove={() => handleRegisterSettlementDecision?.('Approved')}
+          onReject={() => handleRegisterSettlementDecision?.('Rejected')}
+        />
+      </>
     ) : selectedIntel?.kind === 'payment' ? (
-      <DecisionStickyActions>
+      <>
         {!canApprovePaymentRequests ? (
           <ZareApprovalHint
             context={{
@@ -229,23 +240,19 @@ export function ManagementDecisionModal({
             }}
           />
         ) : null}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <DecisionActionTile
-            variant="reject"
-            icon={Flag}
-            label="Reject"
-            disabled={modalBusy || !canApprovePaymentRequests}
-            onClick={() => handlePaymentDecision?.('Rejected')}
-          />
-          <DecisionActionTile
-            variant="approve"
-            icon={CheckCircle2}
-            label="Approve"
-            disabled={modalBusy || !canApprovePaymentRequests}
-            onClick={() => handlePaymentDecision?.('Approved')}
-          />
-        </div>
-      </DecisionStickyActions>
+        <ApproveRejectConfirmBar
+          hint="Reject returns the request so the requester can correct it. You will be asked for a short note."
+          restatement={`Approve sends ${asMoney(selectedIntel.row?.amount_requested_ngn)} to Cashier.`}
+          busy={modalBusy}
+          canApprove={canApprovePaymentRequests}
+          canReject={canApprovePaymentRequests}
+          approveLabel="Approve request"
+          rejectLabel="Reject"
+          resetKey={selectedIntel.requestId}
+          onApprove={() => handlePaymentDecision?.('Approved')}
+          onReject={() => handlePaymentDecision?.('Rejected')}
+        />
+      </>
     ) : selectedIntel?.kind === 'conversion' ? (
       <ConversionReviewConfirmBar
         jobId={selectedIntel.jobId}
@@ -256,7 +263,7 @@ export function ManagementDecisionModal({
         onConfirm={() => void handleConversionSignoff?.()}
       />
     ) : selectedIntel?.kind === 'purchase_order' ? (
-      <DecisionStickyActions hint="Purchase-order approval runs on the Procurement desk. Open the PO there to approve, reject, or amend.">
+      <DecisionStickyActions hint="Purchase-order approve/reject stays on Procurement so buyers and store keep one record.">
         <Button
           type="button"
           className="w-full"
@@ -281,16 +288,14 @@ export function ManagementDecisionModal({
   return (
     <ModalFrame isOpen={Boolean(selectedIntel)} onClose={closeIntelModal} closeDisabled={modalBusy} showCloseButton={false}>
       <div
-        className={`z-modal-panel w-full overflow-hidden p-0 ${
-          selectedIntel?.kind === 'conversion' ? 'max-w-3xl' : 'max-w-6xl'
-        }`}
+        className={`z-modal-panel w-full overflow-hidden p-0 ${focusedReview ? 'max-w-3xl' : 'max-w-6xl'}`}
       >
         <Card className="flex max-h-[min(92vh,960px)] flex-col overflow-hidden border-slate-200 bg-white shadow-xl">
           <DecisionModalHeader
             title={intelModalTitle}
             onClose={closeIntelModal}
             busy={modalBusy}
-            icon={selectedIntel?.kind === 'conversion' ? Scale : History}
+            icon={headerIcon}
           />
 
           <DecisionModalBody>
@@ -308,6 +313,7 @@ export function ManagementDecisionModal({
               <>
                 {selectedIntel.reviewContext === 'price_exception' ? (
                   <QuotationPriceExceptionPanel
+                    layout="desk"
                     quotationId={selectedIntel.quoteId}
                     quotation={
                       auditData?.quotation ||
@@ -376,40 +382,13 @@ export function ManagementDecisionModal({
                 ) : null}
               </>
             ) : selectedIntel?.kind === 'purchase_order' ? (
-              <>
-                <DecisionBand
-                  tone="po"
-                  eyebrow="Purchase order"
-                  title={
-                    selectedIntel.row?.po_id ||
-                    selectedIntel.row?.poID ||
-                    selectedIntel.poId ||
-                    '—'
-                  }
-                  subtitle={
-                    selectedIntel.row?.supplier_name ||
-                    selectedIntel.row?.vendor_name ||
-                    selectedIntel.row?.description ||
-                    null
-                  }
-                  aside={
-                    selectedIntel.row?.amount_ngn != null || selectedIntel.row?.total_ngn != null ? (
-                      <>
-                        <p className="text-ui-xs font-bold uppercase text-slate-400">Total</p>
-                        <p className="text-lg font-black tabular-nums text-slate-900">
-                          {asMoney(selectedIntel.row?.amount_ngn ?? selectedIntel.row?.total_ngn)}
-                        </p>
-                      </>
-                    ) : null
-                  }
-                />
-                <ManagerPoAuditSections
-                  auditData={poAuditData}
-                  loadingAudit={loadingPoAudit}
-                  formatNgn={asMoney}
-                  appearance="light"
-                />
-              </>
+              <PurchaseOrderApprovalPreview
+                row={selectedIntel.row}
+                poId={selectedIntel.poId}
+                formatNgn={asMoney}
+                auditData={poAuditData}
+                loadingAudit={loadingPoAudit}
+              />
             ) : selectedIntel?.kind === 'refund' ? (
               <>
                 {!canApproveRefunds ? (
@@ -451,182 +430,24 @@ export function ManagementDecisionModal({
                 />
               </>
             ) : selectedIntel?.kind === 'register_settlement' ? (
-              <div className="animate-in fade-in space-y-3 duration-200 text-slate-700">
-                <DecisionBand
-                  tone="payment"
-                  eyebrow="Payable withdrawal"
-                  title={selectedIntel.settlementId || selectedIntel.row?.settlementId || '—'}
-                  subtitle={selectedIntel.row?.partyName || selectedIntel.row?.party_name || null}
-                  aside={
-                    <>
-                      <p className="text-ui-xs font-bold uppercase text-slate-400">Amount</p>
-                      <p className="text-lg font-black tabular-nums text-slate-900">
-                        {asMoney(selectedIntel.row?.amountNgn ?? selectedIntel.row?.amount_ngn)}
-                      </p>
-                      {selectedIntel.row?.requestedAtIso || selectedIntel.row?.requested_at_iso ? (
-                        <p className="mt-0.5 text-ui-xs uppercase tracking-wide text-slate-500">
-                          {String(
-                            selectedIntel.row.requestedAtIso || selectedIntel.row.requested_at_iso || ''
-                          ).slice(0, 10)}
-                        </p>
-                      ) : null}
-                    </>
-                  }
-                >
-                  {selectedIntel.row?.registerLineId || selectedIntel.row?.register_line_id ? (
-                    <p className="mt-2 font-mono text-ui-xs text-slate-500">
-                      {selectedIntel.row.registerLineId || selectedIntel.row.register_line_id}
-                    </p>
-                  ) : null}
-                  {selectedIntel.row?.reason ? (
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-snug text-slate-600 rounded-lg bg-white border border-slate-100 px-3 py-2">
-                      {selectedIntel.row.reason}
-                    </p>
-                  ) : null}
-                  {selectedIntel.row?.requestedByName || selectedIntel.row?.requested_by_name ? (
-                    <p className="mt-2 text-ui-xs text-slate-500">
-                      Requested by{' '}
-                      {formatPersonNameUtil(
-                        selectedIntel.row.requestedByName || selectedIntel.row.requested_by_name
-                      )}
-                    </p>
-                  ) : null}
-                </DecisionBand>
-              </div>
+              <RegisterSettlementApprovalPreview
+                settlementId={selectedIntel.settlementId}
+                row={selectedIntel.row}
+                formatNgn={asMoney}
+              />
             ) : selectedIntel?.kind === 'payment' ? (
-              <div className="animate-in fade-in space-y-3 duration-200 text-slate-700">
-                <DecisionBand
-                  tone="payment"
-                  eyebrow="Payment request"
-                  title={selectedIntel.requestId}
-                  subtitle={selectedIntel.row?.expense_id || selectedIntel.row?.description}
-                  aside={
-                    <>
-                      <p className="text-ui-xs font-bold uppercase text-slate-400">Amount</p>
-                      <p className="text-lg font-black tabular-nums text-slate-900">
-                        {asMoney(selectedIntel.row?.amount_requested_ngn)}
-                      </p>
-                      {selectedIntel.row?.request_date ? (
-                        <p className="mt-0.5 text-ui-xs uppercase tracking-wide text-slate-500">
-                          {selectedIntel.row.request_date}
-                        </p>
-                      ) : null}
-                    </>
-                  }
-                  meta={
-                    selectedIntel.row?.expense_category ? (
-                      <ExpenseCategoryLaneBadge
-                        category={selectedIntel.row.expense_category}
-                        laneKey={selectedIntel.row.expense_category_lane}
-                      />
-                    ) : null
-                  }
-                >
-                  {selectedIntel.row?.request_reference ? (
-                    <p className="mt-2 text-xs text-slate-600">
-                      Reference:{' '}
-                      <span className="font-semibold text-slate-800">{selectedIntel.row.request_reference}</span>
-                    </p>
-                  ) : null}
-                  {selectedIntel.row?.description ? (
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-snug text-slate-600">
-                      {selectedIntel.row.description}
-                    </p>
-                  ) : null}
-                  {(selectedIntel.row?.payee_name ||
-                    selectedIntel.row?.payee_account_no ||
-                    selectedIntel.row?.payee_bank_name ||
-                    selectedIntel.row?.payeeName ||
-                    selectedIntel.row?.payeeAccountNo ||
-                    selectedIntel.row?.payeeBankName) ? (
-                    <div className="mt-3 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950 space-y-1">
-                      <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">Pay to</p>
-                      {(selectedIntel.row.payee_name || selectedIntel.row.payeeName) ? (
-                        <p className="font-bold text-sky-950">
-                          {selectedIntel.row.payee_name || selectedIntel.row.payeeName}
-                        </p>
-                      ) : null}
-                      <p className="font-mono text-xs font-semibold tabular-nums leading-snug">
-                        {[
-                          selectedIntel.row.payee_bank_name || selectedIntel.row.payeeBankName,
-                          selectedIntel.row.payee_account_no || selectedIntel.row.payeeAccountNo,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ') || '—'}
-                      </p>
-                    </div>
-                  ) : null}
-                </DecisionBand>
-
-                  {paymentIntelLineItems?.total > 0 ? (
-                    <div className="z-scroll-x overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-                      <table className="w-full min-w-[320px] border-collapse text-left text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-200 text-xs font-bold uppercase tracking-wide text-slate-500">
-                            <th className="p-2.5">Item</th>
-                            <th className="p-2.5 text-right">Unit</th>
-                            <th className="p-2.5 text-right">Price</th>
-                            <th className="p-2.5 text-right">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {paymentIntelLineItems.lines.map((ln, i) => (
-                            <tr key={i} className="border-b border-slate-100 text-slate-700">
-                              <td className="max-w-0 truncate whitespace-nowrap p-2.5" title={ln.item || '—'}>
-                                {ln.item || '—'}
-                              </td>
-                              <td className="whitespace-nowrap p-2.5 text-right tabular-nums">{Number(ln.unit) || 0}</td>
-                              <td className="whitespace-nowrap p-2.5 text-right tabular-nums">
-                                {asMoney(Number(ln.unitPriceNgn ?? ln.unit_price_ngn) || 0)}
-                              </td>
-                              <td className="whitespace-nowrap p-2.5 text-right font-semibold tabular-nums text-slate-900">
-                                {asMoney(Number(ln.lineTotalNgn ?? ln.line_total_ngn) || 0)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {paymentIntelLineItems.total > 20 ? (
-                        <p className="px-2.5 py-2 text-xs font-semibold text-slate-500">
-                          Showing 20 of {paymentIntelLineItems.total} lines.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  <div className="flex flex-wrap gap-2">
-                    {selectedIntel.row?.attachment_present ? (
-                      <a
-                        href={paymentAttachmentHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-300"
-                      >
-                        <Paperclip size={14} />
-                        {selectedIntel.row?.attachment_name || 'View attachment'}
-                      </a>
-                    ) : (
-                      <span className="text-ui-xs text-slate-400">No attachment</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => void printSelectedPaymentRequest?.()}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-200 px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-300"
-                    >
-                      <Printer size={14} />
-                      Print record
-                    </button>
-                  </div>
-
-                <OfficialRecordBanner
-                  item={selectedUnifiedWorkItem}
-                  light={isLight}
-                  quoteFallbackId={officialRecordFallbackId}
-                  showOpenRecord
-                  openRecordLabel="Edit request"
-                  onOpenRecord={openUnifiedWorkItem}
-                />
-              </div>
+              <PaymentRequestApprovalPreview
+                requestId={selectedIntel.requestId}
+                row={selectedIntel.row}
+                formatNgn={asMoney}
+                lineItems={paymentIntelLineItems}
+                attachmentHref={paymentAttachmentHref}
+                onPrint={printSelectedPaymentRequest}
+                officialRecord={selectedUnifiedWorkItem}
+                officialRecordFallbackId={officialRecordFallbackId}
+                onOpenRecord={openUnifiedWorkItem}
+                isLight={intelModalLight !== false}
+              />
             ) : selectedIntel?.kind === 'staff_purchase_credit' ? (
               <StaffPurchaseCreditManagerPreview
                 row={selectedIntel.row}

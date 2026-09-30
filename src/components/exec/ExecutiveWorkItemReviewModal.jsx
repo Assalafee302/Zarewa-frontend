@@ -13,6 +13,9 @@ import { RefundManagerApprovalPreview } from '../management/RefundManagerApprova
 import { ManagementAuditSections } from '../management/ManagementAuditSections';
 import { ConversionReviewApprovalPreview } from '../management/ConversionReviewApprovalPreview';
 import { ConversionReviewConfirmBar } from '../management/ConversionReviewConfirmBar';
+import { PaymentRequestApprovalPreview } from '../management/PaymentRequestApprovalPreview';
+import { RegisterSettlementApprovalPreview } from '../management/RegisterSettlementApprovalPreview';
+import { ApproveRejectConfirmBar } from '../management/ApproveRejectConfirmBar';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import { execWorkItemReviewContext, resolveExecReviewView, resolveExecSettlementId } from '../../lib/execWorkItemReview';
 import { canApproveProductionGate, productionGateOverrideNoteValid } from '../../lib/productionGateAccess';
@@ -670,6 +673,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           {review.view === 'price_exception' && review.quotationId ? (
             <>
               <QuotationPriceExceptionPanel
+                layout="desk"
                 quotationId={review.quotationId}
                 quotation={quotationRow}
                 onQuotationUpdated={(q) => {
@@ -794,132 +798,84 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'register_settlement' ? (
             <div className="space-y-4">
-              <DecisionBand
-                tone="payment"
-                eyebrow="Register withdrawal"
-                title={settlementId || review.settlementId || '—'}
-                subtitle={
-                  (settlementDetail || review.row)?.partyName || item?.reviewContext?.subtitle || null
-                }
-                aside={
-                  <>
-                    <p className="text-ui-xs font-bold uppercase text-slate-400">Amount</p>
-                    <p className="text-lg font-black tabular-nums text-zarewa-teal">
-                      {formatNgn((settlementDetail || review.row)?.amountNgn ?? item?.amountNgn)}
-                    </p>
-                  </>
-                }
-              >
-                {!canApproveSettlements ? (
-                  <div className="mt-2">
-                    <ZareApprovalHint
-                      context={{
-                        referenceNo: settlementId || review.settlementId,
-                        documentType: 'register_settlement',
-                        status: (settlementDetail || review.row)?.status || 'Pending',
-                        canApprove: false,
-                        missingPermission:
-                          'Register withdrawal approval requires finance.approve or refunds.approve.',
-                      }}
-                    />
-                  </div>
-                ) : null}
-                {loadingSettlement && !settlementDetail && !review.row?.settlementId ? (
-                  <p className="mt-2 text-xs text-slate-500">Loading withdrawal details…</p>
-                ) : (
-                  <>
-                    {(settlementDetail || review.row)?.registerLineId ? (
-                      <p className="mt-1 font-mono text-ui-xs text-slate-500">
-                        {(settlementDetail || review.row).registerLineId}
-                      </p>
-                    ) : null}
-                    {(settlementDetail || review.row)?.reason ? (
-                      <p className="mt-2 text-xs text-slate-600 rounded-lg bg-white border border-slate-100 px-3 py-2">
-                        {(settlementDetail || review.row).reason}
-                      </p>
-                    ) : null}
-                    {(settlementDetail || review.row)?.requestedByName ? (
-                      <p className="mt-1 text-ui-xs text-slate-500">
-                        Requested by {formatPersonName((settlementDetail || review.row).requestedByName)}
-                      </p>
-                    ) : null}
-                  </>
-                )}
-              </DecisionBand>
+              {!canApproveSettlements ? (
+                <ZareApprovalHint
+                  context={{
+                    referenceNo: settlementId || review.settlementId,
+                    documentType: 'register_settlement',
+                    status: (settlementDetail || review.row)?.status || 'Pending',
+                    canApprove: false,
+                    missingPermission:
+                      'Register withdrawal approval requires finance.approve or refunds.approve.',
+                  }}
+                />
+              ) : null}
+              {loadingSettlement && !settlementDetail && !review.row?.settlementId ? (
+                <p className="text-xs text-slate-500">Loading withdrawal details…</p>
+              ) : (
+                <RegisterSettlementApprovalPreview
+                  settlementId={settlementId || review.settlementId}
+                  row={{
+                    ...(settlementDetail || review.row || {}),
+                    partyName:
+                      (settlementDetail || review.row)?.partyName ||
+                      (settlementDetail || review.row)?.party_name ||
+                      item?.reviewContext?.subtitle,
+                    amountNgn:
+                      (settlementDetail || review.row)?.amountNgn ??
+                      (settlementDetail || review.row)?.amount_ngn ??
+                      item?.amountNgn,
+                  }}
+                  formatNgn={formatNgn}
+                />
+              )}
               {!readOnly && canApproveSettlements ? (
-                <DecisionActionBar>
+                <ApproveRejectConfirmBar
+                  asSticky={false}
+                  hint="Reject keeps this cash on the register."
+                  restatement={`Approve pays out ${formatNgn(
+                    (settlementDetail || review.row)?.amountNgn ?? item?.amountNgn
+                  )}.`}
+                  busy={busy}
+                  canApprove={Boolean(settlementId || review.settlementId)}
+                  canReject={Boolean(settlementId || review.settlementId)}
+                  approveLabel="Approve withdrawal"
+                  rejectLabel="Reject"
+                  resetKey={settlementId || review.settlementId}
+                  note={settlementNote}
+                  onNoteChange={setSettlementNote}
+                  onApprove={() => void handleSettlementDecision('Approved')}
+                  onReject={() => void handleSettlementDecision('Rejected')}
+                >
                   {settlementActionError ? (
                     <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
                       {settlementActionError}
                     </p>
                   ) : null}
-                  <textarea
-                    value={settlementNote}
-                    onChange={(e) => setSettlementNote(e.target.value)}
-                    rows={2}
-                    placeholder="Approval or rejection note (required for rejection)"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-teal-300/50"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <DecisionActionTile
-                      variant="compactApprove"
-                      icon={CheckCircle2}
-                      label={busy ? 'Saving…' : 'Approve'}
-                      disabled={busy || (!settlementId && !review.settlementId)}
-                      onClick={() => void handleSettlementDecision('Approved')}
-                    />
-                    <DecisionActionTile
-                      variant="compactReject"
-                      icon={Flag}
-                      label={busy ? 'Saving…' : 'Reject'}
-                      disabled={busy || (!settlementId && !review.settlementId)}
-                      onClick={() => void handleSettlementDecision('Rejected')}
-                    />
-                  </div>
-                </DecisionActionBar>
+                </ApproveRejectConfirmBar>
               ) : null}
             </div>
           ) : null}
 
           {review.view === 'payment' ? (
             <div className="space-y-4">
-              <DecisionBand
-                tone="payment"
-                eyebrow="Payment request"
-                title={review.requestId}
-                subtitle={review.row?.description}
-                aside={
-                  <>
-                    <p className="text-ui-xs font-bold uppercase text-slate-400">Amount</p>
-                    <p className="text-lg font-black tabular-nums text-zarewa-teal">
-                      {formatNgn(review.row?.amount_requested_ngn)}
-                    </p>
-                  </>
-                }
-              >
-                {review.row?.expense_category ? (
-                  <p className="mt-1 text-ui-xs text-slate-500">{review.row.expense_category}</p>
-                ) : null}
-              </DecisionBand>
+              <PaymentRequestApprovalPreview
+                requestId={review.requestId}
+                row={review.row}
+                formatNgn={formatNgn}
+              />
               {!readOnly && item.canAct !== false ? (
-                <DecisionActionBar>
-                  <div className="grid grid-cols-2 gap-2">
-                    <DecisionActionTile
-                      variant="compactApprove"
-                      icon={CheckCircle2}
-                      label="Approve"
-                      disabled={busy}
-                      onClick={() => void handlePaymentDecision('Approved')}
-                    />
-                    <DecisionActionTile
-                      variant="compactReject"
-                      icon={Flag}
-                      label="Reject"
-                      disabled={busy}
-                      onClick={() => void handlePaymentDecision('Rejected')}
-                    />
-                  </div>
-                </DecisionActionBar>
+                <ApproveRejectConfirmBar
+                  asSticky={false}
+                  hint="Reject returns the request so the requester can correct it."
+                  restatement={`Approve sends ${formatNgn(review.row?.amount_requested_ngn)} to Cashier.`}
+                  busy={busy}
+                  approveLabel="Approve request"
+                  rejectLabel="Reject"
+                  resetKey={review.requestId}
+                  onApprove={() => void handlePaymentDecision('Approved')}
+                  onReject={() => void handlePaymentDecision('Rejected')}
+                />
               ) : null}
             </div>
           ) : null}

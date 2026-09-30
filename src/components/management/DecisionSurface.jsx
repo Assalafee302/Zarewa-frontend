@@ -226,3 +226,23 @@ export function DecisionModalBody({ children, className = '' }) {
     </div>
   );
 }
+
+/** Plain-language “what this decision does” strip. */
+export function DecisionWhatNext({ title = 'If you approve', children, className = '' }) {
+  return (
+    <div className={`rounded-xl border border-slate-200 bg-white px-4 py-3 ${className}`}>
+      <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">{title}</p>
+      <div className="mt-1.5 text-sm leading-relaxed text-slate-700">{children}</div>
+    </div>
+  );
+}
+
+export function DecisionFact({ label, value, mono = false }) {
+  if (value == null || value === '' || value === '—') return null;
+  return (
+    <div>
+      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className={`mt-0.5 text-sm font-semibold text-slate-800 ${mono ? 'font-mono' : ''}`}>{value}</p>
+    </div>
+  );
+}
