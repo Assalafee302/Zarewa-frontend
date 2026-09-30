@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ClipboardList,
   Factory,
+  RefreshCw,
   Ruler,
   Scissors,
   Truck,
@@ -110,9 +111,53 @@ export default function OperationsCoilControlTab() {
   const [damageModalCoilNo, setDamageModalCoilNo] = useState('');
   const [incidentTypePick, setIncidentTypePick] = useState('coil_stain');
   const [saving, setSaving] = useState(false);
+  const [recalculatingBranchStock, setRecalculatingBranchStock] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('all');
+  const canRecalculateCoilStock = Boolean(
+    canMutate &&
+      (ws?.hasPermission?.('inventory.adjust') ||
+        ws?.hasPermission?.('operations.manage') ||
+        ws?.hasPermission?.('production.manage') ||
+        ws?.hasPermission?.('*'))
+  );
 
   const defaultDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const submitRecalculateBranchStock = async () => {
+    if (!canRecalculateCoilStock) return;
+    const confirmed = window.confirm(
+      'Recalculate coil stock for this branch?\n\nEach coil with production is rebuilt as: received kg − job consumption (opening − closing) − splits + approved scrap.\n\nStock can go down so the book matches the jobs. Kilograms are not put back onto a coil. This can take a minute.'
+    );
+    if (!confirmed) return;
+    setRecalculatingBranchStock(true);
+    try {
+      const { ok, data } = await apiFetch('/api/coil-lots/recalculate-production-stock', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not recalculate coil stock.', { variant: 'error' });
+        return;
+      }
+      await refreshInventory?.();
+      void ws.refreshDomain?.('operations');
+      const adjusted = Number(data.adjusted || 0);
+      const unchanged = Number(data.unchanged || 0);
+      const blocked = Number(data.restoreBlocked || 0);
+      const failed = Array.isArray(data.failures) ? data.failures.length : 0;
+      const scanned = Number(data.coilCount || 0);
+      showToast(
+        `Recalculated ${scanned} coil(s). ${adjusted} stock updated, ${unchanged} already balanced, ${blocked} not increased` +
+          (failed ? `, ${failed} failed` : '') +
+          '.',
+        { variant: 'info', duration: 9000 }
+      );
+    } catch (e) {
+      showToast(e?.message || 'Could not recalculate coil stock.', { variant: 'error' });
+    } finally {
+      setRecalculatingBranchStock(false);
+    }
+  };
 
   const openMaterialIncident = (incidentType = 'coil_stain', defaultCoilNo = '') => {
     setDamageModalIncidentType(incidentType);
@@ -587,6 +632,23 @@ export default function OperationsCoilControlTab() {
 
         <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Corrections (use carefully)</p>
+          {canRecalculateCoilStock ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={recalculatingBranchStock}
+                onClick={() => void submitRecalculateBranchStock()}
+                className="inline-flex items-center gap-2 rounded-lg border border-zarewa-teal/40 bg-white px-3.5 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal hover:bg-slate-50 disabled:opacity-40"
+              >
+                <RefreshCw size={14} aria-hidden className={recalculatingBranchStock ? 'animate-spin' : ''} />
+                {recalculatingBranchStock ? 'Recalculating…' : 'Recalculate all coil stock'}
+              </button>
+              <p className="text-ui-xs text-slate-500 leading-snug max-w-xl">
+                Balances every coil in this branch that has production: stock = received − jobs − splits + scrap.
+                Does not put kg back.
+              </p>
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             {canLedgerAdjust ? (
               <button

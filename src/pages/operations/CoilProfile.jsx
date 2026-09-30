@@ -231,21 +231,33 @@ export default function CoilProfile() {
   );
 
   const productionTotals = useMemo(() => {
+    const bookUsed =
+      holdersMeta != null && Number.isFinite(Number(holdersMeta.bookUsedKg))
+        ? Number(holdersMeta.bookUsedKg)
+        : coil
+          ? coilKgUsed(coil)
+          : 0;
+    const fromRows = coilProfileProductionTotals(jobRows, bookUsed);
     if (
       holdersMeta != null &&
       Number.isFinite(Number(holdersMeta.jobsConsumedKgSum)) &&
       Number.isFinite(Number(holdersMeta.bookUsedKg))
     ) {
+      const serverSum = Number(holdersMeta.jobsConsumedKgSum);
+      const serverGap = Number(holdersMeta.reconciliationGapKg);
+      const rowsDiffer = Math.abs((fromRows.jobsConsumedKgSum || 0) - serverSum) > 0.05;
       return {
-        jobsConsumedKgSum: Number(holdersMeta.jobsConsumedKgSum),
-        openingClosingKgSum: Number(holdersMeta.openingClosingKgSum) || 0,
-        gapKg: Number(holdersMeta.reconciliationGapKg),
+        jobsConsumedKgSum: rowsDiffer ? fromRows.jobsConsumedKgSum : serverSum,
+        openingClosingKgSum: Number(holdersMeta.openingClosingKgSum) || fromRows.openingClosingKgSum || 0,
+        gapKg: rowsDiffer ? fromRows.gapKg : serverGap,
         openingClosingGapKg: Number.isFinite(Number(holdersMeta.openingClosingGapKg))
           ? Number(holdersMeta.openingClosingGapKg)
-          : null,
+          : fromRows.openingClosingGapKg,
+        /** Row kg used (consumed weight) does not add up to the server book total. */
+        rowsDifferFromBook: rowsDiffer,
       };
     }
-    return coil ? coilProfileProductionTotals(jobRows, coilKgUsed(coil)) : null;
+    return coil ? { ...fromRows, rowsDifferFromBook: false } : null;
   }, [jobRows, coil, holdersMeta]);
 
   const movementRows = useMemo(() => {
@@ -779,6 +791,23 @@ export default function CoilProfile() {
               stock <strong>{currentKg.toLocaleString()}</strong> − reserved <strong>{reservedKg.toLocaleString()}</strong>{' '}
               = free <strong>{freeKg.toLocaleString()}</strong> kg
             </p>
+            {canReconcileReservation && jobRows.length > 0 ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="z-btn-secondary text-ui-xs"
+                  disabled={recalculatingStock}
+                  onClick={submitRecalculateProductionStock}
+                >
+                  {recalculatingStock ? 'Recalculating…' : 'Recalculate stock'}
+                </button>
+                <p className="text-ui-xs text-slate-500 leading-snug max-w-xl">
+                  Rebuilds this coil from received kg minus each completed job (opening − closing), splits, and
+                  approved scrap. Job kg on the rows is rewritten to match. Stock can go down. Kilograms are not put
+                  back onto the coil.
+                </p>
+              </div>
+            ) : null}
             <p className="mt-2 rounded-lg border border-violet-100 bg-violet-50/70 px-3 py-2 text-xs text-violet-950/90 leading-relaxed">
               <strong className="text-violet-900">Stock vs production vs incidents:</strong> Coil book{' '}
               <strong>Kg used</strong> = production consumption + approved material-incident scrap (and finish-roll
@@ -889,10 +918,17 @@ export default function CoilProfile() {
                 ) : null}
                 <p className="mt-1 leading-relaxed text-amber-900/80">
                   {(productionTotals.gapKg || 0) > 0.05 ? (
-                    <>
-                      Jobs record <strong>more</strong> kg consumed than the coil book shows — often after completion
-                      corrections or import drift. Recalc can take that leftover consumption off remaining.
-                    </>
+                    productionTotals.rowsDifferFromBook ? (
+                      <>
+                        The kg used figures on these rows add up to more than the coil book. Recalculate stock rewrites
+                        each job to opening − closing and sets remaining from that total.
+                      </>
+                    ) : (
+                      <>
+                        Jobs record <strong>more</strong> kg consumed than the coil book shows — often after completion
+                        corrections or import drift. Recalc can take that leftover consumption off remaining.
+                      </>
+                    )
                   ) : (
                     <>
                       The coil book shows <strong>more</strong> kg used than jobs sum. Recalc will{' '}
