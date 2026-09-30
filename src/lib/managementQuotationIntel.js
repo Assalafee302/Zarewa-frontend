@@ -62,22 +62,30 @@ export function quotationHasMaterialSpec(auditData) {
  * @param {object[]} jobCoils
  * @param {object[]} conversionChecks
  */
+function jobIdOf(row) {
+  return String(row?.job_id || row?.jobId || row?.jobID || '').trim();
+}
+
+function coilNoOf(row) {
+  return String(row?.coil_no || row?.coilNo || '').trim();
+}
+
 export function coilIntelRowsForJob(jobId, jobCoils, conversionChecks) {
   const jid = String(jobId || '').trim();
-  const coils = (jobCoils || []).filter((c) => String(c.job_id || '') === jid);
-  const checks = (conversionChecks || []).filter((c) => String(c.job_id || '') === jid);
+  const coils = (jobCoils || []).filter((c) => jobIdOf(c) === jid);
+  const checks = (conversionChecks || []).filter((c) => jobIdOf(c) === jid);
   const byCoil = new Map();
   for (const co of coils) {
-    const key = String(co.coil_no || '').trim();
+    const key = coilNoOf(co);
     if (!key) continue;
     byCoil.set(key, { coilNo: key, coil: co, check: null });
   }
   for (const ch of checks) {
-    const key = String(ch.coil_no || '').trim();
+    const key = coilNoOf(ch);
     if (!key) continue;
     const prev = byCoil.get(key) || { coilNo: key, coil: null, check: null };
     prev.check = ch;
-    if (!prev.coil) prev.coil = coils.find((c) => String(c.coil_no) === key) || null;
+    if (!prev.coil) prev.coil = coils.find((c) => coilNoOf(c) === key) || null;
     byCoil.set(key, prev);
   }
   return [...byCoil.values()];

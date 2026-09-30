@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Factory, Flag, X } from 'lucide-react';
+import { CheckCircle2, Flag, X } from 'lucide-react';
 import { ModalFrame } from '../layout/ModalFrame';
 import { formatNgn } from '../../Data/mockData';
 import { apiFetch } from '../../lib/apiBase';
@@ -11,8 +11,8 @@ import { ClearanceManagerApprovalPreview } from '../management/ClearanceManagerA
 import { quotationBelowFloorExceptionApproved } from '../../lib/quotationPriceException';
 import { RefundManagerApprovalPreview } from '../management/RefundManagerApprovalPreview';
 import { ManagementAuditSections } from '../management/ManagementAuditSections';
-import { ConversionRecordPanel } from '../management/ConversionRecordPanel';
-import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
+import { ConversionReviewApprovalPreview } from '../management/ConversionReviewApprovalPreview';
+import { ConversionReviewConfirmBar } from '../management/ConversionReviewConfirmBar';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import { execWorkItemReviewContext, resolveExecReviewView, resolveExecSettlementId } from '../../lib/execWorkItemReview';
 import { canApproveProductionGate, productionGateOverrideNoteValid } from '../../lib/productionGateAccess';
@@ -55,7 +55,6 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   const [loadingRefundIntel, setLoadingRefundIntel] = useState(false);
   const [quotationRow, setQuotationRow] = useState(null);
   const [conversionRemark, setConversionRemark] = useState('');
-  const [conversionEditApprovalId, setConversionEditApprovalId] = useState('');
   const [settlementDetail, setSettlementDetail] = useState(null);
   const [loadingSettlement, setLoadingSettlement] = useState(false);
   const [settlementNote, setSettlementNote] = useState('');
@@ -108,7 +107,6 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   useEffect(() => {
     if (!isOpen || !item) return;
     setConversionRemark('');
-    setConversionEditApprovalId('');
     setAuditData(null);
     setRefundIntelExtras(null);
     setQuotationRow(null);
@@ -417,7 +415,6 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
         method: 'PATCH',
         body: JSON.stringify({
           remark,
-          ...(conversionEditApprovalId.trim() ? { editApprovalId: conversionEditApprovalId.trim() } : {}),
         }),
       }
     );
@@ -739,58 +736,25 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'conversion' ? (
             <div className="space-y-4">
-              <DecisionBand
-                tone="convert"
-                eyebrow="Conversion review"
-                title={review.jobId}
-                subtitle={formatPersonName(review.row?.customer_name)}
-                meta={
-                  <>
-                    <DecisionChip>Alert: {review.row?.conversion_alert_state || '—'}</DecisionChip>
-                    {review.row?.manager_review_required ? (
-                      <DecisionChip tone="amber">Manager review</DecisionChip>
-                    ) : null}
-                  </>
-                }
-              >
-                {review.row?.product_name ? (
-                  <p className="mt-1 text-ui-xs text-slate-500">{review.row.product_name}</p>
-                ) : null}
-              </DecisionBand>
-              <ConversionRecordPanel
+              <ConversionReviewApprovalPreview
+                jobId={review.jobId}
+                inboxRow={review.row}
                 auditData={auditData}
                 loading={loadingAudit}
-                focusJobId={review.jobId}
-                emptyMessage="No coil or conversion check found for this job yet."
+                formatPersonName={formatPersonName}
               />
               {!readOnly && item.canAct !== false ? (
-                <DecisionActionBar>
-                  <p className="text-ui-xs leading-relaxed text-slate-600">
-                    Confirm you have reviewed high/low conversion variance for this completed job.
-                  </p>
-                  <textarea
-                    value={conversionRemark}
-                    onChange={(e) => setConversionRemark(e.target.value)}
-                    rows={2}
-                    placeholder="Sign-off remark (min. 3 characters)"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-teal-300/50"
-                  />
-                  {review.jobId ? (
-                    <EditSecondApprovalInline
-                      entityKind="production_job"
-                      entityId={review.jobId}
-                      value={conversionEditApprovalId}
-                      onChange={setConversionEditApprovalId}
-                    />
-                  ) : null}
-                  <DecisionActionTile
-                    variant="brand"
-                    icon={Factory}
-                    label="Sign off conversion review"
-                    disabled={busy}
-                    onClick={() => void handleConversionSignoff()}
-                  />
-                </DecisionActionBar>
+                <ConversionReviewConfirmBar
+                  asSticky={false}
+                  jobId={review.jobId}
+                  remark={conversionRemark}
+                  onRemarkChange={setConversionRemark}
+                  busy={busy}
+                  alertState={review.row?.conversion_alert_state || review.row?.conversionAlertState}
+                  confirmLabel="Confirm production check"
+                  hint="This records your sign-off on the conversion check."
+                  onConfirm={() => void handleConversionSignoff()}
+                />
               ) : null}
             </div>
           ) : null}

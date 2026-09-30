@@ -371,7 +371,7 @@ export function useBranchManagerWorkstation() {
             : selectedIntel?.kind === 'register_settlement'
               ? 'Payable withdrawal review'
               : selectedIntel?.kind === 'conversion'
-                ? 'Conversion QC sign-off'
+                ? 'Floor conversion check'
                 : selectedIntel?.kind === 'material'
                   ? 'Material exception review'
                   : selectedIntel?.kind === 'governance'

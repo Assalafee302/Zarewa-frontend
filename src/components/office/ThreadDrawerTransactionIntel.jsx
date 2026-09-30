@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   ChevronDown,
   DollarSign,
-  Factory,
   Flag,
   Paperclip,
   Printer,
@@ -16,10 +15,9 @@ import { apiFetch, apiUrl } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
 import { ManagementAuditSections } from '../management/ManagementAuditSections';
-import { ConversionRecordPanel } from '../management/ConversionRecordPanel';
+import { ConversionReviewApprovalPreview } from '../management/ConversionReviewApprovalPreview';
+import { ConversionReviewConfirmBar } from '../management/ConversionReviewConfirmBar';
 import {
-  DecisionActionBar,
-  DecisionActionTile,
   DecisionBand,
   DecisionChip,
 } from '../management/DecisionSurface';
@@ -28,7 +26,6 @@ import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { printExpenseRequestRecord } from '../../lib/expenseRequestPrint';
 import { formatRefundReasonCategory } from '../../lib/managerDashboardCore';
-import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import {
   canApproveProductionGate,
   productionGateOverrideDeniedMessage,
@@ -164,7 +161,6 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
   const [refundDetailError, setRefundDetailError] = useState(null);
 
   const [conversionSignoffRemark, setConversionSignoffRemark] = useState('');
-  const [conversionSignoffEditApprovalId, setConversionSignoffEditApprovalId] = useState('');
 
   const dt = String(workItem?.documentType || '').trim().toLowerCase();
   const qref = quotationRefFromWorkItemForIntel(workItem);
@@ -422,9 +418,6 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
         method: 'PATCH',
         body: JSON.stringify({
           remark,
-          ...(conversionSignoffEditApprovalId.trim()
-            ? { editApprovalId: conversionSignoffEditApprovalId.trim() }
-            : {}),
         }),
       }
     );
@@ -435,13 +428,11 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
     }
     showToast('Conversion review signed off.', { variant: 'success' });
     setConversionSignoffRemark('');
-    setConversionSignoffEditApprovalId('');
     await (wsRefresh?.() ?? Promise.resolve());
     onManagementDecisionSuccess?.();
   }, [
     sourceId,
     conversionSignoffRemark,
-    conversionSignoffEditApprovalId,
     showToast,
     wsRefresh,
     onManagementDecisionSuccess,
@@ -708,77 +699,35 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
         {dt === 'conversion_review' ? (
           <EmailCard>
             <div className="border-b border-slate-100/90 px-5 pb-4 pt-5">
-              <DecisionBand
-                tone="convert"
-                eyebrow="Operations · conversion review"
-                title={sourceId}
-                subtitle={conversionJob?.customerName || workItem.summary || 'Completed job review'}
-                meta={
-                  <>
-                    <DecisionChip tone={conversionSigned ? 'emerald' : 'amber'}>
-                      {conversionSigned ? 'Signed off' : 'Awaiting sign-off'}
-                    </DecisionChip>
-                    <DecisionChip>Alert: {conversionJob?.conversionAlertState || '—'}</DecisionChip>
-                    {conversionJob?.managerReviewRequired ? (
-                      <DecisionChip tone="amber">Manager review</DecisionChip>
-                    ) : null}
-                    {conversionJob?.completedAtISO ? (
-                      <DecisionChip>
-                        Completed {new Date(conversionJob.completedAtISO).toLocaleString()}
-                      </DecisionChip>
-                    ) : null}
-                  </>
-                }
-              >
-                {qref ? <p className="mt-2 font-mono text-[12px] font-medium text-teal-800">{qref}</p> : null}
-                {conversionJob?.productName ? (
-                  <p className="mt-2 text-[14px] leading-relaxed text-slate-600">{conversionJob.productName}</p>
-                ) : null}
-              </DecisionBand>
-            </div>
-
-            <div className="border-t border-slate-100 px-5 py-4">
-              <ConversionRecordPanel
+              <ConversionReviewApprovalPreview
+                jobId={sourceId}
+                inboxRow={{
+                  customer_name: conversionJob?.customerName,
+                  quotation_ref: qref,
+                  product_name: conversionJob?.productName,
+                  conversion_alert_state: conversionJob?.conversionAlertState,
+                  manager_review_required: conversionJob?.managerReviewRequired,
+                  completed_at_iso: conversionJob?.completedAtISO,
+                }}
                 auditData={auditData}
                 loading={loadingAudit}
-                focusJobId={sourceId}
-                emptyMessage="No coil or conversion check found for this job yet."
               />
             </div>
 
             {canConversionSignoff && !conversionSigned ? (
-              <DecisionActionBar className="mx-5 mb-5">
-                <p className="text-[13px] leading-relaxed text-slate-600">
-                  Add a brief sign-off note (required before closing this review).
-                </p>
-                <label className="block text-[12px] font-medium text-slate-600">
-                  Remark
-                  <textarea
-                    value={conversionSignoffRemark}
-                    onChange={(e) => setConversionSignoffRemark(e.target.value)}
-                    rows={3}
-                    placeholder="e.g. Variance reviewed — approved to close."
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[14px] leading-relaxed text-slate-900 shadow-sm outline-none ring-zarewa-teal/0 transition-shadow focus:ring-2 focus:ring-zarewa-teal/15"
-                  />
-                </label>
-                {sourceId ? (
-                  <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-3">
-                    <EditSecondApprovalInline
-                      entityKind="production_job"
-                      entityId={sourceId}
-                      value={conversionSignoffEditApprovalId}
-                      onChange={setConversionSignoffEditApprovalId}
-                    />
-                  </div>
-                ) : null}
-                <DecisionActionTile
-                  variant="brand"
-                  icon={Factory}
-                  label="Sign off review"
-                  disabled={decisionBusy}
-                  onClick={() => void handleConversionSignoff()}
+              <div className="px-5 pb-5">
+                <ConversionReviewConfirmBar
+                  asSticky={false}
+                  jobId={sourceId}
+                  remark={conversionSignoffRemark}
+                  onRemarkChange={setConversionSignoffRemark}
+                  busy={decisionBusy}
+                  alertState={conversionJob?.conversionAlertState}
+                  confirmLabel="Confirm production check"
+                  hint="This records your sign-off and clears the conversion review."
+                  onConfirm={() => void handleConversionSignoff()}
                 />
-              </DecisionActionBar>
+              </div>
             ) : conversionSigned ? (
               <div className="border-t border-slate-100/90 px-5 py-4">
                 <p className="text-[13px] leading-relaxed text-slate-600">

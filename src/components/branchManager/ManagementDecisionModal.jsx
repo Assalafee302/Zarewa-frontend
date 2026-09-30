@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Factory, Flag, History, Paperclip, Printer, ShoppingCart } from 'lucide-react';
+import { CheckCircle2, Flag, History, Paperclip, Printer, Scale, ShoppingCart } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { Card, Button } from '../ui';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
@@ -11,11 +11,11 @@ import { ClearanceManagerApprovalPreview } from '../management/ClearanceManagerA
 import { QuotationPriceExceptionPanel } from '../sales/QuotationPriceExceptionPanel';
 import { RefundManagerApprovalPreview } from '../management/RefundManagerApprovalPreview';
 import { quotationBelowFloorExceptionApproved } from '../../lib/quotationPriceException';
-import { ConversionRecordPanel } from '../management/ConversionRecordPanel';
+import { ConversionReviewApprovalPreview } from '../management/ConversionReviewApprovalPreview';
+import { ConversionReviewConfirmBar } from '../management/ConversionReviewConfirmBar';
 import { ManagerPoAuditSections } from '../management/ManagerPoAuditSections';
 import { OfficialRecordBanner } from '../management/OfficialRecordBanner';
 import { ZareApprovalHint } from '../ZareApprovalHint';
-import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal';
 import { GovernanceDetailPanel } from './GovernanceDetailPanel';
 import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
@@ -66,8 +66,6 @@ export function ManagementDecisionModal({
   handleProductionOverrideSelectedQuotation,
   conversionSignoffRemark,
   setConversionSignoffRemark,
-  conversionSignoffEditApprovalId,
-  setConversionSignoffEditApprovalId,
   paymentIntelLineItems,
   selectedPaymentAttachmentUrl,
   printSelectedPaymentRequest,
@@ -249,36 +247,14 @@ export function ManagementDecisionModal({
         </div>
       </DecisionStickyActions>
     ) : selectedIntel?.kind === 'conversion' ? (
-      <DecisionStickyActions hint="Confirms you have reviewed High/Low production variance or the open manager review for this completed job.">
-        <label className="block text-ui-xs font-black uppercase tracking-widest text-slate-500">
-          Remark
-          <textarea
-            value={conversionSignoffRemark}
-            onChange={(e) => setConversionSignoffRemark?.(e.target.value)}
-            rows={2}
-            placeholder="e.g. Variance reviewed — approved to close."
-            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-teal-300/60"
-          />
-        </label>
-        {selectedIntel.jobId ? (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-2">
-            <EditSecondApprovalInline
-              entityKind="production_job"
-              entityId={selectedIntel.jobId}
-              value={conversionSignoffEditApprovalId}
-              onChange={setConversionSignoffEditApprovalId}
-              className="!border-amber-300/80 !bg-white !text-amber-900"
-            />
-          </div>
-        ) : null}
-        <DecisionActionTile
-          variant="brand"
-          icon={Factory}
-          label="Close production check"
-          disabled={modalBusy}
-          onClick={() => void handleConversionSignoff?.()}
-        />
-      </DecisionStickyActions>
+      <ConversionReviewConfirmBar
+        jobId={selectedIntel.jobId}
+        remark={conversionSignoffRemark}
+        onRemarkChange={setConversionSignoffRemark}
+        busy={modalBusy}
+        alertState={selectedIntel.row?.conversion_alert_state || selectedIntel.row?.conversionAlertState}
+        onConfirm={() => void handleConversionSignoff?.()}
+      />
     ) : selectedIntel?.kind === 'purchase_order' ? (
       <DecisionStickyActions hint="Purchase-order approval runs on the Procurement desk. Open the PO there to approve, reject, or amend.">
         <Button
@@ -304,9 +280,18 @@ export function ManagementDecisionModal({
 
   return (
     <ModalFrame isOpen={Boolean(selectedIntel)} onClose={closeIntelModal} closeDisabled={modalBusy} showCloseButton={false}>
-      <div className="z-modal-panel w-full max-w-6xl overflow-hidden p-0">
+      <div
+        className={`z-modal-panel w-full overflow-hidden p-0 ${
+          selectedIntel?.kind === 'conversion' ? 'max-w-3xl' : 'max-w-6xl'
+        }`}
+      >
         <Card className="flex max-h-[min(92vh,960px)] flex-col overflow-hidden border-slate-200 bg-white shadow-xl">
-          <DecisionModalHeader title={intelModalTitle} onClose={closeIntelModal} busy={modalBusy} icon={History} />
+          <DecisionModalHeader
+            title={intelModalTitle}
+            onClose={closeIntelModal}
+            busy={modalBusy}
+            icon={selectedIntel?.kind === 'conversion' ? Scale : History}
+          />
 
           <DecisionModalBody>
             {selectedIntel?.kind === 'governance' ? (
@@ -653,50 +638,14 @@ export function ManagementDecisionModal({
                 onReject={(note) => void handleStaffPurchaseCreditDecision?.('reject', note)}
               />
             ) : selectedIntel?.kind === 'conversion' ? (
-              <div className="animate-in fade-in space-y-3 duration-200 text-slate-700">
-                <DecisionBand
-                  tone="convert"
-                  eyebrow="Close production check"
-                  title={selectedIntel.jobId}
-                  subtitle={asPersonName(selectedIntel.row?.customer_name)}
-                  meta={
-                    <>
-                      <DecisionChip tone="slate">
-                        Alert: {selectedIntel.row?.conversion_alert_state || '—'}
-                      </DecisionChip>
-                      {selectedIntel.row?.manager_review_required ? (
-                        <DecisionChip tone="amber">Manager review</DecisionChip>
-                      ) : null}
-                      {selectedIntel.row?.completed_at_iso ? (
-                        <DecisionChip tone="slate">
-                          {new Date(selectedIntel.row.completed_at_iso).toLocaleString()}
-                        </DecisionChip>
-                      ) : null}
-                    </>
-                  }
-                >
-                  <p className="mt-1 text-xs font-bold text-teal-700">{selectedIntel.row?.quotation_ref || '—'}</p>
-                  {selectedIntel.row?.product_name ? (
-                    <p className="mt-1 text-ui-xs text-slate-500">{selectedIntel.row.product_name}</p>
-                  ) : null}
-                  {(selectedUnifiedWorkItem?.referenceNo || selectedUnifiedWorkItem?.id) && (
-                    <p className="mt-2 font-mono text-ui-xs text-slate-500">
-                      Record {selectedUnifiedWorkItem.referenceNo || selectedUnifiedWorkItem.id}
-                      {selectedUnifiedWorkItem.keyDecisionSummary
-                        ? ` · ${selectedUnifiedWorkItem.keyDecisionSummary}`
-                        : ''}
-                    </p>
-                  )}
-                </DecisionBand>
-
-                <ConversionRecordPanel
-                  auditData={auditData}
-                  loading={loadingAudit}
-                  focusJobId={selectedIntel.jobId}
-                  title="Conversion record"
-                  emptyMessage="No coil or conversion check found for this job yet. Refresh or open Production QC."
-                />
-              </div>
+              <ConversionReviewApprovalPreview
+                jobId={selectedIntel.jobId}
+                inboxRow={selectedIntel.row}
+                auditData={auditData}
+                loading={loadingAudit}
+                unifiedWorkItem={selectedUnifiedWorkItem}
+                formatPersonName={asPersonName}
+              />
             ) : null}
           </DecisionModalBody>
 

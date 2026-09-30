@@ -539,8 +539,6 @@ const ManagerDashboard = () => {
             handleProductionOverrideSelectedQuotation={bm.handleProductionOverrideSelectedQuotation}
             conversionSignoffRemark={bm.conversionSignoffRemark}
             setConversionSignoffRemark={bm.setConversionSignoffRemark}
-            conversionSignoffEditApprovalId={bm.conversionSignoffEditApprovalId}
-            setConversionSignoffEditApprovalId={bm.setConversionSignoffEditApprovalId}
             paymentIntelLineItems={bm.paymentIntelLineItems}
             selectedPaymentAttachmentUrl={bm.selectedPaymentAttachmentUrl}
             printSelectedPaymentRequest={bm.printSelectedPaymentRequest}
