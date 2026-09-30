@@ -63,7 +63,7 @@ function Panel({ title, hint, children, className = '' }) {
         <h4 className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">{title}</h4>
         {hint ? <p className="mt-0.5 text-ui-xs leading-snug text-slate-500">{hint}</p> : null}
       </header>
-      <div className="custom-scrollbar max-h-[min(28vh,240px)] overflow-y-auto px-2.5 py-2 text-xs text-slate-800">
+      <div className="custom-scrollbar max-h-[min(52vh,520px)] overflow-y-auto px-2.5 py-2 text-xs text-slate-800">
         {children}
       </div>
     </section>
@@ -105,7 +105,7 @@ function quoteLineFloorPpm(item) {
 function accessorySupplyLabel(issued, quoted) {
   const i = Number(issued);
   const q = Number(quoted);
-  if (!Number.isFinite(q) || q <= 0) return { text: '?', tone: 'slate' };
+  if (!Number.isFinite(q) || q <= 0) return { text: '—', tone: 'slate' };
   if (Number.isFinite(i) && i >= q) return { text: 'Supplied', tone: 'emerald' };
   if (Number.isFinite(i) && i > 0) return { text: 'Partial', tone: 'amber' };
   return { text: 'Not issued', tone: 'rose' };
@@ -114,7 +114,11 @@ function accessorySupplyLabel(issued, quoted) {
 function quoteProductRows(quotation) {
   const ql = quotation?.quotationLines;
   if (!ql || typeof ql !== 'object') return [];
-  return (Array.isArray(ql.products) ? ql.products : []).filter((item) => item && typeof item === 'object');
+  return (Array.isArray(ql.products) ? ql.products : []).filter((item) => {
+    if (!item || typeof item !== 'object') return false;
+    const name = String(item.name ?? item.label ?? '').trim();
+    return Boolean(name) || quoteLineQtyNumber(item) > 0 || quoteLineUnitPriceNumber(item) > 0;
+  });
 }
 
 function quoteLineQtyNumber(raw) {
@@ -128,7 +132,7 @@ function quoteLineUnitPriceNumber(raw) {
 
 function quoteLineQtyDisplay(raw) {
   const qty = quoteLineQtyNumber(raw);
-  if (qty <= 0) return '?';
+  if (qty <= 0) return '—';
   const name = String(raw?.name ?? raw?.label ?? '');
   if (isStoneFlatsheetQuotationLine(name)) return `${qty.toLocaleString()} m²`;
   return `${qty.toLocaleString()} m`;
@@ -483,7 +487,7 @@ export function RefundManagerApprovalPreview({
       const staleCount = Array.isArray(data.staleRefundWarnings) ? data.staleRefundWarnings.length : 0;
       showToast(
         paidChanged
-          ? `Integrity recalculated ? paid balance updated to ${formatNgn(data.receiptReconcile?.paidNgn)}.${staleCount ? ` ${staleCount} open refund(s) exceed the economic floor.` : ''}`
+          ? `Integrity recalculated. Paid balance updated to ${formatNgn(data.receiptReconcile?.paidNgn)}.${staleCount ? ` ${staleCount} open refund(s) exceed the economic floor.` : ''}`
           : staleCount
             ? `Integrity recalculated. ${staleCount} open refund(s) exceed the economic floor cap.`
             : 'Quotation integrity recalculated.',
@@ -690,7 +694,7 @@ export function RefundManagerApprovalPreview({
     }
     if (maxApprovableNgn > 0 && approved > maxApprovableNgn + 1) {
       setApprovalAmountError(
-        `Approved amount exceeds quotation headroom (max ?${maxApprovableNgn.toLocaleString('en-NG')} after other open refunds).`
+        `Approved amount exceeds quotation headroom (max ₦${maxApprovableNgn.toLocaleString('en-NG')} after other open refunds).`
       );
       return;
     }
@@ -727,7 +731,7 @@ export function RefundManagerApprovalPreview({
         }
       } else {
         setApprovalAmountError(
-          `Breakdown total is ?${Math.round(lineSum).toLocaleString('en-NG')} ? edit lines in Sales or approve the full requested amount.`
+          `Breakdown total is ₦${Math.round(lineSum).toLocaleString('en-NG')}. Edit lines in Sales or approve the full requested amount.`
         );
         return;
       }
@@ -884,7 +888,7 @@ export function RefundManagerApprovalPreview({
         title: 'Partial production detected',
         body:
           partialProductionJobs.length > 0
-            ? `${partialProductionJobs.length} completed job(s) produced less than planned ? consider Unproduced meterage instead of full cancellation.`
+            ? `${partialProductionJobs.length} completed job(s) produced less than planned. Consider Unproduced meterage instead of full cancellation.`
             : 'Order cancellation requested but production jobs show completed output on this quote.',
       });
     }
@@ -990,7 +994,7 @@ export function RefundManagerApprovalPreview({
         tone="refund"
         eyebrow="Refund approval"
         title={refundId}
-        subtitle={formatPersonName(refund?.customer || inboxRow?.customer_name || '?')}
+        subtitle={formatPersonName(refund?.customer || inboxRow?.customer_name || '—')}
         aside={
           creditAppliedNgn > 0 ? (
             <>
@@ -1016,7 +1020,7 @@ export function RefundManagerApprovalPreview({
           {refund?.quotationRef || inboxRow?.quotation_ref ? (
             <span className="font-mono font-semibold">{refund?.quotationRef || inboxRow?.quotation_ref}</span>
           ) : (
-            '?'
+            '—'
           )}
           <span className="text-slate-400"> · </span>
           {formatRefundReasonCategory(refund?.reasonCategory ?? inboxRow?.reason_category)}
@@ -1054,7 +1058,7 @@ export function RefundManagerApprovalPreview({
       ) : (
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
           {/* Quotation — product spec & price comparison */}
-          <Panel title="Quotation" hint="Metres/m², unit price, line amount, and floor ₦/m.">
+          <Panel title="Quotation" hint="Roofing in metres. Stone flatsheet in m². Floor is the workbook minimum.">
             {!auditData || auditData.ok === false ? (
               <p className="text-ui-xs text-rose-600">{auditData?.error || 'Quotation audit unavailable.'}</p>
             ) : (
@@ -1086,17 +1090,25 @@ export function RefundManagerApprovalPreview({
                         <tr className="border-b border-slate-100 bg-slate-50/90 text-ui-xs font-bold uppercase text-slate-500">
                           <th className="px-1.5 py-1">Product</th>
                           <th className="px-1 py-1 text-right">Qty</th>
-                          <th className="px-1 py-1 text-right">Unit ?</th>
+                          <th className="px-1 py-1 text-right">Unit ₦</th>
                           <th className="px-1 py-1 text-right">Amount</th>
-                          <th className="px-1.5 py-1 text-right">Floor ?/m</th>
+                          <th className="px-1.5 py-1 text-right">Floor ₦</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(productRows.length
                           ? productRows
                           : lines.filter((l) => l.category === 'products')
-                        ).map((raw, idx) => {
-                          const name = raw.name || raw.label || '?';
+                        )
+                          .filter(
+                            (raw) =>
+                              String(raw?.name || raw?.label || '').trim() ||
+                              quoteLineQtyNumber(raw) > 0 ||
+                              quoteLineUnitPriceNumber(raw) > 0
+                          )
+                          .map((raw, idx) => {
+                          const name = raw.name || raw.label || '—';
+                          const stoneSheet = isStoneFlatsheetQuotationLine(name);
                           const qty = quoteLineQtyNumber(raw);
                           const unit = quoteLineUnitPriceNumber(raw);
                           const lineTotal = qty > 0 && unit > 0 ? Math.round(qty * unit) : 0;
@@ -1104,11 +1116,13 @@ export function RefundManagerApprovalPreview({
                           const belowFloor = floor != null && unit > 0 && unit < floor;
                           return (
                             <tr key={idx} className="border-b border-slate-50 last:border-0">
-                              <td
-                                className="max-w-[7rem] truncate px-1.5 py-1 font-medium text-slate-900"
-                                title={name}
-                              >
+                              <td className="px-1.5 py-1 font-medium text-slate-900" title={name}>
                                 {name}
+                                {stoneSheet ? (
+                                  <span className="mt-0.5 block text-ui-xs font-normal text-slate-500">
+                                    Sheet stock, not roof metres
+                                  </span>
+                                ) : null}
                               </td>
                               <td className="px-1 py-1 text-right tabular-nums text-slate-700">
                                 {quoteLineQtyDisplay(raw)}
@@ -1116,13 +1130,13 @@ export function RefundManagerApprovalPreview({
                               <td
                                 className={`px-1 py-1 text-right tabular-nums font-semibold ${belowFloor ? 'text-rose-700' : 'text-slate-800'}`}
                               >
-                                {unit > 0 ? formatNgn(unit) : '?'}
+                                {unit > 0 ? formatNgn(unit) : '—'}
                               </td>
                               <td className="px-1 py-1 text-right tabular-nums font-bold text-slate-900">
-                                {lineTotal > 0 ? formatNgn(lineTotal) : '?'}
+                                {lineTotal > 0 ? formatNgn(lineTotal) : '—'}
                               </td>
                               <td className="px-1.5 py-1 text-right tabular-nums text-slate-600">
-                                {floor != null ? formatNgn(floor) : '?'}
+                                {floor != null ? formatNgn(floor) : '—'}
                               </td>
                             </tr>
                           );
@@ -1165,7 +1179,7 @@ export function RefundManagerApprovalPreview({
                             </span>
                             <span className="shrink-0 tabular-nums text-slate-600">
                               {acc
-                                ? `${supplied ?? 0}/${ordered ?? '?'} supplied${
+                                ? `${supplied ?? 0}/${ordered ?? '—'} supplied${
                                     shortfall > 0 ? ` · short ${shortfall}` : ''
                                   }`
                                 : ln.lineTotal !== '' && ln.lineTotal != null
@@ -1190,7 +1204,7 @@ export function RefundManagerApprovalPreview({
                 <Stat label="Outstanding" value={formatNgn(sum.outstandingNgn)} />
                 <Stat
                   label="Paid %"
-                  value={paymentPct != null ? `${paymentPct}%` : '?'}
+                  value={paymentPct != null ? `${paymentPct}%` : '—'}
                   warn={deliveryGateBreached}
                   accent={paymentPct != null && paymentPct >= 70 && !deliveryGateBreached}
                 />
@@ -1211,8 +1225,8 @@ export function RefundManagerApprovalPreview({
                   deliveryGateBreached ? 'bg-rose-50 text-rose-900' : 'bg-amber-50 text-amber-950'
                 }`}
               >
-                Delivery gate ({deliveryPaymentGate}): {deliveryGateBreached ? 'below 70% threshold' : 'satisfied'} ?
-                cap {formatNgn(maxApprovableNgn)} after other refunds
+                Delivery gate ({deliveryPaymentGate}): {deliveryGateBreached ? 'below 70% threshold' : 'satisfied'}.
+                Cap {formatNgn(maxApprovableNgn)} after other refunds
               </p>
             ) : (
               <p className="mb-2 text-ui-xs text-slate-500">
@@ -1230,7 +1244,7 @@ export function RefundManagerApprovalPreview({
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-bold uppercase tracking-wide text-ui-xs text-slate-500">
-                    Economic floor (produced ? workbook minimum)
+                    Economic floor (produced vs workbook minimum)
                   </p>
                   {canRecalculateIntegrity ? (
                     <button
@@ -1252,7 +1266,7 @@ export function RefundManagerApprovalPreview({
                 </p>
                 {economicFloor.incompleteFloorPricing ? (
                   <p className="mt-0.5 font-semibold text-amber-800">
-                    Floor ?/m missing for some jobs ? verify workbook pricing manually.
+                    Floor ₦/m is missing for some jobs. Verify workbook pricing manually.
                   </p>
                 ) : null}
               </div>
@@ -1271,12 +1285,12 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {staleRefundWarnings.length > 0 ? (
               <div className="mb-2">
-                <AlertBanner tone="rose" title="Approval blocked ? refund exceeds current economic floor">
+                <AlertBanner tone="rose" title="Approval blocked — refund exceeds current economic floor">
                 <ul className="list-disc pl-3">
                   {staleRefundWarnings.map((w) => (
                     <li key={w.refundId}>
-                      <span className="font-mono">{w.refundId}</span> ? {w.status} ? requested{' '}
-                      {formatNgn(w.amountNgn)} ? cap {formatNgn(w.maxDefensibleRefundNgn)}
+                      <span className="font-mono">{w.refundId}</span> · {w.status} · requested{' '}
+                      {formatNgn(w.amountNgn)} · cap {formatNgn(w.maxDefensibleRefundNgn)}
                       {w.reasonCategory ? ` · ${formatRefundReasonCategory(w.reasonCategory)}` : ''}
                     </li>
                   ))}
@@ -1289,9 +1303,9 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {incompleteFloorBlocksApprove ? (
               <div className="mb-2">
-                <AlertBanner tone="rose" title="Approval blocked ? workbook floor pricing incomplete">
+                <AlertBanner tone="rose" title="Approval blocked — workbook floor pricing incomplete">
                   <p>
-                    {Number(economicFloor?.producedOutputMeters || 0).toLocaleString()} m produced but floor ?/m
+                    {Number(economicFloor?.producedOutputMeters || 0).toLocaleString()} m produced but floor ₦/m
                     could not be resolved. Resolve workbook pricing or escalate to MD/CEO.
                   </p>
                 </AlertBanner>
@@ -1299,7 +1313,7 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {exceedsEconomicFloorCap && staleRefundWarnings.length === 0 ? (
               <div className="mb-2">
-                <AlertBanner tone="rose" title="Approval blocked ? amount above economic floor">
+                <AlertBanner tone="rose" title="Approval blocked — amount above economic floor">
                   <p>
                     Requested {formatNgn(refundAmountNgn)} exceeds max defensible{' '}
                     {formatNgn(economicFloor?.maxDefensibleRefundNgn)}. Recalculate integrity or reduce the amount.
@@ -1345,18 +1359,23 @@ export function RefundManagerApprovalPreview({
           </Panel>
 
           {/* Conversion & supply */}
-          <Panel title="Conversion & supply" hint="Output, accessories, coil used, before/after kg, and conversion comparison.">
+          <Panel title="Conversion & supply" hint="Roof metres against production. Stone flatsheet is sheet stock, separate from coil.">
             <div className="mb-2 grid grid-cols-2 gap-1 sm:grid-cols-4">
-              <Stat label="Sheet pool" value={`${Number(totals.quotedSheetPoolM || 0).toLocaleString()} m`} />
+              {Number(totals.quotedSheetPoolM || 0) > 0.05 ||
+              Number(totals.expectedCoilConsumptionM || 0) > 0.05 ? (
+                <Stat label="Coil sheet pool" value={`${Number(totals.quotedSheetPoolM || 0).toLocaleString()} m`} />
+              ) : null}
               {Number(totals.quotedTrimBlankM || 0) > 0 ? (
                 <Stat label="Trim blank" value={`${Number(totals.quotedTrimBlankM).toLocaleString()} m`} />
               ) : null}
+              {Number(totals.expectedCoilConsumptionM || 0) > 0.05 ? (
+                <Stat
+                  label="Expected coil"
+                  value={`${Number(totals.expectedCoilConsumptionM).toLocaleString()} m`}
+                />
+              ) : null}
               <Stat
-                label="Expected CL"
-                value={`${Number((totals.expectedCoilConsumptionM ?? totals.cuttingListMetersSum) || 0).toLocaleString()} m`}
-              />
-              <Stat
-                label="Cut lists"
+                label="Roof on cut lists"
                 value={`${Number(totals.cuttingListMetersSum || 0).toLocaleString()} m`}
                 warn={dataQuality.some((d) => d.code === 'cutting_list_quotation_metre_mismatch')}
               />
@@ -1397,7 +1416,7 @@ export function RefundManagerApprovalPreview({
                           {st.text}
                         </span>
                         <span className="shrink-0 tabular-nums text-slate-600">
-                          {issued ?? 0}/{quoted ?? '?'}
+                          {issued ?? 0}/{quoted ?? '—'}
                           {Number(a.shortfall) > 0 ? ` · short ${a.shortfall}` : ''}
                         </span>
                       </li>
@@ -1407,28 +1426,36 @@ export function RefundManagerApprovalPreview({
               </div>
             ) : null}
             {stone && (stone.totalSuppliedM2 > 0 || (stone.lines || []).length > 0) ? (
-              <p className="mb-2 text-ui-xs text-slate-600">
-                Stone {Number(stone.totalSuppliedM2 || 0).toLocaleString()} m² supplied
-                {stone.totalDeductionM2 ? ` — ${Number(stone.totalDeductionM2).toLocaleString()} m² ded.` : ''}
+              <p className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-ui-xs leading-snug text-slate-700">
+                Stone flatsheet {Number(stone.totalSuppliedM2 || 0).toLocaleString()} m² supplied.
+                This is sheet stock, not coil flatsheet, and it is not added to roof metres.
+                {stone.totalDeductionM2
+                  ? ` ${Number(stone.totalDeductionM2).toLocaleString()} m² deducted.`
+                  : ''}
               </p>
             ) : null}
             {cuttingLists.length > 0 ? (
               <p className="mb-2 text-ui-xs text-slate-600">
-                {cuttingLists.length} cutting list(s) ?{' '}
-                {cuttingLists.map((cl) => `${cl.id} ${Number(cl.total_meters || 0).toLocaleString()}m`).join(', ')}
+                {cuttingLists.length === 1 ? 'Cutting list' : `${cuttingLists.length} cutting lists`}
+                {' · '}
+                {cuttingLists
+                  .map((cl) => `${cl.id} ${Number(cl.total_meters || 0).toLocaleString()} m`)
+                  .join(', ')}
               </p>
             ) : null}
             {productionFulfillment ? (
               <div className="mb-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
                 <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Roofing fulfilment</p>
                 <p className="text-ui-xs leading-snug text-slate-700">
-                  Quoted {Number(productionFulfillment.quotedMeters || 0).toLocaleString()} m ? Eligible produced{' '}
-                  {Number(productionFulfillment.producedMetersForUnproduced || 0).toLocaleString()} m ? Unproduced{' '}
-                  {Number(productionFulfillment.unproducedMetres || 0).toLocaleString()} m
+                  Quoted {Number(productionFulfillment.quotedMeters || 0).toLocaleString()} m
+                  {' · '}
+                  Produced {Number(productionFulfillment.producedMetersForUnproduced || 0).toLocaleString()} m
+                  {' · '}
+                  Unproduced {Number(productionFulfillment.unproducedMetres || 0).toLocaleString()} m
                 </p>
                 {productionFulfillment.fullyProducedRoofing ? (
                   <p className="mt-0.5 text-ui-xs font-semibold text-emerald-700">
-                    Fully produced ? unproduced meterage refund should not apply.
+                    Roofing is fully produced. An unproduced-metre refund does not apply.
                   </p>
                 ) : null}
               </div>
@@ -1543,25 +1570,33 @@ export function RefundManagerApprovalPreview({
                         <span className="block text-slate-500">{kindLabel}</span>
                         {bank ? <span className="block font-mono text-slate-500">{bank}</span> : null}
                         {showNetBreakdown ? (
-                          <span className="block text-amber-800">
-                            Gross {formatNgn(gross)}
-                            {cutWaived
-                              ? ' · company cut waived (Admin/MD)'
-                              : companyCut > 0
-                                ? ` · ${cutPct || 20}% company −${formatNgn(companyCut)}`
-                                : ''}
-                            {unclearedHold > 0
-                              ? ` · ₦${unclearedHold.toLocaleString('en-NG')} uncleared receipts pending`
-                              : ''}
-                            {s?.payoutHeldForUnclearedReceipts
-                              ? s?.overpaymentCashierReferralAvailable ||
+                          <span className="mt-0.5 block space-y-0.5 text-slate-600">
+                            <span className="block">
+                              Gross {formatNgn(gross)}
+                              {cutWaived
+                                ? ' · company cut waived'
+                                : companyCut > 0
+                                  ? ` · ${cutPct || 20}% company cut −${formatNgn(companyCut)}`
+                                  : ''}
+                            </span>
+                            {unclearedHold > 0 ? (
+                              <span className="block text-amber-800">
+                                ₦{unclearedHold.toLocaleString('en-NG')} uncleared receipts on this payee
+                              </span>
+                            ) : null}
+                            {s?.payoutHeldForUnclearedReceipts ? (
+                              <span className="block font-semibold text-amber-900">
+                                {s?.overpaymentCashierReferralAvailable ||
                                 (currentCategories.length > 0 &&
                                   currentCategories.every(
                                     (c) => String(c).trim().toLowerCase() === 'overpayment'
                                   ))
-                                ? ' · till payout held — fund available for cashier referral/confirmation (even before production)'
-                                : ' · payout held until cleared or manually applied'
-                              : ` · Net pay ${formatNgn(net)}`}
+                                  ? 'Payout stays on the till until a cashier confirms the fund.'
+                                  : 'Payout held until those receipts clear, or someone applies it with a note.'}
+                              </span>
+                            ) : (
+                              <span className="block">Net pay {formatNgn(net)}</span>
+                            )}
                             {cutWaived && s?.companyCutWaiverNote ? (
                               <span className="block text-violet-800">
                                 Waiver: {String(s.companyCutWaiverNote)}
