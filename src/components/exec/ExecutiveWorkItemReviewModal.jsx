@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Flag, X } from 'lucide-react';
+import { ArrowLeftRight, Banknote, History, Package, Scale, Tag, Wallet, X } from 'lucide-react';
 import { ModalFrame } from '../layout/ModalFrame';
 import { formatNgn } from '../../Data/mockData';
 import { apiFetch } from '../../lib/apiBase';
@@ -10,31 +10,41 @@ import { QuotationPriceExceptionPanel } from '../sales/QuotationPriceExceptionPa
 import { ClearanceManagerApprovalPreview } from '../management/ClearanceManagerApprovalPreview';
 import { quotationBelowFloorExceptionApproved } from '../../lib/quotationPriceException';
 import { RefundManagerApprovalPreview } from '../management/RefundManagerApprovalPreview';
-import { ManagementAuditSections } from '../management/ManagementAuditSections';
 import { ConversionReviewApprovalPreview } from '../management/ConversionReviewApprovalPreview';
 import { ConversionReviewConfirmBar } from '../management/ConversionReviewConfirmBar';
 import { PaymentRequestApprovalPreview } from '../management/PaymentRequestApprovalPreview';
 import { RegisterSettlementApprovalPreview } from '../management/RegisterSettlementApprovalPreview';
 import { ApproveRejectConfirmBar } from '../management/ApproveRejectConfirmBar';
 import { ZareApprovalHint } from '../ZareApprovalHint';
-import { execWorkItemReviewContext, resolveExecReviewView, resolveExecSettlementId } from '../../lib/execWorkItemReview';
+import {
+  execReviewHeadline,
+  execWorkItemReviewContext,
+  resolveExecReviewView,
+  resolveExecSettlementId,
+} from '../../lib/execWorkItemReview';
 import { canApproveProductionGate, productionGateOverrideNoteValid } from '../../lib/productionGateAccess';
 import { userMayApproveRefundRequests } from '../../lib/refundsStore';
 import { isExecutiveRoleKey, userMayPerformManagerQuotationClearance, userMayWriteOffReceivableBadDebt } from '../../lib/workspaceGovernanceClient';
 import { RECEIVABLE_WRITEOFF_NOTE_MIN_LEN } from '../../lib/receivableWriteOffPolicy';
 import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
 import { OtApprovalDecisionModal } from '../branchManager/OtApprovalDecisionModal';
+import { EditApprovalDetailModal } from '../branchManager/EditApprovalDetailModal';
+import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal';
+import { OfficeThreadConversationDrawer } from '../office/OfficeThreadConversationDrawer';
 import { ExecOfficeMemoDecisionBar } from './ExecOfficeMemoDecisionBar';
+import { PayrollMdApprovalPreview } from './PayrollMdApprovalPreview';
+import { InterBranchLoanApprovalPreview } from './InterBranchLoanApprovalPreview';
+import { StockRegisterApprovalPreview } from './StockRegisterApprovalPreview';
 import { decideStaffPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
 import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit, canMdApprovePayroll } from '../../lib/hrAccess';
 import { mdApprovePayrollRun } from '../../lib/hrExtended';
-import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { formatPersonName } from '../../lib/formatPersonName';
 import {
   DecisionActionBar,
-  DecisionActionTile,
   DecisionBand,
-  DecisionChip,
+  DecisionModalBody,
+  DecisionModalHeader,
+  DecisionWhatNext,
 } from '../management/DecisionSurface';
 
 /**
@@ -71,6 +81,8 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   const [loanRejectNote, setLoanRejectNote] = useState('');
   const [stockWorkflow, setStockWorkflow] = useState(null);
   const [loadingStock, setLoadingStock] = useState(false);
+  const [materialDecisionRemark, setMaterialDecisionRemark] = useState('');
+  const [paymentDetail, setPaymentDetail] = useState(null);
 
   const review = useMemo(() => resolveExecReviewView(item), [item]);
   const ctx = useMemo(() => execWorkItemReviewContext(item), [item]);
@@ -88,6 +100,16 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   const canMdPayroll = canMdApprovePayroll(ws?.permissions);
   const canMdInterBranch =
     ws?.hasPermission?.('inter_branch_loan.md_approve') || ws?.hasPermission?.('*');
+  const branchNameById = useMemo(() => {
+    const map = {};
+    const list = [...(ws?.snapshot?.branches || []), ...(ws?.session?.branches || [])];
+    for (const b of list) {
+      const id = String(b?.id || b?.branchId || '').trim();
+      if (!id) continue;
+      map[id] = b.name || b.branchName || id;
+    }
+    return map;
+  }, [ws?.snapshot?.branches, ws?.session?.branches]);
 
   const fetchAudit = useCallback(async (quoteId) => {
     const qid = String(quoteId || '').trim();
@@ -121,6 +143,8 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     setInterBranchLoan(null);
     setLoanRejectNote('');
     setStockWorkflow(null);
+    setMaterialDecisionRemark('');
+    setPaymentDetail(null);
 
     if (review.view === 'register_settlement' && settlementId) {
       const hasSettlementPreview =
@@ -167,6 +191,14 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           }),
         ]).finally(() => setLoadingRefundIntel(false));
       }
+    }
+    if (review.view === 'payment' && review.requestId) {
+      void (async () => {
+        const { ok, data } = await apiFetch(
+          `/api/payment-requests/${encodeURIComponent(review.requestId)}`
+        );
+        if (ok && data?.request) setPaymentDetail(data.request);
+      })();
     }
     if (review.view === 'staff_purchase_credit') {
       if (ctx.row?.id) {
@@ -431,88 +463,54 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     await finish();
   };
 
-  const handleMaterialReject = async () => {
-    const id = review.incidentId;
+  const handleMaterialReject = async (incidentId) => {
+    const id = String(incidentId || review.incidentId || '').trim();
     if (!id || readOnly) return;
-    const reason =
-      window.prompt('Why are you rejecting this material incident? (required, at least 3 characters)') ?? '';
-    if (reason.trim().length < 3) {
-      showToast('Rejection reason is required (at least 3 characters).', { variant: 'error' });
+    const remark = String(materialDecisionRemark || '').trim();
+    if (remark.length < 3) {
+      showToast('Enter a rejection reason in the remark field (at least 3 characters).', { variant: 'error' });
       return;
     }
     setBusy(true);
-    const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/reject`, {
-      method: 'POST',
-      body: JSON.stringify({ note: reason.trim(), reason: reason.trim() }),
-    });
-    setBusy(false);
-    if (!ok || data?.ok === false) {
-      showToast(data?.error || 'Could not reject material incident.', { variant: 'error' });
-      return;
+    try {
+      const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ managerRemark: remark, note: remark, reason: remark }),
+      });
+      if (!ok || data?.ok === false) {
+        showToast(data?.error || 'Could not reject material incident.', { variant: 'error' });
+        return;
+      }
+      showToast('Material incident rejected.', { variant: 'success' });
+      setMaterialDecisionRemark('');
+      await ws?.refresh?.();
+      await finish();
+    } finally {
+      setBusy(false);
     }
-    showToast('Material incident rejected.', { variant: 'success' });
-    await ws?.refresh?.();
-    await finish();
   };
 
-  const handleEditReject = async () => {
-    const id = review.editApprovalId;
+  const handleMaterialApprove = async (incidentId) => {
+    const id = String(incidentId || review.incidentId || '').trim();
     if (!id || readOnly) return;
-    const reason =
-      window.prompt('Why are you rejecting this edit request? (required, at least 3 characters)') ?? '';
-    if (reason.trim().length < 3) {
-      showToast('Rejection reason is required (at least 3 characters).', { variant: 'error' });
-      return;
-    }
+    const remark = String(materialDecisionRemark || '').trim() || 'Approved — stock damage report posted.';
     setBusy(true);
-    const { ok, data } = await apiFetch(`/api/edit-approvals/${encodeURIComponent(id)}/reject`, {
-      method: 'POST',
-      body: JSON.stringify({ reason: reason.trim() }),
-    });
-    setBusy(false);
-    if (!ok || !data?.ok) {
-      showToast(data?.error || 'Could not reject edit.', { variant: 'error' });
-      return;
+    try {
+      const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ managerRemark: remark }),
+      });
+      if (!ok || data?.ok === false) {
+        showToast(data?.error || 'Could not approve material incident.', { variant: 'error' });
+        return;
+      }
+      showToast('Material incident approved.', { variant: 'success' });
+      setMaterialDecisionRemark('');
+      await ws?.refresh?.();
+      await finish();
+    } finally {
+      setBusy(false);
     }
-    showToast('Edit request rejected.', { variant: 'success' });
-    await ws?.refresh?.();
-    await finish();
-  };
-
-  const handleMaterialApprove = async () => {
-    const id = review.incidentId;
-    if (!id || readOnly) return;
-    setBusy(true);
-    const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/approve`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-    setBusy(false);
-    if (!ok || data?.ok === false) {
-      showToast(data?.error || 'Could not approve material incident.', { variant: 'error' });
-      return;
-    }
-    showToast('Material incident approved.', { variant: 'success' });
-    await ws?.refresh?.();
-    await finish();
-  };
-
-  const handleEditApproval = async () => {
-    const id = review.editApprovalId;
-    if (!id || readOnly) return;
-    setBusy(true);
-    const { ok, data } = await apiFetch(`/api/edit-approvals/${encodeURIComponent(id)}/approve`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-    setBusy(false);
-    if (!ok || !data?.ok) {
-      showToast(data?.error || 'Could not approve edit.', { variant: 'error' });
-      return;
-    }
-    showToast('Edit approval granted.', { variant: 'success' });
-    await ws?.refresh?.();
-    await finish();
   };
 
   const handleStaffCreditDecision = async (decision, note = '') => {
@@ -600,9 +598,55 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
   if (!item) return null;
 
-  const kindLabel = String(item.kind || 'review').replace(/_/g, ' ');
+  if (review.view === 'material') {
+    return (
+      <MaterialIncidentDetailModal
+        isOpen={isOpen}
+        incidentId={review.incidentId}
+        canApprove={!readOnly && item.canAct !== false}
+        managerRemark={materialDecisionRemark}
+        onManagerRemarkChange={setMaterialDecisionRemark}
+        onClose={onClose}
+        onApprove={handleMaterialApprove}
+        onReject={handleMaterialReject}
+        externalBusy={busy}
+      />
+    );
+  }
+
+  if (review.view === 'edit_approval') {
+    return (
+      <EditApprovalDetailModal
+        isOpen={isOpen}
+        editApprovalId={review.editApprovalId}
+        inboxRow={review.row}
+        onClose={onClose}
+        onDecisionComplete={async () => {
+          await ws?.refresh?.();
+          if (typeof onCompleted === 'function') await onCompleted();
+        }}
+        canApprove={!readOnly && item.canAct !== false}
+      />
+    );
+  }
+
+  const kindLabel = execReviewHeadline(review.view, item);
   const reasons = ctx.reasons;
   const isOfficeMemo = review.view === 'office_memo';
+  const headerIcon =
+    review.view === 'conversion'
+      ? Scale
+      : review.view === 'payment' || review.view === 'register_settlement' || review.view === 'refund'
+        ? Banknote
+        : review.view === 'payroll'
+          ? Wallet
+          : review.view === 'inter_branch_loan'
+            ? ArrowLeftRight
+            : review.view === 'stock_register'
+              ? Package
+              : review.view === 'price_exception'
+                ? Tag
+                : History;
 
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose} surface="plain" title={`Executive review — ${kindLabel}`} edgeToEdgeMobile showCloseButton={false}>
@@ -611,34 +655,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           isOfficeMemo ? 'max-w-[min(100%,960px)]' : 'max-w-[min(100%,720px)]'
         }`}
       >
-        {!isOfficeMemo ? (
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <div className="min-w-0">
-            <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">{kindLabel}</p>
-            <h2 className="mt-1 text-lg font-black text-slate-900 truncate">{item.title || 'Review'}</h2>
-            <p className="text-xs text-slate-500 mt-1">
-              {item.branchName || '—'}
-              {item.amountNgn != null ? ` · ${formatNgn(item.amountNgn)}` : ''}
-              {item.requestedBy ? ` · ${item.requestedBy}` : ''}
-            </p>
-            {reasons.length > 0 ? (
-              <ul className="mt-2 space-y-0.5 text-ui-xs text-amber-900/90 list-disc pl-4">
-                {reasons.map((r, i) => (
-                  <li key={i}>{r}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Close"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        ) : (
+        {isOfficeMemo ? (
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
           <div className="min-w-0">
             <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">Office memo</p>
@@ -653,10 +670,34 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
             <X size={18} />
           </button>
         </div>
+        ) : (
+        <>
+          <DecisionModalHeader title={kindLabel} onClose={onClose} busy={busy} icon={headerIcon} />
+          <div className="border-b border-slate-100 bg-white px-4 py-2.5">
+            <h2 className="truncate text-sm font-black text-slate-900">{item.title || 'Review'}</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {[
+                item.branchName,
+                item.amountNgn != null ? formatNgn(item.amountNgn) : '',
+                item.requestedBy,
+              ]
+                .filter(Boolean)
+                .join(' · ') || '—'}
+            </p>
+            {reasons.length > 0 ? (
+              <ul className="mt-1.5 space-y-0.5 text-ui-xs text-amber-900/90 list-disc pl-4">
+                {reasons.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </>
         )}
 
-        <div className={`flex-1 overflow-y-auto custom-scrollbar ${isOfficeMemo ? 'min-h-[420px]' : 'p-5 space-y-4'}`}>
-          {review.view === 'office_memo' && review.threadId ? (
+        {isOfficeMemo ? (
+        <div className="min-h-[420px] flex-1 overflow-y-auto custom-scrollbar">
+          {review.threadId ? (
             <OfficeThreadConversationDrawer
               variant="inline"
               isOpen={isOpen}
@@ -667,25 +708,22 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
               }}
             />
           ) : null}
-
-          {!isOfficeMemo ? (
-          <>
+        </div>
+        ) : (
+        <DecisionModalBody>
           {review.view === 'price_exception' && review.quotationId ? (
-            <>
-              <QuotationPriceExceptionPanel
-                layout="desk"
-                quotationId={review.quotationId}
-                quotation={quotationRow}
-                onQuotationUpdated={(q) => {
-                  setQuotationRow(q);
-                  ws?.mergeQuotationIntoSnapshot?.(q);
-                  if (quotationBelowFloorExceptionApproved(q)) {
-                    void finish();
-                  }
-                }}
-              />
-              <ManagementAuditSections auditData={auditData} loadingAudit={loadingAudit} formatNgn={formatNgn} appearance="light" />
-            </>
+            <QuotationPriceExceptionPanel
+              layout="desk"
+              quotationId={review.quotationId}
+              quotation={quotationRow}
+              onQuotationUpdated={(q) => {
+                setQuotationRow(q);
+                ws?.mergeQuotationIntoSnapshot?.(q);
+                if (quotationBelowFloorExceptionApproved(q)) {
+                  void finish();
+                }
+              }}
+            />
           ) : null}
 
           {review.view === 'quotation' && review.quotationId ? (
@@ -861,14 +899,19 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
             <div className="space-y-4">
               <PaymentRequestApprovalPreview
                 requestId={review.requestId}
-                row={review.row}
+                row={{ ...(review.row || {}), ...(paymentDetail || {}) }}
                 formatNgn={formatNgn}
               />
               {!readOnly && item.canAct !== false ? (
                 <ApproveRejectConfirmBar
                   asSticky={false}
                   hint="Reject returns the request so the requester can correct it."
-                  restatement={`Approve sends ${formatNgn(review.row?.amount_requested_ngn)} to Cashier.`}
+                  restatement={`Approve sends ${formatNgn(
+                    paymentDetail?.amount_requested_ngn ??
+                      paymentDetail?.amountRequestedNgn ??
+                      review.row?.amount_requested_ngn ??
+                      review.row?.amountRequestedNgn
+                  )} to Cashier.`}
                   busy={busy}
                   approveLabel="Approve request"
                   rejectLabel="Reject"
@@ -876,75 +919,6 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                   onApprove={() => void handlePaymentDecision('Approved')}
                   onReject={() => void handlePaymentDecision('Rejected')}
                 />
-              ) : null}
-            </div>
-          ) : null}
-
-          {review.view === 'material' ? (
-            <div className="space-y-3">
-              <DecisionBand
-                tone="material"
-                eyebrow="Material exceptions"
-                title={review.incidentId}
-                subtitle={
-                  [review.row?.incident_type || 'Incident', review.row?.gauge_label, review.row?.colour]
-                    .filter(Boolean)
-                    .join(' · ') || null
-                }
-              />
-              {!readOnly && item.canAct !== false ? (
-                <DecisionActionBar>
-                  <div className="grid grid-cols-2 gap-2">
-                    <DecisionActionTile
-                      variant="compactReject"
-                      icon={Flag}
-                      label="Reject"
-                      disabled={busy}
-                      onClick={() => void handleMaterialReject()}
-                    />
-                    <DecisionActionTile
-                      variant="brand"
-                      label="Approve incident"
-                      disabled={busy}
-                      onClick={() => void handleMaterialApprove()}
-                    />
-                  </div>
-                </DecisionActionBar>
-              ) : null}
-            </div>
-          ) : null}
-
-          {review.view === 'edit_approval' ? (
-            <div className="space-y-3">
-              <DecisionBand
-                tone="edit"
-                eyebrow="Edit approval"
-                title={review.row?.entityId || '—'}
-                subtitle={review.row?.entityKind || null}
-              >
-                <p className="mt-1 text-ui-xs text-slate-600">
-                  Requested by {review.row?.requestedByDisplay || review.row?.requestedByUserId || '—'}
-                </p>
-              </DecisionBand>
-              {!readOnly && item.canAct !== false ? (
-                <DecisionActionBar>
-                  <div className="grid grid-cols-2 gap-2">
-                    <DecisionActionTile
-                      variant="compactReject"
-                      icon={Flag}
-                      label="Reject"
-                      disabled={busy}
-                      onClick={() => void handleEditReject()}
-                    />
-                    <DecisionActionTile
-                      variant="brand"
-                      className="!bg-violet-700 hover:!bg-violet-800"
-                      label="Approve edit"
-                      disabled={busy}
-                      onClick={() => void handleEditApproval()}
-                    />
-                  </div>
-                </DecisionActionBar>
               ) : null}
             </div>
           ) : null}
@@ -961,19 +935,24 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           ) : null}
 
           {review.view === 'integrity' ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <DecisionBand
-                tone="edit"
-                eyebrow="Integrity / oversight"
+                tone="flagged"
+                eyebrow="Governance"
                 title={item.title || 'Needs attention'}
                 subtitle={item.branchName || review.branchId || null}
               >
-                <p className="mt-2 text-xs leading-relaxed text-slate-700">
+                <p className="mt-2 text-sm leading-relaxed text-slate-700">
                   {review.integrityKind === 'missing_branch_manager'
-                    ? 'This branch has no Branch Manager assigned. Complaints, OT, and other branch workflows fall back without an owner. Assign a sales_manager (Branch Manager) in Settings → Team & access. This item leaves the queue once a BM is assigned.'
+                    ? 'This branch has no Branch Manager assigned. Complaints, overtime, and other branch workflows fall back without an owner. Assign a Branch Manager in Settings → Team & access. This item leaves the queue once someone is assigned.'
                     : 'This item is on the MD attention list for oversight. Use the linked desk if a further operational action is required.'}
                 </p>
               </DecisionBand>
+              {review.integrityKind === 'missing_branch_manager' ? (
+                <DecisionWhatNext title="Next step">
+                  Open Team &amp; access and assign a sales_manager (Branch Manager) to this branch.
+                </DecisionWhatNext>
+              ) : null}
               <DecisionActionBar>
                 <a
                   href="/settings/team"
@@ -1003,104 +982,80 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'payroll' ? (
             <div className="space-y-4">
-              <DecisionBand
-                tone="production"
-                eyebrow="Payroll MD sign-off"
-                title={review.payrollRunId}
-                subtitle={`Period ${formatPeriodYyyymm(review.row?.period_yyyymm || review.row?.periodYyyymm || review.payrollRunId)}`}
-                aside={
-                  !loadingPayroll && payrollTotals ? (
-                    <>
-                      <p className="text-ui-xs font-bold uppercase text-slate-400">Net</p>
-                      <p className="text-lg font-black tabular-nums text-zarewa-teal">
-                        {formatNgn(
-                          payrollTotals.netPayNgn ?? payrollTotals.totalNetNgn ?? payrollTotals.grandTotalNgn ?? 0
-                        )}
-                      </p>
-                    </>
-                  ) : null
-                }
-              >
-                {loadingPayroll ? <p className="mt-1 text-xs text-slate-500">Loading payroll totals…</p> : null}
-              </DecisionBand>
+              <PayrollMdApprovalPreview
+                payrollRunId={review.payrollRunId}
+                row={review.row}
+                totals={payrollTotals}
+                loading={loadingPayroll}
+                formatNgn={formatNgn}
+              />
               {!readOnly && canMdPayroll ? (
-                <DecisionActionBar>
-                  <DecisionActionTile
-                    variant="brand"
-                    label="Sign off payroll"
-                    disabled={busy}
-                    onClick={() => void handlePayrollMdApprove()}
-                  />
-                </DecisionActionBar>
+                <ApproveRejectConfirmBar
+                  asSticky={false}
+                  canReject={false}
+                  hint="Signing off records MD approval so finance can pay. It does not itself send money to staff."
+                  restatement={
+                    payrollTotals
+                      ? `Sign-off authorises net ${formatNgn(
+                          payrollTotals.netPayNgn ??
+                            payrollTotals.totalNetNgn ??
+                            payrollTotals.grandTotalNgn ??
+                            payrollTotals.netTotalNgn ??
+                            payrollTotals.netNgn ??
+                            0
+                        )}${
+                          payrollTotals.headcount != null ? ` for ${payrollTotals.headcount} staff` : ''
+                        }.`
+                      : ''
+                  }
+                  acknowledgeLabel="I have reviewed headcount and net payable for this payroll run."
+                  approveLabel="Sign off payroll"
+                  busy={busy}
+                  resetKey={review.payrollRunId}
+                  onApprove={() => void handlePayrollMdApprove()}
+                />
               ) : null}
             </div>
           ) : null}
 
           {review.view === 'inter_branch_loan' ? (
             <div className="space-y-4">
-              <DecisionBand
-                tone="credit"
-                eyebrow="Inter-branch loan"
-                title={review.loanId}
-                subtitle={interBranchLoan?.purpose || review.row?.purpose || null}
-                aside={
-                  !loadingLoan && (interBranchLoan || item.amountNgn != null) ? (
-                    <>
-                      <p className="text-ui-xs font-bold uppercase text-slate-400">Principal</p>
-                      <p className="text-lg font-black tabular-nums text-zarewa-teal">
-                        {formatNgn(interBranchLoan?.principalNgn ?? item.amountNgn)}
-                      </p>
-                    </>
-                  ) : null
-                }
-              >
-                {loadingLoan ? <p className="mt-1 text-xs text-slate-500">Loading loan…</p> : null}
-              </DecisionBand>
+              <InterBranchLoanApprovalPreview
+                loanId={review.loanId}
+                loan={interBranchLoan}
+                row={review.row}
+                loading={loadingLoan}
+                formatNgn={formatNgn}
+                branchNameById={branchNameById}
+              />
               {!readOnly && canMdInterBranch ? (
-                <DecisionActionBar>
-                  <textarea
-                    value={loanRejectNote}
-                    onChange={(e) => setLoanRejectNote(e.target.value)}
-                    rows={2}
-                    placeholder="Rejection note (required to reject)"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-sky-300/50"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <DecisionActionTile
-                      variant="compactApprove"
-                      label="Approve"
-                      disabled={busy}
-                      onClick={() => void handleInterBranchMdApprove()}
-                    />
-                    <DecisionActionTile
-                      variant="compactReject"
-                      label="Reject"
-                      disabled={busy}
-                      onClick={() => void handleInterBranchMdReject()}
-                    />
-                  </div>
-                </DecisionActionBar>
+                <ApproveRejectConfirmBar
+                  asSticky={false}
+                  hint="Reject returns the request without a treasury transfer."
+                  restatement={`Approve moves ${formatNgn(
+                    interBranchLoan?.principalNgn ?? review.row?.principalNgn ?? item.amountNgn
+                  )} to the borrowing branch.`}
+                  approveLabel="Approve loan"
+                  rejectLabel="Reject"
+                  busy={busy}
+                  resetKey={review.loanId}
+                  note={loanRejectNote}
+                  onNoteChange={setLoanRejectNote}
+                  onApprove={() => void handleInterBranchMdApprove()}
+                  onReject={() => void handleInterBranchMdReject()}
+                />
               ) : null}
             </div>
           ) : null}
 
           {review.view === 'stock_register' ? (
             <div className="space-y-4">
-              <DecisionBand
-                tone="payment"
-                eyebrow="Month-end stock register"
-                title={review.periodKey || '—'}
-                subtitle={review.branchIdForRegister || item.branchName || null}
-              >
-                {loadingStock ? (
-                  <p className="mt-1 text-xs text-slate-500">Loading register workflow…</p>
-                ) : (
-                  <p className="mt-1 text-xs text-slate-700">
-                    Status: {String(stockWorkflow?.status || '—').replace(/_/g, ' ')}. MD approval is no longer
-                    required — after procurement costing, Capture &amp; lock closes the month.
-                  </p>
-                )}
-              </DecisionBand>
+              <StockRegisterApprovalPreview
+                periodKey={review.periodKey}
+                branchLabel={item.branchName || review.branchIdForRegister}
+                status={stockWorkflow?.status}
+                loading={loadingStock}
+              />
               {!readOnly && item.canAct !== false ? (
                 <a
                   href="/procurement"
@@ -1121,10 +1076,10 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
           {review.view === 'fallback' ? (
             <div className="space-y-3">
-              <p className="text-xs text-slate-600">
-                This item type does not have an in-page decision yet. Open the linked desk to clear, flag, or
-                approve it.
-              </p>
+              <DecisionWhatNext title="Next step">
+                This item type does not have an in-page decision yet. Open the linked desk to clear, flag, or approve
+                it.
+              </DecisionWhatNext>
               {item.route ? (
                 <a
                   href={item.route}
@@ -1135,9 +1090,8 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
               ) : null}
             </div>
           ) : null}
-          </>
-          ) : null}
-        </div>
+        </DecisionModalBody>
+        )}
 
         {isOfficeMemo && review.threadId && !readOnly ? (
           <ExecOfficeMemoDecisionBar
@@ -1146,24 +1100,6 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
             onCompleted={() => void finish()}
           />
         ) : null}
-
-        <div className="border-t border-slate-100 px-5 py-3 flex justify-end gap-2">
-          {!isOfficeMemo && review.view === 'fallback' && item.route ? (
-            <a
-              href={item.route}
-              className="rounded-lg border border-zarewa-teal/30 bg-zarewa-teal/5 px-4 py-2 text-ui-xs font-black uppercase text-zarewa-teal hover:bg-zarewa-teal/10"
-            >
-              Open module
-            </a>
-          ) : null}
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-ui-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
-          >
-            Close
-          </button>
-        </div>
       </div>
     </ModalFrame>
   );

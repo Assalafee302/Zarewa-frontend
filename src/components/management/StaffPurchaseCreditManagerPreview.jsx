@@ -10,6 +10,7 @@ import {
   DecisionActionBar,
   DecisionActionTile,
   DecisionBand,
+  DecisionWhatNext,
 } from './DecisionSurface';
 
 /**
@@ -95,10 +96,10 @@ export function StaffPurchaseCreditManagerPreview({
 
       <HrPurchaseCreditDecisionContext item={account} className="mt-2" />
 
-      <p className="text-xs leading-relaxed text-slate-600">
-        Approved credit covers the quotation balance for delivery. Repayment is collected through payroll on the staff
-        obligation ledger.
-      </p>
+      <DecisionWhatNext title="If you approve">
+        Credit covers the quotation balance so materials can leave for delivery. Repayment is collected through payroll
+        on the staff obligation ledger. Reject stops the credit before stock moves.
+      </DecisionWhatNext>
 
       {!canApprove && !canReject ? (
         <ZareApprovalHint

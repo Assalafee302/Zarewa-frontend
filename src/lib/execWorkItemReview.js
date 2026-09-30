@@ -213,3 +213,66 @@ export function resolveExecReviewView(item) {
   }
   return { view: 'fallback', route: item?.route || '/manager' };
 }
+
+const KIND_LABELS = {
+  price_exception: 'Below-floor price',
+  conversions: 'Conversion check',
+  refunds: 'Refund',
+  refund_request: 'Refund',
+  register_settlement: 'Withdrawal',
+  payments: 'Expense request',
+  payment_request: 'Expense request',
+  clearance: 'Clearance',
+  flagged: 'Flagged quotation',
+  production: 'Production gate',
+  governance: 'Governance',
+  material: 'Material exception',
+  edit_approvals: 'Edit approval',
+  staff_purchase_credit: 'Staff credit',
+  payroll: 'Payroll',
+  inter_branch_loan: 'Inter-branch loan',
+  stock_register: 'Stock register',
+  office_memo: 'Office memo',
+  work_item: 'Work item',
+  overtime: 'Overtime',
+  ot_request: 'Overtime',
+};
+
+const VIEW_HEADLINES = {
+  price_exception: 'Below-floor price',
+  conversion: 'Floor conversion check',
+  refund: 'Refund request',
+  register_settlement: 'Payable withdrawal',
+  payment: 'Expense payment request',
+  quotation: 'Quotation review',
+  material: 'Material exception',
+  edit_approval: 'Edit approval',
+  overtime: 'Overtime request',
+  integrity: 'Governance',
+  staff_purchase_credit: 'Staff purchase credit',
+  payroll: 'Payroll MD sign-off',
+  inter_branch_loan: 'Inter-branch loan',
+  stock_register: 'Month-end stock register',
+  office_memo: 'Office memo',
+  fallback: 'Review',
+};
+
+/**
+ * Plain-language label for a work-tray kind (list chips).
+ * @param {string | null | undefined} kind
+ */
+export function execWorkItemKindLabel(kind) {
+  const k = String(kind || '').trim().toLowerCase();
+  return KIND_LABELS[k] || (k ? k.replace(/_/g, ' ') : 'Review');
+}
+
+/**
+ * Header title for the in-page executive review modal.
+ * @param {string | null | undefined} view
+ * @param {object | null | undefined} [item]
+ */
+export function execReviewHeadline(view, item = null) {
+  const v = String(view || '').trim();
+  if (VIEW_HEADLINES[v]) return VIEW_HEADLINES[v];
+  return execWorkItemKindLabel(item?.kind);
+}

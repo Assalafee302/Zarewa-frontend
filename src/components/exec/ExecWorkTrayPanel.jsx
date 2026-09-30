@@ -5,6 +5,7 @@ import {
   EXEC_APPROVAL_TIER_SHARED,
 } from '../../lib/execApprovalTier';
 import { EXEC_CARD_ROW, EXEC_CHIP, EXEC_COMPACT_ACTION_BTN } from '../../lib/execPageUi';
+import { execWorkItemKindLabel } from '../../lib/execWorkItemReview';
 import { SalesListSearchInput, SalesListTableFrame } from '../sales/SalesListTableFrame';
 
 function approvalTierChip(tier) {
@@ -47,7 +48,7 @@ function WorkTrayCard({ row, readOnly, onReview, formatNgn }) {
             </span>
             <span className={compactChip(priorityChip(row.priority))}>{row.priority}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-              {String(row.kind || '').replace(/_/g, ' ')}
+              {execWorkItemKindLabel(row.kind)}
             </span>
           </div>
           <h3 className="truncate text-[13px] font-semibold leading-snug text-slate-900">
@@ -192,8 +193,8 @@ export function ExecWorkTrayPanel({
                     {row.approvalTierLabel || 'Review'}
                   </span>
                 </td>
-                <td className="py-2.5 font-semibold capitalize text-slate-800">
-                  {String(row.kind || '').replace(/_/g, ' ')}
+                <td className="py-2.5 font-semibold text-slate-800">
+                  {execWorkItemKindLabel(row.kind)}
                 </td>
                 <td className="py-2.5 text-slate-700">{row.branchName}</td>
                 <td className="py-2.5 text-right tabular-nums font-semibold text-slate-800">

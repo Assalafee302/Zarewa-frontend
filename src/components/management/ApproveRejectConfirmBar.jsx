@@ -81,7 +81,7 @@ export function ApproveRejectConfirmBar({
         />
       ) : null}
       {children}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className={`grid grid-cols-1 gap-2 ${canReject ? 'sm:grid-cols-2' : ''}`}>
         {canReject ? (
           <DecisionActionTile
             variant="reject"
@@ -90,9 +90,7 @@ export function ApproveRejectConfirmBar({
             disabled={busy || !canReject}
             onClick={() => void onReject?.()}
           />
-        ) : (
-          <div />
-        )}
+        ) : null}
         <DecisionActionTile
           variant="approve"
           icon={CheckCircle2}

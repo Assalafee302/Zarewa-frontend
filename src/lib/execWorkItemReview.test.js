@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  execReviewHeadline,
+  execWorkItemKindLabel,
   execWorkItemOpensInModal,
   execWorkItemReviewContext,
   resolveExecReviewView,
@@ -42,5 +44,12 @@ describe('execWorkItemReview', () => {
     });
     expect(ctx.otRequestId).toBe('OT-9');
     expect(ctx.quotationRef).toBe('Q-1');
+  });
+
+  it('uses plain-language labels instead of raw kind tokens', () => {
+    expect(execWorkItemKindLabel('register_settlement')).toBe('Withdrawal');
+    expect(execWorkItemKindLabel('inter_branch_loan')).toBe('Inter-branch loan');
+    expect(execReviewHeadline('payroll')).toBe('Payroll MD sign-off');
+    expect(execReviewHeadline('payment')).toBe('Expense payment request');
   });
 });
