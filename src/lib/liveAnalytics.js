@@ -10,6 +10,7 @@ import { refundOutstandingAmount, isRefundPayable, approvedRefundsAwaitingPaymen
 import { isReceiptReversed, receiptEffectiveCashNgn } from './receiptClearance.js';
 import { receiptCashReceivedNgn } from './salesReceiptsList.js';
 import { abbreviateBankName } from './bankAbbreviation.js';
+import { displayDocNumber } from './reportDisplayFormat.js';
 
 function toIsoDate(value) {
   return String(value || '').slice(0, 10);
@@ -946,6 +947,8 @@ export function companyCutWithdrawalsInPeriodRows(movements = [], startDate, end
       quotationRef: 'Company cut',
       amountNgn,
       bankAccount: String(m.accountName || m.bankName || '').trim() || '—',
+      howPaid:
+        abbreviateBankName(m.bankName) || String(m.accountName || '').trim() || 'Company cut',
       reference: String(m.reference || m.note || '').trim() || '—',
       status: 'Company cut withdrawn',
       payoutKind: 'Company cut',
@@ -957,6 +960,45 @@ export function companyCutWithdrawalsInPeriodRows(movements = [], startDate, end
       String(a.refundId).localeCompare(String(b.refundId))
   );
   return rows;
+}
+
+function payoutChannelLabel(p) {
+  const movementType = String(p?.movementType || p?.type || '').trim();
+  if (movementType === 'PARTNER_WALLET_PAYOUT') return 'Partner wallet';
+  const isCash = String(p?.accountType || p?.account_type || '').trim().toLowerCase() === 'cash';
+  if (isCash) return 'Cash';
+  const accountName = String(p?.accountName || p?.account_name || '').trim();
+  if (/^cash\b/i.test(accountName) && !String(p?.bankName || p?.bank_name || '').trim()) return 'Cash';
+  return abbreviateBankName(p?.bankName || p?.bank_name) || accountName || '';
+}
+
+function uniqueHowPaid(labels) {
+  const out = [];
+  for (const raw of labels) {
+    const label = String(raw || '').trim();
+    if (!label || out.includes(label)) continue;
+    out.push(label);
+  }
+  return out.join(', ');
+}
+
+/** Channel when a refund was settled without a dated till/bank line (credit, or the payee bank on file). */
+function refundFallbackHowPaid(refund) {
+  const paid = Math.round(Number(refund?.paidAmountNgn ?? refund?.paid_amount_ngn) || 0);
+  const credit = Math.round(Number(refund?.creditAppliedNgn ?? refund?.credit_applied_ngn) || 0);
+  const labels = [];
+  if (credit > 0) {
+    const target = String(
+      refund?.creditAppliedToQuotationRef ?? refund?.credit_applied_to_quotation_ref ?? ''
+    ).trim();
+    const shown = displayDocNumber(target) || target;
+    labels.push(shown ? `Credit on ${shown}` : 'Refund credit');
+  }
+  if (paid > credit) {
+    const payee = abbreviateBankName(refund?.payeeBankName || refund?.payee_bank_name);
+    if (payee) labels.push(payee);
+  }
+  return uniqueHowPaid(labels) || '—';
 }
 
 export function refundsPaidInPeriodRows(refunds = [], startDate, endDate) {
@@ -973,16 +1015,15 @@ export function refundsPaidInPeriodRows(refunds = [], startDate, endDate) {
       const amt = Math.round(Number(p.amountNgn) || 0);
       if (amt <= 0) continue;
       linesFromHistory += 1;
-      const isCash = String(p.accountType || '').trim().toLowerCase() === 'cash';
+      const channel = payoutChannelLabel(p) || '—';
       paidInPeriod.push({
         payoutDateISO: iso,
         refundId: id,
         customerName: String(r.customer || '').trim() || '—',
         quotationRef: String(r.quotationRef || '').trim() || '',
         amountNgn: amt,
-        bankAccount: isCash
-          ? 'Cash'
-          : abbreviateBankName(p.bankName) || String(p.accountName || '').trim() || '—',
+        bankAccount: channel,
+        howPaid: channel,
         reference: String(p.reference || '').trim() || '—',
         status: String(r.status || '').trim() || 'Paid',
       });
@@ -991,13 +1032,15 @@ export function refundsPaidInPeriodRows(refunds = [], startDate, endDate) {
     const iso = toIsoDate(r.paidAtISO || r.paid_at_iso);
     const paid = Math.round(Number(r.paidAmountNgn) || 0);
     if (paid > 0 && iso && (!startDate || iso >= startDate) && (!endDate || iso <= endDate)) {
+      const howPaid = refundFallbackHowPaid(r);
       paidInPeriod.push({
         payoutDateISO: iso,
         refundId: id,
         customerName: String(r.customer || '').trim() || '—',
         quotationRef: String(r.quotationRef || '').trim() || '',
         amountNgn: paid,
-        bankAccount: '—',
+        bankAccount: howPaid,
+        howPaid,
         reference: String(r.paymentNote || '').trim() || '—',
         status: String(r.status || '').trim() || 'Paid',
       });
@@ -1035,6 +1078,7 @@ export function refundPeriodOverviewRows(refunds = [], ledgerEntries = [], start
     const payoutHistory = Array.isArray(r.payoutHistory) ? r.payoutHistory : [];
     let paidInPeriodNgn = 0;
     let paidDateISO = '';
+    const paidChannels = [];
     for (const p of payoutHistory) {
       const iso = toIsoDate(p.postedAtISO || p.posted_at_iso || p.paidAtISO || p.atISO);
       const amt = Math.round(Number(p.amountNgn) || 0);
@@ -1043,12 +1087,16 @@ export function refundPeriodOverviewRows(refunds = [], ledgerEntries = [], start
       if (endDate && iso > endDate) continue;
       paidInPeriodNgn += amt;
       if (!paidDateISO || iso < paidDateISO) paidDateISO = iso;
+      const channel = payoutChannelLabel(p);
+      if (channel && !paidChannels.includes(channel)) paidChannels.push(channel);
     }
+    let howPaid = paidChannels.length ? paidChannels.join(', ') : '—';
     if (paidInPeriodNgn <= 0) {
       const paidAmt = Math.round(Number(r.paidAmountNgn) || 0);
       if (paidAmt > 0 && paidISO && (!startDate || paidISO >= startDate) && (!endDate || paidISO <= endDate)) {
         paidInPeriodNgn += paidAmt;
         paidDateISO = paidISO;
+        howPaid = refundFallbackHowPaid(r);
       }
     }
     const unpaidOutstandingNgn = Math.max(0, Math.round(refundOutstandingAmount(r)));
@@ -1065,6 +1113,7 @@ export function refundPeriodOverviewRows(refunds = [], ledgerEntries = [], start
       quotationRef: qref,
       amountRefundPaidNgn: paidInPeriodNgn,
       refundPaymentDateISO: paidDateISO,
+      howPaid: paidInPeriodNgn > 0 ? howPaid : '—',
       amountRefundNotPaidNgn: unpaidOutstandingNgn,
       refundId: r.refundID || '',
       status: r.status || '',

@@ -467,7 +467,7 @@ export const EXPORT_SECTIONS = [
         kind: 'pack',
         pack: PACK_REFUND_PERIOD,
         title: 'Refund overview',
-        desc: 'Refund paid and unpaid analysis with quotation and customer detail.',
+        desc: 'Refund paid and unpaid analysis, including how each refund was paid (cash, bank, or credit).',
         icon: Table2,
         formats: ['Excel', 'CSV'],
         printCoverage: 'full',

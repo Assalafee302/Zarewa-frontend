@@ -24,6 +24,32 @@ describe('refundsPaidInPeriodRows', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].amountNgn).toBe(500);
     expect(rows[0].payoutDateISO).toBe('2026-05-02');
+    expect(rows[0].howPaid).toBe('Bank');
+  });
+
+  it('labels cash and a named bank as how the refund was paid', () => {
+    const rows = refundsPaidInPeriodRows(
+      [
+        {
+          refundID: 'RF-CASH',
+          customer: 'Ada',
+          quotationRef: 'QT-100',
+          status: 'Paid',
+          payoutHistory: [
+            { postedAtISO: '2026-05-02', amountNgn: 200, accountType: 'cash', accountName: 'Till' },
+            {
+              postedAtISO: '2026-05-03',
+              amountNgn: 300,
+              accountType: 'bank',
+              bankName: 'Guaranty Trust Bank',
+            },
+          ],
+        },
+      ],
+      '2026-05-01',
+      '2026-05-31'
+    );
+    expect(rows.map((r) => r.howPaid)).toEqual(['Cash', 'GTB']);
   });
 
   it('falls back to paidAtISO when payout history has no usable dates', () => {
@@ -98,5 +124,93 @@ describe('refundPeriodOverviewRows paid fallback', () => {
     );
     expect(rows).toHaveLength(1);
     expect(rows[0].amountRefundPaidNgn).toBe(800);
+    expect(rows[0].howPaid).toBe('—');
+  });
+
+  it('uses the payee bank when cash left no till line', () => {
+    const rows = refundPeriodOverviewRows(
+      [
+        {
+          refundID: 'RF-BANK',
+          customer: 'Chi',
+          quotationRef: 'QT-300',
+          status: 'Paid',
+          paidAmountNgn: 800,
+          paidAtISO: '2026-05-08',
+          payeeBankName: 'Guaranty Trust Bank',
+          payoutHistory: [],
+        },
+      ],
+      [],
+      '2026-05-01',
+      '2026-05-31'
+    );
+    expect(rows[0].howPaid).toBe('GTB');
+  });
+
+  it('shows cash and bank together on the refund overview', () => {
+    const rows = refundPeriodOverviewRows(
+      [
+        {
+          refundID: 'RF-MIX',
+          customer: 'Ada',
+          quotationRef: 'QT-1',
+          status: 'Paid',
+          payoutHistory: [
+            { postedAtISO: '2026-05-02', amountNgn: 200, accountType: 'cash' },
+            { postedAtISO: '2026-05-04', amountNgn: 300, accountType: 'bank', bankName: 'Zenith Bank' },
+          ],
+        },
+      ],
+      [],
+      '2026-05-01',
+      '2026-05-31'
+    );
+    expect(rows[0].howPaid).toBe('Cash, ZENITH');
+    expect(rows[0].amountRefundPaidNgn).toBe(500);
+  });
+
+  it('shows credit used on another quotation when there is no till payout', () => {
+    const rows = refundPeriodOverviewRows(
+      [
+        {
+          refundID: 'RF-CREDIT',
+          customer: 'Ada',
+          quotationRef: 'QT-SRC',
+          status: 'Paid',
+          paidAmountNgn: 70_500,
+          paidAtISO: '2026-05-12',
+          creditAppliedNgn: 70_500,
+          creditAppliedToQuotationRef: 'QT-2026-DST',
+          payoutHistory: [],
+        },
+      ],
+      [],
+      '2026-05-01',
+      '2026-05-31'
+    );
+    expect(rows[0].howPaid).toBe('Credit on 2026-DST');
+  });
+
+  it('leaves how paid blank when the refund is still unpaid', () => {
+    const rows = refundPeriodOverviewRows(
+      [
+        {
+          refundID: 'RF-OPEN',
+          customer: 'Ada',
+          quotationRef: 'QT-9',
+          status: 'Approved',
+          amountNgn: 1000,
+          approvedAmountNgn: 1000,
+          paidAmountNgn: 0,
+          requestedAtISO: '2026-05-06',
+        },
+      ],
+      [],
+      '2026-05-01',
+      '2026-05-31'
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].howPaid).toBe('—');
   });
 });
