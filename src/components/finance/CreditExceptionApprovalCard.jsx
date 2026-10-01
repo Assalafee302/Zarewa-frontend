@@ -17,6 +17,9 @@ export function CreditExceptionApprovalCard({ item, canApprove = false, canRevok
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="text-sm font-black text-slate-900">{item.quotationRef}</p>
+            {item.customerName ? (
+              <p className="text-xs font-semibold text-slate-700">{item.customerName}</p>
+            ) : null}
             <p className="text-xs font-medium text-slate-500">Branch {item.branchId || '—'}</p>
           </div>
           <CreditExceptionStatusChip status={item.status} />

@@ -15,7 +15,7 @@ export const REFUND_MD_APPROVAL_THRESHOLD_NGN = 1_000_000;
  * MD/CEO-level sign-off for non-refund-like categories, except categories treated as refund-like (see below).
  * Amounts at or below this may be approved by a branch manager (see {@link isBranchExpenseApproverRoleKey}).
  */
-export const EXPENSE_MD_APPROVAL_THRESHOLD_NGN = 200_000;
+export const EXPENSE_MD_APPROVAL_THRESHOLD_NGN = 500_000;
 
 const EXECUTIVE_ROLE_KEYS = new Set(['md', 'chairman', 'ceo']);
 
@@ -92,7 +92,7 @@ export function userMayBlockBranchRefunds(actor) {
   const perms = Array.isArray(actor.permissions) ? actor.permissions : [];
   if (perms.includes('*')) return true;
   const rk = String(actor.roleKey || '').trim().toLowerCase();
-  return rk === 'admin';
+  return rk === 'admin' || rk === 'md';
 }
 
 /**

@@ -290,10 +290,17 @@ export function ManagementDecisionModal({
       </div>
     );
 
+  const modalPanelWidth =
+    selectedIntel?.kind === 'refund'
+      ? 'max-w-4xl'
+      : focusedReview
+        ? 'max-w-3xl'
+        : 'max-w-4xl';
+
   return (
     <ModalFrame isOpen={Boolean(selectedIntel)} onClose={closeIntelModal} closeDisabled={modalBusy} showCloseButton={false}>
       <div
-        className={`z-modal-panel w-full overflow-hidden p-0 ${focusedReview ? 'max-w-3xl' : 'max-w-6xl'}`}
+        className={`z-modal-panel w-full overflow-hidden p-0 ${modalPanelWidth}`}
       >
         <Card className="flex max-h-[min(92vh,960px)] flex-col overflow-hidden border-slate-200 bg-white shadow-xl">
           <DecisionModalHeader

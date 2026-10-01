@@ -84,8 +84,8 @@ describe('GovernanceDetailPanel', () => {
     expect(screen.getByText(/Payment Gate Exception/i)).toBeTruthy();
     expect(screen.getByText(/Quotation QT-8800/i)).toBeTruthy();
     expect(screen.getByText(/Grace Bature/i)).toBeTruthy();
-    expect(screen.getByText(/₦1,000,000/i)).toBeTruthy();
-    expect(screen.getByText(/₦650,000/i)).toBeTruthy();
+    expect(screen.getAllByText(/₦1,000,000/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/₦650,000/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Dispatch Hold: Do not release finished goods/i)).toBeTruthy();
 
     const openQuoteBtn = screen.getByRole('button', { name: /Open quotation in Sales/i });

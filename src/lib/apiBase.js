@@ -1,4 +1,9 @@
 import { generateIdempotencyKey } from './idempotency.js';
+import {
+  applyTreasuryConfirmation,
+  askTreasuryConfirmation,
+  treasuryConfirmPrompt,
+} from './treasuryConfirm.js';
 
 const ZAREWA_CSRF_COOKIE = 'zarewa_csrf';
 const UNCERTAIN_MUTATIONS_STORAGE_KEY = 'zarewa_uncertain_mutations_v1';
@@ -161,6 +166,7 @@ export async function apiFetch(path, options = {}) {
     body: rawBody,
     headers: optionHeaders,
     _idempotencyPoll = 0,
+    _treasuryAsked = [],
     ...rest
   } = options;
   const body = serializeApiRequestBody(rawBody);
@@ -260,6 +266,25 @@ export async function apiFetch(path, options = {}) {
       headers,
       _idempotencyPoll: _idempotencyPoll + 1,
     });
+  }
+  // Treasury refusal the user can resolve (date/floor/duplicate reason, correction old → new):
+  // ask once per code, then resend the same request with the same Idempotency-Key.
+  const confirmCode = String(data?.confirmRequired?.code || '');
+  const confirmPrompt =
+    data?.ok === false && confirmCode && typeof body === 'string' && !_treasuryAsked.includes(confirmCode)
+      ? treasuryConfirmPrompt(data.confirmRequired)
+      : null;
+  if (confirmPrompt) {
+    const answer = askTreasuryConfirmation(confirmPrompt);
+    if (answer != null) {
+      if (fingerprint && operationKey) forgetMutation(fingerprint, operationKey);
+      return apiFetch(path, {
+        ...options,
+        body: applyTreasuryConfirmation(body, confirmPrompt, answer),
+        headers,
+        _treasuryAsked: [..._treasuryAsked, confirmCode],
+      });
+    }
   }
   if (fingerprint && operationKey && data?.code !== 'IDEMPOTENCY_IN_PROGRESS') {
     // Any definite server response resolves the uncertainty. A later intentional save

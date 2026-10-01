@@ -2,6 +2,7 @@ import React from 'react';
 import { CreditCard, Landmark, Pencil, Trash2 } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { treasuryAccountBranchLabel } from '../../lib/treasuryAccountsStore';
+import { treasuryIntegrityDisplay } from '../../shared/lib/treasuryTillLane.js';
 import { FinanceDeskBalanceBreakdown } from './FinanceDeskBalanceBreakdown';
 import {
   emptyTreasuryDeskBalanceSplit,
@@ -93,6 +94,18 @@ export function FinanceTreasuryManageAccountsPanel({
                 <p className="mt-1 text-sm font-bold tabular-nums text-zarewa-teal tracking-tight">
                   {formatNgn(balance)}
                 </p>
+                {(() => {
+                  const integrity = treasuryIntegrityDisplay(acc);
+                  if (!integrity.show) return null;
+                  return (
+                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug tabular-nums">
+                      Stored {formatNgn(integrity.stored)} · Book {formatNgn(integrity.computed)}
+                      {integrity.difference !== 0
+                        ? ` · Diff ${formatNgn(integrity.difference)}`
+                        : ''}
+                    </p>
+                  );
+                })()}
                 <FinanceDeskBalanceBreakdown split={split} compact />
                 {acc.accountOfficerName || acc.accountOfficerPhone ? (
                   <p className="text-[10px] text-slate-500 mt-1 truncate">

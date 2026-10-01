@@ -1,6 +1,7 @@
 import React from 'react';
 import { CreditCard, Landmark } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
+import { treasuryIntegrityDisplay } from '../../shared/lib/treasuryTillLane.js';
 import { FinanceActionButton } from './FinanceActionButton';
 import { FinanceDeskBalanceBreakdown } from './FinanceDeskBalanceBreakdown';
 import {
@@ -110,6 +111,18 @@ export function FinanceDeskTreasuryAccountGrid({
                 <p className="mt-1 text-sm font-bold tabular-nums text-zarewa-teal tracking-tight">
                   {formatNgn(balance)}
                 </p>
+                {(() => {
+                  const integrity = treasuryIntegrityDisplay(acc);
+                  if (!integrity.show) return null;
+                  return (
+                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug tabular-nums">
+                      Stored {formatNgn(integrity.stored)} · Book {formatNgn(integrity.computed)}
+                      {integrity.difference !== 0
+                        ? ` · Diff ${formatNgn(integrity.difference)}`
+                        : ''}
+                    </p>
+                  );
+                })()}
                 <FinanceDeskBalanceBreakdown split={split} compact />
               </button>
             </div>

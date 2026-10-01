@@ -52,13 +52,48 @@ export function CreditExceptionDecisionModal({ open, onClose, item, mode, onDone
               {mode === 'revoke' ? 'Revoke credit' : 'Review credit request'}
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Quotation <span className="font-bold text-slate-900">{item.quotationRef}</span> · Credit{' '}
+              Quotation <span className="font-bold text-slate-900">{item.quotationRef}</span>
+              {item.customerName ? (
+                <>
+                  {' · Customer '}
+                  <span className="font-semibold text-slate-800">{item.customerName}</span>
+                </>
+              ) : null}
+              {' · Credit '}
               <span className="font-bold">{formatNgn(item.amountNgn)}</span>
             </p>
           </div>
-          <p className="text-xs text-slate-500">{item.reason || 'No reason provided'}</p>
+
+          <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs">
+            <div>
+              <p className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Outstanding balance</p>
+              <p className="mt-0.5 font-bold tabular-nums text-slate-900">{formatNgn(item.outstandingNgnAtRequest)}</p>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Credit requested</p>
+              <p className="mt-0.5 font-bold tabular-nums text-teal-800">{formatNgn(item.amountNgn)}</p>
+            </div>
+            {item.dueDateISO ? (
+              <div>
+                <p className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Due date</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{item.dueDateISO}</p>
+              </div>
+            ) : null}
+            {item.creditTermsDays ? (
+              <div>
+                <p className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Credit terms</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{item.creditTermsDays} days</p>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 text-xs">
+            <p className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">Reason for credit</p>
+            <p className="mt-1 text-slate-700">{item.reason || 'No reason provided'}</p>
+          </div>
+
           <p className="text-xs font-medium text-amber-800 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
-            Customer debt remains until paid. This only affects delivery release permission.
+            Customer debt remains on ledger until paid. Approving only permits factory dispatch to release the order.
           </p>
           <div>
             <FieldLabel htmlFor="credit-decision-note">Decision note</FieldLabel>

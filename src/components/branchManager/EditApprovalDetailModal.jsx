@@ -155,7 +155,7 @@ export function EditApprovalDetailModal({
 
   return (
     <ModalFrame isOpen={isOpen} onClose={() => !busy && onClose?.()} closeDisabled={busy} showCloseButton={false}>
-      <div className="z-modal-panel flex max-h-[min(90vh,720px)] w-full max-w-lg flex-col overflow-hidden p-0">
+      <div className="z-modal-panel flex max-h-[min(90vh,760px)] w-full max-w-2xl flex-col overflow-hidden p-0">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
           <div className="min-w-0 flex-1">
             <DecisionBand
@@ -256,14 +256,16 @@ export function EditApprovalDetailModal({
             <p className="text-sm text-slate-600 leading-relaxed">{entityGuidance(record?.entityKind)}</p>
 
             {route ? (
-              <Link
-                to={route.to}
-                state={route.state}
-                className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-zarewa-teal hover:underline"
-                onClick={() => onClose?.()}
-              >
-                View source record
-              </Link>
+              <div className="pt-1">
+                <Link
+                  to={route.to}
+                  state={route.state}
+                  className="inline-flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50/60 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-teal-100/70"
+                  onClick={() => onClose?.()}
+                >
+                  View source record →
+                </Link>
+              </div>
             ) : null}
 
             {!canApprove ? (

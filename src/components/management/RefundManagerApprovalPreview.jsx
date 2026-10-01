@@ -1056,7 +1056,7 @@ export function RefundManagerApprovalPreview({
           <span className="text-ui-xs font-semibold text-slate-500">Loading context…</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {/* Quotation — product spec & price comparison */}
           <Panel title="Quotation" hint="Roofing in metres. Stone flatsheet in m². Floor is the workbook minimum.">
             {!auditData || auditData.ok === false ? (
@@ -1733,7 +1733,7 @@ export function RefundManagerApprovalPreview({
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(7rem,9rem)_1fr_auto_auto] lg:items-end">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(7rem,9rem)_1fr_auto_auto] sm:items-end">
           <div>
             <label className="text-ui-xs font-bold uppercase text-slate-500" htmlFor="inbox-approved-amount">
               {creditAppliedNgn > 0 ? 'Approve leftover ₦' : 'Approved ₦'}

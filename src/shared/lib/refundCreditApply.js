@@ -158,6 +158,8 @@ export function refundIsEligibleCreditSourceKind(refund) {
   if (!refundCreditPayeeIsQuoteCustomerOnly(refund)) {
     return false;
   }
+  // Leftover after the first receipt credit is Partially paid and must still cover the next job
+  // (RF-KD-26-9693: ₦555,000 then ₦72,300).
   return status === 'Pending' || status === 'Approved' || status === 'Partially paid';
 }
 
@@ -495,9 +497,12 @@ export function refundFundUsageBreakdown({
   const requestedNgn = Math.max(0, Math.round(Number(amountNgn) || 0));
   const usedOnReceiptNgn = Math.max(0, Math.round(Number(creditAppliedNgn) || 0));
   const paidOutNgn = Math.max(0, Math.round(Number(paidAmountNgn) || 0));
+  // paid_amount often already includes credit apply (stamp bumps both). Count only cash
+  // beyond credit so leftover copy does not double-subtract.
+  const cashPaidBeyondCreditNgn = Math.max(0, paidOutNgn - usedOnReceiptNgn);
   const leftNgn =
     availableNgn == null || availableNgn === ''
-      ? Math.max(0, requestedNgn - usedOnReceiptNgn - paidOutNgn)
+      ? Math.max(0, requestedNgn - usedOnReceiptNgn - cashPaidBeyondCreditNgn)
       : Math.max(0, Math.round(Number(availableNgn) || 0));
   const appliedToQuote = String(creditAppliedToQuotationRef || '').trim();
   return {
@@ -511,8 +516,8 @@ export function refundFundUsageBreakdown({
 }
 
 /**
- * Default Confirm-payment selector: never-applied refund/overpay fund only.
- * Leftover after a prior credit apply stays searchable ({@link refundFundUsageBreakdown}.hasPartialUse).
+ * Never-applied refund/overpay fund (`creditAppliedNgn === 0`). UI may badge leftover differently;
+ * leftover with remaining balance still belongs in the default Confirm-payment selector.
  * @param {{ creditAppliedNgn?: number, credit_applied_ngn?: number }} sourceOrRefund
  */
 export function refundCreditIsFreshSource(sourceOrRefund) {
@@ -530,7 +535,7 @@ export function refundFundRemainingHowToUse(p = {}) {
     : `Already used ₦${b.usedOnReceiptNgn.toLocaleString('en-NG')} on another receipt`;
   const leftBit =
     b.leftNgn > 0
-      ? `₦${b.leftNgn.toLocaleString('en-NG')} left — tick this leftover to cover this receipt, or pay it from till. Do not use the original amount again`
+      ? `₦${b.leftNgn.toLocaleString('en-NG')} left — use this leftover on the next receipt, or pay it from till. Do not use the original amount again`
       : 'Nothing left on this refund';
   return `${usedBit}. ${leftBit}.`;
 }
@@ -555,10 +560,83 @@ export function planCashierRefundOffset({ receiptCashNgn, availableNgn }) {
 export const REFUND_FUND_SKIP_REASON_MIN_LENGTH = 6;
 
 /**
- * @param {unknown} reason
+ * Money guard for Confirm payment: booking new bank cash while this customer still has an open
+ * refund waiting on the payout queue leaves that refund fully payable AND overstates treasury by
+ * the same ₦ — the same money goes out twice (RF-KD-26-9693: ₦627,300 booked as bank cash while
+ * ₦861,575 stayed payable). The cashier must either apply the fund or put in writing why cash
+ * was genuinely received.
+ *
+ * `availableNgn` counts only refund-backed fund. Plain overpay leftover is nobody's queued
+ * payout, so leaving it unused is a choice, not a double pay, and must not block finance.
+ *
+ * Skipped when the target quotation blocks external credit — there the product already tells the
+ * cashier to confirm the real cash and settle that job's own refund from the till.
+ *
+ * @param {{
+ *   availableNgn?: number,
+ *   creditApplyNgn?: number,
+ *   bankReceivedNgn?: number,
+ *   targetBlocksExternalCredit?: boolean,
+ *   alreadyFinalized?: boolean,
+ *   skipReason?: unknown,
+ * }} p
  */
+export function refundFundDecisionRequiredOnConfirm(p = {}) {
+  if (p.alreadyFinalized === true) return false;
+  if (p.targetBlocksExternalCredit === true) return false;
+  const available = Math.max(0, Math.round(Number(p.availableNgn) || 0));
+  if (available <= 0) return false;
+  const bank = Math.max(0, Math.round(Number(p.bankReceivedNgn) || 0));
+  if (bank <= 0) return false;
+  // Any deliberate apply (even partial) is already an answer.
+  if (Math.max(0, Math.round(Number(p.creditApplyNgn) || 0)) > 0) return false;
+  return !refundFundSkipReasonIsValid(p.skipReason);
+}
+
+/** @param {unknown} reason */
 export function refundFundSkipReasonIsValid(reason) {
   return String(reason ?? '').trim().length >= REFUND_FUND_SKIP_REASON_MIN_LENGTH;
+}
+
+/**
+ * Cashier-facing wording for {@link refundFundDecisionRequiredOnConfirm}.
+ * @param {{ availableNgn?: number, bankReceivedNgn?: number }} p
+ */
+export function refundFundDecisionRequiredMessage(p = {}) {
+  const available = Math.max(0, Math.round(Number(p.availableNgn) || 0));
+  const bank = Math.max(0, Math.round(Number(p.bankReceivedNgn) || 0));
+  return (
+    `This customer has ₦${available.toLocaleString('en-NG')} on an open refund still waiting to be paid out. ` +
+    `Confirming ₦${bank.toLocaleString('en-NG')} as new bank cash leaves that refund fully payable, ` +
+    'so the same money leaves twice. Tick the refund fund to cover this receipt, ' +
+    'or say why the customer really paid fresh cash.'
+  );
+}
+
+/**
+ * Whether an open refund should reduce confirm-payment "leftover overpay" on its source quote.
+ * Transport/installation (and other non-overpay) opens still reserve cash — they are not stamped
+ * when leftover is applied. Overpayment-only refunds that cannot be ticked as credit (staff /
+ * multi-payee) must NOT hide leftover: confirm applies `overpay:` and stamps those rows so the
+ * till payout shrinks instead of cashiers booking the same ₦ as new bank cash (double pay).
+ *
+ * @param {{
+ *   status?: string,
+ *   reasonCategory?: unknown,
+ *   calculationLines?: unknown,
+ *   splitDistributions?: unknown,
+ *   customerID?: string,
+ * }} shape
+ */
+export function refundOpenReservesConfirmLeftoverOverpay(shape) {
+  const overpayOnly = refundCategoriesAreOverpaymentOnly(
+    shape?.reasonCategory,
+    shape?.calculationLines
+  );
+  if (overpayOnly && !refundIsEligibleCreditSourceKind(shape)) {
+    return false;
+  }
+  return true;
 }
 
 /**
