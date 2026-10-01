@@ -652,7 +652,11 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     <ModalFrame isOpen={isOpen} onClose={onClose} surface="plain" title={`Executive review — ${kindLabel}`} edgeToEdgeMobile showCloseButton={false}>
       <div
         className={`z-modal-panel flex max-h-[min(92vh,880px)] w-full flex-col overflow-hidden rounded-none sm:rounded-2xl border-0 sm:border border-slate-200 bg-white shadow-xl max-sm:h-[100dvh] max-sm:max-h-[100dvh] ${
-          isOfficeMemo ? 'max-w-[min(100%,960px)]' : 'max-w-[min(100%,720px)]'
+          isOfficeMemo
+            ? 'max-w-[min(100%,960px)]'
+            : review.view === 'refund' || review.view === 'quotation'
+              ? 'max-w-[min(100%,896px)]'
+              : 'max-w-[min(100%,720px)]'
         }`}
       >
         {isOfficeMemo ? (
@@ -1056,14 +1060,6 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 status={stockWorkflow?.status}
                 loading={loadingStock}
               />
-              {!readOnly && item.canAct !== false ? (
-                <a
-                  href="/procurement"
-                  className="inline-flex items-center justify-center rounded-lg border border-zarewa-teal/30 bg-zarewa-teal/5 px-4 py-2.5 text-ui-xs font-black uppercase tracking-widest text-zarewa-teal hover:bg-zarewa-teal/10"
-                >
-                  Open procurement stock register
-                </a>
-              ) : null}
             </div>
           ) : null}
 

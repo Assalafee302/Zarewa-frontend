@@ -33,6 +33,15 @@ export function StockRegisterApprovalPreview({
         MD approval is no longer required. After procurement costing, Capture &amp; lock closes the month on the
         Procurement stock register.
       </DecisionWhatNext>
+
+      <div className="pt-1">
+        <a
+          href="/procurement"
+          className="inline-flex items-center justify-center rounded-lg bg-zarewa-teal px-4 py-2 text-ui-xs font-black uppercase tracking-widest text-white hover:brightness-105"
+        >
+          Open Procurement stock register →
+        </a>
+      </div>
     </div>
   );
 }
