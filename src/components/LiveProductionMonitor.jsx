@@ -214,6 +214,7 @@ export function LiveProductionMonitor({
   /** Business date for start / completion (YYYY-MM-DD). */
   const [productionDateIso, setProductionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
   const [completionDateIso, setCompletionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
+  const [registerSaveNotice, setRegisterSaveNotice] = useState(null);
   /** Until workspace refresh catches up after Save and start production. */
   const [optimisticJobStatus, setOptimisticJobStatus] = useState(null);
   const [correctionModalKind, setCorrectionModalKind] = useState(null);
@@ -403,10 +404,14 @@ export function LiveProductionMonitor({
   }, [selectedJob?.jobID, selectedJob?.status, selectedJob?.offcutInventoryMeters]);
 
   useEffect(() => {
-    const dates = productionDatesFromJob(selectedJob);
-    setProductionDateIso(dates.productionDateIso);
-    setCompletionDateIso(dates.completionDateIso);
-  }, [selectedJob?.jobID, selectedJob?.startDateISO, selectedJob?.completedAtISO, selectedJob?.endDateISO]);
+    if (!selectedJob?.jobID) return;
+    setProductionDateIso(productionDatesFromJob(selectedJob).productionDateIso);
+  }, [selectedJob?.jobID, selectedJob?.startDateISO]);
+
+  useEffect(() => {
+    if (!selectedJob?.jobID) return;
+    setCompletionDateIso(productionDatesFromJob(selectedJob).completionDateIso);
+  }, [selectedJob?.jobID, selectedJob?.completedAtISO, selectedJob?.endDateISO]);
 
   useEffect(() => {
     if (!selectedJob?.jobID || !optimisticJobStatus) return;
@@ -477,7 +482,7 @@ export function LiveProductionMonitor({
     if (jobChanged) setJobCoilsFromApi(null);
     let cancelled = false;
     void (async () => {
-      const r = await apiFetch(`/api/production-jobs/${encodeURIComponent(jobId)}/coil-allocations`);
+      const r = await apiFetch(`/api/production-jobs/${encodeURIComponent(jobId)}/coil-allocations`, { cache: 'no-store' });
       if (cancelled) return;
       if (r.ok && r.data?.ok && Array.isArray(r.data.allocations)) {
         setJobCoilsFromApi(
@@ -598,21 +603,25 @@ export function LiveProductionMonitor({
 
   /** Prefer write delta; otherwise reload production jobs/coils (faster than full bootstrap). */
   const refreshProductionWorkspace = useCallback(async (opts = {}) => {
-    if (opts?.delta && typeof ws?.applyWriteDelta === 'function' && ws.applyWriteDelta(opts.delta)) {
-      setCoilAllocRefreshToken((n) => n + 1);
-      return;
+    const applied = Boolean(
+      opts?.delta && typeof ws?.applyWriteDelta === 'function' && ws.applyWriteDelta(opts.delta)
+    );
+    if (!applied) {
+      if (typeof ws?.ensureDomainLoaded === 'function') {
+        await ws.ensureDomainLoaded('operations', { force: true });
+      } else {
+        await ws?.refresh?.();
+      }
     }
-    if (typeof ws?.ensureDomainLoaded === 'function') {
-      await ws.ensureDomainLoaded('operations', { force: true });
-    } else {
-      await ws?.refresh?.();
-    }
-    setCoilAllocRefreshToken((n) => n + 1);
+    if (!opts.skipCoilReload) setCoilAllocRefreshToken((n) => n + 1);
   }, [ws]);
 
   const refreshAfterWrite = useCallback(
-    async (res) => {
-      await refreshProductionWorkspace({ delta: res?.data?.delta ?? res?.delta });
+    async (res, extra = {}) => {
+      await refreshProductionWorkspace({
+        delta: res?.data?.delta ?? res?.delta,
+        skipCoilReload: extra.skipCoilReload,
+      });
     },
     [refreshProductionWorkspace]
   );
@@ -2497,9 +2506,12 @@ export function LiveProductionMonitor({
             next.openingWeightKg = Number.isFinite(op) ? String(op) : raw;
           }
         }
+        const keepReservedOpening =
+          normalizeJobStatus(selectedJob?.status) === 'Running' && !isDraftAllocationRow(row);
         if (
           Object.prototype.hasOwnProperty.call(patch, 'coilNo') &&
-          !Object.prototype.hasOwnProperty.call(patch, 'openingWeightKg')
+          !Object.prototype.hasOwnProperty.call(patch, 'openingWeightKg') &&
+          !keepReservedOpening
         ) {
           const newCoil = String(patch.coilNo ?? '').trim();
           if (newCoil) {
@@ -2947,7 +2959,9 @@ export function LiveProductionMonitor({
     if (type === 'runningCheckpoint') {
       if (!runningCheckpointSaveReady) {
         setSavingAction('');
-        showToast('Nothing to save — add a new coil line or edit a saved coil first.', { variant: 'info' });
+        const emptyText = 'Nothing to save — add a new coil line or edit a saved coil first.';
+        setRegisterSaveNotice({ variant: 'error', text: emptyText });
+        showToast(emptyText, { variant: 'info' });
         return;
       }
       const skippedCoilRows = incompleteNewCoilRows(draftAllocations);
@@ -2956,6 +2970,7 @@ export function LiveProductionMonitor({
       try {
         let lastStockRecalc = null;
         let lastWriteRes = null;
+        let openingEdited = false;
         if (runLogSaveReady && !stonePureNoCoil) {
           const persistedRows = draftAllocations.filter((r) => !isDraftAllocationRow(r));
           const persistedMetersTotal = persistedRows.reduce(
@@ -2964,25 +2979,39 @@ export function LiveProductionMonitor({
           );
           if (persistedRows.length > 0 && persistedMetersTotal <= 0) {
             setSavingAction('');
-            showToast(
-              'Enter metres produced before saving. Use Cancel job if nothing was produced (zero metres means cancellation).',
-              { variant: 'error' }
-            );
+            const errText = 'Enter metres produced before saving. Use Cancel job if nothing was produced (zero metres means cancellation).';
+            setRegisterSaveNotice({ variant: 'error', text: errText });
+            showToast(errText, { variant: 'error' });
             return;
           }
+          const seededDates = productionDatesFromJob(selectedJob);
+          const completionDateISO =
+            completionDateIso && completionDateIso !== seededDates.completionDateIso ? completionDateIso : '';
+          openingEdited = persistedRows.some((row) => {
+            const server = selectedJobAllocations.find((a) => String(a.id) === String(row.id));
+            if (!server) return false;
+            const typed = parseWholeKgInput(row.openingWeightKg);
+            const reserved = Math.round(Number(server.openingWeightKg) || 0);
+            return Number.isFinite(typed) && reserved > 0 && typed !== reserved;
+          });
           const buildRunLog = (withAck) => ({
             readings: draftAllocations
               .filter((r) => !isDraftAllocationRow(r))
-              .map((row) => ({
-                allocationId: row.id,
-                coilNo: String(row.coilNo ?? '').trim(),
-                openingWeightKg: parseWholeKgInput(row.openingWeightKg) || 0,
-                closingWeightKg: parseWholeKgInput(row.closingWeightKg) || 0,
-                metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
-                note: String(row.note ?? '').trim(),
-                ...(withAck ? { specMismatchAcknowledged: true } : {}),
-              })),
+              .map((row) => {
+                const server = selectedJobAllocations.find((a) => String(a.id) === String(row.id));
+                const reserved = Math.round(Number(server?.openingWeightKg) || 0);
+                return {
+                  allocationId: row.id,
+                  coilNo: String(row.coilNo ?? '').trim(),
+                  openingWeightKg: reserved > 0 ? reserved : parseWholeKgInput(row.openingWeightKg) || 0,
+                  closingWeightKg: parseWholeKgInput(row.closingWeightKg) || 0,
+                  metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
+                  note: String(row.note ?? '').trim(),
+                  ...(withAck ? { specMismatchAcknowledged: true } : {}),
+                };
+              }),
             productionDateISO: productionDateIso,
+            ...(completionDateISO ? { completionDateISO } : {}),
           });
           let resRl = await apiFetch(`${jobApi}/coil-run-log`, {
             method: 'POST',
@@ -3008,8 +3037,11 @@ export function LiveProductionMonitor({
           }
           if (!resRl.ok || !resRl.data?.ok) {
             setSavingAction('');
-            showToast(/abort|timed out|timeout/i.test(String(resRl.data?.error || '')) ? 'Save is taking too long. Open the job again in a moment — it may already be saved.' : (resRl.data?.error || 'Could not save run log.'), { variant: 'error' });
-            await refreshAfterWrite(resRl);
+            const errText = /abort|timed out|timeout/i.test(String(resRl.data?.error || ''))
+              ? 'Save is taking too long. Open the job again in a moment — it may already be saved.'
+              : (resRl.data?.error || 'Could not save run log.');
+            setRegisterSaveNotice({ variant: 'error', text: errText });
+            showToast(errText, { variant: 'error' });
             return;
           }
           lastStockRecalc = resRl.data?.stockRecalc ?? lastStockRecalc;
@@ -3051,8 +3083,9 @@ export function LiveProductionMonitor({
             }
             if (!resA.ok || !resA.data?.ok) {
               setSavingAction('');
-              showToast(resA.data?.error || 'Could not save new coil.', { variant: 'error' });
-              await refreshAfterWrite(resA);
+              const errText = resA.data?.error || 'Could not save new coil.';
+              setRegisterSaveNotice({ variant: 'error', text: errText });
+              showToast(errText, { variant: 'error' });
               return;
             }
             lastStockRecalc = resA.data?.stockRecalc ?? lastStockRecalc;
@@ -3069,14 +3102,24 @@ export function LiveProductionMonitor({
         }
         setSavingAction('');
         if (!skippedCoilRows.length) clearProdCoilDraftStorage(selectedJob.jobID);
-        showToast(`Saved.${stockRecalcSuffix(lastStockRecalc)}`);
-        void refreshAfterWrite(lastWriteRes);
+        const serverWarning = Array.isArray(lastWriteRes?.data?.warnings)
+          ? lastWriteRes.data.warnings.filter(Boolean).join(' ')
+          : '';
+        const openingNote = openingEdited ? 'Opening kg stays at the weight reserved when the coil was allocated.' : '';
+        const savedText = ['Saved.', serverWarning, openingNote, stockRecalcSuffix(lastStockRecalc).trim()]
+          .filter(Boolean)
+          .join(' ');
+        setRegisterSaveNotice({ variant: openingNote || serverWarning ? 'error' : 'ok', text: savedText });
+        showToast(savedText, openingNote || serverWarning ? { variant: 'error' } : undefined);
+        void refreshAfterWrite(lastWriteRes, { skipCoilReload: true });
         if (skippedCoilRows.length) {
           showToast(incompleteNewCoilRowsMessage(skippedCoilRows), { variant: 'error' });
         }
       } catch (e) {
         setSavingAction('');
-        showToast(e?.message || 'Save failed.', { variant: 'error' });
+        const errText = e?.message || 'Save failed.';
+        setRegisterSaveNotice({ variant: 'error', text: errText });
+        showToast(errText, { variant: 'error' });
       }
       return;
     }
@@ -3611,6 +3654,18 @@ export function LiveProductionMonitor({
             >
               <X size={20} strokeWidth={2} aria-hidden />
             </button>
+          ) : null}
+          {!inModal && registerSaveNotice ? (
+            <p
+              role="status"
+              className={`w-full rounded-md px-2 py-1.5 text-xs font-semibold ${
+                registerSaveNotice.variant === 'error'
+                  ? 'bg-red-50 text-red-800'
+                  : 'bg-emerald-50 text-emerald-900'
+              }`}
+            >
+              {registerSaveNotice.text}
+            </p>
           ) : null}
           {!inModal ? (
             <div className="flex flex-wrap items-stretch gap-1.5 lg:justify-end">
@@ -5598,6 +5653,18 @@ export function LiveProductionMonitor({
       </div>
       </div>
 
+      {inModal && registerSaveNotice ? (
+        <p
+          role="status"
+          className={`px-3 py-2 text-sm font-semibold ${
+            registerSaveNotice.variant === 'error'
+              ? 'bg-red-50 text-red-800'
+              : 'bg-emerald-50 text-emerald-900'
+          }`}
+        >
+          {registerSaveNotice.text}
+        </p>
+      ) : null}
       {inModal ? (
         <div className={PROD_REG.actionBar}>
           {readOnly ? (
