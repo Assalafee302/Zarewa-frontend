@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banknote, History, Scale, ShoppingCart, Tag } from 'lucide-react';
+import { Banknote, History, Scale, ShieldAlert, ShoppingCart, Tag } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { Card, Button } from '../ui';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
@@ -95,6 +95,7 @@ export function ManagementDecisionModal({
     selectedIntel?.kind === 'register_settlement' ||
     selectedIntel?.kind === 'purchase_order' ||
     selectedIntel?.kind === 'staff_purchase_credit' ||
+    selectedIntel?.kind === 'governance' ||
     isQuotationReview;
   const headerIcon =
     selectedIntel?.kind === 'conversion'
@@ -103,9 +104,11 @@ export function ManagementDecisionModal({
         ? Banknote
         : selectedIntel?.kind === 'purchase_order'
           ? ShoppingCart
-          : isPriceExceptionDesk
-            ? Tag
-            : History;
+          : selectedIntel?.kind === 'governance'
+            ? ShieldAlert
+            : isPriceExceptionDesk
+              ? Tag
+              : History;
 
   useEffect(() => {
     if (selectedIntel?.kind === 'material') {
@@ -279,7 +282,7 @@ export function ManagementDecisionModal({
           Open in Procurement
         </Button>
       </DecisionStickyActions>
-    ) : (
+    ) : selectedIntel?.kind === 'governance' ? null : (
       <div className="border-t border-slate-200 bg-white p-3">
         <p className="text-center text-ui-xs font-semibold uppercase tracking-widest text-slate-400">
           Management · Zarewa
@@ -309,7 +312,7 @@ export function ManagementDecisionModal({
                 onOpenRefund={onGovernanceOpenRefund}
                 onOpenQuotation={onGovernanceOpenQuotation}
                 onOpenProductionQc={onGovernanceOpenProductionQc}
-                onOpenProcurement={onGovernanceOpenProcurement}
+                navigate={navigate}
               />
             ) : selectedIntel?.kind === 'quotation' ? (
               <>
