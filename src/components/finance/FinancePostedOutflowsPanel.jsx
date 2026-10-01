@@ -160,7 +160,7 @@ function PostedRowActions({ row, onOpen }) {
   const showReverse =
     canReversePaymentRequestTreasury &&
     ws?.canMutate &&
-    ((row.type === 'PAYMENT_REQUEST_OUT' && pr && paidPr > 0 && isPrPrimary) ||
+    ((row.type === 'PAYMENT_REQUEST_OUT' && pr && isPrPrimary) ||
       (row.type === 'REFUND_PAYOUT' && rf && paidRf > 0 && isRefundPrimary));
   const showDeleteExpenseRow =
     canDeleteRolloutExpenseOrRequest &&
@@ -171,6 +171,7 @@ function PostedRowActions({ row, onOpen }) {
   const showDeletePrRow =
     canDeleteRolloutExpenseOrRequest &&
     ws?.canMutate &&
+    !canReversePaymentRequestTreasury &&
     row.type === 'PAYMENT_REQUEST_OUT' &&
     pr &&
     paidPr <= 0 &&
@@ -246,11 +247,13 @@ function RequestRowActions({ req }) {
 
   const paid = Number(req.paidAmountNgn) || 0;
   const prTreasuryOut = treasuryOutflowLinesForPaymentRequest(req.requestID, liveTreasuryMovements);
+  const payoutStillOnBook = paid <= 0 && prTreasuryOut.length > 0;
 
   return (
     <div className="inline-flex flex-wrap justify-end gap-1">
       <QuietAction onClick={() => handleDeskViewPaymentRequest(req.requestID)}>View</QuietAction>
       {req.approvalStatus === 'Approved' &&
+      !payoutStillOnBook &&
       effectiveOutstandingNgn(Number(req.amountRequestedNgn) || 0, paid) > 0 &&
       canPayRequests &&
       ws?.canMutate ? (
@@ -258,7 +261,7 @@ function RequestRowActions({ req }) {
           Pay
         </QuietAction>
       ) : null}
-      {req.approvalStatus === 'Approved' && paid <= 0 && canPayRequests && ws?.canMutate ? (
+      {req.approvalStatus === 'Approved' && paid <= 0 && !payoutStillOnBook && canPayRequests && ws?.canMutate ? (
         <QuietAction
           tone="rose"
           disabled={cancelPayRequestBusyId === req.requestID}
@@ -283,7 +286,7 @@ function RequestRowActions({ req }) {
           Pay-from
         </QuietAction>
       ) : null}
-      {canReversePaymentRequestTreasury && ws?.canMutate && paid > 0 ? (
+      {canReversePaymentRequestTreasury && ws?.canMutate && (paid > 0 || payoutStillOnBook) ? (
         <QuietAction
           tone="amber"
           disabled={reversingTreasuryPayoutId === req.requestID}
@@ -293,7 +296,7 @@ function RequestRowActions({ req }) {
           Reverse
         </QuietAction>
       ) : null}
-      {canDeleteRolloutExpenseOrRequest && paid <= 0 ? (
+      {canDeleteRolloutExpenseOrRequest && paid <= 0 && !payoutStillOnBook ? (
         <QuietAction
           tone="rose"
           disabled={deletingPayRequestId === req.requestID}
@@ -961,7 +964,7 @@ function ArchiveRequestList() {
             Pay-from
           </QuietAction>
         ) : null}
-        {canReversePaymentRequestTreasury && ws?.canMutate && archPaid > 0 ? (
+        {canReversePaymentRequestTreasury && ws?.canMutate && (archPaid > 0 || archPrTreasuryOut.length > 0) ? (
           <QuietAction
             tone="amber"
             disabled={reversingTreasuryPayoutId === req.requestID}
