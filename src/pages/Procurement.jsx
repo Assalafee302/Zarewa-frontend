@@ -55,7 +55,7 @@ import {
   purchaseOrderCanAssignTransport,
 } from '../lib/purchaseOrderWorkflow';
 import { defaultTransportAgentProfile, mergeTransportAgentProfile } from '../lib/transportAgentIntel';
-import { sortAccountsPayableList, mergeOpenPayablesSources, payableOutstandingNgn } from '../lib/procurementPayablesSorting';
+import { sortAccountsPayableList, mergeOpenPayablesSources, mergeSettledPayablesSources, payableOutstandingNgn } from '../lib/procurementPayablesSorting';
 import { useAppTablePaging } from '../lib/appDataTable';
 
 import {
@@ -363,8 +363,11 @@ const Procurement = () => {
   );
   const payablesSettledSource = useMemo(
     () =>
-      payables.filter((p) => (Number(p.paidNgn) || 0) >= (Number(p.amountNgn) || 0)),
-    [payables]
+      mergeSettledPayablesSources({
+        accountsPayable: ws?.snapshot?.accountsPayableSettled,
+        purchaseOrders,
+      }),
+    [ws?.snapshot?.accountsPayableSettled, purchaseOrders]
   );
 
   const filteredOpenPayables = useMemo(() => {

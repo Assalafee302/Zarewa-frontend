@@ -107,6 +107,67 @@ export function payablesFromOutstandingPurchaseOrders(purchaseOrders) {
     });
 }
 
+function poStatusClosed(po) {
+  const status = String(po?.status || '').trim().toLowerCase();
+  return status === 'rejected' || status === 'cancelled' || status === 'canceled';
+}
+
+/**
+ * AP-shaped rows from purchase orders paid in full.
+ * @param {object[]} purchaseOrders
+ */
+export function payablesFromSettledPurchaseOrders(purchaseOrders) {
+  return (purchaseOrders || [])
+    .filter((po) => {
+      if (poStatusClosed(po)) return false;
+      const amount = Number(po?.amountNgn) || Number(po?.orderedValueNgn) || 0;
+      if (!(amount > 0)) return false;
+      const outstanding = Number(po?.outstandingNgn);
+      if (po?.outstandingNgn != null && po?.outstandingNgn !== '' && Number.isFinite(outstanding)) {
+        return outstanding <= 0;
+      }
+      const paid = Number(po?.paidNgn) || Number(po?.supplierPaidNgn) || 0;
+      return paid >= amount;
+    })
+    .map((po) => {
+      const amountNgn = Number(po.amountNgn) || Number(po.orderedValueNgn) || 0;
+      const paidNgn = Number(po.paidNgn) || Number(po.supplierPaidNgn) || 0;
+      return {
+        apID: `AP-PO-${po.poID}`,
+        supplierName: po.supplierName,
+        poRef: po.poID,
+        invoiceRef: po.invoiceNo || '',
+        amountNgn,
+        paidNgn,
+        outstandingNgn: 0,
+        dueDateISO: po.expectedDeliveryISO || po.orderDateISO || '',
+        paymentMethod: '',
+        branchId: po.branchId || '',
+        lines: po.lines || [],
+      };
+    });
+}
+
+/**
+ * Fully paid supplier invoices: settled AP rows plus fully paid POs missing from that register.
+ * @param {{ accountsPayable?: object[]; purchaseOrders?: object[] }} sources
+ */
+export function mergeSettledPayablesSources(sources = {}) {
+  const byId = new Map();
+  const poRefs = new Set();
+  const add = (row) => {
+    const id = String(row?.apID || '').trim();
+    if (!id || byId.has(id)) return;
+    const poRef = String(row?.poRef || '').trim();
+    if (poRef && poRefs.has(poRef)) return;
+    byId.set(id, { ...row, outstandingNgn: 0 });
+    if (poRef) poRefs.add(poRef);
+  };
+  for (const row of Array.isArray(sources.accountsPayable) ? sources.accountsPayable : []) add(row);
+  for (const row of payablesFromSettledPurchaseOrders(sources.purchaseOrders)) add(row);
+  return [...byId.values()];
+}
+
 /**
  * Union AP register, unpaid POs, and outstandingPaymentLines so MD still sees
  * Purchases outstanding payments after a finance/operations pack overwrite.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   mergeOpenPayablesSources,
+  mergeSettledPayablesSources,
   payablesFromOutstandingPurchaseOrders,
   payableOutstandingNgn,
 } from './procurementPayablesSorting';
@@ -38,6 +39,19 @@ describe('mergeOpenPayablesSources', () => {
   it('payableOutstandingNgn prefers the snapshot outstanding field', () => {
     expect(payableOutstandingNgn({ amountNgn: 0, paidNgn: 0, outstandingNgn: 75_000 })).toBe(75_000);
     expect(payableOutstandingNgn({ amountNgn: 100_000, paidNgn: 40_000 })).toBe(60_000);
+  });
+
+  it('lists fully paid orders that the open payables merge drops', () => {
+    const rows = mergeSettledPayablesSources({
+      accountsPayable: [{ apID: 'AP-PAID', poRef: 'PO-2', amountNgn: 80000, paidNgn: 80000, outstandingNgn: 0 }],
+      purchaseOrders: [
+        { poID: 'PO-1', supplierName: 'Coil House', amountNgn: 100000, paidNgn: 0, outstandingNgn: 100000, status: 'Approved' },
+        { poID: 'PO-2', supplierName: 'Coil House', amountNgn: 80000, paidNgn: 80000, outstandingNgn: 0, status: 'Approved' },
+        { poID: 'PO-3', supplierName: 'Stone Yard', amountNgn: 40000, supplierPaidNgn: 40000, outstandingNgn: 0, status: 'Received' },
+      ],
+    });
+    expect(rows.map((r) => r.poRef)).toEqual(['PO-2', 'PO-3']);
+    expect(rows.every((r) => r.outstandingNgn === 0)).toBe(true);
   });
 
   it('payablesFromOutstandingPurchaseOrders skips rejected POs', () => {
