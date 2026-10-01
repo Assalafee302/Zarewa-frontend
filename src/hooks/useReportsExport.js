@@ -182,7 +182,8 @@ export function useReportsExport({
           startDate,
           endDate,
           ledgerEntries,
-          treasuryMovements
+          treasuryMovements,
+          refunds
         ).map((r) => {
           const isDebt = r.group === 'Outstanding balance (debtors)';
           return {
@@ -438,7 +439,8 @@ export function useReportsExport({
           startDate,
           endDate,
           ledgerEntries,
-          treasuryMovements
+          treasuryMovements,
+          refunds
         );
         const refundedInPeriodNgn = refundsPaidInPeriodRows(refunds, startDate, endDate).reduce(
           (sum, r) => sum + (Number(r.amountNgn) || 0),
@@ -808,7 +810,9 @@ export function useReportsExport({
         quotations,
         startDate,
         endDate,
-        ledgerEntries
+        ledgerEntries,
+        treasuryMovements,
+        refunds
       ).map((r) => ({
         category: r.group,
         paymentDateISO: r.paymentDateISO,

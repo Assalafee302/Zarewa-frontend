@@ -4,7 +4,10 @@ import {
   quotationWaivedBalanceNgn,
   receivableDueOnQuotationFromEntries,
 } from './customerLedgerCore.js';
-import { registerReceivableOutstandingNgn } from './receivableWriteOffPolicy.js';
+import {
+  isMinorReceivableForBranchManager,
+  registerReceivableOutstandingNgn,
+} from './receivableWriteOffPolicy.js';
 import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
 import { refundOutstandingAmount, isRefundPayable, approvedRefundsAwaitingPayment } from './refundsStore.js';
 import { isReceiptReversed, receiptEffectiveCashNgn } from './receiptClearance.js';
@@ -676,6 +679,88 @@ export function quotationPaidNgnAsOf(quotationRef, salesReceipts = [], ledgerEnt
   return Math.round(paid);
 }
 
+function jobStatusKey(job) {
+  return String(job?.status || '')
+    .trim()
+    .toLowerCase();
+}
+
+/** Customer change of mind — job never completed. */
+function quoteIsCancelledNotProduced(quotationRef, productionJobs = []) {
+  const qref = String(quotationRef || '').trim();
+  if (!qref) return false;
+  const jobs = (productionJobs || []).filter((j) => String(j.quotationRef || '').trim() === qref);
+  if (!jobs.length) return false;
+  if (jobs.some((j) => jobStatusKey(j) === 'completed')) return false;
+  if (jobs.some((j) => jobStatusKey(j) === 'planned' || jobStatusKey(j) === 'running')) return false;
+  return jobs.some((j) => jobStatusKey(j) === 'cancelled');
+}
+
+function refundReasonLabels(refund) {
+  const raw = refund?.reasonCategories ?? refund?.reasonCategory ?? refund?.reason_category ?? [];
+  if (Array.isArray(raw)) return raw.map((s) => String(s || '').trim()).filter(Boolean);
+  const text = String(raw || '').trim();
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed.map((s) => String(s || '').trim()).filter(Boolean);
+  } catch {
+    /* plain string */
+  }
+  return text
+    .split(/[,;]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function refundIsOrderCancellation(refund) {
+  return refundReasonLabels(refund).some((c) => /order\s*cancellation/i.test(c));
+}
+
+function refundSettledIso(refund) {
+  const history = Array.isArray(refund?.payoutHistory) ? refund.payoutHistory : [];
+  let latest = toIsoDate(refund?.paidAtISO || refund?.paid_at_iso);
+  for (const line of history) {
+    const d = toIsoDate(line?.postedAtISO || line?.posted_at_iso);
+    if (d && (!latest || d > latest)) latest = d;
+  }
+  return latest || toIsoDate(refund?.requestedAtISO || refund?.requested_at_iso);
+}
+
+function refundIsSettledByDate(refund, asAtISO) {
+  const st = String(refund?.status || '').trim();
+  if (st === 'Rejected' || st === 'Cancelled') return false;
+  const paid = Math.round(Number(refund?.paidAmountNgn ?? refund?.paid_amount_ngn) || 0);
+  const credit = Math.round(Number(refund?.creditAppliedNgn ?? refund?.credit_applied_ngn) || 0);
+  const settled = st === 'Paid' || (paid + credit > 0 && refundOutstandingAmount(refund) <= 0);
+  if (!settled) return false;
+  const when = refundSettledIso(refund);
+  const asAt = toIsoDate(asAtISO);
+  if (asAt && when && when > asAt) return false;
+  return true;
+}
+
+/**
+ * Cash on a cancelled order that has already been refunded is not unproduced credit.
+ */
+function quoteCancellationRefundedByDate(quotationRef, productionJobs, refunds, asAtISO) {
+  const qref = String(quotationRef || '').trim();
+  if (!qref) return false;
+  const related = (refunds || []).filter((r) => String(r.quotationRef || '').trim() === qref);
+  const settled = related.filter((r) => refundIsSettledByDate(r, asAtISO));
+  if (!settled.length) return false;
+  if (quoteIsCancelledNotProduced(qref, productionJobs)) return true;
+  return settled.some(refundIsOrderCancellation);
+}
+
+function quotationManagerClearedByDate(q, asAtISO) {
+  const cleared = toIsoDate(q?.managerClearedAtISO || q?.manager_cleared_at_iso);
+  if (!cleared) return false;
+  const asAt = toIsoDate(asAtISO);
+  if (asAt && cleared > asAt) return false;
+  return true;
+}
+
 export const SALES_REPORT_GROUP_PRODUCED = 'Materials produced in period';
 export const SALES_REPORT_GROUP_NOT_PRODUCED = 'Materials not produced in period';
 export const SALES_REPORT_GROUP_OUTSTANDING = 'Outstanding balance (debtors)';
@@ -699,11 +784,13 @@ export function salesOutstandingBalanceRows(
     if (!qref) continue;
     const firstProd = earliestCompletedProductionDateISO(qref, productionJobs);
     if (!firstProd || firstProd > asAt) continue;
+    if (quotationManagerClearedByDate(q, asAt)) continue;
     const total = Math.round(Number(q.totalNgn ?? q.total_ngn) || 0);
     if (total <= 0) continue;
     const paid = quotationPaidNgnAsOf(qref, salesReceipts, ledgerEntries, asAt);
     const due = registerReceivableOutstandingNgn(total, paid, quotationWaivedBalanceNgn(q));
     if (due <= 0) continue;
+    if (isMinorReceivableForBranchManager(due, paid)) continue;
     rows.push({
       group: SALES_REPORT_GROUP_OUTSTANDING,
       paymentDateISO: asAt,
@@ -736,9 +823,11 @@ export function salesOutstandingBalanceRows(
  *   and the receipt was recorded on or before period end (includes cash paid in a prior month
  *   that was still credit until production).
  * - **Materials not produced in period** — cash received in this period whose quote is still
- *   unproduced at period end (customer credit / deferred sales).
+ *   unproduced at period end (customer credit / deferred sales). Cancelled orders that have
+ *   already been refunded are omitted (they are refunds, not credit waiting for production).
  * - **Outstanding balance (debtors)** — produced by period end with unpaid balance as-of that date
- *   (listed every month while the balance remains).
+ *   (listed every month while the balance remains). Manager-cleared quotes, waived balances,
+ *   and minor leftovers under ₦1,000 are omitted.
  *
  * Cash collected in this period on quotes already produced before the period is omitted
  * (prior-period sales; collection only) from the cash groups, but still affects debtor balances.
@@ -777,7 +866,8 @@ export function salesPaymentsReceivedRows(
   startDate,
   endDate,
   ledgerEntries = [],
-  treasuryMovements = []
+  treasuryMovements = [],
+  refunds = []
 ) {
   const bankByLedgerId = bankLabelByLedgerEntryId(treasuryMovements);
   const quoteCustomer = new Map(
@@ -804,9 +894,14 @@ export function salesPaymentsReceivedRows(
       outstandingByQuote.set(qref, 0);
       return 0;
     }
+    if (quotationManagerClearedByDate(q, asAt)) {
+      outstandingByQuote.set(qref, 0);
+      return 0;
+    }
     const total = Math.round(Number(q.totalNgn ?? q.total_ngn) || 0);
     const paid = quotationPaidNgnAsOf(qref, salesReceipts, ledgerEntries, asAt);
-    const due = registerReceivableOutstandingNgn(total, paid, quotationWaivedBalanceNgn(q));
+    let due = registerReceivableOutstandingNgn(total, paid, quotationWaivedBalanceNgn(q));
+    if (due > 0 && isMinorReceivableForBranchManager(due, paid)) due = 0;
     outstandingByQuote.set(qref, due);
     return due;
   };
@@ -845,6 +940,9 @@ export function salesPaymentsReceivedRows(
     if (firstProdInPeriod && (!endDate || iso <= endDate)) {
       group = SALES_REPORT_GROUP_PRODUCED;
     } else if (paidInPeriod && stillUnproducedAtPeriodEnd) {
+      if (quoteCancellationRefundedByDate(qref, productionJobs, refunds, endDate)) {
+        continue;
+      }
       group = SALES_REPORT_GROUP_NOT_PRODUCED;
     } else {
       continue;

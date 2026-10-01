@@ -373,4 +373,112 @@ describe('salesPaymentsReceivedRows', () => {
     );
     expect(feb).toHaveLength(0);
   });
+
+  it('omits cancelled-and-refunded cash from not produced', () => {
+    const receipts = [
+      {
+        id: 'SR-CXL',
+        customer: 'Cancel Co',
+        quotationRef: 'QT-CXL',
+        dateISO: '2026-03-08',
+        amountNgn: 180_000,
+      },
+    ];
+    const jobs = [{ quotationRef: 'QT-CXL', status: 'Cancelled', completedAtISO: '2026-03-09T10:00:00.000Z' }];
+    const refunds = [
+      {
+        quotationRef: 'QT-CXL',
+        status: 'Paid',
+        reasonCategory: JSON.stringify(['Order cancellation']),
+        amountNgn: 180_000,
+        paidAmountNgn: 180_000,
+        paidAtISO: '2026-03-12',
+      },
+    ];
+    const rows = salesPaymentsReceivedRows(
+      receipts,
+      jobs,
+      [],
+      '2026-03-01',
+      '2026-03-31',
+      [],
+      [],
+      refunds
+    );
+    expect(rows.filter((r) => r.group === 'Materials not produced in period')).toHaveLength(0);
+  });
+
+  it('keeps unproduced cash when the order was cancelled but not yet refunded', () => {
+    const receipts = [
+      {
+        id: 'SR-WAIT',
+        customer: 'Wait Co',
+        quotationRef: 'QT-WAIT',
+        dateISO: '2026-03-08',
+        amountNgn: 90_000,
+      },
+    ];
+    const jobs = [{ quotationRef: 'QT-WAIT', status: 'Cancelled' }];
+    const rows = salesPaymentsReceivedRows(
+      receipts,
+      jobs,
+      [],
+      '2026-03-01',
+      '2026-03-31',
+      [],
+      [],
+      []
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].group).toBe('Materials not produced in period');
+  });
+
+  it('omits manager-cleared and tiny leftover balances from debtors', () => {
+    const jobs = [
+      {
+        quotationRef: 'QT-WAIVE',
+        status: 'Completed',
+        completedAtISO: '2026-01-15T10:00:00.000Z',
+        actualMeters: 40,
+      },
+      {
+        quotationRef: 'QT-TINY',
+        status: 'Completed',
+        completedAtISO: '2026-01-16T10:00:00.000Z',
+        actualMeters: 20,
+      },
+    ];
+    const quotations = [
+      {
+        id: 'QT-WAIVE',
+        customer: 'Forgiven',
+        totalNgn: 500_000,
+        paidNgn: 498_000,
+        managerClearedAtISO: '2026-01-20T12:00:00.000Z',
+        paymentBalanceWaivedNgn: 2_000,
+      },
+      {
+        id: 'QT-TINY',
+        customer: 'Small leftover',
+        totalNgn: 200_000,
+        paidNgn: 199_400,
+      },
+    ];
+    const receipts = [
+      {
+        id: 'SR-W',
+        quotationRef: 'QT-WAIVE',
+        dateISO: '2026-01-10',
+        amountNgn: 498_000,
+      },
+      {
+        id: 'SR-T',
+        quotationRef: 'QT-TINY',
+        dateISO: '2026-01-11',
+        amountNgn: 199_400,
+      },
+    ];
+    const rows = salesOutstandingBalanceRows(quotations, jobs, receipts, [], '2026-01-31');
+    expect(rows.map((r) => r.quotationRef)).toEqual([]);
+  });
 });
