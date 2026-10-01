@@ -3767,7 +3767,7 @@ const Account = () => {
       }
       if (
         !(await appConfirm({
-          message: `Reverse treasury payout for ${id}? This posts compensating credits to the same bank/cash accounts, sets paid balance to zero, and is audited. Use only to fix mistakes before delete or re-pay.`,
+          message: `Reverse payout for ${id}? If that month is still open, the expense and the bank line are removed and the money goes back. Record the correct expense once.`,
           variant: 'danger',
         }))
       ) {
@@ -3792,7 +3792,67 @@ const Account = () => {
           return;
         }
         void ws.refreshDomain?.('finance');
-        showToast(`Treasury payout reversed for ${id}.`);
+        showToast(data?.message || `Treasury payout reversed for ${id}.`);
+        setPaymentsMutateApprovalId('');
+      } finally {
+        setReversingTreasuryPayoutId('');
+      }
+    },
+    [needsPaymentsMutateSecondApproval, paymentsMutateApprovalId, showToast, ws]
+  );
+
+  const clearReversedPayoutLines = useCallback(
+    async (requestID) => {
+      if (!ws?.hasPermission?.('finance.reverse')) {
+        showToast('finance.reverse permission is required to remove a reversed payout line.', { variant: 'error' });
+        return;
+      }
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Reconnect to remove the line — workspace is read-only.'
+            : 'Connect to the API to remove the line.',
+          { variant: 'info' }
+        );
+        return;
+      }
+      const id = String(requestID || '').trim();
+      if (!id) return;
+      setPaymentsApprovalEntity({ kind: 'payment_request', id });
+      if (needsPaymentsMutateSecondApproval && !String(paymentsMutateApprovalId || '').trim()) {
+        showToast('Enter the manager-approved KPI code in the Payments panel, then try again.', {
+          variant: 'error',
+        });
+        return;
+      }
+      if (
+        !(await appConfirm({
+          message: `Remove the reversed bank line for ${id}? The money was already put back, so the balance does not change.`,
+          variant: 'danger',
+        }))
+      ) {
+        return;
+      }
+      setReversingTreasuryPayoutId(id);
+      try {
+        const body = {};
+        if (String(paymentsMutateApprovalId || '').trim()) {
+          body.editApprovalId = String(paymentsMutateApprovalId).trim();
+        }
+        const { ok, data } = await apiFetch(
+          `/api/payment-requests/${encodeURIComponent(id)}/clear-reversed-payout-lines`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }
+        );
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not remove the reversed payout line.', { variant: 'error' });
+          return;
+        }
+        void ws.refreshDomain?.('finance');
+        showToast(data?.message || `Removed the reversed payout line for ${id}.`);
         setPaymentsMutateApprovalId('');
       } finally {
         setReversingTreasuryPayoutId('');
@@ -4026,6 +4086,7 @@ const Account = () => {
       refundPayoutPrimaryMovementId,
       removeTreasuryAccount,
       reversePaymentRequestTreasuryPayout,
+      clearReversedPayoutLines,
       reverseRefundTreasuryPayout,
       reversingRefundTreasuryPayoutId,
       reversingTreasuryPayoutId,
@@ -4165,6 +4226,7 @@ const Account = () => {
       refundPayoutPrimaryMovementId,
       removeTreasuryAccount,
       reversePaymentRequestTreasuryPayout,
+      clearReversedPayoutLines,
       reverseRefundTreasuryPayout,
       reversingRefundTreasuryPayoutId,
       reversingTreasuryPayoutId,

@@ -10,12 +10,26 @@ import {
   treasuryMovementStatementLabel,
   treasuryMovementSourceBadge,
   treasuryOutflowLinesForRefund,
+  treasuryOutflowPaymentTableRows,
   treasuryOutflowLinesForPurchaseOrder,
   treasuryOutflowLinesForAccountsPayable,
   isPayFromCorrectionTreasuryRow,
+  activeTreasuryMovements,
 } from './accountCore';
 
 describe('accountCore', () => {
+  it('hides reversed transfers and their reversal legs', () => {
+    const rows = [
+      { id: 'TM-1', type: 'INTERNAL_TRANSFER_OUT', sourceId: 'TR-1' },
+      { id: 'TM-2', type: 'INTERNAL_TRANSFER_IN', sourceId: 'TR-1' },
+      { id: 'TM-3', type: 'INTERNAL_TRANSFER_IN', sourceId: 'TR-1', reversesMovementId: 'TM-1' },
+      { id: 'TM-4', type: 'INTERNAL_TRANSFER_OUT', sourceId: 'TR-1', reversesMovementId: 'TM-2' },
+      { id: 'TM-5', type: 'INTERNAL_TRANSFER_OUT', sourceId: 'TR-2', reversesMovementId: '' },
+    ];
+    expect(activeTreasuryMovements(rows).map((m) => m.id)).toEqual(['TM-5']);
+    expect(activeTreasuryMovements(null)).toEqual([]);
+  });
+
   it('provides stable account tab labels', () => {
     expect(ACCOUNT_TAB_LABELS.disbursements).toBe('Payment register');
   });
@@ -47,6 +61,36 @@ describe('accountCore', () => {
       },
     ]);
     expect(lines.map((l) => l.id)).toEqual(['m1']);
+  });
+
+  it('marks a payout line that already has a reversal', () => {
+    const rows = treasuryOutflowPaymentTableRows([
+      {
+        id: 'm1',
+        type: 'PAYMENT_REQUEST_OUT',
+        sourceKind: 'PAYMENT_REQUEST',
+        sourceId: 'PR-1',
+        amountNgn: -500,
+      },
+      {
+        id: 'm2',
+        type: 'PAYMENT_REQUEST_REVERSAL_IN',
+        sourceKind: 'PAYMENT_REQUEST',
+        sourceId: 'PR-1',
+        amountNgn: 500,
+        reversesMovementId: 'm1',
+      },
+      {
+        id: 'm3',
+        type: 'PAYMENT_REQUEST_OUT',
+        sourceKind: 'PAYMENT_REQUEST',
+        sourceId: 'PR-2',
+        amountNgn: -200,
+      },
+    ]);
+    expect(rows.find((row) => row.movementId === 'm1')?.alreadyReversed).toBe(true);
+    expect(rows.find((row) => row.movementId === 'm3')?.alreadyReversed).toBe(false);
+    expect(rows.some((row) => row.movementId === 'm2')).toBe(false);
   });
 
   it('lists supplier payment treasury lines for a PO', () => {

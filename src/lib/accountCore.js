@@ -187,12 +187,23 @@ export function isTreasuryOutflowPaymentRow(m) {
   return amt < 0;
 }
 
+/** Ids of cash-book lines that already have a reversal pointing at them. */
+export function reversedTreasuryOriginalIds(movements) {
+  const ids = new Set();
+  for (const row of movements || []) {
+    const rev = String(row?.reversesMovementId || '').trim();
+    if (rev) ids.add(rev);
+  }
+  return ids;
+}
+
 /**
  * Rows for the unified Payments table (posted treasury outflows).
  * @param {Array<object>} movements workspace treasuryMovements
  */
 export function treasuryOutflowPaymentTableRows(movements) {
   if (!Array.isArray(movements)) return [];
+  const reversedIds = reversedTreasuryOriginalIds(movements);
   return movements.filter(isTreasuryOutflowPaymentRow).map((m) => ({
     movementId: String(m.id || ''),
     postedAtISO: String(m.postedAtISO || ''),
@@ -204,6 +215,7 @@ export function treasuryOutflowPaymentTableRows(movements) {
     amountAbs: Math.abs(Number(m.amountNgn) || 0),
     reference: String(m.reference || '').trim(),
     counterpartyName: String(m.counterpartyName || '').trim(),
+    alreadyReversed: reversedIds.has(String(m.id || '')),
   }));
 }
 
@@ -275,6 +287,20 @@ export function treasuryMovementStatementLabel(m) {
   if (m.reference) bits.push(`Ref ${m.reference}`);
   if (m.note) bits.push(m.note);
   return bits.join(' · ');
+}
+
+/**
+ * Drops reversal rows and the originals they reverse, so lists show only movements still in effect.
+ * Balances are unaffected: both rows stay in the cash book and net to zero.
+ */
+export function activeTreasuryMovements(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const reversedIds = new Set(
+    list.map((m) => String(m?.reversesMovementId || '').trim()).filter(Boolean)
+  );
+  return list.filter(
+    (m) => !String(m?.reversesMovementId || '').trim() && !reversedIds.has(String(m?.id || ''))
+  );
 }
 
 /**

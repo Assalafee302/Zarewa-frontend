@@ -28,6 +28,7 @@ import {
   treasuryMovementSourceBadge,
   treasuryOutflowLinesForExpense,
   treasuryOutflowLinesForPaymentRequest,
+  reversedTreasuryOriginalIds,
 } from '../../lib/accountCore';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
@@ -134,6 +135,7 @@ function PostedRowActions({ row, onOpen }) {
     ws,
     openPayFromEditForTableRow,
     reversePaymentRequestTreasuryPayout,
+    clearReversedPayoutLines,
     reverseRefundTreasuryPayout,
     reversingTreasuryPayoutId,
     reversingRefundTreasuryPayoutId,
@@ -160,8 +162,15 @@ function PostedRowActions({ row, onOpen }) {
   const showReverse =
     canReversePaymentRequestTreasury &&
     ws?.canMutate &&
-    ((row.type === 'PAYMENT_REQUEST_OUT' && pr && isPrPrimary) ||
+    !row.alreadyReversed &&
+    ((row.type === 'PAYMENT_REQUEST_OUT' && pr && paidPr > 0 && isPrPrimary) ||
       (row.type === 'REFUND_PAYOUT' && rf && paidRf > 0 && isRefundPrimary));
+  const showRemoveReversedLine =
+    canReversePaymentRequestTreasury &&
+    ws?.canMutate &&
+    row.alreadyReversed &&
+    row.type === 'PAYMENT_REQUEST_OUT' &&
+    isPrPrimary;
   const showDeleteExpenseRow =
     canDeleteRolloutExpenseOrRequest &&
     ws?.canMutate &&
@@ -199,6 +208,15 @@ function PostedRowActions({ row, onOpen }) {
           }
         >
           Reverse
+        </QuietAction>
+      ) : null}
+      {showRemoveReversedLine ? (
+        <QuietAction
+          tone="rose"
+          disabled={reversingTreasuryPayoutId === row.sourceId}
+          onClick={() => void clearReversedPayoutLines(row.sourceId)}
+        >
+          Remove line
         </QuietAction>
       ) : null}
       {showDeleteExpenseRow ? (
@@ -240,6 +258,7 @@ function RequestRowActions({ req }) {
     openReclassifyPaymentRequest,
     openPaymentRequestOutflowEdit,
     reversePaymentRequestTreasuryPayout,
+    clearReversedPayoutLines,
     reversingTreasuryPayoutId,
     deleteRolloutPaymentRequest,
     deletingPayRequestId,
@@ -247,6 +266,9 @@ function RequestRowActions({ req }) {
 
   const paid = Number(req.paidAmountNgn) || 0;
   const prTreasuryOut = treasuryOutflowLinesForPaymentRequest(req.requestID, liveTreasuryMovements);
+  const reversedIds = reversedTreasuryOriginalIds(liveTreasuryMovements);
+  const stillLive = prTreasuryOut.filter((line) => !reversedIds.has(String(line.id || '')));
+  const leftoverReversed = prTreasuryOut.filter((line) => reversedIds.has(String(line.id || '')));
   const payoutStillOnBook = paid <= 0 && prTreasuryOut.length > 0;
 
   return (
@@ -286,7 +308,7 @@ function RequestRowActions({ req }) {
           Pay-from
         </QuietAction>
       ) : null}
-      {canReversePaymentRequestTreasury && ws?.canMutate && (paid > 0 || payoutStillOnBook) ? (
+      {canReversePaymentRequestTreasury && ws?.canMutate && stillLive.length > 0 ? (
         <QuietAction
           tone="amber"
           disabled={reversingTreasuryPayoutId === req.requestID}
@@ -294,6 +316,15 @@ function RequestRowActions({ req }) {
         >
           <RotateCcw size={11} aria-hidden />
           Reverse
+        </QuietAction>
+      ) : null}
+      {canReversePaymentRequestTreasury && ws?.canMutate && leftoverReversed.length > 0 ? (
+        <QuietAction
+          tone="rose"
+          disabled={reversingTreasuryPayoutId === req.requestID}
+          onClick={() => void clearReversedPayoutLines(req.requestID)}
+        >
+          Remove line
         </QuietAction>
       ) : null}
       {canDeleteRolloutExpenseOrRequest && paid <= 0 && !payoutStillOnBook ? (
@@ -939,6 +970,7 @@ function ArchiveRequestList() {
     ws,
     openPaymentRequestOutflowEdit,
     reversePaymentRequestTreasuryPayout,
+    clearReversedPayoutLines,
     reversingTreasuryPayoutId,
     deleteRolloutPaymentRequest,
     deletingPayRequestId,
@@ -953,6 +985,9 @@ function ArchiveRequestList() {
   const actionsFor = (req) => {
     const archPaid = Number(req.paidAmountNgn) || 0;
     const archPrTreasuryOut = treasuryOutflowLinesForPaymentRequest(req.requestID, liveTreasuryMovements);
+    const archReversedIds = reversedTreasuryOriginalIds(liveTreasuryMovements);
+    const archStillLive = archPrTreasuryOut.filter((line) => !archReversedIds.has(String(line.id || '')));
+    const archLeftover = archPrTreasuryOut.filter((line) => archReversedIds.has(String(line.id || '')));
     return (
       <div className="inline-flex flex-wrap justify-end gap-1">
         <QuietAction onClick={() => handleDeskViewPaymentRequest(req.requestID)}>View</QuietAction>
@@ -964,13 +999,22 @@ function ArchiveRequestList() {
             Pay-from
           </QuietAction>
         ) : null}
-        {canReversePaymentRequestTreasury && ws?.canMutate && (archPaid > 0 || archPrTreasuryOut.length > 0) ? (
+        {canReversePaymentRequestTreasury && ws?.canMutate && archStillLive.length > 0 ? (
           <QuietAction
             tone="amber"
             disabled={reversingTreasuryPayoutId === req.requestID}
             onClick={() => void reversePaymentRequestTreasuryPayout(req.requestID)}
           >
             Reverse
+          </QuietAction>
+        ) : null}
+        {canReversePaymentRequestTreasury && ws?.canMutate && archLeftover.length > 0 ? (
+          <QuietAction
+            tone="rose"
+            disabled={reversingTreasuryPayoutId === req.requestID}
+            onClick={() => void clearReversedPayoutLines(req.requestID)}
+          >
+            Remove line
           </QuietAction>
         ) : null}
         {canDeleteRolloutExpenseOrRequest && archPaid <= 0 ? (
