@@ -298,6 +298,7 @@ export function LiveProductionMonitor({
     return { ...base, status };
   }, [selectedJobId, sortedJobs, focusClTrim]);
 
+  const coilFetchJobRef = useRef('');
   useEffect(() => {
     const jobId = String(selectedJob?.jobID || '').trim();
     if (!jobId) {
@@ -467,10 +468,13 @@ export function LiveProductionMonitor({
   useEffect(() => {
     const jobId = String(selectedJob?.jobID || '').trim();
     if (!jobId) {
+      coilFetchJobRef.current = '';
       setJobCoilsFromApi(null);
       return undefined;
     }
-    setJobCoilsFromApi(null);
+    const jobChanged = coilFetchJobRef.current !== jobId;
+    coilFetchJobRef.current = jobId;
+    if (jobChanged) setJobCoilsFromApi(null);
     let cancelled = false;
     void (async () => {
       const r = await apiFetch(`/api/production-jobs/${encodeURIComponent(jobId)}/coil-allocations`);
@@ -2972,6 +2976,7 @@ export function LiveProductionMonitor({
                 note: String(row.note ?? '').trim(),
                 ...(withAck ? { specMismatchAcknowledged: true } : {}),
               })),
+            productionDateISO: productionDateIso,
           });
           let resRl = await apiFetch(`${jobApi}/coil-run-log`, {
             method: 'POST',
@@ -3045,6 +3050,14 @@ export function LiveProductionMonitor({
             lastStockRecalc = resA.data?.stockRecalc ?? lastStockRecalc;
             lastWriteRes = resA;
           }
+        }
+        const savedAllocations = lastWriteRes?.data?.allocations;
+        if (Array.isArray(savedAllocations)) {
+          setJobCoilsFromApi(
+            savedAllocations
+              .map((row) => ({ ...row, jobID: row.jobID ?? selectedJob.jobID }))
+              .sort((a, b) => (Number(a.sequenceNo) || 0) - (Number(b.sequenceNo) || 0))
+          );
         }
         await refreshAfterWrite(lastWriteRes);
         setSavingAction('');

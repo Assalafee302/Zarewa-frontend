@@ -227,7 +227,8 @@ export function unsavedCoilDraftRows(rows) {
 
 /** The allocations API only accepts a new coil line that carries both a coil number and opening kg. */
 export function newCoilRowIsSendable(row) {
-  return Boolean(String(row?.coilNo ?? '').trim()) && Number(row?.openingWeightKg) > 0;
+  const opening = parseWholeKgInput(row?.openingWeightKg);
+  return Boolean(String(row?.coilNo ?? '').trim()) && Number.isFinite(opening) && opening > 0;
 }
 
 /** Typed-in coil lines that a save would drop — used to warn instead of reporting a clean save. */

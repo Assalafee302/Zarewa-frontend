@@ -4,6 +4,7 @@ import {
   coilDraftRowsWithData,
   countUnsavedCoilDraftRows,
   createDraftLine,
+  newCoilRowIsSendable,
   draftRowConversionPreviewReady,
   isEmptyCoilDraftRow,
   seedDraftAllocationsFromServer,
@@ -134,6 +135,11 @@ describe('productionRegisterCoilDraft', () => {
     ];
     expect(unsavedCoilDraftRows(rows).map((r) => r.coilNo)).toEqual(['CL-SECOND']);
     expect(countUnsavedCoilDraftRows(rows)).toBe(1);
+  });
+
+  it('sends a new coil when opening kg is typed with a thousands separator', () => {
+    expect(newCoilRowIsSendable({ coilNo: 'CL-1', openingWeightKg: '1,200' })).toBe(true);
+    expect(newCoilRowIsSendable({ coilNo: 'CL-1', openingWeightKg: '' })).toBe(false);
   });
 
   it('rounds opening and closing kg to whole numbers in draft lines', () => {
