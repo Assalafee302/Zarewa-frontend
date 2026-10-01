@@ -13,6 +13,7 @@ import { ModalFrame } from '../layout/ModalFrame';
 import { ModalDeskFooter, DeskFooterButton } from '../layout/ModalDeskFooter';
 import { PrintModalPortal } from '../layout/PrintModalPortal';
 import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCustomers } from '../../context/CustomersContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -44,6 +45,7 @@ import { bookedPaidNgnForQuotationFromMirrors } from '../../lib/liveAnalytics';
 import {
   isExistingSalesPaymentRow,
   isQuotationAddPaymentContext,
+  resolveReceiptModalQuotation,
 } from '../../lib/quotationPaymentSummary';
 import { ReceiptPrintThermal } from '../receipt/ReceiptPrintViews';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
@@ -251,6 +253,9 @@ const ReceiptModal = ({
   const [qSearch, setQSearch] = useState('');
   const [showQSearch, setShowQSearch] = useState(false);
   const [postingHint, setPostingHint] = useState(null);
+  const [fetchedQuote, setFetchedQuote] = useState(null);
+  const [searchHits, setSearchHits] = useState([]);
+  const debouncedQSearch = useDebouncedValue(qSearch, 300);
 
   const periodLocks = useMemo(() => ws?.snapshot?.periodLocks ?? [], [ws?.snapshot?.periodLocks]);
   const voucherInLockedPeriod = useMemo(
@@ -299,6 +304,8 @@ const ReceiptModal = ({
   useEffect(() => {
     if (!isOpen) {
       lastReceiptHydrateSigRef.current = '';
+      setFetchedQuote(null);
+      setSearchHits([]);
       return;
     }
     if (lastReceiptHydrateSigRef.current === receiptHydrateSig) return;
@@ -433,10 +440,70 @@ const ReceiptModal = ({
     );
   }, [isOpen, defaultAccountId]);
 
-  const selectedQuotation = useMemo(
-    () => quotations.find((q) => q.id === quotationRef) ?? null,
-    [quotations, quotationRef]
+  const extraQuotations = useMemo(
+    () => [fetchedQuote, ...(Array.isArray(searchHits) ? searchHits : [])].filter(Boolean),
+    [fetchedQuote, searchHits]
   );
+
+  const selectedQuotation = useMemo(
+    () =>
+      resolveReceiptModalQuotation({
+        quotations,
+        quotationRef,
+        editData,
+        extraQuotations,
+      }),
+    [quotations, quotationRef, editData, extraQuotations]
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void ws?.ensureDomainLoaded?.('sales');
+  }, [isOpen, ws]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const ref = String(quotationRef || '').trim();
+    if (!ref) return;
+    if (fetchedQuote && String(fetchedQuote.id || '').trim() === ref) return;
+    const inSnapshot = quotations.find((q) => String(q?.id || '').trim() === ref);
+    if (inSnapshot && String(inSnapshot.customerID || inSnapshot.customer_id || '').trim()) return;
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(ref)}`);
+      if (cancelled || !ok) return;
+      const q = data?.quotation;
+      if (!q?.id) return;
+      setFetchedQuote(q);
+      ws?.mergeQuotationIntoSnapshot?.(q);
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, quotationRef, fetchedQuote, quotations, ws]);
+
+  useEffect(() => {
+    if (!isOpen || !showQSearch) return;
+    const s = String(debouncedQSearch || '').trim();
+    if (s.length < 2) {
+      setSearchHits([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch(
+        `/api/quotations?q=${encodeURIComponent(s)}&includeLines=0&limit=15`
+      );
+      if (cancelled || !ok) return;
+      const rows = data?.quotations;
+      setSearchHits(Array.isArray(rows) ? rows : []);
+    })().catch(() => {
+      if (!cancelled) setSearchHits([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, showQSearch, debouncedQSearch]);
 
   /** Same definition as server `syncQuotationPaidFromReceipts` — updates as soon as receipts/ledger in snapshot refresh. */
   const bookedPaidRollupNgn = useMemo(() => {
@@ -462,10 +529,16 @@ const ReceiptModal = ({
     return { ...selectedQuotation, paidNgn: paid };
   }, [selectedQuotation, bookedPaidRollupNgn]);
 
-  const selectableQuotations = useMemo(
-    () => quotations.filter((qt) => (Number(amountDueOnQuotation(qt)) || 0) > 0.0001),
-    [quotations]
-  );
+  const selectableQuotations = useMemo(() => {
+    const unpaid = quotations.filter((qt) => (Number(amountDueOnQuotation(qt)) || 0) > 0.0001);
+    const cleared = quotations.filter((qt) => qt?.managerClearedAtISO && !qt?.managerFlaggedAtISO);
+    const byId = new Map();
+    for (const q of [...unpaid, ...cleared, ...extraQuotations, selectedQuotation].filter(Boolean)) {
+      const id = String(q?.id || '').trim();
+      if (id && !byId.has(id)) byId.set(id, q);
+    }
+    return [...byId.values()];
+  }, [quotations, extraQuotations, selectedQuotation]);
 
   /**
    * An empty picker and an unloaded one look identical to whoever is reading it, and
@@ -476,15 +549,29 @@ const ReceiptModal = ({
     quotations.length === 0 && ws?.listOf?.('quotations')?.state === 'not-loaded';
 
   const filteredQSearch = useMemo(() => {
-    if (!qSearch.trim()) return selectableQuotations.slice(0, 10);
-    const s = qSearch.toLowerCase();
-    return selectableQuotations.filter(
-      (qt) =>
-        String(qt.id || '').toLowerCase().includes(s) ||
+    const s = qSearch.trim().toLowerCase();
+    const pool = s
+      ? [
+          ...quotations,
+          ...extraQuotations,
+          ...(selectedQuotation ? [selectedQuotation] : []),
+        ]
+      : selectableQuotations;
+    const byId = new Map();
+    for (const qt of pool) {
+      const id = String(qt?.id || '').trim();
+      if (!id || byId.has(id)) continue;
+      if (
+        !s ||
+        id.toLowerCase().includes(s) ||
         String(qt.customer || '').toLowerCase().includes(s) ||
         String(qt.customerID || '').toLowerCase().includes(s)
-    ).slice(0, 15);
-  }, [selectableQuotations, qSearch]);
+      ) {
+        byId.set(id, qt);
+      }
+    }
+    return [...byId.values()].slice(0, s ? 15 : 10);
+  }, [quotations, extraQuotations, selectedQuotation, selectableQuotations, qSearch]);
 
   const customerID = selectedQuotation?.customerID ?? '';
   const customerName = useMemo(() => {
@@ -772,7 +859,33 @@ const ReceiptModal = ({
       showToast('Configure treasury accounts first.', { variant: 'error' });
       return;
     }
-    if (!quotationRef || !selectedQuotation || !quotationRowForPayments) {
+    const requestedRef = String(quotationRef || qSearch || '').trim();
+    let quote =
+      resolveReceiptModalQuotation({
+        quotations,
+        quotationRef: requestedRef,
+        editData,
+        extraQuotations,
+      }) || selectedQuotation;
+    if (useLedgerApi && requestedRef && (!quote || !String(quote.customerID || quote.customer_id || '').trim())) {
+      const fetched = await apiFetch(`/api/quotations/${encodeURIComponent(requestedRef)}`);
+      const fromApi = fetched.ok ? fetched.data?.quotation : null;
+      if (fromApi?.id) {
+        quote = fromApi;
+        setFetchedQuote(fromApi);
+        setQuotationRef(String(fromApi.id));
+        ws?.mergeQuotationIntoSnapshot?.(fromApi);
+      }
+    } else if (requestedRef && requestedRef !== String(quotationRef || '').trim()) {
+      setQuotationRef(requestedRef);
+    }
+    const postingCustomerID = String(quote?.customerID || quote?.customer_id || '').trim();
+    const quoteRowForPayments = quote
+      ? quotationRowForPayments && String(quotationRowForPayments.id) === String(quote.id)
+        ? quotationRowForPayments
+        : quote
+      : null;
+    if (!requestedRef || !quote || !quoteRowForPayments) {
       showToast('Select a quotation — customer is taken from the quote.', { variant: 'error' });
       return;
     }
@@ -781,7 +894,7 @@ const ReceiptModal = ({
       showToast(quotationLedgerHold.detail, { variant: 'error' });
       return;
     }
-    if (!customerID) {
+    if (!postingCustomerID) {
       showToast('This quotation has no customer on file.', { variant: 'error' });
       return;
     }
@@ -820,8 +933,8 @@ const ReceiptModal = ({
     const summaryParts = [
       'Save this receipt? Please confirm details:',
       '',
-      `Customer: ${customerName || '—'}`,
-      `Quotation: ${selectedQuotation?.id || quotationRef || '—'}`,
+      `Customer: ${quote.customer || customerName || '—'}`,
+      `Quotation: ${quote.id || requestedRef || '—'}`,
       `Voucher date: ${formatDisplayDate(voucherDate)}`,
     ];
     if (creditApplyNgn > 0) {
@@ -880,9 +993,9 @@ const ReceiptModal = ({
           const creditRes = await apiFetch('/api/ledger/apply-refund-credit', {
             method: 'POST',
             body: JSON.stringify({
-              customerID,
-              targetQuotationRef: selectedQuotation.id,
-              quotationRef: selectedQuotation.id,
+              customerID: postingCustomerID,
+              targetQuotationRef: quote.id,
+              quotationRef: quote.id,
               amountNgn: creditApplyNgn,
               dateISO: voucherDate,
               sourceIds: Array.isArray(refundCreditInfo?.sources)
@@ -945,11 +1058,11 @@ const ReceiptModal = ({
         }
         const branchId = String(ws?.session?.currentBranchId ?? '').trim();
         const receiptBody = {
-          customerID,
-          customerName,
-          quotationId: selectedQuotation.id,
+          customerID: postingCustomerID,
+          customerName: quote.customer || customerName,
+          quotationId: quote.id,
           /** Some API builds read `quotationRef` instead of `quotationId` — send both. */
-          quotationRef: selectedQuotation.id,
+          quotationRef: quote.id,
           amountNgn: total,
           paymentMethod,
           bankReference,
@@ -1027,8 +1140,8 @@ const ReceiptModal = ({
         const linkNote = activeBankDepositId ? ` Linked to ${activeBankDepositId}.` : '';
         showToast(
           data?.managerClearanceReopened
-            ? `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id}. Sent back for manager clearance.${linkNote}`
-            : `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting confirmation.${linkNote}`
+            ? `₦${total.toLocaleString('en-NG')} recorded on ${quote.id}. Sent back for manager clearance.${linkNote}`
+            : `₦${total.toLocaleString('en-NG')} recorded on ${quote.id} — awaiting confirmation.${linkNote}`
         );
         if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !activeBankDepositId) {
           showToast(
@@ -1045,9 +1158,9 @@ const ReceiptModal = ({
         return;
       } else {
         const res = recordReceiptWithQuotation({
-          customerID,
-          customerName,
-          quotationRow: quotationRowForPayments,
+          customerID: postingCustomerID,
+          customerName: quote.customer || customerName,
+          quotationRow: quoteRowForPayments,
           amountNgn: total,
           paymentMethod,
           bankReference,
@@ -1061,7 +1174,7 @@ const ReceiptModal = ({
         if (dueNgn != null && total < dueNgn) {
           showToast(`Part payment ${formatNgn(total)} posted. Remaining on quote ≈ ${formatNgn(dueNgn - total)}.`);
         } else {
-          showToast(`Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`);
+          showToast(`Receipt ${formatNgn(total)} posted against ${quote.id}.`);
         }
       }
       await onLedgerChange?.();
@@ -1314,7 +1427,7 @@ const ReceiptModal = ({
                     <div className="absolute z-10 left-0 right-0 mt-1 max-h-[220px] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl custom-scrollbar p-1">
                       {filteredQSearch.length === 0 ? (
                         <div className="p-3 text-center text-ui-xs font-semibold text-slate-400 uppercase">
-                          {quotationsPending ? 'Loading quotations…' : 'No unpaid quotations found'}
+                          {quotationsPending ? 'Loading quotations…' : 'No matching quotations'}
                         </div>
                       ) : (
                         filteredQSearch.map((qt) => (
@@ -1336,7 +1449,11 @@ const ReceiptModal = ({
                             </div>
                             <div className="flex items-center justify-between gap-2 mt-0.5">
                               <span className="text-xs font-semibold text-slate-800 truncate">{qt.customer}</span>
-                              <span className="text-ui-xs font-bold text-slate-400 uppercase tracking-tighter shrink-0">{qt.paymentStatus}</span>
+                              <span className="text-ui-xs font-bold text-slate-400 uppercase tracking-tighter shrink-0">
+                                {qt.managerClearedAtISO && !qt.managerFlaggedAtISO
+                                  ? 'Cleared — extra receipt reopens'
+                                  : qt.paymentStatus}
+                              </span>
                             </div>
                           </button>
                         ))

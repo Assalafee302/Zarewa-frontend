@@ -8,6 +8,7 @@ import {
   PARTIAL_QUOTE_DESK_MIN_BALANCE_NGN,
   isExistingSalesPaymentRow,
   isQuotationAddPaymentContext,
+  resolveReceiptModalQuotation,
 } from './quotationPaymentSummary.js';
 
 describe('quotationPaymentSummary', () => {
@@ -101,5 +102,32 @@ describe('quotationPaymentSummary', () => {
     expect(isExistingSalesPaymentRow({ source: 'ledger', id: 'LE-1' })).toBe(true);
     expect(isQuotationAddPaymentContext({ id: 'QT-99', totalNgn: 100 })).toBe(true);
     expect(isQuotationAddPaymentContext({ source: 'ledger', id: 'LE-1' })).toBe(false);
+  });
+
+  it('resolves a manager-cleared quote opened from the quotation row even when it is missing from the snapshot list', () => {
+    const cleared = {
+      id: 'QT-CLEARED',
+      customerID: 'CUS-1',
+      customer: 'Amina',
+      totalNgn: 80_000,
+      paidNgn: 80_000,
+      managerClearedAtISO: '2026-09-01T10:00:00.000Z',
+    };
+    expect(
+      resolveReceiptModalQuotation({
+        quotations: [],
+        quotationRef: 'QT-CLEARED',
+        editData: cleared,
+      })
+    ).toEqual(cleared);
+  });
+
+  it('falls back to receipt-row customer context when linking a quote not in the unpaid list', () => {
+    const q = resolveReceiptModalQuotation({
+      quotations: [{ id: 'QT-OPEN', customerID: 'CUS-OPEN', totalNgn: 10, paidNgn: 0 }],
+      quotationRef: 'QT-CLEARED',
+      editData: { quotationRef: 'QT-CLEARED', customerID: 'CUS-1', customer: 'Amina' },
+    });
+    expect(q).toMatchObject({ id: 'QT-CLEARED', customerID: 'CUS-1', customer: 'Amina' });
   });
 });

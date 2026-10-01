@@ -204,3 +204,49 @@ export function isQuotationAddPaymentContext(editData) {
   if (editData.totalNgn != null && !editData.quotationRef && !editData.source) return true;
   return false;
 }
+
+export function quotationRefKey(value) {
+  return String(value ?? '').trim();
+}
+
+/**
+ * Receipt form takes customer from the linked quotation. Desk snapshot lists are capped,
+ * and manager-cleared quotes are usually fully paid — so "Add payment" must still resolve
+ * the quote even when it is missing from the unpaid picker.
+ */
+export function resolveReceiptModalQuotation({
+  quotations,
+  quotationRef,
+  editData,
+  extraQuotations,
+} = {}) {
+  const ref = quotationRefKey(quotationRef);
+  if (!ref) return null;
+  const pools = [
+    ...(Array.isArray(quotations) ? quotations : []),
+    ...(Array.isArray(extraQuotations) ? extraQuotations : []),
+  ];
+  const fromPool = pools.find((q) => quotationRefKey(q?.id) === ref);
+  if (fromPool) return fromPool;
+  if (isQuotationAddPaymentContext(editData) && quotationRefKey(editData.id) === ref) {
+    return editData;
+  }
+  if (quotationRefKey(editData?.quotationRef) === ref) {
+    const cid = quotationRefKey(editData.customerID ?? editData.customer_id);
+    const name = String(editData.customer ?? editData.customerName ?? '').trim();
+    if (!cid && editData.totalNgn == null && !name) return null;
+    return {
+      id: ref,
+      customerID: cid,
+      customer: name,
+      totalNgn: editData.totalNgn,
+      paidNgn: editData.paidNgn,
+      paymentStatus: editData.paymentStatus,
+      projectName: editData.projectName ?? '',
+      branchId: editData.branchId ?? '',
+      managerClearedAtISO: editData.managerClearedAtISO ?? editData.manager_cleared_at_iso ?? null,
+      managerFlaggedAtISO: editData.managerFlaggedAtISO ?? editData.manager_flagged_at_iso ?? null,
+    };
+  }
+  return null;
+}
