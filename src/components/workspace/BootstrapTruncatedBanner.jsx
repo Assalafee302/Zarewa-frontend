@@ -66,11 +66,11 @@ export function BootstrapTruncatedBanner({ bootstrapMeta, registerTotals = {}, c
       className={`mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900 ${className}`}
       role="status"
     >
-      <p className="font-semibold">This desk shows the latest loaded records, not every row in the database.</p>
+      <p className="font-semibold">This desk opens on the latest records, then keeps filling up to 500.</p>
       <p className="mt-1">
         Recent window includes {sample.join(', ')}
-        {keys.length > 4 ? ', …' : ''}. Type a reference to search the full branch register, or use Load
-        older records — do not assume a missing row means it was never saved.
+        {keys.length > 4 ? ', …' : ''}. Older rows stay in the database. Type a reference, customer, or
+        amount to search them — a missing row in the first 500 was not deleted.
       </p>
     </div>
   );

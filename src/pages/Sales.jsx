@@ -80,6 +80,7 @@ import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useDeskRegisterTotals } from '../hooks/useDeskRegisterTotals';
 import { usePaginatedWorkspaceList } from '../hooks/usePaginatedWorkspaceList';
+import { DESK_WARM_CAP } from '../lib/deskWarmHydrate';
 import { spotPricesForSalesSidebar } from '../lib/spotPricesFromMasterData';
 import { apiFetch } from '../lib/apiBase';
 import { appConfirm } from '../lib/appConfirm';
@@ -270,40 +271,53 @@ const Sales = () => {
 
   const salesRegisterTotals = useDeskRegisterTotals(domainReady, [
     { key: 'quotations', path: '/api/quotations?includeLines=0' },
-    { key: 'receipts', path: '/api/sales-receipts' },
+    { key: 'receipts', path: '/api/receipts' },
     { key: 'cuttingLists', path: '/api/cutting-lists' },
     { key: 'refunds', path: '/api/refunds' },
   ]);
 
+  const searchText = debouncedSearchQuery.trim();
+  const browseCap = searchText ? 0 : DESK_WARM_CAP;
+
   const serverQuotations = usePaginatedWorkspaceList('/api/quotations', {
     enabled: domainReady && salesTab === 'quotations',
-    pageSize: 50,
+    pageSize: 100,
+    maxItems: browseCap,
     itemsKey: 'quotations',
     query: {
       includeLines: '0',
-      ...(debouncedSearchQuery.trim() ? { q: debouncedSearchQuery.trim() } : {}),
+      ...(searchText ? { q: searchText } : {}),
     },
   });
 
-  const serverReceipts = usePaginatedWorkspaceList('/api/sales-receipts', {
+  const serverReceipts = usePaginatedWorkspaceList('/api/receipts', {
     enabled: domainReady && salesTab === 'receipts',
-    pageSize: 50,
+    pageSize: 100,
+    maxItems: browseCap,
     itemsKey: 'receipts',
+    query: {
+      ...(searchText ? { q: searchText } : {}),
+    },
   });
 
   const serverCuttingLists = usePaginatedWorkspaceList('/api/cutting-lists', {
     enabled: domainReady && salesTab === 'cuttinglist',
-    pageSize: 50,
+    pageSize: 100,
+    maxItems: browseCap,
     itemsKey: 'cuttingLists',
     query: {
-      ...(debouncedSearchQuery.trim() ? { q: debouncedSearchQuery.trim() } : {}),
+      ...(searchText ? { q: searchText } : {}),
     },
   });
 
   const serverRefunds = usePaginatedWorkspaceList('/api/refunds', {
     enabled: domainReady && salesTab === 'refund',
-    pageSize: 50,
+    pageSize: 100,
+    maxItems: browseCap,
     itemsKey: 'refunds',
+    query: {
+      ...(searchText ? { q: searchText } : {}),
+    },
   });
 
   useEffect(() => {

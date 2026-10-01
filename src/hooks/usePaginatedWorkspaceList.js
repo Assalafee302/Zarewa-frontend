@@ -4,11 +4,12 @@ import { apiFetch } from '../lib/apiBase';
 /**
  * Server-side paginated desk list (limit/offset). Merges pages for infinite scroll UIs.
  * @param {string} path e.g. `/api/sales-receipts`
- * @param {{ enabled?: boolean; pageSize?: number; itemsKey?: string; query?: Record<string, string|number|undefined|null> }} [opts]
+ * @param {{ enabled?: boolean; pageSize?: number; maxItems?: number; itemsKey?: string; query?: Record<string, string|number|undefined|null> }} [opts]
  */
 export function usePaginatedWorkspaceList(path, opts = {}) {
   const enabled = opts.enabled !== false;
   const pageSize = Math.max(20, Math.min(5000, Number(opts.pageSize) || 200));
+  const maxItems = Math.max(0, Math.floor(Number(opts.maxItems) || 0));
   const itemsKey = String(opts.itemsKey || 'items');
   const query = opts.query && typeof opts.query === 'object' ? opts.query : {};
   const queryKey = Object.entries(query)
@@ -74,6 +75,7 @@ export function usePaginatedWorkspaceList(path, opts = {}) {
 
   const loadMore = useCallback(async () => {
     if (!enabled || loading) return;
+    if (maxItems > 0 && items.length >= maxItems) return;
     if (items.length >= total && total > 0) return;
     setLoading(true);
     setError('');
@@ -106,7 +108,7 @@ export function usePaginatedWorkspaceList(path, opts = {}) {
     } finally {
       setLoading(false);
     }
-  }, [enabled, loading, items.length, total, pageSize, itemsKey, buildUrl]);
+  }, [enabled, loading, items.length, total, maxItems, pageSize, itemsKey, buildUrl]);
 
   useEffect(() => {
     void reset();
@@ -117,7 +119,7 @@ export function usePaginatedWorkspaceList(path, opts = {}) {
     total,
     loading,
     error,
-    hasMore: items.length < total,
+    hasMore: items.length < total && (maxItems <= 0 || items.length < maxItems),
     loadMore,
     reload: reset,
   };

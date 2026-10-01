@@ -30,6 +30,7 @@ import {
 import { sanitizeWorkItemForCache } from '../lib/workspaceSanitize.js';
 import { appQueryClient, invalidateAppShellQueries } from '../lib/queryClient';
 import { mergeDashboardPollIntoSnapshot } from '../lib/bootstrapPollMerge';
+import { createDeskWarmController, mergeDeskRows, preserveWarmWindow } from '../lib/deskWarmHydrate';
 import {
   mergeWriteDeltaIntoSnapshot,
   domainsTouchedByDelta,
@@ -354,12 +355,16 @@ export function WorkspaceProvider({ children }) {
    */
   const localWriteSkipRef = useRef({ domains: new Set(), ids: new Map(), until: 0 });
 
+  const deskWarmRef = useRef(null);
+  if (!deskWarmRef.current) deskWarmRef.current = createDeskWarmController();
+
   const resetDomainRuntime = useCallback(() => {
     warmedAllRef.current = false;
     loadedDomainsRef.current = new Set();
     domainInflightRef.current = new Map();
     domainEtagRef.current = new Map();
     prefetchGenRef.current += 1;
+    deskWarmRef.current?.cancelAll();
   }, []);
 
   useEffect(() => {
@@ -537,6 +542,12 @@ export function WorkspaceProvider({ children }) {
       }
       // An empty array from a completed domain request is loaded-and-empty, not still loading.
       // Remove every array the domain answered, but never claim a capped array is complete.
+      const warmedFields = { ...nextFields };
+      for (const key of Object.keys(warmedFields)) {
+        if (!Array.isArray(warmedFields[key]) || !Array.isArray(prev?.[key])) continue;
+        warmedFields[key] = preserveWarmWindow(prev[key], warmedFields[key]);
+      }
+      nextFields = warmedFields;
       const hydratedKeys = Object.keys(nextFields).filter((k) => Array.isArray(nextFields[k]));
       const nextDeferred = prevDeferred.filter((k) => !hydratedKeys.includes(k));
       merged = mergeSessionOnboardingFlags(prev, {
@@ -816,6 +827,30 @@ export function WorkspaceProvider({ children }) {
           loadedDomainsRef.current.add(key);
           const merged = mergeSnapshotPatch(data) ?? snapshotRef.current;
           if (uid) void writeDeskDomainCache(uid, scope, key, data);
+          deskWarmRef.current?.begin(data.bootstrapMeta?.backgroundHydrate, {
+            seedRows: (arrayKey) => {
+              const incoming = Array.isArray(data[arrayKey]) ? data[arrayKey] : [];
+              const live = Array.isArray(snapshotRef.current?.[arrayKey]) ? snapshotRef.current[arrayKey] : [];
+              return live.length > incoming.length ? live : incoming;
+            },
+            fetchPage: async (href) => {
+              const { ok, data: page } = await apiFetch(href);
+              if (!ok || !page?.ok) return null;
+              return page;
+            },
+            appendRows: (arrayKey, rows, warmCap) => {
+              setSnapshot((current) => {
+                if (!current) return current;
+                const base = Array.isArray(current[arrayKey]) ? current[arrayKey] : [];
+                if (base.length >= warmCap) return current;
+                const combined = mergeDeskRows(base, rows);
+                const next = combined.length > warmCap ? combined.slice(0, warmCap) : combined;
+                if (next.length === base.length) return current;
+                if (arrayKey === 'ledgerEntries') replaceLedgerEntries(next);
+                return { ...current, [arrayKey]: next };
+              });
+            },
+          });
           return merged;
         } catch {
           return snapshotRef.current;
