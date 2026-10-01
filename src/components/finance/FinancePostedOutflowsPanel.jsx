@@ -28,6 +28,7 @@ import {
   treasuryMovementSourceBadge,
   treasuryOutflowLinesForExpense,
   treasuryOutflowLinesForPaymentRequest,
+  treasuryOutflowLinesForRefund,
   reversedTreasuryOriginalIds,
 } from '../../lib/accountCore';
 import { ZareApprovalHint } from '../ZareApprovalHint';
@@ -136,6 +137,7 @@ function PostedRowActions({ row, onOpen }) {
     openPayFromEditForTableRow,
     reversePaymentRequestTreasuryPayout,
     clearReversedPayoutLines,
+    clearReversedRefundPayoutLines,
     reverseRefundTreasuryPayout,
     reversingTreasuryPayoutId,
     reversingRefundTreasuryPayoutId,
@@ -171,6 +173,12 @@ function PostedRowActions({ row, onOpen }) {
     row.alreadyReversed &&
     row.type === 'PAYMENT_REQUEST_OUT' &&
     isPrPrimary;
+  const showRemoveReversedRefund =
+    canReversePaymentRequestTreasury &&
+    ws?.canMutate &&
+    row.alreadyReversed &&
+    row.type === 'REFUND_PAYOUT' &&
+    row.sourceKind === 'REFUND';
   const showDeleteExpenseRow =
     canDeleteRolloutExpenseOrRequest &&
     ws?.canMutate &&
@@ -215,6 +223,15 @@ function PostedRowActions({ row, onOpen }) {
           tone="rose"
           disabled={reversingTreasuryPayoutId === row.sourceId}
           onClick={() => void clearReversedPayoutLines(row.sourceId)}
+        >
+          Remove line
+        </QuietAction>
+      ) : null}
+      {showRemoveReversedRefund ? (
+        <QuietAction
+          tone="rose"
+          disabled={reversingRefundTreasuryPayoutId === row.sourceId}
+          onClick={() => void clearReversedRefundPayoutLines(row.sourceId)}
         >
           Remove line
         </QuietAction>
@@ -355,6 +372,10 @@ function PostedOutflowsTable() {
     liveTreasuryMovements,
     handleDeskViewRefund,
     handleDeskViewPaymentRequest,
+    clearReversedPayoutLines,
+    clearReversedRefundPayoutLines,
+    reversingTreasuryPayoutId,
+    reversingRefundTreasuryPayoutId,
   } = useAccountPage();
   const [openRow, setOpenRow] = useState(null);
 
@@ -549,6 +570,23 @@ function PostedOutflowsTable() {
         paymentRequest={openRequest}
         expense={openExpense}
         onOpenSource={openSource}
+        removingReversed={
+          openRow?.sourceKind === 'REFUND'
+            ? reversingRefundTreasuryPayoutId === openRow.sourceId
+            : reversingTreasuryPayoutId === openRow?.sourceId
+        }
+        onRemoveReversed={
+          openRow?.alreadyReversed &&
+          (openRow.sourceKind === 'REFUND' || openRow.sourceKind === 'PAYMENT_REQUEST')
+            ? async () => {
+                const removed =
+                  openRow.sourceKind === 'REFUND'
+                    ? await clearReversedRefundPayoutLines(openRow.sourceId)
+                    : await clearReversedPayoutLines(openRow.sourceId);
+                if (removed) setOpenRow(null);
+              }
+            : undefined
+        }
       />
     </div>
   );
@@ -1169,11 +1207,17 @@ function RefundRowActions({ refund }) {
     canPayRequests,
     canReversePaymentRequestTreasury,
     reverseRefundTreasuryPayout,
+    clearReversedRefundPayoutLines,
     reversingRefundTreasuryPayoutId,
+    liveTreasuryMovements,
     ws,
   } = useAccountPage();
   const treasuryPaid = refundTreasuryPaidNgn(refund);
   const payable = isRefundPayable(refund);
+  const refundLines = treasuryOutflowLinesForRefund(refund.refundID, liveTreasuryMovements);
+  const refundReversedIds = reversedTreasuryOriginalIds(liveTreasuryMovements);
+  const refundStillLive = refundLines.filter((line) => !refundReversedIds.has(String(line.id || '')));
+  const refundLeftover = refundLines.filter((line) => refundReversedIds.has(String(line.id || '')));
 
   return (
     <div className="inline-flex flex-wrap justify-end gap-1">
@@ -1183,7 +1227,7 @@ function RefundRowActions({ refund }) {
           Pay
         </QuietAction>
       ) : null}
-      {treasuryPaid > 0 && canReversePaymentRequestTreasury && ws?.canMutate ? (
+      {treasuryPaid > 0 && refundStillLive.length > 0 && canReversePaymentRequestTreasury && ws?.canMutate ? (
         <QuietAction
           tone="amber"
           disabled={reversingRefundTreasuryPayoutId === refund.refundID}
@@ -1191,6 +1235,15 @@ function RefundRowActions({ refund }) {
         >
           <RotateCcw size={11} aria-hidden />
           Reverse
+        </QuietAction>
+      ) : null}
+      {canReversePaymentRequestTreasury && ws?.canMutate && refundLeftover.length > 0 && refundStillLive.length === 0 ? (
+        <QuietAction
+          tone="rose"
+          disabled={reversingRefundTreasuryPayoutId === refund.refundID}
+          onClick={() => void clearReversedRefundPayoutLines(refund.refundID)}
+        >
+          Remove line
         </QuietAction>
       ) : null}
     </div>

@@ -3854,8 +3854,70 @@ const Account = () => {
         void ws.refreshDomain?.('finance');
         showToast(data?.message || `Removed the reversed payout line for ${id}.`);
         setPaymentsMutateApprovalId('');
+        return true;
       } finally {
         setReversingTreasuryPayoutId('');
+      }
+    },
+    [needsPaymentsMutateSecondApproval, paymentsMutateApprovalId, showToast, ws]
+  );
+
+  const clearReversedRefundPayoutLines = useCallback(
+    async (refundID) => {
+      if (!ws?.hasPermission?.('finance.reverse')) {
+        showToast('finance.reverse permission is required to remove a reversed refund line.', { variant: 'error' });
+        return false;
+      }
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Reconnect to remove the line — workspace is read-only.'
+            : 'Connect to the API to remove the line.',
+          { variant: 'info' }
+        );
+        return false;
+      }
+      const id = String(refundID || '').trim();
+      if (!id) return false;
+      setPaymentsApprovalEntity({ kind: 'refund', id });
+      if (needsPaymentsMutateSecondApproval && !String(paymentsMutateApprovalId || '').trim()) {
+        showToast('Enter the manager-approved KPI code in the Payments panel, then try again.', {
+          variant: 'error',
+        });
+        return false;
+      }
+      if (
+        !(await appConfirm({
+          message: `Remove the reversed bank lines for ${id}? The money was already put back, so the balance does not change. The refund stays so it can be paid once.`,
+          variant: 'danger',
+        }))
+      ) {
+        return false;
+      }
+      setReversingRefundTreasuryPayoutId(id);
+      try {
+        const body = {};
+        if (String(paymentsMutateApprovalId || '').trim()) {
+          body.editApprovalId = String(paymentsMutateApprovalId).trim();
+        }
+        const { ok, data } = await apiFetch(
+          `/api/refunds/${encodeURIComponent(id)}/clear-reversed-payout-lines`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }
+        );
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not remove the reversed refund lines.', { variant: 'error' });
+          return false;
+        }
+        void ws.refreshDomain?.('finance');
+        showToast(data?.message || `Removed the reversed refund lines for ${id}.`);
+        setPaymentsMutateApprovalId('');
+        return true;
+      } finally {
+        setReversingRefundTreasuryPayoutId('');
       }
     },
     [needsPaymentsMutateSecondApproval, paymentsMutateApprovalId, showToast, ws]
@@ -4087,6 +4149,7 @@ const Account = () => {
       removeTreasuryAccount,
       reversePaymentRequestTreasuryPayout,
       clearReversedPayoutLines,
+      clearReversedRefundPayoutLines,
       reverseRefundTreasuryPayout,
       reversingRefundTreasuryPayoutId,
       reversingTreasuryPayoutId,
@@ -4227,6 +4290,7 @@ const Account = () => {
       removeTreasuryAccount,
       reversePaymentRequestTreasuryPayout,
       clearReversedPayoutLines,
+      clearReversedRefundPayoutLines,
       reverseRefundTreasuryPayout,
       reversingRefundTreasuryPayoutId,
       reversingTreasuryPayoutId,

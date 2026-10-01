@@ -3,6 +3,7 @@
  */
 import React, { useMemo } from 'react';
 import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalActionFooter } from '../layout';
+import { Button } from '../ui/button';
 import { formatNgn } from '../../Data/mockData';
 import { formatPayoutQueueDate } from '../../lib/financeTreasuryPayoutQueueMeta';
 import { buildPaymentRegisterLineDetail } from '../../lib/paymentRegisterLineDetail';
@@ -47,6 +48,8 @@ export function PaymentRegisterLineDetailModal({
   paymentRequest,
   expense,
   onOpenSource,
+  onRemoveReversed,
+  removingReversed = false,
 }) {
   const detail = useMemo(() => {
     if (!row) return null;
@@ -191,7 +194,19 @@ export function PaymentRegisterLineDetailModal({
           cancelLabel="Close"
           onConfirm={detail.canOpenSource && onOpenSource ? onOpenSource : undefined}
           confirmLabel={sourceLabel}
-        />
+        >
+          {onRemoveReversed ? (
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={removingReversed}
+              onClick={() => void onRemoveReversed()}
+              className="w-full sm:w-auto"
+            >
+              Remove reversed lines
+            </Button>
+          ) : null}
+        </ModalActionFooter>
       </ModalScrollShell>
     </ModalFrame>
   );
