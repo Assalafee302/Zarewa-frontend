@@ -215,7 +215,7 @@ export function ManagementQuotationIntelGrid({
         <SectionActorFooter lines={moneyActors} />
       </IntelPanel>
 
-      <IntelPanel title="Production, conversion & supply" className="lg:col-span-2" compact>
+      <IntelPanel title="Production, conversion & supply" className="md:col-span-2" compact>
         <div className="mb-2 grid grid-cols-3 gap-1.5">
           <IntelStat label="Cutting" value={`${Number(totals.cuttingListMetersSum || 0).toLocaleString()} m`} />
           <IntelStat

@@ -88,12 +88,14 @@ export function ManagementDecisionModal({
   const asPersonName = formatPersonNameUtil;
   const isPriceExceptionDesk =
     selectedIntel?.kind === 'quotation' && selectedIntel?.reviewContext === 'price_exception';
+  const isQuotationReview = selectedIntel?.kind === 'quotation';
   const focusedReview =
     selectedIntel?.kind === 'conversion' ||
     selectedIntel?.kind === 'payment' ||
     selectedIntel?.kind === 'register_settlement' ||
     selectedIntel?.kind === 'purchase_order' ||
-    isPriceExceptionDesk;
+    selectedIntel?.kind === 'staff_purchase_credit' ||
+    isQuotationReview;
   const headerIcon =
     selectedIntel?.kind === 'conversion'
       ? Scale

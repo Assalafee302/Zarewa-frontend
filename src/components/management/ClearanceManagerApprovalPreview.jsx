@@ -201,12 +201,12 @@ export function ClearanceManagerApprovalPreview({
       </CaseStrip>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-16">
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-10">
           <RefreshCw className="animate-spin text-zarewa-teal" size={28} />
           <span className="text-xs font-semibold text-slate-500">Loading quotation context…</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <ManagementQuotationIntelGrid
             auditData={auditData}
             paymentIntel={paymentIntel}
