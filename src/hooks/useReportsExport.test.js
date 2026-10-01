@@ -27,7 +27,12 @@ vi.mock('xlsx', () => ({
 
 function emptyExportArgs(overrides = {}) {
   return {
-    apiFetch: vi.fn(),
+    apiFetch: vi.fn(async (url) => {
+      if (String(url).includes('/api/reports/period-source')) {
+        return { ok: true, data: { ok: true } };
+      }
+      return { ok: false, data: {} };
+    }),
     showToast: vi.fn(),
     hasFinanceView: true,
     startDate: '2026-03-01',
@@ -97,12 +102,12 @@ describe('useReportsExport', () => {
     expect(downloadStandardStockWorkbook).toHaveBeenCalledWith(apiFetch, '2026-03-31', showToast);
   });
 
-  it('downloadMonthEndBundle warns when no pack rows exist', () => {
+  it('downloadMonthEndBundle warns when no pack rows exist', async () => {
     const showToast = vi.fn();
     const { result } = renderHook(() => useReportsExport(emptyExportArgs({ showToast })));
 
-    act(() => {
-      result.current.downloadMonthEndBundle();
+    await act(async () => {
+      await result.current.downloadMonthEndBundle();
     });
 
     expect(showToast).toHaveBeenCalledWith('No rows in any core pack for this period.', { variant: 'info' });
@@ -135,7 +140,39 @@ describe('useReportsExport', () => {
         id: 'LE-1',
       },
     ];
-    const { result } = renderHook(() => useReportsExport(emptyExportArgs({ ledgerEntries, receipts })));
+    const { result } = renderHook(() =>
+      useReportsExport(
+        emptyExportArgs({
+          apiFetch: vi.fn(async (url) => {
+            if (String(url).includes('/api/reports/period-source')) {
+              return {
+                ok: true,
+                data: {
+                  ok: true,
+                  receipts,
+                  ledgerEntries,
+                  quotations: [],
+                  productionJobs: [],
+                  refunds: [],
+                  expenses: [],
+                  paymentRequests: [],
+                  treasuryMovements: [],
+                  purchaseOrders: [],
+                  bankReconciliation: [],
+                  accessoryUsage: [],
+                  coilLots: [],
+                  liveProducts: [],
+                  movements: [],
+                },
+              };
+            }
+            return { ok: false, data: {} };
+          }),
+          ledgerEntries,
+          receipts,
+        })
+      )
+    );
 
     await act(async () => {
       await result.current.handlePackPrint(PACK_SALES_CUSTOMER);

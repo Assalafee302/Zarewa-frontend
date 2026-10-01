@@ -461,6 +461,15 @@ async function fetchMaterialTransactionReport(apiFetch, startDate, endDate) {
   return { ok: true, report: data.report };
 }
 
+async function fetchReportPeriodSource(apiFetch, startDate, endDate) {
+  const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+  const { ok, data } = await apiFetch(`/api/reports/period-source?${q}`);
+  if (!ok || !data?.ok) {
+    return { ok: false, error: data?.error || 'Could not load the full period for this report.' };
+  }
+  return { ok: true, data };
+}
+
 async function fetchCoilStockTieOutReport(apiFetch, startDate, endDate) {
   const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
   const { ok, data } = await apiFetch(`/api/reports/coil-stock-tieout?${q}`);
@@ -662,5 +671,6 @@ export {
   fetchConversionSummaryReport,
   conversionSummaryExcelRows,
   fetchCoilStockTieOutReport,
+  fetchReportPeriodSource,
   downloadRows,
 };

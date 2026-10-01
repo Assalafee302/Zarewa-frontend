@@ -49,6 +49,7 @@ import {
   fetchConversionSummaryReport,
   fetchMaterialTransactionReport,
   fetchPurchaseRegisterReport,
+  fetchReportPeriodSource,
   materialTransactionExcelSheets,
   materialTransactionHasRows,
   paidExpensesInRange,
@@ -64,6 +65,15 @@ function glBranchQuery(branchId) {
   if (!bid) return '';
   return `&branchId=${encodeURIComponent(bid)}`;
 }
+
+const WORKSPACE_PERIOD_PACKS = new Set([
+  PACK_PERIOD_COSTS_INVENTORY,
+  PACK_EXPENSES_REFUNDS,
+  PACK_CASH_BANK_AR,
+  PACK_SALES_CUSTOMER,
+  PACK_REFUND_PERIOD,
+  PACK_OPS_PROCUREMENT,
+]);
 
 export function useReportsExport({
   apiFetch,
@@ -95,7 +105,61 @@ export function useReportsExport({
   const [materialTxnPrintOpen, setMaterialTxnPrintOpen] = useState(false);
   const [purchaseReport, setPurchaseReport] = useState(null);
   const [purchasePrintOpen, setPurchasePrintOpen] = useState(false);
-  const getExportRows = useCallback((name) => {
+  const mergePeriod = useCallback(
+    (period) => ({
+      expenses: Array.isArray(period?.expenses) ? period.expenses : expenses,
+      paymentRequests: Array.isArray(period?.paymentRequests) ? period.paymentRequests : paymentRequests,
+      coilLots: Array.isArray(period?.coilLots) ? period.coilLots : coilLots,
+      movements: Array.isArray(period?.movements) ? period.movements : movements,
+      bankReconciliation: Array.isArray(period?.bankReconciliation)
+        ? period.bankReconciliation
+        : bankReconciliation,
+      ledgerEntries: Array.isArray(period?.ledgerEntries) ? period.ledgerEntries : ledgerEntries,
+      treasuryMovements: Array.isArray(period?.treasuryMovements)
+        ? period.treasuryMovements
+        : treasuryMovements,
+      quotations: Array.isArray(period?.quotations) ? period.quotations : quotations,
+      receipts: Array.isArray(period?.receipts) ? period.receipts : receipts,
+      productionJobs: Array.isArray(period?.productionJobs) ? period.productionJobs : productionJobs,
+      refunds: Array.isArray(period?.refunds) ? period.refunds : refunds,
+      liveProducts: Array.isArray(period?.liveProducts) ? period.liveProducts : liveProducts,
+      purchaseOrders: Array.isArray(period?.purchaseOrders) ? period.purchaseOrders : purchaseOrders,
+      accessoryUsage: Array.isArray(period?.accessoryUsage) ? period.accessoryUsage : accessoryUsage,
+    }),
+    [
+      accessoryUsage,
+      bankReconciliation,
+      coilLots,
+      expenses,
+      ledgerEntries,
+      liveProducts,
+      movements,
+      paymentRequests,
+      productionJobs,
+      purchaseOrders,
+      quotations,
+      receipts,
+      refunds,
+      treasuryMovements,
+    ]
+  );
+  const getExportRows = useCallback((name, period) => {
+      const {
+        expenses,
+        paymentRequests,
+        coilLots,
+        movements,
+        bankReconciliation,
+        ledgerEntries,
+        treasuryMovements,
+        quotations,
+        receipts,
+        productionJobs,
+        refunds,
+        liveProducts,
+        purchaseOrders,
+        accessoryUsage,
+      } = mergePeriod(period);
       if (name === PACK_PERIOD_COSTS_INVENTORY) {
         return rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate);
       }
@@ -171,28 +235,27 @@ export function useReportsExport({
       }
       return [];
     },
-    [
-      bankReconciliation,
-      coilLots,
-      endDate,
-      expenses,
-      ledgerEntries,
-      liveProducts,
-      movements,
-      paymentRequests,
-      productionJobs,
-      purchaseOrders,
-      quotations,
-      receipts,
-      refunds,
-      startDate,
-      treasuryMovements,
-      accessoryUsage,
-    ]
+    [endDate, mergePeriod, startDate]
   );
 
   const getPrintConfig = useCallback(
-    (name) => {
+    (name, period) => {
+      const {
+        expenses,
+        paymentRequests,
+        coilLots,
+        movements,
+        bankReconciliation,
+        ledgerEntries,
+        treasuryMovements,
+        quotations,
+        receipts,
+        productionJobs,
+        refunds,
+        liveProducts,
+        purchaseOrders,
+        accessoryUsage,
+      } = mergePeriod(period);
       if (name === PACK_PERIOD_COSTS_INVENTORY) {
         const exRows = buildPaidExpensePrintRows(expenses, paymentRequests, startDate, endDate);
         const acRows = accruedApprovedPayablesRows(paymentRequests, startDate, endDate);
@@ -538,27 +601,15 @@ export function useReportsExport({
         summaryLines: [],
       };
     },
-    [
-      accessoryUsage,
-      bankReconciliation,
-      coilLots,
-      endDate,
-      expenses,
-      ledgerEntries,
-      liveProducts,
-      movements,
-      paymentRequests,
-      productionJobs,
-      purchaseOrders,
-      quotations,
-      receipts,
-      refunds,
-      startDate,
-      treasuryMovements,
-    ]
+    [endDate, mergePeriod, startDate]
   );
 
-  const downloadMonthEndBundle = useCallback(() => {
+  const downloadMonthEndBundle = useCallback(async () => {
+    const loaded = await fetchReportPeriodSource(apiFetch, startDate, endDate);
+    if (!loaded.ok) {
+      showToast(loaded.error, { variant: 'error' });
+      return;
+    }
     const packs = [
       { sheet: 'Costs_inventory', name: PACK_PERIOD_COSTS_INVENTORY },
       { sheet: 'Cash_bank_AR', name: PACK_CASH_BANK_AR },
@@ -568,7 +619,7 @@ export function useReportsExport({
     const wb = XLSX.utils.book_new();
     let sheetCount = 0;
     for (const p of packs) {
-      const rows = getExportRows(p.name);
+      const rows = getExportRows(p.name, loaded.data);
       if (!rows.length) continue;
       const sheetName = p.sheet.slice(0, 31);
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), sheetName);
@@ -580,7 +631,7 @@ export function useReportsExport({
     }
     XLSX.writeFile(wb, `month-end-${startDate}-to-${endDate}.xlsx`);
     showToast(`Month-end bundle downloaded (${sheetCount} sheet(s)).`);
-  }, [endDate, getExportRows, showToast, startDate]);
+  }, [apiFetch, endDate, getExportRows, showToast, startDate]);
 
   const downloadReport = useCallback(async (name, fmt) => {
     const packSlug = name.toLowerCase().replace(/\s+/g, '-').replace(/[()]/g, '');
@@ -685,6 +736,32 @@ export function useReportsExport({
       showToast(`${name} exported as ${fmt}.`);
       return;
     }
+
+    let period = null;
+    if (WORKSPACE_PERIOD_PACKS.has(name)) {
+      const loaded = await fetchReportPeriodSource(apiFetch, startDate, endDate);
+      if (!loaded.ok) {
+        showToast(loaded.error, { variant: 'error' });
+        return;
+      }
+      period = loaded.data;
+    }
+    const {
+      expenses,
+      paymentRequests,
+      coilLots,
+      movements,
+      bankReconciliation,
+      ledgerEntries,
+      treasuryMovements,
+      quotations,
+      receipts,
+      productionJobs,
+      refunds,
+      liveProducts,
+      purchaseOrders,
+      accessoryUsage,
+    } = mergePeriod(period);
 
     if (name === PACK_PERIOD_COSTS_INVENTORY && fmt === 'Excel') {
       const ex = paidExpensesInRange(expenses, paymentRequests, startDate, endDate);
@@ -1006,7 +1083,7 @@ export function useReportsExport({
       return;
     }
 
-    const rows = getExportRows(name);
+    const rows = getExportRows(name, period);
     if (!rows.length) {
       showToast(`No rows for ${name.toLowerCase()} in the selected range.`, { variant: 'info' });
       return;
@@ -1025,6 +1102,7 @@ export function useReportsExport({
     hasFinanceView,
     ledgerEntries,
     liveProducts,
+    mergePeriod,
     movements,
     paymentRequests,
     productionJobs,
@@ -1153,7 +1231,16 @@ export function useReportsExport({
       setPurchasePrintOpen(true);
       return;
     }
-    const cfg = getPrintConfig(name);
+    let period = null;
+    if (WORKSPACE_PERIOD_PACKS.has(name)) {
+      const loaded = await fetchReportPeriodSource(apiFetch, startDate, endDate);
+      if (!loaded.ok) {
+        showToast(loaded.error, { variant: 'error' });
+        return;
+      }
+      period = loaded.data;
+    }
+    const cfg = getPrintConfig(name, period);
     setPrintPayload(cfg);
     setPrintOpen(true);
   }, [apiFetch, branchId, endDate, getPrintConfig, hasFinanceView, showToast, startDate]);
