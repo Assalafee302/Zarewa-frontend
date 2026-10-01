@@ -349,6 +349,7 @@ const Reports = () => {
         grouping={printPayload?.grouping ?? null}
         layout={printLayout}
         denseSingleLine={printDense}
+        readable={Boolean(printPayload?.readable)}
       />
 
       <StockRegisterMonthEndModal

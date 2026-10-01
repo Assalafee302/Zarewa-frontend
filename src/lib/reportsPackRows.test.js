@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildPaidExpensePrintRows,
   materialTransactionHasRows,
   paidExpensesInRange,
   purchaseRegisterHasRows,
@@ -57,6 +58,35 @@ describe('reportsPackRows', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].paidAmountNgn).toBe(40_000);
     expect(rows[0].remainingAmountNgn).toBe(60_000);
+  });
+
+  it('print rows show the expense description under the category, not the category again', () => {
+    const rows = buildPaidExpensePrintRows(
+      [
+        {
+          expenseID: 'EX-9',
+          date: '2026-04-02',
+          amountNgn: 8000,
+          category: 'Fuel & lubricant',
+          expenseType: 'Fuel & lubricant',
+        },
+      ],
+      [
+        {
+          expenseID: 'EX-9',
+          amountRequestedNgn: 8000,
+          paidAmountNgn: 8000,
+          approvalStatus: 'Approved',
+          description: 'Diesel for the Kaduna generator',
+        },
+      ],
+      '2026-04-01',
+      '2026-04-30'
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]._category).toBe('Fuel & lubricant');
+    expect(rows[0].description).toBe('Diesel for the Kaduna generator');
+    expect(rows[0].type).toBe('Diesel for the Kaduna generator');
   });
 
   it('rowsPeriodCostsInventoryPack tags sections', () => {

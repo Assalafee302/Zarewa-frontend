@@ -264,18 +264,18 @@ export function useReportsExport({
         const cogs = cogsMovementRows(movements, startDate, endDate);
         return {
           title: PACK_PERIOD_COSTS_INVENTORY,
+          readable: true,
           columns: [
-            { key: 'expenseID', label: 'Expense' },
-            { key: 'date', label: 'Date' },
-            { key: 'category', label: 'Category' },
-            { key: 'type', label: 'Type' },
-            { key: 'amount', label: 'Amount' },
-            { key: 'paidAmount', label: 'Paid' },
-            { key: 'remainingAmount', label: 'Remaining' },
+            { key: 'expenseID', label: 'Expense', width: '8%' },
+            { key: 'date', label: 'Date', width: '10%' },
+            { key: 'description', label: 'Description', width: '36%', wrap: true },
+            { key: 'amount', label: 'Amount', width: '14%', align: 'right' },
+            { key: 'paidAmount', label: 'Paid', width: '14%', align: 'right' },
+            { key: 'remainingAmount', label: 'Remaining', width: '18%', align: 'right' },
           ],
           rows: exRows,
           grouping: {
-            groupBy: 'category',
+            groupBy: '_category',
             subtotalKey: '_paidAmountNgn',
             subtotalColumnKey: 'paidAmount',
             groupLabel: 'Category',
@@ -312,13 +312,14 @@ export function useReportsExport({
         const companyCutPaid = companyCutWithdrawalsInPeriodRows(treasuryMovements, startDate, endDate);
         const expensePrintRows = exRows.map((e) => {
           const category = String(e._category || e.category || 'Uncategorized').trim() || 'Uncategorized';
+          const description = String(e.description || e.type || '—').trim() || '—';
           return {
             groupKey: `Expense · ${category}`,
             section: 'Expense',
             date: e.date || '—',
             ref: e.expenseID || '—',
-            party: category,
-            detail: e.type || '—',
+            party: description,
+            detail: '—',
             amount: e.amount || formatNgn(e._amountNgn || 0),
             status: e.paymentStatus || (Number(e._remainingAmountNgn) > 0 ? 'Part-paid' : 'Paid'),
             _amountNgn: Number(e._amountNgn) || 0,
@@ -363,14 +364,14 @@ export function useReportsExport({
         const companyCutTotal = companyCutPrintRows.reduce((s, r) => s + (Number(r._amountNgn) || 0), 0);
         return {
           title: PACK_EXPENSES_REFUNDS,
+          readable: true,
           columns: [
-            { key: 'groupKey', label: 'Group' },
-            { key: 'date', label: 'Date' },
-            { key: 'ref', label: 'Ref' },
-            { key: 'party', label: 'Category / Customer' },
-            { key: 'detail', label: 'Type / Quotation' },
-            { key: 'amount', label: 'Amount (NGN)', align: 'right' },
-            { key: 'status', label: 'Status' },
+            { key: 'date', label: 'Date', width: '10%' },
+            { key: 'ref', label: 'Ref', width: '9%' },
+            { key: 'party', label: 'Description / Customer', width: '38%', wrap: true },
+            { key: 'detail', label: 'Quotation / Account', width: '16%', wrap: true },
+            { key: 'amount', label: 'Amount', width: '14%', align: 'right', minWidth: '6.5rem' },
+            { key: 'status', label: 'Status', width: '13%' },
           ],
           rows,
           grouping: {

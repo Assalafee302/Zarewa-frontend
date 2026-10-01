@@ -48,6 +48,7 @@ export function ManagementReportSheet({
   layout = 'landscape',
   grouping = null,
   extraMetaLines = [],
+  readable = false,
 }) {
   const columns = Array.isArray(columnsProp) ? columnsProp : [];
   const rows = Array.isArray(rowsProp) ? rowsProp : [];
@@ -203,7 +204,12 @@ export function ManagementReportSheet({
     });
 
   return (
-    <StatementStyleReportShell title={title} metaLines={metaLines} layout={layout}>
+    <StatementStyleReportShell
+      title={title}
+      metaLines={metaLines}
+      layout={layout}
+      className={readable ? 'report-print-readable' : ''}
+    >
       <table
         className={`report-print-table report-print-table--single-line statement-dense-table ${STATEMENT_TBL}`}
       >
@@ -273,6 +279,7 @@ export function ReportPrintModal({
   grouping = null,
   autoPrint = false,
   extraMetaLines = [],
+  readable = false,
 }) {
   const printedRef = useRef(false);
   const isLandscape = layout !== 'portrait';
@@ -328,6 +335,7 @@ export function ReportPrintModal({
             denseSingleLine={denseSingleLine}
             grouping={grouping}
             extraMetaLines={extraMetaLines}
+            readable={readable}
           />
         </div>
       </div>

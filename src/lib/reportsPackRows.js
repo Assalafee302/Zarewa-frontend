@@ -63,6 +63,7 @@ function paidExpensesInRange(expenses = [], paymentRequests = [], startDate, end
     const fullyPaid = requested > 0 && paid >= requested;
     const hasAnyPayout = paid > 0;
     const existing = requestsByExpense.get(expenseID);
+    const description = String(req?.description || '').trim();
     const next = {
       approved,
       rejected,
@@ -70,6 +71,7 @@ function paidExpensesInRange(expenses = [], paymentRequests = [], startDate, end
       hasAnyPayout,
       paidAmountNgn: paid,
       requestedAmountNgn: requested,
+      description,
     };
     if (!existing) {
       requestsByExpense.set(expenseID, next);
@@ -82,6 +84,7 @@ function paidExpensesInRange(expenses = [], paymentRequests = [], startDate, end
       hasAnyPayout: existing.hasAnyPayout || next.hasAnyPayout,
       paidAmountNgn: Math.max(Number(existing.paidAmountNgn) || 0, Number(next.paidAmountNgn) || 0),
       requestedAmountNgn: Math.max(Number(existing.requestedAmountNgn) || 0, Number(next.requestedAmountNgn) || 0),
+      description: existing.description || next.description,
     });
   }
   return inRange
@@ -108,6 +111,7 @@ function paidExpensesInRange(expenses = [], paymentRequests = [], startDate, end
       }
       return {
         ...ex,
+        requestDescription: String(req?.description || '').trim(),
         expenseType: normalizeExpenseTypeLabel(ex.expenseType, paymentStatus === 'Paid' ? 'paid' : ''),
         paidAmountNgn,
         remainingAmountNgn,
@@ -131,21 +135,27 @@ function buildPaidExpensePrintRows(expenses = [], paymentRequests = [], startDat
     return m ? m[1] : raw;
   };
   const expenseDescription = (expense) => {
+    const category = String(expense?.category || '').trim();
     const options = [
+      expense?.requestDescription,
       expense?.description,
       expense?.note,
       expense?.reason,
       expense?.expenseType,
-      expense?.category,
     ];
-    const first = options.find((v) => String(v || '').trim());
-    return first ? String(first).trim() : '—';
+    const first = options
+      .map((v) => String(v || '').trim())
+      .find((v) => v && v !== category);
+    if (first) return first;
+    const fallback = options.map((v) => String(v || '').trim()).find(Boolean);
+    return fallback || '—';
   };
   const rows = paidExpensesInRange(expenses, paymentRequests, startDate, endDate)
     .map((e) => ({
       expenseID: compactExpenseId(e.expenseID),
       date: formatExpenseDateShort(e.date),
       category: e.category || 'Uncategorized',
+      description: expenseDescription(e),
       type: expenseDescription(e),
       amount: (Number(e.amountNgn) || 0).toLocaleString('en-NG'),
       paidAmount: (Number(e.paidAmountNgn) || 0).toLocaleString('en-NG'),
