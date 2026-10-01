@@ -172,6 +172,100 @@ function payeeTillCashDueNgn(row, { treasuryPaidToPayeeNgn = 0, overrideUncleare
   return Math.max(0, tillOwed - roundRefundStaffMoney(treasuryPaidToPayeeNgn));
 }
 
+function normalizePayeeMatchKey(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function cashierPayoutLinesFromRefund(refund) {
+  const top = refund?.cashierPayoutLines;
+  if (Array.isArray(top) && top.length) return top;
+  const nested = refund?.settlementSummary?.cashierPayoutLines;
+  return Array.isArray(nested) ? nested : [];
+}
+
+/**
+ * Till already paid, one figure per payee, same order as `owedNgn`.
+ * An exact match to one person's net stays on that person (RF-KD-26-9680:
+ * ₦228,016 is Sulieman's share, not a deduction from the other ₦249,115).
+ * Walking the list in display order was charging the first payee for both.
+ */
+function allocateRefundTreasuryPaidNgn(owedNgn, paidNgn) {
+  const rows = owedNgn.map((net, index) => ({
+    index,
+    net: Math.max(0, roundRefundStaffMoney(net)),
+  }));
+  const paidByIndex = new Map();
+  let left = Math.max(0, roundRefundStaffMoney(paidNgn));
+  if (rows.length === 2) {
+    const [small, large] = [...rows].sort((a, b) => a.net - b.net || a.index - b.index);
+    const smallNet = small.net;
+    const largeNet = large.net;
+    if (left >= smallNet + largeNet) {
+      paidByIndex.set(small.index, smallNet);
+      paidByIndex.set(large.index, largeNet);
+    } else if (left === smallNet) {
+      paidByIndex.set(small.index, smallNet);
+      paidByIndex.set(large.index, 0);
+    } else if (left === largeNet) {
+      paidByIndex.set(small.index, 0);
+      paidByIndex.set(large.index, largeNet);
+    } else if (left > largeNet) {
+      paidByIndex.set(small.index, smallNet);
+      paidByIndex.set(large.index, Math.min(largeNet, left - smallNet));
+    } else if (left > smallNet) {
+      paidByIndex.set(small.index, 0);
+      paidByIndex.set(large.index, left);
+    } else {
+      paidByIndex.set(small.index, left);
+      paidByIndex.set(large.index, 0);
+    }
+  } else if (rows.length > 2) {
+    const order = [...rows].sort((a, b) => a.net - b.net || a.index - b.index);
+    for (const row of order) {
+      const take = Math.min(row.net, left);
+      paidByIndex.set(row.index, take);
+      left -= take;
+    }
+  } else if (rows.length === 1) {
+    paidByIndex.set(0, Math.min(rows[0].net, left));
+  }
+  return rows.map((row) => paidByIndex.get(row.index) || 0);
+}
+
+function paidFromCashierLines(breakdown, cashierLines) {
+  if (!cashierLines.length || cashierLines.length < breakdown.length) return null;
+  const used = new Set();
+  const paid = [];
+  for (const row of breakdown) {
+    const keys = [row.payeeName, row.recipientLabel].map(normalizePayeeMatchKey).filter(Boolean);
+    const idx = cashierLines.findIndex((line, j) => {
+      if (used.has(j)) return false;
+      const name = normalizePayeeMatchKey(line?.payeeName);
+      return Boolean(name) && keys.includes(name);
+    });
+    if (idx < 0) return null;
+    used.add(idx);
+    paid.push(Math.max(0, roundRefundStaffMoney(cashierLines[idx].paidToPayeeNgn)));
+  }
+  return paid;
+}
+
+function treasuryPaidPerPayee(breakdown, treasuryPaidNgn, refund, mayOverride) {
+  const owed = breakdown.map((row) =>
+    payeeTillCashDueNgn(row, { overrideUnclearedHold: mayOverride })
+  );
+  const fromCashier = paidFromCashierLines(breakdown, cashierPayoutLinesFromRefund(refund));
+  if (fromCashier) {
+    const capped = fromCashier.map((paid, i) => Math.min(owed[i], paid));
+    const sum = capped.reduce((total, n) => total + n, 0);
+    if (sum === Math.max(0, roundRefundStaffMoney(treasuryPaidNgn))) return capped;
+  }
+  return allocateRefundTreasuryPaidNgn(owed, treasuryPaidNgn);
+}
+
 /** Merge API / snapshot rows so payout math always sees split_distributions_json. */
 export function enrichRefundForCashierPayout(row, apiRefund) {
   if (!apiRefund || typeof apiRefund !== 'object') return row;
@@ -202,6 +296,9 @@ export function enrichRefundForCashierPayout(row, apiRefund) {
     payeeBankName: apiRefund.payeeBankName ?? apiRefund.payee_bank_name ?? row?.payeeBankName,
     splitDistributions: splits,
     refundSplits: splits,
+    cashierPayoutLines: Array.isArray(apiRefund.cashierPayoutLines)
+      ? apiRefund.cashierPayoutLines
+      : row?.cashierPayoutLines,
     payoutHistory: Array.isArray(apiRefund.payoutHistory)
       ? apiRefund.payoutHistory
       : row?.payoutHistory,
@@ -438,13 +535,9 @@ function buildRefundPayeePayoutLines(
     return a.recipientKind === 'customer' ? -1 : 1;
   });
 
-  let treasuryRemaining = story.treasuryPaidNgn;
+  const paidToPayee = treasuryPaidPerPayee(breakdown, story.treasuryPaidNgn, refund, mayOverride);
   const lines = breakdown.map((row, idx) => {
-    const treasuryPaidToPayeeNgn = Math.min(
-      payeeTillCashDueNgn(row, { overrideUnclearedHold: mayOverride }),
-      Math.max(0, treasuryRemaining)
-    );
-    treasuryRemaining -= treasuryPaidToPayeeNgn;
+    const treasuryPaidToPayeeNgn = paidToPayee[idx] || 0;
     const amountDueNgn = payeeTillCashDueNgn(row, {
       treasuryPaidToPayeeNgn,
       overrideUnclearedHold: mayOverride,

@@ -397,6 +397,110 @@ describe('refundRecipientTillPayoutRows', () => {
     expect(refundPayeePayoutQueueLines(refund)).toHaveLength(1);
   });
 
+  it('keeps a till payout on the payee it matches (RF-KD-26-9680)', () => {
+    const refund = {
+      refundID: 'RF-KD-26-9680',
+      customerID: 'CUS-KD-26-1052',
+      customer: 'Maimuna Farouk',
+      amountNgn: 541_840,
+      approvedAmountNgn: 541_840,
+      paidAmountNgn: 228_016,
+      companyCutNgn: 64_709,
+      status: 'Partially paid',
+      paymentNote: 'Settled at approval: company cut ₦64,709 → retention ledger.',
+      settlementSummary: {
+        treasuryPaidNgn: 228_016,
+        cashOutstandingNgn: 249_115,
+        tillPayableNgn: 249_115,
+        companyCutNgn: 64_709,
+        cashierPayoutLines: [
+          {
+            payeeName: '0636783237',
+            netNgn: 249_115,
+            paidToPayeeNgn: 0,
+            tillDueNgn: 249_115,
+          },
+          {
+            payeeName: 'Sulieman Abdullahi Liman',
+            netNgn: 228_016,
+            paidToPayeeNgn: 228_016,
+            tillDueNgn: 0,
+          },
+        ],
+      },
+      splitDistributions: [
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-0636783237',
+          amountNgn: 256_820,
+          payeeName: '0636783237',
+          payeeBankName: 'Gt Bank',
+          payeeAccountNo: 'Ahmed Ibrahim',
+        },
+        {
+          recipientKind: 'customer',
+          recipientCustomerID: 'CUS-SULEIMAN',
+          amountNgn: 285_020,
+          payeeName: 'Sulieman Abdullahi Liman',
+          payeeBankName: 'FiRST bANK',
+          payeeAccountNo: '3018655514',
+          staffBankAccountMatch: true,
+        },
+      ],
+    };
+    const rows = refundRecipientTillPayoutRows(refund);
+    const ahmed = rows.find((row) => row.payeeName === '0636783237');
+    const suleiman = rows.find((row) => row.payeeName === 'Sulieman Abdullahi Liman');
+    expect(ahmed?.netPayoutNgn).toBe(249_115);
+    expect(ahmed?.amountDueNgn).toBe(249_115);
+    expect(ahmed?.payoutStatus).toBe('till_due');
+    expect(suleiman?.treasuryPaidToPayeeNgn).toBe(228_016);
+    expect(suleiman?.amountDueNgn).toBe(0);
+    expect(suleiman?.payoutStatus).toBe('paid');
+    const queue = refundPayeePayoutQueueLines(refund);
+    expect(queue).toHaveLength(1);
+    expect(queue[0].payeeName).toBe('0636783237');
+    expect(queue[0].amountDueNgn).toBe(249_115);
+  });
+
+  it('does not take Sulieman’s payout off the other payee when cashier lines are absent', () => {
+    const refund = {
+      refundID: 'RF-KD-26-9680',
+      customerID: 'CUS-KD-26-1052',
+      customer: 'Maimuna Farouk',
+      amountNgn: 541_840,
+      approvedAmountNgn: 541_840,
+      paidAmountNgn: 228_016,
+      companyCutNgn: 64_709,
+      status: 'Partially paid',
+      paymentNote: 'Settled at approval: company cut ₦64,709 → retention ledger.',
+      settlementSummary: {
+        treasuryPaidNgn: 228_016,
+        cashOutstandingNgn: 249_115,
+        tillPayableNgn: 249_115,
+        companyCutNgn: 64_709,
+      },
+      splitDistributions: [
+        {
+          recipientKind: 'associated_staff',
+          recipientAssociatedStaffID: 'AST-0636783237',
+          amountNgn: 256_820,
+          payeeName: '0636783237',
+        },
+        {
+          recipientKind: 'customer',
+          recipientCustomerID: 'CUS-SULEIMAN',
+          amountNgn: 285_020,
+          payeeName: 'Sulieman Abdullahi Liman',
+          staffBankAccountMatch: true,
+        },
+      ],
+    };
+    const rows = refundRecipientTillPayoutRows(refund);
+    expect(rows.find((row) => row.payeeName === '0636783237')?.amountDueNgn).toBe(249_115);
+    expect(rows.find((row) => row.payeeName === 'Sulieman Abdullahi Liman')?.amountDueNgn).toBe(0);
+  });
+
   it('shows overpayment staff as referral-available while till payout stays held', () => {
     const refund = {
       refundID: 'RF-KD-26-9553',
