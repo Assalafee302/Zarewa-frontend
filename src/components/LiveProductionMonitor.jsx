@@ -586,10 +586,14 @@ export function LiveProductionMonitor({
       return;
     }
     setJobIntelLoading(true);
-    const { ok, data } = await apiFetch(`/api/production-jobs/${encodeURIComponent(jobId)}/intel`);
+    const signal = typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(12_000) : undefined;
+    const { ok, data } = await apiFetch(`/api/production-jobs/${encodeURIComponent(jobId)}/intel`, { signal });
     setJobIntelLoading(false);
     if (ok && data?.intel) setJobIntel(data.intel);
     else setJobIntel(null);
+    if (!ok) {
+      showToast(data?.error || 'This is taking too long. The register is still open — try Save again.', { variant: 'error' });
+    }
   }, [selectedJob?.jobID]);
 
   /** Prefer write delta; otherwise reload production jobs/coils (faster than full bootstrap). */
@@ -2947,6 +2951,8 @@ export function LiveProductionMonitor({
         return;
       }
       const skippedCoilRows = incompleteNewCoilRows(draftAllocations);
+      const saveSignal =
+        typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(25_000) : undefined;
       try {
         let lastStockRecalc = null;
         let lastWriteRes = null;
@@ -2981,6 +2987,7 @@ export function LiveProductionMonitor({
           let resRl = await apiFetch(`${jobApi}/coil-run-log`, {
             method: 'POST',
             body: JSON.stringify(buildRunLog(false)),
+            signal: saveSignal,
           });
           if (!resRl.ok && resRl.data?.code === 'PRODUCTION_SPEC_MISMATCH') {
             const detail = (resRl.data.mismatches || [])
@@ -2995,12 +3002,13 @@ export function LiveProductionMonitor({
               resRl = await apiFetch(`${jobApi}/coil-run-log`, {
                 method: 'POST',
                 body: JSON.stringify(buildRunLog(true)),
+                signal: saveSignal,
               });
             }
           }
           if (!resRl.ok || !resRl.data?.ok) {
             setSavingAction('');
-            showToast(resRl.data?.error || 'Could not save run log.', { variant: 'error' });
+            showToast(/abort|timed out|timeout/i.test(String(resRl.data?.error || '')) ? 'Save is taking too long. Open the job again in a moment — it may already be saved.' : (resRl.data?.error || 'Could not save run log.'), { variant: 'error' });
             await refreshAfterWrite(resRl);
             return;
           }
@@ -3059,10 +3067,10 @@ export function LiveProductionMonitor({
               .sort((a, b) => (Number(a.sequenceNo) || 0) - (Number(b.sequenceNo) || 0))
           );
         }
-        await refreshAfterWrite(lastWriteRes);
         setSavingAction('');
         if (!skippedCoilRows.length) clearProdCoilDraftStorage(selectedJob.jobID);
         showToast(`Saved.${stockRecalcSuffix(lastStockRecalc)}`);
+        void refreshAfterWrite(lastWriteRes);
         if (skippedCoilRows.length) {
           showToast(incompleteNewCoilRowsMessage(skippedCoilRows), { variant: 'error' });
         }
