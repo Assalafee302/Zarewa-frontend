@@ -66,6 +66,7 @@ export function ProcurementTabPanels() {
     paymentsView,
     setPaymentsView,
     adjustmentPoId,
+    setAdjustmentPoId,
     searchQuery,
     setSearchQuery,
     canRecordSupplierPayment,
@@ -257,6 +258,10 @@ export function ProcurementTabPanels() {
                               onOpenPay={() => {
                                 openApPaymentModal(p);
                               }}
+                              onOpenAdjustment={(poRef) => {
+                                setPaymentsView('adjustments');
+                                setAdjustmentPoId(String(poRef || ''));
+                              }}
                             />
                           ))}
                         </ul>
@@ -338,6 +343,10 @@ export function ProcurementTabPanels() {
                               }}
                               onOpenPay={() => {
                                 openApPaymentModal(p);
+                              }}
+                              onOpenAdjustment={(poRef) => {
+                                setPaymentsView('adjustments');
+                                setAdjustmentPoId(String(poRef || ''));
                               }}
                             />
                           ))}

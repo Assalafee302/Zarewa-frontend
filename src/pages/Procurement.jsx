@@ -1190,6 +1190,7 @@ const Procurement = () => {
       paymentsView,
       setPaymentsView,
       adjustmentPoId,
+      setAdjustmentPoId,
       searchQuery,
       setSearchQuery,
       canRecordSupplierPayment,
@@ -1257,6 +1258,7 @@ const Procurement = () => {
       activeTab,
       paymentsView,
       adjustmentPoId,
+      setAdjustmentPoId,
       searchQuery,
       canRecordSupplierPayment,
       payablesOutstandingNgn,
@@ -2659,6 +2661,13 @@ const Procurement = () => {
           setPreviewPo(null);
           setPreviewAp(null);
           openApPaymentModal(ap);
+        }}
+        onOpenAdjust={(poRef) => {
+          setPreviewPo(null);
+          setPreviewAp(null);
+          setActiveTab('payables');
+          setPaymentsView('adjustments');
+          setAdjustmentPoId(String(poRef || ''));
         }}
       />
     </PageShell>

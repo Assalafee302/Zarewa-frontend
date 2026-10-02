@@ -10,6 +10,7 @@ export function ProcurementPayableRow({
   wsCanMutate,
   onOpenPreview,
   onOpenPay,
+  onOpenAdjustment,
 }) {
   const paid = Number(p.paidNgn) || 0;
   const amt = Number(p.amountNgn) || 0;
@@ -64,22 +65,39 @@ export function ProcurementPayableRow({
             )}
           </span>
           {open ? (
-            <button
-              type="button"
-              disabled={!wsCanMutate || !canRecordSupplierPayment}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!canRecordSupplierPayment) return;
-                onOpenPay();
-              }}
-              className="text-ui-xs font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md disabled:opacity-40"
-            >
-              Pay
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={!wsCanMutate || !canRecordSupplierPayment}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!canRecordSupplierPayment) return;
+                  onOpenPay();
+                }}
+                className="text-ui-xs font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2.5 py-1 rounded-md disabled:opacity-40"
+              >
+                Pay
+              </button>
+            </div>
           ) : (
-            <span className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-800">
-              Paid
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-800">
+                Paid
+              </span>
+              {p.poRef && onOpenAdjustment ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenAdjustment(p.poRef);
+                  }}
+                  title="Record a 2nd payment, correct amount, or record refund on this PO"
+                  className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-colors"
+                >
+                  Adjust
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { PrintModalPortal } from '../layout/PrintModalPortal';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Info, Printer, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, Printer, RotateCcw, X } from 'lucide-react';
 import { SlideOverPanel } from '../layout/SlideOverPanel';
 import { PoStatusChip } from './PoStatusChip';
 import { formatNgn } from '../../Data/mockData';
@@ -730,6 +730,7 @@ export function ProcurementPayablePreviewSlideOver({
   canPay,
   wsCanMutate,
   onPay,
+  onOpenAdjust,
 }) {
   if (!p) return null;
   const paid = Number(p.paidNgn) || 0;
@@ -810,8 +811,8 @@ export function ProcurementPayablePreviewSlideOver({
           </div>
         </div>
 
-        {open && canPay ? (
-          <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3">
+        <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3 space-y-2">
+          {open && canPay ? (
             <button
               type="button"
               disabled={!wsCanMutate}
@@ -820,8 +821,18 @@ export function ProcurementPayablePreviewSlideOver({
             >
               Record payment
             </button>
-          </div>
-        ) : null}
+          ) : null}
+          {p.poRef ? (
+            <button
+              type="button"
+              onClick={() => onOpenAdjust?.(p.poRef)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-ui-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-100 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <RotateCcw size={13} className="text-slate-500" />
+              Second payment & corrections
+            </button>
+          ) : null}
+        </div>
       </div>
     </SlideOverPanel>
   );
