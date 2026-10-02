@@ -771,6 +771,7 @@ const Account = () => {
     const period = buildTreasuryAccountStatementPeriod({
       account: statementAccount,
       movements: liveTreasuryMovements,
+      receipts: liveReceipts,
       fromDate: statementPrintFromDate,
       toDate: statementPrintToDate,
     });
@@ -865,6 +866,7 @@ const Account = () => {
     statementPrintFromDate,
     statementPrintToDate,
     liveTreasuryMovements,
+    liveReceipts,
     escapeHtml,
     formatStatementShortDate,
     showToast,
@@ -875,6 +877,7 @@ const Account = () => {
     const period = buildTreasuryAccountStatementPeriod({
       account: statementAccount,
       movements: liveTreasuryMovements,
+      receipts: liveReceipts,
       fromDate: statementPrintFromDate,
       toDate: statementPrintToDate,
     });
@@ -894,6 +897,7 @@ const Account = () => {
     statementPrintFromDate,
     statementPrintToDate,
     liveTreasuryMovements,
+    liveReceipts,
     showToast,
   ]);
 

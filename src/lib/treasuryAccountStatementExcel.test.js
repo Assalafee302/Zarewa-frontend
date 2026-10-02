@@ -75,6 +75,27 @@ describe('treasuryAccountStatementExcel', () => {
     expect(period.rows[1].balanceNgn).toBe(60_000);
   });
 
+  it('leaves unconfirmed receipt cash out of the running balance', () => {
+    const period = buildTreasuryAccountStatementPeriod({
+      account,
+      movements,
+      receipts: [
+        { id: 'SR-1', ledgerEntryId: 'SR-1', status: 'Cleared', financeReconciliationSavedAtISO: '2026-07-02' },
+        { id: 'SR-2', ledgerEntryId: 'SR-2', status: 'Pending clearance' },
+      ],
+      fromDate: '2026-07-01',
+      toDate: '2026-08-31',
+    });
+    expect(period.ok).toBe(true);
+    expect(period.rows).toHaveLength(3);
+    expect(period.rows[0].balanceNgn).toBe(70_000);
+    expect(period.rows[1].balanceNgn).toBe(60_000);
+    expect(period.rows[2].description).toMatch(/not in account balance/);
+    expect(period.rows[2].balanceNgn).toBe(60_000);
+    expect(period.closingBalanceNgn).toBe(60_000);
+    expect(period.totals.in).toBe(20_000);
+  });
+
   it('rejects empty ranges', () => {
     const period = buildTreasuryAccountStatementPeriod({
       account,

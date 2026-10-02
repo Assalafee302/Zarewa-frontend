@@ -6,6 +6,7 @@ import { treasuryIntegrityDisplay } from '../../shared/lib/treasuryTillLane.js';
 import { FinanceDeskBalanceBreakdown } from './FinanceDeskBalanceBreakdown';
 import {
   emptyTreasuryDeskBalanceSplit,
+  ledgerAccountBalanceNgn,
   treasuryDeskBalanceForAccount,
 } from '../../lib/financeDeskTreasury';
 
@@ -59,7 +60,7 @@ export function FinanceTreasuryManageAccountsPanel({
                   confirmedPlusUnlinkedNgn: book,
                   allTotalNgn: book,
                 };
-            const balance = split.allTotalNgn;
+            const balance = ledgerAccountBalanceNgn(split);
             return (
             <div
               key={acc.id}
@@ -94,6 +95,11 @@ export function FinanceTreasuryManageAccountsPanel({
                 <p className="mt-1 text-sm font-bold tabular-nums text-zarewa-teal tracking-tight">
                   {formatNgn(balance)}
                 </p>
+                {split.pendingNgn > 0 ? (
+                  <p className="text-[10px] text-amber-800 leading-snug">
+                    Excludes {formatNgn(split.pendingNgn)} unconfirmed
+                  </p>
+                ) : null}
                 {(() => {
                   const integrity = treasuryIntegrityDisplay(acc);
                   if (!integrity.show) return null;

@@ -13,7 +13,12 @@ import {
   treasuryAccountDisplayName,
   treasuryAccountsForWorkspace,
 } from './treasuryAccountsStore.js';
-import { treasuryBookBalanceByAccountId, treasuryBookDisplayNgn } from './financeDeskTreasury.js';
+import {
+  ledgerAccountBalanceNgn,
+  treasuryBookBalanceByAccountId,
+  treasuryDeskBalanceForAccount,
+  treasuryDeskBalanceSplit,
+} from './financeDeskTreasury.js';
 import { TILL_LANE, treasuryTillLane } from '../shared/lib/treasuryTillLane.js';
 
 export const MANAGER_WATCH_WARN_HOURS = 24;
@@ -327,9 +332,18 @@ function millBlockedJobs(productionJobs, nowMs) {
 function bankBalances(snapshot, session) {
   const accounts = treasuryAccountsForWorkspace(snapshot, session);
   const movements = listFrom(snapshot, 'treasuryMovements', 'treasury_movements');
+  const receipts = listFrom(snapshot, 'receipts', 'salesReceipts', 'sales_receipts');
+  const bankDeposits = listFrom(snapshot, 'bankDeposits', 'bank_deposits');
   const bookById = treasuryBookBalanceByAccountId(accounts, movements);
+  const split = treasuryDeskBalanceSplit({
+    accounts,
+    movements,
+    receipts,
+    bankDeposits,
+    bookById,
+  });
   const mapped = accounts.map((acc) => {
-    const bookNgn = treasuryBookDisplayNgn(acc, bookById);
+    const bookNgn = ledgerAccountBalanceNgn(treasuryDeskBalanceForAccount(split.byAccountId, acc));
     const lane = treasuryTillLane(acc);
     return {
       id: acc.id,

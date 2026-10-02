@@ -4,6 +4,7 @@ import {
 } from './receiptClearance.js';
 import { BANK_DEPOSIT_LINKABLE_STATUSES, bankDepositRemainingNgn } from './bankDeposits.js';
 import { treasuryPayoutAvailableNgn } from '../shared/lib/treasuryTillLane.js';
+import { isTreasurySplitFinanceConfirmed } from '../shared/lib/receiptPaymentConfirmQueue.js';
 
 /**
  * Cashier desk treasury display — book balance from opening + movements (matches Treasury tab).
@@ -93,7 +94,56 @@ function isReceiptOrAdvanceInflow(movement) {
   );
 }
 
-function receiptLookupBySourceId(receipts = []) {
+function isReceiptTreasuryInflow(movement) {
+  const type = String(movement?.type || '').trim();
+  const sourceKind = String(movement?.sourceKind || '').trim();
+  return type === 'RECEIPT_IN' || sourceKind === 'LEDGER_RECEIPT';
+}
+
+/**
+ * Sales receipt cash that Finance has not confirmed. Confirmed splits count even when
+ * the receipt still has another split waiting. Advances and other movements do not.
+ * @param {object | null | undefined} movement
+ * @param {Map<string, object>} receiptBySourceId
+ */
+export function isUnconfirmedReceiptTreasuryInflow(movement, receiptBySourceId) {
+  if (!movement || movement.reversesMovementId) return false;
+  if (!isReceiptTreasuryInflow(movement)) return false;
+  if (isTreasurySplitFinanceConfirmed(movement)) return false;
+  const sourceId = String(movement.sourceId || '').trim();
+  const receipt = sourceId && receiptBySourceId ? receiptBySourceId.get(sourceId) : null;
+  if (!receipt) return true;
+  if (isReceiptReversed(receipt)) return false;
+  return isReceiptPendingClearance(receipt);
+}
+
+/**
+ * Signed amount included in the ledger account balance.
+ * Pass `receipts` to drop unconfirmed receipt inflows (and reversals of those inflows).
+ * Omit `receipts` to keep every movement.
+ * @param {object | null | undefined} movement
+ * @param {{
+ *   receipts?: object[] | null,
+ *   receiptBySourceId?: Map<string, object>,
+ *   reversedMovementIds?: Set<string>,
+ *   movementById?: Map<string, object>,
+ * }} [opts]
+ */
+export function treasuryMovementLedgerDeltaNgn(movement, opts = {}) {
+  const amount = Math.round(Number(movement?.amountNgn) || 0);
+  if (!Array.isArray(opts.receipts)) return amount;
+  const lookup = opts.receiptBySourceId || receiptLookupBySourceId(opts.receipts);
+  const id = movement?.id != null ? String(movement.id).trim() : '';
+  if (id && opts.reversedMovementIds?.has(id)) return 0;
+  if (isUnconfirmedReceiptTreasuryInflow(movement, lookup)) return 0;
+  const revOf = String(movement?.reversesMovementId || '').trim();
+  if (revOf && opts.movementById?.has(revOf)) {
+    if (isUnconfirmedReceiptTreasuryInflow(opts.movementById.get(revOf), lookup)) return 0;
+  }
+  return amount;
+}
+
+export function receiptLookupBySourceId(receipts = []) {
   const map = new Map();
   for (const receipt of Array.isArray(receipts) ? receipts : []) {
     if (receipt?.id != null && String(receipt.id).trim() !== '') {
@@ -108,9 +158,10 @@ function receiptLookupBySourceId(receipts = []) {
 
 /**
  * Per-account cashier desk balances (not lifetime payment totals).
- * `allTotalNgn` / `bookNgn` is the live account balance.
- * Confirmed (linked) = that balance after removing draft receipts and unlinked deposits.
- * Confirmed + unlinked = account balance after removing draft receipts only.
+ * `bookNgn` / `allTotalNgn` is the live stored balance, including unconfirmed receipts.
+ * Ledger account balance is `confirmedPlusUnlinkedNgn`: that live balance after
+ * removing unconfirmed receipt cash only. Unlinked bank deposits stay in it.
+ * Confirmed (linked) also removes unlinked deposits.
  */
 export function emptyTreasuryDeskBalanceSplit() {
   return {
@@ -137,6 +188,12 @@ function composeDeskBalanceSplit(bookNgn, unlinkedNgn, pendingNgn) {
   };
 }
 
+/** Ledger account balance: live balance minus unconfirmed receipt cash. */
+export function ledgerAccountBalanceNgn(split) {
+  const s = split || emptyTreasuryDeskBalanceSplit();
+  return Math.round(Number(s.confirmedPlusUnlinkedNgn) || 0);
+}
+
 /**
  * Split each treasury account's live balance into confirmed (linked), confirmed+unlinked, and all.
  */
@@ -161,14 +218,8 @@ export function treasuryDeskBalanceSplit({
     if (movement.id != null && reversedMovementIds.has(String(movement.id))) continue;
     const amount = Math.round(Number(movement.amountNgn) || 0);
     if (amount <= 0) continue;
-    const sourceId = String(movement.sourceId || '').trim();
-    const receipt = sourceId ? receiptBySourceId.get(sourceId) : null;
-    if (receipt && isReceiptReversed(receipt)) continue;
-    const pending = receipt
-      ? isReceiptPendingClearance(receipt)
-      : String(movement.type || '').trim() === 'RECEIPT_IN' ||
-        String(movement.sourceKind || '').trim() === 'LEDGER_RECEIPT';
-    if (pending) bumpNgnMap(pendingById, movement.treasuryAccountId, amount);
+    if (!isUnconfirmedReceiptTreasuryInflow(movement, receiptBySourceId)) continue;
+    bumpNgnMap(pendingById, movement.treasuryAccountId, amount);
   }
 
   for (const deposit of Array.isArray(bankDeposits) ? bankDeposits : []) {

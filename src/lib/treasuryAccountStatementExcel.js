@@ -1,11 +1,17 @@
 import * as XLSX from 'xlsx';
 import { treasuryMovementSourceBadge, treasuryMovementStatementLabel } from './accountCore.js';
+import {
+  isUnconfirmedReceiptTreasuryInflow,
+  receiptLookupBySourceId,
+  treasuryMovementLedgerDeltaNgn,
+} from './financeDeskTreasury.js';
 
 /**
  * Build a dated treasury account statement with opening/running balances.
  * @param {{
  *   account: { id?: number|string; name?: string; bankName?: string; balance?: number; openingBalanceNgn?: number|null };
  *   movements: object[];
+ *   receipts?: object[];
  *   fromDate: string;
  *   toDate: string;
  * }} opts
@@ -32,7 +38,7 @@ import { treasuryMovementSourceBadge, treasuryMovementStatementLabel } from './a
  *   }>;
  * } | { ok: false; error: string }}
  */
-export function buildTreasuryAccountStatementPeriod({ account, movements, fromDate, toDate }) {
+export function buildTreasuryAccountStatementPeriod({ account, movements, receipts, fromDate, toDate }) {
   const from = String(fromDate || '').trim().slice(0, 10);
   const to = String(toDate || '').trim().slice(0, 10);
   if (!account) return { ok: false, error: 'Select a treasury account first.' };
@@ -67,23 +73,46 @@ export function buildTreasuryAccountStatementPeriod({ account, movements, fromDa
       regOpeningRaw !== undefined && regOpeningRaw !== null ? regOpeningRaw : impliedOpeningFromPostingsNgn
     ) || 0
   );
+  const receiptsProvided = Array.isArray(receipts);
+  const movementById = new Map();
+  const reversedMovementIds = new Set();
+  for (const line of accountMovements) {
+    if (line?.id != null && String(line.id).trim() !== '') movementById.set(String(line.id).trim(), line);
+    const revOf = String(line?.reversesMovementId || '').trim();
+    if (revOf) reversedMovementIds.add(revOf);
+  }
+  const receiptBySourceId = receiptsProvided ? receiptLookupBySourceId(receipts) : null;
+  const ledgerOpts = {
+    receipts: receiptsProvided ? receipts : null,
+    receiptBySourceId,
+    reversedMovementIds,
+    movementById,
+  };
+  const ledgerDelta = (line) => treasuryMovementLedgerDeltaNgn(line, ledgerOpts);
+
   const openingBalanceNgn = accountMovements.reduce((sum, line) => {
     const date = String(line.postedAtISO || '').slice(0, 10);
-    return date < from ? sum + (Number(line.amountNgn) || 0) : sum;
+    return date < from ? sum + ledgerDelta(line) : sum;
   }, openingBookBalanceNgn);
 
   let runningBalanceNgn = openingBalanceNgn;
   const totals = { in: 0, out: 0 };
   const rows = rangeLines.map((line, index) => {
     const amount = Number(line.amountNgn) || 0;
-    if (amount > 0) totals.in += amount;
-    if (amount < 0) totals.out += Math.abs(amount);
-    runningBalanceNgn += amount;
+    const counted = ledgerDelta(line);
+    if (counted > 0) totals.in += counted;
+    if (counted < 0) totals.out += Math.abs(counted);
+    runningBalanceNgn += counted;
+    const pendingReceipt =
+      receiptsProvided && isUnconfirmedReceiptTreasuryInflow(line, receiptBySourceId);
+    const descriptionBase = treasuryMovementStatementLabel(line);
     return {
       lineNo: index + 1,
       date: String(line.postedAtISO || '').slice(0, 10),
       source: treasuryMovementSourceBadge(line).label,
-      description: treasuryMovementStatementLabel(line),
+      description: pendingReceipt
+        ? `${descriptionBase} · Pending clearance — not in account balance`
+        : descriptionBase,
       reference: String(line.reference || '').trim(),
       sourceId: String(line.sourceId || '').trim(),
       movementId: line.id ?? '',

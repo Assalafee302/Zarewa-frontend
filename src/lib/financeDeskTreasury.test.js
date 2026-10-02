@@ -6,6 +6,7 @@ import {
   findTreasuryPayoutShortAccount,
   treasuryDeskBalanceSplit,
   treasuryDeskBalanceForAccount,
+  ledgerAccountBalanceNgn,
 } from './financeDeskTreasury.js';
 
 describe('financeDeskTreasury', () => {
@@ -94,5 +95,37 @@ describe('financeDeskTreasury', () => {
     expect(acc.unlinkedNgn).toBe(30_000);
     expect(acc.confirmedPlusUnlinkedNgn).toBe(170_000);
     expect(acc.confirmedNgn).toBe(140_000);
+    expect(ledgerAccountBalanceNgn(acc)).toBe(170_000);
+  });
+
+  it('keeps a finance-confirmed split in the ledger balance while the receipt is still pending', () => {
+    const accounts = [{ id: 7, name: 'GTB', openingBalanceNgn: 0, balance: 70_000 }];
+    const receipts = [
+      { id: 'RC-2', ledgerEntryId: 'LE-2', amountNgn: 70_000, status: 'Pending clearance' },
+    ];
+    const movements = [
+      {
+        id: 'TM-1',
+        treasuryAccountId: 7,
+        type: 'RECEIPT_IN',
+        sourceKind: 'LEDGER_RECEIPT',
+        sourceId: 'LE-2',
+        amountNgn: 40_000,
+        financeConfirmedAtISO: '2026-08-02T10:00:00.000Z',
+      },
+      {
+        id: 'TM-2',
+        treasuryAccountId: 7,
+        type: 'RECEIPT_IN',
+        sourceKind: 'LEDGER_RECEIPT',
+        sourceId: 'LE-2',
+        amountNgn: 30_000,
+      },
+    ];
+    const split = treasuryDeskBalanceSplit({ accounts, movements, receipts, bankDeposits: [] });
+    const acc = treasuryDeskBalanceForAccount(split.byAccountId, accounts[0]);
+    expect(acc.pendingNgn).toBe(30_000);
+    expect(ledgerAccountBalanceNgn(acc)).toBe(40_000);
+    expect(acc.allTotalNgn).toBe(70_000);
   });
 });

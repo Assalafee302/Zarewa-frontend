@@ -6,13 +6,14 @@ import { FinanceActionButton } from './FinanceActionButton';
 import { FinanceDeskBalanceBreakdown } from './FinanceDeskBalanceBreakdown';
 import {
   emptyTreasuryDeskBalanceSplit,
+  ledgerAccountBalanceNgn,
   treasuryBookDisplayNgn,
   treasuryDeskBalanceForAccount,
 } from '../../lib/financeDeskTreasury';
 
 /**
  * Treasury-style account cards for Cashier Desk (matches Treasury tab card grid).
- * Main figure is live account balance; confirmed / unlinked / all totals sit just below.
+ * Main figure is the ledger account balance (live balance minus unconfirmed receipts).
  * @param {{
  *   accounts: object[];
  *   bookById: Map<number, number>;
@@ -77,7 +78,7 @@ export function FinanceDeskTreasuryAccountGrid({
                 confirmedPlusUnlinkedNgn: book,
                 allTotalNgn: book,
               };
-          const balance = split.allTotalNgn;
+          const balance = ledgerAccountBalanceNgn(split);
           return (
             <div
               key={acc.id}
@@ -111,6 +112,11 @@ export function FinanceDeskTreasuryAccountGrid({
                 <p className="mt-1 text-sm font-bold tabular-nums text-zarewa-teal tracking-tight">
                   {formatNgn(balance)}
                 </p>
+                {split.pendingNgn > 0 ? (
+                  <p className="text-[10px] text-amber-800 leading-snug">
+                    Excludes {formatNgn(split.pendingNgn)} unconfirmed
+                  </p>
+                ) : null}
                 {(() => {
                   const integrity = treasuryIntegrityDisplay(acc);
                   if (!integrity.show) return null;
