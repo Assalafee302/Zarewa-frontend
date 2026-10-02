@@ -914,6 +914,33 @@ const CORE_HELP_ARTICLES = [
     links: [{ label: 'Finance — Payment register', to: '/accounts?tab=disbursements' }],
   },
   {
+    id: 'supplier-double-payment-overpayment',
+    title: 'Supplier double payment and overpayment reversal',
+    keywords: [
+      'double paid a supplier',
+      'double paid supplier',
+      'second supplier payment',
+      'supplier overpayment reversal',
+      'supplier refunded the overpayment',
+      'overpaid a supplier',
+      'duplicate supplier payment',
+      'supplier overpayments',
+      'wrong supplier payment amount',
+      'edit supplier payment',
+      'correct supplier amount paid',
+    ],
+    answer:
+      'A second payment to a supplier, and cash the supplier sends back for an overpayment, are not normal invoice settlements. Finance records them on **Supplier overpayments** so the extra cash sits as an amount the supplier owes back, and the refund reduces it.',
+    steps: [
+      'Open **Supplier overpayments** and enter the purchase order.',
+      'Read the order value, what is already paid, and how much is above the order.',
+      'To record the second payment: choose the bank account the money left, the date, the bank reference, and a short note. The amount must be more than what is still owed.',
+      'When the supplier refunds the extra, or the bank reverses it: record the reversal for no more than the amount above the order value.',
+      'If a payment was entered at the wrong amount: open Correct a wrong payment, choose that bank line, and type the amount that actually left the account.',
+    ],
+    links: [{ label: 'Supplier overpayments', to: '/supplier-overpayments' }],
+  },
+  {
     id: 'manager-payment-hold-clearance',
     title: 'Manager payment hold and clearance',
     keywords: [
@@ -1632,6 +1659,7 @@ const PATH_ARTICLE_BOOSTS = {
     'period-locked',
     'finance-receipt-clearance',
     'treasury-pay-from-correction',
+    'supplier-double-payment-overpayment',
     'branch-treasury-scope',
   ],
   '/manager': [
@@ -1891,6 +1919,7 @@ export function quickQuestionsForPath(pathname) {
       { label: 'GRN short weight', query: 'GRN received below ordered kg MD alert' },
       { label: 'In-transit transport', query: 'Link transport on in-transit PO' },
       { label: 'Duplicate supplier', query: 'Duplicate supplier registration blocked' },
+      { label: 'Double paid', query: 'We double paid a supplier and need the supplier overpayment reversal' },
     ];
   }
   if (p.startsWith('/operations')) {

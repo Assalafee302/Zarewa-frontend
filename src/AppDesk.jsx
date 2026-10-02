@@ -117,6 +117,9 @@ const CoilProfile = lazyWithRetry(() => import('./pages/operations/CoilProfile')
 const Operations = lazyWithRetry(() => import('./pages/operations/Operations'), { id: 'Operations' });
 const OvertimeHub = lazyWithRetry(() => import('./pages/operations/OvertimeHub'), { id: 'OvertimeHub' });
 const Account = lazyWithRetry(() => import('./pages/account/Account'), { id: 'Account' });
+const SupplierOverpayments = lazyWithRetry(() => import('./pages/finance/SupplierOverpayments'), {
+  id: 'SupplierOverpayments',
+});
 const CashierDesk = lazyWithRetry(() => import('./pages/account/CashierDesk'), { id: 'CashierDesk' });
 const AccountingDesk = lazyWithRetry(() => import('./pages/account/AccountingDesk'), { id: 'AccountingDesk' });
 const Customers = lazyWithRetry(() => import('./pages/sales/Customers'), { id: 'Customers' });
@@ -1091,6 +1094,16 @@ function AppShell() {
                       <Account />
                     </AccountRouteErrorBoundary>
                   </LegacyAccountsRouteGuard>
+                </ModuleRouteGuard>
+              }
+            />
+            <Route
+              path="/supplier-overpayments"
+              element={
+                <ModuleRouteGuard moduleKey="finance" altModuleKeys={['cashier_desk', 'procurement']}>
+                  <AccountRouteErrorBoundary>
+                    <SupplierOverpayments />
+                  </AccountRouteErrorBoundary>
                 </ModuleRouteGuard>
               }
             />

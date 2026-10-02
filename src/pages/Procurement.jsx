@@ -1064,7 +1064,9 @@ const Procurement = () => {
       return;
     }
     if (remaining <= 0) {
-      showToast('This payable is already fully paid in records.', { variant: 'info' });
+      showToast('This payable is already fully paid. Open Supplier overpayments for a second payment or a wrong amount.', {
+        variant: 'info',
+      });
       return;
     }
     if (apPayTotalNgn > remaining) {
@@ -1902,6 +1904,15 @@ const Procurement = () => {
                     </p>
                   </div>
                 </div>
+                {selectedAp.poRef ? (
+                  <Link
+                    to={`/supplier-overpayments?poId=${encodeURIComponent(selectedAp.poRef)}`}
+                    className="mt-2 inline-block text-xs font-bold text-zarewa-teal underline"
+                    onClick={resetApPaymentModal}
+                  >
+                    Second payment, wrong amount, or refund of an overpayment
+                  </Link>
+                ) : null}
                 </div>
               <div className="flex items-center justify-between">
                 <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>

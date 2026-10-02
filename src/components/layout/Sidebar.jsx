@@ -22,6 +22,7 @@ import {
   Users,
   UserCircle,
   Calculator,
+  Banknote,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { appConfirm } from '../../lib/appConfirm';
@@ -182,6 +183,14 @@ const Sidebar = ({
       title: hasAccountingDesk
         ? 'Receipts, payouts, and cashier workflows'
         : 'Branch treasury, receipts, and payments',
+    },
+    {
+      icon: <Banknote size={18} />,
+      label: 'Supplier overpayments',
+      path: '/supplier-overpayments',
+      active: pathMatches(p, '/supplier-overpayments'),
+      visible: Boolean(ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('*')),
+      title: 'Second supplier payment, wrong amount, or refund of an overpayment',
     },
     {
       icon: <BarChart3 size={18} />,
