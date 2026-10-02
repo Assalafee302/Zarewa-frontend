@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyRefundFundDeductionToPaymentLines,
+  cashierFinanceSettlementCash,
   buildRefundFundClearanceSummary,
   isRefundFundApplyLedgerEntry,
   planCashierRefundOffset,
@@ -225,6 +226,37 @@ describe('refund fund apply helpers', () => {
     expect(choice.sourceIds).toEqual(['refund:RF-KD-26-9693']);
     expect(choice.availableNgn).toBe(861_575);
     expect(choice.detailsOpen).toBe(true);
+  });
+
+  it('does not resend the registered till when refund fund covers the receipt', () => {
+    const covered = cashierFinanceSettlementCash({
+      applyRefund: true,
+      cashToConfirmNgn: 0,
+      splits: [{ movementId: 'TM-1', amountNgn: 415_350, treasuryAccountId: 4 }],
+      drafts: {
+        'TM-1': { amountNgn: '415350', treasuryAccountId: '4', postedDate: '2026-10-01', note: '' },
+      },
+      fallbackBankNgn: 415_350,
+    });
+    expect(covered).toEqual({ bankReceivedAmountNgn: 0, paymentLineCorrections: [] });
+
+    const partial = cashierFinanceSettlementCash({
+      applyRefund: true,
+      cashToConfirmNgn: 100_000,
+      splits: [{ movementId: 'TM-1', amountNgn: 415_350, treasuryAccountId: 4 }],
+      drafts: {
+        'TM-1': { amountNgn: '415350', treasuryAccountId: '4', postedDate: '2026-10-01', note: '' },
+      },
+    });
+    expect(partial.bankReceivedAmountNgn).toBe(100_000);
+    expect(partial.paymentLineCorrections).toEqual([
+      {
+        movementId: 'TM-1',
+        amountNgn: 100_000,
+        treasuryAccountId: 4,
+        postedAtISO: '2026-10-01T12:00:00.000Z',
+      },
+    ]);
   });
 
   it('plans cashier receipt offset against approved refund fund', () => {

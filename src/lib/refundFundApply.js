@@ -287,6 +287,71 @@ export function refundFundAppliedOnQuotation(opts = {}) {
 }
 
 /**
+ * Cash the cashier desk sends on finance-settlement.
+ * When refund fund covers the receipt, bank cash is 0 and the registered till
+ * lines are omitted — resending them would keep that payment method on the account.
+ *
+ * @param {{
+ *   applyRefund?: boolean,
+ *   cashToConfirmNgn?: number,
+ *   splits?: Array<{ movementId?: string, amountNgn?: number, treasuryAccountId?: number|string, postedAtISO?: string }>,
+ *   drafts?: Record<string, { amountNgn?: string, treasuryAccountId?: string, postedDate?: string, note?: string }>,
+ *   fallbackBankNgn?: number,
+ *   todayIso?: string,
+ * }} opts
+ * @returns {{ bankReceivedAmountNgn: number, paymentLineCorrections: object[] }}
+ */
+export function cashierFinanceSettlementCash(opts = {}) {
+  const applyRefund = Boolean(opts.applyRefund);
+  const cashDue = Math.max(0, roundNgn(opts.cashToConfirmNgn));
+  const splits = Array.isArray(opts.splits) ? opts.splits : [];
+  const drafts = opts.drafts && typeof opts.drafts === 'object' ? opts.drafts : {};
+  const todayIso = String(opts.todayIso || '').slice(0, 10);
+
+  if (applyRefund && cashDue <= 0) {
+    return { bankReceivedAmountNgn: 0, paymentLineCorrections: [] };
+  }
+
+  const draftLines = splits.map((s) => {
+    const id = String(s?.movementId || '');
+    const hasDraft = Object.prototype.hasOwnProperty.call(drafts, id);
+    const d = hasDraft ? drafts[id] || {} : {};
+    return {
+      movementId: id,
+      amount: hasDraft ? String(d.amountNgn ?? '') : String(s?.amountNgn ?? ''),
+      treasuryAccountId:
+        d.treasuryAccountId != null && String(d.treasuryAccountId) !== ''
+          ? String(d.treasuryAccountId)
+          : String(s?.treasuryAccountId ?? ''),
+      postedDate: String(d.postedDate || String(s?.postedAtISO || '').slice(0, 10) || todayIso).slice(0, 10),
+      note: String(d.note || ''),
+    };
+  });
+  const sized = applyRefund ? applyRefundFundDeductionToPaymentLines(draftLines, cashDue) : draftLines;
+  const paymentLineCorrections = [];
+  for (const line of sized) {
+    const amountNgn = roundNgn(String(line.amount ?? '').replace(/,/g, ''));
+    const treasuryAccountId = Number(line.treasuryAccountId);
+    if (amountNgn <= 0) continue;
+    const row = {
+      movementId: line.movementId,
+      amountNgn,
+      treasuryAccountId: Number.isFinite(treasuryAccountId) ? treasuryAccountId : 0,
+    };
+    if (line.postedDate) row.postedAtISO = `${line.postedDate}T12:00:00.000Z`;
+    if (String(line.note || '').trim()) row.note = String(line.note).trim();
+    paymentLineCorrections.push(row);
+  }
+  const bankReceivedAmountNgn =
+    splits.length > 0
+      ? paymentLineCorrections.reduce((sum, line) => sum + line.amountNgn, 0)
+      : applyRefund
+        ? cashDue
+        : roundNgn(opts.fallbackBankNgn);
+  return { bankReceivedAmountNgn, paymentLineCorrections };
+}
+
+/**
  * After quote total is known, cash lines should equal remaining due (quote due − refund fund).
  * Empty lines or lines still holding a different total are rewritten; a smaller user-entered
  * remaining cash amount is left alone.

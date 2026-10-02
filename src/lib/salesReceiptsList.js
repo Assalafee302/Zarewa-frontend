@@ -77,8 +77,25 @@ export function findSalesReceiptByMatchToken(receipts, token) {
   );
 }
 
+/** Ids of treasury lines that already have a reversal pointing at them. */
+function reversedTreasuryMovementIds(movements) {
+  const ids = new Set();
+  for (const row of movements || []) {
+    const rev = String(row?.reversesMovementId || '').trim();
+    if (rev) ids.add(rev);
+  }
+  return ids;
+}
+
+function isRefundFundPaymentMethod(receiptRow) {
+  const method = String(receiptRow?.method || receiptRow?.paymentMethod || '').trim();
+  return /^refund fund$/i.test(method);
+}
+
 /**
- * Inflows posted for this receipt — one row per treasury account split (`LEDGER_RECEIPT` movements).
+ * Inflows still on a treasury account for this receipt — one row per split.
+ * A refund-fund confirm (or void) posts RECEIPT_REVERSAL_OUT against the original
+ * RECEIPT_IN; those pairs net to zero and are not a live payment method.
  * @param {{ id?: string, ledgerEntryId?: string|null }} receiptRow
  * @param {object[]} treasuryMovements workspace `snapshot.treasuryMovements`
  */
@@ -90,12 +107,15 @@ export function receiptLedgerReceiptTreasurySplits(receiptRow, treasuryMovements
       .filter(Boolean)
   );
   const mv = Array.isArray(treasuryMovements) ? treasuryMovements : [];
+  const reversedIds = reversedTreasuryMovementIds(mv);
   return mv
     .filter(
       (m) =>
         String(m?.sourceKind || '').trim() === 'LEDGER_RECEIPT' &&
         ids.has(String(m?.sourceId || '').trim()) &&
-        Number(m?.amountNgn) > 0
+        Number(m?.amountNgn) > 0 &&
+        !String(m?.reversesMovementId || '').trim() &&
+        !reversedIds.has(String(m?.id || ''))
     )
     .slice()
     .sort((a, b) => String(a?.id || '').localeCompare(String(b?.id || '')))
@@ -121,6 +141,7 @@ export function receiptLedgerReceiptTreasurySplits(receiptRow, treasuryMovements
  * @returns {string[]}
  */
 export function receiptPaidToBankLabels(receiptRow, treasuryMovements, treasuryAccounts = []) {
+  if (isRefundFundPaymentMethod(receiptRow)) return ['Refund fund'];
   const splits = receiptLedgerReceiptTreasurySplits(receiptRow, treasuryMovements);
   const byId = new Map(
     (Array.isArray(treasuryAccounts) ? treasuryAccounts : []).map((account) => [String(account?.id ?? ''), account])

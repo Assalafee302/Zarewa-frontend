@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
   mergeReceiptRowsForSales,
   salesReceiptMirrorClearanceFields,
+  receiptLedgerReceiptTreasurySplits,
   receiptPaidToBankLabels,
 } from './salesReceiptsList.js';
 import {
@@ -90,6 +91,25 @@ describe('receiptPaidToBankLabels', () => {
 
   it('falls back to movement account name', () => {
     expect(receiptPaidToBankLabels(receipt, movements, [])).toEqual(['Zenith Bank']);
+  });
+
+  it('drops a till line once refund fund has reversed it', () => {
+    const reversed = [
+      ...movements,
+      {
+        id: 'TM-R',
+        type: 'RECEIPT_REVERSAL_OUT',
+        sourceKind: 'LEDGER_RECEIPT',
+        sourceId: 'RC-2026-010',
+        amountNgn: -320_000,
+        treasuryAccountId: 2,
+        reversesMovementId: 'TM-1',
+      },
+    ];
+    expect(receiptLedgerReceiptTreasurySplits(receipt, reversed)).toEqual([]);
+    expect(receiptPaidToBankLabels({ ...receipt, method: 'Refund fund' }, reversed, [])).toEqual([
+      'Refund fund',
+    ]);
   });
 
   it('uses cash till name when there is no bank name', () => {

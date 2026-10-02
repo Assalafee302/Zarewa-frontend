@@ -94,6 +94,7 @@ import {
   createRequestPayLine,
   mapTreasuryPayoutLinesForApi,
   normalizePaymentRequest,
+  activeTreasuryMovements,
   treasuryMovementStatementLabel,
   treasuryMovementSourceBadge,
   treasuryOutflowLinesForAccountsPayable,
@@ -144,6 +145,7 @@ import { RefundFundClearanceBanner } from '../../components/finance/HangingCusto
 import { RefundFundBalanceStrip } from '../../components/finance/RefundFundBalanceStrip.jsx';
 import {
   applyRefundFundDeductionToPaymentLines,
+  cashierFinanceSettlementCash,
   buildRefundFundClearanceSummary,
   usableRefundSourceIds,
   defaultRefundFundConfirmChoice,
@@ -594,7 +596,7 @@ const Account = () => {
 
   const treasuryInflowsNgn = useMemo(
     () =>
-      liveTreasuryMovements
+      activeTreasuryMovements(liveTreasuryMovements)
         .filter((m) => ['RECEIPT_IN', 'ADVANCE_IN'].includes(m.type))
         .reduce((sum, m) => sum + Math.max(0, m.amountNgn || 0), 0),
     [liveTreasuryMovements]
@@ -648,7 +650,10 @@ const Account = () => {
   const accountStatementLines = useMemo(() => {
     if (!statementAccount) return [];
     const id = Number(statementAccount.id);
-    return liveTreasuryMovements
+    // Reversed pairs (refund-fund confirm, void) net to zero. Drop them so the
+    // original payment method is no longer listed on the account. Book balance
+    // still sums every movement.
+    return activeTreasuryMovements(liveTreasuryMovements)
       .filter((m) => Number(m.treasuryAccountId) === id)
       .slice()
       .sort((a, b) => {
@@ -2629,37 +2634,20 @@ const Account = () => {
         setCashierRefundCreditDetailsOpen(true);
         return;
       }
-      const paymentLineCorrections = [];
-      for (const s of settleSplits) {
-        const d = paymentCorrectionDrafts[s.movementId];
-        const draft =
-          d ?? {
-            amountNgn: String(s.amountNgn),
-            treasuryAccountId: String(s.treasuryAccountId ?? ''),
-            postedDate: String(s.postedAtISO || '').slice(0, 10) || todayIso,
-            note: '',
-          };
-        const amountNgn = Math.round(Number(String(draft.amountNgn).replace(/,/g, '')) || 0);
-        const treasuryAccountId = Number(draft.treasuryAccountId);
-        if (amountNgn <= 0) continue;
-        if (!treasuryAccountId) {
-          showToast('Select the treasury account (bank or cash) for each payment line.', { variant: 'error' });
-          return;
-        }
-        const line = { movementId: s.movementId, amountNgn, treasuryAccountId };
-        if (draft.postedDate) {
-          line.postedAtISO = `${draft.postedDate}T12:00:00.000Z`;
-        }
-        if (String(draft.note || '').trim()) {
-          line.note = String(draft.note).trim();
-        }
-        paymentLineCorrections.push(line);
+      // Refund fund that covers the receipt must not resend the registered till lines.
+      const settledCash = cashierFinanceSettlementCash({
+        applyRefund: offsetNgn > 0,
+        cashToConfirmNgn: cashierRefundOffset?.cashToConfirmNgn,
+        splits: settleSplits,
+        drafts: paymentCorrectionDrafts,
+        fallbackBankNgn: parseNgnInput(receiptBankAmtInput),
+        todayIso,
+      });
+      const { bankReceivedAmountNgn, paymentLineCorrections } = settledCash;
+      if (paymentLineCorrections.some((line) => !(Number(line.treasuryAccountId) > 0))) {
+        showToast('Select the treasury account (bank or cash) for each payment line.', { variant: 'error' });
+        return;
       }
-
-      const bankReceivedAmountNgn =
-        settleSplits.length > 0
-          ? paymentLineCorrections.reduce((sum, line) => sum + line.amountNgn, 0)
-          : parseNgnInput(receiptBankAmtInput);
       if (bankReceivedAmountNgn <= 0 && offsetNgn <= 0) {
         showToast('Enter the amount actually received before confirming.', { variant: 'error' });
         return;
