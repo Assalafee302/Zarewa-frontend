@@ -27,6 +27,7 @@ import { PAYABLES_SORT_FIELDS } from '../../lib/procurementPayablesSorting';
 import { AppTablePager } from '../../components/ui/AppDataTable';
 import { poStatusDisplayLabel } from '../../lib/procurementStatusUi';
 import { useProcurementPage } from './ProcurementPageContext.jsx';
+import { SupplierOverpaymentPanel } from '../finance/SupplierOverpayments.jsx';
 import { ProcurementPayableRow } from './ProcurementPayableRow.jsx';
 import { ProcurementTransportAgentsAside } from './ProcurementTransportAgentsAside.jsx';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -62,6 +63,9 @@ export function ProcurementTabPanels() {
   const {
     activeTab,
     setActiveTab,
+    paymentsView,
+    setPaymentsView,
+    adjustmentPoId,
     searchQuery,
     setSearchQuery,
     canRecordSupplierPayment,
@@ -143,10 +147,37 @@ export function ProcurementTabPanels() {
                 <div className="h-1 bg-zarewa-teal" />
                 <div className="px-4 sm:px-5 py-4 sm:py-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <h2 className="text-xl font-bold text-zarewa-teal shrink-0">Payments</h2>
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-bold text-zarewa-teal shrink-0">Payments</h2>
+                      <div className="mt-3 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5" role="tablist">
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={paymentsView !== 'adjustments'}
+                          onClick={() => setPaymentsView('payables')}
+                          className={`rounded-md px-3 py-1.5 text-ui-xs font-bold ${
+                            paymentsView !== 'adjustments' ? 'bg-white text-zarewa-teal shadow-sm' : 'text-slate-600'
+                          }`}
+                        >
+                          Payables
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={paymentsView === 'adjustments'}
+                          onClick={() => setPaymentsView('adjustments')}
+                          className={`rounded-md px-3 py-1.5 text-ui-xs font-bold ${
+                            paymentsView === 'adjustments' ? 'bg-white text-zarewa-teal shadow-sm' : 'text-slate-600'
+                          }`}
+                        >
+                          Second payment & corrections
+                        </button>
+                      </div>
+                    </div>
                     <p className="w-full sm:max-w-xl text-ui-xs text-slate-500 leading-snug">
-                      Use the <span className="font-semibold text-slate-600">search</span> in each payables list below
-                      (open vs settled). Each list has its own sort and shows 10 rows per page.
+                      {paymentsView === 'adjustments'
+                        ? 'Record a second payment, correct an amount that was typed wrong, or book the cash when the supplier pays it back.'
+                        : 'Use the search in each payables list below (open vs settled). Each list has its own sort and shows 10 rows per page.'}
                     </p>
                   </div>
                 </div>
@@ -157,6 +188,9 @@ export function ProcurementTabPanels() {
                   <span className="font-mono text-ui-xs">finance.pay</span>.
                 </p>
               ) : null}
+              {paymentsView === 'adjustments' ? (
+                <SupplierOverpaymentPanel initialPoId={adjustmentPoId} />
+              ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch min-w-0">
                   <div className="min-w-0 flex flex-col min-h-0">
                   <SalesListTableFrame
@@ -324,8 +358,9 @@ export function ProcurementTabPanels() {
                     )}
                   </SalesListTableFrame>
                   </div>
-                  </div>
                 </div>
+              )}
+            </div>
           ) : (
           <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !p-0 overflow-hidden !min-h-0 sm:!min-h-[360px]">
             {activeTab !== 'conversion' ? <div className="h-1 bg-zarewa-teal" /> : null}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
   Plus,
@@ -98,6 +98,7 @@ const formatNairaInput = (value) => {
 
 const Procurement = () => {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
@@ -118,6 +119,8 @@ const Procurement = () => {
   const canAccessPriceList =
     (ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('md.price_exception.approve')) ?? false;
   const [activeTab, setActiveTab] = useState('purchases');
+  const [paymentsView, setPaymentsView] = useState('payables');
+  const [adjustmentPoId, setAdjustmentPoId] = useState('');
   const [agents, setAgents] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
 
@@ -230,8 +233,25 @@ const Procurement = () => {
     const t = location.state?.focusTab;
     if (!t || !TAB_LABELS[t]) return;
     setActiveTab(t);
+    if (t === 'payables' && (location.state?.paymentsView === 'adjustments' || location.state?.paymentsView === 'payables')) {
+      setPaymentsView(location.state.paymentsView);
+    }
+    if (location.state?.poId) setAdjustmentPoId(String(location.state.poId));
     navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: {} });
-  }, [location.state, location.pathname, navigate]);
+  }, [location.state, location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    const payments = searchParams.get('payments');
+    if (payments !== 'adjustments' && payments !== 'payables') return;
+    const po = String(searchParams.get('poId') || '').trim();
+    setActiveTab('payables');
+    setPaymentsView(payments);
+    if (po) setAdjustmentPoId(po);
+    const next = new URLSearchParams(searchParams);
+    next.delete('payments');
+    if (po) next.delete('poId');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const outstandingSupplierNgn = useMemo(
     () =>
@@ -1064,7 +1084,7 @@ const Procurement = () => {
       return;
     }
     if (remaining <= 0) {
-      showToast('This payable is already fully paid. Open Supplier overpayments for a second payment or a wrong amount.', {
+      showToast('This payable is already fully paid. Use Payments → Second payment & corrections.', {
         variant: 'info',
       });
       return;
@@ -1167,6 +1187,9 @@ const Procurement = () => {
     () => ({
       activeTab,
       setActiveTab,
+      paymentsView,
+      setPaymentsView,
+      adjustmentPoId,
       searchQuery,
       setSearchQuery,
       canRecordSupplierPayment,
@@ -1232,6 +1255,8 @@ const Procurement = () => {
     }),
     [
       activeTab,
+      paymentsView,
+      adjustmentPoId,
       searchQuery,
       canRecordSupplierPayment,
       payablesOutstandingNgn,
@@ -1905,13 +1930,18 @@ const Procurement = () => {
                   </div>
                 </div>
                 {selectedAp.poRef ? (
-                  <Link
-                    to={`/supplier-overpayments?poId=${encodeURIComponent(selectedAp.poRef)}`}
-                    className="mt-2 inline-block text-xs font-bold text-zarewa-teal underline"
-                    onClick={resetApPaymentModal}
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-bold text-zarewa-teal underline"
+                    onClick={() => {
+                      setActiveTab('payables');
+                      setPaymentsView('adjustments');
+                      setAdjustmentPoId(String(selectedAp.poRef));
+                      resetApPaymentModal();
+                    }}
                   >
                     Second payment, wrong amount, or refund of an overpayment
-                  </Link>
+                  </button>
                 ) : null}
                 </div>
               <div className="flex items-center justify-between">

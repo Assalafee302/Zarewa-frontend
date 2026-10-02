@@ -1,6 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { PageHeader, PageShell } from '../../components/layout';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useInventory } from '../../context/InventoryContext';
 import { useToast } from '../../context/ToastContext';
@@ -49,13 +47,17 @@ function Kpi({ label, value, detail, tone }) {
   );
 }
 
-export default function SupplierOverpayments() {
+/**
+ * Second supplier payment, amount correction, and overpayment refund.
+ * Rendered inside Procurement → Payments, not as its own desk.
+ * @param {{ initialPoId?: string }} [props]
+ */
+export function SupplierOverpaymentPanel({ initialPoId = '' }) {
   const ws = useWorkspace();
   const { purchaseOrders } = useInventory();
   const { show: showToast } = useToast();
-  const [params, setParams] = useSearchParams();
-  const poId = String(params.get('poId') || '').trim();
-  const [query, setQuery] = useState(poId);
+  const [poId, setPoId] = useState(String(initialPoId || '').trim());
+  const [query, setQuery] = useState(String(initialPoId || '').trim());
   const [tab, setTab] = useState('pay');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -104,6 +106,13 @@ export default function SupplierOverpayments() {
   }, [purchaseOrders, query]);
 
   useEffect(() => {
+    const next = String(initialPoId || '').trim();
+    if (!next) return;
+    setPoId(next);
+    setQuery(next);
+  }, [initialPoId]);
+
+  useEffect(() => {
     if (!accounts.length) return;
     setPayForm((f) => ({ ...f, treasuryAccountId: f.treasuryAccountId || String(accounts[0].id) }));
     setRevForm((f) => ({ ...f, treasuryAccountId: f.treasuryAccountId || String(accounts[0].id) }));
@@ -149,7 +158,8 @@ export default function SupplierOverpayments() {
   const openPo = (id) => {
     const next = String(id || query || '').trim();
     if (!next) return;
-    setParams({ poId: next });
+    setPoId(next);
+    setQuery(next);
   };
 
   const payPreview = previewExtraPayment({
@@ -196,13 +206,7 @@ export default function SupplierOverpayments() {
   const excess = Number(position?.excessNgn) || 0;
 
   return (
-    <PageShell>
-      <PageHeader
-        eyebrow="Finance · Payables"
-        title="Supplier overpayments"
-        subtitle="Record a second payment, correct an amount that was typed wrong, or book the cash when the supplier pays it back."
-      />
-
+    <div className="space-y-4">
       <form
         className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-end"
         onSubmit={(e) => {
@@ -649,6 +653,6 @@ export default function SupplierOverpayments() {
           </section>
         </div>
       ) : null}
-    </PageShell>
+    </div>
   );
 }
