@@ -363,6 +363,11 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
                 <strong>Save</strong> updates this coil, reconciles raw product stock, normalizes status, and aligns
                 reservations with active production jobs. Changes are audited.
               </p>
+              <p className="text-xs text-slate-600 leading-relaxed rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                <strong>Gauge</strong> applies from this save forward. Jobs and refunds already registered keep the
+                old gauge and the old kg. Production and refund gauge-variance payouts registered after the change
+                use the new gauge and its kg.
+              </p>
             </div>
           </ModalScrollBody>
 
