@@ -311,6 +311,8 @@ const Account = () => {
   const [receiptReverseBusy, setReceiptReverseBusy] = useState(false);
   const [receiptUnconfirmBusy, setReceiptUnconfirmBusy] = useState(false);
   const [receiptBankAmtInput, setReceiptBankAmtInput] = useState('');
+  /** Bank/cash account when the receipt has no treasury payment line yet. */
+  const [receiptMissingBankAccountId, setReceiptMissingBankAccountId] = useState('');
   /** When true, confirm payment but do not set finance delivery clearance. */
   const [receiptHoldDelivery, setReceiptHoldDelivery] = useState(false);
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
@@ -2256,6 +2258,7 @@ const Account = () => {
           ? Number(r.bankReceivedAmountNgn)
           : cash;
       setReceiptBankAmtInput(String(br));
+      setReceiptMissingBankAccountId('');
       setReceiptHoldDelivery(Boolean(r.financeReconciliationSavedAtISO && !r.financeDeliveryClearedAtISO));
       const splitRows = movementId ? splits.filter((s) => String(s.movementId) === movementId) : splits;
       setPaymentCorrectionDrafts(
@@ -2665,6 +2668,12 @@ const Account = () => {
         showToast('Each payment line amount must be greater than zero.', { variant: 'error' });
         return;
       }
+      const missingBankAccountId =
+        settleSplits.length === 0 && bankReceivedAmountNgn > 0 ? Number(receiptMissingBankAccountId) : 0;
+      if (settleSplits.length === 0 && bankReceivedAmountNgn > 0 && !missingBankAccountId) {
+        showToast('Select the bank or cash account this payment was received into.', { variant: 'error' });
+        return;
+      }
 
       setReceiptFinanceBusy(true);
       try {
@@ -2677,6 +2686,7 @@ const Account = () => {
               bankReceivedAmountNgn,
               clearForDelivery: !receiptHoldDelivery,
               paymentLineCorrections,
+              ...(missingBankAccountId ? { treasuryAccountId: missingBankAccountId } : {}),
               ...(offsetNgn > 0
                 ? {
                     refundCreditApply: {
@@ -2733,6 +2743,7 @@ const Account = () => {
       receiptFinanceRow,
       receiptFinanceFocusMovementId,
       receiptBankAmtInput,
+      receiptMissingBankAccountId,
       receiptHoldDelivery,
       paymentCorrectionDrafts,
       liveTreasuryMovements,
@@ -6363,9 +6374,31 @@ const Account = () => {
                 ) : (
                   <div className="space-y-2">
                     <p className="text-ui-xs text-amber-900 bg-amber-50/90 border border-amber-200/80 rounded-lg px-3 py-2 leading-snug">
-                      No treasury payment lines on file — enter the amount actually received below. Saving still
-                      updates receipt, ledger, and quote paid amount.
+                      No treasury payment lines on file — choose the bank or cash account this payment was received
+                      into, then enter the amount below.
                     </p>
+                    <div>
+                      <label className="text-ui-xs font-bold text-slate-500 uppercase">Bank / cash account</label>
+                      <select
+                        required={parseNgnInput(receiptBankAmtInput) > 0}
+                        value={receiptMissingBankAccountId}
+                        disabled={formDisabled || bankAccountsSelectOrder.length === 0}
+                        onChange={(e) => setReceiptMissingBankAccountId(e.target.value)}
+                        className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-zarewa-teal/15 disabled:opacity-60"
+                      >
+                        <option value="">Select account</option>
+                        {bankAccountsSelectOrder.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {treasuryAccountDisplayName(a)}
+                          </option>
+                        ))}
+                      </select>
+                      {bankAccountsSelectOrder.length === 0 ? (
+                        <p className="text-ui-xs text-rose-800 mt-1">
+                          No bank or cash account is available for this workspace branch.
+                        </p>
+                      ) : null}
+                    </div>
                     <p className="text-xs text-slate-700">
                       Sales recorded:{' '}
                       <span className="font-bold tabular-nums">{formatNgn(cashTotal)}</span>
