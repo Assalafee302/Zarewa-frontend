@@ -17,6 +17,9 @@ import {
 import { formatNgn } from "../../Data/mockData";
 
 import { useWorkspace } from "../../context/WorkspaceContext";
+import { useToast } from "../../context/ToastContext";
+import { apiFetch } from "../../lib/apiBase";
+import { payoutRemainderOffersRoundingClose } from "../../shared/lib/payoutRoundingClose.js";
 
 /**
  * One shared empty list for "no partner wallets to show".
@@ -87,7 +90,7 @@ import { FinanceMobileAlertStrip } from "./FinanceMobileAlertStrip";
 import { CashierDeskReports } from "./CashierDeskReports";
 
 import { CashierSecondaryServicesPanel } from "./CashierSecondaryServicesPanel";
-import { apiFetch } from "../../lib/apiBase";
+import { paymentRequestOutstandingNgn } from "../../lib/financeTreasuryPayoutQueueMeta.js";
 
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
 
@@ -152,6 +155,12 @@ function deskSearchHaystack(parts) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function receiptHeldForInvestigation(receipt) {
+  if (receipt?.underInvestigation === true) return true;
+  if (String(receipt?.investigationCaseId || "").trim()) return true;
+  return /suspended/i.test(String(receipt?.status || ""));
 }
 
 function deskSearchMatches(query, parts) {
@@ -220,6 +229,34 @@ export function FinanceDeskWorkQueues({
   searchQuery = "",
 }) {
   const ws = useWorkspace();
+  const { showToast } = useToast();
+  const [roundingBusyId, setRoundingBusyId] = useState("");
+
+  const closeRemainderAsRounding = async (kind, id) => {
+    const key = `${kind}:${id}`;
+    if (!id || roundingBusyId) return;
+    setRoundingBusyId(key);
+    try {
+      const path =
+        kind === "refund"
+          ? `/api/refunds/${encodeURIComponent(id)}/close-rounding`
+          : `/api/payment-requests/${encodeURIComponent(id)}/close-rounding`;
+      const { ok, data } = await apiFetch(path, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || "Could not close the rounding remainder.", { variant: "error" });
+        return;
+      }
+      if (!(data?.delta && ws.applyWriteDelta?.(data.delta))) {
+        void ws.refreshDomain?.("finance");
+      }
+      showToast("Closed as rounding. No money left the till.", { variant: "success" });
+    } finally {
+      setRoundingBusyId("");
+    }
+  };
 
   const wsSnapshotTreasuryAccounts = ws?.snapshot?.treasuryAccounts;
 
@@ -366,10 +403,22 @@ export function FinanceDeskWorkQueues({
     );
   }, [ws?.snapshot?.purchasePaymentCashierAcksPending]);
 
+  const investigationReceiptsAll = useMemo(
+    () =>
+      sortQueueOldestFirst(
+        receiptsWithCuttingMeta.filter(
+          (r) => isReceiptPendingClearance(r) && receiptHeldForInvestigation(r)
+        )
+      ),
+    [receiptsWithCuttingMeta],
+  );
+
   const pendingReceiptsAll = useMemo(
     () =>
       sortQueueOldestFirst(
-        receiptsWithCuttingMeta.filter((r) => isReceiptPendingClearance(r)),
+        receiptsWithCuttingMeta.filter(
+          (r) => isReceiptPendingClearance(r) && !receiptHeldForInvestigation(r)
+        ),
         { priority: receiptLacksCuttingList }
       ),
     [receiptsWithCuttingMeta],
@@ -1014,6 +1063,46 @@ export function FinanceDeskWorkQueues({
                 </p>
               )}
 
+              {investigationReceiptsAll.length > 0 ? (
+                <FinanceDeskColoredQueuePanel
+                  theme="slate"
+                  title="Under investigation"
+                  icon={<Landmark size={16} strokeWidth={2} />}
+                  count={investigationReceiptsAll.length}
+                  description="Read only. Confirm is blocked until the case is cleared."
+                >
+                  <ul className="space-y-1.5" data-testid="desk-investigation-receipts">
+                    {investigationReceiptsAll.map((r) => {
+                      const caseId = String(r.investigationCaseId || "").trim();
+                      return (
+                        <FinanceDeskColoredQueueRow
+                          key={r.id}
+                          theme="slate"
+                          title={
+                            <>
+                              <span className="font-mono">{r.id}</span>
+                              <span className="font-medium text-slate-600">
+                                {" "}
+                                · {r.customer || r.customerID}
+                              </span>
+                            </>
+                          }
+                          meta={caseId ? caseId : "Suspended"}
+                          amount={formatNgn(r.amountNgn)}
+                          actions={
+                            onViewReceipt ? (
+                              <FinanceDeskQueueActionButton tone="slate" onClick={() => onViewReceipt(r)}>
+                                View
+                              </FinanceDeskQueueActionButton>
+                            ) : null
+                          }
+                        />
+                      );
+                    })}
+                  </ul>
+                </FinanceDeskColoredQueuePanel>
+              ) : null}
+
               {purchasePaymentAcks.length > 0 ? (
                 <FinanceDeskColoredQueuePanel
                   theme="amber"
@@ -1087,12 +1176,22 @@ export function FinanceDeskWorkQueues({
                 <>
                   {userMayPayCustomerRefund(ws) &&
                   (line.amountDueNgn > 0 || line.payoutStatus === 'admin_override_uncleared') ? (
-                    <FinanceDeskQueueActionButton
-                      tone="sky"
-                      onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
-                    >
-                      Pay
-                    </FinanceDeskQueueActionButton>
+                    payoutRemainderOffersRoundingClose(line.amountDueNgn) ? (
+                      <FinanceDeskQueueActionButton
+                        tone="sky"
+                        disabled={roundingBusyId === `refund:${line.refundID}`}
+                        onClick={() => closeRemainderAsRounding("refund", String(line.refundID || ""))}
+                      >
+                        Close as rounding
+                      </FinanceDeskQueueActionButton>
+                    ) : (
+                      <FinanceDeskQueueActionButton
+                        tone="sky"
+                        onClick={() => onPayRefund(String(line.refundID || ''), line.queueKey)}
+                      >
+                        Pay
+                      </FinanceDeskQueueActionButton>
+                    )
                   ) : null}
                   {onViewRefund ? (
                     <FinanceDeskQueueActionButton
@@ -1115,12 +1214,24 @@ export function FinanceDeskWorkQueues({
               )}
               renderPaymentRequestActions={(req) => (
                 <>
-                  <FinanceDeskQueueActionButton
-                    tone="teal"
-                    onClick={() => onPayRequest(String(req.requestID || req.id || ""))}
-                  >
-                    Pay
-                  </FinanceDeskQueueActionButton>
+                  {payoutRemainderOffersRoundingClose(paymentRequestOutstandingNgn(req)) ? (
+                    <FinanceDeskQueueActionButton
+                      tone="teal"
+                      disabled={roundingBusyId === `request:${req.requestID || req.id}`}
+                      onClick={() =>
+                        closeRemainderAsRounding("request", String(req.requestID || req.id || ""))
+                      }
+                    >
+                      Close as rounding
+                    </FinanceDeskQueueActionButton>
+                  ) : (
+                    <FinanceDeskQueueActionButton
+                      tone="teal"
+                      onClick={() => onPayRequest(String(req.requestID || req.id || ""))}
+                    >
+                      Pay
+                    </FinanceDeskQueueActionButton>
+                  )}
                   {onCancelPaymentRequest ? (
                     <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelPaymentRequest(req)}>
                       Refuse
@@ -1148,9 +1259,18 @@ export function FinanceDeskWorkQueues({
               }
               renderPoTransportActions={(row) => (
                 <>
-                  <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayPoTransport(row)}>
-                    Pay
-                  </FinanceDeskQueueActionButton>
+                  {row.transportPayoutHold ? (
+                    <span
+                      className="inline-flex rounded-full bg-red-600 px-2 py-0.5 text-ui-xs font-bold text-white"
+                      title={row.transportPayoutHoldReason || "Haulage on hold"}
+                    >
+                      On hold
+                    </span>
+                  ) : (
+                    <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayPoTransport(row)}>
+                      Pay
+                    </FinanceDeskQueueActionButton>
+                  )}
                   {onViewPoTransport ? (
                     <FinanceDeskQueueActionButton tone="slate" onClick={() => onViewPoTransport(row)}>
                       View

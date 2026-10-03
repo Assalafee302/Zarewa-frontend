@@ -12,8 +12,14 @@ import {
   Info,
   Search,
   ChevronDown,
+  FileText,
+  Wallet,
+  BarChart3,
+  ShieldCheck,
+  Check,
+  Copy,
 } from 'lucide-react';
-import { ModalFrame } from '../layout/ModalFrame';
+import { ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody, ModalScrollFooter } from '../layout';
 import { RefundPayoutRecipientPicker } from './RefundPayoutRecipientPicker';
 import { RefundPayoutBankForm } from './RefundPayoutBankForm';
 import { RefundApplyToQuotationPanel } from '../finance/RefundApplyToQuotationPanel.jsx';
@@ -1252,6 +1258,7 @@ const RefundModal = ({
   const [advancedPricingOpen, setAdvancedPricingOpen] = useState(false);
   const [refundAttentionOpen, setRefundAttentionOpen] = useState(false);
   const [refundNotesOpen, setRefundNotesOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('application'); // 'application' | 'payout' | 'intelligence' | 'audit'
   /** Non-terminal production still on quote — submit blocked until finished/cancelled. */
   const [openProductionJob, setOpenProductionJob] = useState(null);
   /** Fresh associated-staff directory for payout allocation (snapshot may lag). */
@@ -4192,6 +4199,232 @@ const RefundModal = ({
     Math.abs(lineSum - requestedRefundTotal) > AMOUNT_LINE_TOL &&
     Math.abs(lineSum - (Number(approvedAmountNgn) || 0)) > AMOUNT_LINE_TOL;
 
+  const refundTypeSelectorNode =
+    mode === 'create' && !showApprovalReview && form.quotationRef ? (
+      <div className="space-y-3">
+        <div
+          className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+          role="group"
+          aria-label="Refund type"
+        >
+          <p className="text-xs font-bold text-slate-700">Refund type</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!quickOverpayAvailable) return;
+                createPathUserTouchedRef.current = true;
+                createPathRef.current = 'quick';
+                setCreatePath('quick');
+                const r = String(form.quotationRef || '').trim();
+                if (r) void generatePreview(r, false);
+              }}
+              disabled={!quickOverpayAvailable}
+              title={
+                quickOverpayAvailable
+                  ? 'Cash received above quote total only'
+                  : lastPreviewSnapshot?.hasCancelledProductionJob
+                    ? 'Cancelled job — use Full refund (Order cancellation includes any overpayment)'
+                    : leftoverOverpayUsedNgn > 0 && leftoverOverpayStillPayableNgn <= 0
+                      ? 'Overpayment already used on another quotation'
+                      : moneyContext?.overpaymentResidualNgn === 0 &&
+                          Number(moneyContext?.overpaymentExcessNgn) > 0
+                        ? 'Overpayment already refunded on this quotation'
+                        : form.quotationRef
+                          ? 'No refundable overpayment on this quotation'
+                          : 'Select a quotation with overpayment first'
+              }
+              className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
+                createPath === 'quick'
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-200'
+                  : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed'
+              }`}
+            >
+              Quick overpay
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                createPathUserTouchedRef.current = true;
+                createPathRef.current = 'full';
+                setCreatePath('full');
+                const r = String(form.quotationRef || '').trim();
+                if (r) void generatePreview(r, includeCommissionInPreview);
+              }}
+              className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
+                createPath === 'full'
+                  ? 'bg-zarewa-teal text-white shadow-md shadow-teal-200'
+                  : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              Full refund
+            </button>
+          </div>
+        </div>
+        {createPath === 'quick' && form.quotationRef && !quickOverpayAvailable ? (
+          <p className="text-xs font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2" role="status">
+            {lastPreviewSnapshot?.hasCancelledProductionJob
+              ? 'Cancelled production job — use Full refund. Order cancellation covers the full refundable cash, including any amount above the quote.'
+              : leftoverOverpayUsedNgn > 0 && leftoverOverpayStillPayableNgn <= 0
+                ? 'Overpayment on this quotation was already used on another job. Quick overpay is not available.'
+                : moneyContext?.overpaymentResidualNgn === 0 &&
+                    Number(moneyContext?.overpaymentExcessNgn) > 0
+                  ? 'Overpayment on this quotation is already fully refunded. Quick overpay is not available.'
+                  : 'No refundable overpayment — switch to Full refund.'}
+          </p>
+        ) : null}
+        {showLeftoverOverpayStrip ? (
+          <RefundFundBalanceStrip
+            amountNgn={refundMoneyBreakdown.overpay}
+            creditAppliedNgn={leftoverOverpayUsedNgn}
+            availableNgn={leftoverOverpayStillPayableNgn}
+            usedOn="quotation"
+            leftoverHint="payout"
+          />
+        ) : null}
+        {mode === 'create' &&
+        form.quotationRef &&
+        moneyContext?.overpaymentResidualNgn === 0 &&
+        Number(moneyContext?.overpaymentExcessNgn) > 0 &&
+        (previewRemainingNgn == null || previewRemainingNgn <= 0) ? (
+          <p
+            className="text-xs font-medium text-amber-900 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2"
+            role="status"
+          >
+            {leftoverOverpayUsedNgn > 0
+              ? `₦${leftoverOverpayUsedNgn.toLocaleString('en-NG')} of the ₦${Number(moneyContext.overpaymentExcessNgn).toLocaleString('en-NG')} overpayment was already used on another quotation. Do not create another overpay refund for this quotation.`
+              : `Prior refunds already covered the ₦${Number(moneyContext.overpaymentExcessNgn).toLocaleString('en-NG')} overpayment. Do not create another overpay refund for this quotation.`}
+          </p>
+        ) : null}
+        {createPath === 'quick' && otherCalculatedReasonsAvailable ? (
+          <p className="text-xs font-medium text-teal-900 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2" role="status">
+            Other calculated refund reasons are available — switch to Full refund to include them.
+          </p>
+        ) : null}
+        {openProductionJob?.jobId ? (
+          <div
+            className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 space-y-1"
+            role="alert"
+          >
+            <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-950">
+              Production still open
+            </p>
+            <p className="text-xs text-amber-950 leading-snug">
+              Finish or cancel job{' '}
+              <span className="font-mono font-semibold">{openProductionJob.jobId}</span>
+              {openProductionJob.status ? ` (${openProductionJob.status})` : ''} on Operations before
+              submitting this refund.
+            </p>
+          </div>
+        ) : null}
+        {lastPreviewSnapshot?.hasCancelledProductionJob && !openProductionJob?.jobId ? (
+          <div
+            className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2.5 space-y-1"
+            role="status"
+          >
+            <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-950">
+              Cancelled production job
+            </p>
+            <p className="text-xs text-teal-950 leading-snug">
+              Use <span className="font-semibold">Full refund</span> with{' '}
+              <span className="font-semibold">Order cancellation</span>. Cash above the quote total is
+              included in that line — not a separate Overpayment refund.
+            </p>
+            {refundMoneyBreakdown.overpay > 0 ? (
+              <p className="text-xs text-teal-800">
+                Overpayment context: ₦{Math.round(refundMoneyBreakdown.overpay).toLocaleString('en-NG')}{' '}
+                (reference only; included in the cancellation amount).
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        <RefundCreatePolicyWarnings
+          amountNgn={form.amountNgn}
+          executiveThresholdNgn={refundExecutiveThresholdNgn}
+          mdPricingBlocked={createBlockedByMdPricing}
+          quotationRef={form.quotationRef}
+        />
+      </div>
+    ) : null;
+
+  const activityTimelineNode =
+    record?.refundID && !showApprovalReview ? (
+      <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-2 text-left"
+          aria-expanded={activityTimelineOpen}
+          onClick={() => setActivityTimelineOpen((o) => !o)}
+        >
+          <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Activity timeline</p>
+          <span className="text-ui-xs font-semibold text-slate-400">
+            {activityTimelineOpen ? 'Hide' : 'Show'}
+          </span>
+        </button>
+        {activityTimelineOpen ? (
+        <ul className="text-xs text-slate-700 space-y-1.5 font-medium">
+          <li>
+            <span className="text-slate-500">Requested</span>{' '}
+            {record.requestedAtISO || record.requested_at_iso || '—'}
+            {record.requestedBy ? ` · ${record.requestedBy}` : ''}
+          </li>
+          <li>
+            <span className="text-slate-500">Status</span> {refundPublicStatusLabel(record) || '—'}
+            {record.approvalDate ? ` · Approved ${record.approvalDate}` : ''}
+            {record.approvedBy ? ` · ${record.approvedBy}` : ''}
+          </li>
+          {(record.approvedAmountNgn != null || record.approved_amount_ngn != null) && (
+            <li>
+              <span className="text-slate-500">Approved amount</span> ₦
+              {Number(record.approvedAmountNgn ?? record.approved_amount_ngn ?? 0).toLocaleString('en-NG')}
+            </li>
+          )}
+          {record.managerComments ? (
+            <li>
+              <span className="text-slate-500">Manager note</span> {record.managerComments}
+            </li>
+          ) : null}
+          {record.payeeName || record.payee_name || record.payeeAccountNo || record.payee_account_no || record.payeeBankName || record.payee_bank_name ? (
+            <li className="pt-1 border-t border-slate-100">
+              <span className="text-slate-500 block mb-0.5">Pay to</span>
+              <span className="text-xs font-semibold text-slate-800">
+                {[record.payeeName || record.payee_name, record.payeeBankName || record.payee_bank_name]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+              {record.payeeAccountNo || record.payee_account_no ? (
+                <span className="block text-xs font-mono text-slate-600">
+                  {record.payeeAccountNo || record.payee_account_no}
+                </span>
+              ) : null}
+            </li>
+          ) : null}
+          <li>
+            <span className="text-slate-500">Paid</span>{' '}
+            {record.paidAtISO || record.paid_at_iso
+              ? `${(record.paidAtISO || record.paid_at_iso).slice(0, 16)} · ₦${Number(record.paidAmountNgn || 0).toLocaleString('en-NG')}`
+              : '—'}
+            {record.paidBy ? ` · ${record.paidBy}` : ''}
+          </li>
+          {Array.isArray(record.payoutHistory) && record.payoutHistory.length > 0 ? (
+            <li className="pt-1 border-t border-slate-100">
+              <span className="text-slate-500 block mb-1">Treasury payouts</span>
+              <ul className="space-y-1 pl-2 border-l-2 border-teal-200">
+                {record.payoutHistory.map((p) => (
+                  <li key={p.id} className="text-xs">
+                    {(p.postedAtISO || '').slice(0, 16)} · ₦{Number(p.amountNgn || 0).toLocaleString('en-NG')}
+                    {p.reference ? ` · ${p.reference}` : ''}
+                    {p.accountName ? ` · ${p.accountName}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ) : null}
+        </ul>
+        ) : null}
+      </div>
+    ) : null;
+
   return (
     <>
     <ModalFrame isOpen={isOpen} onClose={handleClose} edgeToEdgeMobile surface="plain" title="Refund" showCloseButton={false}>
@@ -4306,234 +4539,12 @@ const RefundModal = ({
             </div>
           ) : null}
 
-          {mode === 'create' && !showApprovalReview && form.quotationRef ? (
-            <div className="space-y-3">
-              <div
-                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
-                role="group"
-                aria-label="Refund type"
-              >
-                <p className="text-xs font-bold text-slate-700">Refund type</p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!quickOverpayAvailable) return;
-                      createPathUserTouchedRef.current = true;
-                      createPathRef.current = 'quick';
-                      setCreatePath('quick');
-                      const r = String(form.quotationRef || '').trim();
-                      if (r) void generatePreview(r, false);
-                    }}
-                    disabled={!quickOverpayAvailable}
-                    title={
-                      quickOverpayAvailable
-                        ? 'Cash received above quote total only'
-                        : lastPreviewSnapshot?.hasCancelledProductionJob
-                          ? 'Cancelled job — use Full refund (Order cancellation includes any overpayment)'
-                          : leftoverOverpayUsedNgn > 0 && leftoverOverpayStillPayableNgn <= 0
-                            ? 'Overpayment already used on another quotation'
-                            : moneyContext?.overpaymentResidualNgn === 0 &&
-                                Number(moneyContext?.overpaymentExcessNgn) > 0
-                              ? 'Overpayment already refunded on this quotation'
-                              : form.quotationRef
-                                ? 'No refundable overpayment on this quotation'
-                                : 'Select a quotation with overpayment first'
-                    }
-                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
-                      createPath === 'quick'
-                        ? 'bg-rose-600 text-white shadow-md shadow-rose-200'
-                        : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed'
-                    }`}
-                  >
-                    Quick overpay
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      createPathUserTouchedRef.current = true;
-                      createPathRef.current = 'full';
-                      setCreatePath('full');
-                      const r = String(form.quotationRef || '').trim();
-                      if (r) void generatePreview(r, includeCommissionInPreview);
-                    }}
-                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
-                      createPath === 'full'
-                        ? 'bg-zarewa-teal text-white shadow-md shadow-teal-200'
-                        : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    Full refund
-                  </button>
-                </div>
-              </div>
-              {createPath === 'quick' && form.quotationRef && !quickOverpayAvailable ? (
-                <p className="text-xs font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2" role="status">
-                  {lastPreviewSnapshot?.hasCancelledProductionJob
-                    ? 'Cancelled production job — use Full refund. Order cancellation covers the full refundable cash, including any amount above the quote.'
-                    : leftoverOverpayUsedNgn > 0 && leftoverOverpayStillPayableNgn <= 0
-                      ? 'Overpayment on this quotation was already used on another job. Quick overpay is not available.'
-                      : moneyContext?.overpaymentResidualNgn === 0 &&
-                          Number(moneyContext?.overpaymentExcessNgn) > 0
-                        ? 'Overpayment on this quotation is already fully refunded. Quick overpay is not available.'
-                        : 'No refundable overpayment — switch to Full refund.'}
-                </p>
-              ) : null}
-              {showLeftoverOverpayStrip ? (
-                <RefundFundBalanceStrip
-                  amountNgn={refundMoneyBreakdown.overpay}
-                  creditAppliedNgn={leftoverOverpayUsedNgn}
-                  availableNgn={leftoverOverpayStillPayableNgn}
-                  usedOn="quotation"
-                  leftoverHint="payout"
-                />
-              ) : null}
-              {mode === 'create' &&
-              form.quotationRef &&
-              moneyContext?.overpaymentResidualNgn === 0 &&
-              Number(moneyContext?.overpaymentExcessNgn) > 0 &&
-              (previewRemainingNgn == null || previewRemainingNgn <= 0) ? (
-                <p
-                  className="text-xs font-medium text-amber-900 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2"
-                  role="status"
-                >
-                  {leftoverOverpayUsedNgn > 0
-                    ? `₦${leftoverOverpayUsedNgn.toLocaleString('en-NG')} of the ₦${Number(moneyContext.overpaymentExcessNgn).toLocaleString('en-NG')} overpayment was already used on another quotation. Do not create another overpay refund for this quotation.`
-                    : `Prior refunds already covered the ₦${Number(moneyContext.overpaymentExcessNgn).toLocaleString('en-NG')} overpayment. Do not create another overpay refund for this quotation.`}
-                </p>
-              ) : null}
-              {createPath === 'quick' && otherCalculatedReasonsAvailable ? (
-                <p className="text-xs font-medium text-teal-900 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2" role="status">
-                  Other calculated refund reasons are available — switch to Full refund to include them.
-                </p>
-              ) : null}
-              {openProductionJob?.jobId ? (
-                <div
-                  className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 space-y-1"
-                  role="alert"
-                >
-                  <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-950">
-                    Production still open
-                  </p>
-                  <p className="text-xs text-amber-950 leading-snug">
-                    Finish or cancel job{' '}
-                    <span className="font-mono font-semibold">{openProductionJob.jobId}</span>
-                    {openProductionJob.status ? ` (${openProductionJob.status})` : ''} on Operations before
-                    submitting this refund.
-                  </p>
-                </div>
-              ) : null}
-              {lastPreviewSnapshot?.hasCancelledProductionJob && !openProductionJob?.jobId ? (
-                <div
-                  className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2.5 space-y-1"
-                  role="status"
-                >
-                  <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-950">
-                    Cancelled production job
-                  </p>
-                  <p className="text-xs text-teal-950 leading-snug">
-                    Use <span className="font-semibold">Full refund</span> with{' '}
-                    <span className="font-semibold">Order cancellation</span>. Cash above the quote total is
-                    included in that line — not a separate Overpayment refund.
-                  </p>
-                  {refundMoneyBreakdown.overpay > 0 ? (
-                    <p className="text-xs text-teal-800">
-                      Overpayment context: ₦{Math.round(refundMoneyBreakdown.overpay).toLocaleString('en-NG')}{' '}
-                      (reference only; included in the cancellation amount).
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-              <RefundCreatePolicyWarnings
-                amountNgn={form.amountNgn}
-                executiveThresholdNgn={refundExecutiveThresholdNgn}
-                mdPricingBlocked={createBlockedByMdPricing}
-                quotationRef={form.quotationRef}
-              />
-            </div>
-          ) : null}
-
-          {record?.refundID && !showApprovalReview ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 text-left"
-                aria-expanded={activityTimelineOpen}
-                onClick={() => setActivityTimelineOpen((o) => !o)}
-              >
-                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Activity timeline</p>
-                <span className="text-ui-xs font-semibold text-slate-400">
-                  {activityTimelineOpen ? 'Hide' : 'Show'}
-                </span>
-              </button>
-              {activityTimelineOpen ? (
-              <ul className="text-xs text-slate-700 space-y-1.5 font-medium">
-                <li>
-                  <span className="text-slate-500">Requested</span>{' '}
-                  {record.requestedAtISO || record.requested_at_iso || '—'}
-                  {record.requestedBy ? ` · ${record.requestedBy}` : ''}
-                </li>
-                <li>
-                  <span className="text-slate-500">Status</span> {refundPublicStatusLabel(record) || '—'}
-                  {record.approvalDate ? ` · Approved ${record.approvalDate}` : ''}
-                  {record.approvedBy ? ` · ${record.approvedBy}` : ''}
-                </li>
-                {(record.approvedAmountNgn != null || record.approved_amount_ngn != null) && (
-                  <li>
-                    <span className="text-slate-500">Approved amount</span> ₦
-                    {Number(record.approvedAmountNgn ?? record.approved_amount_ngn ?? 0).toLocaleString('en-NG')}
-                  </li>
-                )}
-                {record.managerComments ? (
-                  <li>
-                    <span className="text-slate-500">Manager note</span> {record.managerComments}
-                  </li>
-                ) : null}
-                {record.payeeName || record.payee_name || record.payeeAccountNo || record.payee_account_no || record.payeeBankName || record.payee_bank_name ? (
-                  <li className="pt-1 border-t border-slate-100">
-                    <span className="text-slate-500 block mb-0.5">Pay to</span>
-                    <span className="text-xs font-semibold text-slate-800">
-                      {[record.payeeName || record.payee_name, record.payeeBankName || record.payee_bank_name]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </span>
-                    {record.payeeAccountNo || record.payee_account_no ? (
-                      <span className="block text-xs font-mono text-slate-600">
-                        {record.payeeAccountNo || record.payee_account_no}
-                      </span>
-                    ) : null}
-                  </li>
-                ) : null}
-                <li>
-                  <span className="text-slate-500">Paid</span>{' '}
-                  {record.paidAtISO || record.paid_at_iso
-                    ? `${(record.paidAtISO || record.paid_at_iso).slice(0, 16)} · ₦${Number(record.paidAmountNgn || 0).toLocaleString('en-NG')}`
-                    : '—'}
-                  {record.paidBy ? ` · ${record.paidBy}` : ''}
-                </li>
-                {Array.isArray(record.payoutHistory) && record.payoutHistory.length > 0 ? (
-                  <li className="pt-1 border-t border-slate-100">
-                    <span className="text-slate-500 block mb-1">Treasury payouts</span>
-                    <ul className="space-y-1 pl-2 border-l-2 border-teal-200">
-                      {record.payoutHistory.map((p) => (
-                        <li key={p.id} className="text-xs">
-                          {(p.postedAtISO || '').slice(0, 16)} · ₦{Number(p.amountNgn || 0).toLocaleString('en-NG')}
-                          {p.reference ? ` · ${p.reference}` : ''}
-                          {p.accountName ? ` · ${p.accountName}` : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ) : null}
-              </ul>
-              ) : null}
-            </div>
-          ) : null}
-
+          {/* Top preview loading / error alerts */}
           {previewLoading && !showApprovalReview ? (
-            <p className="text-xs font-semibold text-slate-500" role="status">
-              Updating refund preview…
-            </p>
+            <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-600 animate-pulse" role="status">
+              <RotateCcw size={14} className="animate-spin text-rose-600" />
+              <span>Updating refund preview…</span>
+            </div>
           ) : null}
 
           {previewError ? (
@@ -4619,9 +4630,136 @@ const RefundModal = ({
             </div>
           ) : null}
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-7 space-y-6">
-              {/* Step 1: Quotation Selection */}
+          {/* Hero Summary Ribbon */}
+          {(form.quotationRef || record?.refundID) && (
+            <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-slate-50 to-rose-50/30 p-4 sm:p-5 shadow-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-center">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quotation</span>
+                  <p className="font-bold text-slate-900 font-mono text-sm truncate">{form.quotationRef || record?.quotationRef || '—'}</p>
+                  <p className="text-ui-xs text-slate-500 truncate">{quoteSummaryCustomerName || form.customerName || record?.customer || '—'}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quote Total / Receipts</span>
+                  <p className="font-bold text-slate-900 text-sm tabular-nums">
+                    ₦{(selectedQuoteMoneyRow?.total_ngn || 0).toLocaleString()}
+                  </p>
+                  <p className="text-ui-xs font-semibold text-emerald-600 tabular-nums">
+                    Receipts: ₦{refundIntelReceiptsTotalNgn.toLocaleString()}
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Requested Amount</span>
+                  <p className={`font-mono text-lg sm:text-xl font-black tabular-nums ${exceedsRefundableHeadroom ? 'text-rose-700' : 'text-slate-900'}`}>
+                    ₦{roundMoneyLocal(form.amountNgn || lineSum).toLocaleString('en-NG')}
+                  </p>
+                  {previewRemainingNgn != null ? (
+                    <p className="text-ui-xs text-amber-700 font-semibold tabular-nums">
+                      Remaining: ₦{previewRemainingNgn.toLocaleString('en-NG')}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Payout Destination</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                      payoutAccountReady ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {payoutAccountReady ? (selectedCustomerHrPayout ? 'HR Bank' : 'Customer Bank') : 'Bank Needed'}
+                    </span>
+                    {payoutAllocationTotals.hasSplits && (
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        payoutAllocationTotals.balanced ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {payoutAllocationTotals.balanced ? 'Splits Balanced' : 'Splits Pending'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Tab Bar */}
+          <div className="flex flex-wrap gap-1.5 rounded-xl bg-slate-200/70 p-1 border border-slate-300/60 sticky top-0 z-10 backdrop-blur-md">
+            <button
+              type="button"
+              onClick={() => setActiveTab('application')}
+              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeTab === 'application'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <FileText size={15} className={activeTab === 'application' ? 'text-rose-600' : 'text-slate-400'} />
+              <span>Breakdown &amp; Lines</span>
+              {form.calculationLines?.length > 0 && (
+                <span className="rounded-full bg-slate-100 px-1.5 py-0.2 text-[10px] font-mono font-bold text-slate-600">
+                  {form.calculationLines.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('payout')}
+              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeTab === 'payout'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Wallet size={15} className={activeTab === 'payout' ? 'text-rose-600' : 'text-slate-400'} />
+              <span>Payout &amp; Splits</span>
+              {Array.isArray(form.refundSplits) && form.refundSplits.length > 0 ? (
+                <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-bold ${
+                  payoutAllocationTotals.balanced ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {form.refundSplits.length}
+                </span>
+              ) : null}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('intelligence')}
+              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeTab === 'intelligence'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <BarChart3 size={15} className={activeTab === 'intelligence' ? 'text-rose-600' : 'text-slate-400'} />
+              <span>Quote &amp; Intelligence</span>
+              {warnings.length > 0 && (
+                <span className="rounded-full bg-rose-100 text-rose-700 px-1.5 py-0.2 text-[10px] font-bold">
+                  {warnings.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('audit')}
+              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeTab === 'audit'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <ShieldCheck size={15} className={activeTab === 'audit' ? 'text-rose-600' : 'text-slate-400'} />
+              <span>{mode === 'approve' || showApproval ? 'Approval & Audit' : 'Audit & Controls'}</span>
+              {refundAttentionItems.length > 0 && (
+                <span className="rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.2 text-[10px] font-bold">
+                  {refundAttentionItems.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* TAB 1: Breakdown & Lines */}
+          <div className={activeTab === 'application' ? 'space-y-6' : 'hidden'}>
+            {/* Step 1: Quotation Selection */}
               <div className="p-5 rounded-2xl bg-white border border-slate-200/60 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-2 h-5 bg-rose-500 rounded-full" />
@@ -4860,6 +4998,9 @@ const RefundModal = ({
                   </div>
                 </div>
               </div>
+
+              {/* Refund Type Selector (Quick overpay vs Full refund) */}
+              {refundTypeSelectorNode}
 
               {/* Step 2: compact breakdown */}
               <div
@@ -5260,12 +5401,25 @@ const RefundModal = ({
                       className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-rose-500/20 resize-none"
                     />
                   ) : null}
+
+                {/* Next Tab Action */}
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('payout')}
+                    className="inline-flex items-center gap-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 px-5 py-2.5 text-xs font-bold transition-all shadow-sm active:scale-95"
+                  >
+                    <Wallet size={15} />
+                    <span>Next: Payout &amp; Splits</span>
+                    <span>→</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Right: transaction intelligence */}
-            <div className="lg:col-span-5">
-              <div className="p-5 rounded-2xl bg-slate-900 text-white shadow-xl space-y-4">
+            {/* TAB 3: Quote & Intelligence */}
+            <div className={activeTab === 'intelligence' ? 'space-y-6' : 'hidden'}>
+              <div className="p-5 sm:p-6 rounded-2xl bg-slate-900 text-white shadow-xl space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Hash className="text-rose-400 shrink-0" size={18} aria-hidden />
@@ -5873,21 +6027,75 @@ const RefundModal = ({
                     )}
                     </>
                     )}
+                  </div>
+                )}
+              </div>
+              {/* Tab 3 navigation footer */}
+              <div className="flex justify-between items-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('application')}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 text-xs font-bold transition-all"
+                >
+                  <span>←</span>
+                  <span>Back to Breakdown</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('payout')}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 px-4 py-2 text-xs font-bold transition-all shadow-sm"
+                >
+                  <Wallet size={14} />
+                  <span>Go to Payout &amp; Splits</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
 
-                    <div className="rounded-xl border border-slate-600 bg-slate-800/50 p-4 space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">
-                          Payout
-                        </p>
-                        {payoutAccountReady ? (
-                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
-                            {selectedCustomerHrPayout ? 'HR bank' : 'Customer bank'}
-                          </span>
-                        ) : null}
-                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
-                          Split payout
+            {/* TAB 2: Payout & Splits */}
+            <div className={activeTab === 'payout' ? 'space-y-6' : 'hidden'}>
+              {!form.quotationRef ? (
+                <div className="p-8 rounded-2xl bg-white border border-slate-200 text-center space-y-3 shadow-xs">
+                  <Wallet size={36} className="mx-auto text-slate-300" />
+                  <h3 className="text-sm font-bold text-slate-700">No quotation selected yet</h3>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    Select a finished quotation in the Breakdown tab first to configure payout recipients and splits.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('application')}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 text-white px-4 py-2 text-xs font-bold hover:bg-rose-700 transition-all shadow-sm"
+                  >
+                    Go to Breakdown
+                  </button>
+                </div>
+              ) : (
+                <div className="p-5 sm:p-6 rounded-2xl bg-slate-900 text-white shadow-xl space-y-4">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="text-rose-400 shrink-0" size={18} aria-hidden />
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-300">
+                        Payout &amp; Recipient Allocation
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {payoutAccountReady ? (
+                        <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
+                          {selectedCustomerHrPayout ? 'HR bank' : 'Customer bank'}
                         </span>
-                      </div>
+                      ) : null}
+                      <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+                        Split payout
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-600/70 bg-slate-800/50 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-400">
+                        Primary Recipient Account
+                      </p>
+                    </div>
 
                       {payoutAccountReady ? (
                         <>
@@ -6492,12 +6700,37 @@ const RefundModal = ({
                             </p>
                           ) : null}
                         </div>
+                      </div>
                     </div>
+                  )}
+                  {/* Tab 2 navigation footer */}
+                  <div className="flex justify-between items-center pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('application')}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 text-xs font-bold transition-all"
+                    >
+                      <span>←</span>
+                      <span>Back to Breakdown</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('intelligence')}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 px-4 py-2 text-xs font-bold transition-all shadow-sm"
+                    >
+                      <BarChart3 size={14} />
+                      <span>View Intelligence</span>
+                      <span>→</span>
+                    </button>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
+                </div>
+
+            {/* TAB 4: Audit & Controls */}
+            <div className={activeTab === 'audit' ? 'space-y-6' : 'hidden'}>
+            {activityTimelineNode}
+            {(mode === 'view' || mode === 'approve') && record?.refundID ? (
+              <RefundApplyToQuotationPanel refund={record} />
+            ) : null}
 
           {/* Status Section for Non-Create Modes */}
               {(mode === 'view' || mode === 'approve') && (
@@ -6763,13 +6996,28 @@ const RefundModal = ({
               ) : null}
             </div>
           ) : null}
+          </div>
             </>
           )}
         </form>
 
         {/* Footer Actions */}
-        <div className="px-6 py-5 border-t border-slate-200/60 bg-white rounded-b-2xl flex justify-end items-center shrink-0">
-          <div className="flex gap-3">
+        <div className="px-6 py-4 border-t border-slate-200/60 bg-white rounded-b-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {form.quotationRef ? (
+              <div className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-1.5 text-xs text-slate-600 border border-slate-200/80">
+                <span>Refund: <strong className="text-slate-900">₦{roundMoneyLocal(form.amountNgn || lineSum).toLocaleString('en-NG')}</strong></span>
+                <span className="text-slate-300">|</span>
+                <span>Payout: <strong className="text-slate-900">₦{payoutAllocationTotals.netToPayout.toLocaleString('en-NG')}</strong></span>
+                {payoutAllocationTotals.balanced ? (
+                  <span className="rounded-md bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 text-[10px]">Balanced</span>
+                ) : (
+                  <span className="rounded-md bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 text-[10px]">Pending splits</span>
+                )}
+              </div>
+            ) : null}
+          </div>
+          <div className="flex gap-3 w-full sm:w-auto justify-end">
             <button
               type="button"
               onClick={handleClose}

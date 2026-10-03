@@ -208,7 +208,12 @@ export function CompanyRetentionPanel({
     }
   };
 
-  const requestHint = cooldownActive
+  const withdrawalFrozen = Boolean(summary?.withdrawalFrozen);
+  const freezeReason = String(summary?.withdrawalFreezeReason || '').trim();
+  const excludedNgn = Math.round(Number(summary?.excludedNgn) || 0);
+  const requestHint = withdrawalFrozen
+    ? freezeReason || 'Withdrawals are frozen'
+    : cooldownActive
     ? nextAllowedLabel
       ? `Next withdrawal after ${nextAllowedLabel}`
       : `Next withdrawal ${cooldownDays} days after last payout`
@@ -238,6 +243,19 @@ export function CompanyRetentionPanel({
           <p className="text-sm font-black tabular-nums text-amber-950">{formatNgn(locked)}</p>
         </div>
       </div>
+
+      {withdrawalFrozen ? (
+        <div className="rounded-lg border border-red-300/80 bg-red-50 px-3 py-2.5 text-xs text-red-950 leading-relaxed">
+          <p className="font-bold">Withdrawals frozen</p>
+          <p>{freezeReason || 'Company retention cannot be withdrawn.'}</p>
+          {excludedNgn > 0 ? (
+            <p className="mt-1">
+              {formatNgn(excludedNgn)} stays out of Available because it came from a refund linked to an investigation,
+              even after this freeze is lifted.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {cooldownActive ? (
         <div className="flex gap-2.5 rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2.5 text-xs text-amber-950 leading-relaxed">

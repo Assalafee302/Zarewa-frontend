@@ -29,9 +29,12 @@ export function treasuryBookBalanceByAccountId(accounts = [], movements = []) {
 /** @param {object | null | undefined} acc @param {Map<number, number>} bookById */
 export function treasuryBookDisplayNgn(acc, bookById) {
   if (!acc) return 0;
-  // Live treasury_accounts.balance is the column payouts debit. Opening +
-  // truncated shell movements is not till truth.
-  if (acc.balance != null && String(acc.balance).trim() !== '') {
+  // Same figure as the account statement: opening + movements when the server
+  // attached computedBalanceNgn, otherwise the stored balance column.
+  if (
+    (acc.computedBalanceNgn != null && String(acc.computedBalanceNgn).trim() !== '') ||
+    (acc.balance != null && String(acc.balance).trim() !== '')
+  ) {
     return treasuryPayoutAvailableNgn(acc);
   }
   const id = Number(acc.id);

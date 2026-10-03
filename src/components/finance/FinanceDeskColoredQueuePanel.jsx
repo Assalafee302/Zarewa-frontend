@@ -30,6 +30,13 @@ const THEMES = {
     description: 'text-amber-950/85',
     row: 'border-amber-200/55 bg-white/50',
   },
+  slate: {
+    panel: 'border-slate-300/90 bg-slate-50/80',
+    title: 'text-slate-800',
+    count: 'text-slate-700',
+    description: 'text-slate-600',
+    row: 'border-slate-200 bg-white/70',
+  },
   violet: {
     panel: 'border-violet-200/90 bg-violet-50/50',
     title: 'text-violet-950',
