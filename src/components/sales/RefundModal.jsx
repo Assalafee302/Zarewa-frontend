@@ -18,6 +18,12 @@ import {
   ShieldCheck,
   Check,
   Copy,
+  Trash2,
+  Plus,
+  User,
+  Truck,
+  UserCheck,
+  CreditCard,
 } from 'lucide-react';
 import { ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody, ModalScrollFooter } from '../layout';
 import { RefundPayoutRecipientPicker } from './RefundPayoutRecipientPicker';
@@ -1258,7 +1264,7 @@ const RefundModal = ({
   const [advancedPricingOpen, setAdvancedPricingOpen] = useState(false);
   const [refundAttentionOpen, setRefundAttentionOpen] = useState(false);
   const [refundNotesOpen, setRefundNotesOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('application'); // 'application' | 'payout' | 'intelligence' | 'audit'
+  const [activeTab, setActiveTab] = useState('application'); // 'application' | 'payout' (2 streamlined pages)
   /** Non-terminal production still on quote — submit blocked until finished/cancelled. */
   const [openProductionJob, setOpenProductionJob] = useState(null);
   /** Fresh associated-staff directory for payout allocation (snapshot may lag). */
@@ -4428,7 +4434,7 @@ const RefundModal = ({
   return (
     <>
     <ModalFrame isOpen={isOpen} onClose={handleClose} edgeToEdgeMobile surface="plain" title="Refund" showCloseButton={false}>
-      <div className="z-modal-panel flex w-full max-w-[min(100%,72rem)] min-w-0 max-h-[min(94dvh,920px)] flex-col mx-auto bg-slate-50 rounded-none shadow-2xl transition-all duration-300 sm:rounded-2xl">
+      <div className="z-modal-panel flex w-full max-w-[min(100%,54rem)] min-w-0 max-h-[min(94dvh,920px)] flex-col mx-auto bg-slate-50 rounded-none shadow-2xl transition-all duration-300 sm:rounded-2xl">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-200/60 flex justify-between items-center bg-white/80 backdrop-blur-md rounded-t-2xl shrink-0">
           <div className="flex items-center gap-4">
@@ -4680,19 +4686,19 @@ const RefundModal = ({
             </div>
           )}
 
-          {/* Navigation Tab Bar */}
-          <div className="flex flex-wrap gap-1.5 rounded-xl bg-slate-200/70 p-1 border border-slate-300/60 sticky top-0 z-10 backdrop-blur-md">
+          {/* Navigation Tab Bar (2 Pages) */}
+          <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-200/70 p-1.5 border border-slate-300/60 sticky top-0 z-10 backdrop-blur-md">
             <button
               type="button"
               onClick={() => setActiveTab('application')}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-bold transition-all ${
                 activeTab === 'application'
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
               <FileText size={15} className={activeTab === 'application' ? 'text-rose-600' : 'text-slate-400'} />
-              <span>Breakdown &amp; Lines</span>
+              <span>1. Refund Details &amp; Intel</span>
               {form.calculationLines?.length > 0 && (
                 <span className="rounded-full bg-slate-100 px-1.5 py-0.2 text-[10px] font-mono font-bold text-slate-600">
                   {form.calculationLines.length}
@@ -4703,14 +4709,14 @@ const RefundModal = ({
             <button
               type="button"
               onClick={() => setActiveTab('payout')}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-2 rounded-lg py-2 px-3 text-xs font-bold transition-all ${
                 activeTab === 'payout'
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
               <Wallet size={15} className={activeTab === 'payout' ? 'text-rose-600' : 'text-slate-400'} />
-              <span>Payout &amp; Splits</span>
+              <span>2. Payout Splits &amp; Approval</span>
               {Array.isArray(form.refundSplits) && form.refundSplits.length > 0 ? (
                 <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-bold ${
                   payoutAllocationTotals.balanced ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
@@ -4718,42 +4724,6 @@ const RefundModal = ({
                   {form.refundSplits.length}
                 </span>
               ) : null}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('intelligence')}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeTab === 'intelligence'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-              }`}
-            >
-              <BarChart3 size={15} className={activeTab === 'intelligence' ? 'text-rose-600' : 'text-slate-400'} />
-              <span>Quote &amp; Intelligence</span>
-              {warnings.length > 0 && (
-                <span className="rounded-full bg-rose-100 text-rose-700 px-1.5 py-0.2 text-[10px] font-bold">
-                  {warnings.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('audit')}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeTab === 'audit'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-              }`}
-            >
-              <ShieldCheck size={15} className={activeTab === 'audit' ? 'text-rose-600' : 'text-slate-400'} />
-              <span>{mode === 'approve' || showApproval ? 'Approval & Audit' : 'Audit & Controls'}</span>
-              {refundAttentionItems.length > 0 && (
-                <span className="rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.2 text-[10px] font-bold">
-                  {refundAttentionItems.length}
-                </span>
-              )}
             </button>
           </div>
 
@@ -5402,23 +5372,9 @@ const RefundModal = ({
                     />
                   ) : null}
 
-                {/* Next Tab Action */}
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('payout')}
-                    className="inline-flex items-center gap-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 px-5 py-2.5 text-xs font-bold transition-all shadow-sm active:scale-95"
-                  >
-                    <Wallet size={15} />
-                    <span>Next: Payout &amp; Splits</span>
-                    <span>→</span>
-                  </button>
                 </div>
-              </div>
-            </div>
 
-            {/* TAB 3: Quote & Intelligence */}
-            <div className={activeTab === 'intelligence' ? 'space-y-6' : 'hidden'}>
+              {/* Quotation & Production Intelligence (Page 1) */}
               <div className="p-5 sm:p-6 rounded-2xl bg-slate-900 text-white shadow-xl space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -6030,43 +5986,35 @@ const RefundModal = ({
                   </div>
                 )}
               </div>
-              {/* Tab 3 navigation footer */}
-              <div className="flex justify-between items-center pt-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('application')}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 text-xs font-bold transition-all"
-                >
-                  <span>←</span>
-                  <span>Back to Breakdown</span>
-                </button>
+              {/* Page 1 Forward Action */}
+              <div className="flex justify-end pt-2">
                 <button
                   type="button"
                   onClick={() => setActiveTab('payout')}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 px-4 py-2 text-xs font-bold transition-all shadow-sm"
+                  className="inline-flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 text-xs font-bold transition-all shadow-md active:scale-95"
                 >
-                  <Wallet size={14} />
-                  <span>Go to Payout &amp; Splits</span>
+                  <Wallet size={15} />
+                  <span>Proceed to Payout Splits &amp; Authorization</span>
                   <span>→</span>
                 </button>
               </div>
             </div>
 
-            {/* TAB 2: Payout & Splits */}
+            {/* TAB 2: Payout Splits & Authorization */}
             <div className={activeTab === 'payout' ? 'space-y-6' : 'hidden'}>
               {!form.quotationRef ? (
                 <div className="p-8 rounded-2xl bg-white border border-slate-200 text-center space-y-3 shadow-xs">
                   <Wallet size={36} className="mx-auto text-slate-300" />
                   <h3 className="text-sm font-bold text-slate-700">No quotation selected yet</h3>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    Select a finished quotation in the Breakdown tab first to configure payout recipients and splits.
+                    Select a quotation in Page 1 (Refund Details &amp; Intel) first to configure payout recipients and splits.
                   </p>
                   <button
                     type="button"
                     onClick={() => setActiveTab('application')}
                     className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 text-white px-4 py-2 text-xs font-bold hover:bg-rose-700 transition-all shadow-sm"
                   >
-                    Go to Breakdown
+                    Go to Refund Details
                   </button>
                 </div>
               ) : (
@@ -6232,12 +6180,17 @@ const RefundModal = ({
                             return (
                               <div
                                 key={`alloc-${idx}`}
-                                className="rounded-lg border border-slate-600/80 bg-slate-950/40 p-3 space-y-2"
+                                className="rounded-xl border border-slate-700 bg-slate-800/80 p-3.5 space-y-3 shadow-2xs"
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                                    {row.note || (isStaff ? 'Associated staff' : 'Quotation sales staff')}
-                                  </p>
+                                <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-700/60">
+                                  <div className="flex items-center gap-2">
+                                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-[10px] font-bold text-slate-200">
+                                      {idx + 1}
+                                    </span>
+                                    <p className="text-xs font-bold text-slate-200">
+                                      {row.note || (isStaff ? 'Associated staff' : 'Quotation sales staff')}
+                                    </p>
+                                  </div>
                                   <button
                                     type="button"
                                     disabled={readOnly}
@@ -6249,12 +6202,19 @@ const RefundModal = ({
                                           .map((r) => ({ ...r, _manual: '1' })),
                                       }))
                                     }
-                                    className="text-[10px] font-semibold text-rose-300 hover:text-rose-200 disabled:opacity-50"
+                                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-rose-300 hover:text-white hover:bg-rose-500/20 transition disabled:opacity-40"
                                   >
-                                    Remove
+                                    <Trash2 size={12} />
+                                    <span>Remove</span>
                                   </button>
                                 </div>
-                                <RefundPayoutRecipientPicker
+
+                                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
+                                  <div className="sm:col-span-7 space-y-1">
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                      Recipient Payee
+                                    </label>
+                                    <RefundPayoutRecipientPicker
                                   disabled={readOnly}
                                   loading={payoutDirectoryLoading}
                                   value={selectedKey}
@@ -6415,9 +6375,10 @@ const RefundModal = ({
                                         splitIdx: idx,
                                       })
                                     }
-                                    className="text-[10px] font-semibold text-amber-200 hover:text-amber-100"
+                                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-300 hover:text-amber-200 pt-0.5"
                                   >
-                                    Add account number for this recipient
+                                    <CreditCard size={11} />
+                                    <span>Add account number for this recipient</span>
                                   </button>
                                 ) : null}
                                 {!readOnly && !selectedKey && roundMoneyLocal(row.amountNgn) > 0 ? (
@@ -6426,95 +6387,123 @@ const RefundModal = ({
                                     it does not count until a person is selected.
                                   </p>
                                 ) : null}
-                                <input
-                                  type="number"
-                                  disabled={readOnly}
-                                  value={row.amountNgn ?? ''}
-                                  onChange={(e) =>
-                                    setForm((f) => {
-                                      const raw = e.target.value;
-                                      const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
-                                      const mapped = existing.map((x, i) =>
-                                        i === idx ? { ...x, _manual: '1', amountNgn: raw } : x
-                                      );
-                                      const editingQuote = isQuoteCustomerSplitRow(
-                                        { ...row, amountNgn: raw },
-                                        f.customerID
-                                      );
-                                      return {
-                                        ...f,
-                                        refundSplits: editingQuote
-                                          ? mapped
-                                          : rebalanceQuoteCustomerRemainder(
-                                              mapped,
-                                              roundMoneyLocal(f.amountNgn),
-                                              f.customerID
-                                            ),
-                                      };
-                                    })
-                                  }
-                                  placeholder="Amount ₦ — leftover stays on the quote customer"
-                                  className="w-full bg-slate-800 border border-slate-600 rounded-lg py-2 px-2 text-xs text-white tabular-nums"
-                                />
-                                {(() => {
-                                  const isQuoteCustomerRow =
-                                    !isStaff &&
-                                    String(row.recipientCustomerID || '').trim() ===
-                                      String(form.customerID || '').trim();
-                                  const ded = applyRefundStaffAllocationDeduction(
-                                    {
-                                      ...row,
-                                      amountNgn: roundMoneyLocal(row.amountNgn),
-                                    },
-                                    form.customerID,
-                                    {
-                                      ...refundSplitDeductionOpts,
-                                      unclearedReceiptHoldNgn: unclearedFloatByClaimingCustomerId.get(
-                                        String(row.recipientCustomerID || '').trim()
-                                      ),
-                                      overpaymentOnly: overpaymentOnlyRefund,
-                                      priceConcession: priceConcessionRefund,
-                                    }
-                                  );
-                                  if (isQuoteCustomerRow) {
-                                    return (
-                                      <p className="text-[10px] leading-snug text-emerald-200/90">
-                                        Customer overpayment —{' '}
-                                        {showLeftoverOverpayStrip
-                                          ? `₦${(Number(ded.grossNgn) || 0).toLocaleString('en-NG')} is all that can still be paid out to quote customer (no company cut). ₦${leftoverOverpayUsedNgn.toLocaleString('en-NG')} already used on another quotation.`
-                                          : `full ₦${(Number(ded.grossNgn) || 0).toLocaleString('en-NG')} to quote customer (no company cut).`}
-                                      </p>
-                                    );
-                                  }
-                                  if (
-                                    !(ded.companyDeductionNgn > 0) &&
-                                    !(ded.unclearedReceiptHoldNgn > 0) &&
-                                    !ded.companyCutWaived
-                                  ) {
-                                    return null;
-                                  }
-                                  const cutPct = Math.round((ded.deductionRate || 0) * 100);
-                                  return (
-                                    <p className="text-[10px] leading-snug text-amber-200/90">
-                                      Gross ₦{(Number(ded.grossNgn) || 0).toLocaleString('en-NG')}
-                                      {ded.companyCutWaived
-                                        ? ' · Company cut waived (Admin/MD)'
-                                        : ded.companyDeductionNgn > 0
-                                          ? ` · Company ${cutPct}% −₦${(Number(ded.companyDeductionNgn) || 0).toLocaleString('en-NG')}`
-                                          : ''}
-                                      {ded.unclearedReceiptHoldNgn > 0
-                                        ? ` · ₦${(Number(ded.unclearedReceiptHoldNgn) || 0).toLocaleString('en-NG')} uncleared receipts pending`
-                                        : ''}
-                                      {ded.payoutHeldForUnclearedReceipts
-                                        ? overpaymentOnlyRefund
-                                          ? ' · Till payout held — fund available for cashier referral/confirmation (even before production)'
-                                          : ' · Payout held until receipts cleared or manually applied'
-                                        : ` · Pay staff ₦${(Number(ded.netPayoutNgn) || 0).toLocaleString('en-NG')}`}
-                                    </p>
-                                  );
-                                })()}
                               </div>
-                            );
+
+                              <div className="sm:col-span-5 space-y-1">
+                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                  Gross Share (₦)
+                                </label>
+                                <div className="relative">
+                                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-bold text-xs text-slate-400">₦</span>
+                                  <input
+                                    type="number"
+                                    disabled={readOnly}
+                                    value={row.amountNgn ?? ''}
+                                    onChange={(e) =>
+                                      setForm((f) => {
+                                        const raw = e.target.value;
+                                        const existing = Array.isArray(f.refundSplits) ? f.refundSplits : [];
+                                        const mapped = existing.map((x, i) =>
+                                          i === idx ? { ...x, _manual: '1', amountNgn: raw } : x
+                                        );
+                                        const editingQuote = isQuoteCustomerSplitRow(
+                                          { ...row, amountNgn: raw },
+                                          f.customerID
+                                        );
+                                        return {
+                                          ...f,
+                                          refundSplits: editingQuote
+                                            ? mapped
+                                            : rebalanceQuoteCustomerRemainder(
+                                                mapped,
+                                                roundMoneyLocal(f.amountNgn),
+                                                f.customerID
+                                              ),
+                                        };
+                                      })
+                                    }
+                                    placeholder="0"
+                                    className="w-full rounded-lg border border-slate-600 bg-slate-900/90 py-2 pl-7 pr-3 text-xs font-bold text-white tabular-nums outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {(() => {
+                              const isQuoteCustomerRow =
+                                !isStaff &&
+                                String(row.recipientCustomerID || '').trim() ===
+                                  String(form.customerID || '').trim();
+                              const ded = applyRefundStaffAllocationDeduction(
+                                {
+                                  ...row,
+                                  amountNgn: roundMoneyLocal(row.amountNgn),
+                                },
+                                form.customerID,
+                                {
+                                  ...refundSplitDeductionOpts,
+                                  unclearedReceiptHoldNgn: unclearedFloatByClaimingCustomerId.get(
+                                    String(row.recipientCustomerID || '').trim()
+                                  ),
+                                  overpaymentOnly: overpaymentOnlyRefund,
+                                  priceConcession: priceConcessionRefund,
+                                }
+                              );
+                              if (isQuoteCustomerRow) {
+                                return (
+                                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-700/60 text-[11px]">
+                                    <span className="rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 font-bold">
+                                      Customer Overpay (0% cut)
+                                    </span>
+                                    <span className="text-slate-300">
+                                      {showLeftoverOverpayStrip
+                                        ? `₦${(Number(ded.grossNgn) || 0).toLocaleString('en-NG')} max payable (₦${leftoverOverpayUsedNgn.toLocaleString('en-NG')} used on another quotation)`
+                                        : `full ₦${(Number(ded.grossNgn) || 0).toLocaleString('en-NG')} to quote customer (no company cut)`}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              if (
+                                !(ded.companyDeductionNgn > 0) &&
+                                !(ded.unclearedReceiptHoldNgn > 0) &&
+                                !ded.companyCutWaived
+                              ) {
+                                return null;
+                              }
+                              const cutPct = Math.round((ded.deductionRate || 0) * 100);
+                              return (
+                                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-700/60 text-[11px]">
+                                  <span className="text-slate-400 font-medium">
+                                    Gross: <strong className="text-slate-200 font-mono">₦{(Number(ded.grossNgn) || 0).toLocaleString('en-NG')}</strong>
+                                  </span>
+                                  {ded.companyCutWaived ? (
+                                    <span className="rounded bg-sky-500/15 border border-sky-500/30 text-sky-300 px-1.5 py-0.2 font-semibold text-[10px]">
+                                      Company cut waived (Admin/MD)
+                                    </span>
+                                  ) : ded.companyDeductionNgn > 0 ? (
+                                    <span className="rounded bg-amber-500/15 border border-amber-500/30 text-amber-300 px-1.5 py-0.2 font-semibold text-[10px]">
+                                      Company {cutPct}%: −₦{(Number(ded.companyDeductionNgn) || 0).toLocaleString('en-NG')}
+                                    </span>
+                                  ) : null}
+                                  {ded.unclearedReceiptHoldNgn > 0 ? (
+                                    <span className="rounded bg-rose-500/15 border border-rose-500/30 text-rose-300 px-1.5 py-0.2 font-semibold text-[10px]">
+                                      Hold: ₦{(Number(ded.unclearedReceiptHoldNgn) || 0).toLocaleString('en-NG')} uncleared
+                                    </span>
+                                  ) : null}
+                                  {ded.payoutHeldForUnclearedReceipts ? (
+                                    <span className="rounded bg-rose-500/20 text-rose-300 px-2 py-0.5 text-[10px] font-bold">
+                                      {overpaymentOnlyRefund ? 'Till payout held' : 'Payout held until cleared'}
+                                    </span>
+                                  ) : (
+                                    <span className="rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 px-2 py-0.5 font-bold text-xs ml-auto">
+                                      Pay staff: ₦{(Number(ded.netPayoutNgn) || 0).toLocaleString('en-NG')}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        );
                           })}
                           {(() => {
                             if (!payoutAllocationTotals.hasSplits) return null;
@@ -6532,36 +6521,35 @@ const RefundModal = ({
                             const assocCutPct = Math.round(associatedStaffDeductionRate * 100);
                             return (
                               <div
-                                className={`rounded-lg border px-3 py-2.5 space-y-1.5 ${
+                                className={`rounded-xl border p-4 space-y-3 ${
                                   balanced
-                                    ? 'border-emerald-500/30 bg-emerald-950/30'
-                                    : 'border-amber-500/40 bg-amber-950/40'
+                                    ? 'border-emerald-500/30 bg-emerald-950/20'
+                                    : 'border-amber-500/30 bg-amber-950/20'
                                 }`}
                               >
-                                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                                    Total to payout
-                                  </p>
-                                  <p
-                                    className={`text-base font-black tabular-nums ${
-                                      balanced ? 'text-emerald-200' : 'text-amber-100'
-                                    }`}
-                                  >
-                                    ₦{netToPayout.toLocaleString('en-NG')}
-                                  </p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                  <div className="rounded-lg bg-slate-900/60 p-2.5 border border-slate-700/50">
+                                    <span className="block text-[10px] uppercase font-bold text-slate-400">Total Refund</span>
+                                    <span className="text-sm font-black text-slate-100 tabular-nums">₦{refundTotal.toLocaleString('en-NG')}</span>
+                                  </div>
+                                  <div className="rounded-lg bg-slate-900/60 p-2.5 border border-slate-700/50">
+                                    <span className="block text-[10px] uppercase font-bold text-slate-400">Allocated Gross</span>
+                                    <span className="text-sm font-black text-slate-200 tabular-nums">₦{allocatedGross.toLocaleString('en-NG')}</span>
+                                  </div>
+                                  <div className="rounded-lg bg-slate-900/60 p-2.5 border border-slate-700/50">
+                                    <span className="block text-[10px] uppercase font-bold text-slate-400">Net to Payout</span>
+                                    <span className={`text-sm font-black tabular-nums ${balanced ? 'text-emerald-300' : 'text-amber-200'}`}>₦{netToPayout.toLocaleString('en-NG')}</span>
+                                  </div>
+                                  <div className="rounded-lg bg-slate-900/60 p-2.5 border border-slate-700/50">
+                                    <span className="block text-[10px] uppercase font-bold text-slate-400">Status</span>
+                                    <span className={`text-xs font-bold block truncate ${balanced ? 'text-emerald-300' : remaining > 0 ? 'text-amber-300' : 'text-rose-300'}`}>
+                                      {balanced ? '✓ Balanced' : remaining > 0 ? `₦${remaining.toLocaleString('en-NG')} left` : `₦${Math.abs(remaining).toLocaleString('en-NG')} over`}
+                                    </span>
+                                  </div>
                                 </div>
-                                <p className="text-[10px] text-slate-300 leading-snug tabular-nums">
-                                  Allocated ₦{allocatedGross.toLocaleString('en-NG')} of ₦
-                                  {refundTotal.toLocaleString('en-NG')}
-                                  {balanced
-                                    ? ' · balanced'
-                                    : remaining > 0
-                                      ? ` · ₦${remaining.toLocaleString('en-NG')} still to allocate`
-                                      : ` · ₦${Math.abs(remaining).toLocaleString('en-NG')} over allocated`}
-                                </p>
                                 {incompleteRows ? (
-                                  <p className="text-[10px] text-amber-200 leading-snug">
-                                    A line still has an amount with no person selected — it is not counted yet.
+                                  <p className="text-[11px] text-amber-200 font-medium">
+                                    ⚠️ A split line has an amount but no recipient selected — it is not counted yet.
                                   </p>
                                 ) : null}
                                 {!readOnly && remaining > 0 && String(form.customerID || '').trim() ? (
@@ -6593,24 +6581,21 @@ const RefundModal = ({
                                         };
                                       })
                                     }
-                                    className="text-[10px] font-semibold text-violet-200 hover:text-violet-100"
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600/20 border border-violet-500/40 px-3 py-1.5 text-xs font-bold text-violet-200 hover:bg-violet-600/30 transition"
                                   >
-                                    Put leftover on quote customer
+                                    <span>Put leftover (₦{remaining.toLocaleString('en-NG')}) on quote customer</span>
                                   </button>
                                 ) : null}
                                 {companyCut > 0 || unclearedHold > 0 ? (
-                                  <p className="text-[10px] text-amber-100/90 leading-snug">
-                                    {companyCut > 0
-                                      ? `Company cut −₦${companyCut.toLocaleString('en-NG')} (transport/install ${assocCutPct}%, claiming staff ${cutPct}%). `
-                                      : ''}
-                                    {unclearedHold > 0
-                                      ? overpaymentOnlyRefund
-                                        ? `Uncleared receipts ₦${unclearedHold.toLocaleString('en-NG')} on file — till payout held; fund available for cashier referral/confirmation (even before production). `
-                                        : `Uncleared receipts ₦${unclearedHold.toLocaleString('en-NG')} pending — till payout held until cleared. `
-                                      : ''}
-                                    Net above is what finance releases via Staff / partner refund payouts after
-                                    approval.
-                                  </p>
+                                  <div className="rounded-lg bg-amber-950/40 border border-amber-500/20 p-2.5 text-[11px] text-amber-200/90 space-y-1">
+                                    {companyCut > 0 ? (
+                                      <p>• Company cut: <strong>−₦{companyCut.toLocaleString('en-NG')}</strong> (transport/install {assocCutPct}%, claiming staff {cutPct}%)</p>
+                                    ) : null}
+                                    {unclearedHold > 0 ? (
+                                      <p>• Uncleared receipts: <strong>₦{unclearedHold.toLocaleString('en-NG')}</strong> pending hold</p>
+                                    ) : null}
+                                    <p className="text-slate-400 text-[10px]">Net amount above is released via Staff / Partner refund payouts after approval.</p>
+                                  </div>
                                 ) : (
                                   <p className="text-[10px] text-slate-400 leading-snug">
                                     Sums from the allocation amounts above (updates as you type). Transport /
@@ -6621,7 +6606,8 @@ const RefundModal = ({
                             );
                           })()}
                           {!readOnly ? (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              <span className="text-[11px] font-bold text-slate-400 mr-1">Quick Add:</span>
                               {String(form.customerID || '').trim() ? (
                                 <button
                                   type="button"
@@ -6633,9 +6619,10 @@ const RefundModal = ({
                                       note: 'Overpayment · quote customer',
                                     }))
                                   }
-                                  className="text-ui-xs font-semibold text-violet-300 hover:text-violet-200"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500/30 bg-violet-950/40 px-2.5 py-1 text-xs font-bold text-violet-300 hover:bg-violet-900/40 hover:text-white transition"
                                 >
-                                  + Quote customer
+                                  <User size={13} />
+                                  <span>+ Quote customer</span>
                                 </button>
                               ) : null}
                               <button
@@ -6648,9 +6635,10 @@ const RefundModal = ({
                                     note: 'Associated staff',
                                   })
                                 }
-                                className="text-ui-xs font-semibold text-emerald-300 hover:text-emerald-200"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-900/40 hover:text-white transition"
                               >
-                                + Associated staff
+                                <Truck size={13} />
+                                <span>+ Associated staff</span>
                               </button>
                               <button
                                 type="button"
@@ -6665,9 +6653,10 @@ const RefundModal = ({
                                       : 'Quotation sales staff',
                                   }))
                                 }
-                                className="text-ui-xs font-semibold text-sky-300 hover:text-sky-200"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-950/40 px-2.5 py-1 text-xs font-bold text-sky-300 hover:bg-sky-900/40 hover:text-white transition"
                               >
-                                + Quotation sales staff
+                                <UserCheck size={13} />
+                                <span>+ Quotation sales staff</span>
                               </button>
                             </div>
                           ) : null}
@@ -6703,30 +6692,7 @@ const RefundModal = ({
                       </div>
                     </div>
                   )}
-                  {/* Tab 2 navigation footer */}
-                  <div className="flex justify-between items-center pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('application')}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 text-xs font-bold transition-all"
-                    >
-                      <span>←</span>
-                      <span>Back to Breakdown</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('intelligence')}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 px-4 py-2 text-xs font-bold transition-all shadow-sm"
-                    >
-                      <BarChart3 size={14} />
-                      <span>View Intelligence</span>
-                      <span>→</span>
-                    </button>
-                  </div>
-                </div>
 
-            {/* TAB 4: Audit & Controls */}
-            <div className={activeTab === 'audit' ? 'space-y-6' : 'hidden'}>
             {activityTimelineNode}
             {(mode === 'view' || mode === 'approve') && record?.refundID ? (
               <RefundApplyToQuotationPanel refund={record} />
@@ -6996,6 +6962,18 @@ const RefundModal = ({
               ) : null}
             </div>
           ) : null}
+
+            {/* Back button to Page 1 */}
+            <div className="flex items-center pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('application')}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 text-xs font-bold transition-all shadow-2xs"
+              >
+                <span>←</span>
+                <span>Back to Refund Details & Intel</span>
+              </button>
+            </div>
           </div>
             </>
           )}
