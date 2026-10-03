@@ -42,6 +42,22 @@ export function ProductionRegisterEditModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleRegisterHeaderMeta = React.useCallback((meta) => {
+    const nextStatus = meta?.status || null;
+    setStatus((prev) => (prev !== nextStatus ? nextStatus : prev));
+    setHeaderMeta((prev) => {
+      if (!prev && !meta) return prev;
+      if (
+        prev?.customerName === meta?.customerName &&
+        prev?.machineName === meta?.machineName &&
+        prev?.status === meta?.status
+      ) {
+        return prev;
+      }
+      return meta ? { ...meta } : null;
+    });
+  }, []);
+
   return (
     <ModalFrame isOpen={open} onClose={onClose} surface="plain" title="" showCloseButton={false}>
       <div className={PROD_REG.modalPanel}>
@@ -112,10 +128,7 @@ export function ProductionRegisterEditModal({
                 initialRecallIntent={Boolean(initialRecallIntent)}
                 onModalClose={onClose}
                 showModalCloseButton={false}
-                onRegisterHeaderMeta={(meta) => {
-                  setStatus(meta?.status || null);
-                  setHeaderMeta(meta || null);
-                }}
+                onRegisterHeaderMeta={handleRegisterHeaderMeta}
               />
             </Suspense>
           ) : null}

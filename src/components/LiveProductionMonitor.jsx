@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   BarChart3,
+  Box,
   CheckCircle2,
   ChevronRight,
   CircleHelp,
@@ -665,22 +666,34 @@ export function LiveProductionMonitor({
   const jobSt = optimisticJobStatus ?? normalizeJobStatus(selectedJob?.status);
   const displayJobStatus = jobSt;
 
+  const onRegisterHeaderMetaRef = useRef(onRegisterHeaderMeta);
+  onRegisterHeaderMetaRef.current = onRegisterHeaderMeta;
+
   useEffect(() => {
-    if (!operationsRegisterEdit || typeof onRegisterHeaderMeta !== 'function') return undefined;
+    if (!operationsRegisterEdit || typeof onRegisterHeaderMetaRef.current !== 'function') return undefined;
     if (!selectedJob?.jobID) {
-      onRegisterHeaderMeta(null);
+      onRegisterHeaderMetaRef.current(null);
       return undefined;
     }
-    onRegisterHeaderMeta({
+    onRegisterHeaderMetaRef.current({
       status: displayJobStatus,
+      customerName: selectedJob?.customerName || linkedQuotation?.customerName || '',
+      machineName: selectedJob?.machineName || '',
     });
-    return () => onRegisterHeaderMeta(null);
   }, [
     operationsRegisterEdit,
-    onRegisterHeaderMeta,
     selectedJob?.jobID,
+    selectedJob?.customerName,
+    selectedJob?.machineName,
+    linkedQuotation?.customerName,
     displayJobStatus,
   ]);
+
+  useEffect(() => {
+    return () => {
+      onRegisterHeaderMetaRef.current?.(null);
+    };
+  }, []);
   /** Same gate as post-completion FG metre adjustments — not plain production.manage. */
   const canEditCompletedCoilCorrections =
     jobSt === 'Completed' &&
@@ -3902,7 +3915,7 @@ export function LiveProductionMonitor({
           ) : null}
           <ProductionRegisterCompactHeader
             jobSt={jobSt}
-            startDateISO={selectedJob.startDateISO}
+            startDateISO={selectedJob?.startDateISO}
             productionDateIso={productionDateIso}
             completionDateIso={completionDateIso}
             onProductionDateChange={setProductionDateIso}
@@ -3910,17 +3923,17 @@ export function LiveProductionMonitor({
             readOnly={readOnly}
             reservedKg={reservedKg}
             usedKg={recordedConsumedKg}
-            plannedM={selectedJob.plannedMeters}
+            plannedM={selectedJob?.plannedMeters}
             outputM={recordedMeters}
             outputPostedM={
               stoneCoilHybrid
                 ? postedHybridFlatsheetMetres(selectedJob)
                 : (selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters)
             }
-            alertState={selectedJob.conversionAlertState}
-            plannedRoofM={selectedJob.plannedRoofM}
-            plannedCladdingM={selectedJob.plannedCladdingM}
-            plannedFlatsheetM={selectedJob.plannedFlatsheetM}
+            alertState={selectedJob?.conversionAlertState}
+            plannedRoofM={selectedJob?.plannedRoofM}
+            plannedCladdingM={selectedJob?.plannedCladdingM}
+            plannedFlatsheetM={selectedJob?.plannedFlatsheetM}
             stoneHybrid={stoneCoilHybrid}
             stoneMeters={stoneRecordedMeters}
             hasPlannedMeters={hasPlannedMeters}
@@ -3928,9 +3941,9 @@ export function LiveProductionMonitor({
             recordedMeters={recordedMeters}
             planProgressPct={planProgressPct}
             quotationMaterialSpec={quotationMaterialSpec}
-            quotationRef={selectedJob.quotationRef}
-            machineName={selectedJob.machineName}
-            productName={selectedJob.productName || selectedJob.productID}
+            quotationRef={selectedJob?.quotationRef}
+            machineName={selectedJob?.machineName}
+            productName={selectedJob?.productName || selectedJob?.productID}
             formatMeters={formatMeters}
           />
           {selectedJob?.jobID &&
@@ -3947,7 +3960,7 @@ export function LiveProductionMonitor({
                   <>
                     <ProductionJobIntelBanner intel={jobIntel} formatMeters={formatMeters} />
                     <ProductionPaymentGateOverridePanel
-                      quotationId={selectedJob.quotationRef}
+                      quotationId={selectedJob?.quotationRef}
                       intel={jobIntel}
                       canMutate={ws?.canMutate !== false}
                       roleKey={ws?.session?.user?.roleKey}
@@ -3961,6 +3974,58 @@ export function LiveProductionMonitor({
               </div>
             </details>
           ) : null}
+          <div className="mt-2 flex items-center gap-1 border-t border-[var(--z-border-subtle)] pt-1.5" role="tablist" aria-label="Production register sections">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={modalTab === 'run'}
+              onClick={() => setModalTab('run')}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-ui-xs font-bold transition-colors ${
+                modalTab === 'run'
+                  ? 'bg-zarewa-teal text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Layers size={13} />
+              <span>Shop-Floor Run</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={modalTab === 'quality'}
+              onClick={() => setModalTab('quality')}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-ui-xs font-bold transition-colors ${
+                modalTab === 'quality'
+                  ? 'bg-zarewa-teal text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Gauge size={13} />
+              <span>Yield & Quality</span>
+              {selectedJob?.conversionAlertState && selectedJob.conversionAlertState !== 'OK' ? (
+                <span className="size-1.5 rounded-full bg-amber-500 ring-2 ring-white" />
+              ) : null}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={modalTab === 'specs'}
+              onClick={() => setModalTab('specs')}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-ui-xs font-bold transition-colors ${
+                modalTab === 'specs'
+                  ? 'bg-zarewa-teal text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Box size={13} />
+              <span>Specs & BOM</span>
+              {quotedAccessoryLines.length > 0 ? (
+                <span className="rounded bg-slate-200 px-1 py-0.2 text-[10px] font-semibold text-slate-700">
+                  {quotedAccessoryLines.length}
+                </span>
+              ) : null}
+            </button>
+          </div>
         </div>
       ) : null}
 
