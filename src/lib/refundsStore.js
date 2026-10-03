@@ -81,6 +81,15 @@ export function refundOutstandingAmount(r) {
   return fromMath;
 }
 
+export function refundIsOnPayoutHold(r) {
+  return r?.payoutHold === true || r?.payoutHold === 1 || r?.payout_hold === 1 || r?.payout_hold === '1';
+}
+
+export function refundPayoutHoldReason(r) {
+  if (!refundIsOnPayoutHold(r)) return '';
+  return String(r?.payoutHoldReason ?? r?.payout_hold_reason ?? '').trim();
+}
+
 /**
  * Phase 11A — cashiers pay approved refunds only; managers/MD/finance approve.
  * @param {{ hasPermission?: (p: string) => boolean; roleKey?: string } | null | undefined} ws
@@ -231,6 +240,8 @@ export function normalizeRefund(r) {
       r.quotationRefundsBlockedAtISO ?? r.quotation_refunds_blocked_at_iso ?? null,
     quotationRefundsBlockedReason:
       r.quotationRefundsBlockedReason ?? r.quotation_refunds_blocked_reason ?? '',
+    payoutHold: r.payoutHold === true || r.payoutHold === 1 || r.payout_hold === 1 || r.payout_hold === '1',
+    payoutHoldReason: String(r.payoutHoldReason ?? r.payout_hold_reason ?? '').trim(),
     walletOpenNgn: Math.round(
       Number(r.walletOpenNgn ?? r.wallet_open_ngn ?? r.settlementSummary?.walletOpenNgn) || 0
     ),

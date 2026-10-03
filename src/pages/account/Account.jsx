@@ -51,8 +51,11 @@ import {
   isRefundPayable,
   refundStatusIsWithdrawn,
   userMayPayCustomerRefund,
+  refundIsOnPayoutHold,
+  refundPayoutHoldReason,
   MD_REFUND_PAY_BLOCKED_MESSAGE,
 } from '../../lib/refundsStore';
+import { userMaySetRefundPayoutHold } from '../../lib/workspaceGovernanceClient';
 import {
   enrichRefundForCashierPayout,
   refundPayeePayoutQueueLines,
@@ -1118,8 +1121,33 @@ const Account = () => {
     [cancelPaymentRequestBeforePay]
   );
 
+  const liftRefundPayoutHold = async () => {
+    const rid = refundPayTarget?.refundID;
+    if (!rid || treasuryPayoutSubmitting) return;
+    const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/payout-hold`, {
+      method: 'POST',
+      body: JSON.stringify({ hold: false }),
+    });
+    if (!ok || !data?.ok) {
+      showToast(data?.error || 'Could not clear the payout hold.', { variant: 'error' });
+      return;
+    }
+    const next = Array.isArray(data?.delta?.refunds) ? data.delta.refunds[0] : null;
+    if (next) setRefundPayTarget(normalizeRefund(next));
+    if (!(data?.delta && ws.applyWriteDelta?.(data.delta))) {
+      void ws.refreshDomain?.('finance');
+    }
+    showToast('Payout hold cleared.', { variant: 'success' });
+  };
+
   const confirmRefundPaid = async (e) => {
     e.preventDefault();
+    if (refundIsOnPayoutHold(refundPayTarget)) {
+      showToast(refundPayoutHoldReason(refundPayTarget)
+        ? `Refund on hold: ${refundPayoutHoldReason(refundPayTarget)}`
+        : 'Refund on hold', { variant: 'error' });
+      return;
+    }
     if (!userMayPayCustomerRefund(ws)) {
       showToast(MD_REFUND_PAY_BLOCKED_MESSAGE, { variant: 'info' });
       return;
@@ -4933,6 +4961,25 @@ const Account = () => {
           </div>
           {refundPayTarget ? (
             <form className="space-y-4" onSubmit={confirmRefundPaid}>
+              {refundIsOnPayoutHold(refundPayTarget) ? (
+                <div className="rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+                  <p className="font-bold text-red-700">On hold</p>
+                  {refundPayoutHoldReason(refundPayTarget) ? (
+                    <p className="mt-1">{refundPayoutHoldReason(refundPayTarget)}</p>
+                  ) : null}
+                  {userMaySetRefundPayoutHold(ws?.session?.user) ? (
+                    <button
+                      type="button"
+                      className="mt-3 rounded-xl border border-red-300 bg-white px-3 py-1.5 text-xs font-bold text-red-800"
+                      onClick={() => void liftRefundPayoutHold()}
+                    >
+                      Lift hold
+                    </button>
+                  ) : (
+                    <p className="mt-2 text-xs">A manager has to lift this hold before Release refund can pay it.</p>
+                  )}
+                </div>
+              ) : null}
               <div className="rounded-2xl border border-rose-100 bg-rose-50/80 p-4 space-y-3 text-sm">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="font-mono font-bold text-zarewa-teal">{refundPayTarget.refundID}</p>
@@ -5146,7 +5193,7 @@ const Account = () => {
               </p>
               <button
                 type="submit"
-                disabled={treasuryPayoutSubmitting || !userMayPayCustomerRefund(ws)}
+                disabled={treasuryPayoutSubmitting || !userMayPayCustomerRefund(ws) || refundIsOnPayoutHold(refundPayTarget)}
                 className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {treasuryPayoutSubmitting

@@ -42,7 +42,7 @@ import {
 } from '../../lib/receiptClearance.js';
 import { pickProductionJobForCuttingList } from '../../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../../lib/productionQueueLineStatus';
-import { refundApprovedAmount, refundOutstandingAmount, refundHasCreditConfirmation, refundPublicStatusLabel } from '../../lib/refundsStore';
+import { refundApprovedAmount, refundOutstandingAmount, refundHasCreditConfirmation, refundIsOnPayoutHold, refundPayoutHoldReason, refundPublicStatusLabel } from '../../lib/refundsStore';
 import { MillSpecMark } from '../ui/MillColourChip.jsx';
 import { quotationListColour, quotationListGauge } from '../../lib/quotationListSpec.js';
 import { formatNgn } from '../../Data/mockData';
@@ -916,6 +916,11 @@ export function SalesRefundsList({
                                     <span className={`${CHIP} ${refundStatusChipClass(refundPublicStatusLabel(r))}`}>
                                       {refundPublicStatusLabel(r)}
                                     </span>
+                                    {refundIsOnPayoutHold(r) ? (
+                                      <span className={`${CHIP} bg-red-600 text-white`} title={refundPayoutHoldReason(r)}>
+                                        On hold{refundPayoutHoldReason(r) ? ` · ${refundPayoutHoldReason(r)}` : ''}
+                                      </span>
+                                    ) : null}
                                     {refundHasCreditConfirmation(r) ? (
                                       <span
                                         className={`${CHIP} bg-sky-100 text-sky-800`}
@@ -971,6 +976,11 @@ export function SalesRefundsList({
                                 <span className={`${CHIP} ${refundStatusChipClass(refundPublicStatusLabel(r))}`}>
                                   {refundPublicStatusLabel(r)}
                                 </span>
+                                {refundIsOnPayoutHold(r) ? (
+                                  <span className={`${CHIP} bg-red-600 text-white`} title={refundPayoutHoldReason(r)}>
+                                    On hold{refundPayoutHoldReason(r) ? ` · ${refundPayoutHoldReason(r)}` : ''}
+                                  </span>
+                                ) : null}
                                 {refundHasCreditConfirmation(r) ? (
                                   <span
                                     className={`${CHIP} bg-sky-100 text-sky-800`}

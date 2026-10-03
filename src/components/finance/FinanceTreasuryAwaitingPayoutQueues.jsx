@@ -14,6 +14,7 @@ import {
   flattenRefundDeskQueue,
   refundCashierCustomerName,
 } from '../../lib/refundCashierDetail';
+import { refundIsOnPayoutHold, refundPayoutHoldReason } from '../../lib/refundsStore';
 import {
   paymentRequestOutstandingNgn,
   poTransportPayoutMetaLine,
@@ -342,6 +343,11 @@ export function FinanceTreasuryAwaitingPayoutQueues({
                   statusIndicator={statusIndicator}
                   title={
                     <>
+                      {refundIsOnPayoutHold(r) ? (
+                        <span className="mr-1 inline-flex rounded-full bg-red-600 px-2 py-0.5 text-ui-xs font-bold text-white" title={refundPayoutHoldReason(r)}>
+                          On hold{refundPayoutHoldReason(r) ? ` · ${refundPayoutHoldReason(r)}` : ''}
+                        </span>
+                      ) : null}
                       <span className="font-mono">{line.refundID}</span>
                       <span className="font-medium text-slate-600">
                         {' '}
