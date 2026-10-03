@@ -320,10 +320,6 @@ export function StockRegisterPanel({
 
         {roleMode === 'manager' && register ? (
           <div className="space-y-3">
-            <div>
-              <h3 className="text-base font-bold text-zarewa-teal">Manager clearance</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Clear every line, then approve to procurement</p>
-            </div>
             <StockRegisterBmClearanceWorkspace
               register={register}
               workflow={workflow}
@@ -331,6 +327,8 @@ export function StockRegisterPanel({
               showToast={showToast}
               onSaved={handleWorkflowSaved}
               onPrint={openPreview}
+              onApproved={() => load()}
+              onReturned={() => load()}
             />
           </div>
         ) : null}

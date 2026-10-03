@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback, memo } from 'react';
 import {
   AlertTriangle,
+  ArrowRight,
   BarChart3,
   CheckCircle2,
   ChevronRight,
+  ClipboardCheck,
   ClipboardList,
   DollarSign,
   PencilLine,
@@ -16,6 +18,7 @@ import { Button } from '../ui';
 import { CreditExceptionPanel } from '../finance/CreditExceptionPanel';
 import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx';
 import { FinanceSequencePanel } from '../layout';
+import { formatStockRegisterMonth } from '../../lib/stockRegisterPeriod';
 import {
   managerKindShortLabel,
   managerKindTone,
@@ -636,19 +639,102 @@ export function BranchManagerCommandInbox(props) {
     </div>
   );
 
+  const waitingPeriod = stockRegisterInbox[0];
+  const waitingMonthLabel = waitingPeriod?.periodKey
+    ? formatStockRegisterMonth(waitingPeriod.periodKey)
+    : 'Current period';
+
   const stockCard = (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 m-3 sm:m-4">
-      <div>
-        <p className="text-sm font-bold text-zarewa-teal">Month-end stock register</p>
-        <p className="text-xs text-slate-600 mt-1">
-          {stockCount
-            ? `${stockCount} period(s) awaiting manager count alignment.`
-            : 'No registers waiting for manager review.'}
-        </p>
+    <div className="rounded-2xl border border-teal-200/80 bg-gradient-to-br from-teal-50/40 via-white to-slate-50 p-5 sm:p-6 m-3 sm:m-4 space-y-4 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-zarewa-teal border border-teal-200 shadow-2xs">
+            <ClipboardCheck size={22} className="text-teal-800" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-teal-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-teal-900 border border-teal-200">
+                Monthly Stock Ceremony
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                Stage 2 of 4 · Branch Manager Review
+              </span>
+            </div>
+            <h3 className="text-base font-black text-slate-900 mt-1">
+              Monthly Physical Stock Register Review
+            </h3>
+            <p className="text-xs text-slate-600 mt-0.5 leading-relaxed max-w-xl">
+              Cross-check store physical floor counts against registered balances for coils, stone-coated tiles, accessories, and in-transit loads before procurement net kg costing.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="z-btn-primary shrink-0 inline-flex items-center gap-2 shadow-sm self-start"
+          onClick={() => setStockRegisterMgrOpen?.(true)}
+        >
+          <span>Open Stock Review Form</span>
+          <ArrowRight size={14} />
+        </button>
       </div>
-      <button type="button" className="z-btn-primary shrink-0" onClick={() => setStockRegisterMgrOpen?.(true)}>
-        Review stock register
-      </button>
+
+      {stockCount > 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="space-y-0.5">
+            <p className="font-bold text-amber-900 flex items-center gap-1.5">
+              <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              {waitingMonthLabel} register awaiting your count alignment &amp; sign-off
+            </p>
+            {waitingPeriod?.countNotes ? (
+              <p className="text-amber-900/80 text-[11px]">
+                Store note: “{waitingPeriod.countNotes}”
+              </p>
+            ) : null}
+          </div>
+          {waitingPeriod?.countCutoffIso ? (
+            <span className="shrink-0 text-[10px] font-mono bg-white border border-amber-300 rounded-md px-2 py-1 text-amber-900 self-start sm:self-center">
+              Cutoff: {String(waitingPeriod.countCutoffIso).replace('T', ' ').slice(0, 16)}
+            </span>
+          ) : null}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 text-xs text-emerald-950 flex items-center gap-2.5">
+          <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
+          <span>
+            No registers are currently blocked awaiting manager review. You can open the desk anytime to inspect active balances or view historical signed registers.
+          </span>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs text-slate-500">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="h-1.5 w-1.5 rounded-full bg-zarewa-teal" />
+            Active &amp; Finished Coils
+          </span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="h-1.5 w-1.5 rounded-full bg-zarewa-teal" />
+            Stone-Coated Metres
+          </span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="h-1.5 w-1.5 rounded-full bg-zarewa-teal" />
+            Accessories
+          </span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="h-1.5 w-1.5 rounded-full bg-zarewa-teal" />
+            In-Transit POs
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setStockRegisterMgrOpen?.(true)}
+          className="text-zarewa-teal hover:underline font-bold text-xs"
+        >
+          Launch Full Workspace →
+        </button>
+      </div>
     </div>
   );
 
@@ -713,7 +799,7 @@ export function BranchManagerCommandInbox(props) {
 
         <div className="flex gap-1 mt-4 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar" role="group" aria-label="Queue filters">
           {MANAGER_ATTENTION_FILTERS.map((f) => {
-            const active = effectiveAttentionFilter === f.key;
+            const active = pacView !== 'stock' && effectiveAttentionFilter === f.key;
             const count = filterChipCount(f.key);
             return (
               <button
@@ -740,6 +826,32 @@ export function BranchManagerCommandInbox(props) {
               </button>
             );
           })}
+
+          <button
+            type="button"
+            title="Monthly stock register review"
+            aria-label={`Stock review${stockCount > 0 ? `, ${stockCount} waiting` : ''}`}
+            aria-pressed={pacView === 'stock'}
+            onClick={() => handleTabChange('stock')}
+            className={`shrink-0 px-3 py-2 rounded-xl text-ui-xs font-bold uppercase tracking-wide border transition-colors ${
+              pacView === 'stock'
+                ? 'bg-zarewa-teal text-white border-zarewa-teal shadow-sm'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-teal-200 hover:text-zarewa-teal'
+            }`}
+          >
+            Stock Review
+            <span
+              className={`ml-1.5 tabular-nums px-1.5 py-0.5 rounded-md text-ui-xs ${
+                pacView === 'stock'
+                  ? 'bg-white/20 text-white'
+                  : stockCount > 0
+                    ? 'bg-amber-100 text-amber-900 font-black'
+                    : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {stockCount}
+            </span>
+          </button>
         </div>
       </div>
 

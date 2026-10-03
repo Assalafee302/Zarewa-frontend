@@ -1,5 +1,5 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { ClipboardCheck, Search } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FinancePilotHeader,
@@ -230,12 +230,11 @@ const ManagerDashboard = () => {
 
   const jumpToQueue = useCallback(
     (action) => {
-      setPageTab('approvals');
       if (action === 'stock') {
-        bm.setActiveTab('stock');
-        bm.setAttentionFilter('all');
+        bm.setStockRegisterMgrOpen(true);
         return;
       }
+      setPageTab('approvals');
       if (action === 'credit') {
         bm.setActiveTab('credit');
         bm.setAttentionFilter('all');
@@ -281,11 +280,23 @@ const ManagerDashboard = () => {
       e.preventDefault();
       const q = commandSearch.trim();
       if (!q) return;
+      const needle = q.toLowerCase();
+      if (
+        needle === 'stock' ||
+        needle === 'stock register' ||
+        needle === 'stock review' ||
+        needle === 'stock count' ||
+        needle === 'monthly stock' ||
+        needle === 'count review'
+      ) {
+        bm.setStockRegisterMgrOpen(true);
+        setCommandSearch('');
+        return;
+      }
       setPageTab('approvals');
       bm.setActiveTab('attention');
       bm.setAttentionFilter('all');
       bm.setInboxSearch(q);
-      const needle = q.toLowerCase();
       const exact = (bm.attentionItems || []).filter((it) => {
         const keys = [
           it.title,
@@ -384,6 +395,23 @@ const ManagerDashboard = () => {
           </form>
         }
         tabs={<PageTabs tabs={managerTabs} value={pageTab} onChange={setPageTab} ariaLabel="Manager sections" />}
+        trailing={
+          <button
+            type="button"
+            onClick={() => bm.setStockRegisterMgrOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3 py-2 text-xs font-bold text-zarewa-teal hover:bg-teal-50 hover:border-teal-300 transition shadow-2xs shrink-0"
+            title="Open monthly physical stock review & count clearance"
+          >
+            <ClipboardCheck size={14} className="text-teal-700 shrink-0" />
+            <span className="hidden sm:inline">Stock Review</span>
+            <span className="sm:hidden">Stock</span>
+            {bm.stockRegisterInbox.length > 0 ? (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-black text-white">
+                {bm.stockRegisterInbox.length}
+              </span>
+            ) : null}
+          </button>
+        }
       />
 
       {bm.loadError ? (

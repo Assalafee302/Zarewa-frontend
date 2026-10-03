@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Package } from 'lucide-react';
+import { ClipboardCheck, Package } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../lib/formatNgn';
 import { formatPersonName } from '../../lib/formatPersonName';
@@ -75,10 +75,12 @@ function StockAtRisk({ products, onOpenStockRegister }) {
         <div className="flex shrink-0 gap-1.5">
           <button
             type="button"
-            className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:border-zarewa-teal hover:text-zarewa-teal"
+            className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-bold text-zarewa-teal hover:bg-teal-100 hover:border-teal-300 transition"
             onClick={() => onOpenStockRegister?.()}
+            title="Open monthly physical stock review & count clearance"
           >
-            Register
+            <ClipboardCheck size={12} className="text-teal-700" />
+            Stock Review
           </button>
           <RouterLink
             to="/operations"

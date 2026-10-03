@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { FinanceSequencePanel, ModalFrame } from '../layout';
 import { StockRegisterPanel } from './StockRegisterPanel';
 import {
@@ -8,6 +8,13 @@ import {
   monthKeyFromPeriodEnd,
   periodEndIsoFromMonthKey,
 } from '../../lib/stockRegisterPeriod';
+
+function shiftMonth(monthKey, delta) {
+  if (!/^\d{4}-\d{2}$/.test(monthKey)) return monthKey;
+  const [y, m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 const TITLES = {
   store: 'Month-end stock count',
@@ -112,19 +119,39 @@ export function StockRegisterMonthEndModal({
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <label className="block text-sm min-w-[9.5rem]">
-                <span className="sr-only">Month</span>
-                <input
-                  key={`stock-reg-month-${monthInputEpoch}-${monthKey}`}
-                  type="month"
-                  className="z-input w-full"
-                  value={monthKey}
-                  onChange={(e) => onMonthChange(e.target.value)}
-                  title="Month closes on the last calendar day"
-                />
-              </label>
-              <button type="button" onClick={onClose} className="z-btn-secondary p-2" aria-label="Close">
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              <div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => onMonthChange(shiftMonth(monthKey, -1))}
+                  className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
+                  title="Previous month"
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <label className="block text-sm min-w-[8.5rem] px-1">
+                  <span className="sr-only">Month</span>
+                  <input
+                    key={`stock-reg-month-${monthInputEpoch}-${monthKey}`}
+                    type="month"
+                    className="z-input !border-0 !py-1 text-xs font-bold text-slate-800 focus:ring-0"
+                    value={monthKey}
+                    onChange={(e) => onMonthChange(e.target.value)}
+                    title="Month closes on the last calendar day"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => onMonthChange(shiftMonth(monthKey, 1))}
+                  className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
+                  title="Next month"
+                  aria-label="Next month"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              <button type="button" onClick={onClose} className="z-btn-secondary p-2 text-slate-400 hover:text-slate-700" aria-label="Close">
                 <X size={18} />
               </button>
             </div>
