@@ -52,7 +52,7 @@ export const PROD_REG = {
 
   /** Modal shell — slightly wider so coil columns breathe without a taller form */
   modalPanel:
-    'z-modal-panel mx-auto flex h-[min(92dvh,880px)] w-full min-w-0 max-w-[min(48rem,calc(100dvw-1rem))] flex-col overflow-hidden rounded-xl border border-[var(--z-border-subtle)] bg-white shadow-[var(--shadow-zarewa-overlay)] sm:max-w-[min(52rem,calc(100dvw-1.5rem))]',
+    'z-modal-panel mx-auto flex h-[min(94dvh,920px)] w-full min-w-0 max-w-[min(54rem,calc(100dvw-1rem))] flex-col overflow-hidden rounded-xl border border-[var(--z-border-subtle)] bg-white shadow-[var(--shadow-zarewa-overlay)] sm:max-w-[min(62rem,calc(100dvw-1.5rem))]',
 
   /** Coil grid — fixed columns so inputs do not stretch with viewport */
   coilGridHeaderModal:

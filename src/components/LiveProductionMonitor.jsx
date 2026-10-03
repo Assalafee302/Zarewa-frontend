@@ -8,6 +8,7 @@ import {
   FileWarning,
   Gauge,
   Info,
+  Layers,
   Play,
   Plus,
   RefreshCw,
@@ -231,6 +232,7 @@ export function LiveProductionMonitor({
   const [conversionPreview, setConversionPreview] = useState(null);
   const [conversionPreviewError, setConversionPreviewError] = useState('');
   const [conversionPreviewLoading, setConversionPreviewLoading] = useState(false);
+  const [modalTab, setModalTab] = useState('run'); // 'run' | 'quality' | 'specs'
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
@@ -4161,93 +4163,6 @@ export function LiveProductionMonitor({
                     </div>
                 </div>
               </div>
-
-              {selectedJob?.quotationRef ? (
-                <QuotationPriceExceptionPanel
-                  quotationId={selectedJob.quotationRef}
-                  quotation={linkedQuotation}
-                />
-              ) : null}
-
-              {selectedJob?.jobID ? (
-                <details className="rounded-lg border border-slate-200/90 bg-white/90 px-2.5 py-2 text-ui-xs text-slate-800 shadow-sm">
-                  <summary className="cursor-pointer list-none font-black uppercase tracking-wide text-zarewa-teal marker:content-none">
-                    Job intelligence
-                    {jobIntel?.paymentGateRequired && !jobIntel?.managerProductionApprovedAtISO ? (
-                      <span className="ml-2 rounded-md bg-rose-100 px-1.5 py-0.5 text-ui-xs font-black text-rose-900">
-                        Payment gate
-                      </span>
-                    ) : null}
-                  </summary>
-                  <div className="mt-2 space-y-2">
-                    {jobIntelLoading ? (
-                      <p className="text-ui-xs text-slate-500">Loading job intelligence…</p>
-                    ) : jobIntel ? (
-                      <>
-                        <ProductionJobIntelBanner intel={jobIntel} formatMeters={formatMeters} />
-                        <ProductionPaymentGateOverridePanel
-                          quotationId={selectedJob.quotationRef}
-                          intel={jobIntel}
-                          canMutate={ws?.canMutate !== false}
-                          roleKey={ws?.session?.user?.roleKey}
-                          onSuccess={() => {
-                            void reloadJobIntel();
-                            void refreshProductionWorkspace();
-                          }}
-                        />
-                      </>
-                    ) : (
-                      <p className="text-ui-xs text-slate-500">No intelligence available for this job.</p>
-                    )}
-                  </div>
-                </details>
-              ) : null}
-
-              {allocationUniqueRollCapacityInsight &&
-              allocationUniqueRollCapacityInsight.rollCount > 0 &&
-              !stonePureNoCoil &&
-              !readOnly ? (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zarewa-teal/20 bg-zarewa-teal/[0.07] px-2 py-1.5 text-ui-xs text-slate-800">
-                  <span className="min-w-0 font-semibold leading-tight">
-                    <span className="text-zarewa-teal">{allocationUniqueRollCapacityInsight.rollCount} roll(s)</span>
-                    {allocationUniqueRollCapacityInsight.sumEst != null ? (
-                      <>
-                        {' '}
-                        · free est.{' '}
-                        <span className="font-mono font-black tabular-nums">
-                          {allocationUniqueRollCapacityInsight.sumEst.toFixed(1)} m
-                        </span>
-                        {hasPlannedMeters ? (
-                          <>
-                            {' '}
-                            vs plan{' '}
-                            <span className="font-mono font-bold tabular-nums">{plannedMetersValue.toFixed(1)} m</span>
-                          </>
-                        ) : null}
-                      </>
-                    ) : allocationUniqueRollCapacityInsight.anyUnknown ? (
-                      <span className="text-slate-600">
-                        {' '}
-                        · metre estimate unavailable — add supplier kg/m or expected metres on coil receipts.
-                      </span>
-                    ) : null}
-                  </span>
-                  {hasPlannedMeters && allocationUniqueRollCapacityInsight.sumEst != null ? (
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide ${
-                        allocationUniqueRollCapacityInsight.sumEst + 0.25 >= plannedMetersValue
-                          ? 'bg-emerald-100 text-emerald-900'
-                          : 'bg-amber-100 text-amber-950'
-                      }`}
-                    >
-                      {allocationUniqueRollCapacityInsight.sumEst + 0.25 >= plannedMetersValue
-                        ? 'Capacity OK'
-                        : 'Tight vs plan'}
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-
               {hasPlannedMeters && (jobSt === 'Running' || jobSt === 'Planned') ? (
                 <div className="rounded-md border border-slate-200/60 bg-white/60 px-2 py-1.5">
                   <div className="flex items-center justify-between gap-2 text-ui-xs font-semibold text-slate-600">
@@ -4283,7 +4198,6 @@ export function LiveProductionMonitor({
                   </div>
                 </div>
               ) : null}
-
               <div className="rounded-lg border border-slate-200/70 bg-white/85 p-2.5 shadow-sm ring-1 ring-slate-900/[0.04] sm:p-3">
                 <p className="text-ui-xs font-bold uppercase tracking-[0.12em] text-zarewa-teal">Target spec</p>
                 <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs leading-snug sm:grid-cols-2 lg:grid-cols-4">
@@ -4373,607 +4287,52 @@ export function LiveProductionMonitor({
             </div>
           </div>
           ) : null}
-
-          {isAccessoriesOnlyQuote && !quotedAccessoryLines.length && !readOnly ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-ui-xs text-amber-950">
-              <p className="font-bold uppercase tracking-wide">Accessories-only quotation</p>
-              <p className="mt-1 leading-snug">
-                Accessory lines were not found on the workspace snapshot for{' '}
-                <span className="font-mono font-semibold">{selectedJob?.quotationRef}</span>. Use{' '}
-                <strong className="font-semibold">Refresh workspace</strong> or reopen the quotation in Sales, then
-                return here.
-              </p>
-            </div>
-          ) : null}
-
-          {showAccessoryIssuedSection && accessoryCompletionDraft.length > 0 ? (
-            <div className="rounded-lg border border-teal-200/80 bg-teal-50/40 p-2 sm:p-2.5 space-y-1.5">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">
-                Accessories on quotation{jobSt === 'Completed' ? ' (correction)' : ''}
-              </p>
-              <div className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white">
-                <div className="z-scroll-x min-w-0 max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-                  <table className="w-full min-w-[520px] border-collapse text-left text-sm">
-                    <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
-                      <tr>
-                        <th className="px-2 py-2">Item</th>
-                        <th className="px-2 py-2 text-right">Ordered</th>
-                        <th className="px-2 py-2 text-right">Prior jobs</th>
-                        <th className="px-2 py-2 text-right">Remaining</th>
-                        <th className="px-2 py-2 text-right">This job</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {accessoryDraftPage.slice.map((row) => {
-                        const remaining = Math.max(0, row.ordered - row.priorSupplied);
-                        return (
-                          <tr key={row.key} className="hover:bg-teal-50/20">
-                            <td className="max-w-0 px-2 py-2 font-semibold text-slate-800 whitespace-nowrap truncate" title={row.name}>
-                              {row.name}
-                            </td>
-                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.ordered}</td>
-                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.priorSupplied}</td>
-                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{remaining}</td>
-                            <td className="px-2 py-2 text-right whitespace-nowrap">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={row.suppliedThisJob}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  const jId = selectedJob?.jobID;
-                                  if (
-                                    jId &&
-                                    (selectedJob?.status === 'Running' ||
-                                      (isAccessoriesOnlyQuote && jobSt === 'Planned'))
-                                  ) {
-                                    writeProdAccessoryDraftEntry(jId, row.key, v);
-                                  }
-                                  setAccessoryCompletionDraft((prev) =>
-                                    prev.map((r) => (r.key === row.key ? { ...r, suppliedThisJob: v } : r))
-                                  );
-                                }}
-                                className="w-20 rounded-md border border-slate-200 bg-white px-2 py-1 text-right font-mono text-sm font-bold text-zarewa-teal outline-none focus:ring-2 focus:ring-teal-500/20"
-                                aria-label={`Supplied this job for ${row.name}`}
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {accessoryCompletionDraft.length > APP_DATA_TABLE_PAGE_SIZE ? (
-                  <div className="border-t border-slate-100 px-2 py-2">
-                    <AppTablePager
-                      showingFrom={accessoryDraftPage.showingFrom}
-                      showingTo={accessoryDraftPage.showingTo}
-                      total={accessoryDraftPage.total}
-                      hasPrev={accessoryDraftPage.hasPrev}
-                      hasNext={accessoryDraftPage.hasNext}
-                      onPrev={accessoryDraftPage.goPrev}
-                      onNext={accessoryDraftPage.goNext}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-
-          {/*
-            Without the quotation's lines the demand count is zero and the section above
-            simply does not render — the operator sees no stone flatsheet form and no
-            reason why. Say so, rather than letting a failed read look like a job with
-            nothing to record.
-          */}
-          {!showStoneFlatsheetIssuedSection && isStoneMeterQuote && selectedJobLinesStatus === 'failed' ? (
-            <div className="rounded-lg border border-amber-300 bg-amber-50/70 p-2 sm:p-2.5 space-y-1">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-amber-900">
-                Stone flatsheet lines unavailable
-              </p>
-              <p className="text-ui-xs text-amber-950 leading-snug">
-                This job’s quotation could not be loaded, so its sold stone flatsheet lines cannot be
-                shown. This is usually a connection problem, not a job without stone flatsheet. Re-select
-                the job or reload the page before recording usage — do not assume there is nothing to record.
-              </p>
-            </div>
-          ) : null}
-
-          {showStoneFlatsheetIssuedSection ? (
-            <div className="rounded-lg border border-sky-200/80 bg-sky-50/40 p-2 sm:p-2.5 space-y-1.5">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-sky-900">
-                Stone flatsheet{jobSt === 'Completed' ? ' — correction' : ''}
-              </p>
-              <p className="text-ui-xs text-slate-600 leading-snug">
-                Sold stone flatsheet is issued in m². Ridge and bargeboard consume extra SF sheets by yield (length chosen
-                here); offcut finished metres are recorded and kept.
-                {jobSt === 'Planned'
-                  ? ' You can enter usage while Planned; use Save and start production before completing the job.'
-                  : null}
-              </p>
-              <div className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white">
-                <div className="z-scroll-x min-w-0 max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-                  <table className="w-full min-w-[640px] border-collapse text-left text-sm">
-                    <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
-                      <tr>
-                        <th className="px-2 py-2">Item</th>
-                        <th className="px-2 py-2 text-right">Len</th>
-                        <th className="px-2 py-2 text-right">Ordered</th>
-                        <th className="px-2 py-2 text-right">Prior</th>
-                        <th className="px-2 py-2 text-right">Remaining / sheets</th>
-                        <th className="px-2 py-2 text-right">Supplied / sheets</th>
-                        <th className="px-2 py-2 text-right">Deduction / offcut</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {stoneFlatsheetDraftPage.slice.map((row) => {
-                        const isYield = row.demandKind === 'ridge' || row.demandKind === 'bargeboard';
-                        if (isYield) {
-                          return (
-                            <tr key={row.key} className="hover:bg-sky-50/20">
-                              <td
-                                className="max-w-0 px-2 py-2 font-semibold text-slate-800 whitespace-nowrap truncate"
-                                title={`${row.name} (from stone flatsheet)`}
-                              >
-                                {row.name}
-                                <span className="ml-1 text-ui-xs font-normal text-sky-700">yield</span>
-                              </td>
-                              <td className="px-2 py-2 text-right whitespace-nowrap">
-                                <select
-                                  value={row.lengthM === 1.4 ? '1.4' : '2'}
-                                  onChange={(e) => {
-                                    const lengthM = e.target.value === '1.4' ? 1.4 : 2;
-                                    const metresPerSheet =
-                                      row.demandKind === 'ridge'
-                                        ? stoneRidgeMetresPerSheet(lengthM)
-                                        : stoneBargeboardMetresPerSheet(lengthM);
-                                    const sheetsExact = stoneFlatsheetSheetsForFinishedMetres(
-                                      row.orderedFinishedM,
-                                      metresPerSheet
-                                    );
-                                    const sheetsUsed = Math.ceil(sheetsExact - 1e-9);
-                                    const offcutFinishedM = Math.max(
-                                      0,
-                                      sheetsUsed * metresPerSheet - row.orderedFinishedM
-                                    );
-                                    setStoneFlatsheetCompletionDraft((prev) =>
-                                      prev.map((r) =>
-                                        r.key === row.key
-                                          ? { ...r, lengthM, sheetsUsed, offcutFinishedM }
-                                          : r
-                                      )
-                                    );
-                                  }}
-                                  className="rounded-md border border-slate-200 bg-white px-1 py-1 text-xs font-semibold text-sky-900"
-                                  aria-label={`SF length for ${row.name}`}
-                                >
-                                  <option value="1.4">1.4 m</option>
-                                  <option value="2">2 m</option>
-                                </select>
-                              </td>
-                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">
-                                {row.orderedFinishedM} m
-                              </td>
-                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">—</td>
-                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">
-                                {(() => {
-                                  const metresPerSheet =
-                                    row.demandKind === 'ridge'
-                                      ? stoneRidgeMetresPerSheet(row.lengthM)
-                                      : stoneBargeboardMetresPerSheet(row.lengthM);
-                                  return `${stoneFlatsheetSheetsForFinishedMetres(row.orderedFinishedM, metresPerSheet).toFixed(2)} sh`;
-                                })()}
-                              </td>
-                              <td className="px-2 py-2 text-right whitespace-nowrap">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={row.sheetsUsed}
-                                  onChange={(e) => {
-                                    const sheetsUsed = Number(e.target.value);
-                                    const metresPerSheet =
-                                      row.demandKind === 'ridge'
-                                        ? stoneRidgeMetresPerSheet(row.lengthM)
-                                        : stoneBargeboardMetresPerSheet(row.lengthM);
-                                    const offcutFinishedM = Number.isFinite(sheetsUsed)
-                                      ? Math.max(0, sheetsUsed * metresPerSheet - row.orderedFinishedM)
-                                      : 0;
-                                    setStoneFlatsheetCompletionDraft((prev) =>
-                                      prev.map((r) =>
-                                        r.key === row.key ? { ...r, sheetsUsed: e.target.value, offcutFinishedM } : r
-                                      )
-                                    );
-                                  }}
-                                  className="w-[4.5rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-right font-mono text-xs font-bold text-sky-900 outline-none focus:ring-2 focus:ring-sky-500/20"
-                                  aria-label={`Sheets used for ${row.name}`}
-                                />
-                              </td>
-                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">
-                                {Number.isFinite(Number(row.offcutFinishedM))
-                                  ? `${Number(row.offcutFinishedM).toFixed(2)} m offcut`
-                                  : '—'}
-                              </td>
-                            </tr>
-                          );
-                        }
-                        const remaining = Math.max(0, row.orderedM2 - row.priorConsumedM2);
-                        return (
-                          <tr key={row.key} className="hover:bg-sky-50/20">
-                            <td className="max-w-0 px-2 py-2 font-semibold text-slate-800 whitespace-nowrap truncate" title={row.name}>
-                              {row.name}
-                            </td>
-                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.lengthM} m</td>
-                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.orderedM2} m²</td>
-                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.priorConsumedM2}</td>
-                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{remaining}</td>
-                            <td className="px-2 py-2 text-right whitespace-nowrap">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={row.suppliedThisJobM2}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  const jId = selectedJob?.jobID;
-                                  setStoneFlatsheetCompletionDraft((prev) =>
-                                    prev.map((r) => {
-                                      if (r.key !== row.key) return r;
-                                      if (
-                                        jId &&
-                                        (selectedJob?.status === 'Running' || selectedJob?.status === 'Planned')
-                                      ) {
-                                        writeProdSfDraftEntry(jId, row.key, { s: v, d: r.deductionThisJobM2 });
-                                      }
-                                      return { ...r, suppliedThisJobM2: v };
-                                    })
-                                  );
-                                }}
-                                className="w-[4.5rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-right font-mono text-xs font-bold text-sky-900 outline-none focus:ring-2 focus:ring-sky-500/20"
-                                aria-label={`Supplied m² this job for ${row.name}`}
-                              />
-                            </td>
-                            <td className="px-2 py-2 text-right whitespace-nowrap">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={row.deductionThisJobM2}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  const jId = selectedJob?.jobID;
-                                  setStoneFlatsheetCompletionDraft((prev) =>
-                                    prev.map((r) => {
-                                      if (r.key !== row.key) return r;
-                                      if (
-                                        jId &&
-                                        (selectedJob?.status === 'Running' || selectedJob?.status === 'Planned')
-                                      ) {
-                                        writeProdSfDraftEntry(jId, row.key, { s: r.suppliedThisJobM2, d: v });
-                                      }
-                                      return { ...r, deductionThisJobM2: v };
-                                    })
-                                  );
-                                }}
-                                className="w-[4.5rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-right font-mono text-xs font-bold text-sky-900 outline-none focus:ring-2 focus:ring-sky-500/20"
-                                aria-label={`Deduction m² this job for ${row.name}`}
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {stoneFlatsheetCompletionDraft.length > APP_DATA_TABLE_PAGE_SIZE ? (
-                  <div className="border-t border-slate-100 px-2 py-2">
-                    <AppTablePager
-                      showingFrom={stoneFlatsheetDraftPage.showingFrom}
-                      showingTo={stoneFlatsheetDraftPage.showingTo}
-                      total={stoneFlatsheetDraftPage.total}
-                      hasPrev={stoneFlatsheetDraftPage.hasPrev}
-                      hasNext={stoneFlatsheetDraftPage.hasNext}
-                      onPrev={stoneFlatsheetDraftPage.goPrev}
-                      onNext={stoneFlatsheetDraftPage.goNext}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-
-          {needsConversionVarianceReason ? (
-            <ProductionConversionReasonFields
-              band={conversionReasonBand}
-              code={conversionReasonCode}
-              onCodeChange={setConversionReasonCode}
-              text={conversionReasonText}
-              onTextChange={setConversionReasonText}
-              disabled={!ws?.canMutate || Boolean(savingAction)}
-            />
-          ) : null}
-
-          {storedConversionReasonLabel && jobSt === 'Completed' ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50/90 px-2.5 py-2 text-xs text-slate-800">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Storekeeper conversion reason</p>
-              <p className="mt-1 text-xs font-medium leading-snug">{storedConversionReasonLabel}</p>
-            </div>
-          ) : null}
-
-          {canCaptureRun && requiresManagerOverrunApproval ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50/90 p-2 sm:p-2.5 space-y-1.5">
-              <div className="flex items-start gap-1.5">
-                <BarChart3 size={15} className="mt-0.5 shrink-0 text-amber-800" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <p className="text-ui-xs font-black uppercase tracking-widest text-amber-950">
-                    Metre overrun — manager note before Complete
-                  </p>
-                  <p className="mt-1 text-ui-xs leading-snug text-amber-950/90">
-                    Logged metres are <strong>+{overProducedMeters.toFixed(2)} m</strong> over plan. There is no separate
-                    approval page: a user with the right role types the approval below, then presses{' '}
-                    <strong className="font-semibold">Complete</strong> (and confirms the overrun prompt).
-                  </p>
-                </div>
-              </div>
-              {canManageConversionSignoff ? (
-                <label className="block space-y-1 rounded-md border border-amber-200/80 bg-white/90 p-2">
-                  <span className="text-ui-xs font-bold uppercase tracking-wide text-amber-900">
-                    Approval remark (at least 3 characters)
-                  </span>
-                  <textarea
-                    value={signoffRemark}
-                    onChange={(e) => setSignoffRemark(e.target.value)}
-                    rows={2}
-                    placeholder="e.g. Customer approved extra length — overrun accepted."
-                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-amber-300 resize-y min-h-[2.5rem]"
-                  />
-                </label>
-              ) : (
-                <p className="text-ui-xs font-medium text-amber-950">
-                  A user with <strong className="font-semibold">Production manage</strong>,{' '}
-                  <strong className="font-semibold">Production release</strong>, or{' '}
-                  <strong className="font-semibold">Operations manage</strong> must open this job, enter the remark here,
-                  and press <strong className="font-semibold">Complete</strong>.
-                </p>
-              )}
-            </div>
-          ) : null}
-
-          {readOnly &&
-          selectedJob?.status === 'Completed' &&
-          (ws?.snapshot?.productionJobAccessoryUsage || []).some((u) => u.jobID === selectedJob.jobID) ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 sm:p-2.5 space-y-1">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Accessories posted</p>
-              <ul className="space-y-1 text-ui-xs text-slate-700">
-                {(ws?.snapshot?.productionJobAccessoryUsage || [])
-                  .filter((u) => u.jobID === selectedJob.jobID)
-                  .map((u) => (
-                    <li key={u.id} className="flex justify-between gap-2">
-                      <span className="font-semibold">{u.name}</span>
-                      <span className="font-mono tabular-nums">
-                        supplied {u.suppliedQty} / ordered {u.orderedQty}
-                      </span>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {readOnly &&
-          selectedJob?.status === 'Completed' &&
-          (ws?.snapshot?.productionJobStoneFlatsheetUsage || []).some((u) => u.jobID === selectedJob.jobID) ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 sm:p-2.5 space-y-1">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Stone flatsheet posted</p>
-              <ul className="space-y-1 text-ui-xs text-slate-700">
-                {(ws?.snapshot?.productionJobStoneFlatsheetUsage || [])
-                  .filter((u) => u.jobID === selectedJob.jobID)
-                  .map((u) => (
-                    <li key={u.id} className="flex flex-col gap-0.5 border-b border-slate-100 pb-1 last:border-0 last:pb-0">
-                      <span className="font-semibold">
-                        {u.name} · {u.lengthM} m
-                      </span>
-                      <span className="font-mono tabular-nums">
-                        supplied {u.suppliedM2} m² · deduction {u.deductionM2} m² · ordered {u.orderedM2} m²
-                      </span>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {jobSt === 'Completed' && selectedJob.managerReviewSignedAtISO ? (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50/90 px-2.5 py-2 text-xs text-emerald-950">
-              <div className="flex items-start gap-1.5">
-                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-700" />
-                <div className="min-w-0 space-y-1">
-                  <p className="font-black uppercase tracking-wide text-emerald-900">Manager sign-off recorded</p>
-                  <p className="text-xs text-emerald-900/90">
-                    <span className="font-semibold">{selectedJob.managerReviewSignedByName || 'Manager'}</span>
-                    {selectedJob.managerReviewSignedAtISO ? (
-                      <span className="text-emerald-800/80">
+          {/* TAB 1: SHOP-FLOOR RUN */}
+          <div className={inModal ? 'space-y-1.5' : 'space-y-2.5'} hidden={inModal && modalTab !== 'run'}>
+              {allocationUniqueRollCapacityInsight &&
+              allocationUniqueRollCapacityInsight.rollCount > 0 &&
+              !stonePureNoCoil &&
+              !readOnly ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zarewa-teal/20 bg-zarewa-teal/[0.07] px-2 py-1.5 text-ui-xs text-slate-800">
+                  <span className="min-w-0 font-semibold leading-tight">
+                    <span className="text-zarewa-teal">{allocationUniqueRollCapacityInsight.rollCount} roll(s)</span>
+                    {allocationUniqueRollCapacityInsight.sumEst != null ? (
+                      <>
                         {' '}
-                        · {String(selectedJob.managerReviewSignedAtISO).slice(0, 10)}
+                        · free est.{' '}
+                        <span className="font-mono font-black tabular-nums">
+                          {allocationUniqueRollCapacityInsight.sumEst.toFixed(1)} m
+                        </span>
+                        {hasPlannedMeters ? (
+                          <>
+                            {' '}
+                            vs plan{' '}
+                            <span className="font-mono font-bold tabular-nums">{plannedMetersValue.toFixed(1)} m</span>
+                          </>
+                        ) : null}
+                      </>
+                    ) : allocationUniqueRollCapacityInsight.anyUnknown ? (
+                      <span className="text-slate-600">
+                        {' '}
+                        · metre estimate unavailable — add supplier kg/m or expected metres on coil receipts.
                       </span>
                     ) : null}
-                  </p>
-                  {selectedJob.managerReviewRemark ? (
-                    <p className="text-xs text-emerald-900/85 border-t border-emerald-200/80 pt-2 mt-2 whitespace-pre-wrap">
-                      {selectedJob.managerReviewRemark}
-                    </p>
+                  </span>
+                  {hasPlannedMeters && allocationUniqueRollCapacityInsight.sumEst != null ? (
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-ui-xs font-black uppercase tracking-wide ${
+                        allocationUniqueRollCapacityInsight.sumEst + 0.25 >= plannedMetersValue
+                          ? 'bg-emerald-100 text-emerald-900'
+                          : 'bg-amber-100 text-amber-950'
+                      }`}
+                    >
+                      {allocationUniqueRollCapacityInsight.sumEst + 0.25 >= plannedMetersValue
+                        ? 'Capacity OK'
+                        : 'Tight vs plan'}
+                    </span>
                   ) : null}
-                  <p className="text-ui-xs text-emerald-800/70 pt-0.5">
-                    Conversion alert on this job remains visible below for audit; dashboards no longer flag it for
-                    action.
-                  </p>
                 </div>
-              </div>
-            </div>
-          ) : null}
-
-          {jobSt === 'Completed' && selectedJob.productID ? (
-            <div className="rounded-lg border border-indigo-200/90 bg-indigo-50/60 p-2.5 sm:p-3 space-y-2">
-              <p className="text-ui-xs font-black uppercase tracking-widest text-indigo-900/90">
-                Output product stock (after completion)
-              </p>
-              <p className="text-xs leading-snug text-indigo-950/90">
-                When you hit <strong className="font-semibold">Complete</strong>, the system credits the{' '}
-                <strong className="font-semibold">finished product SKU</strong> (e.g. roofing sheet metres in the
-                warehouse), not the coil lines. That first credit is{' '}
-                <span className="font-mono font-bold">{formatMeters(postedOutputM)}</span> on this job
-                {Math.abs(fgAdjTotalM) > 1e-6 ? (
-                  <>
-                    {' '}
-                    · Later corrections{' '}
-                    <span className="font-mono font-bold">
-                      {fgAdjTotalM >= 0 ? '+' : ''}
-                      {formatMeters(fgAdjTotalM)}
-                    </span>{' '}
-                    · Stock today{' '}
-                    <span className="font-mono font-bold">{formatMeters(effectiveOutputM)}</span>
-                  </>
-                ) : (
-                  <> · no stock corrections yet</>
-                )}
-                . With <strong className="font-semibold">production.release</strong> or{' '}
-                <strong className="font-semibold">operations.manage</strong>, use{' '}
-                <strong className="font-semibold">Save correction</strong> on the coil lines above to fix wrong coil,
-                opening/closing kg, or metres (updates coil and finished-goods stock; does not reverse posted GL). If
-                metres in the warehouse were wrong for other reasons, a manager posts a <strong className="font-semibold">separate</strong>{' '}
-                finished-goods adjustment below so stock matches reality without erasing the original completion.
-              </p>
-              {selectedJobAdjustments.length > 0 ? (
-                <ul className="space-y-1 rounded-md border border-indigo-100 bg-white/90 px-2 py-1.5 text-ui-xs text-slate-800">
-                  {selectedJobAdjustments.map((a) => (
-                    <li key={a.id} className="flex flex-col gap-0.5 border-b border-slate-100 pb-1 last:border-0 last:pb-0">
-                      <span className="font-mono font-bold text-zarewa-teal">
-                        {a.deltaFinishedGoodsM >= 0 ? '+' : ''}
-                        {formatMeters(a.deltaFinishedGoodsM)} m
-                      </span>
-                      <span className="text-slate-600">
-                        {a.createdByName || '—'} · {String(a.atISO || '').slice(0, 10)}
-                      </span>
-                      <span className="whitespace-pre-wrap text-slate-700">{a.note}</span>
-                    </li>
-                  ))}
-                </ul>
               ) : null}
-              {canPostFgCompletionAdjustment ? (
-                <div className="rounded-md border border-indigo-200 bg-white/95 p-2 space-y-1.5">
-                  <p className="text-ui-xs font-semibold text-indigo-950">
-                    Correct <span className="font-mono">{selectedJob.productID}</span> metres in stock (manager)
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <label className="flex min-w-[8rem] flex-1 flex-col gap-0.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                      Add or remove metres
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={fgAdjDelta}
-                        onChange={(e) => setFgAdjDelta(e.target.value)}
-                        placeholder="e.g. -2.5 or +10"
-                        className="rounded-md border border-slate-200 px-2 py-1 font-mono text-xs text-slate-900"
-                      />
-                    </label>
-                    <label className="flex min-w-[12rem] flex-[2] flex-col gap-0.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
-                      Reason (≥12 characters)
-                      <input
-                        type="text"
-                        value={fgAdjNote}
-                        onChange={(e) => setFgAdjNote(e.target.value)}
-                        placeholder="e.g. Offcut — yard count 10 m less than system"
-                        className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-900"
-                      />
-                    </label>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={fgAdjSaving || !ws?.canMutate}
-                    onClick={() => void submitFgAdjustment()}
-                    className="inline-flex items-center justify-center gap-1 rounded-md bg-indigo-700 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-800 disabled:opacity-45"
-                  >
-                    {fgAdjSaving ? 'Posting…' : 'Post stock correction'}
-                  </button>
-                </div>
-              ) : (
-                <p className="text-ui-xs text-indigo-900/80">
-                  Changing credited output metres requires <strong className="font-semibold">Production release</strong>{' '}
-                  or <strong className="font-semibold">Operations manager</strong> (line operators cannot edit warehouse
-                  stock alone after the job is closed).
-                </p>
-              )}
-            </div>
-          ) : null}
-
-          {productionJobNeedsManagerReviewAttention(selectedJob) ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-900 space-y-2">
-              <div className="flex items-start gap-1.5">
-                <FileWarning size={15} className="mt-0.5 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-black uppercase tracking-wide">Manager review required</p>
-                  <p className="mt-1 text-xs">
-                    Conversion is outside the expected band (High/Low versus references). Review the four-reference
-                    checks below, then sign off with a short remark when satisfied.
-                  </p>
-                  {storedConversionReasonLabel ? (
-                    <p className="mt-2 rounded-md border border-red-200/80 bg-white/70 px-2 py-1.5 text-xs text-red-950/90">
-                      <span className="font-bold uppercase tracking-wide text-ui-xs text-red-800/80">Storekeeper reason</span>
-                      <br />
-                      {storedConversionReasonLabel}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              {canManageConversionSignoff ? (
-                <div className="rounded-md border border-red-200/80 bg-white/80 p-2 space-y-1.5">
-                  <label className="block text-ui-xs font-black uppercase tracking-widest text-red-900/80">
-                    Sign-off remark
-                  </label>
-                  <textarea
-                    value={signoffRemark}
-                    onChange={(e) => setSignoffRemark(e.target.value)}
-                    rows={2}
-                    placeholder="e.g. Variance explained — coil edge trim / scale loss. Approved to close."
-                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-red-200 resize-y min-h-[2.75rem]"
-                  />
-                  {selectedJob?.jobID ? (
-                    <EditSecondApprovalInline
-                      entityKind="production_job"
-                      entityId={selectedJob.jobID}
-                      value={signoffEditApprovalId}
-                      onChange={setSignoffEditApprovalId}
-                    />
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={signoffSaving || !ws?.canMutate}
-                    onClick={() => void submitManagerSignoff()}
-                    className="z-btn-primary w-full sm:w-auto justify-center"
-                  >
-                    <CheckCircle2 size={16} /> {signoffSaving ? 'Saving…' : 'Record manager sign-off'}
-                  </button>
-                </div>
-              ) : (
-                <p className="text-xs text-red-900/85 font-medium">
-                  Sign-off requires <strong className="font-semibold">Production manage</strong>,{' '}
-                  <strong className="font-semibold">Production release</strong>, or{' '}
-                  <strong className="font-semibold">Operations manage</strong> (admin has full access).
-                </p>
-              )}
-            </div>
-          ) : null}
-
-          {jobSt === 'Completed' &&
-          selectedJob?.jobID &&
-          (canEditCompletedCoilCorrections ||
-            canEditCompletedStoneMetresCorrections ||
-            canPostFgCompletionAdjustment) ? (
-            <EditSecondApprovalInline
-              entityKind="production_job"
-              entityId={selectedJob.jobID}
-              value={postCompletionEditApprovalId}
-              onChange={setPostCompletionEditApprovalId}
-              className="mb-2"
-            />
-          ) : null}
-
           <div className={PROD_REG.panel}>
             <div className={PROD_REG.panelHeader}>
               <div className="flex min-w-0 items-start gap-2">
@@ -5323,7 +4682,9 @@ export function LiveProductionMonitor({
               ) : null}
             </div>
           </div>
-
+          </div>
+          {/* TAB 2: YIELD & QUALITY CONTROL */}
+          <div className={inModal ? 'space-y-1.5' : 'space-y-2.5'} hidden={inModal && modalTab !== 'quality'}>
           {canCaptureRun || canEditCompletedCoilCorrections ? (
             <div className="overflow-hidden rounded-lg border border-indigo-200/60 bg-gradient-to-br from-indigo-50/35 via-white to-white shadow-sm">
               <div
@@ -5542,7 +4903,158 @@ export function LiveProductionMonitor({
               </div>
             </div>
           ) : null}
-
+          {needsConversionVarianceReason ? (
+            <ProductionConversionReasonFields
+              band={conversionReasonBand}
+              code={conversionReasonCode}
+              onCodeChange={setConversionReasonCode}
+              text={conversionReasonText}
+              onTextChange={setConversionReasonText}
+              disabled={!ws?.canMutate || Boolean(savingAction)}
+            />
+          ) : null}
+          {storedConversionReasonLabel && jobSt === 'Completed' ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/90 px-2.5 py-2 text-xs text-slate-800">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Storekeeper conversion reason</p>
+              <p className="mt-1 text-xs font-medium leading-snug">{storedConversionReasonLabel}</p>
+            </div>
+          ) : null}
+          {canCaptureRun && requiresManagerOverrunApproval ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/90 p-2 sm:p-2.5 space-y-1.5">
+              <div className="flex items-start gap-1.5">
+                <BarChart3 size={15} className="mt-0.5 shrink-0 text-amber-800" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="text-ui-xs font-black uppercase tracking-widest text-amber-950">
+                    Metre overrun — manager note before Complete
+                  </p>
+                  <p className="mt-1 text-ui-xs leading-snug text-amber-950/90">
+                    Logged metres are <strong>+{overProducedMeters.toFixed(2)} m</strong> over plan. There is no separate
+                    approval page: a user with the right role types the approval below, then presses{' '}
+                    <strong className="font-semibold">Complete</strong> (and confirms the overrun prompt).
+                  </p>
+                </div>
+              </div>
+              {canManageConversionSignoff ? (
+                <label className="block space-y-1 rounded-md border border-amber-200/80 bg-white/90 p-2">
+                  <span className="text-ui-xs font-bold uppercase tracking-wide text-amber-900">
+                    Approval remark (at least 3 characters)
+                  </span>
+                  <textarea
+                    value={signoffRemark}
+                    onChange={(e) => setSignoffRemark(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. Customer approved extra length — overrun accepted."
+                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-amber-300 resize-y min-h-[2.5rem]"
+                  />
+                </label>
+              ) : (
+                <p className="text-ui-xs font-medium text-amber-950">
+                  A user with <strong className="font-semibold">Production manage</strong>,{' '}
+                  <strong className="font-semibold">Production release</strong>, or{' '}
+                  <strong className="font-semibold">Operations manage</strong> must open this job, enter the remark here,
+                  and press <strong className="font-semibold">Complete</strong>.
+                </p>
+              )}
+            </div>
+          ) : null}
+          {productionJobNeedsManagerReviewAttention(selectedJob) ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-900 space-y-2">
+              <div className="flex items-start gap-1.5">
+                <FileWarning size={15} className="mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-black uppercase tracking-wide">Manager review required</p>
+                  <p className="mt-1 text-xs">
+                    Conversion is outside the expected band (High/Low versus references). Review the four-reference
+                    checks below, then sign off with a short remark when satisfied.
+                  </p>
+                  {storedConversionReasonLabel ? (
+                    <p className="mt-2 rounded-md border border-red-200/80 bg-white/70 px-2 py-1.5 text-xs text-red-950/90">
+                      <span className="font-bold uppercase tracking-wide text-ui-xs text-red-800/80">Storekeeper reason</span>
+                      <br />
+                      {storedConversionReasonLabel}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              {canManageConversionSignoff ? (
+                <div className="rounded-md border border-red-200/80 bg-white/80 p-2 space-y-1.5">
+                  <label className="block text-ui-xs font-black uppercase tracking-widest text-red-900/80">
+                    Sign-off remark
+                  </label>
+                  <textarea
+                    value={signoffRemark}
+                    onChange={(e) => setSignoffRemark(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. Variance explained — coil edge trim / scale loss. Approved to close."
+                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-800 outline-none focus:ring-2 focus:ring-red-200 resize-y min-h-[2.75rem]"
+                  />
+                  {selectedJob?.jobID ? (
+                    <EditSecondApprovalInline
+                      entityKind="production_job"
+                      entityId={selectedJob.jobID}
+                      value={signoffEditApprovalId}
+                      onChange={setSignoffEditApprovalId}
+                    />
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={signoffSaving || !ws?.canMutate}
+                    onClick={() => void submitManagerSignoff()}
+                    className="z-btn-primary w-full sm:w-auto justify-center"
+                  >
+                    <CheckCircle2 size={16} /> {signoffSaving ? 'Saving…' : 'Record manager sign-off'}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-red-900/85 font-medium">
+                  Sign-off requires <strong className="font-semibold">Production manage</strong>,{' '}
+                  <strong className="font-semibold">Production release</strong>, or{' '}
+                  <strong className="font-semibold">Operations manage</strong> (admin has full access).
+                </p>
+              )}
+            </div>
+          ) : null}
+          {jobSt === 'Completed' && selectedJob.managerReviewSignedAtISO ? (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/90 px-2.5 py-2 text-xs text-emerald-950">
+              <div className="flex items-start gap-1.5">
+                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-700" />
+                <div className="min-w-0 space-y-1">
+                  <p className="font-black uppercase tracking-wide text-emerald-900">Manager sign-off recorded</p>
+                  <p className="text-xs text-emerald-900/90">
+                    <span className="font-semibold">{selectedJob.managerReviewSignedByName || 'Manager'}</span>
+                    {selectedJob.managerReviewSignedAtISO ? (
+                      <span className="text-emerald-800/80">
+                        {' '}
+                        · {String(selectedJob.managerReviewSignedAtISO).slice(0, 10)}
+                      </span>
+                    ) : null}
+                  </p>
+                  {selectedJob.managerReviewRemark ? (
+                    <p className="text-xs text-emerald-900/85 border-t border-emerald-200/80 pt-2 mt-2 whitespace-pre-wrap">
+                      {selectedJob.managerReviewRemark}
+                    </p>
+                  ) : null}
+                  <p className="text-ui-xs text-emerald-800/70 pt-0.5">
+                    Conversion alert on this job remains visible below for audit; dashboards no longer flag it for
+                    action.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {jobSt === 'Completed' &&
+          selectedJob?.jobID &&
+          (canEditCompletedCoilCorrections ||
+            canEditCompletedStoneMetresCorrections ||
+            canPostFgCompletionAdjustment) ? (
+            <EditSecondApprovalInline
+              entityKind="production_job"
+              entityId={selectedJob.jobID}
+              value={postCompletionEditApprovalId}
+              onChange={setPostCompletionEditApprovalId}
+              className="mb-2"
+            />
+          ) : null}
           {selectedChecks.length > 0 ? (
           <div className="overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-sm">
             <div className="border-b border-slate-100 bg-slate-50/70 px-3 py-2">
@@ -5648,6 +5160,610 @@ export function LiveProductionMonitor({
             </div>
           </div>
           ) : null}
+          </div>
+          {/* TAB 3: SPECS & BOM */}
+          <div className={inModal ? 'space-y-1.5' : 'space-y-2.5'} hidden={inModal && modalTab !== 'specs'}>
+            {inModal ? (
+              <div className="space-y-2">
+              {hasPlannedMeters && (jobSt === 'Running' || jobSt === 'Planned') ? (
+                <div className="rounded-md border border-slate-200/60 bg-white/60 px-2 py-1.5">
+                  <div className="flex items-center justify-between gap-2 text-ui-xs font-semibold text-slate-600">
+                    <span className="uppercase tracking-wide text-slate-500">vs plan</span>
+                    <span className="tabular-nums text-slate-800">
+                      {stoneCoilHybrid ? (
+                        <>
+                          Roof {formatMeters(stoneRecordedMeters)} /{' '}
+                          {formatMeters(Number(selectedJob?.plannedRoofM) || plannedMetersValue)}
+                          {' · '}
+                          Sheet {formatMeters(recordedMeters)} /{' '}
+                          {formatMeters(Number(selectedJob?.plannedFlatsheetM) || 0)}
+                        </>
+                      ) : (
+                        <>
+                          {formatMeters(recordedMeters)} / {formatMeters(plannedMetersValue)}
+                          {planProgressPct != null ? (
+                            <span className="ml-1 font-bold text-zarewa-teal">({planProgressPct}%)</span>
+                          ) : null}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-200/90">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        planProgressPct != null && planProgressPct > 100 ? 'bg-amber-500' : 'bg-gradient-to-r from-teal-500 to-zarewa-teal'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, planProgressPct != null ? planProgressPct : 0)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              <div className="rounded-lg border border-slate-200/70 bg-white/85 p-2.5 shadow-sm ring-1 ring-slate-900/[0.04] sm:p-3">
+                <p className="text-ui-xs font-bold uppercase tracking-[0.12em] text-zarewa-teal">Target spec</p>
+                <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs leading-snug sm:grid-cols-2 lg:grid-cols-4">
+                  {[
+                    ['Gauge', quotationMaterialSpec.gauge],
+                    ['Colour', quotationMaterialSpec.colour],
+                    ['Material', quotationMaterialSpec.materialType],
+                    ...(designRedundantVersusProductLine(
+                      quotationMaterialSpec.design,
+                      selectedJob.productName,
+                      selectedJob.productID
+                    )
+                      ? []
+                      : [['Design', quotationMaterialSpec.design]]),
+                  ].map(([k, v]) => (
+                    <p key={k} className="min-w-0 border-l-2 border-teal-200/80 pl-2">
+                      <span className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">{k}</span>
+                      <span className="mt-0.5 block truncate font-semibold text-slate-900">{v || '—'}</span>
+                    </p>
+                  ))}
+                </div>
+                {recommendedCoils.length > 0 ? (
+                  <p className="mt-2 flex items-start gap-2 rounded-md border border-teal-200/60 bg-teal-50/50 px-2 py-1.5 text-ui-xs font-medium leading-snug text-teal-900">
+                    <Sparkles size={14} className="mt-0.5 shrink-0 text-teal-600" aria-hidden />
+                    <span>
+                      <span className="font-bold text-teal-950">Stock tip</span>{' '}
+                      {recommendedCoils.length} matching coil{recommendedCoils.length === 1 ? '' : 's'} in the picker
+                      {hasPlannedMeters ? ', ordered by fit to planned metres.' : '.'}
+                    </span>
+                  </p>
+                ) : null}
+                <div className="mt-2.5 flex flex-col gap-2 border-t border-slate-200/70 pt-2.5 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-2">
+                  {[
+                    ['Planned', formatMeters(selectedJob.plannedMeters), 'text-zarewa-teal'],
+                    /*
+                     * `actualMeters` alone only ever holds the coil/offcut-derived flatsheet
+                     * output on a hybrid stone job — the stone-roofing metres consumed via the
+                     * separate "Metres consumed (stone stock)" input are recorded in
+                     * `actualRoofM`, never added into `actualMeters`. Showing `actualMeters` here
+                     * on its own made the roof entry look like it "didn't count" while the one
+                     * visible number (really just the flatsheet/coil figure) could be misread as
+                     * roof output. Sum the per-type actuals for the headline when they are
+                     * populated; older completed jobs (before this split existed) fall back to
+                     * the legacy single figure.
+                     */
+                    [
+                      'Actual',
+                      formatMeters(
+                        (Number(selectedJob.actualRoofM) || 0) +
+                          (Number(selectedJob.actualCladdingM) || 0) +
+                          (Number(selectedJob.actualFlatsheetM) || 0) || Number(selectedJob.actualMeters) || 0
+                      ),
+                      'text-zarewa-teal',
+                    ],
+                    ['Alert', selectedJob.conversionAlertState || 'Pending', 'text-slate-900'],
+                  ].map(([label, value, valueClass]) => (
+                    <div
+                      key={label}
+                      className="flex min-w-0 flex-1 flex-col justify-center rounded-md border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/90 px-2 py-1.5 text-center shadow-sm sm:min-w-[5.5rem] sm:text-left sm:px-2.5"
+                    >
+                      <p className="text-ui-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
+                      <p className={`mt-0.5 truncate text-sm font-black tabular-nums leading-none ${valueClass}`}>
+                        {value}
+                      </p>
+                      {label === 'Planned' &&
+                      (Number(selectedJob.plannedRoofM) > 0 ||
+                        Number(selectedJob.plannedCladdingM) > 0 ||
+                        Number(selectedJob.plannedFlatsheetM) > 0) ? (
+                        <p className="mt-0.5 text-ui-xs font-semibold tabular-nums text-slate-500 leading-tight">
+                          R {formatMeters(selectedJob.plannedRoofM)} · C {formatMeters(selectedJob.plannedCladdingM)} · F{' '}
+                          {formatMeters(selectedJob.plannedFlatsheetM)}
+                        </p>
+                      ) : null}
+                      {label === 'Actual' &&
+                      (Number(selectedJob.actualRoofM) > 0 ||
+                        Number(selectedJob.actualCladdingM) > 0 ||
+                        Number(selectedJob.actualFlatsheetM) > 0) ? (
+                        <p className="mt-0.5 text-ui-xs font-semibold tabular-nums text-slate-500 leading-tight">
+                          R {formatMeters(selectedJob.actualRoofM)} · C {formatMeters(selectedJob.actualCladdingM)} · F{' '}
+                          {formatMeters(selectedJob.actualFlatsheetM)}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              </div>
+            ) : null}
+              {selectedJob?.quotationRef ? (
+                <QuotationPriceExceptionPanel
+                  quotationId={selectedJob.quotationRef}
+                  quotation={linkedQuotation}
+                />
+              ) : null}
+
+              {selectedJob?.jobID ? (
+                <details className="rounded-lg border border-slate-200/90 bg-white/90 px-2.5 py-2 text-ui-xs text-slate-800 shadow-sm">
+                  <summary className="cursor-pointer list-none font-black uppercase tracking-wide text-zarewa-teal marker:content-none">
+                    Job intelligence
+                    {jobIntel?.paymentGateRequired && !jobIntel?.managerProductionApprovedAtISO ? (
+                      <span className="ml-2 rounded-md bg-rose-100 px-1.5 py-0.5 text-ui-xs font-black text-rose-900">
+                        Payment gate
+                      </span>
+                    ) : null}
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    {jobIntelLoading ? (
+                      <p className="text-ui-xs text-slate-500">Loading job intelligence…</p>
+                    ) : jobIntel ? (
+                      <>
+                        <ProductionJobIntelBanner intel={jobIntel} formatMeters={formatMeters} />
+                        <ProductionPaymentGateOverridePanel
+                          quotationId={selectedJob.quotationRef}
+                          intel={jobIntel}
+                          canMutate={ws?.canMutate !== false}
+                          roleKey={ws?.session?.user?.roleKey}
+                          onSuccess={() => {
+                            void reloadJobIntel();
+                            void refreshProductionWorkspace();
+                          }}
+                        />
+                      </>
+                    ) : (
+                      <p className="text-ui-xs text-slate-500">No intelligence available for this job.</p>
+                    )}
+                  </div>
+                </details>
+              ) : null}
+          {isAccessoriesOnlyQuote && !quotedAccessoryLines.length && !readOnly ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-ui-xs text-amber-950">
+              <p className="font-bold uppercase tracking-wide">Accessories-only quotation</p>
+              <p className="mt-1 leading-snug">
+                Accessory lines were not found on the workspace snapshot for{' '}
+                <span className="font-mono font-semibold">{selectedJob?.quotationRef}</span>. Use{' '}
+                <strong className="font-semibold">Refresh workspace</strong> or reopen the quotation in Sales, then
+                return here.
+              </p>
+            </div>
+          ) : null}
+          {showAccessoryIssuedSection && accessoryCompletionDraft.length > 0 ? (
+            <div className="rounded-lg border border-teal-200/80 bg-teal-50/40 p-2 sm:p-2.5 space-y-1.5">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-zarewa-teal">
+                Accessories on quotation{jobSt === 'Completed' ? ' (correction)' : ''}
+              </p>
+              <div className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white">
+                <div className="z-scroll-x min-w-0 max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                  <table className="w-full min-w-[520px] border-collapse text-left text-sm">
+                    <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
+                      <tr>
+                        <th className="px-2 py-2">Item</th>
+                        <th className="px-2 py-2 text-right">Ordered</th>
+                        <th className="px-2 py-2 text-right">Prior jobs</th>
+                        <th className="px-2 py-2 text-right">Remaining</th>
+                        <th className="px-2 py-2 text-right">This job</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {accessoryDraftPage.slice.map((row) => {
+                        const remaining = Math.max(0, row.ordered - row.priorSupplied);
+                        return (
+                          <tr key={row.key} className="hover:bg-teal-50/20">
+                            <td className="max-w-0 px-2 py-2 font-semibold text-slate-800 whitespace-nowrap truncate" title={row.name}>
+                              {row.name}
+                            </td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.ordered}</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.priorSupplied}</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{remaining}</td>
+                            <td className="px-2 py-2 text-right whitespace-nowrap">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={row.suppliedThisJob}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  const jId = selectedJob?.jobID;
+                                  if (
+                                    jId &&
+                                    (selectedJob?.status === 'Running' ||
+                                      (isAccessoriesOnlyQuote && jobSt === 'Planned'))
+                                  ) {
+                                    writeProdAccessoryDraftEntry(jId, row.key, v);
+                                  }
+                                  setAccessoryCompletionDraft((prev) =>
+                                    prev.map((r) => (r.key === row.key ? { ...r, suppliedThisJob: v } : r))
+                                  );
+                                }}
+                                className="w-20 rounded-md border border-slate-200 bg-white px-2 py-1 text-right font-mono text-sm font-bold text-zarewa-teal outline-none focus:ring-2 focus:ring-teal-500/20"
+                                aria-label={`Supplied this job for ${row.name}`}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {accessoryCompletionDraft.length > APP_DATA_TABLE_PAGE_SIZE ? (
+                  <div className="border-t border-slate-100 px-2 py-2">
+                    <AppTablePager
+                      showingFrom={accessoryDraftPage.showingFrom}
+                      showingTo={accessoryDraftPage.showingTo}
+                      total={accessoryDraftPage.total}
+                      hasPrev={accessoryDraftPage.hasPrev}
+                      hasNext={accessoryDraftPage.hasNext}
+                      onPrev={accessoryDraftPage.goPrev}
+                      onNext={accessoryDraftPage.goNext}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          {readOnly &&
+          selectedJob?.status === 'Completed' &&
+          (ws?.snapshot?.productionJobAccessoryUsage || []).some((u) => u.jobID === selectedJob.jobID) ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 sm:p-2.5 space-y-1">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Accessories posted</p>
+              <ul className="space-y-1 text-ui-xs text-slate-700">
+                {(ws?.snapshot?.productionJobAccessoryUsage || [])
+                  .filter((u) => u.jobID === selectedJob.jobID)
+                  .map((u) => (
+                    <li key={u.id} className="flex justify-between gap-2">
+                      <span className="font-semibold">{u.name}</span>
+                      <span className="font-mono tabular-nums">
+                        supplied {u.suppliedQty} / ordered {u.orderedQty}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
+          {/*
+            Without the quotation's lines the demand count is zero and the section above
+            simply does not render — the operator sees no stone flatsheet form and no
+            reason why. Say so, rather than letting a failed read look like a job with
+            nothing to record.
+          */}
+          {!showStoneFlatsheetIssuedSection && isStoneMeterQuote && selectedJobLinesStatus === 'failed' ? (
+            <div className="rounded-lg border border-amber-300 bg-amber-50/70 p-2 sm:p-2.5 space-y-1">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-amber-900">
+                Stone flatsheet lines unavailable
+              </p>
+              <p className="text-ui-xs text-amber-950 leading-snug">
+                This job’s quotation could not be loaded, so its sold stone flatsheet lines cannot be
+                shown. This is usually a connection problem, not a job without stone flatsheet. Re-select
+                the job or reload the page before recording usage — do not assume there is nothing to record.
+              </p>
+            </div>
+          ) : null}
+          {showStoneFlatsheetIssuedSection ? (
+            <div className="rounded-lg border border-sky-200/80 bg-sky-50/40 p-2 sm:p-2.5 space-y-1.5">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-sky-900">
+                Stone flatsheet{jobSt === 'Completed' ? ' — correction' : ''}
+              </p>
+              <p className="text-ui-xs text-slate-600 leading-snug">
+                Sold stone flatsheet is issued in m². Ridge and bargeboard consume extra SF sheets by yield (length chosen
+                here); offcut finished metres are recorded and kept.
+                {jobSt === 'Planned'
+                  ? ' You can enter usage while Planned; use Save and start production before completing the job.'
+                  : null}
+              </p>
+              <div className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white">
+                <div className="z-scroll-x min-w-0 max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                  <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+                    <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
+                      <tr>
+                        <th className="px-2 py-2">Item</th>
+                        <th className="px-2 py-2 text-right">Len</th>
+                        <th className="px-2 py-2 text-right">Ordered</th>
+                        <th className="px-2 py-2 text-right">Prior</th>
+                        <th className="px-2 py-2 text-right">Remaining / sheets</th>
+                        <th className="px-2 py-2 text-right">Supplied / sheets</th>
+                        <th className="px-2 py-2 text-right">Deduction / offcut</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {stoneFlatsheetDraftPage.slice.map((row) => {
+                        const isYield = row.demandKind === 'ridge' || row.demandKind === 'bargeboard';
+                        if (isYield) {
+                          return (
+                            <tr key={row.key} className="hover:bg-sky-50/20">
+                              <td
+                                className="max-w-0 px-2 py-2 font-semibold text-slate-800 whitespace-nowrap truncate"
+                                title={`${row.name} (from stone flatsheet)`}
+                              >
+                                {row.name}
+                                <span className="ml-1 text-ui-xs font-normal text-sky-700">yield</span>
+                              </td>
+                              <td className="px-2 py-2 text-right whitespace-nowrap">
+                                <select
+                                  value={row.lengthM === 1.4 ? '1.4' : '2'}
+                                  onChange={(e) => {
+                                    const lengthM = e.target.value === '1.4' ? 1.4 : 2;
+                                    const metresPerSheet =
+                                      row.demandKind === 'ridge'
+                                        ? stoneRidgeMetresPerSheet(lengthM)
+                                        : stoneBargeboardMetresPerSheet(lengthM);
+                                    const sheetsExact = stoneFlatsheetSheetsForFinishedMetres(
+                                      row.orderedFinishedM,
+                                      metresPerSheet
+                                    );
+                                    const sheetsUsed = Math.ceil(sheetsExact - 1e-9);
+                                    const offcutFinishedM = Math.max(
+                                      0,
+                                      sheetsUsed * metresPerSheet - row.orderedFinishedM
+                                    );
+                                    setStoneFlatsheetCompletionDraft((prev) =>
+                                      prev.map((r) =>
+                                        r.key === row.key
+                                          ? { ...r, lengthM, sheetsUsed, offcutFinishedM }
+                                          : r
+                                      )
+                                    );
+                                  }}
+                                  className="rounded-md border border-slate-200 bg-white px-1 py-1 text-xs font-semibold text-sky-900"
+                                  aria-label={`SF length for ${row.name}`}
+                                >
+                                  <option value="1.4">1.4 m</option>
+                                  <option value="2">2 m</option>
+                                </select>
+                              </td>
+                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">
+                                {row.orderedFinishedM} m
+                              </td>
+                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">—</td>
+                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">
+                                {(() => {
+                                  const metresPerSheet =
+                                    row.demandKind === 'ridge'
+                                      ? stoneRidgeMetresPerSheet(row.lengthM)
+                                      : stoneBargeboardMetresPerSheet(row.lengthM);
+                                  return `${stoneFlatsheetSheetsForFinishedMetres(row.orderedFinishedM, metresPerSheet).toFixed(2)} sh`;
+                                })()}
+                              </td>
+                              <td className="px-2 py-2 text-right whitespace-nowrap">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={row.sheetsUsed}
+                                  onChange={(e) => {
+                                    const sheetsUsed = Number(e.target.value);
+                                    const metresPerSheet =
+                                      row.demandKind === 'ridge'
+                                        ? stoneRidgeMetresPerSheet(row.lengthM)
+                                        : stoneBargeboardMetresPerSheet(row.lengthM);
+                                    const offcutFinishedM = Number.isFinite(sheetsUsed)
+                                      ? Math.max(0, sheetsUsed * metresPerSheet - row.orderedFinishedM)
+                                      : 0;
+                                    setStoneFlatsheetCompletionDraft((prev) =>
+                                      prev.map((r) =>
+                                        r.key === row.key ? { ...r, sheetsUsed: e.target.value, offcutFinishedM } : r
+                                      )
+                                    );
+                                  }}
+                                  className="w-[4.5rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-right font-mono text-xs font-bold text-sky-900 outline-none focus:ring-2 focus:ring-sky-500/20"
+                                  aria-label={`Sheets used for ${row.name}`}
+                                />
+                              </td>
+                              <td className="px-2 py-2 text-right tabular-nums text-slate-600">
+                                {Number.isFinite(Number(row.offcutFinishedM))
+                                  ? `${Number(row.offcutFinishedM).toFixed(2)} m offcut`
+                                  : '—'}
+                              </td>
+                            </tr>
+                          );
+                        }
+                        const remaining = Math.max(0, row.orderedM2 - row.priorConsumedM2);
+                        return (
+                          <tr key={row.key} className="hover:bg-sky-50/20">
+                            <td className="max-w-0 px-2 py-2 font-semibold text-slate-800 whitespace-nowrap truncate" title={row.name}>
+                              {row.name}
+                            </td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.lengthM} m</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.orderedM2} m²</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.priorConsumedM2}</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{remaining}</td>
+                            <td className="px-2 py-2 text-right whitespace-nowrap">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={row.suppliedThisJobM2}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  const jId = selectedJob?.jobID;
+                                  setStoneFlatsheetCompletionDraft((prev) =>
+                                    prev.map((r) => {
+                                      if (r.key !== row.key) return r;
+                                      if (
+                                        jId &&
+                                        (selectedJob?.status === 'Running' || selectedJob?.status === 'Planned')
+                                      ) {
+                                        writeProdSfDraftEntry(jId, row.key, { s: v, d: r.deductionThisJobM2 });
+                                      }
+                                      return { ...r, suppliedThisJobM2: v };
+                                    })
+                                  );
+                                }}
+                                className="w-[4.5rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-right font-mono text-xs font-bold text-sky-900 outline-none focus:ring-2 focus:ring-sky-500/20"
+                                aria-label={`Supplied m² this job for ${row.name}`}
+                              />
+                            </td>
+                            <td className="px-2 py-2 text-right whitespace-nowrap">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={row.deductionThisJobM2}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  const jId = selectedJob?.jobID;
+                                  setStoneFlatsheetCompletionDraft((prev) =>
+                                    prev.map((r) => {
+                                      if (r.key !== row.key) return r;
+                                      if (
+                                        jId &&
+                                        (selectedJob?.status === 'Running' || selectedJob?.status === 'Planned')
+                                      ) {
+                                        writeProdSfDraftEntry(jId, row.key, { s: r.suppliedThisJobM2, d: v });
+                                      }
+                                      return { ...r, deductionThisJobM2: v };
+                                    })
+                                  );
+                                }}
+                                className="w-[4.5rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-right font-mono text-xs font-bold text-sky-900 outline-none focus:ring-2 focus:ring-sky-500/20"
+                                aria-label={`Deduction m² this job for ${row.name}`}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {stoneFlatsheetCompletionDraft.length > APP_DATA_TABLE_PAGE_SIZE ? (
+                  <div className="border-t border-slate-100 px-2 py-2">
+                    <AppTablePager
+                      showingFrom={stoneFlatsheetDraftPage.showingFrom}
+                      showingTo={stoneFlatsheetDraftPage.showingTo}
+                      total={stoneFlatsheetDraftPage.total}
+                      hasPrev={stoneFlatsheetDraftPage.hasPrev}
+                      hasNext={stoneFlatsheetDraftPage.hasNext}
+                      onPrev={stoneFlatsheetDraftPage.goPrev}
+                      onNext={stoneFlatsheetDraftPage.goNext}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          {readOnly &&
+          selectedJob?.status === 'Completed' &&
+          (ws?.snapshot?.productionJobStoneFlatsheetUsage || []).some((u) => u.jobID === selectedJob.jobID) ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 sm:p-2.5 space-y-1">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-slate-500">Stone flatsheet posted</p>
+              <ul className="space-y-1 text-ui-xs text-slate-700">
+                {(ws?.snapshot?.productionJobStoneFlatsheetUsage || [])
+                  .filter((u) => u.jobID === selectedJob.jobID)
+                  .map((u) => (
+                    <li key={u.id} className="flex flex-col gap-0.5 border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                      <span className="font-semibold">
+                        {u.name} · {u.lengthM} m
+                      </span>
+                      <span className="font-mono tabular-nums">
+                        supplied {u.suppliedM2} m² · deduction {u.deductionM2} m² · ordered {u.orderedM2} m²
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
+          {jobSt === 'Completed' && selectedJob.productID ? (
+            <div className="rounded-lg border border-indigo-200/90 bg-indigo-50/60 p-2.5 sm:p-3 space-y-2">
+              <p className="text-ui-xs font-black uppercase tracking-widest text-indigo-900/90">
+                Output product stock (after completion)
+              </p>
+              <p className="text-xs leading-snug text-indigo-950/90">
+                When you hit <strong className="font-semibold">Complete</strong>, the system credits the{' '}
+                <strong className="font-semibold">finished product SKU</strong> (e.g. roofing sheet metres in the
+                warehouse), not the coil lines. That first credit is{' '}
+                <span className="font-mono font-bold">{formatMeters(postedOutputM)}</span> on this job
+                {Math.abs(fgAdjTotalM) > 1e-6 ? (
+                  <>
+                    {' '}
+                    · Later corrections{' '}
+                    <span className="font-mono font-bold">
+                      {fgAdjTotalM >= 0 ? '+' : ''}
+                      {formatMeters(fgAdjTotalM)}
+                    </span>{' '}
+                    · Stock today{' '}
+                    <span className="font-mono font-bold">{formatMeters(effectiveOutputM)}</span>
+                  </>
+                ) : (
+                  <> · no stock corrections yet</>
+                )}
+                . With <strong className="font-semibold">production.release</strong> or{' '}
+                <strong className="font-semibold">operations.manage</strong>, use{' '}
+                <strong className="font-semibold">Save correction</strong> on the coil lines above to fix wrong coil,
+                opening/closing kg, or metres (updates coil and finished-goods stock; does not reverse posted GL). If
+                metres in the warehouse were wrong for other reasons, a manager posts a <strong className="font-semibold">separate</strong>{' '}
+                finished-goods adjustment below so stock matches reality without erasing the original completion.
+              </p>
+              {selectedJobAdjustments.length > 0 ? (
+                <ul className="space-y-1 rounded-md border border-indigo-100 bg-white/90 px-2 py-1.5 text-ui-xs text-slate-800">
+                  {selectedJobAdjustments.map((a) => (
+                    <li key={a.id} className="flex flex-col gap-0.5 border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                      <span className="font-mono font-bold text-zarewa-teal">
+                        {a.deltaFinishedGoodsM >= 0 ? '+' : ''}
+                        {formatMeters(a.deltaFinishedGoodsM)} m
+                      </span>
+                      <span className="text-slate-600">
+                        {a.createdByName || '—'} · {String(a.atISO || '').slice(0, 10)}
+                      </span>
+                      <span className="whitespace-pre-wrap text-slate-700">{a.note}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {canPostFgCompletionAdjustment ? (
+                <div className="rounded-md border border-indigo-200 bg-white/95 p-2 space-y-1.5">
+                  <p className="text-ui-xs font-semibold text-indigo-950">
+                    Correct <span className="font-mono">{selectedJob.productID}</span> metres in stock (manager)
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <label className="flex min-w-[8rem] flex-1 flex-col gap-0.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+                      Add or remove metres
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={fgAdjDelta}
+                        onChange={(e) => setFgAdjDelta(e.target.value)}
+                        placeholder="e.g. -2.5 or +10"
+                        className="rounded-md border border-slate-200 px-2 py-1 font-mono text-xs text-slate-900"
+                      />
+                    </label>
+                    <label className="flex min-w-[12rem] flex-[2] flex-col gap-0.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+                      Reason (≥12 characters)
+                      <input
+                        type="text"
+                        value={fgAdjNote}
+                        onChange={(e) => setFgAdjNote(e.target.value)}
+                        placeholder="e.g. Offcut — yard count 10 m less than system"
+                        className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-900"
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={fgAdjSaving || !ws?.canMutate}
+                    onClick={() => void submitFgAdjustment()}
+                    className="inline-flex items-center justify-center gap-1 rounded-md bg-indigo-700 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-indigo-800 disabled:opacity-45"
+                  >
+                    {fgAdjSaving ? 'Posting…' : 'Post stock correction'}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-ui-xs text-indigo-900/80">
+                  Changing credited output metres requires <strong className="font-semibold">Production release</strong>{' '}
+                  or <strong className="font-semibold">Operations manager</strong> (line operators cannot edit warehouse
+                  stock alone after the job is closed).
+                </p>
+              )}
+            </div>
+          ) : null}
+          </div>
 
         </div>
       </div>

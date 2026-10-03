@@ -15,6 +15,20 @@ function Dot() {
   return <span className="mx-1 text-[var(--z-border)]" aria-hidden>·</span>;
 }
 
+function alertBadgeClass(state) {
+  switch (state) {
+    case 'OK':
+      return 'bg-emerald-50 text-emerald-800 border border-emerald-200/80';
+    case 'High':
+    case 'Low':
+      return 'bg-amber-100 text-amber-950 border border-amber-300 font-black';
+    case 'Watch':
+      return 'bg-sky-50 text-sky-800 border border-sky-200';
+    default:
+      return 'bg-slate-100 text-slate-700 border border-slate-200';
+  }
+}
+
 /**
  * Modal register summary — refs + KPIs on two tight lines; vs-plan as a thin bar (no card stack).
  */
@@ -158,9 +172,11 @@ export function ProductionRegisterCompactHeader({
           </>
         )}
         <Dot />
-        <span>
-          <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">Alert </span>
-          <span className="font-semibold">{alertState || 'Pending'}</span>
+        <span className="inline-flex items-center gap-1">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--z-text-muted)]">QC </span>
+          <span className={`rounded px-1.5 py-0.2 text-[10px] uppercase ${alertBadgeClass(alertState)}`}>
+            {alertState || 'Pending'}
+          </span>
         </span>
       </p>
 
