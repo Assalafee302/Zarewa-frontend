@@ -89,10 +89,6 @@ import { ExpenseCategoryReclassPreviewPanel } from '../../components/office/Expe
 import { downloadExpenseCategoryExceptionsCsv } from '../../lib/expenseCategoryExceptionExport.js';
 import { isExceptionExpenseCategory } from '../../shared/expenseCategorySelectUtils.js';
 import {
-  looksLikeMaintenanceWorkOrderRef,
-  maintenanceCostKindLabel,
-} from '../../shared/lib/maintenanceCostEnvelope';
-import {
   ACCOUNT_TAB_LABELS as TAB_LABELS,
   createRequestPayLine,
   mapTreasuryPayoutLinesForApi,
@@ -126,6 +122,7 @@ import {
 import { AccountingRegisterSettlementPayModal } from '../../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { RefundCashierDetailModal } from '../../components/finance/RefundCashierDetailModal.jsx';
 import { RefundPayoutModal } from '../../components/finance/RefundPayoutModal.jsx';
+import { PaymentRequestPayoutModal } from '../../components/finance/PaymentRequestPayoutModal.jsx';
 import { ExpenseCashierDetailModal } from '../../components/finance/ExpenseCashierDetailModal.jsx';
 import { resolveExpenseCashierTarget } from '../../lib/expenseCashierDetail.js';
 import { StaffRecoveryCashierModal } from '../../components/finance/StaffRecoveryCashierModal.jsx';
@@ -4956,7 +4953,7 @@ const Account = () => {
         userMaySetRefundPayoutHold={userMaySetRefundPayoutHold(ws?.session?.user)}
       />
 
-      <ModalFrame
+      <PaymentRequestPayoutModal
         isOpen={showPaymentEntry}
         onClose={() => {
           if (treasuryPayoutSubmitting) return;
@@ -4965,248 +4962,24 @@ const Account = () => {
           setRequestPayLines([]);
           setRequestPayNote('');
         }}
-      >
-        <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-10">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-2xl font-bold text-zarewa-teal">
-              {selectedPayment?.type === 'po_transport' ? 'Post transport payment' : 'Process payment'}
-            </h3>
-            <button
-              type="button"
-              aria-label="Close payment dialog"
-              disabled={treasuryPayoutSubmitting}
-              onClick={() => {
-                if (treasuryPayoutSubmitting) return;
-                setShowPaymentEntry(false);
-                setSelectedPayment(null);
-                setRequestPayLines([]);
-                setRequestPayNote('');
-              }}
-              className="text-gray-300 hover:text-rose-500 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <X size={24} aria-hidden />
-            </button>
-          </div>
-          <div className="bg-gray-50 p-6 rounded-2xl mb-6 border border-gray-100 flex justify-between items-center gap-4">
-            <div>
-              <p className="text-ui-xs font-bold text-gray-400 uppercase">Balance due</p>
-              <p className="text-2xl font-black text-zarewa-teal">
-                {formatNgn(
-                  Math.round(Number(selectedPayment?.total) || 0) - Math.round(Number(selectedPayment?.paid) || 0)
-                )}
-              </p>
-              <p className="text-ui-xs text-gray-400 mt-1">
-                {[selectedPayment?.desc, selectedPayment?.expenseCategory || selectedPayment?.category]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
-              {selectedPayment?.type === 'payment_request' && selectedPayment?.description ? (
-                <p className="text-ui-xs text-slate-500 mt-1 leading-snug">{selectedPayment.description}</p>
-              ) : null}
-              {selectedPayment?.type === 'payment_request' &&
-              (selectedPayment.maintenanceWorkOrderId ||
-                looksLikeMaintenanceWorkOrderRef(selectedPayment.requestReference)) ? (
-                <p className="text-ui-xs font-semibold text-zarewa-teal mt-1">
-                  Work order{' '}
-                  {selectedPayment.maintenanceWorkOrderId || selectedPayment.requestReference}
-                  {selectedPayment.maintenanceCostKind
-                    ? ` · ${maintenanceCostKindLabel(selectedPayment.maintenanceCostKind)}`
-                    : ''}
-                </p>
-              ) : null}
-              {selectedPayment?.type === 'payment_request' &&
-              (selectedPayment.requestDate || selectedPayment.approvedAtISO) ? (
-                <p className="text-ui-xs text-slate-500 mt-1.5 leading-snug">
-                  {[
-                    selectedPayment.requestDate
-                      ? `Requested ${String(selectedPayment.requestDate).slice(0, 10)}`
-                      : null,
-                    selectedPayment.approvedAtISO
-                      ? `Approved ${String(selectedPayment.approvedAtISO).slice(0, 10)}${
-                          selectedPayment.approvedBy ? ` by ${selectedPayment.approvedBy}` : ''
-                        }`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
-              ) : null}
-            </div>
-            <span className="text-ui-xs font-bold px-3 py-1 bg-white rounded-full border border-gray-100 shrink-0">
-              {selectedPayment?.type === 'po_transport' ? `PO ${selectedPayment?.id}` : selectedPayment?.id}
-            </span>
-          </div>
-          {selectedPayment?.type === 'payment_request' &&
-          (selectedPayment.payeeName || selectedPayment.payeeAccountNo || selectedPayment.payeeBankName) ? (
-            <div className="mb-4 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950 space-y-1">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">Pay to (from request)</p>
-              {selectedPayment.payeeName ? (
-                <p className="font-bold text-sky-950">{selectedPayment.payeeName}</p>
-              ) : null}
-              <p className="font-mono text-xs font-semibold tabular-nums leading-snug">
-                {[selectedPayment.payeeBankName, selectedPayment.payeeAccountNo].filter(Boolean).join(' · ') ||
-                  selectedPayment.payeeAccountNo ||
-                  '—'}
-              </p>
-            </div>
-          ) : null}
-          {selectedPayment?.type === 'payment_request' && selectedPayment.approvalNote ? (
-            <div className="mb-4 rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2.5 text-xs text-amber-950">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-amber-900/90">Branch Manager note</p>
-              <p className="mt-1 whitespace-pre-wrap leading-snug">{selectedPayment.approvalNote}</p>
-            </div>
-          ) : null}
-          {selectedPayment?.type === 'payment_request' ? (
-            <p className="mb-3 text-ui-xs text-slate-500 leading-snug">
-              Check amount, category{selectedPayment.expenseCategory ? ` (${selectedPayment.expenseCategory})` : ''}, and
-              payee before posting. If anything is wrong, refuse payout — do not pay blindly.
-            </p>
-          ) : null}
-          {selectedPayment?.type === 'payment_request' ? (
-            <ExpenseCategoryPayoutReadinessPanel
-              glPreview={paymentGlPreview}
-              payoutGate={paymentGlPreview?.payoutGate}
-            />
-          ) : null}
-          {bankAccounts.length === 0 ? (
-            <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Add at least one treasury account before posting payout.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">
-                  Payout breakdown
-                </label>
-                <button
-                  type="button"
-                  onClick={addRequestPayLine}
-                  className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal"
-                >
-                  <Plus size={14} /> Add line
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {requestPayLines.map((line) => (
-                  <div
-                    key={line.id}
-                    className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-2 px-2.5 shadow-sm flex flex-col gap-2"
-                  >
-                    <select
-                      value={line.treasuryAccountId}
-                      onChange={(e) => updateRequestPayLine(line.id, { treasuryAccountId: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-semibold"
-                    >
-                      <option value="">Select account…</option>
-                      {bankAccountsSelectOrder.map((a) => (
-                        <option key={a.id} value={String(a.id)}>
-                          {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
-                        </option>
-                      ))}
-                    </select>
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                    <input
-                      type="date"
-                      value={line.dateISO}
-                      onChange={(e) => updateRequestPayLine(line.id, { dateISO: e.target.value })}
-                      className="sm:col-span-3 w-full z-finance-field rounded-lg font-semibold"
-                      title="Payment date"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={line.amount}
-                      onChange={(e) => updateRequestPayLine(line.id, { amount: e.target.value })}
-                      className="sm:col-span-3 z-finance-field rounded-lg font-bold text-zarewa-teal"
-                      placeholder="Amount ₦"
-                    />
-                    <input
-                      type="text"
-                      value={line.reference}
-                      onChange={(e) => updateRequestPayLine(line.id, { reference: e.target.value })}
-                      className="sm:col-span-4 z-finance-field rounded-lg"
-                      placeholder="Reference"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeRequestPayLine(line.id)}
-                      className="sm:col-span-2 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-rose-500"
-                      title="Remove line"
-                    >
-                      <X size={16} />
-                    </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-1">
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Payment note</label>
-                <input
-                  value={requestPayNote}
-                  onChange={(e) => setRequestPayNote(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white py-3 px-4 text-sm"
-                  placeholder="Example: Cash 300,000 and GT transfer 200,000"
-                />
-              </div>
-              <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md px-3 py-3 shadow-sm">
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">This payout</span>
-                  <span className="font-black text-zarewa-teal">{formatNgn(requestPayTotalNgn)}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">Remaining after post</span>
-                  <span className="font-black text-gray-700">
-                    {formatNgn(
-                      Math.max(
-                        0,
-                        ((selectedPayment?.total ?? 0) - (selectedPayment?.paid ?? 0)) - requestPayTotalNgn
-                      )
-                    )}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {selectedPayment?.type === 'payment_request' && canPayRequests ? (
-                  <button
-                    type="button"
-                    disabled={treasuryPayoutSubmitting || cancelPayRequestBusyId === selectedPayment.id}
-                    onClick={() =>
-                      void cancelPaymentRequestBeforePay({
-                        requestID: selectedPayment.id,
-                      })
-                    }
-                    className="w-full border border-rose-200 bg-rose-50 text-rose-800 py-4 rounded-xl font-bold text-xs uppercase tracking-widest disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    {cancelPayRequestBusyId === selectedPayment.id ? 'Refusing…' : 'Refuse payout'}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={confirmProcessPaymentModal}
-                  disabled={
-                    treasuryPayoutSubmitting ||
-                    (selectedPayment?.type === 'payment_request' &&
-                      paymentGlPreview?.payoutGate &&
-                      paymentGlPreview.payoutGate.ok === false)
-                  }
-                  className={`w-full bg-zarewa-teal text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl disabled:opacity-70 disabled:cursor-not-allowed ${
-                    selectedPayment?.type === 'payment_request' && canPayRequests ? '' : 'sm:col-span-2'
-                  }`}
-                >
-                  {treasuryPayoutSubmitting
-                    ? 'Posting payout…'
-                    : selectedPayment?.type === 'po_transport'
-                      ? 'Confirm transport payout'
-                      : selectedPayment?.type === 'payment_request'
-                        ? 'Post expense payout'
-                        : 'Confirm transaction'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </ModalFrame>
+        selectedPayment={selectedPayment}
+        bankAccounts={bankAccounts}
+        bankAccountsSelectOrder={bankAccountsSelectOrder}
+        treasuryBookDisplayNgn={treasuryBookDisplayNgn}
+        treasuryAccountDisplayName={treasuryAccountDisplayName}
+        requestPayLines={requestPayLines}
+        onAddPayLine={addRequestPayLine}
+        onUpdatePayLine={updateRequestPayLine}
+        onRemovePayLine={removeRequestPayLine}
+        requestPayNote={requestPayNote}
+        onRequestPayNoteChange={setRequestPayNote}
+        paymentGlPreview={paymentGlPreview}
+        isSubmitting={treasuryPayoutSubmitting}
+        canPayRequests={canPayRequests}
+        cancelPayRequestBusyId={cancelPayRequestBusyId}
+        onCancelPaymentRequest={cancelPaymentRequestBeforePay}
+        onConfirmPay={confirmProcessPaymentModal}
+      />
 
       <ModalFrame
         isOpen={showAddBank}

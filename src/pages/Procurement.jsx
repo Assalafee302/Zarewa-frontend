@@ -30,6 +30,7 @@ import { purchaseOrderToUnifiedDraft } from '../lib/purchaseOrderDraft';
 import CoilPurchaseOrderModal from '../components/procurement/CoilPurchaseOrderModal';
 import StonePurchaseOrderModal from '../components/procurement/StonePurchaseOrderModal';
 import AccessoryPurchaseOrderModal from '../components/procurement/AccessoryPurchaseOrderModal';
+import { SupplierPaymentModal } from '../components/procurement/SupplierPaymentModal';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
@@ -67,12 +68,11 @@ import {
   SUPPLIER_BANK_ROW_TEMPLATE,
   SUPPLIER_CONTACT_ROW_TEMPLATE,
 } from '../lib/supplierProfileForm';
-import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
+import { treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
 import { createRequestPayLine, mapTreasuryPayoutLinesForApi } from '../lib/accountCore';
 import {
   findTreasuryPayoutShortAccount,
   treasuryBookBalanceByAccountId,
-  treasuryBookDisplayNgn,
 } from '../lib/financeDeskTreasury';
 
 import { TAB_LABELS, STANDARD_COIL_GAUGES_MM, PROCUREMENT_COIL_MATERIALS, procurementCoilMaterialByKey, kgPerMFromStripDensity, PROCUREMENT_PURCHASES_PAGE_SIZE } from './procurement/procurementTabShared.js';
@@ -88,13 +88,6 @@ const APPROVED_PURCHASE_WINDOWS = [
   { id: '6m', label: '6 months', months: 6 },
   { id: '12m', label: '1 year', months: 12 },
 ];
-
-const normalizeNairaInput = (value) => String(value ?? '').replace(/[^\d]/g, '');
-const formatNairaInput = (value) => {
-  const normalized = normalizeNairaInput(value);
-  if (!normalized) return '';
-  return Number(normalized).toLocaleString('en-NG');
-};
 
 const Procurement = () => {
   const location = useLocation();
@@ -189,6 +182,19 @@ const Procurement = () => {
   const [selectedAp, setSelectedAp] = useState(null);
   const [apPayLines, setApPayLines] = useState(() => [createRequestPayLine('')]);
   const [apPayBusy, setApPayBusy] = useState(false);
+
+  const selectedSupplier = useMemo(() => {
+    if (!selectedAp) return null;
+    const name = String(selectedAp.supplierName || '').trim().toLowerCase();
+    const id = String(selectedAp.supplierId || selectedAp.supplierID || '').trim();
+    return (
+      suppliers.find(
+        (s) =>
+          (id && (s.supplierID === id || s.id === id)) ||
+          (name && String(s.supplierName || '').trim().toLowerCase() === name)
+      ) || null
+    );
+  }, [selectedAp, suppliers]);
 
   const [supplierForm, setSupplierForm] = useState(() => ({
     name: '',
@@ -1887,160 +1893,26 @@ const Procurement = () => {
         </form>
       </ModalFrame>
 
-      <ModalFrame
+      <SupplierPaymentModal
         isOpen={showApPayModal}
         onClose={resetApPaymentModal}
-        showCloseButton={false}>
-        <div className="z-modal-panel max-w-lg w-full max-h-[min(92vh,820px)] flex flex-col p-0 overflow-hidden">
-          <div className="shrink-0 flex justify-between items-center px-6 pt-6 pb-4 border-b border-slate-200">
-            <h3 className="text-xl font-bold text-zarewa-teal flex items-center gap-2">
-              <RotateCcw size={22} className="text-rose-600" />
-              Supplier payment
-            </h3>
-            <button
-              type="button"
-              onClick={resetApPaymentModal}
-              className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
-              aria-label="Close"
-            >
-              <X size={22} />
-            </button>
-          </div>
-          {selectedAp ? (
-            <form className="flex-1 min-h-0 flex flex-col" onSubmit={saveApPayment}>
-              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 py-4 space-y-4">
-                <div className="bg-rose-50/80 rounded-2xl p-4 border border-rose-100 text-sm space-y-1">
-                <p className="font-mono font-bold text-zarewa-teal">{selectedAp.apID}</p>
-                <p className="font-bold text-gray-800">{selectedAp.supplierName}</p>
-                <p className="text-xs text-gray-600">
-                  {selectedAp.invoiceRef ? `${selectedAp.invoiceRef} · ` : ''}PO {selectedAp.poRef || '—'}
-                </p>
-                <div className="grid grid-cols-3 gap-3 pt-2 text-ui-xs text-gray-600 tabular-nums">
-                  <div>
-                    <p className="uppercase text-gray-400">Invoice</p>
-                    <p className="text-sm font-black text-zarewa-teal">{formatNgn(Number(selectedAp.amountNgn) || 0)}</p>
-                  </div>
-                  <div>
-                    <p className="uppercase text-gray-400">Paid</p>
-                    <p className="text-sm font-black text-zarewa-teal">{formatNgn(Number(selectedAp.paidNgn) || 0)}</p>
-                  </div>
-                  <div>
-                    <p className="uppercase text-gray-400">Balance</p>
-                    <p className="text-sm font-black text-rose-700">
-                      {formatNgn(payableOutstandingNgn(selectedAp))}
-                    </p>
-                  </div>
-                </div>
-                {selectedAp.poRef ? (
-                  <button
-                    type="button"
-                    className="mt-2 text-xs font-bold text-zarewa-teal underline"
-                    onClick={() => {
-                      setActiveTab('payables');
-                      setPaymentsView('adjustments');
-                      setAdjustmentPoId(String(selectedAp.poRef));
-                      resetApPaymentModal();
-                    }}
-                  >
-                    Second payment, wrong amount, or refund of an overpayment
-                  </button>
-                ) : null}
-                </div>
-              <div className="flex items-center justify-between">
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>
-                <button
-                  type="button"
-                  onClick={addApPayLine}
-                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-rose-800"
-                >
-                  <Plus size={14} /> Add line
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {apPayLines.map((line) => (
-                  <div
-                    key={line.id}
-                    className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-2 px-2.5 shadow-sm flex flex-col gap-2"
-                  >
-                    <select
-                      value={line.treasuryAccountId}
-                      onChange={(e) => updateApPayLine(line.id, { treasuryAccountId: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-semibold"
-                    >
-                      <option value="">Select account…</option>
-                      {treasuryAccounts.map((a) => (
-                        <option key={a.id} value={String(a.id)}>
-                          {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a, treasuryBookByAccountId))})
-                        </option>
-                      ))}
-                    </select>
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                      <input
-                        type="date"
-                        value={line.dateISO}
-                        onChange={(e) => updateApPayLine(line.id, { dateISO: e.target.value })}
-                        className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-semibold"
-                        title="Payment date"
-                      />
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={formatNairaInput(line.amount)}
-                        onChange={(e) =>
-                          updateApPayLine(line.id, { amount: normalizeNairaInput(e.target.value) })
-                        }
-                        className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-bold text-zarewa-teal"
-                        placeholder="Amount ₦"
-                      />
-                      <input
-                        type="text"
-                        value={line.reference}
-                        onChange={(e) => updateApPayLine(line.id, { reference: e.target.value })}
-                        className="sm:col-span-4 rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs"
-                        placeholder="Reference"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeApPayLine(line.id)}
-                        className="sm:col-span-2 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-rose-500"
-                        title="Remove line"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md px-3 py-3 shadow-sm">
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">This payout</span>
-                  <span className="font-black text-zarewa-teal">{formatNgn(apPayTotalNgn)}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">Remaining after post</span>
-                  <span className="font-black text-gray-700">
-                    {formatNgn(
-                      Math.max(
-                        0,
-                        Math.max(0, (Number(selectedAp.amountNgn) || 0) - (Number(selectedAp.paidNgn) || 0)) - apPayTotalNgn
-                      )
-                    )}
-                  </span>
-                </div>
-              </div>
-              <p className="text-ui-xs text-gray-500 leading-relaxed">
-                Saving this payout writes treasury movements and keeps the payable open until the invoice balance is fully paid.
-              </p>
-              </div>
-              <div className="shrink-0 border-t border-slate-200 bg-slate-50/90 px-6 py-3">
-                <button type="submit" disabled={apPayBusy} className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed">
-                  {apPayBusy ? 'Saving...' : 'Save payment'}
-                </button>
-              </div>
-            </form>
-          ) : null}
-        </div>
-      </ModalFrame>
+        selectedAp={selectedAp}
+        supplier={selectedSupplier}
+        apPayLines={apPayLines}
+        onUpdateApPayLine={updateApPayLine}
+        onAddApPayLine={addApPayLine}
+        onRemoveApPayLine={removeApPayLine}
+        treasuryAccounts={treasuryAccounts}
+        treasuryBookByAccountId={treasuryBookByAccountId}
+        apPayBusy={apPayBusy}
+        onSavePayment={saveApPayment}
+        onOpenAdjustments={(poRef) => {
+          setActiveTab('payables');
+          setPaymentsView('adjustments');
+          setAdjustmentPoId(String(poRef));
+          resetApPaymentModal();
+        }}
+      />
 
       <ModalFrame
         isOpen={showSupplierModal}

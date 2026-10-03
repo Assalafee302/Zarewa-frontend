@@ -1,6 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banknote, Plus, X } from 'lucide-react';
-import { ModalFrame } from '../layout';
+import {
+  AlertCircle,
+  Banknote,
+  Check,
+  Clock,
+  Copy,
+  FileText,
+  Info,
+  Plus,
+  Trash2,
+  User,
+  Users,
+  Wallet,
+  X,
+} from 'lucide-react';
+import { ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody, ModalScrollFooter } from '../layout';
 import { formatNgn } from '../../Data/mockData';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
@@ -14,8 +28,34 @@ import {
   treasuryBookDisplayNgn,
 } from '../../lib/financeDeskTreasury';
 
+function CopyButton({ text, label = 'Copy' }) {
+  const [copied, setCopied] = useState(false);
+  if (!text) return null;
+  const handleCopy = async (e) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(String(text));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* ignore */
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={`Copy ${label}`}
+      className="inline-flex items-center gap-1 text-ui-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors"
+    >
+      {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+      <span>{copied ? 'Copied' : 'Copy'}</span>
+    </button>
+  );
+}
+
 /**
- * Cashier OT payout popup — same treasury payout pattern as refunds / expenses.
+ * Cashier OT payout popup — modern treasury payout modal matching the refund payout pattern.
  */
 export function CashierOtPayModal({ requestId = '', open, onClose, onPaid }) {
   const ws = useWorkspace();
@@ -27,6 +67,7 @@ export function CashierOtPayModal({ requestId = '', open, onClose, onPaid }) {
   const [paidBy, setPaidBy] = useState('');
   const [payLines, setPayLines] = useState([]);
   const [paymentNote, setPaymentNote] = useState('');
+  const [activeTab, setActiveTab] = useState('disbursement'); // 'disbursement' | 'details'
 
   const treasuryMovements = useMemo(
     () => (Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : []),
@@ -84,6 +125,7 @@ export function CashierOtPayModal({ requestId = '', open, onClose, onPaid }) {
       setPaidBy('');
       setPayLines([]);
       setPaymentNote('');
+      setActiveTab('disbursement');
       return;
     }
     void load();
@@ -102,6 +144,9 @@ export function CashierOtPayModal({ requestId = '', open, onClose, onPaid }) {
     [payLines]
   );
 
+  const isExactMatch = payTotalNgn === lockedPayable && lockedPayable > 0;
+  const payDifference = lockedPayable - payTotalNgn;
+
   const updatePayLine = (lineId, patch) => {
     setPayLines((prev) => prev.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
   };
@@ -116,7 +161,7 @@ export function CashierOtPayModal({ requestId = '', open, onClose, onPaid }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     const id = String(requestId || '').trim();
     if (!id || busy || !detail?.request) return;
 
@@ -170,184 +215,512 @@ export function CashierOtPayModal({ requestId = '', open, onClose, onPaid }) {
 
   if (!open) return null;
   const req = detail?.request;
+  const staffLines = Array.isArray(detail?.staffLines) ? detail.staffLines : [];
+  const paymentLine = detail?.paymentLine;
+  const workDetails = detail?.workDetails;
 
   return (
-    <ModalFrame isOpen={open} onClose={handleClose} closeDisabled={busy} title="Overtime payout" showCloseButton={false}>
-      <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-xl font-bold text-zarewa-teal">
-            <Banknote size={22} className="text-teal-700" />
-            Overtime payout
-          </h3>
+    <ModalFrame
+      isOpen={open}
+      onClose={handleClose}
+      closeDisabled={busy}
+      surface="plain"
+      title={`Overtime Payout ${req?.id || ''}`}
+      showCloseButton={false}
+    >
+      <ModalScrollShell className="max-w-2xl bg-white shadow-2xl rounded-2xl border border-slate-200/80">
+        {/* Sticky Header */}
+        <ModalScrollHeader className="flex items-center justify-between gap-3 border-b border-slate-200/80 px-6 py-4 bg-white/95 backdrop-blur-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-xl bg-teal-50 text-zarewa-teal border border-teal-100/80 shadow-sm shrink-0">
+              <Banknote size={22} className="text-teal-700" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-slate-900 leading-none">Overtime Payout</h2>
+                {req?.id ? (
+                  <span className="font-mono text-ui-xs font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200/80">
+                    {req.id}
+                  </span>
+                ) : null}
+                {req?.branchId ? (
+                  <span className="text-ui-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                    Branch {req.branchId}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-ui-xs text-slate-500 mt-1 truncate">
+                {req ? (
+                  <>
+                    {req.dayIso} · {req.workType}
+                    {req.quotationRef ? ` · Ref: ${req.quotationRef}` : ''}
+                    {req.poId ? ` · PO: ${req.poId}` : ''}
+                  </>
+                ) : (
+                  'Overtime treasury settlement'
+                )}
+              </p>
+            </div>
+          </div>
           <button
             type="button"
             onClick={handleClose}
             disabled={busy}
-            className="rounded-xl p-2 text-gray-400 hover:text-red-500 disabled:opacity-50"
+            aria-label="Close dialog"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100/80 transition-colors shrink-0 disabled:opacity-40"
           >
-            <X size={22} />
+            <X size={20} />
           </button>
-        </div>
+        </ModalScrollHeader>
 
-        {loading ? <p className="py-8 text-center text-xs text-slate-500">Loading OT request…</p> : null}
-        {loadError ? (
-          <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">{loadError}</p>
-        ) : null}
+        {/* Scrollable Body */}
+        <ModalScrollBody className="p-6 space-y-5">
+          {loading ? (
+            <div className="py-16 text-center space-y-2">
+              <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-zarewa-teal border-t-transparent" />
+              <p className="text-xs text-slate-500">Loading OT request details…</p>
+            </div>
+          ) : null}
 
-        {!loading && req ? (
-          <form className="space-y-4" onSubmit={(e) => void handleSubmit(e)}>
-            <div className="space-y-1 rounded-2xl border border-teal-100 bg-teal-50/80 p-4 text-sm">
-              <p className="font-mono font-bold text-zarewa-teal">{req.id}</p>
-              <p className="font-bold text-gray-800">
-                {req.dayIso} · {req.workType}
-                {req.quotationRef ? ` · ${req.quotationRef}` : ''}
-                {req.poId ? ` · ${req.poId}` : ''}
-              </p>
-              {req.reason ? <p className="text-xs text-gray-600">{req.reason}</p> : null}
-              <div className="grid grid-cols-1 gap-2 pt-1 text-ui-xs sm:grid-cols-2">
-                <div>
-                  <p className="font-bold uppercase tracking-wide text-gray-400">Requested by</p>
-                  <p className="font-semibold text-gray-800">{req.createdByName || '—'}</p>
-                </div>
-                <div>
-                  <p className="font-bold uppercase tracking-wide text-gray-400">Approved by</p>
-                  <p className="font-semibold text-gray-800">{req.approvedByName || '—'}</p>
-                </div>
-              </div>
-              {detail.staffLines?.length ? (
-                <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950">
-                  <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">Staff on OT</p>
-                  <ul className="mt-1 space-y-0.5">
-                    {detail.staffLines.map((s) => (
-                      <li key={s.id || s.staffUserId}>
-                        {s.displayName || s.username || s.staffUserId}
-                        {s.roleLabel ? ` · ${s.roleLabel}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              <div className="grid grid-cols-2 gap-3 pt-2 text-ui-xs tabular-nums text-gray-600">
-                <div>
-                  <p className="uppercase text-gray-400">Locked payable</p>
-                  <p className="text-sm font-black text-zarewa-teal">{formatNgn(lockedPayable)}</p>
-                </div>
-                <div>
-                  <p className="uppercase text-gray-400">This payout</p>
-                  <p className="text-sm font-black text-teal-800">{formatNgn(payTotalNgn)}</p>
-                </div>
+          {loadError ? (
+            <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50/90 p-4 text-xs text-rose-900">
+              <AlertCircle size={18} className="shrink-0 text-rose-600 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold text-rose-950">Unable to load OT request</p>
+                <p className="text-rose-800">{loadError}</p>
               </div>
             </div>
+          ) : null}
 
-            {bankAccountsSelectOrder.length === 0 ? (
-              <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                Add at least one treasury account before posting payout.
-              </p>
-            ) : (
-              <>
-                <div>
-                  <label className="mb-1 ml-1 block text-ui-xs font-bold uppercase text-gray-400">
-                    Paid by (Finance user)
-                  </label>
-                  <input
-                    value={paidBy}
-                    onChange={(e) => setPaidBy(e.target.value)}
-                    placeholder="e.g. Hauwa — cash / transfer"
-                    className="z-finance-field w-full rounded-xl font-bold outline-none"
-                  />
+          {!loading && req ? (
+            <>
+              {/* Hero Balance Due Card */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-900 via-emerald-950 to-slate-900 p-5 text-white shadow-lg border border-teal-800/40">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-ui-xs font-bold uppercase tracking-wider text-teal-200/90">
+                      Total Overtime Payable Due
+                    </p>
+                    <p className="text-3xl font-extrabold tracking-tight text-white mt-1 tabular-nums">
+                      {formatNgn(lockedPayable)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-ui-xs font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                      Approved & Ready
+                    </span>
+                    <p className="text-ui-xs text-teal-200/80 mt-1">
+                      {staffLines.length} Staff {staffLines.length === 1 ? 'Member' : 'Members'}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <label className="ml-1 text-ui-xs font-bold uppercase text-gray-400">Payout breakdown</label>
-                  <button
-                    type="button"
-                    onClick={addPayLine}
-                    className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal"
-                  >
-                    <Plus size={14} /> Add line
-                  </button>
+                <div className="mt-4 pt-3 border-t border-teal-800/60 grid grid-cols-2 sm:grid-cols-3 gap-3 text-ui-xs">
+                  <div>
+                    <span className="text-teal-300/70 block uppercase">Work Type</span>
+                    <span className="font-semibold text-teal-100 truncate block mt-0.5">{req.workType || 'Overtime'}</span>
+                  </div>
+                  <div>
+                    <span className="text-teal-300/70 block uppercase">Requested By</span>
+                    <span className="font-semibold text-teal-100 truncate block mt-0.5">{req.createdByName || '—'}</span>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <span className="text-teal-300/70 block uppercase">Approved By</span>
+                    <span className="font-semibold text-teal-100 truncate block mt-0.5">{req.approvedByName || '—'}</span>
+                  </div>
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  {payLines.map((line) => (
-                    <div
-                      key={line.id}
-                      className="flex flex-col gap-2 rounded-lg border border-slate-200/60 bg-white/40 px-2.5 py-2 shadow-sm backdrop-blur-md"
-                    >
-                      <select
-                        value={line.treasuryAccountId}
-                        onChange={(e) => updatePayLine(line.id, { treasuryAccountId: e.target.value })}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-semibold"
+              {/* Beneficiary / Staff Summary Card */}
+              {staffLines.length > 0 ? (
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-ui-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                      <Users size={14} className="text-slate-400" />
+                      Staff Beneficiaries ({staffLines.length})
+                    </span>
+                    <span className="text-ui-xs text-slate-500 font-medium">
+                      Date: {req.dayIso}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {staffLines.map((s) => (
+                      <div
+                        key={s.id || s.staffUserId}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs shadow-2xs"
                       >
-                        <option value="">Select account…</option>
-                        {bankAccountsSelectOrder.map((a) => (
-                          <option key={a.id} value={String(a.id)}>
-                            {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a, treasuryBookByAccountId))})
-                          </option>
-                        ))}
-                      </select>
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={line.amount}
-                          onChange={(e) => updatePayLine(line.id, { amount: e.target.value })}
-                          placeholder="Amount ₦"
-                          className="w-full rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold tabular-nums"
-                        />
-                        <input
-                          type="date"
-                          value={line.dateISO}
-                          onChange={(e) => updatePayLine(line.id, { dateISO: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={line.reference}
-                          onChange={(e) => updatePayLine(line.id, { reference: e.target.value })}
-                          placeholder="Reference (optional)"
-                          className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold"
-                        />
-                        {payLines.length > 1 ? (
-                          <button
-                            type="button"
-                            onClick={() => removePayLine(line.id)}
-                            className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-2 text-ui-xs font-bold uppercase text-rose-800"
-                          >
-                            Remove
-                          </button>
+                        <User size={13} className="text-slate-400" />
+                        <span className="font-semibold text-slate-800">
+                          {s.displayName || s.username || s.staffUserId}
+                        </span>
+                        {s.roleLabel ? (
+                          <span className="text-ui-xs text-slate-500">· {s.roleLabel}</span>
                         ) : null}
                       </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Workflow Tabs */}
+              <div className="flex border-b border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('disbursement')}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-colors ${
+                    activeTab === 'disbursement'
+                      ? 'border-zarewa-teal text-zarewa-teal'
+                      : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  <Wallet size={15} />
+                  Disbursement
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('details')}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-colors ${
+                    activeTab === 'details'
+                      ? 'border-zarewa-teal text-zarewa-teal'
+                      : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  <Info size={15} />
+                  Overtime Details & Staff ({staffLines.length})
+                </button>
+              </div>
+
+              {/* TAB 1: Disbursement */}
+              {activeTab === 'disbursement' ? (
+                <div className="space-y-4">
+                  {bankAccountsSelectOrder.length === 0 ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex items-start gap-2">
+                      <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">No Treasury Accounts Configured</p>
+                        <p className="mt-0.5">Please add at least one treasury account before posting OT payouts.</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-ui-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                          Disbursed By (Finance Actor)
+                        </label>
+                        <input
+                          type="text"
+                          value={paidBy}
+                          onChange={(e) => setPaidBy(e.target.value)}
+                          placeholder={`e.g. ${activeActorLabel} — cash / bank transfer`}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-900 placeholder-slate-400 focus:border-zarewa-teal focus:outline-none focus:ring-1 focus:ring-zarewa-teal"
+                        />
+                      </div>
 
-                <div>
-                  <label className="mb-1 ml-1 block text-ui-xs font-bold uppercase text-gray-400">Payment note</label>
-                  <textarea
-                    rows={2}
-                    value={paymentNote}
-                    onChange={(e) => setPaymentNote(e.target.value)}
-                    className="z-finance-field w-full rounded-xl font-semibold outline-none"
-                    placeholder="Optional note for the treasury movement"
-                  />
-                </div>
-              </>
-            )}
+                      {/* Multi-line Treasury Breakdown */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-ui-xs font-bold uppercase tracking-wider text-slate-500">
+                            Treasury Payout Lines
+                          </label>
+                          <button
+                            type="button"
+                            onClick={addPayLine}
+                            className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-ui-xs font-bold text-zarewa-teal hover:bg-teal-100 transition-colors"
+                          >
+                            <Plus size={13} />
+                            Add line
+                          </button>
+                        </div>
 
+                        <div className="space-y-2">
+                          {payLines.map((line, idx) => (
+                            <div
+                              key={line.id}
+                              className="rounded-xl border border-slate-200/90 bg-slate-50/60 p-3 space-y-2 shadow-2xs"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-ui-xs font-bold text-slate-400">Line {idx + 1}</span>
+                                {payLines.length > 1 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => removePayLine(line.id)}
+                                    className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                    title="Remove line"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                ) : null}
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                                <div className="sm:col-span-6">
+                                  <select
+                                    value={line.treasuryAccountId}
+                                    onChange={(e) => updatePayLine(line.id, { treasuryAccountId: e.target.value })}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-900 focus:border-zarewa-teal focus:outline-none"
+                                  >
+                                    <option value="">Select treasury account…</option>
+                                    {bankAccountsSelectOrder.map((a) => (
+                                      <option key={a.id} value={String(a.id)}>
+                                        {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a, treasuryBookByAccountId))})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="sm:col-span-3">
+                                  <input
+                                    type="date"
+                                    value={line.dateISO}
+                                    onChange={(e) => updatePayLine(line.id, { dateISO: e.target.value })}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-900 focus:border-zarewa-teal focus:outline-none"
+                                    title="Disbursement Date"
+                                  />
+                                </div>
+                                <div className="sm:col-span-3">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={line.amount}
+                                    onChange={(e) => updatePayLine(line.id, { amount: e.target.value })}
+                                    placeholder="Amount ₦"
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-zarewa-teal tabular-nums focus:border-zarewa-teal focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <input
+                                type="text"
+                                value={line.reference}
+                                onChange={(e) => updatePayLine(line.id, { reference: e.target.value })}
+                                placeholder="Reference / Cheque # / Transfer session ID (optional)"
+                                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:border-zarewa-teal focus:outline-none"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Payment Note */}
+                      <div>
+                        <label className="block text-ui-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                          Payment Note
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={paymentNote}
+                          onChange={(e) => setPaymentNote(e.target.value)}
+                          placeholder="Audit note for this overtime disbursement (optional)"
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-zarewa-teal focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Live Calculation Summary */}
+                      <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-4 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-600">This Payout Amount:</span>
+                          <span className="font-black text-slate-900 tabular-nums text-sm">
+                            {formatNgn(payTotalNgn)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-600">Locked Payable Due:</span>
+                          <span className="font-bold text-slate-700 tabular-nums">
+                            {formatNgn(lockedPayable)}
+                          </span>
+                        </div>
+                        <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-600">Disbursement Status:</span>
+                          {isExactMatch ? (
+                            <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              <Check size={12} /> Exact match (ready to post)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                              <AlertCircle size={12} />
+                              {payDifference > 0
+                                ? `Remaining: ${formatNgn(payDifference)}`
+                                : `Exceeds by: ${formatNgn(Math.abs(payDifference))}`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : null}
+
+              {/* TAB 2: Details & Staff */}
+              {activeTab === 'details' ? (
+                <div className="space-y-4">
+                  {/* Reason / Purpose */}
+                  <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-1.5">
+                    <p className="text-ui-xs font-bold uppercase tracking-wider text-slate-500">
+                      Overtime Reason / Description
+                    </p>
+                    <p className="text-xs text-slate-800 leading-relaxed font-medium">
+                      {req.reason || 'No specific reason provided.'}
+                    </p>
+                  </div>
+
+                  {/* Payment Line & Rate details if present */}
+                  {paymentLine ? (
+                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2">
+                      <p className="text-ui-xs font-bold uppercase tracking-wider text-slate-500">
+                        Payment Rate & Category
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div>
+                          <span className="text-slate-400 block text-ui-xs uppercase">Category</span>
+                          <span className="font-bold text-slate-800">{paymentLine.category || 'Standard'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-ui-xs uppercase">Quantity / Hours</span>
+                          <span className="font-bold text-slate-800">{paymentLine.quantity || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-ui-xs uppercase">Approved Rate</span>
+                          <span className="font-bold text-slate-800">
+                            {paymentLine.rateApproved != null ? formatNgn(Number(paymentLine.rateApproved)) : '—'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-ui-xs uppercase">Approved Amount</span>
+                          <span className="font-black text-zarewa-teal">
+                            {paymentLine.amountNgn != null ? formatNgn(Number(paymentLine.amountNgn)) : '—'}
+                          </span>
+                        </div>
+                      </div>
+                      {paymentLine.remarks ? (
+                        <p className="text-ui-xs text-slate-600 pt-1 border-t border-slate-200">
+                          <span className="font-bold">Remarks:</span> {paymentLine.remarks}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {/* Work details if present */}
+                  {workDetails ? (
+                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2">
+                      <p className="text-ui-xs font-bold uppercase tracking-wider text-slate-500">
+                        Work & Material Output
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                        <div>
+                          <span className="text-slate-400 block text-ui-xs uppercase">Work Done</span>
+                          <span className="font-bold text-slate-800">{workDetails.workDone || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-ui-xs uppercase">Material</span>
+                          <span className="font-bold text-slate-800">{workDetails.materialType || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-ui-xs uppercase">Quantity Unit</span>
+                          <span className="font-bold text-slate-800">
+                            {workDetails.quantity ? `${workDetails.quantity} ${workDetails.quantityUnit || ''}` : '—'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Staff on OT Detailed List */}
+                  <div className="rounded-xl border border-slate-200/80 bg-white p-4 space-y-2">
+                    <p className="text-ui-xs font-bold uppercase tracking-wider text-slate-500">
+                      Staff Roster
+                    </p>
+                    {staffLines.length === 0 ? (
+                      <p className="text-xs text-slate-400 py-2">No individual staff lines recorded.</p>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {staffLines.map((s, idx) => (
+                          <div key={s.id || s.staffUserId || idx} className="py-2.5 flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="h-7 w-7 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-zarewa-teal font-bold text-ui-xs">
+                                {idx + 1}
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-900">{s.displayName || s.username || s.staffUserId}</p>
+                                <p className="text-ui-xs text-slate-500">{s.roleLabel || 'Staff Member'}</p>
+                              </div>
+                            </div>
+                            {s.startTime || s.endTime ? (
+                              <div className="text-right text-ui-xs text-slate-500 flex items-center gap-1">
+                                <Clock size={12} className="text-slate-400" />
+                                <span>{s.startTime || '—'} – {s.endTime || '—'}</span>
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Request & Approval Timeline */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 space-y-1">
+                      <span className="text-ui-xs font-bold uppercase tracking-wider text-slate-400 block">Requested By</span>
+                      <p className="font-bold text-slate-800">{req.createdByName || '—'}</p>
+                      <p className="text-ui-xs text-slate-500">Date: {req.dayIso}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 space-y-1">
+                      <span className="text-ui-xs font-bold uppercase tracking-wider text-slate-400 block">Approved By</span>
+                      <p className="font-bold text-slate-800">{req.approvedByName || '—'}</p>
+                      <p className="text-ui-xs text-emerald-600 font-semibold">Status: Approved for payout</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </ModalScrollBody>
+
+        {/* Sticky Action Footer */}
+        <ModalScrollFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-slate-200/80 px-6 py-4 bg-slate-50/95">
+          <div className="text-ui-xs text-slate-600 font-medium">
+            {req ? (
+              <span>
+                This payout:{' '}
+                <strong className="text-slate-900 tabular-nums font-bold">
+                  {formatNgn(payTotalNgn)}
+                </strong>
+                {payTotalNgn === lockedPayable ? (
+                  <span className="text-emerald-700 ml-1.5 font-bold">✓ Ready</span>
+                ) : (
+                  <span className="text-amber-700 ml-1.5 font-bold">
+                    ({formatNgn(Math.abs(lockedPayable - payTotalNgn))} {payTotalNgn > lockedPayable ? 'over' : 'remaining'})
+                  </span>
+                )}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex items-center justify-end gap-2.5">
             <button
-              type="submit"
-              disabled={busy || bankAccountsSelectOrder.length === 0}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-zarewa-teal px-4 py-3 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-teal-800 disabled:opacity-50"
+              type="button"
+              onClick={handleClose}
+              disabled={busy}
+              className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 rounded-xl transition-colors disabled:opacity-40"
             >
-              {busy ? 'Posting…' : `Post OT payout · ${formatNgn(lockedPayable)}`}
+              Cancel
             </button>
-          </form>
-        ) : null}
-      </div>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={busy || bankAccountsSelectOrder.length === 0 || payTotalNgn !== lockedPayable || loading}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-xs font-black uppercase tracking-wide text-white bg-zarewa-teal hover:bg-teal-800 rounded-xl shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {busy ? (
+                <>
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span>Posting OT payout…</span>
+                </>
+              ) : (
+                <span>Post OT Payout · {formatNgn(lockedPayable)}</span>
+              )}
+            </button>
+          </div>
+        </ModalScrollFooter>
+      </ModalScrollShell>
     </ModalFrame>
   );
 }
