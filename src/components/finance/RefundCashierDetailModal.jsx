@@ -3,7 +3,7 @@
  * onto another quotation. Does not approve or pay; Payout stays a separate action.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { Printer, RotateCcw } from 'lucide-react';
+import { FileText, History, Landmark, Printer, RotateCcw } from 'lucide-react';
 import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalActionFooter } from '../layout';
 import { formatNgn } from '../../Data/mockData';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -11,7 +11,16 @@ import { apiFetch } from '../../lib/apiBase';
 import { flattenQuotationLineItems } from '../../lib/managerDashboardCore';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
 import { refundStatusIsWithdrawn, refundPublicStatusLabel } from '../../lib/refundsStore';
-import { refundCashierCustomerName, refundCashierMoneyStory, refundCashierOverpayResidualNgn, refundCashierReleasableOverpayCredits, refundCashierOverpayTillGate, refundDefaultTreasuryPayoutNgn, refundRecipientTillPayoutRows, actorMayOverrideRefundUnclearedPayoutHold } from '../../lib/refundCashierDetail';
+import {
+  refundCashierCustomerName,
+  refundCashierMoneyStory,
+  refundCashierOverpayResidualNgn,
+  refundCashierReleasableOverpayCredits,
+  refundCashierOverpayTillGate,
+  refundDefaultTreasuryPayoutNgn,
+  refundRecipientTillPayoutRows,
+  actorMayOverrideRefundUnclearedPayoutHold,
+} from '../../lib/refundCashierDetail';
 import { refundCreditApplicationIsActive } from '../../lib/refundFundApply.js';
 import { printRefundRecord } from '../../lib/refundRecordPrint.js';
 import { FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
@@ -38,6 +47,7 @@ function MoneyRow({ label, value, tone }) {
 
 export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onReverseApply, onApplied }) {
   const ws = useWorkspace();
+  const [activeTab, setActiveTab] = useState('settlement'); // 'settlement' | 'quotation' | 'ledger'
   const overrideUnclearedHold = actorMayOverrideRefundUnclearedPayoutHold(
     ws?.session?.user,
     ws?.hasPermission,
@@ -107,6 +117,7 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
       (a) => refundCreditApplicationIsActive(a) && String(a.refundId || a.refund_id || '').trim() === self
     );
   }, [ws?.snapshot?.refundCreditApplications, refund?.refundID]);
+
   const payouts = Array.isArray(refund?.payoutHistory) ? refund.payoutHistory : [];
   const customerName = refundCashierCustomerName(refund, quote);
   const quoteTotal = Math.round(Number(quote?.totalNgn ?? quote?.total_ngn) || 0);
@@ -193,8 +204,9 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
 
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose} title={`Refund ${refund.refundID || ''}`} surface="plain">
-      <ModalScrollShell>
-        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
+      <ModalScrollShell size="lg">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-slate-200/80 bg-white">
           <div className="min-w-0">
             <p className="text-ui-xs font-bold uppercase tracking-widest text-rose-800">Refund transaction</p>
             <h2 className="text-lg font-black text-slate-900 font-mono truncate">{refund.refundID}</h2>
@@ -214,306 +226,381 @@ export function RefundCashierDetailModal({ refund, isOpen, onClose, onPay, onRev
               type="button"
               onClick={() => printRefundRecord(refund, formatNgn)}
               title="Print A5 landscape refund voucher (top half of A4 — cut in two)"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
             >
               <Printer size={14} aria-hidden />
               Print A5
             </button>
-            <RotateCcw className="text-rose-600" size={22} aria-hidden />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+              <RotateCcw size={18} aria-hidden />
+            </div>
           </div>
         </div>
+
+        {/* Tab Selector */}
+        <div className="px-5 pt-3 bg-slate-50/50">
+          <div className="flex rounded-xl bg-slate-200/70 p-1 border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setActiveTab('settlement')}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-bold transition ${
+                activeTab === 'settlement'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Landmark size={14} />
+              <span>Settlement & Payouts</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('quotation')}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-bold transition ${
+                activeTab === 'quotation'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileText size={14} />
+              <span>Quotation & Items</span>
+              {quoteLines.length > 0 ? (
+                <span className="rounded bg-slate-200 px-1.5 py-0.2 font-mono text-ui-xs font-bold text-slate-700">
+                  {quoteLines.length}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('ledger')}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-bold transition ${
+                activeTab === 'ledger'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <History size={14} />
+              <span>Ledger & History</span>
+              {ledgerOnQuote.length > 0 ? (
+                <span className="rounded bg-slate-200 px-1.5 py-0.2 font-mono text-ui-xs font-bold text-slate-700">
+                  {ledgerOnQuote.length}
+                </span>
+              ) : null}
+            </button>
+          </div>
+        </div>
+
         <ModalScrollBody className="px-5 pb-4 space-y-4">
-          <RefundPayoutSituationPanel refund={refund} />
-          {story.appliedNgn > 0 ? (
-            <RefundFundBalanceStrip
-              amountNgn={story.requestedNgn}
-              creditAppliedNgn={story.appliedNgn}
-              paidAmountNgn={story.paidNgn}
-              creditAppliedToQuotationRef={story.appliedToQuote}
-              leftoverHint="payout"
-            />
-          ) : null}
-          {story.appliedNgn > 0 && creditApplies.length > 0 && onReverseApply ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-              <span className="block">
-                {creditApplies.map((a) => (
-                  <FinanceDeskQueueActionButton
-                    key={a.applicationId || a.application_id}
-                    tone="rose"
-                    onClick={() => onReverseApply(a.applicationId || a.application_id)}
-                  >
-                    Reverse apply
-                  </FinanceDeskQueueActionButton>
-                ))}
-              </span>
-            </div>
-          ) : null}
+          {/* TAB 1: Settlement & Payouts */}
+          <div className={activeTab === 'settlement' ? 'space-y-4' : 'hidden'}>
+            {/* Till Gate Alert: Block Cash Payout */}
+            {blockCashPayout ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-950 leading-relaxed" role="alert">
+                Do not pay this from the till. Overpayment left on the quotation is {formatNgn(overpayResidualNgn)} after
+                other refunds on this quote. Paying {formatNgn(story.cashDueNgn)} would double-pay the customer.
+              </div>
+            ) : willReleaseOverpayCreditOnPay ? (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-950 leading-relaxed" role="status">
+                Overpayment left on this quotation shows {formatNgn(overpayResidualNgn)}
+                {freeableOverpayCreditNgn > 0
+                  ? ` (about ${formatNgn(freeableOverpayCreditNgn)} was used on confirm-payment / other unpaid overpay refunds)`
+                  : ''}
+                . Paying {formatNgn(story.cashDueNgn)} will free that residual first (undo confirm credit and/or cancel
+                other unpaid overpayment refunds on this quote), then post till/bank. Other quotations may need cash
+                re-confirmed.
+              </div>
+            ) : null}
 
-          <RefundApplyToQuotationPanel
-            refund={refund}
-            onApplied={async () => {
-              await onApplied?.();
-            }}
-          />
+            <RefundPayoutSituationPanel refund={refund} />
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3 space-y-1.5">
-            <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-1">How this refund was used</p>
-            <MoneyRow label="Requested" value={story.requestedNgn} />
             {story.appliedNgn > 0 ? (
-              <MoneyRow
-                label={story.appliedToQuote ? `Applied to ${story.appliedToQuote}` : 'Applied to a receipt'}
-                value={story.appliedNgn}
-                tone="amber"
+              <RefundFundBalanceStrip
+                amountNgn={story.requestedNgn}
+                creditAppliedNgn={story.appliedNgn}
+                paidAmountNgn={story.paidNgn}
+                creditAppliedToQuotationRef={story.appliedToQuote}
+                leftoverHint="payout"
               />
             ) : null}
-            <MoneyRow label="Approved for cash" value={story.approvedNgn} />
-            {story.companyCutNgn > 0 ? (
-              <MoneyRow label="Company cut (retained)" value={story.companyCutNgn} tone="amber" />
-            ) : null}
-            {story.unclearedHoldNgn > 0 ? (
-              <MoneyRow label="Uncleared receipts pending" value={story.unclearedHoldNgn} tone="amber" />
-            ) : null}
-            {story.settledAtApprovalNgn > 0 ? (
-              <MoneyRow label="Settled at BM approval" value={story.settledAtApprovalNgn} tone="amber" />
-            ) : null}
-            <MoneyRow label="Paid from till / bank" value={story.treasuryPaidNgn} tone="emerald" />
-            <MoneyRow label="Still to pay" value={story.cashDueNgn} tone="rose" />
-          </div>
 
-          {recipientTillRows.length > 0 ? (
-            <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 space-y-2">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
-              <p className="text-ui-xs text-sky-900/85 leading-relaxed">
-                Payees stay listed even when till cash is held. Confirm receipts on this quotation
-                first
-                {overrideUnclearedHold
-                  ? '; small holds (≤ ₦50,000) can be released with a payment note, or ask BM / Head of Accounts for larger holds.'
-                  : '.'}{' '}
-                Overpayment may cover a receipt on Confirm payment.
-              </p>
-              <ul className="space-y-2">
-                {recipientTillRows.map((row) => (
-                  <li
-                    key={`${row.queueKey}-${row.recipientLabel}`}
-                    className="rounded-lg border border-sky-200/70 bg-white/60 px-2.5 py-2"
-                  >
-                    <div className="flex justify-between gap-2 text-xs text-sky-950">
-                      <span className="font-semibold">
-                        {row.recipientKind === 'associated_staff' ? 'Staff: ' : ''}
-                        {row.recipientLabel}
-                      </span>
-                      <span className="tabular-nums font-bold">
-                        {formatNgn(row.amountDueNgn > 0 ? row.amountDueNgn : row.netPayoutNgn)}
-                        {row.amountDueNgn > 0 && row.amountDueNgn < row.netPayoutNgn ? ' left' : ' net'}
-                      </span>
-                    </div>
-                    {row.payeeAccountNo || row.payeeBankName ? (
-                      <p className="text-ui-xs text-sky-900/80 truncate">
-                        Acct:{' '}
-                        <span className="font-mono tabular-nums">{row.payeeAccountNo || '—'}</span>
-                        {row.payeeBankName ? ` · ${row.payeeBankName}` : ''}
-                      </p>
-                    ) : null}
-                    <div className="mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-ui-xs">
-                      <span
-                        className={
-                          row.payoutStatus === 'till_due' || row.payoutStatus === 'till_due_partial_held'
-                            ? 'font-bold text-rose-800'
-                            : row.payoutStatus === 'admin_override_uncleared'
-                              ? 'font-semibold text-amber-900'
-                            : row.payoutStatus === 'wallet_due'
-                              ? 'font-semibold text-violet-900'
-                            : row.payoutStatus === 'held_uncleared'
-                              ? 'font-semibold text-amber-900'
-                              : row.payoutStatus === 'referral_available'
-                                ? 'font-semibold text-emerald-900'
-                                : 'font-semibold text-slate-600'
-                        }
-                      >
-                        {row.payoutStatusLabel}
-                        {row.payoutStatus === 'till_due' ? ` · ${formatNgn(row.amountDueNgn)}` : ''}
-                        {row.payoutStatus === 'till_due_partial_held'
-                          ? ` · Pay ${formatNgn(row.amountDueNgn)} now · ${formatNgn(row.unclearedWithheldNgn)} held`
-                          : ''}
-                        {row.payoutStatus === 'admin_override_uncleared'
-                          ? ` · ${formatNgn(row.amountDueNgn)} admin exception`
-                          : ''}
-                        {row.payoutStatus === 'held_uncleared'
-                          ? ` · ${formatNgn(row.netPayoutNgn)} net held`
-                          : ''}
-                        {row.payoutStatus === 'wallet_due'
-                          ? ` · ${formatNgn(row.walletOpenForPayeeNgn || row.netPayoutNgn)}`
-                          : ''}
-                        {row.payoutStatus === 'referral_available'
-                          ? ` · ${formatNgn(row.netPayoutNgn)} for cashier referral`
-                          : ''}
-                      </span>
-                      {row.payoutStatus === 'till_due' ||
-                      row.payoutStatus === 'till_due_partial_held' ||
-                      row.payoutStatus === 'admin_override_uncleared' ||
-                      row.payoutStatus === 'wallet_due' ? (
-                        <span
-                          className={`font-bold uppercase tracking-wide ${
-                            row.payoutStatus === 'wallet_due' ? 'text-violet-700' : 'text-rose-700'
-                          }`}
-                        >
-                          {row.payoutStatus === 'admin_override_uncleared'
-                            ? 'Admin exception'
-                            : row.payoutStatus === 'wallet_due'
-                              ? 'Partner wallet'
-                              : 'In payout queue'}
+            {story.appliedNgn > 0 && creditApplies.length > 0 && onReverseApply ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                <span className="block">
+                  {creditApplies.map((a) => (
+                    <FinanceDeskQueueActionButton
+                      key={a.applicationId || a.application_id}
+                      tone="rose"
+                      onClick={() => onReverseApply(a.applicationId || a.application_id)}
+                    >
+                      Reverse apply
+                    </FinanceDeskQueueActionButton>
+                  ))}
+                </span>
+              </div>
+            ) : null}
+
+            <RefundApplyToQuotationPanel
+              refund={refund}
+              onApplied={async () => {
+                await onApplied?.();
+              }}
+            />
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-3 space-y-1.5">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 mb-1">How this refund was used</p>
+              <MoneyRow label="Requested" value={story.requestedNgn} />
+              {story.appliedNgn > 0 ? (
+                <MoneyRow
+                  label={story.appliedToQuote ? `Applied to ${story.appliedToQuote}` : 'Applied to a receipt'}
+                  value={story.appliedNgn}
+                  tone="amber"
+                />
+              ) : null}
+              <MoneyRow label="Approved for cash" value={story.approvedNgn} />
+              {story.companyCutNgn > 0 ? (
+                <MoneyRow label="Company cut (retained)" value={story.companyCutNgn} tone="amber" />
+              ) : null}
+              {story.unclearedHoldNgn > 0 ? (
+                <MoneyRow label="Uncleared receipts pending" value={story.unclearedHoldNgn} tone="amber" />
+              ) : null}
+              {story.settledAtApprovalNgn > 0 ? (
+                <MoneyRow label="Settled at BM approval" value={story.settledAtApprovalNgn} tone="amber" />
+              ) : null}
+              <MoneyRow label="Paid from till / bank" value={story.treasuryPaidNgn} tone="emerald" />
+              <MoneyRow label="Still to pay" value={story.cashDueNgn} tone="rose" />
+            </div>
+
+            {recipientTillRows.length > 0 ? (
+              <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3.5 py-3 space-y-2">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
+                <p className="text-ui-xs text-sky-900/85 leading-relaxed">
+                  Payees stay listed even when till cash is held. Confirm receipts on this quotation
+                  first
+                  {overrideUnclearedHold
+                    ? '; small holds (≤ ₦50,000) can be released with a payment note, or ask BM / Head of Accounts for larger holds.'
+                    : '.'}{' '}
+                  Overpayment may cover a receipt on Confirm payment.
+                </p>
+                <ul className="space-y-2">
+                  {recipientTillRows.map((row) => (
+                    <li
+                      key={`${row.queueKey}-${row.recipientLabel}`}
+                      className="rounded-lg border border-sky-200/70 bg-white/60 px-2.5 py-2"
+                    >
+                      <div className="flex justify-between gap-2 text-xs text-sky-950">
+                        <span className="font-semibold">
+                          {row.recipientKind === 'associated_staff' ? 'Staff: ' : ''}
+                          {row.recipientLabel}
                         </span>
+                        <span className="tabular-nums font-bold">
+                          {formatNgn(row.amountDueNgn > 0 ? row.amountDueNgn : row.netPayoutNgn)}
+                          {row.amountDueNgn > 0 && row.amountDueNgn < row.netPayoutNgn ? ' left' : ' net'}
+                        </span>
+                      </div>
+                      {row.payeeAccountNo || row.payeeBankName ? (
+                        <p className="text-ui-xs text-sky-900/80 truncate">
+                          Acct:{' '}
+                          <span className="font-mono tabular-nums">{row.payeeAccountNo || '—'}</span>
+                          {row.payeeBankName ? ` · ${row.payeeBankName}` : ''}
+                        </p>
                       ) : null}
-                    </div>
-                    {(row.payoutStatus === 'held_uncleared' || row.payoutStatus === 'till_due_partial_held') &&
-                    row.unclearedReceiptIds?.length ? (
-                      <p className="mt-1 text-ui-xs text-amber-900">
-                        Go confirm{' '}
-                        {row.unclearedReceiptIds.map((rid, idx) => (
-                          <React.Fragment key={rid}>
-                            {idx > 0 ? ', ' : ''}
-                            <span className="font-mono font-semibold">{rid}</span>
-                          </React.Fragment>
-                        ))}{' '}
-                        on the receipts desk to release this hold.
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : story.hasStaffSplit && story.splitBreakdown?.length > 1 ? (
-            <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 space-y-1.5">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
-              <ul className="space-y-1">
-                {story.splitBreakdown.map((row) => (
-                  <li
-                    key={`${row.recipientKind}-${row.recipientLabel}-${row.netPayoutNgn}`}
-                    className="flex justify-between gap-2 text-xs text-sky-950"
-                  >
-                    <span className="font-semibold">{row.recipientLabel}</span>
-                    <span className="tabular-nums font-bold">{formatNgn(row.netPayoutNgn)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+                      <div className="mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-ui-xs">
+                        <span
+                          className={
+                            row.payoutStatus === 'till_due' || row.payoutStatus === 'till_due_partial_held'
+                              ? 'font-bold text-rose-800'
+                              : row.payoutStatus === 'admin_override_uncleared'
+                                ? 'font-semibold text-amber-900'
+                              : row.payoutStatus === 'wallet_due'
+                                ? 'font-semibold text-violet-900'
+                              : row.payoutStatus === 'held_uncleared'
+                                ? 'font-semibold text-amber-900'
+                                : row.payoutStatus === 'referral_available'
+                                  ? 'font-semibold text-emerald-900'
+                                  : 'font-semibold text-slate-600'
+                          }
+                        >
+                          {row.payoutStatusLabel}
+                          {row.payoutStatus === 'till_due' ? ` · ${formatNgn(row.amountDueNgn)}` : ''}
+                          {row.payoutStatus === 'till_due_partial_held'
+                            ? ` · Pay ${formatNgn(row.amountDueNgn)} now · ${formatNgn(row.unclearedWithheldNgn)} held`
+                            : ''}
+                          {row.payoutStatus === 'admin_override_uncleared'
+                            ? ` · ${formatNgn(row.amountDueNgn)} admin exception`
+                            : ''}
+                          {row.payoutStatus === 'held_uncleared'
+                            ? ` · ${formatNgn(row.netPayoutNgn)} net held`
+                            : ''}
+                          {row.payoutStatus === 'wallet_due'
+                            ? ` · ${formatNgn(row.walletOpenForPayeeNgn || row.netPayoutNgn)}`
+                            : ''}
+                          {row.payoutStatus === 'referral_available'
+                            ? ` · ${formatNgn(row.netPayoutNgn)} for cashier referral`
+                            : ''}
+                        </span>
+                        {row.payoutStatus === 'till_due' ||
+                        row.payoutStatus === 'till_due_partial_held' ||
+                        row.payoutStatus === 'admin_override_uncleared' ||
+                        row.payoutStatus === 'wallet_due' ? (
+                          <span
+                            className={`font-bold uppercase tracking-wide ${
+                              row.payoutStatus === 'wallet_due' ? 'text-violet-700' : 'text-rose-700'
+                            }`}
+                          >
+                            {row.payoutStatus === 'admin_override_uncleared'
+                              ? 'Admin exception'
+                              : row.payoutStatus === 'wallet_due'
+                                ? 'Partner wallet'
+                                : 'In payout queue'}
+                          </span>
+                        ) : null}
+                      </div>
+                      {(row.payoutStatus === 'held_uncleared' || row.payoutStatus === 'till_due_partial_held') &&
+                      row.unclearedReceiptIds?.length ? (
+                        <p className="mt-1 text-ui-xs text-amber-900">
+                          Go confirm{' '}
+                          {row.unclearedReceiptIds.map((rid, idx) => (
+                            <React.Fragment key={rid}>
+                              {idx > 0 ? ', ' : ''}
+                              <span className="font-mono font-semibold">{rid}</span>
+                            </React.Fragment>
+                          ))}{' '}
+                          on the receipts desk to release this hold.
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : story.hasStaffSplit && story.splitBreakdown?.length > 1 ? (
+              <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3.5 py-3 space-y-1.5">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900">Net cash by recipient</p>
+                <ul className="space-y-1">
+                  {story.splitBreakdown.map((row) => (
+                    <li
+                      key={`${row.recipientKind}-${row.recipientLabel}-${row.netPayoutNgn}`}
+                      className="flex justify-between gap-2 text-xs text-sky-950"
+                    >
+                      <span className="font-semibold">{row.recipientLabel}</span>
+                      <span className="tabular-nums font-bold">{formatNgn(row.netPayoutNgn)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
-          {willReleaseOverpayCreditOnPay ? (
-            <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-950 leading-relaxed" role="status">
-              Overpayment left on this quotation shows {formatNgn(overpayResidualNgn)}
-              {freeableOverpayCreditNgn > 0
-                ? ` (about ${formatNgn(freeableOverpayCreditNgn)} was used on confirm-payment / other unpaid overpay refunds)`
-                : ''}
-              . Paying {formatNgn(story.cashDueNgn)} will free that residual first (undo confirm credit and/or cancel
-              other unpaid overpayment refunds on this quote), then post till/bank. Other quotations may need cash
-              re-confirmed.
-            </div>
-          ) : null}
+            {payouts.length > 0 ? (
+              <div className="rounded-xl border border-teal-200 bg-teal-50/60 px-3.5 py-3 space-y-1.5">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-900">Treasury payouts</p>
+                <ul className="space-y-1">
+                  {payouts.map((p) => (
+                    <li key={p.id || `${p.postedAtISO}-${p.amountNgn}`} className="flex flex-wrap justify-between gap-x-2 text-xs text-teal-950">
+                      <span>
+                        {String(p.postedAtISO || '').slice(0, 16).replace('T', ' ') || '—'}
+                        {p.accountName ? ` · ${p.accountName}` : ''}
+                        {p.reference ? ` · ${p.reference}` : ''}
+                      </span>
+                      <span className="tabular-nums font-bold">{formatNgn(p.amountNgn)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">No till or bank payout has been posted on this refund yet.</p>
+            )}
+          </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 space-y-2">
-            <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Quotation</p>
-            <div className="flex justify-between gap-2 text-sm">
-              <span className="font-mono font-bold text-slate-800">{qref || '—'}</span>
-              <span className="tabular-nums font-black text-slate-900">{formatNgn(quoteTotal)}</span>
+          {/* TAB 2: Quotation & Lines */}
+          <div className={activeTab === 'quotation' ? 'space-y-4' : 'hidden'}>
+            <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 space-y-2">
+              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Quotation</p>
+              <div className="flex justify-between gap-2 text-sm">
+                <span className="font-mono font-bold text-slate-800">{qref || '—'}</span>
+                <span className="tabular-nums font-black text-slate-900">{formatNgn(quoteTotal)}</span>
+              </div>
+              <p className="text-xs text-slate-600">
+                Cash in {intelBusy ? '…' : formatNgn(ledgerCashIn)}
+                {linkedReceipts.length === 0
+                  ? ' · No sales receipts linked'
+                  : ` · ${linkedReceipts.length} receipt${linkedReceipts.length === 1 ? '' : 's'}`}
+              </p>
+              {linkedReceipts.length > 0 ? (
+                <ul className="space-y-1 pt-1 border-t border-slate-100">
+                  {linkedReceipts.map((r) => (
+                    <li key={r.id} className="flex justify-between gap-2 text-xs">
+                      <span className="font-mono text-slate-600">{r.id}</span>
+                      <span className="tabular-nums font-semibold">{formatNgn(r.amountNgn)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
-            <p className="text-xs text-slate-600">
-              Cash in {intelBusy ? '…' : formatNgn(ledgerCashIn)}
-              {linkedReceipts.length === 0
-                ? ' · No sales receipts linked'
-                : ` · ${linkedReceipts.length} receipt${linkedReceipts.length === 1 ? '' : 's'}`}
-            </p>
-            {linkedReceipts.length > 0 ? (
-              <ul className="space-y-1 pt-1 border-t border-slate-100">
-                {linkedReceipts.map((r) => (
-                  <li key={r.id} className="flex justify-between gap-2 text-xs">
-                    <span className="font-mono text-slate-600">{r.id}</span>
-                    <span className="tabular-nums font-semibold">{formatNgn(r.amountNgn)}</span>
-                  </li>
-                ))}
-              </ul>
+
+            {quoteLines.length > 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 space-y-1.5">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Quote lines</p>
+                <ul className="space-y-1">
+                  {quoteLines.slice(0, 15).map((line, idx) => (
+                    <li key={line.id || `${line.category}-${idx}`} className="flex justify-between gap-2 text-xs py-0.5 border-b border-slate-50 last:border-0">
+                      <span className="truncate text-slate-700">
+                        <span className="text-slate-400 font-medium">
+                          {line.category === 'products' ? 'Product' : line.category === 'accessories' ? 'Accessory' : 'Service'}
+                        </span>{' '}
+                        {line.name}
+                      </span>
+                      <span className="tabular-nums text-slate-800 shrink-0 font-medium">
+                        {line.qty !== '' && line.qty != null ? `${line.qty} · ` : ''}
+                        {line.lineTotal !== '' && line.lineTotal != null ? formatNgn(line.lineTotal) : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
           </div>
 
-          {payouts.length > 0 ? (
-            <div className="rounded-xl border border-teal-200 bg-teal-50/60 px-3 py-3 space-y-1.5">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-900">Treasury payouts</p>
-              <ul className="space-y-1">
-                {payouts.map((p) => (
-                  <li key={p.id || `${p.postedAtISO}-${p.amountNgn}`} className="flex flex-wrap justify-between gap-x-2 text-xs text-teal-950">
-                    <span>
-                      {String(p.postedAtISO || '').slice(0, 16).replace('T', ' ') || '—'}
-                      {p.accountName ? ` · ${p.accountName}` : ''}
-                      {p.reference ? ` · ${p.reference}` : ''}
-                    </span>
-                    <span className="tabular-nums font-bold">{formatNgn(p.amountNgn)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="text-xs text-slate-500">No till or bank payout has been posted on this refund yet.</p>
-          )}
+          {/* TAB 3: Ledger & History */}
+          <div className={activeTab === 'ledger' ? 'space-y-4' : 'hidden'}>
+            {ledgerOnQuote.length > 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 space-y-1.5">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Quote ledger</p>
+                <ul className="space-y-1 max-h-56 overflow-auto custom-scrollbar">
+                  {ledgerOnQuote.map((e) => (
+                    <li
+                      key={e.id || `${e.type}-${e.dateISO}-${e.amountNgn}`}
+                      className="flex justify-between gap-2 text-xs py-1 border-b border-slate-50 last:border-0"
+                    >
+                      <span className="text-slate-600">
+                        <span className="font-semibold text-slate-800">{e.type}</span>
+                        {e.dateISO || e.date_iso ? ` · ${String(e.dateISO || e.date_iso).slice(0, 10)}` : ''}
+                      </span>
+                      <span className="tabular-nums font-semibold font-mono text-slate-900">{formatNgn(e.amountNgn)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
-          {ledgerOnQuote.length > 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 space-y-1.5">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Quote ledger</p>
-              <ul className="space-y-1 max-h-40 overflow-auto">
-                {ledgerOnQuote.slice(0, 12).map((e) => (
-                  <li
-                    key={e.id || `${e.type}-${e.dateISO}-${e.amountNgn}`}
-                    className="flex justify-between gap-2 text-xs"
-                  >
-                    <span className="text-slate-600">
-                      <span className="font-semibold">{e.type}</span>
-                      {e.dateISO || e.date_iso ? ` · ${String(e.dateISO || e.date_iso).slice(0, 10)}` : ''}
-                    </span>
-                    <span className="tabular-nums font-semibold">{formatNgn(e.amountNgn)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {priorRefunds.length > 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 space-y-1.5">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Other refunds on this quote</p>
-              <ul className="space-y-1">
-                {priorRefunds.map((r) => (
-                  <li key={r.refundID} className="flex justify-between gap-2 text-xs">
-                    <span className="font-mono text-slate-600">
-                      {r.refundID}{' '}
-                      <span className="font-sans text-slate-500">{refundPublicStatusLabel(r)}</span>
-                    </span>
-                    <span className="tabular-nums font-semibold">
-                      {formatNgn(r.paidAmountNgn > 0 ? r.paidAmountNgn : r.amountNgn)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {quoteLines.length > 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 space-y-1.5">
-              <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Quote lines</p>
-              <ul className="space-y-1">
-                {quoteLines.slice(0, 8).map((line, idx) => (
-                  <li key={line.id || `${line.category}-${idx}`} className="flex justify-between gap-2 text-xs">
-                    <span className="truncate text-slate-700">
-                      <span className="text-slate-400">{line.category === 'products' ? 'Product' : line.category === 'accessories' ? 'Accessory' : 'Service'}</span>{' '}
-                      {line.name}
-                    </span>
-                    <span className="tabular-nums text-slate-800 shrink-0">
-                      {line.qty !== '' && line.qty != null ? `${line.qty} · ` : ''}
-                      {line.lineTotal !== '' && line.lineTotal != null ? formatNgn(line.lineTotal) : ''}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+            {priorRefunds.length > 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 space-y-1.5">
+                <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500">Other refunds on this quote</p>
+                <ul className="space-y-1">
+                  {priorRefunds.map((r) => (
+                    <li key={r.refundID} className="flex justify-between gap-2 text-xs py-1 border-b border-slate-50 last:border-0">
+                      <span className="font-mono text-slate-700 font-medium">
+                        {r.refundID}{' '}
+                        <span className="font-sans text-slate-500 ml-1">({refundPublicStatusLabel(r)})</span>
+                      </span>
+                      <span className="tabular-nums font-semibold font-mono text-slate-900">
+                        {formatNgn(r.paidAmountNgn > 0 ? r.paidAmountNgn : r.amountNgn)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
         </ModalScrollBody>
+
         <ModalActionFooter
           onCancel={onClose}
           cancelLabel="Close"

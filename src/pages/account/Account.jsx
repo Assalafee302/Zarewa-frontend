@@ -125,7 +125,7 @@ import {
 } from '../../lib/legacyAccountsAccess';
 import { AccountingRegisterSettlementPayModal } from '../../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { RefundCashierDetailModal } from '../../components/finance/RefundCashierDetailModal.jsx';
-import { RefundPayoutSituationPanel } from '../../components/finance/RefundPayoutSituationPanel.jsx';
+import { RefundPayoutModal } from '../../components/finance/RefundPayoutModal.jsx';
 import { ExpenseCashierDetailModal } from '../../components/finance/ExpenseCashierDetailModal.jsx';
 import { resolveExpenseCashierTarget } from '../../lib/expenseCashierDetail.js';
 import { StaffRecoveryCashierModal } from '../../components/finance/StaffRecoveryCashierModal.jsx';
@@ -4923,7 +4923,7 @@ const Account = () => {
         }
       />
 
-      <ModalFrame
+      <RefundPayoutModal
         isOpen={showRefundPayModal}
         onClose={() => {
           if (treasuryPayoutSubmitting) return;
@@ -4934,280 +4934,27 @@ const Account = () => {
           setRefundPayLines([]);
           setRefundPaymentNote('');
         }}
-        showCloseButton={false}>
-        <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-zarewa-teal flex items-center gap-2">
-              <RotateCcw size={22} className="text-rose-600" />
-              Release refund
-            </h3>
-            <button
-              type="button"
-              aria-label="Close refund pay dialog"
-              disabled={treasuryPayoutSubmitting}
-              onClick={() => {
-                if (treasuryPayoutSubmitting) return;
-                setShowRefundPayModal(false);
-                setRefundPayTarget(null);
-                setRefundPayPayeeKey(null);
-                setRefundPaidBy('');
-                setRefundPayLines([]);
-                setRefundPaymentNote('');
-              }}
-              className="p-2 text-gray-400 hover:text-red-500 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <X size={22} />
-            </button>
-          </div>
-          {refundPayTarget ? (
-            <form className="space-y-4" onSubmit={confirmRefundPaid}>
-              {refundIsOnPayoutHold(refundPayTarget) ? (
-                <div className="rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
-                  <p className="font-bold text-red-700">On hold</p>
-                  {refundPayoutHoldReason(refundPayTarget) ? (
-                    <p className="mt-1">{refundPayoutHoldReason(refundPayTarget)}</p>
-                  ) : null}
-                  {userMaySetRefundPayoutHold(ws?.session?.user) ? (
-                    <button
-                      type="button"
-                      className="mt-3 rounded-xl border border-red-300 bg-white px-3 py-1.5 text-xs font-bold text-red-800"
-                      onClick={() => void liftRefundPayoutHold()}
-                    >
-                      Lift hold
-                    </button>
-                  ) : (
-                    <p className="mt-2 text-xs">A manager has to lift this hold before Release refund can pay it.</p>
-                  )}
-                </div>
-              ) : null}
-              <div className="rounded-2xl border border-rose-100 bg-rose-50/80 p-4 space-y-3 text-sm">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="font-mono font-bold text-zarewa-teal">{refundPayTarget.refundID}</p>
-                  <p className="text-lg font-black tabular-nums text-rose-700">{formatNgn(refundPayTotalNgn)}</p>
-                </div>
-                {(refundPaySelectedPayee?.payeeName ||
-                  refundPaySelectedPayee?.payeeAccountNo ||
-                  refundPaySelectedPayee?.payeeBankName ||
-                  refundPayTarget.payeeName ||
-                  refundPayTarget.payeeAccountNo ||
-                  refundPayTarget.payeeBankName) ? (
-                  <div className="rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-xs text-sky-950">
-                    <p className="text-ui-xs font-bold uppercase tracking-wide text-sky-900/90">Pay to</p>
-                    <p className="font-bold text-sky-950 pt-0.5">
-                      {refundPaySelectedPayee?.recipientLabel ||
-                        refundPaySelectedPayee?.payeeName ||
-                        refundPayTarget.payeeName ||
-                        '—'}
-                    </p>
-                    <p className="font-mono text-xs font-semibold tabular-nums pt-0.5">
-                      {[
-                        refundPaySelectedPayee?.payeeBankName || refundPayTarget.payeeBankName,
-                        refundPaySelectedPayee?.payeeAccountNo || refundPayTarget.payeeAccountNo,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ') || '—'}
-                    </p>
-                  </div>
-                ) : null}
-                {Math.round(Number(refundPayTarget.creditAppliedNgn) || 0) > 0 ? (
-                  <RefundFundBalanceStrip
-                    amountNgn={refundPayTarget.amountNgn}
-                    creditAppliedNgn={refundPayTarget.creditAppliedNgn}
-                    paidAmountNgn={refundPayTarget.paidAmountNgn}
-                    creditAppliedToQuotationRef={refundPayTarget.creditAppliedToQuotationRef}
-                    leftoverHint="payout"
-                  />
-                ) : null}
-                <RefundPayoutSituationPanel refund={refundPayTarget} />
-                {refundPaySelectedPayee?.payoutHeldForUnclearedReceipts ||
-                refundCashierMoneyStory(refundPayTarget).unclearedHoldNgn > 0 ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2.5 space-y-1.5 text-xs text-amber-950">
-                    <p className="leading-relaxed">
-                      {overrideUnclearedPayoutHold
-                        ? 'This quotation still has unconfirmed receipts. You can release the held slice with a short payment note (audited).'
-                        : (() => {
-                            const story = refundCashierMoneyStory(refundPayTarget);
-                            const held = Math.round(Number(story.unclearedHoldNgn) || 0);
-                            const ready = Math.max(
-                              0,
-                              Math.round(Number(story.tillPayableNgn ?? story.cashDueNgn) || 0)
-                            );
-                            if (ready > 0 && held > 0) {
-                              return `₦${held.toLocaleString('en-NG')} held until receipts on this quotation are confirmed; ₦${ready.toLocaleString('en-NG')} ready to release now.`;
-                            }
-                            return 'Till payout is held until unconfirmed receipts on this quotation are confirmed.';
-                          })()}
-                    </p>
-                    {(() => {
-                      const ids =
-                        refundPayTarget?.settlementSummary?.unclearedReceiptIds ||
-                        refundPaySelectedPayee?.unclearedReceiptIds ||
-                        [];
-                      if (!Array.isArray(ids) || !ids.length) return null;
-                      return (
-                        <p className="font-semibold text-amber-950">
-                          Confirm receipt{ids.length > 1 ? 's' : ''}:{' '}
-                          <span className="font-mono">{ids.join(', ')}</span>
-                          {' → then Pay.'}
-                        </p>
-                      );
-                    })()}
-                    {Array.isArray(refundPayTarget?.settlementSummary?.payoutBlockers)
-                      ? refundPayTarget.settlementSummary.payoutBlockers.map((b) => (
-                          <p key={b.code} className="text-amber-900/90">
-                            {b.action || b.message}
-                          </p>
-                        ))
-                      : null}
-                  </div>
-                ) : null}
-                {Math.round(Number(refundPayTarget.walletOpenNgn) || 0) > 0 ? (
-                  <div className="rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-2.5 space-y-2">
-                    <label className="flex items-start gap-2 text-xs text-violet-950 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5"
-                        checked={refundReleaseWallet}
-                        onChange={(ev) => setRefundReleaseWallet(ev.target.checked)}
-                      />
-                      <span>
-                        <span className="font-bold">Release partner wallet </span>
-                        <span className="font-black tabular-nums">
-                          {formatNgn(Math.round(Number(refundPayTarget.walletOpenNgn) || 0))}
-                        </span>
-                        <span className="block text-violet-900/80 pt-0.5">
-                          Staff / partner balance for this refund — same treasury account, no second
-                          approval.
-                        </span>
-                      </span>
-                    </label>
-                    {Array.isArray(refundPayTarget.walletOpenCredits) &&
-                    refundPayTarget.walletOpenCredits.length > 0 ? (
-                      <ul className="space-y-1 text-ui-xs text-violet-950/90 pl-6">
-                        {refundPayTarget.walletOpenCredits.map((c) => (
-                          <li key={c.id || `${c.partyId}-${c.openNgn}`}>
-                            {c.payeeName || c.partyName || c.partyId} ·{' '}
-                            <span className="font-mono tabular-nums">{formatNgn(c.openNgn)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-              <div>
-                <p className="text-ui-xs font-bold text-gray-400 uppercase ml-1 mb-1">Paid by</p>
-                <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-800">
-                  {activeActorLabel}
-                </p>
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1">Treasury account</label>
-                <button
-                  type="button"
-                  onClick={addRefundPayLine}
-                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-rose-800"
-                >
-                  <Plus size={14} /> Add line
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {refundPayLines.map((line) => (
-                  <div
-                    key={line.id}
-                    className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-2 px-2.5 shadow-sm flex flex-col gap-2"
-                  >
-                    <select
-                      value={line.treasuryAccountId}
-                      onChange={(e) => updateRefundPayLine(line.id, { treasuryAccountId: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-xs font-semibold"
-                    >
-                      <option value="">Select account…</option>
-                      {bankAccountsSelectOrder.map((a) => (
-                        <option key={a.id} value={String(a.id)}>
-                          {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
-                        </option>
-                      ))}
-                    </select>
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                    <input
-                      type="date"
-                      value={line.dateISO}
-                      onChange={(e) => updateRefundPayLine(line.id, { dateISO: e.target.value })}
-                      className="sm:col-span-3 w-full z-finance-field rounded-lg font-semibold"
-                      title="Payment date"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={line.amount}
-                      onChange={(e) => updateRefundPayLine(line.id, { amount: e.target.value })}
-                      className="sm:col-span-3 z-finance-field rounded-lg font-bold text-zarewa-teal"
-                      placeholder="Amount ₦"
-                    />
-                    <input
-                      type="text"
-                      value={line.reference}
-                      onChange={(e) => updateRefundPayLine(line.id, { reference: e.target.value })}
-                      className="sm:col-span-4 z-finance-field rounded-lg"
-                      placeholder="Reference"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeRefundPayLine(line.id)}
-                      className="sm:col-span-2 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-rose-500"
-                      title="Remove line"
-                    >
-                      <X size={16} />
-                    </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <label className="text-ui-xs font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Payment note
-                </label>
-                <input
-                  value={refundPaymentNote}
-                  onChange={(e) => setRefundPaymentNote(e.target.value)}
-                  placeholder="Example: Cash 300,000 and GT transfer 200,000"
-                  className="w-full z-finance-field rounded-xl outline-none"
-                />
-              </div>
-              <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md px-3 py-3 shadow-sm">
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">This payout</span>
-                  <span className="font-black text-zarewa-teal">{formatNgn(refundPayTotalNgn)}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-4 text-sm">
-                  <span className="font-bold text-gray-500 uppercase text-ui-xs tracking-wide">Remaining after post</span>
-                  <span className="font-black text-gray-700">
-                    {formatNgn(Math.max(0, refundOutstandingAmount(refundPayTarget) - refundPayTotalNgn))}
-                  </span>
-                </div>
-              </div>
-              <p className="text-ui-xs text-gray-500 leading-relaxed">
-                Posts treasury movement for this payee. Company cut and splits are already settled at approval.
-              </p>
-              <button
-                type="submit"
-                disabled={treasuryPayoutSubmitting || !userMayPayCustomerRefund(ws) || refundIsOnPayoutHold(refundPayTarget)}
-                className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {treasuryPayoutSubmitting
-                  ? 'Releasing…'
-                  : Math.round(Number(refundPayTarget?.walletOpenNgn) || 0) > 0 && refundPayTotalNgn <= 0
-                    ? 'Release wallet'
-                    : Math.round(Number(refundPayTarget?.walletOpenNgn) || 0) > 0
-                      ? 'Release refund'
-                      : 'Pay refund'}
-              </button>
-            </form>
-          ) : null}
-        </div>
-      </ModalFrame>
+        refund={refundPayTarget}
+        selectedPayeeKey={refundPayPayeeKey}
+        refundPayLines={refundPayLines}
+        onUpdatePayLine={updateRefundPayLine}
+        onAddPayLine={addRefundPayLine}
+        onRemovePayLine={removeRefundPayLine}
+        paymentNote={refundPaymentNote}
+        onPaymentNoteChange={setRefundPaymentNote}
+        releasePartnerWallet={refundReleaseWallet}
+        onReleasePartnerWalletChange={setRefundReleaseWallet}
+        bankAccountsSelectOrder={bankAccountsSelectOrder}
+        treasuryBookDisplayNgn={treasuryBookDisplayNgn}
+        treasuryAccountDisplayName={treasuryAccountDisplayName}
+        activeActorLabel={activeActorLabel}
+        userMayPayCustomerRefund={userMayPayCustomerRefund(ws)}
+        overrideUnclearedPayoutHold={overrideUnclearedPayoutHold}
+        isSubmitting={treasuryPayoutSubmitting}
+        onConfirmPay={confirmRefundPaid}
+        onLiftHold={liftRefundPayoutHold}
+        userMaySetRefundPayoutHold={userMaySetRefundPayoutHold(ws?.session?.user)}
+      />
 
       <ModalFrame
         isOpen={showPaymentEntry}

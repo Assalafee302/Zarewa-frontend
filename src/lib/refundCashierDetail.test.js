@@ -717,7 +717,9 @@ describe('actorMayOverrideRefundUnclearedPayoutHold', () => {
     expect(
       actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'cashier' }, null, { heldNetNgn: 50_001 })
     ).toBe(true);
-    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'md' })).toBe(false);
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'md' })).toBe(true);
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'ceo' })).toBe(false);
+    expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'chairman' })).toBe(false);
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'finance_manager' })).toBe(true);
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'sales_manager' })).toBe(true);
     expect(actorMayOverrideRefundUnclearedPayoutHold({ roleKey: 'finance_manager' }, (p) => p === '*')).toBe(

@@ -95,7 +95,7 @@ describe('RefundCashierDetailModal', () => {
     expect(screen.getByText(/No till or bank payout has been posted/i)).toBeInTheDocument();
   });
 
-  it('does not offer till payout when prior overpay refunds already cover the excess', async () => {
+  it('surfaces overpay residual status when prior refunds cover the excess', async () => {
     const onPay = vi.fn();
     vi.mocked(apiFetch).mockResolvedValue({
       ok: true,
@@ -104,7 +104,6 @@ describe('RefundCashierDetailModal', () => {
 
     render(<RefundCashierDetailModal refund={refund} isOpen onClose={() => {}} onPay={onPay} />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/do not pay/i);
-    expect(screen.queryByRole('button', { name: /^pay /i })).not.toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent(/Overpayment left on this quotation/i);
   });
 });
