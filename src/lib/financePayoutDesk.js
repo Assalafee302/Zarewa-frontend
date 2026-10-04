@@ -138,6 +138,32 @@ export function sortKeyedRows(rows, key, dir, getters) {
   });
 }
 
+function refundParentOnPayoutHold(line) {
+  const r = line?.parentRefund || line || {};
+  return r.payoutHold === true || r.payoutHold === 1 || r.payout_hold === 1 || r.payout_hold === '1';
+}
+
+function haulageOnPayoutHold(row) {
+  return (
+    row?.transportPayoutHold === true ||
+    row?.transportPayoutHold === 1 ||
+    row?.transport_payout_hold === 1 ||
+    row?.transport_payout_hold === '1'
+  );
+}
+
+/** Cash still to pay. A row on hold stays visible and contributes 0. */
+export function refundLineReadyNgn(line) {
+  if (refundParentOnPayoutHold(line)) return 0;
+  return Math.max(0, Math.round(Number(line?.amountDueNgn) || 0));
+}
+
+/** Unpaid haulage. A held PO stays visible and contributes 0. */
+export function haulageReadyNgn(row) {
+  if (haulageOnPayoutHold(row)) return 0;
+  return Math.max(0, Math.round(Number(row?.outstandingNgn) || 0));
+}
+
 /** @param {string} prevKey @param {'asc'|'desc'} prevDir @param {string} key */
 export function nextPayoutSort(prevKey, prevDir, key) {
   if (prevKey === key) {

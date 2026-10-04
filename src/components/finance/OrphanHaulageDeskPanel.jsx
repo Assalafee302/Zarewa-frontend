@@ -1,13 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import { FinanceDeskColoredQueuePanel, FinanceDeskColoredQueueRow } from './FinanceDeskColoredQueuePanel';
+import {
+  FinanceDeskColoredQueuePanel,
+  FinanceDeskColoredQueueRow,
+  FinanceDeskQueueActionButton,
+} from './FinanceDeskColoredQueuePanel';
 
 /**
  * Finance desk summary for haulage treasury lines not linked to PO transport.
  */
-export function OrphanHaulageDeskPanel({ orphanRows = [], canAccessProcurement = false }) {
+export function OrphanHaulageDeskPanel({
+  orphanRows = [],
+  canAccessProcurement = false,
+  linkBusyId = '',
+  onLinkAsHaulage,
+}) {
+  const [poDrafts, setPoDrafts] = useState({});
   if (!orphanRows.length) return null;
   return (
     <FinanceDeskColoredQueuePanel
@@ -46,13 +56,47 @@ export function OrphanHaulageDeskPanel({ orphanRows = [], canAccessProcurement =
             meta={`${String(row.postedAtISO || '').slice(0, 10)} · ${row.reason}`}
             amount={formatNgn(row.amountNgn)}
             actions={
-              <Link
-                to="/accounts"
-                state={{ accountsTab: 'movements' }}
-                className="text-ui-xs font-bold uppercase text-rose-900 hover:underline"
-              >
-                View
-              </Link>
+              <div className="flex flex-col items-end gap-1">
+                {row.sourceKind === 'PAYMENT_REQUEST' && row.sourceId && onLinkAsHaulage ? (
+                  <form
+                    className="flex flex-wrap items-center justify-end gap-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const poId = String(poDrafts[row.movementId] || '').trim();
+                      if (!poId) return;
+                      void onLinkAsHaulage(row, poId);
+                    }}
+                  >
+                    <input
+                      value={poDrafts[row.movementId] || ''}
+                      onChange={(e) =>
+                        setPoDrafts((prev) => ({ ...prev, [row.movementId]: e.target.value }))
+                      }
+                      placeholder="PO id"
+                      aria-label={`PO for ${row.movementId}`}
+                      className="w-28 rounded border border-rose-200 bg-white px-1.5 py-1 text-ui-xs font-mono"
+                    />
+                    <FinanceDeskQueueActionButton
+                      tone="teal"
+                      disabled={linkBusyId === `haulage-link:${row.movementId}` || !String(poDrafts[row.movementId] || '').trim()}
+                      onClick={() => {
+                        const poId = String(poDrafts[row.movementId] || '').trim();
+                        if (!poId) return;
+                        void onLinkAsHaulage(row, poId);
+                      }}
+                    >
+                      Use as haulage
+                    </FinanceDeskQueueActionButton>
+                  </form>
+                ) : null}
+                <Link
+                  to="/accounts"
+                  state={{ accountsTab: 'movements' }}
+                  className="text-ui-xs font-bold uppercase text-rose-900 hover:underline"
+                >
+                  View
+                </Link>
+              </div>
             }
           />
         ))}

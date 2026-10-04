@@ -163,6 +163,10 @@ function receiptHeldForInvestigation(receipt) {
   return /suspended/i.test(String(receipt?.status || ""));
 }
 
+function receiptAwaitingBankCheck(receipt) {
+  return /no bank receipt/i.test(String(receipt?.status || ""));
+}
+
 function deskSearchMatches(query, parts) {
   const q = String(query || "").trim().toLowerCase();
   if (!q) return true;
@@ -231,6 +235,7 @@ export function FinanceDeskWorkQueues({
   const ws = useWorkspace();
   const { showToast } = useToast();
   const [roundingBusyId, setRoundingBusyId] = useState("");
+  const [deskActionBusyId, setDeskActionBusyId] = useState("");
 
   const closeRemainderAsRounding = async (kind, id) => {
     const key = `${kind}:${id}`;
@@ -255,6 +260,122 @@ export function FinanceDeskWorkQueues({
       showToast("Closed as rounding. No money left the till.", { variant: "success" });
     } finally {
       setRoundingBusyId("");
+    }
+  };
+
+  const applyDeskDelta = (data) => {
+    if (!(data?.delta && ws.applyWriteDelta?.(data.delta))) {
+      void ws.refreshDomain?.("finance");
+    }
+  };
+
+  const holdReceiptForBankCheck = async (receiptId) => {
+    const id = String(receiptId || "").trim();
+    if (!id || deskActionBusyId) return;
+    const okToHold = window.confirm(
+      `Hold ${id}? No money moves. Confirm stays blocked until someone checks whether this was paid from customer credit.`
+    );
+    if (!okToHold) return;
+    setDeskActionBusyId(`receipt-hold:${id}`);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/sales-receipts/${encodeURIComponent(id)}/bank-check-hold`,
+        { method: "POST", body: JSON.stringify({}) }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || "Could not hold this receipt.", { variant: "error" });
+        return;
+      }
+      applyDeskDelta(data);
+      showToast(`${id} is held for a credit check. The bank line was left as it is.`, { variant: "success" });
+    } finally {
+      setDeskActionBusyId("");
+    }
+  };
+
+  const setHaulageHold = async (row, hold) => {
+    const poId = String(row?.poID || row?.poId || "").trim();
+    if (!poId || deskActionBusyId) return;
+    let reason = "";
+    if (hold) {
+      reason = window.prompt(`Why is haulage on ${poId} on hold?`, "") || "";
+      if (!reason.trim()) return;
+    } else if (!window.confirm(`Release the haulage hold on ${poId}? The previous reason stays on the PO.`)) {
+      return;
+    }
+    setDeskActionBusyId(`haulage-hold:${poId}`);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/purchase-orders/${encodeURIComponent(poId)}/haulage-hold`,
+        { method: "POST", body: JSON.stringify({ hold, reason: reason.trim() }) }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || "Could not update the haulage hold.", { variant: "error" });
+        return;
+      }
+      applyDeskDelta(data);
+      showToast(hold ? `Haulage on ${poId} is on hold.` : `Haulage hold on ${poId} released.`, {
+        variant: "success",
+      });
+    } finally {
+      setDeskActionBusyId("");
+    }
+  };
+
+  const settleHaulageAtPaid = async (row) => {
+    const poId = String(row?.poID || row?.poId || "").trim();
+    const paid = Math.round(Number(row?.transportPaidNgn) || 0);
+    if (!poId || paid <= 0 || deskActionBusyId) return;
+    const okToSettle = window.confirm(
+      `Agree haulage on ${poId} at ${formatNgn(paid)}, the amount already paid? Nothing new leaves the bank.`
+    );
+    if (!okToSettle) return;
+    setDeskActionBusyId(`haulage-settle:${poId}`);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/purchase-orders/${encodeURIComponent(poId)}/settle-haulage-at-paid`,
+        { method: "POST", body: JSON.stringify({}) }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || "Could not settle haulage at the amount already paid.", { variant: "error" });
+        return;
+      }
+      applyDeskDelta(data);
+      showToast(
+        data.holdStillSet
+          ? `${poId} haulage agreed at ${formatNgn(paid)}. A manager still needs to release the hold.`
+          : `${poId} haulage agreed at ${formatNgn(paid)}. No new payment was posted.`,
+        { variant: "success" }
+      );
+    } finally {
+      setDeskActionBusyId("");
+    }
+  };
+
+  const linkRequestAsHaulage = async (row, poId) => {
+    const requestId = String(row?.sourceId || "").trim();
+    const movementId = String(row?.movementId || "").trim();
+    const target = String(poId || "").trim();
+    if (!requestId || !movementId || !target || deskActionBusyId) return;
+    const okToLink = window.confirm(
+      `Use ${requestId} (${formatNgn(row.amountNgn)}) as haulage on ${target}? The bank line stays. No new payment is posted.`
+    );
+    if (!okToLink) return;
+    setDeskActionBusyId(`haulage-link:${movementId}`);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/payment-requests/${encodeURIComponent(requestId)}/link-po-haulage`,
+        { method: "POST", body: JSON.stringify({ poId: target, movementId }) }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || "Could not link this payment as haulage.", { variant: "error" });
+        return;
+      }
+      applyDeskDelta(data);
+      void ws.refreshDomain?.("finance");
+      showToast(`${requestId} is now haulage on ${target}.`, { variant: "success" });
+    } finally {
+      setDeskActionBusyId("");
     }
   };
 
@@ -403,11 +524,24 @@ export function FinanceDeskWorkQueues({
     );
   }, [ws?.snapshot?.purchasePaymentCashierAcksPending]);
 
+  const bankCheckReceiptsAll = useMemo(
+    () =>
+      sortQueueOldestFirst(
+        receiptsWithCuttingMeta.filter(
+          (r) => isReceiptPendingClearance(r) && receiptAwaitingBankCheck(r)
+        )
+      ),
+    [receiptsWithCuttingMeta],
+  );
+
   const investigationReceiptsAll = useMemo(
     () =>
       sortQueueOldestFirst(
         receiptsWithCuttingMeta.filter(
-          (r) => isReceiptPendingClearance(r) && receiptHeldForInvestigation(r)
+          (r) =>
+            isReceiptPendingClearance(r) &&
+            receiptHeldForInvestigation(r) &&
+            !receiptAwaitingBankCheck(r)
         )
       ),
     [receiptsWithCuttingMeta],
@@ -1039,6 +1173,13 @@ export function FinanceDeskWorkQueues({
                             >
                               Confirm
                             </FinanceDeskQueueActionButton>
+                            <FinanceDeskQueueActionButton
+                              tone="rose"
+                              disabled={deskActionBusyId === `receipt-hold:${r.id}`}
+                              onClick={() => void holdReceiptForBankCheck(r.id)}
+                            >
+                              No bank receipt
+                            </FinanceDeskQueueActionButton>
 
                             {onViewReceipt ? (
                               <FinanceDeskQueueActionButton
@@ -1062,6 +1203,43 @@ export function FinanceDeskWorkQueues({
                     : 'No receipts waiting to confirm.'}
                 </p>
               )}
+
+              {bankCheckReceiptsAll.length > 0 ? (
+                <FinanceDeskColoredQueuePanel
+                  theme="slate"
+                  title="Awaiting credit check"
+                  icon={<Landmark size={16} strokeWidth={2} />}
+                  count={bankCheckReceiptsAll.length}
+                  description="No matching bank receipt. The cash line is still on the books. Confirm stays blocked."
+                >
+                  <ul className="space-y-1.5" data-testid="desk-bank-check-receipts">
+                    {bankCheckReceiptsAll.map((r) => (
+                      <FinanceDeskColoredQueueRow
+                        key={r.id}
+                        theme="slate"
+                        title={
+                          <>
+                            <span className="font-mono">{r.id}</span>
+                            <span className="font-medium text-slate-600">
+                              {" "}
+                              · {r.customer || r.customerID}
+                            </span>
+                          </>
+                        }
+                        meta={String(r.status || "No bank receipt")}
+                        amount={formatNgn(r.amountNgn)}
+                        actions={
+                          onViewReceipt ? (
+                            <FinanceDeskQueueActionButton tone="slate" onClick={() => onViewReceipt(r)}>
+                              View
+                            </FinanceDeskQueueActionButton>
+                          ) : null
+                        }
+                      />
+                    ))}
+                  </ul>
+                </FinanceDeskColoredQueuePanel>
+              ) : null}
 
               {investigationReceiptsAll.length > 0 ? (
                 <FinanceDeskColoredQueuePanel
@@ -1257,7 +1435,10 @@ export function FinanceDeskWorkQueues({
                   </FinanceDeskQueueActionButton>
                 ) : null
               }
-              renderPoTransportActions={(row) => (
+              renderPoTransportActions={(row) => {
+                const poId = String(row.poID || row.poId || "");
+                const paid = Math.round(Number(row.transportPaidNgn) || 0);
+                return (
                 <>
                   {row.transportPayoutHold ? (
                     <span
@@ -1271,17 +1452,46 @@ export function FinanceDeskWorkQueues({
                       Pay
                     </FinanceDeskQueueActionButton>
                   )}
+                  {paid > 0 && Math.round(Number(row.outstandingNgn) || 0) > 0 ? (
+                    <FinanceDeskQueueActionButton
+                      tone="teal"
+                      disabled={deskActionBusyId === `haulage-settle:${poId}`}
+                      onClick={() => void settleHaulageAtPaid(row)}
+                    >
+                      Settle at paid
+                    </FinanceDeskQueueActionButton>
+                  ) : null}
+                  {row.transportPayoutHold ? (
+                    <FinanceDeskQueueActionButton
+                      tone="slate"
+                      disabled={deskActionBusyId === `haulage-hold:${poId}`}
+                      onClick={() => void setHaulageHold(row, false)}
+                    >
+                      Release hold
+                    </FinanceDeskQueueActionButton>
+                  ) : (
+                    <FinanceDeskQueueActionButton
+                      tone="rose"
+                      disabled={deskActionBusyId === `haulage-hold:${poId}`}
+                      onClick={() => void setHaulageHold(row, true)}
+                    >
+                      Hold
+                    </FinanceDeskQueueActionButton>
+                  )}
                   {onViewPoTransport ? (
                     <FinanceDeskQueueActionButton tone="slate" onClick={() => onViewPoTransport(row)}>
                       View
                     </FinanceDeskQueueActionButton>
                   ) : null}
                 </>
-              )}
+                );
+              }}
             >
               <OrphanHaulageDeskPanel
                 orphanRows={orphanHaulageRows}
                 canAccessProcurement={Boolean(ws?.canAccessModule?.("procurement"))}
+                linkBusyId={deskActionBusyId}
+                onLinkAsHaulage={linkRequestAsHaulage}
               />
             </FinanceTreasuryAwaitingPayoutQueues>
           </div>

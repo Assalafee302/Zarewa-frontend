@@ -24,7 +24,7 @@ import {
   registerSettlementPayoutMetaLine,
 } from '../../lib/financeTreasuryPayoutQueueMeta';
 import { maintenanceCostKindLabel } from '../../shared/lib/maintenanceCostEnvelope';
-import { matchesPayoutQuery, sortPayoutQueue } from '../../lib/financePayoutDesk';
+import { haulageReadyNgn, matchesPayoutQuery, refundLineReadyNgn, sortPayoutQueue } from '../../lib/financePayoutDesk';
 import { SalesListSearchInput } from '../sales/SalesListTableFrame';
 
 function PaymentRequestCategoryExtra({ req }) {
@@ -252,10 +252,10 @@ export function FinanceTreasuryAwaitingPayoutQueues({
   const visibleCount =
     visibleRefunds.length + visibleRequests.length + visibleSettlements.length + visibleHaulage.length;
   const readyNgn =
-    visibleRefunds.reduce((sum, line) => sum + Math.max(0, Math.round(Number(line.amountDueNgn) || 0)), 0) +
+    visibleRefunds.reduce((sum, line) => sum + refundLineReadyNgn(line), 0) +
     visibleRequests.reduce((sum, req) => sum + paymentRequestOutstandingNgn(req), 0) +
     visibleSettlements.reduce((sum, s) => sum + registerSettlementOutstandingNgn(s), 0) +
-    visibleHaulage.reduce((sum, row) => sum + Math.max(0, Math.round(Number(row.outstandingNgn) || 0)), 0);
+    visibleHaulage.reduce((sum, row) => sum + haulageReadyNgn(row), 0);
   const hasChildren = Boolean(children);
   const searching = Boolean(String(query || '').trim());
 
@@ -272,7 +272,9 @@ export function FinanceTreasuryAwaitingPayoutQueues({
           <h2 className="text-sm font-semibold text-slate-800">Pay out</h2>
           <p className="mt-0.5 text-ui-xs tabular-nums text-slate-500">
             {searching ? `${visibleCount} match · ` : `${openCount}${hasChildren ? '+' : ''} open · `}
-            Ready {formatNgn(readyNgn)}
+            <span title="Items on hold stay in the list and are left out of this total.">
+              Ready {formatNgn(readyNgn)}
+            </span>
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">

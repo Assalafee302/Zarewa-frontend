@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   filterPayoutDueRows,
   matchesPayoutQuery,
+  haulageReadyNgn,
   nextPayoutSort,
   payoutAgeDays,
+  refundLineReadyNgn,
   sortKeyedRows,
   sortPayoutDueRows,
   sortPayoutQueue,
@@ -111,5 +113,17 @@ describe('financePayoutDesk', () => {
         { amount: (row) => row.amount }
       ).map((row) => row.refundID)
     ).toEqual(['A', 'B']);
+  });
+
+  it('leaves held refunds and held haulage out of the Ready total', () => {
+    expect(
+      refundLineReadyNgn({
+        amountDueNgn: 208_000,
+        parentRefund: { payoutHold: true },
+      })
+    ).toBe(0);
+    expect(refundLineReadyNgn({ amountDueNgn: 50_000, parentRefund: { payoutHold: false } })).toBe(50_000);
+    expect(haulageReadyNgn({ outstandingNgn: 10_000, transportPayoutHold: true })).toBe(0);
+    expect(haulageReadyNgn({ outstandingNgn: 10_000, transportPayoutHold: false })).toBe(10_000);
   });
 });

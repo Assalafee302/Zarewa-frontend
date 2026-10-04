@@ -2627,6 +2627,41 @@ const Account = () => {
     }
   }, [receiptFinanceRow, receiptUnconfirmBusy, showToast, ws]);
 
+  const zeroUnbackedReceiptLine = async (split) => {
+    const receiptId = receiptFinanceRow?.id;
+    const movementId = String(split?.movementId || '').trim();
+    const expected = Math.round(Number(split?.amountNgn) || 0);
+    if (!receiptId || !movementId || expected <= 0 || receiptFinanceBusy) return;
+    const okToZero = window.confirm(
+      `Remove ${formatNgn(expected)} on ${movementId}? The bank never received it. That account's balance drops by this amount only. Other lines on the receipt stay.`
+    );
+    if (!okToZero) return;
+    setReceiptFinanceBusy(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/sales-receipts/${encodeURIComponent(receiptId)}/treasury-lines/${encodeURIComponent(movementId)}/zero-unbacked`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expectedAmountNgn: expected }),
+        }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not remove the unbacked payment line.', { variant: 'error' });
+        return;
+      }
+      showToast(`${movementId} removed. ${formatNgn(expected)} is no longer on the bank.`, { variant: 'success' });
+      setReceiptFinanceRow(null);
+      setReceiptFinanceFocusMovementId(null);
+      setPaymentCorrectionDrafts({});
+      if (!(data?.delta && ws?.applyWriteDelta?.(data.delta))) {
+        void ws?.refreshDomain?.('finance');
+      }
+    } finally {
+      setReceiptFinanceBusy(false);
+    }
+  };
+
   const saveReceiptFinance = useCallback(
     async (e) => {
       e?.preventDefault?.();
@@ -5857,6 +5892,16 @@ const Account = () => {
                                   <p className="text-ui-xs font-semibold text-amber-950 mt-1 leading-snug">
                                     {receiptLineHangingRefundHint(rec, hangingForReceipt)}
                                   </p>
+                                ) : null}
+                                {rec > 0 ? (
+                                  <button
+                                    type="button"
+                                    disabled={formDisabled}
+                                    onClick={() => void zeroUnbackedReceiptLine(s)}
+                                    className="mt-1 text-ui-xs font-semibold text-rose-800 underline-offset-2 hover:underline disabled:opacity-60"
+                                  >
+                                    No bank money on this line
+                                  </button>
                                 ) : null}
                               </div>
                               <div>
