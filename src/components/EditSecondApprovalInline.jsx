@@ -149,13 +149,18 @@ export function EditSecondApprovalInline({
     const { ok, data, status } = r;
     if (status === 409 && data?.code === 'EDIT_APPROVAL_ALREADY_PENDING') {
       setErr('');
-      setSaveHint(data.error || 'A request was already sent for this record.');
       setHintTone('neutral');
       setWaitingOnApprover(true);
-      const existing = String(data.existingApprovalId || '').trim();
+      const existing = String(data.existingApprovalId || data.approvalId || '').trim();
       if (existing) {
-        onChange('');
+        onChange(existing);
+        setSaveHint(
+          data.error ||
+            `Code ${existing} is already waiting. This edit was added to that request — save after it is granted.`
+        );
         startPoll(existing);
+      } else {
+        setSaveHint(data.error || 'A request was already sent for this record.');
       }
       return;
     }
@@ -163,13 +168,13 @@ export function EditSecondApprovalInline({
       setErr(data?.error || 'Could not create approval request.');
       return;
     }
-    const id = data.approvalId;
+    const id = String(data.approvalId || '').trim();
     if (!id) {
       setErr('Unexpected response.');
       return;
     }
-    onChange('');
-    setSaveHint('Waiting for approver…');
+    onChange(id);
+    setSaveHint(`Code ${id} is in the box. Ask an approver to grant it, then save. The quotation or list updates on that save.`);
     setHintTone('neutral');
     setWaitingOnApprover(true);
     startPoll(id);
@@ -188,19 +193,21 @@ export function EditSecondApprovalInline({
     >
       <p className="font-bold text-amber-900 mb-1">Second approval for this change</p>
       <p className="text-amber-800/95 mb-2 leading-snug">
-        Use <strong className="font-semibold">Request approval</strong>, then ask an approver to open{' '}
-        <strong className="font-semibold">Approvals → Edits</strong> (Change authorisations) or{' '}
-        <strong className="font-semibold">Management → Edit OKs</strong>. You can stay on this screen — the 6-digit code
-        fills in when ready. Each token works for one successful save only.
+        Use <strong className="font-semibold">Request approval</strong>. The 6-digit code appears in the box straight
+        away — give that code to an approver under{' '}
+        <strong className="font-semibold">Approvals → Edits</strong> or{' '}
+        <strong className="font-semibold">Management → Edit OKs</strong>. Save after they grant it. Editing again and
+        requesting uses the same code and updates what they are asked to approve. Each code works for one successful
+        save only.
       </p>
       <div className="flex flex-wrap gap-2 items-center">
         <button
           type="button"
-          disabled={busy || waitingOnApprover}
+          disabled={busy}
           onClick={() => void request()}
           className="shrink-0 rounded-lg bg-amber-700 px-3 py-1.5 text-ui-xs font-bold uppercase tracking-wide text-white hover:bg-amber-800 disabled:opacity-50"
         >
-          {busy ? 'Requesting…' : waitingOnApprover ? 'Request already sent' : 'Request approval'}
+          {busy ? 'Requesting…' : waitingOnApprover ? 'Update request' : 'Request approval'}
         </button>
         <input
           type="text"

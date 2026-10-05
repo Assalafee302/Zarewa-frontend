@@ -319,12 +319,14 @@ const Account = () => {
   const [receiptHoldDelivery, setReceiptHoldDelivery] = useState(false);
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
   const [applyRefundOnConfirm, setApplyRefundOnConfirm] = useState(false);
+  /** Cash due last written because refund fund was ticked — used to restore the receipt when unticked. */
+  const refundAppliedCashDueRef = useRef(null);
   const [receiptRefundFundSkipReason, setReceiptRefundFundSkipReason] = useState('');
   const [cashierRefundCreditInfo, setCashierRefundCreditInfo] = useState(null);
   const [cashierRefundCreditLoading, setCashierRefundCreditLoading] = useState(false);
-  /** Expanded when refund fund can cover this receipt (cashier may still untick). */
+  /** Expanded when refund fund can cover this receipt. The use-refund box starts unticked. */
   const [cashierRefundCreditDetailsOpen, setCashierRefundCreditDetailsOpen] = useState(false);
-  /** Refund-credit source ids (pre-selected when fund is available). */
+  /** Refund-credit source ids the cashier has chosen. Empty until they tick a source. */
   const [selectedRefundSourceIds, setSelectedRefundSourceIds] = useState([]);
   /** Correct bank/cash account for expense or payment-request treasury outflows (same idea as receipt splits). */
   const [expenseOutflowEdit, setExpenseOutflowEdit] = useState(null);
@@ -2483,16 +2485,42 @@ const Account = () => {
   );
 
   useEffect(() => {
-    if (!receiptFinanceRow || !cashierRefundOffset) return;
-    const cashDue = applyRefundOnConfirm ? cashierRefundOffset.cashToConfirmNgn : cashierReceiptCashNgn;
-    setReceiptBankAmtInput(String(cashDue));
+    if (!receiptFinanceRow) {
+      refundAppliedCashDueRef.current = null;
+      return;
+    }
+    if (applyRefundOnConfirm && cashierRefundOffset) {
+      const cashDue = cashierRefundOffset.cashToConfirmNgn;
+      refundAppliedCashDueRef.current = cashDue;
+      setReceiptBankAmtInput(String(cashDue));
+      setPaymentCorrectionDrafts((prev) => {
+        const keys = Object.keys(prev);
+        if (!keys.length) return prev;
+        const lines = keys.map((movementId) => ({ movementId, amount: prev[movementId]?.amountNgn }));
+        const nextLines = applyRefundFundDeductionToPaymentLines(lines, cashDue);
+        const out = { ...prev };
+        nextLines.forEach((line, i) => {
+          const id = keys[i];
+          if (!id) return;
+          out[id] = { ...out[id], amountNgn: line.amount == null ? '' : String(line.amount) };
+        });
+        return out;
+      });
+      return;
+    }
+    const previousCashDue = refundAppliedCashDueRef.current;
+    if (previousCashDue == null) return;
+    refundAppliedCashDueRef.current = null;
+    setReceiptBankAmtInput(String(cashierReceiptCashNgn));
     setPaymentCorrectionDrafts((prev) => {
       const keys = Object.keys(prev);
       if (!keys.length) return prev;
       const lines = keys.map((movementId) => ({ movementId, amount: prev[movementId]?.amountNgn }));
-      const nextLines = applyRefundOnConfirm
-        ? applyRefundFundDeductionToPaymentLines(lines, cashDue)
-        : restorePaymentLinesAfterRefundFundUnchecked(lines, cashierReceiptCashNgn, cashierRefundOffset.cashToConfirmNgn);
+      const nextLines = restorePaymentLinesAfterRefundFundUnchecked(
+        lines,
+        cashierReceiptCashNgn,
+        previousCashDue
+      );
       const out = { ...prev };
       nextLines.forEach((line, i) => {
         const id = keys[i];
@@ -2692,7 +2720,7 @@ const Account = () => {
         offsetNgn <= 0;
       if (fundLeftUnused && !refundFundSkipReasonIsValid(skipReason)) {
         showToast(
-          'This customer has refund fund waiting to be paid out. Leave it ticked to cover this receipt, or write why the customer paid fresh cash.',
+          'This customer has refund fund waiting to be paid out. Tick “Use this refund” only if this receipt should be covered by it, or write why the customer paid fresh cash.',
           { variant: 'error' }
         );
         setCashierRefundCreditDetailsOpen(true);
@@ -5697,8 +5725,8 @@ const Account = () => {
                                 <span>
                                   <span className="font-bold">Use this refund on this receipt </span>
                                   {cashierRefundOffsetPreview
-                                    ? `— ${formatNgn(cashierRefundOffsetPreview.offsetNgn)} covers this receipt and is not paid out in cash.`
-                                    : '— pick a source below, then leave this ticked to reduce cash to confirm.'}
+                                    ? `— optional. Tick only if ${formatNgn(cashierRefundOffsetPreview.offsetNgn)} of this receipt should come from the refund instead of cash.`
+                                    : '— leave unticked to confirm the cash received. Tick only if this receipt should be paid from the refund.'}
                                   {applyRefundOnConfirm && cashierRefundOffset?.leftoverRefundNgn > 0
                                     ? ` Leftover ${formatNgn(cashierRefundOffset.leftoverRefundNgn)} stays on the payout queue.`
                                     : applyRefundOnConfirm && cashierRefundOffset

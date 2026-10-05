@@ -52,28 +52,30 @@ export function usableRefundSourceIds(sources, { blockExternalCredit = false } =
     .filter(Boolean);
 }
 
-/** Usable sources to pre-select on Confirm payment so leftover refund is not paid out twice. */
+/** Usable sources the cashier may tick. Confirm payment does not pre-select them. */
 export function defaultRefundSourceSelection(sources, opts = {}) {
   return usableRefundSourceIds(sources, opts);
 }
 
 /**
- * Confirm payment defaults: apply open refund fund and reduce cash to confirm.
- * Cashier can untick and write why the cash is genuinely new.
+ * Confirm payment starts with refund fund off. The cashier chooses whether to
+ * cover this receipt from an open refund or to book the cash that was received.
+ * Auto-applying the fund was posting receipts at ₦0 when the branch did not
+ * want to use the refund.
  */
 export function defaultRefundFundConfirmChoice(eligible) {
-  const ids = usableRefundSourceIds(eligible?.sources, {
+  const usableIds = usableRefundSourceIds(eligible?.sources, {
     blockExternalCredit: Boolean(eligible?.targetBlocksExternalCredit),
   });
-  const availableNgn = sumRefundSourceAvailableNgn(eligible?.sources, ids);
+  const availableNgn = sumRefundSourceAvailableNgn(eligible?.sources, usableIds);
   const hasUnavailable =
     Array.isArray(eligible?.unavailableSources) && eligible.unavailableSources.length > 0;
   const hasPriorReleases =
     Array.isArray(eligible?.priorConfirmPaymentReleases) &&
     eligible.priorConfirmPaymentReleases.length > 0;
   return {
-    sourceIds: ids,
-    apply: availableNgn > 0,
+    sourceIds: [],
+    apply: false,
     detailsOpen: availableNgn > 0 || hasUnavailable || hasPriorReleases,
     availableNgn,
   };

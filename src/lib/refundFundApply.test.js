@@ -210,7 +210,7 @@ describe('refund fund apply helpers', () => {
     ).toEqual(['refund:RF-SAME']);
   });
 
-  it('defaults Confirm payment to apply open refund fund', () => {
+  it('leaves Confirm payment off refund fund until the cashier ticks it', () => {
     const choice = defaultRefundFundConfirmChoice({
       sources: [
         {
@@ -222,8 +222,8 @@ describe('refund fund apply helpers', () => {
       ],
       targetBlocksExternalCredit: false,
     });
-    expect(choice.apply).toBe(true);
-    expect(choice.sourceIds).toEqual(['refund:RF-KD-26-9693']);
+    expect(choice.apply).toBe(false);
+    expect(choice.sourceIds).toEqual([]);
     expect(choice.availableNgn).toBe(861_575);
     expect(choice.detailsOpen).toBe(true);
   });

@@ -1648,18 +1648,76 @@ const QuotationModal = ({
         changeDetails: details,
       };
     }
+    const details = [];
+    const savedTotal = Math.round(Number(editData.totalNgn ?? editData.total_ngn) || 0);
+    const nextTotal = sumRowsNgn(productRows) + sumRowsNgn(accessoryRows) + sumRowsNgn(serviceRows);
+    if (savedTotal !== nextTotal) {
+      details.push({
+        label: 'Quotation total',
+        from: formatNgn(savedTotal),
+        to: formatNgn(nextTotal),
+      });
+    }
+    const savedCustomer = String(editData.customerID || '').trim();
+    const nextCustomer = String(selectedCustomerId || '').trim();
+    if (savedCustomer && nextCustomer && savedCustomer !== nextCustomer) {
+      details.push({ label: 'Customer', from: savedCustomer, to: nextCustomer });
+    }
+    const savedDate = String(editData.dateISO || '').slice(0, 10);
+    const nextDate = String(quoteDate || '').slice(0, 10);
+    if (savedDate && nextDate && savedDate !== nextDate) {
+      details.push({ label: 'Quote date', from: savedDate, to: nextDate });
+    }
+    const savedProject = String(editData.projectName || '').trim();
+    const nextProject = String(projectName || '').trim();
+    if (savedProject !== nextProject) {
+      details.push({ label: 'Project', from: savedProject || '—', to: nextProject || '—' });
+    }
+    let savedLines = editData.quotationLines;
+    if (typeof savedLines === 'string') {
+      try {
+        savedLines = JSON.parse(savedLines);
+      } catch {
+        savedLines = null;
+      }
+    }
+    if (savedLines && typeof savedLines === 'object') {
+      const savedLineCount = ['products', 'accessories', 'services'].reduce((sum, key) => {
+        const rows = savedLines[key];
+        return sum + (Array.isArray(rows) ? rows.filter((row) => String(row?.name || row?.item || '').trim()).length : 0);
+      }, 0);
+      const nextLineCount = [productRows, accessoryRows, serviceRows].reduce(
+        (sum, rows) => sum + rows.filter((row) => String(row?.name || '').trim()).length,
+        0
+      );
+      if (savedLineCount !== nextLineCount) {
+        details.push({
+          label: 'Named lines',
+          from: String(savedLineCount),
+          to: String(nextLineCount),
+        });
+      }
+    }
     return {
-      changeSummary: 'Edit quotation lines, pricing, discounts, customer details, or payment allocation',
-      changeDetails: [],
+      changeSummary: details.length
+        ? 'Edit quotation — see the fields below'
+        : 'Edit quotation lines, pricing, discounts, customer details, or payment allocation',
+      changeDetails: details,
     };
   }, [
-    editData?.id,
+    editData,
     materialSpecDirty,
     committedMaterialSpec,
     materialTypeId,
     materialGauge,
     materialColor,
     materialDesign,
+    productRows,
+    accessoryRows,
+    serviceRows,
+    selectedCustomerId,
+    quoteDate,
+    projectName,
   ]);
   const selectedProfileMeta = useMemo(
     () => liveMasterData?.profiles?.find((row) => row.name === materialDesign) || null,

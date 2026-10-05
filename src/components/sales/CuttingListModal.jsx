@@ -913,6 +913,37 @@ const CuttingListModal = ({
     });
   }, [selectedQuotation, selectedQuotationAccessoriesOnly, cuttingListLinesForValidation, isStoneMeterQuote]);
 
+  const cuttingListEditApprovalDetails = useMemo(() => {
+    if (!editData?.id) return [];
+    const details = [];
+    const savedMetres = Number(editData.totalMeters) || 0;
+    const nextMetres = Number(totalMeters) || 0;
+    if (Math.abs(savedMetres - nextMetres) > 0.001) {
+      details.push({
+        label: 'Metres',
+        from: String(savedMetres),
+        to: String(nextMetres),
+      });
+    }
+    const savedQuote = String(editData.quotationRef || '').trim();
+    const nextQuote = String(quotationRef || '').trim();
+    if (savedQuote && nextQuote && normQuoteKey(savedQuote) !== normQuoteKey(nextQuote)) {
+      details.push({ label: 'Quotation', from: savedQuote, to: nextQuote });
+    }
+    if (
+      cuttingListFormLinesFingerprint(flatLinesWithType) !==
+      cuttingListSavedLinesFingerprint(editData.lines)
+    ) {
+      const savedCount = Array.isArray(editData.lines) ? editData.lines.length : 0;
+      details.push({
+        label: 'Cutting lines',
+        from: `${savedCount} line(s)`,
+        to: `${flatLinesWithType.length} line(s)`,
+      });
+    }
+    return details;
+  }, [editData, totalMeters, quotationRef, flatLinesWithType]);
+
   const hasUnsavedCuttingListChanges = useMemo(() => {
     if (!editData?.id || readOnly || isDraftRecord) return false;
     if (normQuoteKey(quotationRef) !== normQuoteKey(editData.quotationRef)) return true;
@@ -2352,7 +2383,12 @@ const CuttingListModal = ({
               value={cuttingListEditApprovalId}
               onChange={setCuttingListEditApprovalId}
               requiresSecondApproval={cuttingListEditNeedsSecondApproval}
-              changeSummary="Edit cutting list lines or quantities after production release"
+              changeSummary={
+                cuttingListEditApprovalDetails.length
+                  ? 'Update cutting list lines or metres — see the fields below'
+                  : 'Edit cutting list lines or quantities after production release'
+              }
+              changeDetails={cuttingListEditApprovalDetails}
             />
           </div>
         ) : null}
