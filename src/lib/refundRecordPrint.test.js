@@ -257,10 +257,113 @@ describe('buildRefundRecordPrintHtml', () => {
     );
     expect(html).toContain('0129988776');
     expect(html).toContain('Access Bank');
-    expect(html).toContain('Company deduction ₦10,000');
-    expect(html).toContain('Company deduction (retained)');
+    expect(html).toContain('Company deduction (20%) ₦10,000 — do not pay');
+    expect(html).toContain('Company deduction (20% retained)');
+    expect(html).toContain('Pay only · after 20% cut');
     expect(html).toContain('Till due now');
     expect(html).toContain('₦40,000');
+    expect(html).not.toMatch(/badge-amt">₦50,000/);
+  });
+
+  it('prints the 20% claiming-staff cut when the stored split still says pay in full', () => {
+    const html = buildRefundRecordPrintHtml(
+      {
+        refundID: 'RF-KD-26-1006',
+        status: 'Approved',
+        customerID: 'CUS-QUOTE',
+        amountNgn: 100_000,
+        approvedAmountNgn: 100_000,
+        calculationLines: [{ label: 'Cancel', category: 'Order cancellation', amountNgn: 100_000 }],
+        splitDistributions: [
+          {
+            recipientKind: 'customer',
+            recipientCustomerID: 'CUS-STAFF',
+            amountNgn: 100_000,
+            netPayoutNgn: 100_000,
+            companyDeductionNgn: 0,
+            deductionRate: 0,
+            payoutAccount: {
+              payeeName: 'Musa Staff',
+              payeeBankName: 'GTB',
+              payeeAccountNo: '5554443332',
+            },
+          },
+        ],
+        settlementSummary: { tillPayableNgn: 100_000, companyCutNgn: 0 },
+      },
+      formatNgn
+    );
+    expect(html).toContain('Company deduction (20% retained)');
+    expect(html).toContain('−₦20,000');
+    expect(html).toContain('Pay only · after 20% cut');
+    expect(html).toContain('₦80,000');
+    expect(html).toContain('Not the approved total');
+    expect(html).not.toMatch(/badge-amt">₦100,000/);
+  });
+
+  it('does not take 20% off the quotation customer', () => {
+    const html = buildRefundRecordPrintHtml(
+      {
+        refundID: 'RF-KD-26-1007',
+        status: 'Approved',
+        customerID: 'CUS-QUOTE',
+        amountNgn: 100_000,
+        approvedAmountNgn: 100_000,
+        calculationLines: [{ label: 'Overpay', category: 'Overpayment', amountNgn: 100_000 }],
+        splitDistributions: [
+          {
+            recipientKind: 'customer',
+            recipientCustomerID: 'CUS-QUOTE',
+            amountNgn: 100_000,
+            netPayoutNgn: 100_000,
+            companyDeductionNgn: 0,
+            deductionRate: 0,
+            payoutAccount: {
+              payeeName: 'Amina',
+              payeeBankName: 'GTB',
+              payeeAccountNo: '1112223334',
+            },
+          },
+        ],
+        settlementSummary: { tillPayableNgn: 100_000, companyCutNgn: 0 },
+      },
+      formatNgn
+    );
+    expect(html).not.toContain('Company deduction');
+    expect(html).toContain('₦100,000');
+  });
+
+  it('uses the settlement 20% cut when the stored split is still the full amount', () => {
+    const html = buildRefundRecordPrintHtml(
+      {
+        refundID: 'RF-KD-26-1008',
+        status: 'Approved',
+        customerID: 'CUS-QUOTE',
+        amountNgn: 83_665,
+        approvedAmountNgn: 83_665,
+        payeeName: 'Lawal Ibrahim',
+        payeeBankName: 'First Bank',
+        payeeAccountNo: '0123456789',
+        calculationLines: [{ label: 'Cancel', category: 'Order cancellation', amountNgn: 83_665 }],
+        splitDistributions: [
+          {
+            recipientKind: 'customer',
+            recipientCustomerID: 'CUS-QUOTE',
+            amountNgn: 83_665,
+            netPayoutNgn: 83_665,
+            companyDeductionNgn: 0,
+            deductionRate: 0,
+          },
+        ],
+        companyCutNgn: 16_733,
+        settlementSummary: { tillPayableNgn: 83_665, companyCutNgn: 16_733 },
+      },
+      formatNgn
+    );
+    expect(html).toContain('Company deduction (20% retained)');
+    expect(html).toContain('−₦16,733');
+    expect(html).toContain('₦66,932');
+    expect(html).not.toMatch(/badge-amt">₦83,665/);
   });
 
   it('does not inflate till due when uncleared hold zeros netPayoutNgn', () => {

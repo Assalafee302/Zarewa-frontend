@@ -6,6 +6,10 @@ import {
   parseUnproducedMetresLabel,
 } from '../shared/lib/refundLineArithmetic.js';
 import { refundCategoryDisplayLabel } from '../shared/refundConstants.js';
+import {
+  applyRefundStaffAllocationDeduction,
+  refundSplitTakesStaffDeduction,
+} from '../shared/lib/refundStaffAllocationDeduction.js';
 import { refundApprovedAmount, refundPublicStatusLabel } from './refundsStore.js';
 import { refundCashierMoneyStory } from './refundCashierDetail.js';
 
@@ -129,8 +133,16 @@ function splitDeductionNgn(row) {
   );
 }
 
+function cashierPayoutLines(record) {
+  if (Array.isArray(record?.cashierPayoutLines) && record.cashierPayoutLines.length) {
+    return record.cashierPayoutLines;
+  }
+  const nested = record?.settlementSummary?.cashierPayoutLines;
+  return Array.isArray(nested) ? nested : [];
+}
+
 function headerCompanyCutNgn(record) {
-  return Math.round(
+  const fromHeader = Math.round(
     Number(
       record?.companyCutNgn ??
         record?.company_cut_ngn ??
@@ -138,6 +150,63 @@ function headerCompanyCutNgn(record) {
         0
     ) || 0
   );
+  const fromLines = cashierPayoutLines(record).reduce(
+    (sum, line) =>
+      sum + Math.round(Number(line?.companyDeductionNgn ?? line?.company_deduction_ngn) || 0),
+    0
+  );
+  return Math.max(fromHeader, fromLines);
+}
+
+function splitCutWaived(row) {
+  return Boolean(
+    row?.companyCutWaived === true ||
+      row?.company_cut_waived === true ||
+      row?.waiveCompanyCut === true
+  );
+}
+
+/** Percent to print (20 for the claiming-staff cut). Null when it is not a clean percent. */
+function deductionPercent(cut, gross, rate) {
+  const r = Number(rate);
+  if (r > 0 && r < 1) return Math.round(r * 100);
+  if (gross > 0 && cut > 0) {
+    const pct = Math.round((cut / gross) * 100);
+    if (pct > 0 && pct < 100) return pct;
+  }
+  return null;
+}
+
+/**
+ * Stored splits often keep net = gross and deduction 0. The 20% claiming-staff cut
+ * (or 3% driver/installer cut) is applied later, at approval. Recompute it here so
+ * the voucher cannot tell the cashier to pay the full approved amount.
+ */
+function inferSplitCompanyCut(row, gross, quoteCustomerId) {
+  const storedCut = splitDeductionNgn(row);
+  const waived = splitCutWaived(row);
+  if (waived || gross <= 0) return { cut: storedCut, rate: 0 };
+  if (storedCut > 0) {
+    const storedRate = Number(row?.deductionRate ?? row?.deduction_rate);
+    return { cut: storedCut, rate: storedRate > 0 ? storedRate : storedCut / gross };
+  }
+  const force =
+    row?.forceClaimingStaffCut === true || row?.staffBankAccountMatch === true;
+  if (!force && !refundSplitTakesStaffDeduction(row, quoteCustomerId)) {
+    return { cut: 0, rate: 0 };
+  }
+  const base = { ...row, amountNgn: gross };
+  const storedRate = Number(row?.deductionRate ?? row?.deduction_rate);
+  // A stored 0 is the create-time default, not an instruction to skip the cut.
+  if (!(storedRate > 0)) {
+    delete base.deductionRate;
+    delete base.deduction_rate;
+  }
+  const enriched = applyRefundStaffAllocationDeduction(base, quoteCustomerId, {});
+  return {
+    cut: Math.round(Number(enriched.companyDeductionNgn) || 0),
+    rate: Number(enriched.deductionRate) || 0,
+  };
 }
 
 function splitPayeeRows(record) {
@@ -146,6 +215,7 @@ function splitPayeeRows(record) {
     payeeBankName: record?.payeeBankName ?? record?.payee_bank_name,
     payeeAccountNo: record?.payeeAccountNo ?? record?.payee_account_no,
   };
+  const quoteCustomerId = String(record?.customerID ?? record?.customer_id ?? '').trim();
   const fromList = (list) =>
     (Array.isArray(list) ? list : [])
       .map((row) => {
@@ -154,7 +224,8 @@ function splitPayeeRows(record) {
           row?.recipientKind ?? row?.recipient_kind ?? payoutAccountFromRow(row)?.partyKind
         );
         const gross = Math.round(Number(row?.amountNgn ?? row?.amount_ngn ?? row?.grossNgn ?? 0) || 0);
-        const cut = splitDeductionNgn(row);
+        const inferred = inferSplitCompanyCut(row, gross, quoteCustomerId);
+        const cut = inferred.cut;
         const uncleared = Math.round(
           Number(
             row?.unclearedReceiptHoldNgn ??
@@ -166,19 +237,20 @@ function splitPayeeRows(record) {
         const held = Boolean(row?.payoutHeldForUnclearedReceipts) || uncleared > 0;
         const netStored = Number(row?.netPayoutNgn ?? row?.net_payout_ngn);
         const netRaw = Number.isFinite(netStored) ? Math.round(netStored) : NaN;
-        // When hold zeros netPayoutNgn, do NOT fall back to gross−cut (that overstates till due).
+        // Hold can zero netPayoutNgn on purpose. A net that is still the gross does not
+        // include the company cut — paying that figure pays the cashier the full amount.
         let net;
-        if (Number.isFinite(netRaw)) {
+        if (Number.isFinite(netRaw) && netRaw === 0 && held) {
+          net = 0;
+        } else if (cut > 0 && (!Number.isFinite(netRaw) || netRaw + 1 >= gross)) {
+          net = Math.max(0, gross - cut);
+        } else if (Number.isFinite(netRaw)) {
           net = Math.max(0, netRaw);
         } else {
           net = Math.max(0, gross - cut);
         }
         const tillDue = held ? Math.max(0, net - Math.min(net, uncleared)) : net;
-        const waived = Boolean(
-          row?.companyCutWaived === true ||
-            row?.company_cut_waived === true ||
-            row?.waiveCompanyCut === true
-        );
+        const waived = splitCutWaived(row);
         const waiverNote = String(
           row?.companyCutWaiverNote ?? row?.company_cut_waiver_note ?? ''
         ).trim();
@@ -191,6 +263,7 @@ function splitPayeeRows(record) {
           net,
           tillDue,
           cut,
+          cutPct: deductionPercent(cut, gross, inferred.rate),
           uncleared,
           held,
           waived,
@@ -550,8 +623,33 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
   const splits = splitPayeeRows(record);
   const hasSubs = lines.some((l) => String(l.category || '').includes('Substitution'));
   const headerCut = headerCompanyCutNgn(record);
+  // Staff-bank 20% lives on the settlement, not always on the stored split.
+  if (headerCut > 0) {
+    const open = splits.filter((s) => !s.waived && s.gross > 0);
+    const already = splits.reduce((sum, row) => sum + (row.cut || 0), 0);
+    if (open.length === 1 && headerCut > already) {
+      const row = open[0];
+      const netWasGross = row.net + 1 >= row.gross;
+      row.cut += headerCut - already;
+      row.cutPct = deductionPercent(row.cut, row.gross, row.gross > 0 ? row.cut / row.gross : 0);
+      if (netWasGross) {
+        row.net = Math.max(0, row.gross - row.cut);
+        row.tillDue = row.held ? Math.max(0, row.net - Math.min(row.net, row.uncleared)) : row.net;
+      }
+    }
+  }
   const splitCutsTotal = splits.reduce((s, r) => s + (r.cut || 0), 0);
-  const totalDeduction = splitCutsTotal > 0 ? splitCutsTotal : headerCut;
+  const totalDeduction = Math.max(splitCutsTotal, headerCut);
+  const deductionPcts = [
+    ...new Set(splits.map((row) => row.cutPct).filter((pct) => pct > 0)),
+  ];
+  const deductionPct =
+    deductionPcts.length === 1
+      ? deductionPcts[0]
+      : deductionPercent(totalDeduction, approvedAmt > 0 ? approvedAmt : amountReq, null);
+  const deductionLabel = deductionPct
+    ? `Company deduction (${deductionPct}% retained)`
+    : 'Company deduction (retained)';
   const heldTotal =
     Math.round(Number(record?.heldNetNgn ?? record?.settlementSummary?.heldUnclearedNgn ?? 0) || 0) ||
     splits.reduce((s, r) => s + (r.uncleared || 0), 0);
@@ -573,22 +671,54 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
   const storyCashDue =
     story?.cashDueNgn != null ? Math.max(0, Math.round(Number(story.cashDueNgn) || 0)) : null;
   const splitTillTotal = splits.reduce((s, r) => s + (r.tillDue ?? r.net ?? 0), 0);
+  const grossBase = approvedAmt > 0 ? approvedAmt : amountReq;
+  const grossPayable = Math.max(0, grossBase - creditApplied);
+  const computedTill =
+    splits.length > 0 ? splitTillTotal : Math.max(0, grossPayable - totalDeduction);
+  const walletOpen = Math.max(
+    0,
+    Math.round(Number(record?.walletOpenNgn ?? record?.settlementSummary?.walletOpenNgn) || 0)
+  );
+  const statusKey = String(record?.status || '').trim().toLowerCase();
+  const approvedForPay =
+    statusKey === 'approved' || statusKey === 'partially paid' || statusKey === 'paid';
+  const tillBlocked =
+    heldTotal > 0 ||
+    walletOpen > 0 ||
+    (creditApplied > 0 && creditApplied + 1 >= Math.max(grossBase, 1));
 
-  const displayPay =
-    storyTill != null
-      ? storyTill
-      : storyCashDue != null
-        ? storyCashDue
-        : splits.length > 0
-          ? splitTillTotal
-          : Math.max(0, (approvedAmt > 0 ? approvedAmt : amountReq) - creditApplied - totalDeduction);
+  // The printed pay figure is the net after the company cut. A settlement snapshot that
+  // still says "pay the approved total" (or ₦0 from a pending row) must not override that.
+  let displayPay = computedTill;
+  if (storyTill != null && storyTill > 0) {
+    if (totalDeduction <= 0) {
+      displayPay = storyTill;
+    } else if (storyTill + 1 < grossPayable) {
+      displayPay = Math.min(storyTill, computedTill > 0 ? computedTill : storyTill);
+    }
+  } else if (
+    storyTill == null &&
+    storyCashDue != null &&
+    storyCashDue + 1 < displayPay &&
+    (totalDeduction <= 0 || storyCashDue + totalDeduction + 1 < grossPayable)
+  ) {
+    displayPay = storyCashDue;
+  }
+  if (totalDeduction > 0 && displayPay + totalDeduction > grossPayable + 1) {
+    displayPay = Math.max(0, grossPayable - totalDeduction);
+  }
+  if (storyTill != null && storyTill <= 0 && (tillBlocked || !approvedForPay)) {
+    displayPay = 0;
+  }
 
   const badgeLabel =
-    displayPay <= 0 && (creditApplied > 0 || paidAmt > 0 || heldTotal > 0)
-      ? heldTotal > 0 && displayPay <= 0
-        ? 'Held / not till-ready'
-        : 'Till due now'
-      : 'Till due now';
+    displayPay <= 0 && heldTotal > 0
+      ? 'Held / not till-ready'
+      : totalDeduction > 0 && displayPay > 0
+        ? deductionPct
+          ? `Pay only · after ${deductionPct}% cut`
+          : 'Pay only · after company cut'
+        : 'Till due now';
   const companyLegal = ZAREWA_COMPANY_ACCOUNT_NAME;
   const dens = densityClass({
     lineCount: lines.length,
@@ -627,10 +757,12 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
         const bank = s.bank || (splits.length === 1 ? headerPayeeBankName : '');
         const cutBits = [];
         if (s.gross > 0 && s.cut > 0) {
+          const pctBit = s.cutPct ? ` (${s.cutPct}%)` : '';
           cutBits.push(`Gross ${formatNgn(s.gross)}`);
-          cutBits.push(`Company deduction ${formatNgn(s.cut)}`);
+          cutBits.push(`Company deduction${pctBit} ${formatNgn(s.cut)} — do not pay`);
         } else if (s.cut > 0) {
-          cutBits.push(`Company deduction ${formatNgn(s.cut)}`);
+          const pctBit = s.cutPct ? ` (${s.cutPct}%)` : '';
+          cutBits.push(`Company deduction${pctBit} ${formatNgn(s.cut)} — do not pay`);
         }
         if (s.waived) {
           cutBits.push(s.waiverNote ? `Cut waived — ${s.waiverNote}` : 'Company cut waived');
@@ -680,9 +812,11 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
         }</div>
         ${
           totalDeduction > 0
-            ? `<div class="tiny">Gross ${escapeHtml(formatNgn(approvedAmt > 0 ? approvedAmt : amountReq))} · Company deduction ${escapeHtml(
-                formatNgn(totalDeduction)
-              )} · Net ${escapeHtml(formatNgn(displayPay))}</div>`
+            ? `<div class="tiny">Gross ${escapeHtml(formatNgn(approvedAmt > 0 ? approvedAmt : amountReq))} · ${escapeHtml(
+                deductionLabel
+              )} ${escapeHtml(formatNgn(totalDeduction))} — do not pay · Pay only ${escapeHtml(
+                formatNgn(displayPay)
+              )}</div>`
             : ''
         }
         ${
@@ -731,7 +865,7 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
         }
         ${
           totalDeduction > 0
-            ? `<div>Company deduction (retained)</div><div class="amt">−${escapeHtml(
+            ? `<div>${escapeHtml(deductionLabel)}</div><div class="amt">−${escapeHtml(
                 formatNgn(totalDeduction)
               )}</div>`
             : ''
@@ -897,6 +1031,14 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
     font-size: 16pt;
     font-weight: 900;
     font-variant-numeric: tabular-nums;
+    color: #000;
+  }
+  .badge .badge-note {
+    margin-top: 0.3mm;
+    font-size: 7pt;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
     color: #000;
   }
   h1 {
@@ -1104,6 +1246,11 @@ export function buildRefundRecordPrintHtml(record, formatNgn = defaultFormatNgn)
           <div class="badge">
             <div class="badge-label">${escapeHtml(badgeLabel)}</div>
             <div class="badge-amt">${escapeHtml(formatNgn(displayPay))}</div>
+            ${
+              totalDeduction > 0 && displayPay > 0
+                ? `<div class="badge-note">Not the approved total</div>`
+                : ''
+            }
           </div>
         </div>
         <div class="meta">
