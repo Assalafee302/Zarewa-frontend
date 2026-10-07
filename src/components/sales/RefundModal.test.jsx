@@ -6,6 +6,7 @@ import RefundModal, {
   refundableOverpaymentNgn,
   refundCreatePathFromPreview,
   refundFormIsOverpaymentOnly,
+  filterAlignmentIssuesForCashRefundPath,
   refundQuickOverpayAvailableFromPreview,
   refundRecordSubtitle,
   payoutRowRequiredRole,
@@ -957,5 +958,31 @@ describe('refundRecordSubtitle', () => {
         { include: true, category: 'Transport issue', amountNgn: '5000' },
       ])
     ).toBe(false);
+  });
+
+  it('strips full-production unproduced blocks on Overpayment-only path', () => {
+    const filtered = filterAlignmentIssuesForCashRefundPath(
+      [
+        {
+          code: 'production_alignment_check_failed',
+          submitAction: 'block',
+          title: 'Production alignment check failed',
+          message:
+            'Quotation is for 197.80 m roofing; production records 197.80 m finished output (197.80 m from coil). Unproduced meterage refund is not applicable.',
+        },
+        {
+          code: 'unproduced_with_full_production',
+          submitAction: 'block',
+          message: 'Unproduced meterage refund is not applicable.',
+        },
+        {
+          code: 'multi_category_overlap_same_request',
+          submitAction: 'block',
+          message: 'Overpayment with Order cancellation',
+        },
+      ],
+      { overpaymentOnly: true }
+    );
+    expect(filtered.map((i) => i.code)).toEqual(['multi_category_overlap_same_request']);
   });
 });

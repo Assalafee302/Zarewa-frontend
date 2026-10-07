@@ -480,6 +480,45 @@ export function refundFormIsOverpaymentOnly(calculationLines) {
   return lines.every((l) => String(l.category || '').trim() === 'Overpayment');
 }
 
+/** Metre / production gates that must not block cash-vs-quote Overpayment (or price-concession) refunds. */
+const OVERPAYMENT_IGNORED_ALIGNMENT_CODES = new Set([
+  'produced_exceeds_quotation',
+  'produced_exceeds_cutting_list',
+  'cutting_list_exceeds_produced',
+  'cutting_list_quotation_metre_mismatch',
+  'cutting_list_no_quoted_roofing_metres',
+  'cutting_list_quotation_metre_under',
+  'cutting_list_missing_for_quotation',
+  'produced_above_underquote_cutting_list',
+  'trim_blank_cl_soft_warning',
+  'trim_blank_cl_missing',
+  'cutting_list_trim_blank_missing',
+  'unproduced_with_full_production',
+  'cancellation_with_production',
+  'partial_production_cancellation',
+  'suggest_unproduced_meterage',
+  'production_alignment_check_failed',
+]);
+
+/**
+ * Drop production-metre alignment issues that do not apply to Overpayment-only / price-concession claims.
+ * @param {Array<{ code?: string, message?: string, submitAction?: string }>} issues
+ * @param {{ overpaymentOnly?: boolean, priceConcession?: boolean }} [opts]
+ */
+export function filterAlignmentIssuesForCashRefundPath(issues, opts = {}) {
+  const cashPath = Boolean(opts.overpaymentOnly || opts.priceConcession);
+  if (!cashPath) return Array.isArray(issues) ? issues : [];
+  return (Array.isArray(issues) ? issues : []).filter((i) => {
+    const code = String(i?.code || '').trim();
+    if (OVERPAYMENT_IGNORED_ALIGNMENT_CODES.has(code)) return false;
+    const msg = String(i?.message || i?.title || '');
+    if (/unproduced meterage refund is not applicable|fully produced|exceeds cutting list|produced output/i.test(msg)) {
+      return false;
+    }
+    return true;
+  });
+}
+
 /**
  * Still-refundable overpayment on this quote (after prior overpay refunds).
  * Prefer residual from preview — never invent an amount from gross excess alone when residual is 0.
@@ -3259,6 +3298,22 @@ const RefundModal = ({
       setAlignmentCheckLoading(false);
       return undefined;
     }
+    const cashPathOnly =
+      refundFormIsOverpaymentOnly(form.calculationLines) ||
+      refundRequestIsPriceConcession({ calculationLines: form.calculationLines, categories });
+    if (cashPathOnly) {
+      setProductionAlignmentIssues((prev) =>
+        filterAlignmentIssuesForCashRefundPath(prev, {
+          overpaymentOnly: refundFormIsOverpaymentOnly(form.calculationLines),
+          priceConcession: refundRequestIsPriceConcession({
+            calculationLines: form.calculationLines,
+            categories,
+          }),
+        })
+      );
+      setAlignmentCheckLoading(false);
+      return undefined;
+    }
     const alignmentKey = productionAlignmentFingerprint(qref, categories);
     if (previewAlignmentKeyRef.current === alignmentKey) {
       setAlignmentCheckLoading(false);
@@ -3279,7 +3334,7 @@ const RefundModal = ({
         }),
       });
       setAlignmentCheckLoading(false);
-      if (!ok || !data?.ok) {
+      if (!ok) {
         setProductionAlignmentIssues([
           {
             code: 'production_alignment_check_failed',
@@ -3290,13 +3345,27 @@ const RefundModal = ({
         ]);
         return;
       }
-      setProductionAlignmentIssues(Array.isArray(data.issues) ? data.issues : []);
+      /* Validation may return ok:false with real issue rows — keep those (don't swallow codes). */
+      const issues = Array.isArray(data?.issues) ? data.issues : [];
+      if (!data?.ok && issues.length === 0) {
+        setProductionAlignmentIssues([
+          {
+            code: data?.blockedCode || 'production_alignment_check_failed',
+            submitAction: 'block',
+            title: 'Production alignment check failed',
+            message: data?.error || 'Could not verify production alignment. Retry before submitting.',
+          },
+        ]);
+        return;
+      }
+      setProductionAlignmentIssues(issues);
     }, 350);
     return () => clearTimeout(timer);
   }, [
     mode,
     showApproval,
     form.quotationRef,
+    form.calculationLines,
     record?.quotationRef,
     record?.quotation_ref,
     record?.reasonCategory,
@@ -3308,22 +3377,16 @@ const RefundModal = ({
 
   /** Quick overpay is cash vs quote — hide stale production-metre noise from the first preview load. */
   useEffect(() => {
-    if (!refundFormIsOverpaymentOnly(form.calculationLines)) return;
+    const overpaymentOnly = refundFormIsOverpaymentOnly(form.calculationLines);
+    const priceConcession = refundRequestIsPriceConcession({ calculationLines: form.calculationLines });
+    if (!overpaymentOnly && !priceConcession) return;
     setProductionAlignmentIssues((prev) =>
-      prev.filter(
-        (i) =>
-          ![
-            'produced_exceeds_quotation',
-            'produced_exceeds_cutting_list',
-            'cutting_list_exceeds_produced',
-            'unproduced_with_full_production',
-          ].includes(String(i?.code || ''))
-      )
+      filterAlignmentIssuesForCashRefundPath(prev, { overpaymentOnly, priceConcession })
     );
     setWarnings((prev) =>
       prev.filter(
         (w) =>
-          !/produced output.*exceeds|exceeds cutting list|fully produced|offcut\/accessories in addition|economic floor check/i.test(
+          !/produced output.*exceeds|exceeds cutting list|fully produced|unproduced meterage refund|offcut\/accessories in addition|economic floor check/i.test(
             String(w || '')
           )
       )
@@ -3332,13 +3395,22 @@ const RefundModal = ({
 
   const alignmentBlocksAction = useMemo(() => {
     if (mode !== 'create' && !showApproval) return false;
-    if (alignmentCheckLoading) return true;
-    if (productionAlignmentIssues.length === 0) return false;
-    const hasBlock = productionAlignmentIssues.some((i) => i.submitAction === 'block');
+    const overpaymentOnly = refundFormIsOverpaymentOnly(form.calculationLines);
+    const priceConcession = refundRequestIsPriceConcession({
+      calculationLines: form.calculationLines,
+      categories: derivedReasonCategories,
+    });
+    const issues = filterAlignmentIssuesForCashRefundPath(productionAlignmentIssues, {
+      overpaymentOnly,
+      priceConcession,
+    });
+    if (alignmentCheckLoading && !overpaymentOnly && !priceConcession) return true;
+    if (issues.length === 0) return false;
+    const hasBlock = issues.some((i) => i.submitAction === 'block');
     if (hasBlock && !(canOverrideProductionAlignment && productionAlignmentOverrideNote.trim().length >= 10)) {
       return true;
     }
-    const needAck = productionAlignmentIssues.filter((i) => i.submitAction === 'acknowledge');
+    const needAck = issues.filter((i) => i.submitAction === 'acknowledge');
     return needAck.some((i) => !productionAlignmentAck[i.code]);
   }, [
     mode,
@@ -3348,16 +3420,30 @@ const RefundModal = ({
     canOverrideProductionAlignment,
     productionAlignmentOverrideNote,
     productionAlignmentAck,
+    form.calculationLines,
+    derivedReasonCategories,
   ]);
 
+  const attentionAlignmentIssues = useMemo(() => {
+    const overpaymentOnly = refundFormIsOverpaymentOnly(form.calculationLines);
+    const priceConcession = refundRequestIsPriceConcession({
+      calculationLines: form.calculationLines,
+      categories: derivedReasonCategories,
+    });
+    return filterAlignmentIssuesForCashRefundPath(productionAlignmentIssues, {
+      overpaymentOnly,
+      priceConcession,
+    });
+  }, [form.calculationLines, derivedReasonCategories, productionAlignmentIssues]);
+
   const refundAttentionItems = useMemo(
-    () => mergeRefundAttentionItems(warnings, productionAlignmentIssues),
-    [warnings, productionAlignmentIssues]
+    () => mergeRefundAttentionItems(warnings, attentionAlignmentIssues),
+    [warnings, attentionAlignmentIssues]
   );
 
   const refundAttentionNeedsAction = useMemo(() => {
     if (alignmentBlocksAction) return true;
-    if (productionAlignmentIssues.some((i) => i.submitAction === 'acknowledge')) return true;
+    if (attentionAlignmentIssues.some((i) => i.submitAction === 'acknowledge')) return true;
     const needsFloorOverride =
       refundAmountExceedsEconomicFloorCap({
         amountNgn: Math.round(Number(form.amountNgn) || 0),
@@ -3374,7 +3460,7 @@ const RefundModal = ({
     return needsFloorOverride;
   }, [
     alignmentBlocksAction,
-    productionAlignmentIssues,
+    attentionAlignmentIssues,
     form.amountNgn,
     form.calculationLines,
     lastPreviewSnapshot?.economicFloor?.maxDefensibleRefundNgn,
@@ -6938,7 +7024,7 @@ const RefundModal = ({
                       .trim()
                       .toLowerCase() === 'admin' ||
                       isExecutiveRoleKey(ws?.session?.user?.roleKey))) ||
-                    (productionAlignmentIssues.some((i) => i.submitAction === 'block') &&
+                    (attentionAlignmentIssues.some((i) => i.submitAction === 'block') &&
                       canOverrideProductionAlignment)) ? (
                     <label className="block">
                       <span className="text-ui-xs font-bold uppercase text-amber-900">
