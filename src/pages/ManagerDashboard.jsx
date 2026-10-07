@@ -436,7 +436,7 @@ const ManagerDashboard = () => {
       {pageTab === 'today' ? (
         <div className="space-y-5">
           <CoilDashboardCards />
-          <ManagerOpsStrip />
+          <ManagerOpsStrip
             machinesDown={bm.machinesDownCount}
             machinesDownAvailable={bm.machinesDownAvailable}
             lowStockCount={bm.liveLowStockCount ?? bm.displaySnapshots?.lowStockCount ?? 0}
