@@ -17,6 +17,7 @@ export const LINE_STATUS_LABELS = {
   [LINE_STATUS.CLEARED]: 'OK',
   [LINE_STATUS.ADJUSTED]: 'Adjusted',
   [LINE_STATUS.QUERY]: 'Query',
+  [LINE_STATUS.FINISHED]: 'Finished',
 };
 
 export const STORE_CHECKLIST_ITEMS = [
@@ -40,5 +41,6 @@ export const BM_STATUS_FILTERS = [
   { key: 'pending', label: 'Pending' },
   { key: 'cleared', label: 'OK' },
   { key: 'adjusted', label: 'Adjusted' },
+  { key: 'finished', label: 'Finished' },
   { key: 'query', label: 'Query' },
 ];

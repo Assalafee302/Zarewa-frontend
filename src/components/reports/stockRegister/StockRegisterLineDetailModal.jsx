@@ -19,6 +19,7 @@ import { ModalFrame } from '../../layout';
 import {
   FINISHED_CONFIRM,
   LINE_STATUS,
+  MANAGER_FINISH_NOTE_MIN,
   QUERY_REASONS,
   getLineEntry,
   parseLineClearance,
@@ -159,6 +160,7 @@ export function StockRegisterLineDetailModal({
     if (action === 'ok') {
       patchEntry({
         status: LINE_STATUS.CLEARED,
+        markFinished: false,
         queryReason: '',
         note: entry?.note || '',
         ...(countedField ? { [countedField]: sysVal } : {}),
@@ -166,11 +168,21 @@ export function StockRegisterLineDetailModal({
     } else if (action === 'adjust') {
       patchEntry({
         status: LINE_STATUS.ADJUSTED,
+        markFinished: false,
         queryReason: '',
+      });
+    } else if (action === 'finish') {
+      patchEntry({
+        status: LINE_STATUS.FINISHED,
+        markFinished: true,
+        queryReason: '',
+        finishedConfirm: FINISHED_CONFIRM.CONFIRMED,
+        countedClosingKg: 0,
       });
     } else if (action === 'query') {
       patchEntry({
         status: LINE_STATUS.QUERY,
+        markFinished: false,
         queryReason: entry?.queryReason || QUERY_REASONS[0],
       });
     }
@@ -201,6 +213,16 @@ export function StockRegisterLineDetailModal({
 
   const saveLine = async (shouldNavigateNext = false) => {
     if (!entry || !lineKey) return;
+
+    if (isCoil && (entry.status === LINE_STATUS.FINISHED || entry.markFinished)) {
+      if (String(entry.note || '').trim().length < MANAGER_FINISH_NOTE_MIN) {
+        showToast?.(
+          `Enter a note of at least ${MANAGER_FINISH_NOTE_MIN} characters when marking a coil finished.`,
+          { variant: 'error' }
+        );
+        return;
+      }
+    }
 
     if (entry.status === LINE_STATUS.ADJUSTED && countedField) {
       const counted = entry[countedField];
@@ -589,7 +611,7 @@ export function StockRegisterLineDetailModal({
                   <label className="block text-ui-xs font-bold uppercase tracking-wider text-slate-500">
                     Clearance Decision
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className={`grid gap-2 ${isCoil ? 'grid-cols-2' : 'grid-cols-3'}`}>
                     <button
                       type="button"
                       onClick={() => applyAction('ok')}
@@ -616,6 +638,21 @@ export function StockRegisterLineDetailModal({
                       Adjust Qty
                     </button>
 
+                    {isCoil ? (
+                      <button
+                        type="button"
+                        onClick={() => applyAction('finish')}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition inline-flex items-center justify-center gap-1.5 ${
+                          activeStatus === LINE_STATUS.FINISHED
+                            ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Layers size={14} />
+                        Mark finished
+                      </button>
+                    ) : null}
+
                     <button
                       type="button"
                       onClick={() => applyAction('query')}
@@ -629,6 +666,14 @@ export function StockRegisterLineDetailModal({
                       Flag Query
                     </button>
                   </div>
+                </div>
+              ) : null}
+
+              {isCoil && activeStatus === LINE_STATUS.FINISHED ? (
+                <div className="rounded-xl border border-slate-300 bg-slate-50 p-3.5 text-xs text-slate-700 leading-relaxed">
+                  Approving this register clears the remaining{' '}
+                  <strong>{fmtQty(sysVal, 'coil')} kg</strong> from yard stock and marks the coil finished.
+                  It leaves the active coil list. A note is required.
                 </div>
               ) : null}
 
@@ -685,7 +730,12 @@ export function StockRegisterLineDetailModal({
               {/* Manager Note Textarea */}
               <div className="space-y-1">
                 <label className="block text-ui-xs font-bold uppercase tracking-wider text-slate-600">
-                  Manager Review Note <span className="text-slate-500 font-normal">(Optional)</span>
+                  Manager Review Note{' '}
+                  {isCoil && activeStatus === LINE_STATUS.FINISHED ? (
+                    <span className="text-rose-700 font-bold">(Required)</span>
+                  ) : (
+                    <span className="text-slate-500 font-normal">(Optional)</span>
+                  )}
                 </label>
                 <textarea
                   className="z-input w-full min-h-[3rem] text-xs leading-relaxed"

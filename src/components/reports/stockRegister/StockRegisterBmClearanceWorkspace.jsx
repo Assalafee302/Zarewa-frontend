@@ -60,6 +60,7 @@ function statusBadge(entry, kind) {
     [LINE_STATUS.CLEARED]: 'bg-emerald-100 text-emerald-900 border-emerald-200',
     [LINE_STATUS.ADJUSTED]: 'bg-amber-100 text-amber-900 border-amber-200',
     [LINE_STATUS.QUERY]: 'bg-rose-100 text-rose-900 border-rose-200',
+    [LINE_STATUS.FINISHED]: 'bg-slate-800 text-white border-slate-800',
   };
   return { label: LINE_STATUS_LABELS[st] || st, cls: map[st] || map[LINE_STATUS.PENDING] };
 }
@@ -185,6 +186,7 @@ export function StockRegisterBmClearanceWorkspace({
             if (statusFilter === 'pending' && st !== LINE_STATUS.PENDING) return false;
             if (statusFilter === 'cleared' && st !== LINE_STATUS.CLEARED) return false;
             if (statusFilter === 'adjusted' && st !== LINE_STATUS.ADJUSTED) return false;
+            if (statusFilter === 'finished' && st !== LINE_STATUS.FINISHED) return false;
             if (statusFilter === 'query' && st !== LINE_STATUS.QUERY) return false;
           }
         }
@@ -272,7 +274,8 @@ export function StockRegisterBmClearanceWorkspace({
             if (s === LINE_STATUS.PENDING) return 0;
             if (s === LINE_STATUS.QUERY) return 1;
             if (s === LINE_STATUS.ADJUSTED) return 2;
-            return 3;
+            if (s === LINE_STATUS.FINISHED) return 3;
+            return 4;
           };
           return rank(eA, a.kind) - rank(eB, b.kind);
         }
@@ -309,7 +312,9 @@ export function StockRegisterBmClearanceWorkspace({
       const isCleared =
         item.kind === 'finished'
           ? entry.finishedConfirm === FINISHED_CONFIRM.CONFIRMED
-          : entry.status === LINE_STATUS.CLEARED || entry.status === LINE_STATUS.ADJUSTED;
+          : entry.status === LINE_STATUS.CLEARED ||
+            entry.status === LINE_STATUS.ADJUSTED ||
+            entry.status === LINE_STATUS.FINISHED;
 
       if (isCleared) grp.clearedCount += 1;
       else grp.pendingCount += 1;
@@ -1157,7 +1162,11 @@ function LineRowItem({
 
             <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-slate-500">
               <span className="font-semibold text-slate-700">{lineQty(item)}</span>
-              {isCoil && countedKg != null && countedKg !== sysKg ? (
+              {isCoil && entry.status === LINE_STATUS.FINISHED ? (
+                <span className="text-slate-700 font-bold">
+                  Marked finished — remaining kg clears when you approve
+                </span>
+              ) : isCoil && countedKg != null && countedKg !== sysKg ? (
                 <span className="text-amber-700 font-bold">
                   (Counted: {countedKg.toLocaleString()} kg · diff {diffKg > 0 ? `+${diffKg}` : diffKg} kg)
                 </span>
