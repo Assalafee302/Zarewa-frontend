@@ -42,7 +42,10 @@ import {
 } from '../../lib/cuttingListPaymentGate';
 import { quotationBelowFloorPendingMdApproval } from '../../lib/quotationPriceException';
 import { validateCuttingListQuotedRoofingAlignment, cuttingListTotalMetresFromLines } from '../../lib/refundCuttingListQuotationReconciliation';
-import { assessCuttingListQuotationConsumption } from '../../lib/cuttingListBlankConsumption';
+import {
+  assessCuttingListQuotationConsumption,
+  cuttingListTrimBlankBlocksDeskSave,
+} from '../../lib/cuttingListBlankConsumption';
 import { quotedRoofingSheetMetresFromLines } from '../../lib/refundQuotationMetres';
 import { refundFundPaymentRowsForQuotation } from '../../lib/refundFundApply.js';
 
@@ -1495,11 +1498,11 @@ const CuttingListModal = ({
     }
     if (
       !selectedQuotationAccessoriesOnly &&
-      quotationConsumption.trimBlankProductionBlocked
+      cuttingListTrimBlankBlocksDeskSave(quotationConsumption)
     ) {
       showToast(
         quotationConsumption.warnings?.find((w) => String(w).includes('Flatsheet section')) ||
-          'Add trim blank metres under the Flatsheet section before saving.',
+          'Move the trim metres into the Flatsheet section before saving. A list that is still short of the quotation can be saved; production still needs the trim blank.',
         { variant: 'error' }
       );
       return;
