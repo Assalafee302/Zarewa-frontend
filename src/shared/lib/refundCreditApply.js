@@ -14,10 +14,34 @@ import {
 
 export const REFUND_CREDIT_CONFIRMATION_STATUS = 'Credit confirmation';
 export const REFUND_CREDIT_REVERSED_STATUS = 'Reversed';
+/**
+ * Admin fund close: zeros refund-fund leftover on a quote without moving cash or
+ * applying credit to a payee. Must never inflate Paid / "Applied as credit".
+ */
+export const REFUND_CREDIT_LEFTOVER_CLEAR_STATUS = 'Leftover clear';
+/** Ledger `bank_reference` prefix for leftover-fund clears (not a payee credit apply). */
+export const REFUND_CREDIT_LEFTOVER_CLEAR_LEDGER_REF_PREFIX = 'LEFTOVER_CLEAR:';
 /** Ledger `bank_reference` prefix for refund-fund apply (not same-quote OVERPAY_APPLY). */
 export const REFUND_CREDIT_LEDGER_REF_PREFIX = 'CREDIT_APPLY:';
 /** Compensating rows for {@link REFUND_CREDIT_LEDGER_REF_PREFIX} (finance.reverse). */
 export const REFUND_CREDIT_REVERSE_LEDGER_REF_PREFIX = 'CREDIT_APPLY_REVERSE:';
+
+/**
+ * SQL predicate: live applications that discharge payee cash via receipt credit.
+ * Excludes reversals and leftover-fund clears (those are fund bookkeeping only).
+ */
+export const REFUND_CREDIT_PAYEE_APPLY_SQL = `LOWER(TRIM(COALESCE(status, ''))) NOT IN ('reversed', 'cancelled', 'leftover clear')
+           AND UPPER(TRIM(COALESCE(ledger_bank_reference, ''))) NOT LIKE 'LEFTOVER_CLEAR:%'`;
+
+/** @param {{ status?: unknown, ledger_bank_reference?: unknown, ledgerBankReference?: unknown }} row */
+export function isRefundCreditLeftoverClearApplication(row) {
+  const status = String(row?.status || '').trim().toLowerCase();
+  if (status === REFUND_CREDIT_LEFTOVER_CLEAR_STATUS.toLowerCase()) return true;
+  const ref = String(row?.ledger_bank_reference ?? row?.ledgerBankReference ?? '')
+    .trim()
+    .toUpperCase();
+  return ref.startsWith(REFUND_CREDIT_LEFTOVER_CLEAR_LEDGER_REF_PREFIX);
+}
 
 /**
  * @param {unknown} reasonCategory
@@ -161,6 +185,35 @@ export function refundIsEligibleCreditSourceKind(refund) {
   // Leftover after the first receipt credit is Partially paid and must still cover the next job
   // (RF-KD-26-9693: ₦555,000 then ₦72,300).
   return status === 'Pending' || status === 'Approved' || status === 'Partially paid';
+}
+
+/**
+ * A quote-to-quote overpayment move is customer credit, not refund money.
+ * Only an overpayment-only refund that can itself be transferred as credit may absorb it.
+ * Transport, installation, and staff splits never do (RF-KD-26-9586).
+ * @param {object} row refund row, stored or API-shaped
+ */
+export function refundAbsorbsQuoteToQuoteOverpay(row) {
+  let calculationLines = row?.calculationLines;
+  if (!Array.isArray(calculationLines)) {
+    const raw = row?.calculation_lines_json;
+    if (Array.isArray(raw)) calculationLines = raw;
+    else {
+      try {
+        const parsed = JSON.parse(String(raw || '[]'));
+        calculationLines = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        calculationLines = [];
+      }
+    }
+  }
+  return refundIsEligibleCreditSourceKind({
+    status: row?.status,
+    reasonCategory: row?.reasonCategory ?? row?.reason_category,
+    calculationLines,
+    splitDistributions: row?.splitDistributions ?? row?.split_distributions_json,
+    customerID: row?.customerID ?? row?.customerId ?? row?.customer_id,
+  });
 }
 
 /** True when a ledger/credit error is the quotation-has-open-refund payment lock. */
