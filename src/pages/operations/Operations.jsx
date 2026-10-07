@@ -820,6 +820,7 @@ const Operations = () => {
     })
   );
   const [coilLiveSearch, setCoilLiveSearch] = useState('');
+  const [coilLifePreset, setCoilLifePreset] = useState(null);
   const [coilSearchRemoteRows, setCoilSearchRemoteRows] = useState([]);
   const [coilSearchRemoteLoading, setCoilSearchRemoteLoading] = useState(false);
   /** Stock management: filter in-transit POs and received stock panel (coil lots vs metre/unit SKUs). */
@@ -1407,6 +1408,8 @@ const Operations = () => {
         setStockAdjustMaterialFamily(null);
         setShowStockAdjust(true);
       }
+      const lifeFilter = String(st.coilLifeFilter || '').trim();
+      setCoilLifePreset(lifeFilter || null);
     }
 
     if (normalized.tab === 'materialExceptions') {
@@ -2307,6 +2310,8 @@ const Operations = () => {
             coilSpecBelowMinCount={coilSpecBelowMinCount}
             stoneSpecBelowMinCount={stoneSpecBelowMinCount}
             inventoryStats={inventoryStats}
+            productionJobCoils={productionJobCoils}
+            coilLifePreset={coilLifePreset}
           />
         ) : null}
 

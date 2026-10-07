@@ -114,6 +114,7 @@ const MaterialPricingWorkbookPage = lazyWithRetry(() => import('./pages/procurem
 const SupplierProfile = lazyWithRetry(() => import('./pages/procurement/SupplierProfile'), { id: 'SupplierProfile' });
 const TransportAgentProfile = lazyWithRetry(() => import('./pages/procurement/TransportAgentProfile'), { id: 'TransportAgentProfile' });
 const CoilProfile = lazyWithRetry(() => import('./pages/operations/CoilProfile'), { id: 'CoilProfile' });
+const CoilCountPage = lazyWithRetry(() => import('./pages/operations/CoilCountPage'), { id: 'CoilCountPage' });
 const Operations = lazyWithRetry(() => import('./pages/operations/Operations'), { id: 'Operations' });
 const OvertimeHub = lazyWithRetry(() => import('./pages/operations/OvertimeHub'), { id: 'OvertimeHub' });
 const Account = lazyWithRetry(() => import('./pages/account/Account'), { id: 'Account' });
@@ -1027,6 +1028,14 @@ function AppShell() {
             <Route
               path="/overtime/*"
               element={<Navigate to="/operations/overtime" replace />}
+            />
+            <Route
+              path="/operations/coil-count"
+              element={
+                <ModuleRouteGuard moduleKey="operations">
+                  <CoilCountPage />
+                </ModuleRouteGuard>
+              }
             />
             <Route
               path="/operations/coils/:coilNo"

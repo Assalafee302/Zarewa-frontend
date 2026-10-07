@@ -21,6 +21,7 @@ import { OperationsInventoryAttentionPanel } from './OperationsInventoryAttentio
 import { OperationsDeskSection } from './OperationsDeskSection';
 import { OperationsDeskMetric } from './OperationsDeskMetric';
 import { OPS_TEXT_LINK, OPS_TOOL_BTN, OPS_TOOL_BTN_PRIMARY } from './operationsDeskUi';
+import { CoilDashboardCards } from './CoilDashboardCards';
 
 function CoilFamilyBlock({ label, data }) {
   return (
@@ -199,6 +200,8 @@ export function OperationsProductionOverview({
           onClick={() => onGoProduction?.('attention')}
         />
       </div>
+
+      <CoilDashboardCards />
 
       {conversionStats.flagged > 0 ? (
         <button

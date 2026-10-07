@@ -10,6 +10,7 @@ import {
 import { ManagerPriorityBanner, pickManagerPriorityItem } from '../components/branchManager/ManagerPriorityBanner';
 import { ManagerTodayPulse } from '../components/branchManager/ManagerTodayPulse';
 import { ManagerOpsStrip } from '../components/branchManager/ManagerOpsStrip';
+import { CoilDashboardCards } from '../components/operations/CoilDashboardCards';
 import { ManagerPeopleGlancePanel } from '../components/branchManager/ManagerPeopleGlancePanel';
 import { ManagerCustomerIssuesPanel } from '../components/branchManager/ManagerCustomerIssuesPanel';
 import { ManagerDailyChecklist } from '../components/branchManager/ManagerDailyChecklist';
@@ -434,7 +435,8 @@ const ManagerDashboard = () => {
 
       {pageTab === 'today' ? (
         <div className="space-y-5">
-          <ManagerOpsStrip
+          <CoilDashboardCards />
+          <ManagerOpsStrip />
             machinesDown={bm.machinesDownCount}
             machinesDownAvailable={bm.machinesDownAvailable}
             lowStockCount={bm.liveLowStockCount ?? bm.displaySnapshots?.lowStockCount ?? 0}

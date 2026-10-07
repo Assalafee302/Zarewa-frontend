@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ChevronDown, RefreshCw } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
@@ -11,6 +11,7 @@ import {
   AccountingDeskPageIntro,
 } from './accounting/AccountingDeskUi';
 import { AccountingDeskTableSection } from './accounting/AccountingDeskTableSection';
+import { splitSupplierAdvanceRows, sumNgn } from '../../lib/supplierAdvanceBuckets';
 
 /**
  * @param {{
@@ -35,7 +36,13 @@ export function Ap2cAccountingSections({
 
   const filters = { branchId, period, supplierId, status };
 
-  const topAdvances = (advance?.supplierExposure || []).slice(0, compact ? 3 : 8);
+  const advanceBuckets = useMemo(() => {
+    const byId = new Map();
+    for (const row of [...(advance?.supplierAdvanceSummary || []), ...(advance?.paidNotReceived || [])]) {
+      if (row?.poId) byId.set(row.poId, row);
+    }
+    return splitSupplierAdvanceRows([...byId.values()]);
+  }, [advance]);
   const alignmentChecks = (alignment?.checks || []).slice(0, compact ? 2 : 6);
 
   return (
@@ -62,6 +69,27 @@ export function Ap2cAccountingSections({
           {error}
         </p>
       ) : null}
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" data-screen="supplier-advance">
+        <AccountingDeskKpiCard
+          label="Paid – not received"
+          value={formatNgn(sumNgn(advanceBuckets.paidNotReceived))}
+          hint={`${advanceBuckets.paidNotReceived.length} POs · goods outstanding`}
+          tone="amber"
+        />
+        <AccountingDeskKpiCard
+          label="Received, not valued"
+          value={formatNgn(sumNgn(advanceBuckets.receivedNotValued))}
+          hint={`${advanceBuckets.receivedNotValued.length} POs · accessories and unpriced receipts`}
+          tone="amber"
+        />
+        <AccountingDeskKpiCard
+          label="True over-payment"
+          value={formatNgn(sumNgn(advanceBuckets.trueOverpayment, 'supplierAdvanceNgn'))}
+          hint={`${advanceBuckets.trueOverpayment.length} POs · cash above valued goods`}
+          tone="teal"
+        />
+      </div>
 
       <div className={`grid gap-3 ${compact ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-4'}`}>
         <AccountingDeskKpiCard
@@ -94,37 +122,29 @@ export function Ap2cAccountingSections({
 
       {!compact ? (
         <>
-          <AccountingDeskTableSection
-            title="Supplier advances"
-            description="Prepayments where supplier paid exceeds received goods value."
-            onExport={() =>
-              downloadFinanceCsv(
-                'supplier-advance-summary',
-                ['poId', 'supplierName', 'supplierAdvanceNgn', 'classification'],
-                (advance?.supplierAdvanceSummary || []).map((r) => ({
-                  poId: r.poId,
-                  supplierName: r.supplierName,
-                  supplierAdvanceNgn: r.supplierAdvanceNgn,
-                  classification: r.classification,
-                }))
-              )
-            }
-            exportDisabled={!topAdvances.length}
-          >
-            <FinanceDataTable
-              columns={[
-                { key: 'supplier', label: 'Supplier' },
-                { key: 'advance', label: 'Advance', align: 'right' },
-                { key: 'pos', label: 'POs', align: 'right' },
-              ]}
-              rows={topAdvances.map((r) => ({
-                _key: r.supplierId || r.supplierName,
-                supplier: r.supplierName || r.supplierId,
-                advance: formatNgn(r.advanceNgn),
-                pos: r.poCount,
-              }))}
+          <div className="space-y-4">
+            <AdvanceBucketTable
+              title="Paid – not received"
+              description="Cash has gone out and the goods are still outstanding."
+              rows={advanceBuckets.paidNotReceived}
+              amountLabel="Paid"
+              amountOf={(r) => r.supplierPaidNgn}
             />
-          </AccountingDeskTableSection>
+            <AdvanceBucketTable
+              title="Paid – received but not valued"
+              description="Goods are in (for example accessories on PO-KD-26-0066) but there is no naira value on the receipt."
+              rows={advanceBuckets.receivedNotValued}
+              amountLabel="Paid"
+              amountOf={(r) => r.supplierPaidNgn}
+            />
+            <AdvanceBucketTable
+              title="True over-payment"
+              description="Received goods have a value, and cash paid is above that value."
+              rows={advanceBuckets.trueOverpayment}
+              amountLabel="Over-payment"
+              amountOf={(r) => r.supplierAdvanceNgn}
+            />
+          </div>
 
           <AccountingDeskTableSection
             title="Inventory valuation"
@@ -192,5 +212,42 @@ export function Ap2cAccountingSections({
         </>
       ) : null}
     </div>
+  );
+}
+
+function AdvanceBucketTable({ title, description, rows, amountLabel, amountOf }) {
+  return (
+    <AccountingDeskTableSection
+      title={title}
+      description={description}
+      onExport={() =>
+        downloadFinanceCsv(
+          title,
+          ['poId', 'supplierName', 'amountNgn'],
+          rows.map((r) => ({
+            poId: r.poId,
+            supplierName: r.supplierName,
+            amountNgn: amountOf(r),
+          }))
+        )
+      }
+      exportDisabled={!rows.length}
+    >
+      <div className="overflow-x-auto">
+        <FinanceDataTable
+          columns={[
+            { key: 'po', label: 'PO' },
+            { key: 'supplier', label: 'Supplier' },
+            { key: 'amount', label: amountLabel, align: 'right' },
+          ]}
+          rows={rows.map((r) => ({
+            _key: r.poId,
+            po: r.poId,
+            supplier: r.supplierName || r.supplierId,
+            amount: formatNgn(amountOf(r)),
+          }))}
+        />
+      </div>
+    </AccountingDeskTableSection>
   );
 }

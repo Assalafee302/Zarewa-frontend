@@ -12,6 +12,7 @@ vi.mock('./OperationsMachinesPanel', () => ({ OperationsMachinesPanel: () => nul
 vi.mock('./OperationsInventoryAttentionPanel', () => ({
   OperationsInventoryAttentionPanel: () => null,
 }));
+vi.mock('./CoilDashboardCards', () => ({ CoilDashboardCards: () => null }));
 
 afterEach(() => cleanup());
 

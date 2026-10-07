@@ -28,7 +28,12 @@ import { apiFetch } from '../../lib/apiBase';
 import { fmtConv2 } from '../../lib/conversionKgPerM.js';
 import { coilFreeKg, coilKgUsed, coilOnHandKg, coilReceivedKg } from '../../lib/coilStockKg.js';
 import { OPS_INVENTORY_TAB_LABEL } from '../../lib/storeClearanceRank';
+import { buildCoilLife, formatSignedKg } from '../../lib/coilExpectedLife';
 import { buildCoilProfileJobRows, coilProfileProductionTotals } from '../../lib/coilProfileJobRows.js';
+import { CoilLifeFlowBar } from '../../components/operations/CoilLifeFlowBar';
+import { CoilMovementTimeline } from '../../components/operations/CoilMovementTimeline';
+import { CoilRollFinishSummary, rollFinishNeedsReason } from '../../components/operations/CoilRollFinishSummary';
+import { CoilVarianceBadge } from '../../components/operations/CoilVarianceBadge';
 import { buildCoilStatementPayload } from '../../lib/coilStatementPrint.js';
 import CoilNumberCorrectionPanel from '../../components/operations/CoilNumberCorrectionPanel';
 
@@ -66,16 +71,17 @@ function isoTs(v) {
 /** Matches server `COIL_PROFILE_FINISH_MAX_KG` (SOP-04 §4.3 ≤85 kg) — tail-only close from coil profile. */
 const COIL_PROFILE_FINISH_MAX_KG = 85;
 
-function movementTitle(m) {
-  const t = String(m?.type || '').toUpperCase();
-  const detail = String(m?.detail || '').toLowerCase();
-  if (detail.includes('roll finished')) return 'Roll finished';
-  if (t.includes('SCRAP')) return 'Scrap posted';
-  if (t.includes('RETURN')) return 'Material returned';
-  if (t.includes('SPLIT')) return 'Coil split';
-  if (t.includes('CONSUMED') || t.includes('PRODUCTION')) return 'Production consumed';
-  if (t.includes('RECEIPT') || t.includes('GRN')) return 'Store receipt';
-  return m?.type || 'Movement';
+function LifeStat({ label, value, suffix = 'kg', digits = 1 }) {
+  const text =
+    value == null || !Number.isFinite(Number(value))
+      ? '—'
+      : `${Number(value).toLocaleString(undefined, { maximumFractionDigits: digits })}${suffix ? ` ${suffix}` : ''}`;
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50/50 px-3 py-3">
+      <p className="text-ui-xs font-medium text-slate-500">{label}</p>
+      <p className="text-lg font-semibold tabular-nums text-slate-900">{text}</p>
+    </div>
+  );
 }
 
 function canEditCoilLotMasterData(roleKey) {
@@ -267,8 +273,13 @@ export default function CoilProfile() {
         const blob = `${m.ref || ''} ${m.detail || ''} ${m.coilNo || ''}`.toLowerCase();
         return blob.includes(id);
       })
-      .slice(0, 120);
+      .slice(0, 200);
   }, [movements, coilNo]);
+
+  const coilLife = useMemo(
+    () => (coil ? buildCoilLife(coil, jobRows, movementRows) : null),
+    [coil, jobRows, movementRows]
+  );
 
   const NAV = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -407,8 +418,18 @@ export default function CoilProfile() {
 
   const submitFinishRoll = async (e) => {
     e.preventDefault();
-    const note = finishForm.note.trim();
-    if (note.length < 8) return showToast('Enter a note (at least 8 characters) for the audit trail.', { variant: 'error' });
+    const review = rollFinishNeedsReason({
+      receivedKg,
+      bookedKg: coilLife?.bookedKg,
+      tailKg: freeKg,
+      metres: coilLife?.metres,
+      rate: coilLife?.rateKgPerM,
+    });
+    const typedNote = finishForm.note.trim();
+    if (review && typedNote.length < 8) {
+      return showToast('Enter a reason before finishing a coil that needs review.', { variant: 'error' });
+    }
+    const note = typedNote.length >= 8 ? typedNote : 'Roll finish within tolerance.';
     if (!ws?.canMutate) return showToast('Workspace is read-only.', { variant: 'error' });
     if (!finishRollEligible) {
       return showToast(
@@ -750,6 +771,34 @@ export default function CoilProfile() {
           <CoilNumberCorrectionPanel coilNo={coil.coilNo} />
           <section id="coil-overview" className="rounded-lg border border-slate-200 bg-white p-5 mb-8 scroll-mt-28">
             <h3 className="z-section-title">Overview</h3>
+            {coilLife ? (
+              <div className="mb-4 space-y-3" data-screen="coil-detail">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <LifeStat label="Received kg" value={coilLife.receivedKg} />
+                  <LifeStat label="Metres run" value={coilLife.metres} />
+                  <LifeStat label="Expected kg" value={coilLife.expectedKg} />
+                  <LifeStat label="ERP kg" value={coilLife.erpKg} />
+                  <div className="rounded-md border border-slate-200 bg-slate-50/50 px-3 py-3">
+                    <p className="text-ui-xs font-medium text-slate-500">Variance</p>
+                    <div className="mt-1">
+                      <CoilVarianceBadge status={coilLife.status} varianceLabel={formatSignedKg(coilLife.varianceKg)} />
+                    </div>
+                  </div>
+                  <LifeStat
+                    label="Rate used"
+                    value={coilLife.rateKgPerM}
+                    suffix="kg/m"
+                    digits={3}
+                  />
+                </div>
+                <CoilLifeFlowBar
+                  receivedKg={coilLife.receivedKg}
+                  usedKg={coilLife.bookedKg}
+                  remainingKg={coilLife.erpKg}
+                  tailKg={coilLife.tailKg}
+                />
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
               <div className="rounded-md border border-slate-200 bg-slate-50/50 px-3 py-3">
                 <p className="text-ui-xs font-medium text-slate-500">Received at GRN</p>
@@ -1069,29 +1118,27 @@ export default function CoilProfile() {
 
           <section id="coil-history" className="rounded-zarewa border border-gray-100 bg-white shadow-sm p-5 scroll-mt-28">
             <h3 className="text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4">Movement history</h3>
-            {movementRows.length === 0 ? (
-              <p className="text-xs text-slate-500">No movement rows referencing this coil yet.</p>
-            ) : (
-              <ul className="space-y-2 max-h-[420px] overflow-y-auto custom-scrollbar">
-                {movementRows.map((m) => (
-                  <li key={m.id} className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs">
-                    <p className="font-bold text-zarewa-teal">{movementTitle(m)} <span className="text-slate-400">· {m.atISO || '—'}</span></p>
-                    <p className="text-slate-600 mt-0.5">{m.detail || '—'}</p>
-                    {m.ref ? <p className="text-ui-xs text-slate-500 mt-0.5">Ref: {m.ref}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <p className="mb-3 text-ui-xs text-slate-500">
+              Corrected entries stay on the timeline with a line through them.
+            </p>
+            <CoilMovementTimeline coil={coil} jobRows={jobRows} movements={movementRows} />
           </section>
         </MainPanel>
       </div>
       <ModalFrame isOpen={actionModal === 'finish'} onClose={closeActionModal}>
         <form onSubmit={submitFinishRoll} className="space-y-3" onInput={captureEdited} onChange={captureEdited}>
           <h3 className="text-lg font-black text-zarewa-teal">Finish roll — {coil.coilNo}</h3>
+          <CoilRollFinishSummary
+            receivedKg={receivedKg}
+            bookedKg={coilLife?.bookedKg}
+            tailKg={freeKg}
+            metres={coilLife?.metres}
+            rate={coilLife?.rateKgPerM}
+            onWatchList={Boolean(coilLife?.onWatchList)}
+          />
           <p className="text-xs text-slate-600 leading-relaxed">
             Clears <strong>{freeKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg</strong> of unusable
-            spool/core tail from coil and raw-material stock. Use when production metres were already posted but
-            &ldquo;Roll finished&rdquo; was not ticked. Does not add finished-goods metres.
+            spool/core tail from coil and raw-material stock. A reason is required when the result is Review.
           </p>
           <input
             className="z-input w-full"
@@ -1101,11 +1148,26 @@ export default function CoilProfile() {
           />
           <textarea
             className="z-input w-full min-h-24"
-            placeholder="Note (required, min 8 characters) — e.g. Roll finished last month; CL-55 complete without finish tick"
+            placeholder={
+              rollFinishNeedsReason({
+                receivedKg,
+                bookedKg: coilLife?.bookedKg,
+                tailKg: freeKg,
+                metres: coilLife?.metres,
+                rate: coilLife?.rateKgPerM,
+              })
+                ? 'Reason (required) — why this roll is off the expected kg'
+                : 'Note (optional when the result is Pass)'
+            }
             value={finishForm.note}
             onChange={(e) => setFinishForm((s) => ({ ...s, note: e.target.value }))}
-            required
-            minLength={8}
+            required={rollFinishNeedsReason({
+              receivedKg,
+              bookedKg: coilLife?.bookedKg,
+              tailKg: freeKg,
+              metres: coilLife?.metres,
+              rate: coilLife?.rateKgPerM,
+            })}
           />
           <button className="z-btn-primary" type="submit" disabled={savingAction}>
             {savingAction ? 'Clearing tail…' : 'Finish roll & clear stock'}

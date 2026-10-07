@@ -17,6 +17,9 @@ const ConfirmBranchGate = lazyWithRetry(() => import('./components/auth/ConfirmB
   id: 'ConfirmBranchGate',
 });
 const AppDesk = lazyWithRetry(() => import('./AppDesk.jsx'), { id: 'AppDesk' });
+const CoilUxGallery = import.meta.env.DEV
+  ? lazyWithRetry(() => import('./pages/preview/CoilUxGallery.jsx'), { id: 'CoilUxGallery' })
+  : null;
 
 /** Typical shell wait after sign-in; bar eases toward this, not the hard abort. */
 function bootExpectedMs() {
@@ -216,6 +219,16 @@ function App() {
           <ToastProvider>
             <ConfirmProvider>
               <Routes>
+                {CoilUxGallery ? (
+                  <Route
+                    path="/preview/coil-ux"
+                    element={
+                      <Suspense fallback={<BootScreen light title="Opening preview…" />}>
+                        <CoilUxGallery />
+                      </Suspense>
+                    }
+                  />
+                ) : null}
                 <Route path="*" element={<AuthGate />} />
               </Routes>
             </ConfirmProvider>

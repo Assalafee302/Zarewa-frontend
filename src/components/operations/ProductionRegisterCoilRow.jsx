@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useMemo } from 'react';
 import { AlertTriangle, CircleHelp, Trash2 } from 'lucide-react';
+import { jobKgTypingCheck, rateKgPerMetreForLot } from '../../lib/coilExpectedLife';
 import { draftRowConversionPreviewReady } from '../../lib/productionRegisterCoilDraft';
 import { PROD_REG } from '../../lib/productionRegisterUi';
 import { Input, Select, FieldLabel } from '../ui/Input';
@@ -103,6 +104,16 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
   const finishCoilLocked =
     jobSt === 'Completed' && Number(row.finishCoilTailKg) > 0.05 && !canUndoFinishRoll;
   const persistedSpecMismatch = Boolean(row.specMismatch) && !(specEvaluated && !specWarn);
+  const rateKgPerM = rateKgPerMetreForLot(lot);
+  const metresTyped = Number(row.metersProduced);
+  const usedTyped =
+    row.closingWeightKg !== '' &&
+    Number.isFinite(Number(row.openingWeightKg)) &&
+    Number.isFinite(Number(row.closingWeightKg)) &&
+    Number(row.openingWeightKg) >= Number(row.closingWeightKg)
+      ? Number(row.openingWeightKg) - Number(row.closingWeightKg)
+      : null;
+  const typingCheck = jobKgTypingCheck(usedTyped, metresTyped, rateKgPerM);
   const hasUnsavedCoilData =
     draftRow &&
     Boolean(
@@ -285,6 +296,17 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
           </button>
         ) : null}
       </div>
+
+      {typingCheck.expectedKg != null ? (
+        <p className={`text-ui-xs font-medium tabular-nums text-slate-600 ${inModal ? 'mt-1' : 'mt-2'}`} data-screen="job-expected">
+          Expected for these metres: {typingCheck.expectedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg
+        </p>
+      ) : null}
+      {typingCheck.warn ? (
+        <p className="mt-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-ui-xs font-semibold text-amber-950">
+          That kg is far from the expected weight for these metres. Check for a typing error.
+        </p>
+      ) : null}
 
       {((canCaptureRun || canEditCompletedCoilCorrections) &&
       row.coilNo?.trim() &&
