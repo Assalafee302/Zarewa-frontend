@@ -7,6 +7,10 @@ vi.mock('./CoilNumberCorrectionPanel', () => ({
   default: () => null,
 }));
 
+vi.mock('./StockCountSheetModal', () => ({
+  StockCountSheetModal: () => null,
+}));
+
 afterEach(() => cleanup());
 
 const emptyDeskProps = {
@@ -65,6 +69,17 @@ describe('OperationsInventoryDesk', () => {
     expect(screen.getByRole('heading', { name: /^receive$/i })).toBeTruthy();
     expect(screen.queryByTestId('ops-coil-spec-board')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Colour × gauge' })).toBeNull();
+  });
+
+  it('shows Print count sheet when the user has inventory.receive', () => {
+    render(
+      <OperationsInventoryDesk
+        {...emptyDeskProps}
+        ws={{ canMutate: true, hasPermission: (p) => p === 'inventory.receive' }}
+      />
+    );
+    expect(screen.getByRole('button', { name: /print count sheet/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /yard count/i })).toBeTruthy();
   });
 
   it('opens receive from the PO list without an inline form', async () => {

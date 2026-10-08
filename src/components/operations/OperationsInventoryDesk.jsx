@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Plus, Scale, Search, Truck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Box, Plus, Printer, Scale, Search, Truck } from 'lucide-react';
 import { OperationsStockKindSwitch } from './OperationsStockKindSwitch';
 import { OperationsDeskMetric } from './OperationsDeskMetric';
 import { OPS_SECTION_TITLE, OPS_TOOL_BTN, OPS_TOOL_BTN_PRIMARY } from './operationsDeskUi';
@@ -7,6 +7,7 @@ import { procurementKindFromPo } from '../../lib/procurementPoKind';
 import { poLineIsOpenForReceiving, poLineOpenQtyForReceiving } from '../../lib/poLineTypes.js';
 import CoilNumberCorrectionPanel from './CoilNumberCorrectionPanel';
 import { CoilLifeList } from './CoilLifeList';
+import { StockCountSheetModal } from './StockCountSheetModal';
 
 /**
  * Stock (inventory) desk: stock-kind switch, receive/GRN, live lots, KPIs, and stock tools.
@@ -56,6 +57,14 @@ export function OperationsInventoryDesk({
   productionJobCoils = [],
   coilLifePreset = null,
 }) {
+  const [showCountSheet, setShowCountSheet] = useState(false);
+  const canPrintCountSheet = Boolean(
+    ws?.hasPermission?.('operations.manage') ||
+      ws?.hasPermission?.('production.manage') ||
+      ws?.hasPermission?.('inventory.adjust') ||
+      ws?.hasPermission?.('inventory.receive')
+  );
+
   return (
     <>
         <div className="col-span-full mb-3 order-1 space-y-3">
@@ -264,7 +273,7 @@ export function OperationsInventoryDesk({
                 {stockReceiveKind === 'coil' ? (
                   <>
                     <CoilNumberCorrectionPanel />
-                    <div className="mb-2">
+                    <div className="mb-2 flex flex-wrap gap-2">
                       <button
                         type="button"
                         className={OPS_TOOL_BTN}
@@ -272,6 +281,16 @@ export function OperationsInventoryDesk({
                       >
                         Yard count
                       </button>
+                      {canPrintCountSheet ? (
+                        <button
+                          type="button"
+                          className={OPS_TOOL_BTN}
+                          onClick={() => setShowCountSheet(true)}
+                        >
+                          <Printer size={14} aria-hidden />
+                          Print count sheet
+                        </button>
+                      ) : null}
                     </div>
                     <div className="flex flex-col gap-1.5 mb-2 shrink-0">
                       <label className="relative min-w-0 w-full">
@@ -343,6 +362,18 @@ export function OperationsInventoryDesk({
                   </>
                 ) : (
                   <>
+                    {canPrintCountSheet ? (
+                      <div className="mb-2">
+                        <button
+                          type="button"
+                          className={OPS_TOOL_BTN}
+                          onClick={() => setShowCountSheet(true)}
+                        >
+                          <Printer size={14} aria-hidden />
+                          Print count sheet
+                        </button>
+                      </div>
+                    ) : null}
                     {skuProductsLiveSorted.length === 0 ? (
                       <p className="text-xs font-medium text-slate-400">
                         No{' '}
@@ -440,6 +471,7 @@ export function OperationsInventoryDesk({
             </section>
           </div>
         </div>
+      <StockCountSheetModal open={showCountSheet} onClose={() => setShowCountSheet(false)} />
     </>
   );
 }
