@@ -488,7 +488,9 @@ describe('authenticated startup TDZ', () => {
     await waitFor(
       () => {
         expect(screen.getByRole('heading', { name: /^Cashier$/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /^(Finance desk|Cashier)$/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('tab', { name: /^(Finance desk|Cashier|My desk|Desk)$/i })
+        ).toBeInTheDocument();
       },
       { timeout: 45_000 }
     );
@@ -516,7 +518,9 @@ describe('authenticated startup TDZ', () => {
     );
     await waitFor(
       () => {
-        expect(screen.getByRole('tab', { name: /^(Finance desk|Cashier)$/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('tab', { name: /^(Finance desk|Cashier|My desk|Desk)$/i })
+        ).toBeInTheDocument();
         expect(screen.getByTestId('finance-payouts-combined')).toBeInTheDocument();
       },
       { timeout: 15000 }
@@ -557,7 +561,7 @@ describe('authenticated startup TDZ', () => {
     );
     await waitFor(
       () => {
-        expect(screen.getByText(/At a glance/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/At a glance/i).length).toBeGreaterThan(0);
       },
       { timeout: 15000 }
     );

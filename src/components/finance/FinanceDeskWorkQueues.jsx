@@ -233,7 +233,7 @@ export function FinanceDeskWorkQueues({
   searchQuery = "",
 }) {
   const ws = useWorkspace();
-  const { showToast } = useToast();
+  const { show: showToast } = useToast();
   const [roundingBusyId, setRoundingBusyId] = useState("");
   const [deskActionBusyId, setDeskActionBusyId] = useState("");
 

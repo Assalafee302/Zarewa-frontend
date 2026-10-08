@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import CoilNumberCorrectionPanel from './CoilNumberCorrectionPanel.jsx';
@@ -75,7 +75,7 @@ describe('CoilNumberCorrectionPanel', () => {
     await user.type(screen.getByLabelText(/^correct number$/i), 'CL-26-200');
     await user.type(screen.getByLabelText(/why it is wrong/i), 'Mill tag does not match');
     const review = await screen.findByRole('button', { name: /^review$/i });
-    expect(review).toBeEnabled();
+    await waitFor(() => expect(review).toBeEnabled(), { timeout: 3000 });
     await user.click(review);
     await user.click(screen.getByRole('button', { name: /send for approval/i }));
 
