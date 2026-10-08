@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
-import { buildCoilLife, formatSignedKg } from '../../lib/coilExpectedLife';
+import {
+  freeCoilWeightKgForOverview,
+  liveCoilWeightKgForOverview,
+} from '../../lib/operationsProductionOverviewCore';
 import { countedCoilNos, readCoilCountSession } from '../../lib/coilCountSession';
-import { CoilVarianceBadge } from './CoilVarianceBadge';
 import { OPS_FILTER_CHIP, OPS_FILTER_CHIP_OFF, OPS_FILTER_CHIP_ON } from './operationsDeskUi';
 
 function kg(n) {
@@ -18,7 +20,7 @@ function unique(values) {
 }
 
 /**
- * Coil register: variance columns, filters, largest |variance| first.
+ * In-stock coil list for Operations: available / on-hand kg.
  * Phone uses cards; wider screens use a scrolling table.
  */
 export function CoilLifeList({
@@ -28,47 +30,44 @@ export function CoilLifeList({
   preset = null,
 }) {
   const navigate = useNavigate();
-  const [status, setStatus] = useState(preset === 'HIGH' || preset === 'LOW' || preset === 'OK' ? preset : 'all');
   const [gauge, setGauge] = useState('all');
   const [colour, setColour] = useState('all');
   const [material, setMaterial] = useState('all');
-  const [watchOnly, setWatchOnly] = useState(preset === 'watch' || preset === 'off');
+  const [reservedOnly, setReservedOnly] = useState(preset === 'watch' || preset === 'off');
   const [notCountedOnly, setNotCountedOnly] = useState(preset === 'notCounted');
+  const [freeOnly, setFreeOnly] = useState(false);
+
+  // jobCoils kept for API compatibility with OperationsInventoryDesk (variance lives on coil profile).
+  void jobCoils;
 
   const counted = useMemo(() => countedCoilNos(readCoilCountSession()), [lots]);
-
-  const jobsByCoil = useMemo(() => {
-    const map = new Map();
-    for (const row of jobCoils || []) {
-      const key = String(row.coilNo || '').trim().toLowerCase();
-      if (!key) continue;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(row);
-    }
-    return map;
-  }, [jobCoils]);
 
   const rows = useMemo(() => {
     return (lots || []).map((lot) => {
       const key = String(lot.coilNo || '').trim().toLowerCase();
-      const life = buildCoilLife(lot, jobsByCoil.get(key) || []);
+      const onHandKg = liveCoilWeightKgForOverview(lot);
+      const availableKg = freeCoilWeightKgForOverview(lot);
+      const reservedKg = Math.max(0, Number(lot.qtyReserved) || 0);
       const materialName = lot.materialTypeName || lot.productID || '—';
       const colourName = colourLabel(lot.colour) || '—';
       const gaugeName = lot.gaugeLabel || lot.gauge || '—';
-      const onHand = life.erpKg > 0.05;
+      const onHand = onHandKg > 0.05;
       const countedThis = counted.has(key);
       return {
         lot,
-        life,
+        onHandKg,
+        availableKg,
+        reservedKg,
         materialName,
         colourName,
         gaugeName,
         location: lot.location || '—',
         bookStatus: lot.currentStatus || '—',
         notCounted: onHand && !countedThis,
+        isReserved: reservedKg > 0.0001,
       };
     });
-  }, [lots, jobsByCoil, colourLabel, counted]);
+  }, [lots, colourLabel, counted]);
 
   const gauges = unique(rows.map((r) => r.gaugeName));
   const colours = unique(rows.map((r) => r.colourName));
@@ -76,22 +75,20 @@ export function CoilLifeList({
 
   const visible = useMemo(() => {
     const filtered = rows.filter((r) => {
-      if (status !== 'all' && r.life.status !== status) return false;
       if (gauge !== 'all' && r.gaugeName !== gauge) return false;
       if (colour !== 'all' && r.colourName !== colour) return false;
       if (material !== 'all' && r.materialName !== material) return false;
-      if (watchOnly && !r.life.onWatchList) return false;
+      if (reservedOnly && !r.isReserved) return false;
+      if (freeOnly && !(r.availableKg > 0.05)) return false;
       if (notCountedOnly && !r.notCounted) return false;
       return true;
     });
     filtered.sort((a, b) => {
-      const av = a.life.varianceKg == null ? -1 : Math.abs(a.life.varianceKg);
-      const bv = b.life.varianceKg == null ? -1 : Math.abs(b.life.varianceKg);
-      if (bv !== av) return bv - av;
+      if (b.availableKg !== a.availableKg) return b.availableKg - a.availableKg;
       return String(a.lot.coilNo).localeCompare(String(b.lot.coilNo), undefined, { numeric: true });
     });
     return filtered;
-  }, [rows, status, gauge, colour, material, watchOnly, notCountedOnly]);
+  }, [rows, gauge, colour, material, reservedOnly, freeOnly, notCountedOnly]);
 
   const open = (coilNo, lot) =>
     navigate(`/operations/coils/${encodeURIComponent(coilNo)}`, {
@@ -101,22 +98,36 @@ export function CoilLifeList({
   return (
     <div className="space-y-2" data-screen="coil-list">
       <div className="flex flex-wrap gap-1.5">
-        {['all', 'OK', 'LOW', 'HIGH'].map((id) => (
-          <button
-            key={id}
-            type="button"
-            className={`${OPS_FILTER_CHIP} ${status === id ? OPS_FILTER_CHIP_ON : OPS_FILTER_CHIP_OFF}`}
-            onClick={() => setStatus(id)}
-          >
-            {id === 'all' ? 'All' : id}
-          </button>
-        ))}
         <button
           type="button"
-          className={`${OPS_FILTER_CHIP} ${watchOnly ? OPS_FILTER_CHIP_ON : OPS_FILTER_CHIP_OFF}`}
-          onClick={() => setWatchOnly((v) => !v)}
+          className={`${OPS_FILTER_CHIP} ${!reservedOnly && !freeOnly && !notCountedOnly ? OPS_FILTER_CHIP_ON : OPS_FILTER_CHIP_OFF}`}
+          onClick={() => {
+            setReservedOnly(false);
+            setFreeOnly(false);
+            setNotCountedOnly(false);
+          }}
         >
-          Watch list
+          All
+        </button>
+        <button
+          type="button"
+          className={`${OPS_FILTER_CHIP} ${freeOnly ? OPS_FILTER_CHIP_ON : OPS_FILTER_CHIP_OFF}`}
+          onClick={() => {
+            setFreeOnly((v) => !v);
+            if (!freeOnly) setReservedOnly(false);
+          }}
+        >
+          Has available kg
+        </button>
+        <button
+          type="button"
+          className={`${OPS_FILTER_CHIP} ${reservedOnly ? OPS_FILTER_CHIP_ON : OPS_FILTER_CHIP_OFF}`}
+          onClick={() => {
+            setReservedOnly((v) => !v);
+            if (!reservedOnly) setFreeOnly(false);
+          }}
+        >
+          Reserved
         </button>
         <button
           type="button"
@@ -132,7 +143,9 @@ export function CoilLifeList({
         <FilterSelect label="Material" value={material} onChange={setMaterial} options={materials} />
       </div>
       <p className="text-ui-xs text-slate-500">
-        {visible.length} coil{visible.length === 1 ? '' : 's'} · largest difference first
+        {visible.length} coil{visible.length === 1 ? '' : 's'} ·{' '}
+        <span className="font-semibold text-slate-700">Available kg</span> = on hand minus reserved to a job.
+        Tap a row for the full coil file.
       </p>
 
       <ul className="space-y-2 md:hidden">
@@ -146,23 +159,20 @@ export function CoilLifeList({
               <div className="flex items-start justify-between gap-2">
                 <span className="font-mono text-sm font-bold text-zarewa-teal">{r.lot.coilNo}</span>
                 <span className="text-sm font-black tabular-nums text-zarewa-teal shrink-0">
-                  {kg(r.life.erpKg)} kg
+                  {kg(r.availableKg)} kg avail
                 </span>
-              </div>
-              <div className="mt-1 flex justify-end">
-                <CoilVarianceBadge status={r.life.status} varianceLabel={formatSignedKg(r.life.varianceKg)} />
               </div>
               <p className="mt-1 text-ui-xs text-slate-600">
                 {r.materialName} · {r.gaugeName} · {r.colourName}
               </p>
               <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-ui-xs tabular-nums text-slate-700">
-                <Stat k="Live kg" v={kg(r.life.erpKg)} />
-                <Stat k="Received" v={kg(r.life.receivedKg)} />
-                <Stat k="Metres" v={kg(r.life.metres)} />
-                <Stat k="Expected" v={kg(r.life.expectedKg)} />
+                <Stat k="Available kg" v={kg(r.availableKg)} />
+                <Stat k="On hand kg" v={kg(r.onHandKg)} />
+                {r.isReserved ? <Stat k="Reserved" v={kg(r.reservedKg)} /> : null}
               </dl>
               <p className="mt-1.5 text-ui-xs text-slate-500">
-                {r.bookStatus} · {r.location}
+                {r.bookStatus}
+                {r.isReserved ? ' · Reserved' : ''} · {r.location}
               </p>
             </button>
           </li>
@@ -170,27 +180,16 @@ export function CoilLifeList({
       </ul>
 
       <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200/80 bg-white">
-        <table className="min-w-[68rem] w-full text-left text-ui-xs">
+        <table className="min-w-[42rem] w-full text-left text-ui-xs">
           <thead className="bg-slate-100/95 text-slate-600">
             <tr>
-              {[
-                'Coil no.',
-                'Material',
-                'Gauge',
-                'Colour',
-                'Live kg',
-                'Received kg',
-                'Metres run',
-                'Expected kg',
-                'Variance',
-                'Status',
-                'Location',
-                '',
-              ].map((h) => (
-                <th key={h || 'open'} className="px-2 py-2 font-bold uppercase tracking-wide whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
+              {['Coil no.', 'Material', 'Gauge', 'Colour', 'Available kg', 'On hand kg', 'Status', 'Location', ''].map(
+                (h) => (
+                  <th key={h || 'open'} className="px-2 py-2 font-bold uppercase tracking-wide whitespace-nowrap">
+                    {h}
+                  </th>
+                )
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -213,14 +212,14 @@ export function CoilLifeList({
                 <td className="px-2 py-2 max-w-[8rem] truncate">{r.materialName}</td>
                 <td className="px-2 py-2 tabular-nums">{r.gaugeName}</td>
                 <td className="px-2 py-2 max-w-[7rem] truncate">{r.colourName}</td>
-                <td className="px-2 py-2 tabular-nums text-right font-bold text-zarewa-teal">{kg(r.life.erpKg)}</td>
-                <td className="px-2 py-2 tabular-nums text-right">{kg(r.life.receivedKg)}</td>
-                <td className="px-2 py-2 tabular-nums text-right">{kg(r.life.metres)}</td>
-                <td className="px-2 py-2 tabular-nums text-right">{kg(r.life.expectedKg)}</td>
+                <td className="px-2 py-2 tabular-nums text-right font-bold text-zarewa-teal">{kg(r.availableKg)}</td>
+                <td className="px-2 py-2 tabular-nums text-right">{kg(r.onHandKg)}</td>
                 <td className="px-2 py-2">
-                  <CoilVarianceBadge status={r.life.status} varianceLabel={formatSignedKg(r.life.varianceKg)} />
+                  {r.bookStatus}
+                  {r.isReserved ? (
+                    <span className="ml-1 text-ui-xs font-bold uppercase text-sky-700">Reserved</span>
+                  ) : null}
                 </td>
-                <td className="px-2 py-2">{r.bookStatus}</td>
                 <td className="px-2 py-2">{r.location}</td>
                 <td className="px-2 py-2">
                   <button
