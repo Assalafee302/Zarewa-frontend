@@ -2759,12 +2759,27 @@ export function LiveProductionMonitor({
         return;
       }
     }
-    if (editMutationNeedsSecondApprovalRole(rk) && !postCompletionEditApprovalId.trim()) {
-      showToast(
-        'After completion, register corrections need an Edit OKs code — request approval, enter the 6-digit code, then save again.',
-        { variant: 'error' }
-      );
-      return;
+    {
+      const role = String(rk || '')
+        .trim()
+        .toLowerCase();
+      const canPostCoilCorrectionDirect = [
+        'admin',
+        'md',
+        'ceo',
+        'chairman',
+        'branch_manager',
+        'sales_manager',
+        'operations_manager',
+        'ops_manager',
+      ].includes(role);
+      if (!canPostCoilCorrectionDirect && !postCompletionEditApprovalId.trim()) {
+        showToast(
+          'After completion, coil corrections need Branch Manager / Admin approval — request an Edit OKs code, enter it, then save again.',
+          { variant: 'error' }
+        );
+        return;
+      }
     }
     setCorrectionReason('');
     setCorrectionUndoFinishRollConfirm(false);
@@ -5118,6 +5133,22 @@ export function LiveProductionMonitor({
               value={postCompletionEditApprovalId}
               onChange={setPostCompletionEditApprovalId}
               className="mb-2"
+              requiresSecondApproval={
+                ![
+                  'admin',
+                  'md',
+                  'ceo',
+                  'chairman',
+                  'branch_manager',
+                  'sales_manager',
+                  'operations_manager',
+                  'ops_manager',
+                ].includes(
+                  String(ws?.session?.user?.roleKey || '')
+                    .trim()
+                    .toLowerCase()
+                )
+              }
             />
           ) : null}
           {selectedChecks.length > 0 ? (
