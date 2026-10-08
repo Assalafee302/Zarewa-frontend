@@ -81,7 +81,7 @@ export function ProductionRegisterCorrectionModal({
         </h4>
         <p className="mt-2 text-sm leading-snug text-slate-600 sm:text-xs">{copy.description}</p>
         <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-slate-500 sm:text-ui-xs">
-          Adjustment date
+          Adjustment date (open month)
         </label>
         <input
           type="date"
@@ -89,9 +89,9 @@ export function ProductionRegisterCorrectionModal({
           onChange={(e) => onAdjustmentDateChange?.(e.target.value)}
           className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-amber-200 sm:text-xs"
         />
-        <p className="mt-1 text-[11px] leading-snug text-slate-500">
-          If the job is in a locked month (e.g. September), pick a date in the open month (e.g. today in October).
-          Stock movements post on this date.
+        <p className="mt-1 text-[11px] leading-snug text-amber-900/80">
+          Do <strong className="font-semibold">not</strong> use the job&apos;s September completion date. Leave this as
+          today (October) so stock posts in the open month.
         </p>
         <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-slate-500 sm:text-ui-xs">
           Reason (≥{minLen} characters)

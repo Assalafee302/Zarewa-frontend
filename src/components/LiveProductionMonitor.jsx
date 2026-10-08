@@ -2462,10 +2462,12 @@ export function LiveProductionMonitor({
       tone: 'sky',
     });
     if (!okConfirm) return;
-    const adjDate = String(fgAdjDateIso || '').trim().slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(adjDate)) {
-      showToast('Enter an adjustment date in the open month (YYYY-MM-DD).', { variant: 'error' });
-      return;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    let adjDate = String(fgAdjDateIso || '').trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(adjDate)) adjDate = todayIso;
+    if (adjDate.slice(0, 7) < todayIso.slice(0, 7)) {
+      adjDate = todayIso;
+      setFgAdjDateIso(todayIso);
     }
     const path = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}/completion-adjustments`;
     setFgAdjSaving(true);
@@ -2806,10 +2808,18 @@ export function LiveProductionMonitor({
       showToast('Correction requires a reason of at least 12 characters.', { variant: 'error' });
       return;
     }
-    const adjDate = String(correctionAdjustmentDateIso || '').trim().slice(0, 10);
+    const todayIso = new Date().toISOString().slice(0, 10);
+    let adjDate = String(correctionAdjustmentDateIso || '').trim().slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(adjDate)) {
-      showToast('Enter an adjustment date in the open month (YYYY-MM-DD).', { variant: 'error' });
-      return;
+      adjDate = todayIso;
+    }
+    // Historical job month (e.g. locked September) must not be used as the posting date.
+    if (adjDate.slice(0, 7) < todayIso.slice(0, 7)) {
+      adjDate = todayIso;
+      setCorrectionAdjustmentDateIso(todayIso);
+      showToast('Adjustment date moved to today — locked months post as open-month adjustments.', {
+        variant: 'info',
+      });
     }
     const atISO = `${adjDate}T12:00:00.000Z`;
     const jobApi = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}`;
