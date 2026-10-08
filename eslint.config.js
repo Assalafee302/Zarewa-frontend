@@ -28,6 +28,8 @@ export default defineConfig([
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]|^motion$', argsIgnorePattern: '^_' }],
       'react-hooks/set-state-in-effect': 'off',
+      // Keep-alive refs synced during render are intentional for desk callbacks; Compiler rule is too strict here.
+      'react-hooks/refs': 'off',
       // React Compiler rule: optional-chained snapshot deps vs full `ws`/`snapshot` — too noisy until full compiler migration.
       'react-hooks/preserve-manual-memoization': 'off',
     },
@@ -42,6 +44,15 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]|^motion$', argsIgnorePattern: '^_' }],
+    },
+  },
+  {
+    files: ['src/**/*.{test,spec}.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
     },
   },
 ]);

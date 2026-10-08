@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bootProgressPct } from './BootProgress';
+import { bootProgressPct } from '../../lib/bootProgressMath';
 
 describe('bootProgressPct', () => {
   it('bootProgressPct starts near zero and never claims 100% before the expected wait ends', () => {

@@ -875,7 +875,7 @@ function isRefundAdminTrialActorForCaution(actor, hasPermission) {
 export function refundPayeePayoutCaution(
   refund,
   payeeLine,
-  { siblingPayeeLines = [], actor = null, hasPermission = null } = {}
+  { siblingPayeeLines: _siblingPayeeLines = [], actor = null, hasPermission = null } = {}
 ) {
   const codes = [];
 

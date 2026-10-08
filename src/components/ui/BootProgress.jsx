@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { cn } from '../../lib/utils';
+import { DEFAULT_EXPECTED_MS, bootProgressPct } from '../../lib/bootProgressMath';
 
 /**
  * Time-based boot progress while `/api/bootstrap` (or a desk chunk) is in flight.
@@ -9,23 +10,12 @@ import { cn } from '../../lib/utils';
  * honest “how long so far / roughly how long left” read on slow mill links.
  */
 
-const DEFAULT_EXPECTED_MS = 20_000;
-
 function stageForElapsed(elapsedMs) {
   if (elapsedMs < 4_000) return 'Connecting to the live server…';
   if (elapsedMs < 12_000) return 'Loading your workspace…';
   if (elapsedMs < 30_000) return 'Pulling desk data — this can take a minute on a slow link…';
   if (elapsedMs < 60_000) return 'Still working — large desks take longer. No need to refresh.';
   return 'Almost there — hanging on for the final sync…';
-}
-
-/** Ease toward `cap` so the bar never falsely completes before the real load finishes. */
-export function bootProgressPct(elapsedMs, expectedMs = DEFAULT_EXPECTED_MS, cap = 92) {
-  const expected = Math.max(8_000, Number(expectedMs) || DEFAULT_EXPECTED_MS);
-  const t = Math.max(0, Number(elapsedMs) || 0) / expected;
-  // 1 - e^(-2.2t) reaches ~89% at t=1 and asymptotes under the cap.
-  const raw = (1 - Math.exp(-2.2 * t)) * 100;
-  return Math.min(cap, Math.round(raw));
 }
 
 function formatSeconds(ms) {

@@ -603,7 +603,6 @@ const Operations = () => {
     adjustStock,
     coilLots,
     materialIncidents,
-    movements,
   } = useInventory();
   const ws = useWorkspace();
   const wsRefresh = ws?.refresh;

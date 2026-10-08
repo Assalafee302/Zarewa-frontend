@@ -9,7 +9,6 @@ import {
   refundFundAppliedOnQuotation,
   refundFundPaymentRowsForQuotation,
   restorePaymentLinesAfterRefundFundUnchecked,
-  defaultRefundSourceSelection,
   defaultRefundFundConfirmChoice,
   usableRefundSourceIds,
   stripFinishedOverpayFromConfirmEligible,

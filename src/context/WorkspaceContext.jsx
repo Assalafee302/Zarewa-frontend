@@ -356,7 +356,7 @@ export function WorkspaceProvider({ children }) {
   const localWriteSkipRef = useRef({ domains: new Set(), ids: new Map(), until: 0 });
 
   const deskWarmRef = useRef(null);
-  if (!deskWarmRef.current) deskWarmRef.current = createDeskWarmController();
+  if (deskWarmRef.current == null) deskWarmRef.current = createDeskWarmController();
 
   const resetDomainRuntime = useCallback(() => {
     warmedAllRef.current = false;
