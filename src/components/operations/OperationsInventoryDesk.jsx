@@ -263,7 +263,7 @@ export function OperationsInventoryDesk({
                 <h3 className={`${OPS_SECTION_TITLE} mb-2 flex items-center gap-2`}>
                   <Scale size={16} className="text-zarewa-teal" aria-hidden />
                   {stockReceiveKind === 'coil'
-                    ? 'In stock now — available kg'
+                    ? 'Coils in stock'
                     : stockReceiveKind === 'stone_meter'
                       ? 'Stone-coated trim — live metres (STONE-* SKUs, not flatsheet)'
                       : stockReceiveKind === 'stone_flatsheet'
@@ -309,10 +309,9 @@ export function OperationsInventoryDesk({
                         />
                       </label>
                       <p className="text-ui-xs text-slate-500 leading-snug pl-0.5">
-                        Example:{' '}
-                        <span className="font-mono text-slate-600">2043</span> or{' '}
-                        <span className="font-mono text-slate-600">bush green 0.20</span>. Search also finds consumed
-                        coils. Available kg is on hand minus any job reservation.
+                        Search by coil no. (e.g. <span className="font-mono text-slate-600">2043</span>) or colour /
+                        gauge. Look at <span className="font-semibold text-slate-700">Stock left (kg)</span> — that is
+                        how much is still on the coil.
                       </p>
                     </div>
                     {coilLotsReceiptSorted.length === 0 && !hasCoilReceiptSearch ? (
