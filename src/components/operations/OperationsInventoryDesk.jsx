@@ -263,7 +263,7 @@ export function OperationsInventoryDesk({
                 <h3 className={`${OPS_SECTION_TITLE} mb-2 flex items-center gap-2`}>
                   <Scale size={16} className="text-zarewa-teal" aria-hidden />
                   {stockReceiveKind === 'coil'
-                    ? 'Coil register'
+                    ? 'In stock now — live kg'
                     : stockReceiveKind === 'stone_meter'
                       ? 'Stone-coated trim — live metres (STONE-* SKUs, not flatsheet)'
                       : stockReceiveKind === 'stone_flatsheet'

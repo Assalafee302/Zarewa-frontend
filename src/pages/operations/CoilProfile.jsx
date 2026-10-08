@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   AlertTriangle,
@@ -92,6 +92,7 @@ function canEditCoilLotMasterData(roleKey) {
 
 export default function CoilProfile() {
   const { coilNo: coilNoParam } = useParams();
+  const location = useLocation();
   const coilNo = decodeURIComponent(String(coilNoParam || '')).trim();
   const coilNoKey = coilKey(coilNo);
   const { coilLots, movements, refreshInventory } = useInventory();
@@ -112,6 +113,8 @@ export default function CoilProfile() {
   const [recalculatingStock, setRecalculatingStock] = useState(false);
   const [productionTraceModal, setProductionTraceModal] = useState(null);
   const [printStatementOpen, setPrintStatementOpen] = useState(false);
+  const [fetchedCoil, setFetchedCoil] = useState(null);
+  const [coilLookupState, setCoilLookupState] = useState('pending');
 
   const actionModalOpen = Boolean(actionModal);
   const { captureEdited, wrapClose } = useTrackedUnsavedForm('page-coil-profile', {
@@ -123,10 +126,80 @@ export default function CoilProfile() {
     setActionModal('');
   });
 
-  const coil = useMemo(
-    () => coilLots.find((c) => coilKey(c.coilNo) === coilNoKey),
+  const coilFromInventory = useMemo(
+    () => coilLots.find((c) => coilKey(c.coilNo) === coilNoKey) || null,
     [coilLots, coilNoKey]
   );
+
+  const coilFromNav = useMemo(() => {
+    const lot = location.state?.coilLot;
+    if (!lot || typeof lot !== 'object') return null;
+    return coilKey(lot.coilNo) === coilNoKey ? lot : null;
+  }, [location.state, coilNoKey]);
+
+  useEffect(() => {
+    if (!coilNoKey) {
+      setFetchedCoil(null);
+      setCoilLookupState('missing');
+      return undefined;
+    }
+    if (coilFromInventory) {
+      setFetchedCoil(null);
+      setCoilLookupState('ready');
+      return undefined;
+    }
+    if (coilFromNav) {
+      setFetchedCoil(coilFromNav);
+      setCoilLookupState('ready');
+    } else {
+      setCoilLookupState('pending');
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { ok, data, status } = await apiFetch(
+          `/api/coil-lots/${encodeURIComponent(coilNo)}`
+        );
+        if (cancelled) return;
+        if (ok && data?.ok && data.coilLot && coilKey(data.coilLot.coilNo) === coilNoKey) {
+          setFetchedCoil(data.coilLot);
+          setCoilLookupState('ready');
+          return;
+        }
+        // Older APIs may not expose GET-by-no — fall back to search.
+        if (status === 404 || !ok) {
+          const searched = await apiFetch(
+            `/api/coil-lots/search?q=${encodeURIComponent(coilNo)}&limit=40`
+          );
+          if (cancelled) return;
+          const rows =
+            searched.ok && searched.data?.ok && Array.isArray(searched.data.coilLots)
+              ? searched.data.coilLots
+              : [];
+          const exact = rows.find((c) => coilKey(c.coilNo) === coilNoKey) || null;
+          if (exact) {
+            setFetchedCoil(exact);
+            setCoilLookupState('ready');
+            return;
+          }
+        }
+        if (!coilFromNav) {
+          setFetchedCoil(null);
+          setCoilLookupState('missing');
+        }
+      } catch {
+        if (!cancelled && !coilFromNav) {
+          setFetchedCoil(null);
+          setCoilLookupState('missing');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [coilNo, coilNoKey, coilFromInventory, coilFromNav]);
+
+  const coil = coilFromInventory || fetchedCoil || coilFromNav;
 
   const openMaterialIncident = (incidentType = 'coil_stain') => {
     setDamageModalIncidentType(incidentType);
@@ -290,12 +363,31 @@ export default function CoilProfile() {
   ];
   const go = (id) => document.getElementById(`coil-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+  if (!coil && coilLookupState === 'pending') {
+    return (
+      <PageShell>
+        <PageHeader title="Coil profile" subtitle={coilNo || 'Loading…'} />
+        <MainPanel>
+          <p className="text-sm text-slate-600">Loading coil {coilNo || ''}…</p>
+        </MainPanel>
+      </PageShell>
+    );
+  }
+
   if (!coil) {
     return (
       <PageShell>
         <PageHeader title="Coil profile" subtitle="Not found" />
         <MainPanel>
-          <Link to="/operations" className="z-btn-primary inline-flex">
+          <p className="mb-3 text-sm text-slate-600">
+            Coil <span className="font-mono font-semibold">{coilNo || '—'}</span> is not in this branch
+            register.
+          </p>
+          <Link
+            to="/operations"
+            state={{ focusOpsTab: 'inventory', stockReceiveKind: 'coil' }}
+            className="z-btn-primary inline-flex"
+          >
             <ArrowLeft size={16} /> Back to operations
           </Link>
         </MainPanel>
@@ -778,7 +870,7 @@ export default function CoilProfile() {
                   <LifeStat label="Received kg" value={coilLife.receivedKg} />
                   <LifeStat label="Metres run" value={coilLife.metres} />
                   <LifeStat label="Expected kg" value={coilLife.expectedKg} />
-                  <LifeStat label="ERP kg" value={coilLife.erpKg} />
+                  <LifeStat label="Live kg" value={coilLife.erpKg} />
                   <div className="rounded-md border border-slate-200 bg-slate-50/50 px-3 py-3">
                     <p className="text-ui-xs font-medium text-slate-500">Variance</p>
                     <div className="mt-1">

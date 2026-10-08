@@ -93,7 +93,10 @@ export function CoilLifeList({
     return filtered;
   }, [rows, status, gauge, colour, material, watchOnly, notCountedOnly]);
 
-  const open = (coilNo) => navigate(`/operations/coils/${encodeURIComponent(coilNo)}`);
+  const open = (coilNo, lot) =>
+    navigate(`/operations/coils/${encodeURIComponent(coilNo)}`, {
+      state: lot ? { coilLot: lot } : undefined,
+    });
 
   return (
     <div className="space-y-2" data-screen="coil-list">
@@ -137,21 +140,26 @@ export function CoilLifeList({
           <li key={r.lot.coilNo}>
             <button
               type="button"
-              onClick={() => open(r.lot.coilNo)}
+              onClick={() => open(r.lot.coilNo, r.lot)}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left"
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="font-mono text-sm font-bold text-zarewa-teal">{r.lot.coilNo}</span>
+                <span className="text-sm font-black tabular-nums text-zarewa-teal shrink-0">
+                  {kg(r.life.erpKg)} kg
+                </span>
+              </div>
+              <div className="mt-1 flex justify-end">
                 <CoilVarianceBadge status={r.life.status} varianceLabel={formatSignedKg(r.life.varianceKg)} />
               </div>
               <p className="mt-1 text-ui-xs text-slate-600">
                 {r.materialName} · {r.gaugeName} · {r.colourName}
               </p>
               <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-ui-xs tabular-nums text-slate-700">
+                <Stat k="Live kg" v={kg(r.life.erpKg)} />
                 <Stat k="Received" v={kg(r.life.receivedKg)} />
                 <Stat k="Metres" v={kg(r.life.metres)} />
                 <Stat k="Expected" v={kg(r.life.expectedKg)} />
-                <Stat k="ERP" v={kg(r.life.erpKg)} />
               </dl>
               <p className="mt-1.5 text-ui-xs text-slate-500">
                 {r.bookStatus} · {r.location}
@@ -170,10 +178,10 @@ export function CoilLifeList({
                 'Material',
                 'Gauge',
                 'Colour',
+                'Live kg',
                 'Received kg',
                 'Metres run',
                 'Expected kg',
-                'ERP kg',
                 'Variance',
                 'Status',
                 'Location',
@@ -187,22 +195,43 @@ export function CoilLifeList({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {visible.map((r) => (
-              <tr key={r.lot.coilNo} className="hover:bg-slate-50">
+              <tr
+                key={r.lot.coilNo}
+                className="hover:bg-slate-50 cursor-pointer"
+                onClick={() => open(r.lot.coilNo, r.lot)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    open(r.lot.coilNo, r.lot);
+                  }
+                }}
+                tabIndex={0}
+                role="link"
+                aria-label={`Open coil ${r.lot.coilNo}`}
+              >
                 <td className="px-2 py-2 font-mono font-bold text-zarewa-teal whitespace-nowrap">{r.lot.coilNo}</td>
                 <td className="px-2 py-2 max-w-[8rem] truncate">{r.materialName}</td>
                 <td className="px-2 py-2 tabular-nums">{r.gaugeName}</td>
                 <td className="px-2 py-2 max-w-[7rem] truncate">{r.colourName}</td>
+                <td className="px-2 py-2 tabular-nums text-right font-bold text-zarewa-teal">{kg(r.life.erpKg)}</td>
                 <td className="px-2 py-2 tabular-nums text-right">{kg(r.life.receivedKg)}</td>
                 <td className="px-2 py-2 tabular-nums text-right">{kg(r.life.metres)}</td>
                 <td className="px-2 py-2 tabular-nums text-right">{kg(r.life.expectedKg)}</td>
-                <td className="px-2 py-2 tabular-nums text-right">{kg(r.life.erpKg)}</td>
                 <td className="px-2 py-2">
                   <CoilVarianceBadge status={r.life.status} varianceLabel={formatSignedKg(r.life.varianceKg)} />
                 </td>
                 <td className="px-2 py-2">{r.bookStatus}</td>
                 <td className="px-2 py-2">{r.location}</td>
                 <td className="px-2 py-2">
-                  <button type="button" className="text-zarewa-teal" onClick={() => open(r.lot.coilNo)} aria-label={`Open ${r.lot.coilNo}`}>
+                  <button
+                    type="button"
+                    className="text-zarewa-teal"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      open(r.lot.coilNo, r.lot);
+                    }}
+                    aria-label={`Open ${r.lot.coilNo}`}
+                  >
                     <ChevronRight size={16} />
                   </button>
                 </td>
