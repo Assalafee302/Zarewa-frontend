@@ -1080,7 +1080,7 @@ const QuotationModal = ({
   const [customerQuery, setCustomerQuery] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [remoteCustomers, setRemoteCustomers] = useState([]);
-  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
+  const [, setCustomerSearchLoading] = useState(false);
   const [handledByStaff, setHandledByStaff] = useState('');
   const [handledByUserId, setHandledByUserId] = useState('');
   const [handleOnBehalfOf, setHandleOnBehalfOf] = useState(false);
@@ -1990,7 +1990,7 @@ const QuotationModal = ({
       setHandledByStaff(picked?.name || savedHandledBy || me);
       setHandledByUserId(picked?.id || savedHandledByUserId || '');
       setHandleOnBehalfOf(
-        Boolean(picked?.id || savedHandledByUserId)
+        picked?.id || savedHandledByUserId
           ? Boolean(currentUserId) && (picked?.id || savedHandledByUserId) !== currentUserId
           : Boolean(me) && savedHandledBy !== me
       );

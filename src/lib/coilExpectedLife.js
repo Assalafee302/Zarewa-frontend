@@ -214,6 +214,11 @@ export function rollFinishCheck({ receivedKg, bookedKg, tailKg, metres, rate }) 
   };
 }
 
+/** True when roll-finish maths need an operator reason (watch / variance). */
+export function rollFinishNeedsReason(props) {
+  return rollFinishCheck(props).verdict === 'review';
+}
+
 function movementKind(m) {
   const d = textOf(m).toLowerCase();
   if (d.includes('restore') && d.includes('tail')) return 'restore';

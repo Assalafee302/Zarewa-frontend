@@ -377,7 +377,7 @@ export function RefundPayoutModal({
                 </div>
 
                 <div className="space-y-2">
-                  {refundPayLines.map((line, idx) => (
+                  {refundPayLines.map((line) => (
                     <div
                       key={line.id}
                       className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-2xs space-y-2"

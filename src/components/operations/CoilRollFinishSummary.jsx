@@ -45,7 +45,3 @@ export function CoilRollFinishSummary({ receivedKg, bookedKg, tailKg, metres, ra
     </div>
   );
 }
-
-export function rollFinishNeedsReason(props) {
-  return rollFinishCheck(props).verdict === 'review';
-}

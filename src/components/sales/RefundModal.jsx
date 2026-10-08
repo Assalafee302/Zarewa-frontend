@@ -52,7 +52,6 @@ import {
   normalizeRefundStaffAllocationDeductionRate,
   sumRefundStaffCompanyDeductionNgn,
   sumRefundStaffNetPayoutNgn,
-  sumRefundStaffUnclearedOffsetNgn,
 } from '../../shared/lib/refundStaffAllocationDeduction.js';
 import {
   isBranchManagerPreparedByLabel,
@@ -99,7 +98,6 @@ import {
   withFilledSplitAmountIfEmpty,
 } from '../../lib/refundPayoutSplitBalance';
 import { quotedServiceAssigneeRole } from '../../shared/lib/refundQuotedServiceKind.js';
-import { isStaffLinkedCustomer } from '../../lib/customerPickerSearch';
 import {
   auditRefundCalculationLineArithmetic,
   buildMdDiscountRefundLine,
@@ -1550,30 +1548,12 @@ const RefundModal = ({
     }
     return m;
   }, [claimingStaffRows]);
-  const customersWithBankOptions = useMemo(
-    () =>
-      allCustomers
-        .filter((c) => customerHasBank(c) && !isStaffLinkedCustomer(c))
-        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
-    [allCustomers]
-  );
-  const staffLinkedCustomers = useMemo(
-    () =>
-      allCustomers
-        .filter((c) => isStaffLinkedCustomer(c))
-        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
-    [allCustomers]
-  );
   const activeAssociatedStaff = useMemo(
     () =>
       associatedStaffRows
         .filter((s) => String(s?.status || 'Active').toLowerCase() === 'active')
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
     [associatedStaffRows]
-  );
-  const associatedStaffWithBank = useMemo(
-    () => activeAssociatedStaff.filter((s) => associatedStaffHasBank(s)),
-    [activeAssociatedStaff]
   );
   const quotationAssigneeIds = useMemo(() => {
     const ref = String(form.quotationRef || '').trim();

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rankRefundPayoutOptions } from './RefundPayoutRecipientPicker.jsx';
+import { rankRefundPayoutOptions } from '../../lib/rankRefundPayoutOptions.js';
 
 describe('rankRefundPayoutOptions', () => {
   const options = [

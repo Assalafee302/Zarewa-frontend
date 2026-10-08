@@ -74,7 +74,7 @@ export function ManagementDecisionModal({
   onGovernanceOpenRefund,
   onGovernanceOpenQuotation,
   onGovernanceOpenProductionQc,
-  onGovernanceOpenProcurement,
+  onGovernanceOpenProcurement: _onGovernanceOpenProcurement,
   canApproveStaffPurchaseCredit,
   canRejectStaffPurchaseCredit,
   handleStaffPurchaseCreditDecision,
