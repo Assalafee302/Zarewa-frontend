@@ -33,8 +33,10 @@ const COPY = {
  * @param {{
  *   kind: 'coil' | 'accessory' | 'stoneSf' | 'stoneMetres';
  *   reason: string;
+ *   adjustmentDateIso?: string;
  *   saving?: boolean;
  *   onReasonChange: (value: string) => void;
+ *   onAdjustmentDateChange?: (value: string) => void;
  *   onCancel: () => void;
  *   onConfirm: () => void;
  *   undoFinishRollRequired?: boolean;
@@ -46,8 +48,10 @@ const COPY = {
 export function ProductionRegisterCorrectionModal({
   kind,
   reason,
+  adjustmentDateIso = '',
   saving = false,
   onReasonChange,
+  onAdjustmentDateChange,
   onCancel,
   onConfirm,
   undoFinishRollRequired = false,
@@ -57,8 +61,12 @@ export function ProductionRegisterCorrectionModal({
 }) {
   const copy = COPY[kind] || COPY.coil;
   const minLen = 12;
+  const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(String(adjustmentDateIso || '').trim());
   const confirmBlocked =
-    saving || reason.trim().length < minLen || (undoFinishRollRequired && !undoFinishRollConfirmed);
+    saving ||
+    reason.trim().length < minLen ||
+    !dateOk ||
+    (undoFinishRollRequired && !undoFinishRollConfirmed);
 
   return (
     <div
@@ -72,6 +80,19 @@ export function ProductionRegisterCorrectionModal({
           {copy.title}
         </h4>
         <p className="mt-2 text-sm leading-snug text-slate-600 sm:text-xs">{copy.description}</p>
+        <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-slate-500 sm:text-ui-xs">
+          Adjustment date
+        </label>
+        <input
+          type="date"
+          value={String(adjustmentDateIso || '').slice(0, 10)}
+          onChange={(e) => onAdjustmentDateChange?.(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-amber-200 sm:text-xs"
+        />
+        <p className="mt-1 text-[11px] leading-snug text-slate-500">
+          If the job is in a locked month (e.g. September), pick a date in the open month (e.g. today in October).
+          Stock movements post on this date.
+        </p>
         <label className="mt-3 block text-xs font-bold uppercase tracking-wide text-slate-500 sm:text-ui-xs">
           Reason (≥{minLen} characters)
         </label>

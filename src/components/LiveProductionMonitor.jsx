@@ -202,6 +202,7 @@ export function LiveProductionMonitor({
   const initialRecallHandledRef = useRef(false);
   const [fgAdjDelta, setFgAdjDelta] = useState('');
   const [fgAdjNote, setFgAdjNote] = useState('');
+  const [fgAdjDateIso, setFgAdjDateIso] = useState(() => new Date().toISOString().slice(0, 10));
   const [fgAdjSaving, setFgAdjSaving] = useState(false);
   const [stoneMetersConsumed, setStoneMetersConsumed] = useState('');
   const [stoneAllocAck, setStoneAllocAck] = useState(false);
@@ -221,6 +222,9 @@ export function LiveProductionMonitor({
   const [optimisticJobStatus, setOptimisticJobStatus] = useState(null);
   const [correctionModalKind, setCorrectionModalKind] = useState(null);
   const [correctionReason, setCorrectionReason] = useState('');
+  const [correctionAdjustmentDateIso, setCorrectionAdjustmentDateIso] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [correctionUndoFinishRollConfirm, setCorrectionUndoFinishRollConfirm] = useState(false);
   const [correctionSaving, setCorrectionSaving] = useState(false);
   const [stockRecalcBusy, setStockRecalcBusy] = useState(false);
@@ -381,6 +385,7 @@ export function LiveProductionMonitor({
     setShowCompletedFixGuidance(false);
     setFgAdjDelta('');
     setFgAdjNote('');
+    setFgAdjDateIso(new Date().toISOString().slice(0, 10));
     setStoneAllocAck(false);
     setStoneFlatsheetCompletionDraft([]);
 
@@ -2457,6 +2462,11 @@ export function LiveProductionMonitor({
       tone: 'sky',
     });
     if (!okConfirm) return;
+    const adjDate = String(fgAdjDateIso || '').trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(adjDate)) {
+      showToast('Enter an adjustment date in the open month (YYYY-MM-DD).', { variant: 'error' });
+      return;
+    }
     const path = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}/completion-adjustments`;
     setFgAdjSaving(true);
     try {
@@ -2465,6 +2475,7 @@ export function LiveProductionMonitor({
         body: JSON.stringify({
           deltaFinishedGoodsM: delta,
           note,
+          atISO: `${adjDate}T12:00:00.000Z`,
           ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
         }),
       });
@@ -2474,6 +2485,7 @@ export function LiveProductionMonitor({
       }
       setFgAdjDelta('');
       setFgAdjNote('');
+      setFgAdjDateIso(new Date().toISOString().slice(0, 10));
       setPostCompletionEditApprovalId('');
       await refreshAfterWrite(data);
       showToast(`Adjustment recorded. Stock now ~${Number(data.productStockMetersAfter).toFixed(2)} m for SKU.`);
@@ -2782,6 +2794,7 @@ export function LiveProductionMonitor({
       }
     }
     setCorrectionReason('');
+    setCorrectionAdjustmentDateIso(new Date().toISOString().slice(0, 10));
     setCorrectionUndoFinishRollConfirm(false);
     setCorrectionModalKind(kind);
   };
@@ -2793,6 +2806,12 @@ export function LiveProductionMonitor({
       showToast('Correction requires a reason of at least 12 characters.', { variant: 'error' });
       return;
     }
+    const adjDate = String(correctionAdjustmentDateIso || '').trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(adjDate)) {
+      showToast('Enter an adjustment date in the open month (YYYY-MM-DD).', { variant: 'error' });
+      return;
+    }
+    const atISO = `${adjDate}T12:00:00.000Z`;
     const jobApi = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}`;
     setCorrectionSaving(true);
     try {
@@ -2810,6 +2829,7 @@ export function LiveProductionMonitor({
         }
         const buildBody = (withAck) => ({
           reason,
+          atISO,
           readings: draftAllocations
             .filter((r) => draftRowConversionPreviewReady(r))
             .map((row) => ({
@@ -2867,6 +2887,7 @@ export function LiveProductionMonitor({
           method: 'POST',
           body: JSON.stringify({
             reason,
+            atISO,
             accessoriesSupplied: accessoriesSuppliedForApi,
             ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
           }),
@@ -2888,6 +2909,7 @@ export function LiveProductionMonitor({
           method: 'POST',
           body: JSON.stringify({
             reason,
+            atISO,
             stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
             ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
           }),
@@ -2910,6 +2932,7 @@ export function LiveProductionMonitor({
           method: 'POST',
           body: JSON.stringify({
             reason,
+            atISO,
             stoneMetersConsumed: metres,
             ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
           }),
@@ -5830,6 +5853,15 @@ export function LiveProductionMonitor({
                         className="rounded-md border border-slate-200 px-2 py-1 font-mono text-xs text-slate-900"
                       />
                     </label>
+                    <label className="flex min-w-[9rem] flex-col gap-0.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
+                      Adjustment date
+                      <input
+                        type="date"
+                        value={String(fgAdjDateIso || '').slice(0, 10)}
+                        onChange={(e) => setFgAdjDateIso(e.target.value)}
+                        className="rounded-md border border-slate-200 px-2 py-1 font-mono text-xs text-slate-900"
+                      />
+                    </label>
                     <label className="flex min-w-[12rem] flex-[2] flex-col gap-0.5 text-ui-xs font-bold uppercase tracking-wide text-slate-500">
                       Reason (≥12 characters)
                       <input
@@ -5841,6 +5873,9 @@ export function LiveProductionMonitor({
                       />
                     </label>
                   </div>
+                  <p className="text-[11px] leading-snug text-indigo-900/75">
+                    Locked-month jobs (e.g. September): use an open-month date (e.g. today in October).
+                  </p>
                   <button
                     type="button"
                     disabled={fgAdjSaving || !ws?.canMutate}
@@ -6174,8 +6209,10 @@ export function LiveProductionMonitor({
         <ProductionRegisterCorrectionModal
           kind={correctionModalKind}
           reason={correctionReason}
+          adjustmentDateIso={correctionAdjustmentDateIso}
           saving={correctionSaving}
           onReasonChange={setCorrectionReason}
+          onAdjustmentDateChange={setCorrectionAdjustmentDateIso}
           undoFinishRollRequired={
             correctionModalKind === 'coil' && undoFinishRollOnCorrection.length > 0 && canUndoFinishRoll
           }
