@@ -23,10 +23,23 @@ export function RefundPayoutRecipientPicker({
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
 
-  const selected = useMemo(
-    () => options.find((o) => String(o.key) === String(value)) || null,
-    [options, value]
-  );
+  const selected = useMemo(() => {
+    const key = String(value || '').trim();
+    if (!key) return null;
+    const fromOpts = options.find((o) => String(o.key) === key);
+    if (fromOpts) return fromOpts;
+    // Value set (e.g. quote customer auto-split) but option list not yet hydrated.
+    if (key.startsWith('customer:') || key.startsWith('staff:') || key.startsWith('user:')) {
+      return {
+        key,
+        label: 'Selected recipient',
+        group: key.startsWith('customer:') ? 'Quote customer' : 'Recipients',
+        hint: 'Click to confirm or change',
+        needsBank: false,
+      };
+    }
+    return null;
+  }, [options, value]);
 
   useEffect(() => {
     if (!open) setQuery('');

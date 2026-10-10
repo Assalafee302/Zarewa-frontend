@@ -11,6 +11,7 @@ import RefundModal, {
   refundRecordSubtitle,
   payoutRowRequiredRole,
   associatedStaffPayoutRole,
+  resolveRefundQuoteCustomer,
 } from './RefundModal.jsx';
 import { ToastProvider } from '../../context/ToastContext.jsx';
 import { apiFetch } from '../../lib/apiBase';
@@ -130,6 +131,52 @@ async function clickApproveWhenReady(user) {
   await waitFor(() => expect(approveBtn).not.toBeDisabled(), { timeout: 10_000 });
   await user.click(approveBtn);
 }
+
+describe('resolveRefundQuoteCustomer', () => {
+  it('returns the snapshot customer when present', () => {
+    const row = resolveRefundQuoteCustomer({
+      customerID: 'CUS-1',
+      customers: [{ customerID: 'CUS-1', name: 'Suleiman zaria', bankName: 'OPay', bankAccountNo: '7039666314' }],
+      customerName: 'Other',
+    });
+    expect(row.name).toBe('Suleiman zaria');
+    expect(row.bankAccountNo).toBe('7039666314');
+  });
+
+  it('synthesizes the quote customer when missing from the truncated desk list', () => {
+    const row = resolveRefundQuoteCustomer({
+      customerID: 'CUS-MISSING',
+      customers: [{ customerID: 'CUS-OTHER', name: 'Someone else' }],
+      customerName: 'Suleiman zaria',
+      payeeName: 'Suleiman Zaria',
+      payeeBankName: 'OPay',
+      payeeAccountNo: '7039666314',
+    });
+    expect(row).toMatchObject({
+      customerID: 'CUS-MISSING',
+      name: 'Suleiman zaria',
+      bankName: 'OPay',
+      bankAccountNo: '7039666314',
+    });
+  });
+
+  it('prefers a hydrated customer row over form-only synthesis', () => {
+    const row = resolveRefundQuoteCustomer({
+      customerID: 'CUS-H',
+      customers: [],
+      hydrated: {
+        customerID: 'CUS-H',
+        name: 'Suleiman zaria',
+        bankName: 'OPay',
+        bankAccountNo: '7039666314',
+        bankAccountName: 'Suleiman Zaria',
+      },
+      customerName: 'Fallback',
+    });
+    expect(row.name).toBe('Suleiman zaria');
+    expect(row.bankAccountNo).toBe('7039666314');
+  });
+});
 
 describe('payoutRowRequiredRole', () => {
   it('routes a Transport split to the driver role', () => {

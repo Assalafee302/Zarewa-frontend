@@ -404,6 +404,60 @@ function customerHasBank(row) {
   return Boolean(String(row?.bankAccountNo || '').trim() && String(row?.bankName || '').trim());
 }
 
+/**
+ * Quote customer for refund payout options.
+ * Desk customer snapshots are truncated — the quote customer may be absent even when
+ * form.customerID / Primary bank fields are already set. Always resolve a row so Search
+ * and Quick Add can show them.
+ */
+export function resolveRefundQuoteCustomer({
+  customerID,
+  customers = [],
+  hydrated = null,
+  bankOverride = null,
+  customerName = '',
+  payeeName = '',
+  payeeBankName = '',
+  payeeAccountNo = '',
+} = {}) {
+  const quoteCustomerId = String(customerID || '').trim();
+  if (!quoteCustomerId) return null;
+  const fromList =
+    (Array.isArray(customers) ? customers : []).find(
+      (c) => String(c?.customerID || '').trim() === quoteCustomerId
+    ) || null;
+  if (fromList) return fromList;
+
+  const hydratedMatch =
+    hydrated && String(hydrated.customerID || '').trim() === quoteCustomerId ? hydrated : null;
+  const name =
+    String(hydratedMatch?.name || hydratedMatch?.customerName || '').trim() ||
+    String(customerName || '').trim() ||
+    String(payeeName || '').trim() ||
+    'Quote customer';
+  const base = hydratedMatch || {
+    customerID: quoteCustomerId,
+    name,
+    customerName: name,
+    bankAccountName: String(payeeName || name).trim(),
+    bankName: String(payeeBankName || '').trim(),
+    bankAccountNo: String(payeeAccountNo || '').trim(),
+  };
+  return {
+    ...base,
+    customerID: quoteCustomerId,
+    name: String(base.name || base.customerName || name).trim() || name,
+    customerName: String(base.customerName || base.name || name).trim() || name,
+    bankAccountName: String(
+      bankOverride?.bankAccountName || base.bankAccountName || payeeName || name
+    ).trim(),
+    bankName: String(bankOverride?.bankName || base.bankName || payeeBankName || '').trim(),
+    bankAccountNo: String(
+      bankOverride?.bankAccountNo || base.bankAccountNo || payeeAccountNo || ''
+    ).trim(),
+  };
+}
+
 function payoutRowSelectValue(row) {
   const kind = String(row?.recipientKind || 'customer').trim().toLowerCase();
   if (kind === 'associated_staff') {
@@ -1318,6 +1372,8 @@ const RefundModal = ({
   const [payoutBankError, setPayoutBankError] = useState('');
   /** Local bank patches after inline save (before sales snapshot refresh). */
   const [customerBankOverrides, setCustomerBankOverrides] = useState({});
+  /** Quote customer fetched by id when missing from the truncated desk customer snapshot. */
+  const [quoteCustomerHydrated, setQuoteCustomerHydrated] = useState(null);
   /** Full quotation (with service assignees) when snapshot/eligible list is thin. */
   const [payoutQuoteDetail, setPayoutQuoteDetail] = useState(null);
   /** Server-resolved quotation maker → HR bank (source of truth for default sales payee). */
@@ -1449,6 +1505,7 @@ const RefundModal = ({
     setActivityTimelineOpen(false);
     setSubstLineCalcOpen(false);
     setAdvancedPricingOpen(false);
+    setQuoteCustomerHydrated(null);
 
     if (mode === 'create') {
       void fetchEligibleQuotes({ force: true });
@@ -1478,10 +1535,28 @@ const RefundModal = ({
     }
     return Array.from(byId.values());
   }, [snapshotAssociatedStaff, payoutAssociatedStaff]);
-  const selectedRefundCustomer = useMemo(
-    () => allCustomers.find((c) => String(c.customerID || '').trim() === String(form.customerID || '').trim()) || null,
-    [allCustomers, form.customerID]
-  );
+  const selectedRefundCustomer = useMemo(() => {
+    const quoteCustomerId = String(form.customerID || '').trim();
+    return resolveRefundQuoteCustomer({
+      customerID: quoteCustomerId,
+      customers: allCustomers,
+      hydrated: quoteCustomerHydrated,
+      bankOverride: customerBankOverrides[quoteCustomerId] || null,
+      customerName: form.customerName,
+      payeeName: form.payeeName,
+      payeeBankName: form.payeeBankName,
+      payeeAccountNo: form.payeeAccountNo,
+    });
+  }, [
+    allCustomers,
+    quoteCustomerHydrated,
+    customerBankOverrides,
+    form.customerID,
+    form.customerName,
+    form.payeeName,
+    form.payeeBankName,
+    form.payeeAccountNo,
+  ]);
   const overpaymentOnlyRefund = useMemo(
     () => refundFormIsOverpaymentOnly(form.calculationLines),
     [form.calculationLines]
@@ -1917,23 +1992,28 @@ const RefundModal = ({
       pushCompanyStaff(defaultRefundPayee, { pinned: true });
     }
 
+    // Always list the quote customer when the refund has a customerID — even if they are
+    // missing from the truncated workspace customers snapshot (Search used to stay empty).
     if (quoteCustomerId && selectedRefundCustomer && !seen.has(`customer:${quoteCustomerId}`)) {
       const c = selectedRefundCustomer;
+      const displayName =
+        String(c.name || c.customerName || form.customerName || form.payeeName || 'Quote customer').trim() ||
+        'Quote customer';
       const hasBank = customerHasBank(c);
       opts.push({
         key: `customer:${quoteCustomerId}`,
         label: hasBank
-          ? `${c.name} · ${c.bankName} ${c.bankAccountNo}`
-          : `${c.name} · quote customer · no bank`,
+          ? `${displayName} · ${c.bankName} ${c.bankAccountNo}`
+          : `${displayName} · quote customer · no bank`,
         group: 'Quote customer',
-        searchText: `${c.name} ${c.bankName || ''} ${c.bankAccountNo || ''} ${quoteCustomerId}`,
+        searchText: `${displayName} ${c.bankName || ''} ${c.bankAccountNo || ''} ${form.customerName || ''} ${quoteCustomerId}`,
         needsBank: !hasBank,
         hint: hasBank ? 'Customer on this quotation' : 'Select to add this customer’s bank now',
         meta: {
           kind: 'customer',
           id: quoteCustomerId,
-          name: c.name,
-          bankAccountName: c.bankAccountName || c.name || '',
+          name: displayName,
+          bankAccountName: c.bankAccountName || displayName || '',
           bankName: c.bankName || '',
           bankAccountNo: c.bankAccountNo || '',
         },
@@ -1941,7 +2021,13 @@ const RefundModal = ({
     }
 
     return opts;
-  }, [defaultRefundPayee, form.customerID, selectedRefundCustomer]);
+  }, [
+    defaultRefundPayee,
+    form.customerID,
+    form.customerName,
+    form.payeeName,
+    selectedRefundCustomer,
+  ]);
 
   /**
    * Payee picker = quotation people + full Associated staff Driver/Installer directory.
@@ -2226,6 +2312,34 @@ const RefundModal = ({
     };
   }, [isOpen, mode, form.quotationRef]);
 
+  /** When the quote customer is outside the warm customer page, load them by id for bank + Search. */
+  useEffect(() => {
+    if (!isOpen || mode !== 'create') return undefined;
+    const id = String(form.customerID || '').trim();
+    if (!id) {
+      setQuoteCustomerHydrated(null);
+      return undefined;
+    }
+    const inSnapshot = (Array.isArray(ws?.snapshot?.customers) ? ws.snapshot.customers : []).some(
+      (c) => String(c?.customerID || '').trim() === id
+    );
+    if (inSnapshot) {
+      setQuoteCustomerHydrated(null);
+      return undefined;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { ok, data } = await apiFetch(`/api/customers/${encodeURIComponent(id)}`);
+      if (cancelled) return;
+      if (ok && data?.ok && data.customer) {
+        setQuoteCustomerHydrated(data.customer);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, mode, form.customerID, ws?.snapshot?.customers]);
+
   useEffect(() => {
     if (!isOpen || mode !== 'create') return;
     if (!selectedRefundCustomer) return;
@@ -2241,6 +2355,8 @@ const RefundModal = ({
     const payeeName = String(selectedRefundCustomer.bankAccountName || selectedRefundCustomer.name || '').trim();
     const payeeBankName = String(selectedRefundCustomer.bankName || '').trim();
     const payeeAccountNo = String(selectedRefundCustomer.bankAccountNo || '').trim();
+    // Synthetic fallback (name only, no bank yet) must not wipe Primary payee fields already on the form.
+    if (!payeeBankName || !payeeAccountNo) return;
     setForm((f) => ({ ...f, payeeName, payeeBankName, payeeAccountNo }));
   }, [isOpen, mode, selectedRefundCustomer, selectedCustomerHrPayout]);
 
