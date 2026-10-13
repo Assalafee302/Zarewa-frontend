@@ -27,6 +27,9 @@ import {
   salesPaymentsReceivedSummary,
 } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
+import { reportsLegacyMode } from '../lib/reportsLegacyMode';
+import { buildSalesReport } from '../lib/salesReportCore';
+import { salesReportExcelSheets, salesReportPrintPayload, salesRowCheckText } from '../lib/salesReportPrint';
 import {
   PACK_CASH_BANK_AR,
   PACK_CONVERSION_SUMMARY,
@@ -74,6 +77,21 @@ const WORKSPACE_PERIOD_PACKS = new Set([
   PACK_REFUND_PERIOD,
   PACK_OPS_PROCUREMENT,
 ]);
+
+/** Sales report v2 (treasury-checked) for the period; null under `?legacy=1`. */
+function salesReportV2ForPeriod(src, startDate, endDate) {
+  if (reportsLegacyMode()) return null;
+  return buildSalesReport({
+    receipts: src.receipts,
+    productionJobs: src.productionJobs,
+    quotations: src.quotations,
+    ledgerEntries: src.ledgerEntries,
+    treasuryMovements: src.treasuryMovements,
+    refunds: src.refunds,
+    startDate,
+    endDate,
+  });
+}
 
 export function useReportsExport({
   apiFetch,
@@ -175,16 +193,24 @@ export function useReportsExport({
         );
       }
       if (name === PACK_SALES_CUSTOMER) {
-        return salesPaymentsReceivedRows(
-          receipts,
-          productionJobs,
-          quotations,
+        const v2 = salesReportV2ForPeriod(
+          { receipts, productionJobs, quotations, ledgerEntries, treasuryMovements, refunds },
           startDate,
-          endDate,
-          ledgerEntries,
-          treasuryMovements,
-          refunds
-        ).map((r) => {
+          endDate
+        );
+        const salesRows =
+          v2?.rows ??
+          salesPaymentsReceivedRows(
+            receipts,
+            productionJobs,
+            quotations,
+            startDate,
+            endDate,
+            ledgerEntries,
+            treasuryMovements,
+            refunds
+          );
+        return salesRows.map((r) => {
           const isDebt = r.group === 'Outstanding balance (debtors)';
           return {
             reportSection: isDebt ? 'Outstanding balance (debtors)' : 'Payments received (period)',
@@ -198,6 +224,7 @@ export function useReportsExport({
             outstandingBalanceNgn: r.outstandingBalanceNgn,
             paymentMethod: r.paymentMethod,
             bank: r.bankLabel || '—',
+            ...(v2 ? { check: isDebt ? '' : salesRowCheckText(r) } : {}),
             remarks: r.bankReference,
           };
         });
@@ -431,6 +458,24 @@ export function useReportsExport({
             { label: 'Note', value: '0 receipt exceptions = no ±₦1 mismatches in range.' },
           ],
         };
+      }
+      if (name === PACK_SALES_CUSTOMER && !reportsLegacyMode()) {
+        const report = salesReportV2ForPeriod(
+          { receipts, productionJobs, quotations, ledgerEntries, treasuryMovements, refunds },
+          startDate,
+          endDate
+        );
+        return salesReportPrintPayload(report, {
+          title: PACK_SALES_CUSTOMER,
+          refundedInPeriodNgn: refundsPaidInPeriodRows(refunds, startDate, endDate).reduce(
+            (sum, r) => sum + (Number(r.amountNgn) || 0),
+            0
+          ),
+          companyCutInPeriodNgn: companyCutWithdrawalsInPeriodRows(treasuryMovements, startDate, endDate).reduce(
+            (sum, r) => sum + (Number(r.amountNgn) || 0),
+            0
+          ),
+        });
       }
       if (name === PACK_SALES_CUSTOMER) {
         const raw = salesPaymentsReceivedRows(
@@ -801,6 +846,26 @@ export function useReportsExport({
       if (tm.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tm), 'Treasury');
       XLSX.writeFile(wb, `${packSlug}.xlsx`);
       showToast(`${name} exported as Excel (multi-sheet).`);
+      return;
+    }
+
+    if (name === PACK_SALES_CUSTOMER && fmt === 'Excel' && !reportsLegacyMode()) {
+      const report = salesReportV2ForPeriod(
+        { receipts, productionJobs, quotations, ledgerEntries, treasuryMovements, refunds },
+        startDate,
+        endDate
+      );
+      const sheets = salesReportExcelSheets(report);
+      if (!sheets[0].rows.length) {
+        showToast('No rows for this pack in the selected range.', { variant: 'info' });
+        return;
+      }
+      const wb = XLSX.utils.book_new();
+      for (const sh of sheets) {
+        if (sh.rows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sh.rows), sh.name);
+      }
+      XLSX.writeFile(wb, `${packSlug}.xlsx`);
+      showToast(`${name} exported as Excel (sales, cash by account, reconciliation, exceptions).`);
       return;
     }
 

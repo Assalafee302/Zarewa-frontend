@@ -350,6 +350,7 @@ const Reports = () => {
         layout={printLayout}
         denseSingleLine={printDense}
         readable={Boolean(printPayload?.readable)}
+        appendixSections={printPayload?.appendixSections ?? []}
       />
 
       <StockRegisterMonthEndModal

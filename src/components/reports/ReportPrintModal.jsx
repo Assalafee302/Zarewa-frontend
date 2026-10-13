@@ -37,6 +37,7 @@ function emptySums(sumDefs) {
  *
  * @param {'portrait'|'landscape'} [props.layout]
  * @param {boolean} [props.denseSingleLine] — nowrap + ellipsis on cells (default true for neat equal rows)
+ * @param {{ title: string, columns: object[], rows: object[] }[]} [props.appendixSections] — extra tables after the main one
  */
 export function ManagementReportSheet({
   title,
@@ -49,6 +50,7 @@ export function ManagementReportSheet({
   grouping = null,
   extraMetaLines = [],
   readable = false,
+  appendixSections = [],
 }) {
   const columns = Array.isArray(columnsProp) ? columnsProp : [];
   const rows = Array.isArray(rowsProp) ? rowsProp : [];
@@ -258,6 +260,55 @@ export function ManagementReportSheet({
           )}
         </tbody>
       </table>
+      {(Array.isArray(appendixSections) ? appendixSections : []).map((sec, secIdx) => (
+        <section key={`${sec.title}-${secIdx}`} className="mt-6 break-inside-avoid-page">
+          <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-700">{sec.title}</h3>
+          <table
+            className={`report-print-table report-print-table--single-line statement-dense-table ${STATEMENT_TBL}`}
+          >
+            <thead>
+              <tr>
+                {(sec.columns || []).map((c) => (
+                  <th key={c.key} className={thClass(c.align)} style={colStyle(c)}>
+                    {c.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(sec.rows || []).length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={Math.max(1, (sec.columns || []).length)}
+                    className={`${STATEMENT_TD} text-center italic text-slate-500`}
+                  >
+                    None.
+                  </td>
+                </tr>
+              ) : (
+                sec.rows.map((row, i) => (
+                  <tr key={i}>
+                    {(sec.columns || []).map((c) => {
+                      const raw = row[c.key];
+                      const text = raw != null && raw !== '' ? String(raw) : '';
+                      return (
+                        <td
+                          key={c.key}
+                          title={text || undefined}
+                          style={colStyle(c)}
+                          className={`${tdClass(c.align, i % 2 === 1, c.wrap)} whitespace-pre`}
+                        >
+                          {text}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </section>
+      ))}
     </StatementStyleReportShell>
   );
 }
@@ -280,6 +331,7 @@ export function ReportPrintModal({
   autoPrint = false,
   extraMetaLines = [],
   readable = false,
+  appendixSections = [],
 }) {
   const printedRef = useRef(false);
   const isLandscape = layout !== 'portrait';
@@ -336,6 +388,7 @@ export function ReportPrintModal({
             grouping={grouping}
             extraMetaLines={extraMetaLines}
             readable={readable}
+            appendixSections={appendixSections}
           />
         </div>
       </div>
