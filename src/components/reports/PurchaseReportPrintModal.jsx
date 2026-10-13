@@ -45,13 +45,15 @@ export function PurchaseReportPrintModal({ open, onClose, report, branchLabel, p
             title="Purchase register"
             layout="landscape"
             metaLines={[
-              { label: 'Branch', value: branchLabel || '—' },
+              { label: 'Branch', value: report.branch?.name || branchLabel || '—' },
               { label: 'Period', value: periodLabel || '—' },
               { label: 'Printed', value: generated },
               {
                 label: 'Note',
                 value:
-                  'Coil / PO = last 4–5 digits. Paid & outstanding on first line per PO. Amber = balance due supplier.',
+                  report.reportVersion === 2
+                    ? 'Coil / PO = last 4–5 digits. Total ₦ = received qty × unit cost. Paid to date & outstanding are as at period end, on the first line per PO. Amber = balance due supplier; red = overpaid.'
+                    : 'Coil / PO = last 4–5 digits. Paid & outstanding on first line per PO. Amber = balance due supplier.',
               },
             ]}
           >

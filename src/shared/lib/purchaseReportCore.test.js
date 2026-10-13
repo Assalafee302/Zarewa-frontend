@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildPurchaseReport } from './purchaseReportCore.js';
+import { buildPurchaseReportLegacy as buildPurchaseReport } from './purchaseReportCore.js';
 
-describe('buildPurchaseReport', () => {
+describe('buildPurchaseReportLegacy', () => {
   it('groups coil GRN by material and gauge with payment summary', () => {
     const report = buildPurchaseReport({
       purchaseOrders: [

@@ -13,6 +13,7 @@ import {
   receiptAdvanceTreasuryReconciliationRows,
 } from './liveAnalytics';
 import { procurementKindFromPo } from './procurementPoKind';
+import { reportsLegacyQuerySuffix } from './reportsLegacyMode';
 import * as XLSX from 'xlsx';
 function rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate) {
   const rows = [];
@@ -523,6 +524,7 @@ function coilPurchaseExport(r, material, gauge) {
     orderKg: r.orderKg ?? '',
     kgAmountNgn: r.kgAmountNgn ?? '',
     totalNgn: r.totalNgn ?? '',
+    ...(r.remainingValueTodayNgn !== undefined ? { remainingValueTodayNgn: r.remainingValueTodayNgn ?? '' } : {}),
     poPaidNgn: r.poPaidNgn ?? '',
     poOutstandingNgn: r.poOutstandingNgn ?? '',
     remark: r.remark ?? '',
@@ -577,6 +579,20 @@ function purchaseSummaryExcelRows(report) {
   for (const t of summary.observations || []) rows.push({ rowType: 'Observation', text: t });
   for (const t of summary.recommendations || []) rows.push({ rowType: 'Recommendation', text: t });
   const p = summary.payments || {};
+  if (report.reportVersion === 2) {
+    rows.push({
+      rowType: 'Payments',
+      receivedValueNgn: p.receivedValueNgn ?? 0,
+      remainingValueTodayNgn: p.remainingValueTodayNgn ?? 0,
+      paymentsMadeInPeriodNgn: p.paymentsMadeInPeriodNgn ?? 0,
+      paidAgainstPeriodPosNgn: p.paidAgainstPeriodPosNgn ?? 0,
+      paidAgainstEarlierPosNgn: p.paidAgainstEarlierPosNgn ?? 0,
+      supplierOutstandingAtEndNgn: p.supplierOutstandingAtEndNgn ?? 0,
+      overpaidAtEndNgn: p.overpaidAtEndNgn ?? 0,
+      paidNotReceivedNgn: p.paidNotReceivedNgn ?? 0,
+    });
+    return rows;
+  }
   rows.push({
     rowType: 'Payments',
     receivedValueNgn: p.receivedValueNgn ?? 0,
@@ -584,6 +600,46 @@ function purchaseSummaryExcelRows(report) {
     poOutstandingNgn: p.poOutstandingNgn ?? 0,
   });
   return rows;
+}
+
+function purchaseV2ExtraSheets(report) {
+  if (report?.reportVersion !== 2) return [];
+  const sheets = [];
+  const positions = (report.supplierPositions?.rows || []).map((r) => ({
+    po: r.poId,
+    supplier: r.supplier,
+    orderDate: r.orderDateISO,
+    status: r.status,
+    poValueNgn: r.poValueNgn,
+    paidToPeriodEndNgn: r.paidToEndNgn,
+    paidInPeriodNgn: r.paidInPeriodNgn,
+    outstandingNgn: r.outstandingNgn,
+    overpaidNgn: r.overpaidNgn,
+    grnInPeriod: r.grnInPeriod ? 'Yes' : 'No',
+  }));
+  if (positions.length) sheets.push({ name: 'Supplier_position', rows: positions });
+  const pnr = (report.paidNotReceived?.rows || []).map((r) => ({
+    po: r.poId,
+    supplier: r.supplier,
+    orderDate: r.orderDateISO,
+    poValueNgn: r.poValueNgn,
+    paidToPeriodEndNgn: r.paidToEndNgn,
+    receivedValueAtPeriodEndNgn: r.receivedValueAtEndNgn,
+    paidNotReceivedNgn: r.gapNgn,
+  }));
+  if (pnr.length) sheets.push({ name: 'Paid_not_received', rows: pnr });
+  const pays = (report.payments?.supplierPayments || []).map((p) => ({
+    date: p.paidDateISO,
+    supplier: p.supplier,
+    po: p.poId || p.sourceIdFull,
+    poOrderDate: p.poOrderDateISO || '',
+    against: p.poOrderedInPeriod ? "This period's PO" : p.poOrderedBeforePeriod ? 'Earlier PO' : 'Unlinked',
+    amountNgn: p.amountNgn,
+    account: p.bankAccount,
+    reference: p.reference,
+  }));
+  if (pays.length) sheets.push({ name: 'Supplier_payments', rows: pays });
+  return sheets;
 }
 
 function purchaseRegisterExcelSheets(report) {
@@ -608,11 +664,20 @@ function purchaseRegisterExcelSheets(report) {
   }
   if (stoneRows.length) sheets.push({ name: 'Stone_coated', rows: stoneRows });
 
+  if (report.reportVersion === 2) {
+    const fsRows = [];
+    for (const g of report.stoneFlatsheets?.groups || []) {
+      for (const r of g.rows) fsRows.push(qtyPurchaseExport(r, 'Stone flatsheets', g.gaugeLabel));
+    }
+    if (fsRows.length) sheets.push({ name: 'Stone_flatsheets', rows: fsRows });
+  }
+
   const accRows = [];
   for (const g of report.accessories?.groups || []) {
     for (const r of g.rows) accRows.push(qtyPurchaseExport(r, 'Accessories', g.typeLabel));
   }
   if (accRows.length) sheets.push({ name: 'Accessories', rows: accRows });
+  sheets.push(...purchaseV2ExtraSheets(report));
   if (summaryRows.length) sheets.push({ name: 'Summary', rows: summaryRows });
   return sheets;
 }
@@ -624,7 +689,7 @@ function purchaseRegisterHasRows(report) {
 }
 
 async function fetchPurchaseRegisterReport(apiFetch, startDate, endDate) {
-  const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+  const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}${reportsLegacyQuerySuffix()}`;
   const { ok, data } = await apiFetch(`/api/reports/purchase-register?${q}`);
   if (!ok || !data?.ok) {
     return { ok: false, error: data?.error || 'Could not load purchase register report.' };
