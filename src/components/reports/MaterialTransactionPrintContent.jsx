@@ -10,6 +10,7 @@ import {
   STATEMENT_H3,
   STATEMENT_SUB,
 } from './StatementStyleReportShell';
+import { CoilRegisterPrintSections } from './CoilRegisterPrintSections';
 
 const TBL = `${STATEMENT_TBL} table-fixed`;
 const TH = `${STATEMENT_TH} whitespace-nowrap`;
@@ -139,7 +140,7 @@ function SummarySection({ summary }) {
   );
 }
 
-function SubtotalRow({ sub }) {
+function SubtotalRow({ sub, showJobKg = false }) {
   return (
     <tr className="bg-slate-100/90">
       <td className={TF} colSpan={5}>
@@ -148,6 +149,12 @@ function SubtotalRow({ sub }) {
       <td className={TF} />
       <td className={TF} />
       <td className={TFR}>{fmtNum(sub.totalKgUsed)}</td>
+      {showJobKg ? (
+        <>
+          <td className={TF} />
+          <td className={TF} />
+        </>
+      ) : null}
       <td className={TF} />
       <td className={TFR}>{fmtNum(sub.totalMeters)}</td>
       <td className={TFR}>{sub.weightedConversionKgM != null ? fmtNum(sub.weightedConversionKgM) : '—'}</td>
@@ -159,6 +166,8 @@ function SubtotalRow({ sub }) {
 }
 
 function CoilSection({ title, section }) {
+  /* v2: kg used is from COIL_CONSUMPTION movements; show the job record's kg and the difference beside it. */
+  const showJobKg = (section?.groups || []).some((g) => g.rows.some((r) => r.jobConsumedKg != null));
   if (!section?.groups?.length) {
     return (
       <section className="mb-6 break-inside-avoid">
@@ -183,7 +192,13 @@ function CoilSection({ title, section }) {
                 <th className={TH}>Coil</th>
                 <th className={`${TH} text-right`}>Before</th>
                 <th className={`${TH} text-right`}>After</th>
-                <th className={`${TH} text-right`}>Kg used</th>
+                <th className={`${TH} text-right`}>{showJobKg ? 'Kg used (movements)' : 'Kg used'}</th>
+                {showJobKg ? (
+                  <>
+                    <th className={`${TH} text-right`}>Job record kg</th>
+                    <th className={`${TH} text-right`}>Difference</th>
+                  </>
+                ) : null}
                 <th className={TH}>Design</th>
                 <th className={`${TH} text-right`}>Metres</th>
                 <th className={`${TH} text-right`}>kg/m</th>
@@ -207,7 +222,17 @@ function CoilSection({ title, section }) {
                     {fmtNum(r.beforeKg)}
                   </td>
                   <td className={TDR}>{fmtNum(r.afterKg)}</td>
-                  <td className={TDR}>{fmtNum(r.kgUsed)}</td>
+                  <td className={TDR} title={r.kgSource || undefined}>
+                    {fmtNum(r.kgUsed)}
+                  </td>
+                  {showJobKg ? (
+                    <>
+                      <td className={TDR}>{fmtNum(r.jobConsumedKg)}</td>
+                      <td className={`${TDR}${r.kgDifference ? ' bg-amber-50 text-amber-900' : ''}`}>
+                        {r.kgDifference ? fmtNum(r.kgDifference) : '—'}
+                      </td>
+                    </>
+                  ) : null}
                   <td className={TD}>{r.design}</td>
                   <td className={TDR}>{fmtNum(r.meters)}</td>
                   <td className={TDR}>{r.conversionKgM != null ? fmtNum(r.conversionKgM) : '—'}</td>
@@ -216,7 +241,7 @@ function CoilSection({ title, section }) {
                   <td className={TDR}>{r.amountNetNgn != null ? fmtMoney(r.amountNetNgn) : '—'}</td>
                 </tr>
               ))}
-              <SubtotalRow sub={g.subtotals} />
+              <SubtotalRow sub={g.subtotals} showJobKg={showJobKg} />
             </tbody>
           </table>
         </div>
@@ -490,6 +515,7 @@ export function MaterialTransactionPrintContent({ report }) {
       <AccessorySection accessories={report.accessories} />
       <ListedNotProducedSection section={report.listedNotProduced} />
       <CancelledSection cancelled={report.cancelled} />
+      <CoilRegisterPrintSections coilRegister={report.coilRegister} gapLines={report.summary?.gapLines || []} />
       <SummarySection summary={report.summary} />
     </div>
   );

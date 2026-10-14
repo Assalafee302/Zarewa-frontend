@@ -232,3 +232,18 @@ describe('payment lines (synthetic)', () => {
     expect(out.at(-1)).toMatchObject({ type: 'NO_TREASURY', amountNgn: 200_000, check: 'Receipt amount not found in treasury' });
   });
 });
+
+describe('sales report Excel — safe to SUM', () => {
+  it('has no subtotal rows; each payment line carries its receipt total and "Line x of n"', async () => {
+    const { salesReportExcelSheets } = await import('./salesReportPrint.js');
+    const sheet = salesReportExcelSheets(sep).find((s) => s.name === 'Sales_report').rows;
+    expect(sheet.some((r) => r.lineType === 'Receipt subtotal')).toBe(false);
+    const sum = sheet.reduce((s, r) => s + (Number(r.amountPaidNgn) || 0), 0);
+    expect(sum).toBe(209_638_175);
+    const ramaran = sheet.filter((r) => r.receiptId === 'LE-KD-26-1727');
+    expect(ramaran.map((r) => r.line)).toEqual(['Line 1 of 4', 'Line 2 of 4', 'Line 3 of 4', 'Line 4 of 4']);
+    expect(ramaran.every((r) => r.receiptTotalNgn === 1_791_880)).toBe(true);
+    const debtorSum = sheet.reduce((s, r) => s + (Number(r.outstandingBalanceNgn) || 0), 0);
+    expect(debtorSum).toBe(sep.debtorRows.reduce((s, r) => s + (Number(r.outstandingBalanceNgn) || 0), 0));
+  });
+});

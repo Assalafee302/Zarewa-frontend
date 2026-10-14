@@ -235,6 +235,10 @@ export function salesPaymentLineRows(report) {
         paidBySource: l.paidBySource || '',
         amountNgn: l.amountNgn,
         outstandingBalanceNgn: !split && i === 0 ? Number(r.outstandingBalanceNgn) || 0 : null,
+        receiptTotalNgn: Number(r.amountPaidNgn) || 0,
+        quoteBalanceNgn: Number(r.outstandingBalanceNgn) || 0,
+        lineIndex: i + 1,
+        lineCount: lines.length,
         check: checks.join(' · '),
       });
     });
@@ -401,8 +405,10 @@ export function salesReportPrintPayload(report, opts) {
 
 /** Excel sheets for the sales report v2. */
 export function salesReportExcelSheets(report) {
-  // Subtotal rows carry lineType "Receipt subtotal": filter on lineType = "Payment line" before summing.
-  const sales = salesPaymentLineRows(report).map((r) => ({
+  // No subtotal rows in Excel: every payment line carries its receipt total and "Line x of n" instead,
+  // so the amount column is safe to SUM without filtering. Debtor balances sit only on debtor rows.
+  const lineRows = salesPaymentLineRows(report).filter((r) => r.lineType !== SALES_LINE_SUBTOTAL);
+  const sales = lineRows.map((r) => ({
     category: r.group,
     lineType: r.lineType,
     paymentDateISO: r.paymentDateISO,
@@ -416,7 +422,10 @@ export function salesReportExcelSheets(report) {
     postedDateISO: r.postedDateISO || '',
     account: r.lineType === SALES_LINE_DEBTOR ? '' : r.bank || '',
     amountPaidNgn: r.amountNgn ?? '',
-    outstandingBalanceNgn: r.outstandingBalanceNgn ?? '',
+    receiptTotalNgn: r.lineType === SALES_LINE_PAYMENT ? r.receiptTotalNgn : '',
+    line: r.lineType === SALES_LINE_PAYMENT ? `Line ${r.lineIndex} of ${r.lineCount}` : '',
+    quoteBalanceAtEndNgn: r.lineType === SALES_LINE_PAYMENT && r.lineIndex === 1 ? r.quoteBalanceNgn : '',
+    outstandingBalanceNgn: r.lineType === SALES_LINE_DEBTOR ? r.outstandingBalanceNgn : '',
     check: r.check || '',
     paymentMethod: r.paymentMethod,
     bankReference: r.bankReference,

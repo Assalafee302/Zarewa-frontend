@@ -14,6 +14,7 @@ import {
 } from './liveAnalytics';
 import { procurementKindFromPo } from './procurementPoKind';
 import { reportsLegacyQuerySuffix } from './reportsLegacyMode';
+import { coilRegisterExcelSheets } from './coilRegisterExcel';
 import * as XLSX from 'xlsx';
 function rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate) {
   const rows = [];
@@ -312,6 +313,7 @@ function coilTxnToExport(r, family, gauge) {
     beforeKg: r.beforeKg,
     afterKg: r.afterKg,
     kgUsed: r.kgUsed,
+    ...(r.jobConsumedKg != null ? { kgSource: r.kgSource, jobRecordKg: r.jobConsumedKg, kgDifference: r.kgDifference } : {}),
     design: r.design,
     metres: r.meters,
     conversionKgM: r.conversionKgM ?? '',
@@ -450,6 +452,9 @@ function materialTransactionExcelSheets(report) {
     jobId: r.jobId,
   }));
   if (notProduced.length) sheets.push({ name: 'Listed_not_produced', rows: notProduced });
+  for (const sh of coilRegisterExcelSheets(report.coilRegister, report.summary?.gapLines || [])) {
+    if (sh.rows.length) sheets.push(sh);
+  }
   if (summaryRows.length) sheets.push({ name: 'Summary', rows: summaryRows });
   return sheets;
 }
@@ -465,7 +470,7 @@ function materialTransactionHasRows(report) {
 
 async function fetchMaterialTransactionReport(apiFetch, startDate, endDate) {
   const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
-  const { ok, data } = await apiFetch(`/api/reports/material-transaction?${q}`);
+  const { ok, data } = await apiFetch(`/api/reports/material-transaction?${q}${reportsLegacyQuerySuffix()}`);
   if (!ok || !data?.ok) {
     return { ok: false, error: data?.error || 'Could not load material transaction report.' };
   }
