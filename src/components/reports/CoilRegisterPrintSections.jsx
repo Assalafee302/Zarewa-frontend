@@ -192,6 +192,11 @@ export function CoilRegisterPrintSections({ coilRegister, gapLines = [], paidByQ
       ref: `${e.coilNo} · ${e.poID}`,
       note: `Booked ${date(e.bookedISO)}${e.correctedReceivedISO ? `; received ${date(e.correctedReceivedISO)}` : ''}. ${e.note}`,
     })),
+    ...(exceptions.grnMonthMismatch || []).map((e) => ({
+      kind: 'CHECK: received and GRN in different months',
+      ref: `${e.coilNo} · ${e.poID}`,
+      note: `Received ${date(e.coilReceivedISO)}, GRN ${date(e.grnMovementISO)} — ${kg(e.kg)} kg, ${money(e.valueNgn)} lands in different months for stock and purchases.`,
+    })),
     ...(exceptions.grnDateMismatch || []).map((e) => ({
       kind: 'Received date ≠ GRN movement date',
       ref: `${e.coilNo} · ${e.poID}`,

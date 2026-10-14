@@ -65,6 +65,7 @@ export function coilRegisterExcelSheets(coilRegister, gapLines = [], paidByQuota
         ...(exceptions.costVsPurchase || []).map((e) => ({ exception: 'ERP cost/kg ≠ amount paid ÷ kg received', ...e })),
         ...(exceptions.notWeighed || []).map((e) => ({ exception: 'Not weighed?', ...e })),
         ...(exceptions.bookedLate || []).map((e) => ({ exception: 'Received but booked late', ...e })),
+        ...(exceptions.grnMonthMismatch || []).map((e) => ({ exception: 'CHECK: received and GRN in different months', ...e })),
         ...(exceptions.grnDateMismatch || []).map((e) => ({ exception: 'Received date ≠ GRN movement date', ...e })),
         ...(exceptions.coilSpecDiffersFromPoLine || []).map((e) => ({ exception: 'Coil spec differs from PO line', ...e })),
         ...(exceptions.noUnitCost || []).map((e) => ({ exception: 'Coil has no unit cost', ...e })),
