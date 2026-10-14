@@ -12,6 +12,9 @@
  *     R3 Capital     transformer / NEMSA / generator / machine → Fixed asset (capital)
  *     R4 Accessories washer / felt outside Accessories        → Accessories
  *     R5 Forklift    forklift outside Maintenance             → Maintenance
+ *     R6 Imprest     imprest (incl. misspellings "imprese", "impress") outside Admin expenses → Admin expenses
+ *   Expenses whose payment request was cancelled are not expenses: left out of the book view and listed as
+ *   exceptions (the ERP view still shows them, so its total matches the ERP).
  *   Carriage inward in the book = expense carriage + PO transport paid in the period − carriage expense lines that
  *   duplicate a PO transport payment (same amount, and the treasury line names the expense's payment request or
  *   was posted the same day).
@@ -56,6 +59,12 @@ export const EXPENSE_RECLASS_RULES = [
     label: 'Forklift coded outside Maintenance',
     to: 'Maintenance',
     test: (e) => !/^maintenance/i.test(e.category) && /fork\s*lift|focklift/i.test(e.description),
+  },
+  {
+    id: 'R6',
+    label: 'Imprest coded outside Admin expenses',
+    to: 'Admin expenses',
+    test: (e) => !/^admin expenses/i.test(e.category) && /\bimpres\w*/i.test(e.description),
   },
 ];
 
@@ -121,8 +130,10 @@ export function buildExpensesReport(input = {}) {
       paidAtISO: req ? day(req.paidAtISO) : '',
       payeeStaff: String(req?.staffDisplayName || '').trim(),
     };
-    const rule = EXPENSE_RECLASS_RULES.find((r) => r.test(row));
-    row.bookCategory = rule ? rule.to : row.category;
+    const cancelled = row.status === 'Cancelled';
+    const rule = cancelled ? null : EXPENSE_RECLASS_RULES.find((r) => r.test(row));
+    // A cancelled request is not an expense: no book category (left out of the book view).
+    row.bookCategory = cancelled ? null : rule ? rule.to : row.category;
     row.reclassRule = rule ? rule.id : '';
     row.reclassLabel = rule ? `${rule.id} ${rule.label} → ${rule.to}` : '';
     rows.push(row);
@@ -169,7 +180,10 @@ export function buildExpensesReport(input = {}) {
   // --- Views -----------------------------------------------------------------------------------
   const byCategory = (key) => {
     const m = new Map();
-    for (const r of rows) m.set(r[key], (m.get(r[key]) || 0) + r.amountNgn);
+    for (const r of rows) {
+      if (r[key] == null) continue;
+      m.set(r[key], (m.get(r[key]) || 0) + r.amountNgn);
+    }
     return m;
   };
   const erp = byCategory('category');
@@ -204,8 +218,11 @@ export function buildExpensesReport(input = {}) {
     payrollGrossNgn,
     split: payrollSplit ? payrollSplit.map((g) => ({ label: g.label, grossNgn: ngn(g.grossNgn) })) : null,
     splitDifferenceNgn: payrollSplit ? payrollGrossNgn - splitTotal : null,
+    movedOutByRule: adminSalary
+      .filter((r) => !payrollLines.includes(r) && r.reclassRule)
+      .map((r) => ({ expenseID: r.expenseID, description: r.description, amountNgn: r.amountNgn, rule: r.reclassLabel })),
     notExplainedByPayroll: adminSalary
-      .filter((r) => !payrollLines.includes(r))
+      .filter((r) => !payrollLines.includes(r) && !r.reclassRule && r.status !== 'Cancelled')
       .map((r) => ({ expenseID: r.expenseID, description: r.description, amountNgn: r.amountNgn })),
   };
 
@@ -257,7 +274,12 @@ export function buildExpensesReport(input = {}) {
     })),
     ...rows
       .filter((r) => r.status === 'Cancelled')
-      .map((r) => ({ kind: 'Cancelled payment request still in expenses', expenseID: r.expenseID, amountNgn: r.amountNgn, note: r.description })),
+      .map((r) => ({
+        kind: 'Cancelled payment request — not an expense (left out of the book view)',
+        expenseID: r.expenseID,
+        amountNgn: r.amountNgn,
+        note: `${r.category}: ${r.description}`,
+      })),
   ];
 
   return {

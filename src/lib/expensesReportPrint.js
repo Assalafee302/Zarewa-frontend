@@ -71,7 +71,7 @@ export function expensesReportPrintPayload(report, opts) {
     summaryLines: [
       { label: 'Expense lines', value: String(report.totals.lineCount) },
       { label: 'Expenses total (ERP categories)', value: formatNgn(report.totals.amountNgn) },
-      { label: 'Book expense total (after reclassification)', value: formatNgn(report.bookExpenseTotalNgn) },
+      { label: 'Book expense total (after reclassification; cancelled requests left out)', value: formatNgn(report.bookExpenseTotalNgn) },
       { label: 'Lines to check / reclassified', value: String(report.warningCount) },
       { label: 'Payment requests paid in period', value: `${formatNgn(pr.amountNgn)} · ${pr.count} request(s)` },
       { label: 'Refunds paid', value: formatNgn(refundTotal) },
@@ -138,6 +138,7 @@ export function expensesReportPrintPayload(report, opts) {
                 { item: '   Payroll gross not covered by the split', amount: signedNgn(report.payroll.splitDifferenceNgn) },
               ]
             : [{ item: '   Payroll split: not in the data source (HR payroll)', amount: '' }]),
+          ...(report.payroll.movedOutByRule || []).map((p) => ({ item: `Moved out: ${docNo(p.expenseID)} ${p.description} (${p.rule})`, amount: formatNgn(p.amountNgn) })),
           ...report.payroll.notExplainedByPayroll.map((p) => ({ item: `Not explained by payroll: ${docNo(p.expenseID)} ${p.description}`, amount: formatNgn(p.amountNgn) })),
         ],
       },
@@ -176,7 +177,7 @@ export function expensesReportExcelSheets(report, { refundRows = [], companyCutR
         expenseID: r.expenseID,
         dateISO: r.dateISO,
         erpCategory: r.category,
-        bookCategory: r.bookCategory,
+        bookCategory: r.bookCategory ?? 'Excluded — request cancelled',
         description: r.description,
         amountNgn: r.amountNgn,
         status: r.status,

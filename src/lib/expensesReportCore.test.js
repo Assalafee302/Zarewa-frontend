@@ -81,6 +81,15 @@ describe('expenses report v2 — Kaduna Sep 2026 fixture', () => {
     expect(ids(reclass('R3').lines)).toEqual(['0362', '0397']);
     expect(reclass('R4')).toMatchObject({ to: 'Accessories', amountNgn: 482_890 });
     expect(reclass('R5')).toMatchObject({ to: 'Maintenance', amountNgn: 257_000 });
+    expect(reclass('R6')).toMatchObject({ to: 'Admin expenses', amountNgn: 20_000 });
+    expect(ids(reclass('R6').lines)).toEqual(['0367']);
+  });
+
+  it('leaves the cancelled request (EXP-0398) out of the book view and lists it; book Admin expenses stays ₦33,050', () => {
+    expect(sep.rows.find((r) => r.expenseID === 'EXP-KD-26-0398')).toMatchObject({ status: 'Cancelled', bookCategory: null });
+    expect(book['Admin expenses']).toBe(33_050);
+    expect(sep.exceptions.filter((e) => /^Cancelled/.test(e.kind)).map((e) => e.expenseID)).toEqual(['EXP-KD-26-0398']);
+    expect(sep.bookByCategory.reduce((s, c) => s + c.amountNgn, 0)).toBe(14_853_736 - 20_000 + 910_000 - 290_000);
   });
 
   it('flags the "Check category" lines the accountant reclassified', () => {
@@ -100,9 +109,10 @@ describe('expenses report v2 — Kaduna Sep 2026 fixture', () => {
     ]);
   });
 
-  it('payroll: Admin salary ₦1,868,700 = payroll gross ₦1,848,700 (split shown) + ₦20,000 not explained', () => {
+  it('payroll: Admin salary ₦1,868,700 = payroll gross ₦1,848,700 (split shown) + ₦20,000 imprest moved by R6', () => {
     expect(sep.payroll).toMatchObject({ adminSalaryNgn: 1_868_700, payrollGrossNgn: 1_848_700, splitDifferenceNgn: 0 });
-    expect(sep.payroll.notExplainedByPayroll).toEqual([expect.objectContaining({ expenseID: 'EXP-KD-26-0367', amountNgn: 20_000 })]);
+    expect(sep.payroll.movedOutByRule).toEqual([expect.objectContaining({ expenseID: 'EXP-KD-26-0367', amountNgn: 20_000 })]);
+    expect(sep.payroll.notExplainedByPayroll).toEqual([]);
   });
 
   it('bridges expenses by date to payment requests paid in September (₦14,957,877, 105) with nothing unexplained', () => {
