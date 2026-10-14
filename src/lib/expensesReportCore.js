@@ -22,17 +22,30 @@
  *   is flagged. An optional payroll split (factory / branch / HQ share) is shown and checked against the gross.
  */
 import { filterExpensesInRange } from './liveAnalytics.js';
+import { isCapexExpenseCategory } from '../shared/expenseCategories.js';
 
 export const BOOK_REFUNDS = 'Refunds (not an expense)';
 export const BOOK_STAFF_LOANS = 'Staff loans (not an expense)';
 export const BOOK_FIXED_ASSET = 'Fixed asset (capital)';
+
+/**
+ * ERP categories that are not expenses in the book: lines already coded there (or recategorised there at source,
+ * Phase 2) land in the same non-expense group the rules would move them to, so the book view does not change.
+ */
+export function bookGroupForErpCategory(category) {
+  const c = String(category || '').trim();
+  if (/^refund/i.test(c)) return BOOK_REFUNDS;
+  if (/^staff loan/i.test(c)) return BOOK_STAFF_LOANS;
+  if (isCapexExpenseCategory(c)) return BOOK_FIXED_ASSET;
+  return c;
+}
 
 export const EXPENSE_RECLASS_RULES = [
   {
     id: 'R1',
     label: 'Refund coded as an expense',
     to: BOOK_REFUNDS,
-    test: (e) => /\brefund/i.test(e.description) && e.category !== BOOK_REFUNDS,
+    test: (e) => /\brefund/i.test(e.description) && bookGroupForErpCategory(e.category) !== BOOK_REFUNDS,
   },
   {
     id: 'R2',
@@ -46,7 +59,10 @@ export const EXPENSE_RECLASS_RULES = [
     id: 'R3',
     label: 'Capital item coded as an expense',
     to: BOOK_FIXED_ASSET,
-    test: (e) => !/fuel/i.test(e.category) && /transformer|\bnemsa\b|\bgenerator\b|\bmachine\b/i.test(e.description),
+    test: (e) =>
+      !/fuel/i.test(e.category) &&
+      bookGroupForErpCategory(e.category) !== BOOK_FIXED_ASSET &&
+      /transformer|\bnemsa\b|\bgenerator\b|\bmachine\b/i.test(e.description),
   },
   {
     id: 'R4',
@@ -133,7 +149,7 @@ export function buildExpensesReport(input = {}) {
     const cancelled = row.status === 'Cancelled';
     const rule = cancelled ? null : EXPENSE_RECLASS_RULES.find((r) => r.test(row));
     // A cancelled request is not an expense: no book category (left out of the book view).
-    row.bookCategory = cancelled ? null : rule ? rule.to : row.category;
+    row.bookCategory = cancelled ? null : rule ? rule.to : bookGroupForErpCategory(row.category);
     row.reclassRule = rule ? rule.id : '';
     row.reclassLabel = rule ? `${rule.id} ${rule.label} → ${rule.to}` : '';
     rows.push(row);
