@@ -190,23 +190,93 @@ function accrualPrintSections(report) {
  * @param {ReturnType<import('./salesReportCore').buildSalesReport>} report
  * @param {{ title: string, refundedInPeriodNgn?: number, companyCutInPeriodNgn?: number }} opts
  */
+export const SALES_LINE_PAYMENT = 'Payment line';
+export const SALES_LINE_SUBTOTAL = 'Receipt subtotal';
+export const SALES_LINE_DEBTOR = 'Debtor';
+
+const paidByText = (l) => (l.paidBy ? l.paidBy : l.isCash ? 'not matched (cash)' : 'not matched');
+
+/**
+ * Sales rows at payment-line level: one row per treasury movement behind each receipt, then a subtotal
+ * row for receipts split across more than one line. Debtor rows pass through. Amounts stay numeric.
+ */
+export function salesPaymentLineRows(report) {
+  const out = [];
+  for (const r of report.rows) {
+    const base = {
+      group: r.group,
+      paymentDateISO: r.paymentDateISO || '',
+      firstProductionDateISO: r.firstProductionDateISO || '',
+      customerName: r.customerName || '',
+      quotationRef: r.quotationRef || '',
+      receiptNo: r.receiptId || r.ledgerEntryId || '',
+      paymentMethod: r.paymentMethod || '',
+      bankReference: r.bankReference || '',
+    };
+    if (r.group === SALES_REPORT_GROUP_OUTSTANDING) {
+      out.push({ ...base, lineType: SALES_LINE_DEBTOR, amountNgn: null, outstandingBalanceNgn: Number(r.outstandingBalanceNgn) || 0 });
+      continue;
+    }
+    const lines = r.paymentLines?.length
+      ? r.paymentLines
+      : [{ treasuryMovementId: '', postedDateISO: '', accountLabel: r.bankLabel || '', amountNgn: Number(r.amountPaidNgn) || 0, paidBy: '', check: r.bankNote || '' }];
+    const split = lines.length > 1;
+    lines.forEach((l, i) => {
+      const checks = [];
+      if (r.suspended) checks.push('Suspended (kept: reached bank)');
+      if (l.check) checks.push(l.check);
+      out.push({
+        ...base,
+        lineType: SALES_LINE_PAYMENT,
+        treasuryMovementId: l.treasuryMovementId || '',
+        postedDateISO: l.postedDateISO || '',
+        bank: l.accountLabel || '',
+        paidBy: paidByText(l),
+        paidBySource: l.paidBySource || '',
+        amountNgn: l.amountNgn,
+        outstandingBalanceNgn: !split && i === 0 ? Number(r.outstandingBalanceNgn) || 0 : null,
+        check: checks.join(' · '),
+      });
+    });
+    if (split) {
+      out.push({
+        ...base,
+        lineType: SALES_LINE_SUBTOTAL,
+        treasuryMovementId: '',
+        postedDateISO: '',
+        bank: [...new Set(lines.map((l) => l.accountLabel).filter((x) => x && x !== '—'))].join(' + '),
+        paidBy: '',
+        amountNgn: Number(r.amountPaidNgn) || 0,
+        outstandingBalanceNgn: Number(r.outstandingBalanceNgn) || 0,
+        check: `${lines.length} payment lines`,
+      });
+    }
+  }
+  return out;
+}
+
 export function salesReportPrintPayload(report, opts) {
   const s = salesPaymentsReceivedSummary(report.rows, opts.refundedInPeriodNgn || 0);
-  const rows = report.rows.map((r) => {
-    const isDebt = r.group === SALES_REPORT_GROUP_OUTSTANDING;
+  const rows = salesPaymentLineRows(report).map((r) => {
+    const isDebt = r.lineType === SALES_LINE_DEBTOR;
+    const isSubtotal = r.lineType === SALES_LINE_SUBTOTAL;
     return {
       group: r.group,
-      paymentDateISO: shortDate(r.paymentDateISO),
-      firstProductionDateISO: shortDate(r.firstProductionDateISO),
-      customerName: r.customerName || '—',
+      paymentDateISO: isSubtotal ? '' : shortDate(r.paymentDateISO),
+      firstProductionDateISO: isSubtotal ? '' : shortDate(r.firstProductionDateISO),
+      customerName: isSubtotal ? '' : r.customerName || '—',
+      paidBy: isDebt || isSubtotal ? '' : r.paidBy,
       quotationRef: docNo(r.quotationRef),
-      receiptNo: docNo(r.receiptId || r.ledgerEntryId),
-      amountPaidNgn: isDebt ? '—' : formatNgn(r.amountPaidNgn),
-      outstandingBalanceNgn: formatNgn(r.outstandingBalanceNgn || 0),
-      bank: isDebt ? '—' : r.bankLabel || '—',
-      check: isDebt ? '' : salesRowCheckText(r),
-      bankReference: r.bankReference || r.paymentMethod || '—',
-      _amountPaidNgn: isDebt ? 0 : Number(r.amountPaidNgn) || 0,
+      receiptNo: isSubtotal ? `Subtotal ${docNo(r.receiptNo)}` : docNo(r.receiptNo),
+      treasuryMovementId: r.treasuryMovementId ? docNo(r.treasuryMovementId) : '',
+      postedDateISO: r.postedDateISO ? shortDate(r.postedDateISO) : '',
+      amountPaidNgn: isDebt ? '—' : signedNgn(r.amountNgn),
+      outstandingBalanceNgn: r.outstandingBalanceNgn == null ? '' : formatNgn(r.outstandingBalanceNgn),
+      bank: isDebt ? '—' : r.bank || '—',
+      check: isDebt ? '' : r.check,
+      bankReference: isSubtotal ? '' : r.bankReference || r.paymentMethod || '—',
+      // Subtotal rows are display only: they never add into the group totals.
+      _amountPaidNgn: isDebt || isSubtotal ? 0 : Number(r.amountNgn) || 0,
       _outstandingBalanceNgn: isDebt ? Number(r.outstandingBalanceNgn) || 0 : 0,
     };
   });
@@ -246,16 +316,19 @@ export function salesReportPrintPayload(report, opts) {
   return {
     title: opts.title,
     columns: [
-      { key: 'paymentDateISO', label: 'Date', width: '6%' },
-      { key: 'firstProductionDateISO', label: 'Prod', width: '6%' },
-      { key: 'customerName', label: 'Customer', width: '14%' },
-      { key: 'quotationRef', label: 'Quote', width: '7%' },
-      { key: 'receiptNo', label: 'Receipt', width: '7%' },
-      { key: 'amountPaidNgn', label: 'Paid', width: '10%', align: 'right', minWidth: '6.5rem' },
-      { key: 'outstandingBalanceNgn', label: 'Balance', width: '10%', align: 'right', minWidth: '6.5rem' },
-      { key: 'bank', label: 'Bank (treasury)', width: '8%' },
-      { key: 'check', label: 'Check', width: '17%', wrap: true },
-      { key: 'bankReference', label: 'Remarks', width: '15%', wrap: true },
+      { key: 'paymentDateISO', label: 'Date', width: '5%' },
+      { key: 'firstProductionDateISO', label: 'Prod', width: '5%' },
+      { key: 'customerName', label: 'Customer', width: '11%' },
+      { key: 'paidBy', label: 'Paid by', width: '12%', wrap: true },
+      { key: 'quotationRef', label: 'Quote', width: '6%' },
+      { key: 'receiptNo', label: 'Receipt', width: '8%' },
+      { key: 'treasuryMovementId', label: 'Treasury line', width: '7%' },
+      { key: 'postedDateISO', label: 'Posted', width: '5%' },
+      { key: 'amountPaidNgn', label: 'Paid', width: '8%', align: 'right', minWidth: '6rem' },
+      { key: 'outstandingBalanceNgn', label: 'Balance', width: '8%', align: 'right', minWidth: '6rem' },
+      { key: 'bank', label: 'Account', width: '7%' },
+      { key: 'check', label: 'Check', width: '10%', wrap: true },
+      { key: 'bankReference', label: 'Remarks', width: '8%', wrap: true },
     ],
     rows,
     grouping: {
@@ -287,7 +360,8 @@ export function salesReportPrintPayload(report, opts) {
       { label: 'Reconciliation (2) → (1): unexplained', value: signedNgn(recon.unexplainedNgn) },
       ...accrualPrint.lines,
       { label: 'Receipt/treasury exceptions', value: String(report.exceptions.length) },
-      { label: 'Bank differs from receipt method', value: `${report.bankMismatchCount} row(s)` },
+      { label: 'Payment lines (one per treasury movement)', value: String(report.paymentLineCount) },
+      { label: 'Account differs from receipt method', value: `${report.paymentLineMismatchCount} line(s)` },
       { label: 'Less: Refunds paid in period', value: formatNgn(refunds) },
       { label: 'Company cut withdrawn in period', value: formatNgn(opts.companyCutInPeriodNgn || 0) },
       { label: 'Net sales (Recognised sales − Refunds)', value: formatNgn(rec.totalNgn - refunds) },
@@ -327,22 +401,25 @@ export function salesReportPrintPayload(report, opts) {
 
 /** Excel sheets for the sales report v2. */
 export function salesReportExcelSheets(report) {
-  const sales = report.rows.map((r) => ({
+  // Subtotal rows carry lineType "Receipt subtotal": filter on lineType = "Payment line" before summing.
+  const sales = salesPaymentLineRows(report).map((r) => ({
     category: r.group,
+    lineType: r.lineType,
     paymentDateISO: r.paymentDateISO,
-    firstProductionDateISO: r.firstProductionDateISO || '',
+    firstProductionDateISO: r.firstProductionDateISO,
     customerName: r.customerName,
+    paidBy: r.lineType === SALES_LINE_PAYMENT ? r.paidBy : '',
+    paidBySource: r.lineType === SALES_LINE_PAYMENT ? r.paidBySource || 'not matched' : '',
     quotationRef: r.quotationRef,
-    receiptId: r.receiptId || '',
-    receiptStatus: r.receiptStatus || '',
-    amountPaidNgn: r.amountPaidNgn,
-    outstandingBalanceNgn: Number(r.outstandingBalanceNgn) || 0,
-    bankTreasury: r.bankLabel || '',
-    treasuryInPeriodNgn: r.treasuryInPeriodNgn ?? '',
-    check: r.group === SALES_REPORT_GROUP_OUTSTANDING ? '' : salesRowCheckText(r),
+    receiptId: r.receiptNo,
+    treasuryMovementId: r.treasuryMovementId || '',
+    postedDateISO: r.postedDateISO || '',
+    account: r.lineType === SALES_LINE_DEBTOR ? '' : r.bank || '',
+    amountPaidNgn: r.amountNgn ?? '',
+    outstandingBalanceNgn: r.outstandingBalanceNgn ?? '',
+    check: r.check || '',
     paymentMethod: r.paymentMethod,
     bankReference: r.bankReference,
-    ledgerEntryId: r.ledgerEntryId,
   }));
   const cash = report.cashReceived.byAccount.map((a) => ({
     account: a.displayName || a.label,

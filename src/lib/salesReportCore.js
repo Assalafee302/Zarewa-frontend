@@ -77,6 +77,85 @@ export function receiptMethodVersusTreasuryNote(method, postedAccountNames = [])
   return `Method says ${m[1].trim()}; posted to ${posted.join(' + ')}`;
 }
 
+export const SALES_PAID_BY_NOT_MATCHED = 'not matched';
+
+/** Payer name the cashier typed on the receipt (field planned for Phase 4; absent today). */
+export function receiptPayerName(receipt) {
+  return String(receipt?.paidByName ?? receipt?.paidBy ?? receipt?.payerName ?? '').trim();
+}
+
+/** Treasury movement id → bank-statement narration of the bank-recon line matched to it. */
+export function bankNarrationByTreasuryMovementId(bankRecon = []) {
+  const m = new Map();
+  for (const b of bankRecon || []) {
+    const text = String(b?.description || '').trim();
+    if (!text) continue;
+    for (const hit of String(b?.systemMatch || '').matchAll(/TM-[A-Z]{2,4}-\d{2}-\d+/gi)) {
+      const id = hit[0].toUpperCase();
+      if (!m.has(id)) m.set(id, text);
+    }
+  }
+  return m;
+}
+
+/**
+ * One line per treasury movement behind a receipt (split receipts → several lines), each with its own
+ * account, amount, posting date, payer and method check. When the lines do not add up to the receipt
+ * amount, a final "not in treasury" line carries the difference so the receipt subtotal is unchanged.
+ */
+export function receiptPaymentLines({ receiptAmountNgn, treasuryLines = [], method, receiptPayer, narrationByMovementId, inPeriod }) {
+  const lines = treasuryLines
+    .filter((t) => t.type === 'RECEIPT_IN' || t.type === 'RECEIPT_REVERSAL_OUT')
+    .slice()
+    .sort((a, b) => day(a.postedAtISO).localeCompare(day(b.postedAtISO)) || String(a.id).localeCompare(String(b.id)))
+    .map((t) => {
+      const narration = narrationByMovementId?.get(String(t.id || '').toUpperCase()) || '';
+      const isCash = String(t.accountType || '').trim().toLowerCase() === 'cash';
+      let paidBy = '';
+      let paidBySource = SALES_PAID_BY_NOT_MATCHED;
+      if (receiptPayer) {
+        paidBy = receiptPayer;
+        paidBySource = 'receipt';
+      } else if (narration) {
+        paidBy = narration;
+        paidBySource = 'bank narration';
+      }
+      return {
+        treasuryMovementId: t.id,
+        type: t.type,
+        postedDateISO: day(t.postedAtISO),
+        inPeriod: Boolean(inPeriod?.(t.postedAtISO)),
+        accountName: String(t.accountName || '').trim(),
+        accountLabel: treasuryAccountLabel(t),
+        isCash,
+        amountNgn: ngn(t.amountNgn),
+        paidBy,
+        paidBySource,
+        check:
+          t.type === 'RECEIPT_REVERSAL_OUT'
+            ? 'Reversal'
+            : receiptMethodVersusTreasuryNote(method, [String(t.accountName || '').trim()]),
+      };
+    });
+  const diff = ngn(receiptAmountNgn) - lines.reduce((s, l) => s + l.amountNgn, 0);
+  if (diff) {
+    lines.push({
+      treasuryMovementId: '',
+      type: 'NO_TREASURY',
+      postedDateISO: '',
+      inPeriod: false,
+      accountName: '',
+      accountLabel: '—',
+      isCash: false,
+      amountNgn: diff,
+      paidBy: receiptPayer || '',
+      paidBySource: receiptPayer ? 'receipt' : SALES_PAID_BY_NOT_MATCHED,
+      check: diff > 0 ? 'Receipt amount not found in treasury' : 'Treasury lines above the receipt amount',
+    });
+  }
+  return lines;
+}
+
 /**
  * @param {object} input
  * @param {object[]} input.receipts
@@ -205,6 +284,19 @@ export function buildSalesReport(input = {}) {
     return factsCache.get(id);
   };
 
+  const narrationByMovementId = bankNarrationByTreasuryMovementId(input.bankRecon || input.bankReconciliation || []);
+  // Payment lines show every treasury line of a receipt, including ones posted before the period.
+  const paymentSourceLines = new Map();
+  for (const t of input.accrualTreasuryMovements || treasuryMovements) {
+    if (String(t.sourceKind || '') !== 'LEDGER_RECEIPT') continue;
+    if (t.type !== 'RECEIPT_IN' && t.type !== 'RECEIPT_REVERSAL_OUT') continue;
+    const id = String(t.sourceId || '').trim();
+    if (!id) continue;
+    const list = paymentSourceLines.get(id) || [];
+    list.push(t);
+    paymentSourceLines.set(id, list);
+  }
+
   const recognisedRows = [];
   const excludedReversedRows = [];
   for (const r of reportCashRows) {
@@ -212,13 +304,22 @@ export function buildSalesReport(input = {}) {
     const f = facts(ledgerId);
     const receipt = receiptByLedgerId.get(ledgerId) || null;
     const status = String(receipt?.status || '').trim();
+    const method = r.paymentMethod || receipt?.method;
     const row = {
       ...r,
       receiptStatus: status,
       suspended: isSuspendedReceiptStatus(status),
       bankLabel: f.bankLabel || '',
-      bankNote: receiptMethodVersusTreasuryNote(r.paymentMethod || receipt?.method, f.postedAccounts),
+      bankNote: receiptMethodVersusTreasuryNote(method, f.postedAccounts),
       treasuryInPeriodNgn: f.netInPeriodNgn,
+      paymentLines: receiptPaymentLines({
+        receiptAmountNgn: ngn(r.amountPaidNgn),
+        treasuryLines: paymentSourceLines.get(ledgerId) || [],
+        method,
+        receiptPayer: receiptPayerName(receipt),
+        narrationByMovementId,
+        inPeriod,
+      }),
     };
     if (f.fullyReversedByEnd) excludedReversedRows.push(row);
     else recognisedRows.push(row);
@@ -390,5 +491,10 @@ export function buildSalesReport(input = {}) {
     reconciliation,
     exceptions,
     bankMismatchCount: recognisedRows.filter((r) => r.bankNote).length,
+    paymentLineCount: recognisedRows.reduce((s, r) => s + r.paymentLines.length, 0),
+    paymentLineMismatchCount: recognisedRows.reduce(
+      (s, r) => s + r.paymentLines.filter((l) => l.type === 'RECEIPT_IN' && l.check).length,
+      0
+    ),
   };
 }
