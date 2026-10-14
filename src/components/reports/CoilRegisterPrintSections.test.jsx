@@ -23,7 +23,10 @@ const coilRegister = {
   ],
   consumption: { totals: { kg: 45313, aluminiumKg: 11073, aluzincKg: 34240 }, stoneConsumedMetres: 2817, lines: [], jobsWithoutCoilConsumption: [], withoutJob: [] },
   exceptions: {
-    priceVsPo: [{ coilNo: 'CL-26-2052', poID: 'PO-KD-26-0043', coilUnitCostNgnPerKg: 11500, poPricePerKgReceivedNgn: 7022.54, differencePct: 63.76, note: '' }],
+    costVsPurchase: [
+      { coilNo: 'CL-26-2052', poID: 'PO-KD-26-0043', boughtBy: 'metre', erpUnitCostNgnPerKg: 11500, costPerKgReceivedNgn: 7022.54, differencePct: 63.76, erpValueNgn: 2806000, valueAtCostPerKgNgn: 1713500, note: '' },
+    ],
+    notWeighed: [{ poID: 'PO-KD-26-0074', line: '0.20mm P Red', boughtBy: 'kg', kgOrdered: 3226, kgReceived: 3226, coils: 'CL-26-2091' }],
     bookedLate: [{ coilNo: 'CL-26-2096', poID: 'PO-KD-26-0078', bookedISO: '2026-10-12', correctedReceivedISO: '2026-09-12', note: 'Delivered 12 Sep' }],
     grnDateMismatch: [],
     coilSpecDiffersFromPoLine: [],
@@ -33,10 +36,20 @@ const coilRegister = {
 
 describe('CoilRegisterPrintSections', () => {
   it('prints stock gross / spool / net, PO kg, consumption and exceptions', () => {
-    render(<CoilRegisterPrintSections coilRegister={coilRegister} gapLines={[{ material: 'Aluzinc', coilNo: 'CL-1', jobId: 'J2', note: 'Gap' }]} />);
+    render(
+      <CoilRegisterPrintSections
+        coilRegister={coilRegister}
+        gapLines={[{ material: 'Aluzinc', coilNo: 'CL-1', jobId: 'J2', note: 'Gap' }]}
+        paidByQuotation={[
+          { quotationRef: 'QT-KD-26-1395', section: 'Offcut / no coil', quotationTotalNgn: 1639440, cashNgn: 0, creditNgn: 1639440, refundsNgn: 0, paidNetNgn: 1639440, producedBeforeFullyCovered: false },
+        ]}
+      />
+    );
     expect(screen.getByText('Coil stock (gross and net of spool)')).toBeTruthy();
     expect(screen.getAllByText(/with received-date corrections/).length).toBe(1);
-    expect(screen.getByText('Coil price differs from PO')).toBeTruthy();
+    expect(screen.getByText('ERP cost/kg ≠ amount paid ÷ kg received')).toBeTruthy();
+    expect(screen.getByText('Not weighed?')).toBeTruthy();
+    expect(screen.getByText('QT-KD-26-1395')).toBeTruthy();
     expect(screen.getByText('Received but booked late')).toBeTruthy();
     expect(screen.getByText('45,313 kg')).toBeTruthy();
   });
@@ -52,6 +65,7 @@ describe('CoilRegisterPrintSections', () => {
       'Jobs_no_coil_consumption',
       'Coil_exceptions',
       'Balance_gaps',
+      'Paid_net_by_quotation',
     ]);
   });
 });

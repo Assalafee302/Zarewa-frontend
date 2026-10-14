@@ -28,7 +28,7 @@ const familyLabel = (f) => (f === 'aluminium' ? 'Aluminium' : f === 'aluzinc' ? 
 function StockTotalsRow({ label, t }) {
   return (
     <tr className="bg-slate-100/90">
-      <td className={TF} colSpan={2}>
+      <td className={TF} colSpan={3}>
         {label} ({t.coilCount} coils)
       </td>
       <td className={TFR}>{kg(t.kgGross)}</td>
@@ -56,6 +56,7 @@ function CoilStockTable({ title, stock }) {
           <tr className="bg-slate-50">
             <th className={TH}>Coil</th>
             <th className={TH}>Gauge / colour</th>
+            <th className={TH}>Bought by</th>
             <th className={THR}>Gross kg</th>
             <th className={THR}>Spool kg</th>
             <th className={THR}>Net kg</th>
@@ -72,6 +73,9 @@ function CoilStockTable({ title, stock }) {
               <td className={`${TD} font-mono`}>{r.coilNo}</td>
               <td className={TD}>
                 {familyLabel(r.family)} {r.gaugeLabel} {r.colour}
+              </td>
+              <td className={TD} title={r.boughtByRule || undefined}>
+                {r.boughtBy || '—'}
               </td>
               <td className={TDR}>{kg(r.kgGross)}</td>
               <td className={TDR}>{kg(r.spoolKg)}</td>
@@ -128,15 +132,43 @@ function SimpleTable({ title, columns, rows, empty = 'None.' }) {
   );
 }
 
+/** Paid (net) per quotation: cash that stayed + credit applied − refunds paid, as at period end. */
+function PaidByQuotationTable({ rows = [] }) {
+  return (
+    <SimpleTable
+      title="Paid (net) by quotation, as at period end — cash that stayed + credit applied − refunds paid"
+      columns={[
+        { key: 'quotationRef', label: 'Quote' },
+        { key: 'section', label: 'Section', small: true },
+        { key: 'quotationTotalNgn', label: 'Quote value', right: true, fmt: money },
+        { key: 'cashNgn', label: 'Cash', right: true, fmt: money },
+        { key: 'creditNgn', label: 'Credit applied', right: true, fmt: money },
+        { key: 'refundsNgn', label: 'Refunds paid', right: true, fmt: money },
+        { key: 'paidNetNgn', label: 'Paid (net)', right: true, fmt: money },
+        {
+          key: 'producedBeforeFullyCovered',
+          label: 'Produced before fully covered',
+          small: true,
+          fmt: (v, r) => (v ? `Yes — ${money(r.coverageAtFirstCompletionNgn)} at ${date(r.firstCompletedISO)}` : ''),
+        },
+        { key: 'overCoveredNgn', label: 'Over-covered', right: true, fmt: (v) => (v ? money(v) : '') },
+      ]}
+      rows={rows}
+    />
+  );
+}
+
 /** Coil register v2: stock at start/end (gross, spool, net), PO kg, consumption, exceptions, gap lines. */
-export function CoilRegisterPrintSections({ coilRegister, gapLines = [] }) {
+export function CoilRegisterPrintSections({ coilRegister, gapLines = [], paidByQuotation = [] }) {
   if (!coilRegister) return null;
   const { stock, purchaseOrders = [], consumption, exceptions = {} } = coilRegister;
   const poLineRows = purchaseOrders.flatMap((p) =>
     p.lines.map((l, i) => ({
       poID: i === 0 ? p.poID : '',
       supplier: i === 0 ? p.supplierName : '',
-      spec: `${l.gauge} ${l.colour}`,
+      spec: `${l.gauge} ${l.colour}${l.notWeighed ? ' — not weighed?' : ''}`,
+      boughtBy: l.boughtBy,
+      costPerKg: l.costPerKgReceivedNgn,
       kgOrdered: l.kgOrdered,
       kgReceived: l.kgReceived,
       diffKg: l.diffKg,
@@ -145,10 +177,15 @@ export function CoilRegisterPrintSections({ coilRegister, gapLines = [] }) {
     }))
   );
   const exceptionRows = [
-    ...(exceptions.priceVsPo || []).map((e) => ({
-      kind: 'Coil price differs from PO',
-      ref: `${e.coilNo} · ${e.poID}`,
-      note: `Coil ₦${kg(e.coilUnitCostNgnPerKg)}/kg vs PO ₦${kg(e.poPricePerKgReceivedNgn)}/kg received (${e.differencePct > 0 ? '+' : ''}${e.differencePct}%). ${e.note}`,
+    ...(exceptions.costVsPurchase || []).map((e) => ({
+      kind: 'ERP cost/kg ≠ amount paid ÷ kg received',
+      ref: `${e.coilNo} · ${e.poID} (${e.boughtBy})`,
+      note: `ERP ₦${kg(e.erpUnitCostNgnPerKg)}/kg vs ₦${kg(e.costPerKgReceivedNgn)}/kg (${e.differencePct > 0 ? '+' : ''}${e.differencePct}%); value ${money(e.erpValueNgn)} → ${money(e.valueAtCostPerKgNgn)}. ${e.note}`,
+    })),
+    ...(exceptions.notWeighed || []).map((e) => ({
+      kind: 'Not weighed?',
+      ref: `${e.poID} · ${e.line} (${e.boughtBy})`,
+      note: `Received ${kg(e.kgReceived)} = ordered ${kg(e.kgOrdered)} exactly. Coils: ${e.coils || '—'}`,
     })),
     ...(exceptions.bookedLate || []).map((e) => ({
       kind: 'Received but booked late',
@@ -172,8 +209,9 @@ export function CoilRegisterPrintSections({ coilRegister, gapLines = [] }) {
     <section className="mb-6 break-before-page">
       <h3 className={STATEMENT_H3}>Coil stock (gross and net of spool)</h3>
       <p className="text-ui-xs text-slate-600 mb-2">
-        Rolled back from current kg by movements dated after each date. Spool: Aluzinc (incl. PPGI) 65 kg, Aluminium 45 kg
-        per coil; a coil lighter than its spool is nil net. Stock-check corrections from {date(coilRegister.stockCheckCorrectionsFromISO)} are
+        Rolled back from current kg by movements dated after each date. Spool: Aluzinc (incl. PPGI) 65 kg; Aluminium bought
+        by kg 45 kg; Aluminium bought by metre none. A coil lighter than its spool is nil net. Metre-bought coils are valued
+        at line amount ÷ kg received. Stock-check corrections from {date(coilRegister.stockCheckCorrectionsFromISO)} are
         treated as true at both dates.
       </p>
       <CoilStockTable title="Opening stock" stock={stock.opening} />
@@ -188,9 +226,11 @@ export function CoilRegisterPrintSections({ coilRegister, gapLines = [] }) {
           { key: 'poID', label: 'PO' },
           { key: 'supplier', label: 'Supplier', small: true },
           { key: 'spec', label: 'Line' },
+          { key: 'boughtBy', label: 'Bought by' },
           { key: 'kgOrdered', label: 'Kg ordered', right: true, fmt: kg },
           { key: 'kgReceived', label: 'Kg received', right: true, fmt: kg },
           { key: 'diffKg', label: 'Difference', right: true, fmt: kg },
+          { key: 'costPerKg', label: 'Cost/kg received', right: true, fmt: kg },
           { key: 'coils', label: 'Coils', small: true },
           { key: 'grnValue', label: 'GRN value in period', right: true, fmt: (v) => (v == null ? '' : money(v)) },
         ]}
@@ -236,6 +276,9 @@ export function CoilRegisterPrintSections({ coilRegister, gapLines = [] }) {
         ]}
         rows={consumption.withoutJob}
       />
+
+      <h3 className={STATEMENT_H3}>Paid (net)</h3>
+      <PaidByQuotationTable rows={paidByQuotation} />
 
       <h3 className={STATEMENT_H3}>Coil exceptions</h3>
       <SimpleTable

@@ -515,7 +515,11 @@ export function MaterialTransactionPrintContent({ report }) {
       <AccessorySection accessories={report.accessories} />
       <ListedNotProducedSection section={report.listedNotProduced} />
       <CancelledSection cancelled={report.cancelled} />
-      <CoilRegisterPrintSections coilRegister={report.coilRegister} gapLines={report.summary?.gapLines || []} />
+      <CoilRegisterPrintSections
+        coilRegister={report.coilRegister}
+        gapLines={report.summary?.gapLines || []}
+        paidByQuotation={report.summary?.paidByQuotation || []}
+      />
       <SummarySection summary={report.summary} />
     </div>
   );

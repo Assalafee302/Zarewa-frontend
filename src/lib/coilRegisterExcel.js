@@ -4,12 +4,15 @@
 const familyLabel = (f) => (f === 'aluminium' ? 'Aluminium' : f === 'aluzinc' ? 'Aluzinc' : 'Coil');
 
 /** Flat Excel sheets for the coil register v2. */
-export function coilRegisterExcelSheets(coilRegister, gapLines = []) {
+export function coilRegisterExcelSheets(coilRegister, gapLines = [], paidByQuotation = []) {
   if (!coilRegister) return [];
   const stockRows = (s) =>
     (s?.rows || []).map((r) => ({
       coilNo: r.coilNo,
       material: familyLabel(r.family),
+      boughtBy: r.boughtBy || '',
+      boughtByRule: r.boughtByRule || '',
+      erpUnitCostNgnPerKg: r.erpUnitCostNgnPerKg ?? '',
       gauge: r.gaugeLabel,
       colour: r.colour,
       poID: r.poID,
@@ -38,10 +41,15 @@ export function coilRegisterExcelSheets(coilRegister, gapLines = []) {
           orderDateISO: p.orderDateISO,
           gauge: l.gauge,
           colour: l.colour,
+          boughtBy: l.boughtBy,
+          boughtByRule: l.boughtByRule,
           kgOrdered: l.kgOrdered,
           kgReceived: l.kgReceived,
           differenceKg: l.diffKg,
           unitPricePerKgNgn: l.unitPricePerKgNgn,
+          coilKgReceived: l.coilKgReceived,
+          costPerKgReceivedNgn: l.costPerKgReceivedNgn ?? '',
+          notWeighed: l.notWeighed ? 'Not weighed?' : '',
           coils: l.coils.map((c) => c.coilNo).join(', '),
         }))
       ),
@@ -54,7 +62,8 @@ export function coilRegisterExcelSheets(coilRegister, gapLines = []) {
     {
       name: 'Coil_exceptions',
       rows: [
-        ...(exceptions.priceVsPo || []).map((e) => ({ exception: 'Coil price differs from PO', ...e })),
+        ...(exceptions.costVsPurchase || []).map((e) => ({ exception: 'ERP cost/kg ≠ amount paid ÷ kg received', ...e })),
+        ...(exceptions.notWeighed || []).map((e) => ({ exception: 'Not weighed?', ...e })),
         ...(exceptions.bookedLate || []).map((e) => ({ exception: 'Received but booked late', ...e })),
         ...(exceptions.grnDateMismatch || []).map((e) => ({ exception: 'Received date ≠ GRN movement date', ...e })),
         ...(exceptions.coilSpecDiffersFromPoLine || []).map((e) => ({ exception: 'Coil spec differs from PO line', ...e })),
@@ -62,5 +71,21 @@ export function coilRegisterExcelSheets(coilRegister, gapLines = []) {
       ],
     },
     { name: 'Balance_gaps', rows: gapLines },
+    {
+      name: 'Paid_net_by_quotation',
+      rows: paidByQuotation.map((q) => ({
+        quotationRef: q.quotationRef,
+        section: q.section,
+        quotationTotalNgn: q.quotationTotalNgn,
+        cashNgn: q.cashNgn,
+        creditAppliedNgn: q.creditNgn,
+        refundsPaidNgn: q.refundsNgn,
+        paidNetNgn: q.paidNetNgn,
+        firstCompletedISO: q.firstCompletedISO,
+        coverageAtFirstCompletionNgn: q.coverageAtFirstCompletionNgn ?? '',
+        producedBeforeFullyCovered: q.producedBeforeFullyCovered ? 'Yes' : '',
+        overCoveredNgn: q.overCoveredNgn || '',
+      })),
+    },
   ];
 }

@@ -314,6 +314,9 @@ function coilTxnToExport(r, family, gauge) {
     afterKg: r.afterKg,
     kgUsed: r.kgUsed,
     ...(r.jobConsumedKg != null ? { kgSource: r.kgSource, jobRecordKg: r.jobConsumedKg, kgDifference: r.kgDifference } : {}),
+    ...(r.paidCashNgn != null
+      ? { paidCashNgn: r.paidCashNgn, paidCreditNgn: r.paidCreditNgn, paidRefundsNgn: r.paidRefundsNgn, producedBeforeFullyCovered: r.producedBeforeFullyCovered ? 'Yes' : '' }
+      : {}),
     design: r.design,
     metres: r.meters,
     conversionKgM: r.conversionKgM ?? '',
@@ -452,7 +455,7 @@ function materialTransactionExcelSheets(report) {
     jobId: r.jobId,
   }));
   if (notProduced.length) sheets.push({ name: 'Listed_not_produced', rows: notProduced });
-  for (const sh of coilRegisterExcelSheets(report.coilRegister, report.summary?.gapLines || [])) {
+  for (const sh of coilRegisterExcelSheets(report.coilRegister, report.summary?.gapLines || [], report.summary?.paidByQuotation || [])) {
     if (sh.rows.length) sheets.push(sh);
   }
   if (summaryRows.length) sheets.push({ name: 'Summary', rows: summaryRows });
