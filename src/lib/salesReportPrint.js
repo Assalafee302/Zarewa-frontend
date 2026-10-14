@@ -17,6 +17,175 @@ export function salesRowCheckText(r) {
   return parts.join(' · ');
 }
 
+/** Bridge lines: cash received → goods produced (net), ending with the difference (expected ₦0). */
+export function accrualBridgeLines(accrual) {
+  const b = accrual.bridge;
+  const lines = [
+    { item: 'Cash received in period (treasury)', amountNgn: b.cashReceivedNgn },
+    { item: 'Less: refunds paid in period', amountNgn: -b.refundsPaidNgn },
+  ];
+  if (b.cashNotAttributableNgn) {
+    lines.push({ item: 'Less: cash not attributable to a customer (exceptions)', amountNgn: -b.cashNotAttributableNgn });
+  }
+  if (b.refundsNotAttributableNgn) {
+    lines.push({ item: 'Add back: refunds with no customer (exceptions)', amountNgn: b.refundsNotAttributableNgn });
+  }
+  lines.push(
+    { item: 'Add: increase in customer debts', amountNgn: b.increaseInDebtsNgn },
+    { item: 'Less: increase in customer advances', amountNgn: -b.increaseInAdvancesNgn },
+    { item: '= Sales by the bridge', amountNgn: b.bridgeTotalNgn },
+    { item: 'Goods produced in period (net value)', amountNgn: b.producedNgn },
+    { item: 'Difference', amountNgn: b.differenceNgn }
+  );
+  return lines;
+}
+
+/** Every accrual exception as one flat list. */
+export function accrualExceptionRows(accrual) {
+  const e = accrual.exceptions;
+  return [
+    ...e.zeroMetreJobs.map((x) => ({
+      kind: x.kind, ref: x.jobID, ref2: x.quotationRef, customerName: x.customerName, dateISO: x.dateISO, amountNgn: x.amountNgn, note: x.note,
+    })),
+    ...e.refundsOverValue.map((x) => ({
+      kind: x.kind, ref: x.quotationRef, ref2: '', customerName: x.customerName, dateISO: '', amountNgn: x.valueReducingRefundsNgn,
+      note: `Quote total ${formatNgn(x.quoteTotalNgn)}; excess ${formatNgn(x.amountNgn)}`,
+    })),
+    ...e.doubleCountedAdvances.map((x) => ({
+      kind: x.kind, ref: x.treasuryMovementId, ref2: x.ledgerEntryId, customerName: x.customerName, dateISO: x.dateISO, amountNgn: x.amountNgn,
+      note: `Same money as ${x.advanceMovementId} (${x.advanceDateISO}). ${x.verification}. Not counted as cash.`,
+    })),
+    ...e.unassignedCash.map((x) => ({
+      kind: x.kind, ref: x.treasuryMovementId, ref2: x.ledgerEntryId, customerName: x.counterpartyName, dateISO: x.dateISO, amountNgn: x.amountNgn,
+      note: 'Left out of customer balances',
+    })),
+    ...e.unassignedRefunds.map((x) => ({
+      kind: x.kind, ref: x.treasuryMovementId, ref2: x.ledgerEntryId, customerName: x.counterpartyName, dateISO: x.dateISO, amountNgn: x.amountNgn,
+      note: 'Left out of customer balances',
+    })),
+    ...e.staleBalances.map((x) => ({
+      kind: x.kind, ref: x.customerID, ref2: '', customerName: x.customerName, dateISO: '', amountNgn: x.amountNgn,
+      note: `${x.note} — flagged, not hidden`,
+    })),
+  ];
+}
+
+function accrualPrintSections(report) {
+  const acc = report.accrual;
+  if (!acc) return { lines: [], sections: [] };
+  const range = `${shortDate(acc.openingDate)} → ${shortDate(acc.endDate)}`;
+  const lines = [
+    { label: '(3) Accrual: goods produced in period (net value)', value: formatNgn(acc.producedNgn) },
+    {
+      label: `      Customer advances ${range}`,
+      value: `${formatNgn(acc.balances.opening.advancesNgn)} → ${formatNgn(acc.balances.closing.advancesNgn)}`,
+    },
+    {
+      label: `      Customer debts ${range}`,
+      value: `${formatNgn(acc.balances.opening.debtsNgn)} → ${formatNgn(acc.balances.closing.debtsNgn)}`,
+    },
+    { label: '      Sales bridge difference', value: signedNgn(acc.bridge.differenceNgn) },
+    ...(report.accrualHasFullHistory
+      ? []
+      : [{ label: '      Warning', value: 'Treasury before the period not loaded: customer balances incomplete' }]),
+  ];
+  const blankTotal = { dateISO: '', quotationRef: '', jobs: '', metres: '', quoteTotalNgn: '', refundsNgn: '', proRated: '' };
+  const sections = [
+    {
+      title: 'Accrual: goods produced in period (by quotation, net value)',
+      columns: [
+        { key: 'dateISO', label: 'Completed', width: '8%' },
+        { key: 'quotationRef', label: 'Quote', width: '8%' },
+        { key: 'customerName', label: 'Customer', width: '20%' },
+        { key: 'jobs', label: 'Jobs', width: '14%', wrap: true },
+        { key: 'metres', label: 'Metres', width: '8%', align: 'right' },
+        { key: 'quoteTotalNgn', label: 'Quote total', width: '11%', align: 'right' },
+        { key: 'refundsNgn', label: 'Value-reducing refunds', width: '11%', align: 'right' },
+        { key: 'valueNgn', label: 'Value in period', width: '12%', align: 'right' },
+        { key: 'proRated', label: 'Pro-rated', width: '8%' },
+      ],
+      rows: [
+        ...acc.producedRows.map((r) => ({
+          dateISO: shortDate(r.firstCompletedISO),
+          quotationRef: docNo(r.quotationRef),
+          customerName: r.customerName || '—',
+          jobs: r.jobIDs.map((j) => docNo(j)).join(', '),
+          metres: Math.round(r.metresInPeriod * 100) / 100,
+          quoteTotalNgn: formatNgn(r.quoteTotalNgn),
+          refundsNgn: r.valueReducingRefundsNgn ? formatNgn(r.valueReducingRefundsNgn) : '',
+          valueNgn: formatNgn(r.valueInPeriodNgn),
+          proRated: r.proRated ? 'Yes' : '',
+        })),
+        { ...blankTotal, customerName: 'Total', valueNgn: formatNgn(acc.producedNgn) },
+      ],
+    },
+    {
+      title: 'Accrual: sales bridge (must be ₦0)',
+      columns: [
+        { key: 'item', label: 'Item', width: '70%' },
+        { key: 'amountNgn', label: '₦', width: '30%', align: 'right' },
+      ],
+      rows: accrualBridgeLines(acc).map((l) => ({ item: l.item, amountNgn: signedNgn(l.amountNgn) })),
+    },
+    {
+      title: `Accrual: customer balances (advance > 0, debt < 0) ${range}`,
+      columns: [
+        { key: 'customerName', label: 'Customer', width: '22%' },
+        { key: 'openingNgn', label: 'Start', width: '12%', align: 'right' },
+        { key: 'cashNgn', label: 'Cash in', width: '12%', align: 'right' },
+        { key: 'refundsPaidNgn', label: 'Refunds paid', width: '11%', align: 'right' },
+        { key: 'producedNgn', label: 'Produced', width: '12%', align: 'right' },
+        { key: 'closingNgn', label: 'End', width: '12%', align: 'right' },
+        { key: 'status', label: 'Status', width: '9%' },
+        { key: 'stale', label: 'Check', width: '10%' },
+      ],
+      rows: [
+        ...acc.balances.rows
+          .filter((b) => b.openingNgn || b.closingNgn)
+          .map((b) => ({
+            customerName: b.customerName || b.customerID,
+            openingNgn: signedNgn(b.openingNgn),
+            cashNgn: b.cashNgn ? signedNgn(b.cashNgn) : '',
+            refundsPaidNgn: b.refundsPaidNgn ? signedNgn(b.refundsPaidNgn) : '',
+            producedNgn: b.producedNgn ? signedNgn(b.producedNgn) : '',
+            closingNgn: signedNgn(b.closingNgn),
+            status: b.closingNgn > 0 ? 'Advance' : b.closingNgn < 0 ? 'Debt' : 'Settled',
+            stale: b.unchanged ? 'Unchanged' : '',
+          })),
+        {
+          customerName: 'Total advances', openingNgn: formatNgn(acc.balances.opening.advancesNgn), cashNgn: '', refundsPaidNgn: '', producedNgn: '',
+          closingNgn: formatNgn(acc.balances.closing.advancesNgn), status: '', stale: `Unchanged ${formatNgn(acc.balances.staleAdvancesNgn)}`,
+        },
+        {
+          customerName: 'Total debts', openingNgn: formatNgn(acc.balances.opening.debtsNgn), cashNgn: '', refundsPaidNgn: '', producedNgn: '',
+          closingNgn: formatNgn(acc.balances.closing.debtsNgn), status: '', stale: `Unchanged ${formatNgn(acc.balances.staleDebtsNgn)}`,
+        },
+      ],
+    },
+    {
+      title: 'Accrual: exceptions',
+      columns: [
+        { key: 'kind', label: 'Exception', width: '22%' },
+        { key: 'ref', label: 'Ref', width: '10%' },
+        { key: 'ref2', label: 'Ref 2', width: '10%' },
+        { key: 'customerName', label: 'Customer', width: '16%' },
+        { key: 'dateISO', label: 'Date', width: '7%' },
+        { key: 'amountNgn', label: '₦', width: '11%', align: 'right' },
+        { key: 'note', label: 'Note', width: '24%', wrap: true },
+      ],
+      rows: accrualExceptionRows(acc).map((x) => ({
+        ...x,
+        ref: docNo(x.ref),
+        ref2: x.ref2 ? docNo(x.ref2) : '',
+        customerName: x.customerName || '—',
+        dateISO: x.dateISO ? shortDate(x.dateISO) : '',
+        amountNgn: signedNgn(x.amountNgn),
+      })),
+    },
+  ];
+  return { lines, sections };
+}
+
 /**
  * @param {ReturnType<import('./salesReportCore').buildSalesReport>} report
  * @param {{ title: string, refundedInPeriodNgn?: number, companyCutInPeriodNgn?: number }} opts
@@ -72,6 +241,8 @@ export function salesReportPrintPayload(report, opts) {
     note: e.note || '',
   }));
 
+  const accrualPrint = accrualPrintSections(report);
+
   return {
     title: opts.title,
     columns: [
@@ -114,6 +285,7 @@ export function salesReportPrintPayload(report, opts) {
         value: `${formatNgn(rec.suspendedKeptNgn)} · ${rec.suspendedKeptCount} receipt(s)`,
       },
       { label: 'Reconciliation (2) → (1): unexplained', value: signedNgn(recon.unexplainedNgn) },
+      ...accrualPrint.lines,
       { label: 'Receipt/treasury exceptions', value: String(report.exceptions.length) },
       { label: 'Bank differs from receipt method', value: `${report.bankMismatchCount} row(s)` },
       { label: 'Less: Refunds paid in period', value: formatNgn(refunds) },
@@ -148,6 +320,7 @@ export function salesReportPrintPayload(report, opts) {
         ],
         rows: exceptionRows,
       },
+      ...accrualPrint.sections,
     ],
   };
 }
@@ -205,10 +378,47 @@ export function salesReportExcelSheets(report) {
     treasuryInPeriodNgn: e.treasuryInPeriodNgn,
     note: e.note || '',
   }));
+  const acc = report.accrual;
+  const accrualSheets = acc
+    ? [
+        {
+          name: 'Accrual_produced',
+          rows: acc.producedRows.map((r) => ({
+            firstCompletedISO: r.firstCompletedISO,
+            quotationRef: r.quotationRef,
+            customerID: r.customerID,
+            customer: r.customerName,
+            jobs: r.jobIDs.join(', '),
+            metresInPeriod: r.metresInPeriod,
+            quoteTotalNgn: r.quoteTotalNgn,
+            valueReducingRefundsNgn: r.valueReducingRefundsNgn,
+            valueInPeriodNgn: r.valueInPeriodNgn,
+            proRated: r.proRated ? 'Yes' : '',
+          })),
+        },
+        {
+          name: 'Customer_balances',
+          rows: acc.balances.rows.map((b) => ({
+            customerID: b.customerID,
+            customer: b.customerName,
+            startNgn: b.openingNgn,
+            cashNgn: b.cashNgn,
+            refundsPaidNgn: b.refundsPaidNgn,
+            producedNgn: b.producedNgn,
+            endNgn: b.closingNgn,
+            status: b.closingNgn > 0 ? 'Advance' : b.closingNgn < 0 ? 'Debt' : 'Settled',
+            unchangedInPeriod: b.unchanged ? 'Yes' : '',
+          })),
+        },
+        { name: 'Sales_bridge', rows: accrualBridgeLines(acc) },
+        { name: 'Accrual_exceptions', rows: accrualExceptionRows(acc) },
+      ]
+    : [];
   return [
     { name: 'Sales_report', rows: sales },
     { name: 'Cash_by_account', rows: cash },
     { name: 'Reconciliation', rows: reconciliation },
     { name: 'Exceptions', rows: exceptions },
+    ...accrualSheets,
   ];
 }

@@ -88,6 +88,18 @@ describe('sales report v2 — Kaduna Sep 2026 fixture', () => {
     expect(live.cashReceived.totalNgn).toBe(206_631_365);
     expect(live.recognised.totalNgn).toBe(209_638_175);
     expect(live.reconciliation.unexplainedNgn).toBe(0);
+    expect(live.accrualHasFullHistory).toBe(false);
+  });
+
+  it('feeds the Accrual section from accrualTreasuryMovements (period-source shape)', () => {
+    const live = buildSalesReport({
+      ...kd,
+      treasuryMovements: kd.treasuryMovements.filter((t) => String(t.postedAtISO).slice(0, 10) >= kd.startDate),
+      accrualTreasuryMovements: kd.treasuryMovements,
+    });
+    expect(live.accrualHasFullHistory).toBe(true);
+    expect(live.accrual.producedNgn).toBe(177_996_973);
+    expect(live.accrual.bridge.differenceNgn).toBe(0);
   });
 });
 
@@ -117,6 +129,24 @@ describe('sales report v2 print layout', () => {
       'Cash_by_account',
       'Reconciliation',
       'Exceptions',
+      'Accrual_produced',
+      'Customer_balances',
+      'Sales_bridge',
+      'Accrual_exceptions',
     ]);
+    expect(labels).toContain('(3) Accrual: goods produced in period (net value)');
+    const bridge = p.appendixSections.find((x) => x.title.startsWith('Accrual: sales bridge')).rows;
+    expect(bridge.at(-1)).toMatchObject({ item: 'Difference' });
+    expect(bridge.at(-1).amountNgn).toMatch(/0/);
+    const accrualKinds = p.appendixSections.find((x) => x.title === 'Accrual: exceptions').rows.map((r) => r.kind);
+    expect(accrualKinds).toEqual(
+      expect.arrayContaining([
+        'Completed job with 0 m — not a sale',
+        'Refunds bigger than the quotation value',
+        'Double-counted advance application',
+        'Treasury receipt with no customer',
+        'Balance unchanged in the period',
+      ])
+    );
   });
 });

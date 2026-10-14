@@ -20,6 +20,7 @@ import {
   salesPaymentsReceivedRows,
 } from './liveAnalytics.js';
 import { abbreviateBankName } from './bankAbbreviation.js';
+import { buildSalesAccrual } from './salesAccrualCore.js';
 
 export const SALES_CASH_TREASURY_TYPES = ['RECEIPT_IN', 'ADVANCE_IN', 'RECEIPT_REVERSAL_OUT'];
 
@@ -84,6 +85,10 @@ export function receiptMethodVersusTreasuryNote(method, postedAccountNames = [])
  * @param {object[]} input.ledgerEntries
  * @param {object[]} input.treasuryMovements — must cover the period; earlier lines sharpen the exceptions
  * @param {object[]} [input.refunds]
+ * @param {object[]} [input.accrualTreasuryMovements] — full treasury history for the Accrual section
+ *   (cash, reversals, refund payouts); falls back to `treasuryMovements`
+ * @param {object[]} [input.quotationLines] — flat {quotationId, category, name, qty}
+ * @param {object[]} [input.bankRecon]
  * @param {string} input.startDate
  * @param {string} input.endDate
  */
@@ -357,9 +362,26 @@ export function buildSalesReport(input = {}) {
 
   exceptions.sort((a, b) => String(a.paymentDateISO).localeCompare(String(b.paymentDateISO)) || String(a.ledgerEntryId).localeCompare(String(b.ledgerEntryId)));
 
+  const accrual = buildSalesAccrual({
+    quotations,
+    quotationLines: input.quotationLines,
+    productionJobs,
+    ledgerEntries,
+    treasuryMovements: input.accrualTreasuryMovements || treasuryMovements,
+    refunds,
+    bankRecon: input.bankRecon || input.bankReconciliation || [],
+    startDate,
+    endDate,
+  });
+
   return {
     startDate,
     endDate,
+    accrual,
+    // Balances need treasury before the period; the period-source loader only sends it as accrualTreasuryMovements.
+    accrualHasFullHistory:
+      Boolean(input.accrualTreasuryMovements) ||
+      treasuryMovements.some((t) => startDate && day(t.postedAtISO) < startDate),
     cashReceived,
     recognised,
     rows: [...recognisedRows, ...debtorRows],

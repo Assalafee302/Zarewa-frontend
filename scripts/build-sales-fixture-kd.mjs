@@ -50,7 +50,7 @@ const quotations = sheet('Quotations').map((q) =>
 );
 
 const productionJobs = sheet('Production_jobs').map((j) =>
-  pick(j, ['jobID', 'quotationRef', 'customerName', 'productID', 'status', 'completedAtISO', 'endDateISO'])
+  pick(j, ['jobID', 'quotationRef', 'customerID', 'customerName', 'productID', 'status', 'plannedMeters', 'actualMeters', 'effectiveOutputMeters', 'actualWeightKg', 'completedAtISO', 'endDateISO'])
 );
 
 const treasuryMovements = sheet('Treasury_movements').map((t) => {
@@ -66,7 +66,15 @@ const treasuryMovements = sheet('Treasury_movements').map((t) => {
 });
 
 const refunds = sheet('Refunds').map((r) =>
-  pick(r, ['refundID', 'customer', 'quotationRef', 'reasonCategory', 'amountNgn', 'status', 'requestedAtISO', 'approvedAmountNgn', 'paidAmountNgn', 'paidAtISO', 'creditAppliedNgn'])
+  pick(r, ['refundID', 'customerID', 'customer', 'quotationRef', 'reasonCategory', 'amountNgn', 'status', 'requestedAtISO', 'approvedAmountNgn', 'paidAmountNgn', 'paidAtISO', 'creditAppliedNgn'])
+);
+
+const quotationLines = sheet('Quotation_lines')
+  .filter((l) => l.category !== 'services' || l.name)
+  .map((l) => pick(l, ['quotationId', 'category', 'name', 'qty']));
+
+const bankRecon = sheet('Bank_recon').map((b) =>
+  pick(b, ['id', 'bankDateISO', 'description', 'amountNgn', 'status', 'systemMatch', 'treasuryAccountId'])
 );
 
 const fixture = {
@@ -88,11 +96,14 @@ const fixture = {
   productionJobs,
   treasuryMovements,
   refunds,
+  quotationLines,
+  bankRecon,
 };
 
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(fixture));
 console.log(
   `Wrote ${out}: receipts ${receipts.length}, ledger ${ledgerEntries.length}, quotations ${quotations.length}, ` +
-    `jobs ${productionJobs.length}, treasury ${treasuryMovements.length}, refunds ${refunds.length}`
+    `jobs ${productionJobs.length}, treasury ${treasuryMovements.length}, refunds ${refunds.length}, ` +
+    `quotation lines ${quotationLines.length}, bank recon ${bankRecon.length}`
 );

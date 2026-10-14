@@ -88,6 +88,9 @@ function salesReportV2ForPeriod(src, startDate, endDate) {
     ledgerEntries: src.ledgerEntries,
     treasuryMovements: src.treasuryMovements,
     refunds: src.refunds,
+    accrualTreasuryMovements: src.accrualTreasuryMovements || undefined,
+    quotationLines: src.quotationLines || undefined,
+    bankRecon: src.bankReconciliation,
     startDate,
     endDate,
   });
@@ -143,6 +146,9 @@ export function useReportsExport({
       liveProducts: Array.isArray(period?.liveProducts) ? period.liveProducts : liveProducts,
       purchaseOrders: Array.isArray(period?.purchaseOrders) ? period.purchaseOrders : purchaseOrders,
       accessoryUsage: Array.isArray(period?.accessoryUsage) ? period.accessoryUsage : accessoryUsage,
+      // Sales report Accrual section: full treasury history and quotation lines (period-source only).
+      accrualTreasuryMovements: Array.isArray(period?.accrualTreasuryMovements) ? period.accrualTreasuryMovements : null,
+      quotationLines: Array.isArray(period?.quotationLines) ? period.quotationLines : null,
     }),
     [
       accessoryUsage,
@@ -194,7 +200,7 @@ export function useReportsExport({
       }
       if (name === PACK_SALES_CUSTOMER) {
         const v2 = salesReportV2ForPeriod(
-          { receipts, productionJobs, quotations, ledgerEntries, treasuryMovements, refunds },
+          mergePeriod(period),
           startDate,
           endDate
         );
@@ -461,7 +467,7 @@ export function useReportsExport({
       }
       if (name === PACK_SALES_CUSTOMER && !reportsLegacyMode()) {
         const report = salesReportV2ForPeriod(
-          { receipts, productionJobs, quotations, ledgerEntries, treasuryMovements, refunds },
+          mergePeriod(period),
           startDate,
           endDate
         );
@@ -851,7 +857,7 @@ export function useReportsExport({
 
     if (name === PACK_SALES_CUSTOMER && fmt === 'Excel' && !reportsLegacyMode()) {
       const report = salesReportV2ForPeriod(
-        { receipts, productionJobs, quotations, ledgerEntries, treasuryMovements, refunds },
+        mergePeriod(period),
         startDate,
         endDate
       );
