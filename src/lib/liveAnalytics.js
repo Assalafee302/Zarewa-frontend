@@ -14,6 +14,7 @@ import { isReceiptReversed, receiptEffectiveCashNgn } from './receiptClearance.j
 import { receiptCashReceivedNgn } from './salesReceiptsList.js';
 import { abbreviateBankName } from './bankAbbreviation.js';
 import { displayDocNumber } from './reportDisplayFormat.js';
+import { coilNetKg } from '../shared/lib/controlsPhase3.js';
 
 function toIsoDate(value) {
   return String(value || '').slice(0, 10);
@@ -1822,10 +1823,13 @@ export function coilInventoryValuationRows(coilLots = []) {
     .filter((lot) => (Number(lot.qtyRemaining) || 0) > 0.0001 || (Number(lot.currentWeightKg) || 0) > 0.0001)
     .map((lot) => {
       const kg = Number(lot.currentWeightKg) || Number(lot.qtyRemaining) || 0;
+      // Phase 3: value the kg net of the spool recorded at receipt (coils received earlier have none recorded).
+      const spoolKg = lot.spoolKg != null && lot.spoolKg !== '' ? Number(lot.spoolKg) || 0 : 0;
+      const netKg = coilNetKg(kg, spoolKg);
       const unit = Math.round(Number(lot.unitCostNgnPerKg) || 0);
       const valueNgn =
         unit > 0 && kg > 0
-          ? Math.round(kg * unit)
+          ? Math.round(netKg * unit)
           : lot.landedCostNgn != null && Number(lot.landedCostNgn) > 0
             ? Math.round(Number(lot.landedCostNgn))
             : '';
@@ -1834,6 +1838,8 @@ export function coilInventoryValuationRows(coilLots = []) {
         productID: lot.productID,
         poID: lot.poID || '',
         kgOnHand: kg,
+        spoolKg,
+        netKg,
         unitCostNgnPerKg: unit || '',
         extendedValueNgn: valueNgn,
         currentStatus: lot.currentStatus,

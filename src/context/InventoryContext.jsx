@@ -727,6 +727,7 @@ export function InventoryProvider({ children }) {
               supplierID: sid,
               supplierName: sname,
               allowConversionMismatch: Boolean(opts.allowConversionMismatch),
+              ...(opts.backdateReason ? { backdateReason: opts.backdateReason } : {}),
             }),
           }
         );
@@ -746,6 +747,7 @@ export function InventoryProvider({ children }) {
           ok: true,
           coilNos: data.coilNos || [],
           mdShortReceiptAlerts: data.mdShortReceiptAlerts || [],
+          weightWarnings: data.weightWarnings || [],
         };
       }
 

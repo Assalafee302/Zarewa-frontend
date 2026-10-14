@@ -167,6 +167,9 @@ export default function PurchaseOrderModal({
           unitPricePerKgNgn: meterOnly ? null : price,
           unitPriceNgn: price,
           qtyOrdered: meterOnly ? metres : kg,
+          // Phase 3: explicit unit; metre lines keep metres and ₦/m in their own fields (cost/kg set at GRN).
+          purchaseUnit: meterOnly ? 'metre' : 'kg',
+          ...(meterOnly ? { metersOrdered: metres, unitPricePerMeterNgn: price } : {}),
         });
         continue;
       }

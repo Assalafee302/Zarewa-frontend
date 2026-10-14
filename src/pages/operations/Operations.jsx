@@ -1746,6 +1746,8 @@ const Operations = () => {
         const old = prevByKey.get(l.lineKey);
         const grnKind = grnKindForPoLine(l);
         const meterBasis = grnKind === 'coil' && isCoilMeterBasisLine(l);
+        // Phase 3: metre-bought coil (cost = metres × price per metre ÷ weighed kg).
+        const metreBought = grnKind === 'coil' && String(l.purchaseUnit || '') === 'metre';
         const receivedAtISO = String(old?.receivedAtISO || '').slice(0, 10) || todayISO;
         if (grnKind === 'coil') {
           const started =
@@ -1765,8 +1767,10 @@ const Operations = () => {
               coilNo: old.coilNo,
               autoCoilNo: old.autoCoilNo,
               weightKg: old.weightKg ?? '',
+              coilMetres: old.coilMetres ?? '',
               receivedAtISO,
               meterBasis,
+              metreBought,
               grnKind,
             };
           }
@@ -1783,8 +1787,10 @@ const Operations = () => {
             coilNo,
             autoCoilNo: coilNo,
             weightKg: old?.weightKg ?? '',
+            coilMetres: old?.coilMetres ?? '',
             receivedAtISO,
             meterBasis,
+            metreBought,
             grnKind,
           };
         }
@@ -1821,7 +1827,7 @@ const Operations = () => {
 
   const resetReceiveForm = () => {
     setExpandedReceivePoId(null);
-    setReceiveDraft({ poID: '', location: '' });
+    setReceiveDraft({ poID: '', location: '', backdateReason: '' });
     setGrnLines([]);
     setGrnConversionOverride(false);
   };
@@ -1835,7 +1841,7 @@ const Operations = () => {
     const id = String(poID || '').trim();
     if (!id) return;
     setExpandedReceivePoId(id);
-    setReceiveDraft({ poID: id, location: '' });
+    setReceiveDraft({ poID: id, location: '', backdateReason: '' });
   };
 
   const applyTransitReceipt = async (e) => {
@@ -1870,12 +1876,18 @@ const Operations = () => {
           showToast(`Enter a positive weight (kg) for coil ${coilNo || 'line'}.`, { variant: 'error' });
           return;
         }
+        const coilMetres = row.metreBought && !row.meterBasis ? Number(row.coilMetres) : null;
+        if (coilMetres != null && !(coilMetres > 0)) {
+          showToast(`Coil ${coilNo} is bought by the metre: enter the metres on this coil.`, { variant: 'error' });
+          return;
+        }
         entries.push({
           lineKey: row.lineKey,
           productID: row.productID,
           qtyReceived,
           coilNo,
           weightKg,
+          ...(coilMetres != null ? { supplierExpectedMeters: coilMetres } : {}),
           location: receiveDraft.location,
           receivedAtISO,
         });
@@ -1894,6 +1906,12 @@ const Operations = () => {
       showToast('Enter receive quantity for at least one open line.', { variant: 'error' });
       return;
     }
+    // Phase 3: GRN date defaults to today; an earlier date needs a reason (audit-logged).
+    const backdateReason = String(receiveDraft.backdateReason || '').trim();
+    if (entries.some((e) => e.receivedAtISO < todayISO) && backdateReason.length < 8) {
+      showToast('Date of receival is before today: give the reason for the earlier date (at least 8 characters).', { variant: 'error' });
+      return;
+    }
     setGrnSubmitting(true);
     try {
       const selectedPo =
@@ -1903,7 +1921,7 @@ const Operations = () => {
         receiveDraft.poID,
         entries,
         {},
-        { allowConversionMismatch: grnConversionOverride, purchaseOrder: selectedPo || undefined }
+        { allowConversionMismatch: grnConversionOverride, purchaseOrder: selectedPo || undefined, backdateReason }
       );
       if (!res.ok) {
         if (res.code === 'COIL_NO_TAKEN' && res.nextCoilNo) {
@@ -1931,6 +1949,12 @@ const Operations = () => {
         );
       } else {
         showToast(`Receipt posted — stock updated${coils ? ` · ${coils}` : ''}.`);
+      }
+      for (const w of Array.isArray(res.weightWarnings) ? res.weightWarnings : []) {
+        showToast(
+          `Check weight: ${w.productName || w.lineKey} weighed ${Number(w.weighedKg).toLocaleString()} kg vs ${Number(w.expectedKg).toLocaleString()} kg on the PO (${w.variancePct > 0 ? '+' : ''}${w.variancePct}%, more than 2%).`,
+          { variant: 'warning' }
+        );
       }
       resetReceiveForm();
     } finally {

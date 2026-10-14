@@ -79,7 +79,7 @@ export function receiptMethodVersusTreasuryNote(method, postedAccountNames = [])
 
 export const SALES_PAID_BY_NOT_MATCHED = 'not matched';
 
-/** Payer name the cashier typed on the receipt (field planned for Phase 4; absent today). */
+/** Payer name the cashier typed on the receipt ("Paid by", required from Phase 3; older receipts have none). */
 export function receiptPayerName(receipt) {
   return String(receipt?.paidByName ?? receipt?.paidBy ?? receipt?.payerName ?? '').trim();
 }

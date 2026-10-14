@@ -579,6 +579,16 @@ const ReceiptModal = ({
     return customers.find((c) => c.customerID === customerID)?.name ?? selectedQuotation?.customer ?? '';
   }, [customers, customerID, selectedQuotation?.customer, editData?.customer]);
 
+  // Phase 3: "Paid by" defaults to the customer name; the cashier changes it to the name on the alert / teller.
+  useEffect(() => {
+    if (!customerName || isEdit) return;
+    setPaymentLines((prev) =>
+      prev.some((l) => !String(l.payeeName || '').trim())
+        ? prev.map((l) => (String(l.payeeName || '').trim() ? l : { ...l, payeeName: customerName }))
+        : prev
+    );
+  }, [customerName, isEdit, paymentLines.length]);
+
   const customerPhone = useMemo(() => {
     if (!customerID) return '—';
     return customers.find((c) => c.customerID === customerID)?.phoneNumber ?? '—';
@@ -1052,10 +1062,19 @@ const ReceiptModal = ({
             pl.treasuryAccountId == null ||
             (typeof pl.treasuryAccountId === 'number' && !Number.isFinite(pl.treasuryAccountId))
         );
-        if (paymentLinesPayload.length > 0 && invalidTreasury) {
+        // Phase 3: the account is required — never fall back to the first account in the list.
+        const lineWithoutAccount = linesForTreasury.some((line) => !String(line.treasuryAccountId ?? '').trim());
+        if (paymentLinesPayload.length > 0 && (invalidTreasury || lineWithoutAccount)) {
           showToast('Select a valid treasury account on each payment line.', { variant: 'error' });
           return;
         }
+        if (linesForTreasury.some((line) => !String(line.payeeName || '').trim())) {
+          showToast('Enter "Paid by" (the name on the bank alert or teller) on each payment line.', { variant: 'error' });
+          return;
+        }
+        const paidByName = [
+          ...new Set(validLines.map((line) => String(line.payeeName || '').trim()).filter(Boolean)),
+        ].join(' / ');
         const branchId = String(ws?.session?.currentBranchId ?? '').trim();
         const receiptBody = {
           customerID: postingCustomerID,
@@ -1068,6 +1087,7 @@ const ReceiptModal = ({
           bankReference,
           dateISO: voucherDate,
           paymentLines: paymentLinesPayload,
+          paidByName: paidByName || quote.customer || customerName,
         };
         if (branchId) receiptBody.branchId = branchId;
         receiptBody.fullAmountAsReceipt = true;
@@ -1117,6 +1137,18 @@ const ReceiptModal = ({
             confirmSettledQuoteOverpay: true,
           };
           ({ ok, data, status } = await postReceipt(workingBody, newLedgerIdempotencyKey('rc-retry')));
+        }
+        if (!ok && data?.code === 'ADVANCE_REPEAT_CONFIRM_REQUIRED') {
+          // Phase 3 (TM-KD-26-1499) warning: confirm with a reason (audit-logged) or apply the advance instead.
+          const reason = window.prompt(
+            `${data?.error || 'This amount matches an advance already in treasury.'}\n\nType the reason to confirm and post, or Cancel and use "Apply advance" instead:`
+          );
+          if (!reason || reason.trim().length < 8) {
+            showToast('Posting cancelled — apply the advance to this quotation instead.', { variant: 'info' });
+            return;
+          }
+          workingBody = { ...workingBody, advanceRepeatOverrideReason: reason.trim() };
+          ({ ok, data, status } = await postReceipt(workingBody, newLedgerIdempotencyKey('rc-adv')));
         }
         if (!ok && data?.code === 'LINK_OPEN_BANK_DEPOSIT_REQUIRED') {
           const reason = promptUnlinkedBankTillOverride(data);
@@ -1649,7 +1681,9 @@ const ReceiptModal = ({
                   >
                     <input
                       type="text"
-                      placeholder="Who paid / depositor"
+                      placeholder="Paid by (name on alert / teller)"
+                      aria-label="Paid by"
+                      required
                       value={line.payeeName}
                       onChange={(e) => updateLine(line.id, { payeeName: e.target.value })}
                       className="col-span-12 sm:col-span-3 border border-slate-200 rounded-lg py-2 px-2.5 text-[12px] font-semibold text-zarewa-teal outline-none"

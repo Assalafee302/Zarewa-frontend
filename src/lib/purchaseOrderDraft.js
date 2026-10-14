@@ -102,6 +102,7 @@ export function purchaseOrderToUnifiedDraft(po, products = []) {
         };
       }
       const meterBasis =
+        l.purchaseUnit === 'metre' ||
         lineType === 'coil_meter' ||
         (Number(l.metersOffered) > 0 &&
           Math.abs(Number(l.qtyOrdered) - Number(l.metersOffered)) <= 0.001);

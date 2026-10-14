@@ -31,6 +31,8 @@ function poDescription(po) {
     : 'Enter received quantities against the open purchase-order lines.';
 }
 
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
 function patchLine(setGrnLines, idx, patch) {
   setGrnLines((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 }
@@ -165,7 +167,7 @@ export function OperationsReceiveModal({
                         label="Weight (kg)"
                         htmlFor={`${idBase}-kg`}
                         required
-                        hint={row.meterBasis ? 'Required for metre-basis coil lines.' : 'Gross weighbridge weight.'}
+                        hint="Actual weighed kg (scale / weighbridge), gross incl. spool. Warned if more than 2% off the PO."
                       >
                         <input
                           id={`${idBase}-kg`}
@@ -199,6 +201,27 @@ export function OperationsReceiveModal({
                         />
                       </FormField>
                     </FormGrid>
+                    {row.metreBought && !row.meterBasis ? (
+                      <FormGrid>
+                        <FormField
+                          label="Metres on this coil"
+                          htmlFor={`${idBase}-metres`}
+                          required
+                          hint="Bought by the metre: cost per kg = metres × price per metre ÷ weighed kg."
+                        >
+                          <input
+                            id={`${idBase}-metres`}
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={row.coilMetres ?? ''}
+                            onChange={(e) => patchLine(setGrnLines, idx, { coilMetres: e.target.value })}
+                            placeholder="Supplier metres"
+                            className={FIELD.compact}
+                          />
+                        </FormField>
+                      </FormGrid>
+                    ) : null}
                     {row.meterBasis ? (
                       <p className="text-ui-xs font-medium text-amber-800">
                         Metre-basis PO line: enter metres received and actual kg weight.
@@ -215,6 +238,25 @@ export function OperationsReceiveModal({
             );
           })
         )}
+
+        {hasOpenLines && grnLines.some((r) => Number(r.qtyReceived) > 0 && String(r.receivedAtISO || '') < todayIso()) ? (
+          <FormField
+            label="Reason for the earlier receival date"
+            htmlFor="ops-receive-backdate-reason"
+            required
+            hint="The GRN date defaults to today. An earlier date is audit-logged with this reason."
+          >
+            <input
+              id="ops-receive-backdate-reason"
+              value={receiveDraft.backdateReason || ''}
+              onChange={(e) => setReceiveDraft((s) => ({ ...s, backdateReason: e.target.value }))}
+              placeholder="e.g. Truck offloaded Friday, posted Monday"
+              minLength={8}
+              required
+              className={FIELD.compact}
+            />
+          </FormField>
+        ) : null}
 
         {hasOpenLines && grnLines.some((r) => r.grnKind === 'coil') && canOverrideConversion ? (
           <label className="flex cursor-pointer items-start gap-2 rounded-md border border-amber-200 bg-amber-50/90 p-3 text-sm font-medium text-amber-950">

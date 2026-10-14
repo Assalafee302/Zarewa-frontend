@@ -41,6 +41,7 @@ import { AccountingGlPanel } from '../../components/finance/AccountingGlPanel';
 import { AccountingOpeningBalancePanel } from '../../components/finance/AccountingOpeningBalancePanel';
 
 import { AccountingClosePanel } from '../../components/finance/AccountingClosePanel';
+import { ControlsPhase3Lists } from '../../components/finance/ControlsPhase3Lists';
 
 import { AccountingPolicyPanel } from '../../components/finance/AccountingPolicyPanel';
 
@@ -437,6 +438,7 @@ export default function AccountingDesk() {
                   onPeriodKeyChange={setPeriodKey}
                   deskRefresh={deskRefresh}
                 />
+                <ControlsPhase3Lists />
               </AccountingDeskTabPane>
             ) : null}
 
