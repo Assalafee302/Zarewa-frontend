@@ -30,6 +30,8 @@ import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { reportsLegacyMode } from '../lib/reportsLegacyMode';
 import { buildSalesReport } from '../lib/salesReportCore';
 import { salesReportExcelSheets, salesReportPrintPayload, salesRowCheckText } from '../lib/salesReportPrint';
+import { buildExpensesReport } from '../lib/expensesReportCore';
+import { expensesReportExcelSheets, expensesReportPrintPayload } from '../lib/expensesReportPrint';
 import {
   PACK_CASH_BANK_AR,
   PACK_CONVERSION_SUMMARY,
@@ -380,6 +382,15 @@ export function useReportsExport({
           status: 'Withdrawn',
           _amountNgn: Number(r.amountNgn) || 0,
         }));
+        if (!reportsLegacyMode()) {
+          // v2: real request status, Check category, ERP vs book view and every reclassification listed.
+          const report = buildExpensesReport({ expenses, paymentRequests, treasuryMovements, startDate, endDate });
+          return expensesReportPrintPayload(report, {
+            title: PACK_EXPENSES_REFUNDS,
+            refundRows: refundPrintRows,
+            companyCutRows: companyCutPrintRows,
+          });
+        }
         const rows = [...expensePrintRows, ...refundPrintRows, ...companyCutPrintRows].sort((a, b) => {
           const ga = String(a.groupKey || '');
           const gb = String(b.groupKey || '');
@@ -852,6 +863,25 @@ export function useReportsExport({
       if (tm.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tm), 'Treasury');
       XLSX.writeFile(wb, `${packSlug}.xlsx`);
       showToast(`${name} exported as Excel (multi-sheet).`);
+      return;
+    }
+
+    if (name === PACK_EXPENSES_REFUNDS && fmt === 'Excel' && !reportsLegacyMode()) {
+      const report = buildExpensesReport({ expenses, paymentRequests, treasuryMovements, startDate, endDate });
+      const sheets = expensesReportExcelSheets(report, {
+        refundRows: refundsPaidInPeriodRows(refunds, startDate, endDate),
+        companyCutRows: companyCutWithdrawalsInPeriodRows(treasuryMovements, startDate, endDate),
+      });
+      if (!sheets[0].rows.length) {
+        showToast('No rows for this pack in the selected range.', { variant: 'info' });
+        return;
+      }
+      const wb = XLSX.utils.book_new();
+      for (const sh of sheets) {
+        if (sh.rows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sh.rows), sh.name);
+      }
+      XLSX.writeFile(wb, `${packSlug}.xlsx`);
+      showToast(`${name} exported as Excel (expenses, ERP vs book, reclassifications, exceptions).`);
       return;
     }
 
