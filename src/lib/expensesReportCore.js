@@ -205,7 +205,10 @@ export function buildExpensesReport(input = {}) {
   const erp = byCategory('category');
   const book = byCategory('bookCategory');
   // ERP categories emptied by reclassification still show in the book view, at ₦0.
-  for (const k of erp.keys()) if (!book.has(k)) book.set(k, 0);
+  for (const k of erp.keys()) {
+    const group = bookGroupForErpCategory(k);
+    if (!book.has(group)) book.set(group, 0);
+  }
   const carriageKey = [...erp.keys()].find((k) => /^carriage/i.test(k)) || 'Carriage inward';
   book.set(carriageKey, (book.get(carriageKey) || 0) + poTransportNgn - overlapNgn);
   const toList = (m) => [...m.entries()].map(([category, amountNgn]) => ({ category, amountNgn })).sort((a, b) => b.amountNgn - a.amountNgn);
