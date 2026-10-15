@@ -13,6 +13,8 @@ export const PACK_MATERIAL_EXCEPTIONS = 'Material exceptions (offcut)';
 export const PACK_CONVERSION_SUMMARY = 'Conversion summary by material & gauge';
 export const PACK_COIL_STOCK_TIEOUT = 'Coil stock tie-out';
 export const PACK_BANK_RECON_STATEMENT = 'Bank reconciliation statement';
+export const PACK_RECEIPTS_REGISTER = 'Receipts register';
+export const PACK_ACCRUAL_SALES_STATEMENT = 'Accrual sales statement';
 
 /** Jobs on /reports — URL ?job= */
 export const REPORT_JOBS = {
@@ -435,6 +437,26 @@ export const EXPORT_SECTIONS = [
         printCoverage: 'summary',
       },
       {
+        id: 'receipts-register',
+        kind: 'pack',
+        pack: PACK_RECEIPTS_REGISTER,
+        title: 'Receipts register',
+        desc: 'Daily cash book: one line per receipt bank leg — produced in period / advances / settles earlier debt, subtotals by bank, credit-settled receipts apart. Ties to the accrual statement.',
+        icon: Receipt,
+        formats: ['Excel', 'CSV'],
+        printCoverage: 'full',
+      },
+      {
+        id: 'accrual-sales-statement',
+        kind: 'pack',
+        pack: PACK_ACCRUAL_SALES_STATEMENT,
+        title: 'Accrual sales statement',
+        desc: 'One page: goods produced by category, refunds, net sales, customer advances and debts, the bridge (must be ₦0) and exceptions.',
+        icon: Scale,
+        formats: ['Excel', 'CSV'],
+        printCoverage: 'full',
+      },
+      {
         id: 'bank-recon-statement',
         kind: 'pack',
         pack: PACK_BANK_RECON_STATEMENT,
@@ -467,8 +489,8 @@ export const EXPORT_SECTIONS = [
         id: 'sales-customer-pack',
         kind: 'pack',
         pack: PACK_SALES_CUSTOMER,
-        title: 'Customer payments',
-        desc: 'Produced sales, unproduced credit, and outstanding debtor balances as-of period end.',
+        title: 'Customer payments (previous layout)',
+        desc: 'Previous sales report layout, kept until the receipts register + accrual sales statement split is approved.',
         icon: Table2,
         formats: ['Excel', 'CSV'],
         printCoverage: 'full',

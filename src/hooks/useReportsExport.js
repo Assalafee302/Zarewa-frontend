@@ -36,9 +36,19 @@ import { accountTitle, bankReconStatementDocument, bankReconStatementExcelSheets
 import { renderReportDocument } from '../shared/lib/reportPrintDocument.js';
 import { buildRefundReport } from '../shared/lib/refundReportCore.js';
 import { refundReportDocument, refundReportExcelSheets } from '../shared/lib/refundReportPrint.js';
+import { buildReceiptsRegister } from '../shared/lib/receiptsRegisterCore.js';
+import { receiptsRegisterDocument, receiptsRegisterExcelSheets } from '../shared/lib/receiptsRegisterPrint.js';
+import { buildSalesAccrual } from '../shared/lib/salesAccrualCore.js';
+import {
+  accrualSalesStatementDocument,
+  accrualSalesStatementExcelSheets,
+  buildAccrualSalesStatement,
+} from '../shared/lib/accrualSalesStatement.js';
 import { openReportPrintWindow } from '../lib/reportPrintWindow.js';
 import {
+  PACK_ACCRUAL_SALES_STATEMENT,
   PACK_BANK_RECON_STATEMENT,
+  PACK_RECEIPTS_REGISTER,
   PACK_CASH_BANK_AR,
   PACK_CONVERSION_SUMMARY,
   PACK_EXPENSES_REFUNDS,
@@ -79,6 +89,8 @@ function glBranchQuery(branchId) {
 }
 
 const WORKSPACE_PERIOD_PACKS = new Set([
+  PACK_RECEIPTS_REGISTER,
+  PACK_ACCRUAL_SALES_STATEMENT,
   PACK_PERIOD_COSTS_INVENTORY,
   PACK_EXPENSES_REFUNDS,
   PACK_CASH_BANK_AR,
@@ -86,6 +98,42 @@ const WORKSPACE_PERIOD_PACKS = new Set([
   PACK_REFUND_PERIOD,
   PACK_OPS_PROCUREMENT,
 ]);
+
+/**
+ * Receipts register + accrual statement (round 2 sales split) from the period source. The accrual needs treasury
+ * from the start of history (`accrualTreasuryMovements`); the register uses the period lines.
+ */
+function salesSplitForPeriod(src, startDate, endDate) {
+  const accrual = buildSalesAccrual({
+    quotations: src.quotations,
+    quotationLines: src.quotationLines || undefined,
+    productionJobs: src.productionJobs,
+    ledgerEntries: src.ledgerEntries,
+    treasuryMovements: src.accrualTreasuryMovements || src.treasuryMovements,
+    refunds: src.refunds,
+    bankRecon: src.bankReconciliation || [],
+    startDate,
+    endDate,
+  });
+  const register = buildReceiptsRegister({
+    receipts: src.receipts,
+    ledgerEntries: src.ledgerEntries,
+    treasuryMovements: src.treasuryMovements,
+    bankRecon: src.bankReconciliation || [],
+    productionJobs: src.productionJobs,
+    quotations: src.quotations,
+    quotationLines: src.quotationLines || undefined,
+    startDate,
+    endDate,
+    asAtISO: new Date().toISOString(),
+  });
+  const statement = buildAccrualSalesStatement(accrual, {
+    quotationLines: src.quotationLines,
+    ledgerEntries: src.ledgerEntries,
+    treasuryMovements: src.treasuryMovements,
+  });
+  return { accrual, register, statement };
+}
 
 /** Sales report v2 (treasury-checked) for the period; null under `?legacy=1`. */
 function salesReportV2ForPeriod(src, startDate, endDate) {
@@ -1135,6 +1183,31 @@ export function useReportsExport({
       return;
     }
 
+    if (name === PACK_RECEIPTS_REGISTER || name === PACK_ACCRUAL_SALES_STATEMENT) {
+      const loaded = await fetchReportPeriodSource(apiFetch, startDate, endDate);
+      if (!loaded.ok) {
+        showToast(loaded.error, { variant: 'error' });
+        return;
+      }
+      const { accrual, register, statement } = salesSplitForPeriod(mergePeriod(loaded.data), startDate, endDate);
+      const sheets =
+        name === PACK_RECEIPTS_REGISTER
+          ? receiptsRegisterExcelSheets(register, { accrual })
+          : accrualSalesStatementExcelSheets(statement, accrual);
+      if (fmt === 'Excel') {
+        const wb = XLSX.utils.book_new();
+        for (const s of sheets) {
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(s.rows.length ? s.rows : [{}]), s.name.slice(0, 31));
+        }
+        XLSX.writeFile(wb, `${packSlug}.xlsx`);
+        showToast(`${name} exported as Excel (${sheets.length} sheets).`);
+        return;
+      }
+      downloadRows(name, sheets[0].rows, fmt);
+      showToast(`${name} exported as ${fmt}.`);
+      return;
+    }
+
     if (name === PACK_BANK_RECON_STATEMENT) {
       const res = await fetchBankReconStatementReport(apiFetch, startDate, endDate);
       if (!res.ok) {
@@ -1416,6 +1489,18 @@ export function useReportsExport({
         return;
       }
       period = loaded.data;
+    }
+    if (name === PACK_RECEIPTS_REGISTER || name === PACK_ACCRUAL_SALES_STATEMENT) {
+      const { accrual, register, statement } = salesSplitForPeriod(mergePeriod(period), startDate, endDate);
+      const meta = { branchName, preparedBy, preparedAtISO: new Date().toISOString() };
+      const doc =
+        name === PACK_RECEIPTS_REGISTER
+          ? receiptsRegisterDocument(register, { ...meta, accrual })
+          : accrualSalesStatementDocument(statement, meta);
+      if (!openReportPrintWindow(renderReportDocument(doc))) {
+        showToast('Allow pop-ups for this site to print the report.', { variant: 'error' });
+      }
+      return;
     }
     if (name === PACK_REFUND_PERIOD && !reportsLegacyMode()) {
       const src = mergePeriod(period);
