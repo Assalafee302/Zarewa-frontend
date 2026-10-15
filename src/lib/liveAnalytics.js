@@ -14,7 +14,7 @@ import { isReceiptReversed, receiptEffectiveCashNgn } from './receiptClearance.j
 import { receiptCashReceivedNgn } from './salesReceiptsList.js';
 import { abbreviateBankName } from './bankAbbreviation.js';
 import { displayDocNumber } from './reportDisplayFormat.js';
-import { buildCoilRegister, splitSpool, spoolKgForCoil } from '../shared/lib/coilRegisterCore.js';
+import { coilNetValueRows } from '../shared/lib/coilRegisterCore.js';
 
 function toIsoDate(value) {
   return String(value || '').slice(0, 10);
@@ -1818,49 +1818,30 @@ export function purchaseOrderAccrualBridgeRows(purchaseOrders = []) {
 }
 
 /**
- * Coil lots still holding quantity, valued at NET kg × rate (owner, 15 Oct 2026). Spool and rate come from the
- * coil register's rule (Aluzinc 65 kg, aluminium bought by kg 45 kg, by the metre 0; metre-bought coils costed at
- * PO line amount ÷ kg received), the same as the material register and the month-end coil stock report.
- * Coils the register cannot place (no receive date) use the same spool rule and their own unit cost.
+ * Coil lots still holding quantity, valued at NET kg × rate (owner, 15 Oct 2026) by the one spool rule and the
+ * shared coil costing (coilRegisterCore.coilNetValueRows): Aluzinc 65 kg, aluminium bought by kg 45 kg, by the
+ * metre 0; metre-bought coils costed at PO line amount ÷ kg received. Same rule as every stock report.
  */
 export function coilInventoryValuationRows(coilLots = [], purchaseOrders = []) {
   const onHand = (coilLots || []).filter(
     (lot) => (Number(lot.qtyRemaining) || 0) > 0.0001 || (Number(lot.currentWeightKg) || 0) > 0.0001
   );
-  const today = new Date().toISOString().slice(0, 10);
-  const reg = buildCoilRegister({
-    coilLots: onHand.map((lot) => ({ ...lot, currentWeightKg: Number(lot.currentWeightKg) || Number(lot.qtyRemaining) || 0 })),
-    purchaseOrders,
-    stockMovements: [],
-    startDate: today,
-    endDate: today,
-  });
-  const byCoil = new Map(reg.stock.closing.rows.map((r) => [r.coilNo, r]));
+  const kgOf = (lot) => Number(lot.currentWeightKg) || Number(lot.qtyRemaining) || 0;
+  const byCoil = new Map(coilNetValueRows(onHand, purchaseOrders, { kgOf }).map((r) => [r.coilNo, r]));
   return onHand.map((lot) => {
-    const kg = Number(lot.currentWeightKg) || Number(lot.qtyRemaining) || 0;
     const r = byCoil.get(String(lot.coilNo || '').trim());
-    const spoolSplit = r
-      ? { spoolKg: r.spoolKg, netKg: r.kgNet }
-      : splitSpool(kg, spoolKgForCoil({ materialTypeName: lot.materialTypeName, productID: lot.productID }, 'kg'));
-    const unit = r ? Math.round(Number(r.unitCostNgnPerKg) || 0) : Math.round(Number(lot.unitCostNgnPerKg) || 0);
-    const landed = Number(lot.landedCostNgn) || 0;
-    const valueNgn =
-      unit > 0 && kg > 0
-        ? Math.round(spoolSplit.netKg * unit)
-        : landed > 0 && kg > 0
-          ? Math.round((landed * spoolSplit.netKg) / kg)
-          : '';
+    const unit = Math.round(Number(r?.rateNgnPerKg) || 0);
     return {
       coilNo: lot.coilNo,
       productID: lot.productID,
       poID: lot.poID || '',
-      kgOnHand: kg,
-      spoolKg: spoolSplit.spoolKg,
-      netKg: spoolSplit.netKg,
+      kgOnHand: kgOf(lot),
+      spoolKg: r ? r.spoolKg : 0,
+      netKg: r ? r.netKg : kgOf(lot),
       unitCostNgnPerKg: unit || '',
-      extendedValueNgn: valueNgn,
+      extendedValueNgn: unit > 0 ? r.valueNgn : '',
       boughtBy: r?.boughtBy || '',
-      costSource: r?.costSource || (unit > 0 ? 'coil' : landed > 0 ? 'landed cost (net share)' : 'none'),
+      costSource: r?.costSource || 'none',
       currentStatus: lot.currentStatus,
       branchId: lot.branchId || '',
     };

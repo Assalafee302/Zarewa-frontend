@@ -39,3 +39,22 @@ describe('buildProcurementDashboardModel', () => {
   });
 });
 
+
+describe('inventory value — coils at net kg × rate', () => {
+  it('values coil lots at net (Aluzinc 65 kg spool) and does not count the coil SKU twice', () => {
+    const model = buildProcurementDashboardModel({
+      purchaseOrders: [],
+      products: [
+        { productID: 'PRD-102', stockLevel: 1000, unitCost: 2000 },
+        { productID: 'STONE-1', stockLevel: 10, unitCost: 500 },
+      ],
+      coilLots: [{ coilNo: 'Z1', productID: 'PRD-102', materialTypeName: 'Aluzinc', currentWeightKg: 1000, unitCostNgnPerKg: 2000 }],
+    });
+    expect(model.kpis.inventoryValueNgn).toBe(935 * 2000 + 10 * 500);
+  });
+
+  it('without coil lots keeps the product-level value', () => {
+    const model = buildProcurementDashboardModel({ purchaseOrders: [], products: [{ productID: 'STONE-1', stockLevel: 10, unitCost: 500 }] });
+    expect(model.kpis.inventoryValueNgn).toBe(5000);
+  });
+});

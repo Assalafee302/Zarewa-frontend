@@ -1,6 +1,7 @@
 import { purchaseOrderOrderedValueNgn } from './liveAnalytics';
 import { procurementKindFromPo } from './procurementPoKind';
 import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
+import { coilNetValueRows } from '../shared/lib/coilRegisterCore.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -38,6 +39,8 @@ export function buildProcurementDashboardModel({
   accountsPayable = [],
   products = [],
   inTransitLoads = [],
+  coilLots = null,
+  coilCostingPurchaseOrders = null,
   from,
   to,
 }) {
@@ -72,11 +75,23 @@ export function buildProcurementDashboardModel({
 
   const lowStockItemsCount = products.filter((p) => Number(p?.stockLevel) < 1).length;
   const stockOutIncidents = products.filter((p) => Number(p?.stockLevel) <= 0).length;
-  const inventoryValueNgn = products.reduce((s, p) => {
-    const qty = Number(p?.stockLevel) || 0;
-    const unitCost = Number(p?.unitCost ?? p?.costPriceNgn ?? 0) || 0;
-    return s + qty * unitCost;
-  }, 0);
+  // Coils at NET kg × rate by the one spool rule (owner, 15 Oct 2026) when coil lots are given; their SKU balances
+  // are then left out so coils are not counted twice. Other products: stock level × unit cost.
+  const coilSkuIds = new Set();
+  let coilValueNgn = 0;
+  if (Array.isArray(coilLots)) {
+    const onHand = coilLots.filter((c) => c?.currentStatus !== 'Consumed' && (Number(c?.currentWeightKg) || 0) > 0);
+    for (const c of coilLots) if (c?.productID) coilSkuIds.add(String(c.productID));
+    coilValueNgn = coilNetValueRows(onHand, coilCostingPurchaseOrders || purchaseOrders).reduce((s, r) => s + r.valueNgn, 0);
+  }
+  const inventoryValueNgn =
+    coilValueNgn +
+    products.reduce((s, p) => {
+      if (coilSkuIds.has(String(p?.productID || p?.id || ''))) return s;
+      const qty = Number(p?.stockLevel) || 0;
+      const unitCost = Number(p?.unitCost ?? p?.costPriceNgn ?? 0) || 0;
+      return s + qty * unitCost;
+    }, 0);
 
   const goodsInTransitCount = inTransitLoads.filter((r) =>
     ['in_transit', 'loading_confirmed', 'on_loading'].includes(String(r?.status || '').toLowerCase())
