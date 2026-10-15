@@ -316,6 +316,7 @@ const Account = () => {
   const [receiptMissingBankAccountId, setReceiptMissingBankAccountId] = useState('');
   /** When true, confirm payment but do not set finance delivery clearance. */
   const [receiptHoldDelivery, setReceiptHoldDelivery] = useState(false);
+  const [receiptCashierNote, setReceiptCashierNote] = useState('');
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
   const [applyRefundOnConfirm, setApplyRefundOnConfirm] = useState(false);
   /** Cash due last written because refund fund was ticked — used to restore the receipt when unticked. */
@@ -2294,6 +2295,7 @@ const Account = () => {
       setReceiptBankAmtInput(String(br));
       setReceiptMissingBankAccountId('');
       setReceiptHoldDelivery(Boolean(r.financeReconciliationSavedAtISO && !r.financeDeliveryClearedAtISO));
+      setReceiptCashierNote(String(r.cashierNote || ''));
       const splitRows = movementId ? splits.filter((s) => String(s.movementId) === movementId) : splits;
       setPaymentCorrectionDrafts(
         Object.fromEntries(
@@ -2744,6 +2746,7 @@ const Account = () => {
             body: JSON.stringify({
               bankReceivedAmountNgn,
               clearForDelivery: !receiptHoldDelivery,
+              cashierNote: receiptCashierNote,
               paymentLineCorrections,
               ...(missingBankAccountId ? { treasuryAccountId: missingBankAccountId } : {}),
               ...(offsetNgn > 0
@@ -6055,6 +6058,19 @@ const Account = () => {
                   </>
                 );
               })()}
+              <label className="block text-xs text-slate-700">
+                <span className="font-medium">Cashier note (optional)</span>
+                <input
+                  type="text"
+                  maxLength={200}
+                  className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                  placeholder="e.g. alert seen 10:42, paid by brother"
+                  value={receiptCashierNote}
+                  disabled={receiptFinanceBusy}
+                  onChange={(e) => setReceiptCashierNote(e.target.value)}
+                />
+                <span className="text-[11px] text-slate-500">Shown as Remark on the receipts register (first 60 characters).</span>
+              </label>
               <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
                 <input
                   type="checkbox"

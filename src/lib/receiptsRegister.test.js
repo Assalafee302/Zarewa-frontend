@@ -87,6 +87,16 @@ describe('receipts register — Kaduna Sep 2026 fixture', () => {
     expect(reg.counts.confirmedLate).toBe(reg.lines.filter((x) => x.review.includes(REVIEW_CONFIRMED_LATE)).length);
   });
 
+  it('Remark = cashier note on the confirm step, else the ledger note', () => {
+    const withNote = buildReceiptsRegister({
+      ...kd,
+      asAtISO: '2026-10-13T14:27:00Z',
+      receipts: kd.receipts.map((r) => (r.ledgerEntryId === 'LE-KD-26-1569' ? { ...r, cashierNote: 'alert seen 10:10' } : r)),
+    });
+    expect(withNote.lines.find((l) => l.ledgerEntryId === 'LE-KD-26-1569').remark).toBe('alert seen 10:10');
+    expect(reg.lines.find((l) => l.ledgerEntryId === 'LE-KD-26-1569').remark).toBe('Full settlement (receipt)');
+  });
+
   it('open month: section 2 reads "Not yet produced"', () => {
     const open = buildReceiptsRegister({ ...kd, asAtISO: '2026-09-20T10:00:00Z' });
     expect(open.sections[1].label).toBe('Not yet produced');
