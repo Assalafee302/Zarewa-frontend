@@ -192,6 +192,7 @@ const Reports = () => {
     purchaseOrders,
     accessoryUsage,
     preparedBy: ws.session?.user?.displayName || ws.session?.user?.name || ws.session?.user?.email || '',
+    branchName: ws.viewAllBranches ? 'All branches (HQ roll-up)' : ws.branchLabel || ws.branchScope || ws.session?.currentBranchId || '',
   });
 
   const periodLabel = useMemo(() => formatPeriodLabel(startDate, endDate), [endDate, startDate]);

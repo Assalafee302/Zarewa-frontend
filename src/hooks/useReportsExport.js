@@ -34,6 +34,8 @@ import { buildExpensesReport } from '../lib/expensesReportCore';
 import { expensesReportExcelSheets, expensesReportPrintPayload } from '../lib/expensesReportPrint';
 import { accountTitle, bankReconStatementDocument, bankReconStatementExcelSheets } from '../shared/lib/bankReconStatementPrint.js';
 import { renderReportDocument } from '../shared/lib/reportPrintDocument.js';
+import { buildRefundReport } from '../shared/lib/refundReportCore.js';
+import { refundReportDocument, refundReportExcelSheets } from '../shared/lib/refundReportPrint.js';
 import { openReportPrintWindow } from '../lib/reportPrintWindow.js';
 import {
   PACK_BANK_RECON_STATEMENT,
@@ -125,6 +127,7 @@ export function useReportsExport({
   purchaseOrders,
   accessoryUsage,
   preparedBy = '',
+  branchName = '',
 }) {
   const [printOpen, setPrintOpen] = useState(false);
   const [printPayload, setPrintPayload] = useState(null);
@@ -946,6 +949,18 @@ export function useReportsExport({
       return;
     }
 
+    if (name === PACK_REFUND_PERIOD && fmt === 'Excel' && !reportsLegacyMode()) {
+      // v2 (round 2 A3): one row per payout with payee, approver, account debited and BKR id.
+      const report = buildRefundReport({ refunds, treasuryMovements, bankRecon: bankReconciliation, paymentRequests, startDate, endDate });
+      const wb = XLSX.utils.book_new();
+      for (const sh of refundReportExcelSheets(report)) {
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sh.rows.length ? sh.rows : [{}]), sh.name);
+      }
+      XLSX.writeFile(wb, `${packSlug}.xlsx`);
+      showToast(`${name} exported as Excel (${report.rows.length} payout lines).`);
+      return;
+    }
+
     if (name === PACK_REFUND_PERIOD && fmt === 'Excel') {
       const rows = [
         ...refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate).map((r) => ({
@@ -1402,10 +1417,26 @@ export function useReportsExport({
       }
       period = loaded.data;
     }
+    if (name === PACK_REFUND_PERIOD && !reportsLegacyMode()) {
+      const src = mergePeriod(period);
+      const report = buildRefundReport({
+        refunds: src.refunds,
+        treasuryMovements: src.treasuryMovements,
+        bankRecon: src.bankReconciliation,
+        paymentRequests: src.paymentRequests,
+        startDate,
+        endDate,
+      });
+      const html = renderReportDocument(
+        refundReportDocument(report, { branchName, preparedBy, preparedAtISO: new Date().toISOString() })
+      );
+      if (!openReportPrintWindow(html)) showToast('Allow pop-ups for this site to print the report.', { variant: 'error' });
+      return;
+    }
     const cfg = getPrintConfig(name, period);
     setPrintPayload(cfg);
     setPrintOpen(true);
-  }, [apiFetch, branchId, endDate, getPrintConfig, hasFinanceView, preparedBy, showToast, startDate]);
+  }, [apiFetch, branchId, branchName, endDate, getPrintConfig, hasFinanceView, mergePeriod, preparedBy, showToast, startDate]);
 
   const runApiWorkbook = useCallback(
     (workbook) => {
