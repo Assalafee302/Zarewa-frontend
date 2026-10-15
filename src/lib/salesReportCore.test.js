@@ -22,11 +22,23 @@ const line = (key) => sep.reconciliation.lines.find((l) => l.key === key);
 const byLe = (items) => Object.fromEntries(items.map((i) => [i.ledgerEntryId, i.amountNgn]));
 
 describe('sales report v2 — Kaduna Sep 2026 fixture', () => {
-  it('cash received from treasury by posting date = ₦206,631,365, split by account', () => {
-    expect(sep.cashReceived.totalNgn).toBe(206_631_365);
+  // Round 2 A1: was ₦206,631,365 — the ₦7,520 treasury line of ₦0 receipt LE-KD-26-1706 is a credit application.
+  it('cash received from treasury by posting date = ₦206,623,845, split by account (credit applications out)', () => {
+    expect(sep.cashReceived.totalNgn).toBe(206_623_845);
     expect(sep.cashReceived.advancesInNgn).toBe(27_440);
     const byLabel = Object.fromEntries(sep.cashReceived.byAccount.map((a) => [a.displayName, a.amountNgn]));
-    expect(byLabel).toEqual({ 'Taj Bank': 130_031_071, Moniepoint: 76_442_414, 'Cash Office': 157_880 });
+    expect(byLabel).toEqual({ 'Taj Bank': 130_031_071, Moniepoint: 76_434_894, 'Cash Office': 157_880 });
+  });
+
+  it('memo: credit applied from refund fund ₦17,251,654 (24 receipts), every line with its ids', () => {
+    const c = sep.creditApplications;
+    expect(c.count).toBe(24);
+    expect(c.creditAppliedNgn).toBe(17_251_654);
+    expect(c.treasuryLeftOutNgn).toBe(7_520);
+    const big = c.rows.find((r) => r.ledgerEntryId === 'LE-KD-26-1792');
+    expect(big).toMatchObject({ creditAppliedNgn: 4_045_901, treasuryLeftOutNgn: 0 });
+    expect(big.treasuryMovementIds).toEqual(expect.arrayContaining(['TM-KD-26-2670', 'TM-KD-26-3072']));
+    expect(c.rows.every((r) => /^LE-KD-26-\d+$/.test(r.ledgerEntryId))).toBe(true);
   });
 
   it('recognised sales = report rows ₦211,760,175 less Yusuf’s reversed receipts = ₦209,638,175', () => {
@@ -60,13 +72,12 @@ describe('sales report v2 — Kaduna Sep 2026 fixture', () => {
       'LE-KD-26-1766': 2_155_505,
       'LE-KD-26-1176': 200_000,
       'LE-KD-26-1769': 139_240,
-      'LE-KD-26-1706': 7_520,
       'LE-KD-26-1502': 5_050,
       'LE-KD-26-1402': 4_150,
     });
-    expect(line(SALES_RECON_TREASURY_NOT_IN_SALES).amountNgn).toBe(8_121_260);
+    expect(line(SALES_RECON_TREASURY_NOT_IN_SALES).amountNgn).toBe(8_113_740);
     expect(line(SALES_RECON_ADVANCES).amountNgn).toBe(27_440);
-    expect(sep.reconciliation.endNgn).toBe(206_631_365);
+    expect(sep.reconciliation.endNgn).toBe(206_623_845);
     expect(sep.reconciliation.unexplainedNgn).toBe(0);
   });
 
@@ -87,7 +98,7 @@ describe('sales report v2 — Kaduna Sep 2026 fixture', () => {
       ...kd,
       treasuryMovements: kd.treasuryMovements.filter((t) => String(t.postedAtISO).slice(0, 10) >= kd.startDate),
     });
-    expect(live.cashReceived.totalNgn).toBe(206_631_365);
+    expect(live.cashReceived.totalNgn).toBe(206_623_845);
     expect(live.recognised.totalNgn).toBe(209_638_175);
     expect(live.reconciliation.unexplainedNgn).toBe(0);
     expect(live.accrualHasFullHistory).toBe(false);
@@ -129,6 +140,7 @@ describe('sales report v2 print layout', () => {
     expect(salesReportExcelSheets(sep).map((s) => s.name)).toEqual([
       'Sales_report',
       'Cash_by_account',
+      'Credit_applied_memo',
       'Reconciliation',
       'Exceptions',
       'Accrual_produced',
@@ -148,8 +160,22 @@ describe('sales report v2 print layout', () => {
         'Double-counted advance application',
         'Treasury receipt with no customer',
         'Balance unchanged in the period',
+        '126 small item(s)',
       ])
     );
+  });
+
+  it('round 2: no Remarks column, full ids, one debtors figure, credit memo line', async () => {
+    const { salesReportPrintPayload, salesReportExcelSheets } = await import('./salesReportPrint.js');
+    const p = salesReportPrintPayload(sep, { title: 'Sales', refundedInPeriodNgn: 0, companyCutInPeriodNgn: 0 });
+    expect(p.columns.map((c) => c.label)).not.toContain('Remarks');
+    expect(p.rows.some((r) => r.receiptNo === 'LE-KD-26-1727')).toBe(true);
+    const debtLines = p.summaryLines.filter((l) => /debt/i.test(l.label));
+    expect(debtLines.map((l) => l.label.trim())).toEqual(['Customer debts at 30/09 (accrual)']);
+    expect(debtLines[0].value).toMatch(/8,636,449/);
+    expect(p.summaryLines.find((l) => /Credit applied from refund fund/.test(l.label)).value).toMatch(/17,251,654.*\(24\)/);
+    const sheet = salesReportExcelSheets(sep).find((s) => s.name === 'Sales_report').rows;
+    expect(Object.keys(sheet[0])).not.toContain('bankReference');
   });
 });
 
@@ -163,7 +189,7 @@ describe('sales report — one row per payment line (Kaduna Sep 2026)', () => {
     for (const r of sep.recognisedRows) {
       expect(r.paymentLines.reduce((a, l) => a + l.amountNgn, 0)).toBe(r.amountPaidNgn);
     }
-    expect(sep.cashReceived.totalNgn).toBe(206_631_365);
+    expect(sep.cashReceived.totalNgn).toBe(206_623_845);
     expect(sep.reconciliation.unexplainedNgn).toBe(0);
   });
 
@@ -184,7 +210,7 @@ describe('sales report — one row per payment line (Kaduna Sep 2026)', () => {
     const malik = lines('LE-KD-26-1785');
     expect(malik[0]).toMatchObject({ paidBySource: 'bank narration' });
     expect(malik[0].paidBy).toMatch(/ADAM ABDULMALIK/);
-    expect(malik[1]).toMatchObject({ treasuryMovementId: 'TM-KD-26-2660', isCash: true, paidBy: '', paidBySource: 'not matched' });
+    expect(malik[1]).toMatchObject({ treasuryMovementId: 'TM-KD-26-2660', isCash: true, paidBy: '', paidBySource: '' });
   });
 
   it('prints a subtotal per split receipt that does not add into the totals', async () => {
@@ -196,8 +222,10 @@ describe('sales report — one row per payment line (Kaduna Sep 2026)', () => {
     expect(p.columns.map((c) => c.key)).toEqual(expect.arrayContaining(['customerName', 'paidBy', 'treasuryMovementId', 'postedDateISO']));
     const cashTotal = p.rows.reduce((s, r) => s + r._amountPaidNgn, 0);
     expect(cashTotal).toBe(209_638_175);
-    const cashRow = p.rows.find((r) => r.treasuryMovementId && r.bank === 'Cash' && r.paidBy.startsWith('not matched'));
-    expect(cashRow.paidBy).toBe('not matched (cash)');
+    // Round 2 R2: no payer typed and no bank link → blank (was "not matched (cash)").
+    expect(p.rows.some((r) => /not matched/.test(r.paidBy))).toBe(false);
+    const cashRow = p.rows.find((r) => r.treasuryMovementId === 'TM-KD-26-2660');
+    expect(cashRow.paidBy).toBe('');
   });
 });
 
@@ -214,10 +242,10 @@ describe('payment lines (synthetic)', () => {
     expect(narration.get('TM-KD-26-0002')).toBe('NIP FRM ALI CAP JOS');
   });
 
-  it('prefers the payer typed on the receipt, then the bank narration, then "not matched"', () => {
+  it('prefers the payer typed on the receipt, then the bank narration, else blank', () => {
     const base = { receiptAmountNgn: 300, treasuryLines: [t('TM-KD-26-0001', 'Zaps', 200), t('TM-KD-26-0009', 'Cash Office', 100, 'Cash')], method: 'Split (2 lines)', narrationByMovementId: narration, inPeriod: () => true };
     const fromBank = receiptPaymentLines(base);
-    expect(fromBank.map((l) => [l.paidBy, l.paidBySource])).toEqual([['NIP FRM ALI CAP JOS', 'bank narration'], ['', 'not matched']]);
+    expect(fromBank.map((l) => [l.paidBy, l.paidBySource])).toEqual([['NIP FRM ALI CAP JOS', 'bank narration'], ['', '']]);
     const fromReceipt = receiptPaymentLines({ ...base, receiptPayer: 'Musa Ali' });
     expect(fromReceipt.every((l) => l.paidBy === 'Musa Ali' && l.paidBySource === 'receipt')).toBe(true);
   });

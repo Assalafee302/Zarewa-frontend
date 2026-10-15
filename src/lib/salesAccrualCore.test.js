@@ -1,7 +1,7 @@
 // @vitest-environment node
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildSalesAccrual, refundReasonList } from './salesAccrualCore.js';
+import { buildSalesAccrual, creditApplicationReceipts, refundReasonList } from './salesAccrualCore.js';
 
 const kd = JSON.parse(
   fs.readFileSync(new URL('./__fixtures__/kd-2026-09/salesReportSource.json', import.meta.url), 'utf8')
@@ -15,26 +15,38 @@ describe('sales accrual — Kaduna Sep 2026 fixture (owner-approved figures)', (
     expect(acc.producedRows.reduce((s, r) => s + r.valueInPeriodNgn, 0)).toBe(177_996_973);
   });
 
-  it('states customer debts and advances at period start and end', () => {
+  // Round 2 A1: treasury lines of ₦0 credit-application receipts are no cash. Before: opening debts ₦4,891,060 /
+  // advances ₦37,282,580, closing ₦8,565,982 / ₦41,079,869 (phantom RECEIPT_IN lines, e.g. YARO ₦3,815,460 in Aug).
+  it('states customer debts and advances at period start and end (credit applications not cash)', () => {
     expect(acc.openingDate).toBe('2026-08-31');
-    expect(acc.balances.opening).toEqual({ debtsNgn: 4_891_060, advancesNgn: 37_282_580 });
-    expect(acc.balances.closing).toEqual({ debtsNgn: 8_565_982, advancesNgn: 41_079_869 });
+    expect(acc.balances.opening).toEqual({ debtsNgn: 4_960_845, advancesNgn: 33_176_387 });
+    expect(acc.balances.closing).toEqual({ debtsNgn: 8_636_449, advancesNgn: 36_966_838 });
   });
 
-  it('ties the sales bridge to ₦0', () => {
+  it('ties the sales bridge to ₦0 (cash ₦206,623,845 = treasury less the ₦7,520 credit line LE-KD-26-1706)', () => {
     expect(acc.bridge).toMatchObject({
-      cashReceivedNgn: 206_631_365,
+      cashReceivedNgn: 206_623_845,
       refundsPaidNgn: 28_512_025,
-      adjustmentNgn: -122_367,
+      adjustmentNgn: -114_847,
       producedNgn: 177_996_973,
       differenceNgn: 0,
     });
   });
 
-  it('flags balances unchanged in September without hiding them', () => {
-    expect(acc.balances.staleAdvancesNgn).toBe(8_427_027);
-    expect(acc.balances.staleDebtsNgn).toBe(4_767_620);
-    expect(acc.exceptions.staleBalances.length).toBe(acc.balances.rows.filter((r) => r.unchanged).length);
+  it('flags balances unchanged in September; under ₦50,000 they are counted, not listed', () => {
+    expect(acc.balances.staleAdvancesNgn).toBe(8_264_569);
+    expect(acc.balances.staleDebtsNgn).toBe(4_814_375);
+    const unchanged = acc.balances.rows.filter((r) => r.unchanged);
+    expect(acc.exceptions.staleBalances.length + acc.exceptions.staleSmall.count).toBe(unchanged.length);
+    expect(acc.exceptions.staleBalances.every((x) => Math.abs(x.amountNgn) >= 50_000)).toBe(true);
+    expect(acc.exceptions.staleSmall).toMatchObject({ count: 126, amountNgn: 352_644 });
+  });
+
+  it('credit applications: ₦0 receipts are paired with the same-day OVERPAY_APPLIED on the quotation', () => {
+    const c = creditApplicationReceipts(kd.ledgerEntries);
+    expect(c.get('LE-KD-26-1792')).toMatchObject({ creditAppliedNgn: 4_045_901, creditEntryIds: ['LE-KD-26-1803'] });
+    expect(c.get('LE-KD-26-1706')).toMatchObject({ creditAppliedNgn: 7_520, creditEntryIds: ['LE-KD-26-1790'] });
+    expect(c.has('LE-KD-26-1727')).toBe(false); // a real cash receipt
   });
 
   it('Yusuf: reversed receipts are no cash; RF-9679 paid ₦32,400 fully value-reducing → debt ₦2,083,200', () => {

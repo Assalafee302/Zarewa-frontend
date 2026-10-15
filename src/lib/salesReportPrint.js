@@ -2,11 +2,13 @@
  * Print / Excel layout for the sales report v2 (see `salesReportCore.js`).
  */
 import { formatNgn } from './formatNgn';
-import { displayDocNumber, displayTxnDateShort } from './reportDisplayFormat';
-import { SALES_REPORT_GROUP_OUTSTANDING, salesPaymentsReceivedSummary } from './liveAnalytics';
+import { displayTxnDateShort } from './reportDisplayFormat';
+import { SALES_REPORT_GROUP_OUTSTANDING } from './liveAnalytics';
+import { ACCRUAL_SMALL_ITEM_NGN } from './salesAccrualCore';
 
 const signedNgn = (n) => (Number(n) < 0 ? `(${formatNgn(Math.abs(Number(n)))})` : formatNgn(Number(n) || 0));
-const docNo = (v) => displayDocNumber(v) || v || '—';
+/** Full ids on every line (round 2, L1/L7): never strip the prefix. */
+const docNo = (v) => String(v ?? '').trim() || '—';
 const shortDate = (v) => (v ? displayTxnDateShort(v) || v : '—');
 
 /** "Check" cell: suspended receipts kept, and bank ≠ receipt method. */
@@ -67,6 +69,12 @@ export function accrualExceptionRows(accrual) {
       kind: x.kind, ref: x.customerID, ref2: '', customerName: x.customerName, dateISO: '', amountNgn: x.amountNgn,
       note: `${x.note} — flagged, not hidden`,
     })),
+    ...(e.staleSmall?.count
+      ? [{
+          kind: `${e.staleSmall.count} small item(s)`, ref: '', ref2: '', customerName: '', dateISO: '', amountNgn: e.staleSmall.amountNgn,
+          note: `Balances unchanged in the period, each under ${formatNgn(ACCRUAL_SMALL_ITEM_NGN)} — not listed (see Customer_balances sheet)`,
+        }]
+      : []),
   ];
 }
 
@@ -76,14 +84,9 @@ function accrualPrintSections(report) {
   const range = `${shortDate(acc.openingDate)} → ${shortDate(acc.endDate)}`;
   const lines = [
     { label: '(3) Accrual: goods produced in period (net value)', value: formatNgn(acc.producedNgn) },
-    {
-      label: `      Customer advances ${range}`,
-      value: `${formatNgn(acc.balances.opening.advancesNgn)} → ${formatNgn(acc.balances.closing.advancesNgn)}`,
-    },
-    {
-      label: `      Customer debts ${range}`,
-      value: `${formatNgn(acc.balances.opening.debtsNgn)} → ${formatNgn(acc.balances.closing.debtsNgn)}`,
-    },
+    // One debtors figure on the header: accrual customer debts at period end (round 2, R3).
+    { label: `      Customer debts at ${shortDate(acc.endDate)} (accrual)`, value: formatNgn(acc.balances.closing.debtsNgn) },
+    { label: `      Customer advances at ${shortDate(acc.endDate)} (accrual)`, value: formatNgn(acc.balances.closing.advancesNgn) },
     { label: '      Sales bridge difference', value: signedNgn(acc.bridge.differenceNgn) },
     ...(report.accrualHasFullHistory
       ? []
@@ -194,7 +197,8 @@ export const SALES_LINE_PAYMENT = 'Payment line';
 export const SALES_LINE_SUBTOTAL = 'Receipt subtotal';
 export const SALES_LINE_DEBTOR = 'Debtor';
 
-const paidByText = (l) => (l.paidBy ? l.paidBy : l.isCash ? 'not matched (cash)' : 'not matched');
+/** Payer typed on the receipt or the linked bank narration; blank when neither exists (round 2, R2). */
+const paidByText = (l) => l.paidBy || '';
 
 /**
  * Sales rows at payment-line level: one row per treasury movement behind each receipt, then a subtotal
@@ -211,7 +215,6 @@ export function salesPaymentLineRows(report) {
       quotationRef: r.quotationRef || '',
       receiptNo: r.receiptId || r.ledgerEntryId || '',
       paymentMethod: r.paymentMethod || '',
-      bankReference: r.bankReference || '',
     };
     if (r.group === SALES_REPORT_GROUP_OUTSTANDING) {
       out.push({ ...base, lineType: SALES_LINE_DEBTOR, amountNgn: null, outstandingBalanceNgn: Number(r.outstandingBalanceNgn) || 0 });
@@ -260,7 +263,6 @@ export function salesPaymentLineRows(report) {
 }
 
 export function salesReportPrintPayload(report, opts) {
-  const s = salesPaymentsReceivedSummary(report.rows, opts.refundedInPeriodNgn || 0);
   const rows = salesPaymentLineRows(report).map((r) => {
     const isDebt = r.lineType === SALES_LINE_DEBTOR;
     const isSubtotal = r.lineType === SALES_LINE_SUBTOTAL;
@@ -278,7 +280,6 @@ export function salesReportPrintPayload(report, opts) {
       outstandingBalanceNgn: r.outstandingBalanceNgn == null ? '' : formatNgn(r.outstandingBalanceNgn),
       bank: isDebt ? '—' : r.bank || '—',
       check: isDebt ? '' : r.check,
-      bankReference: isSubtotal ? '' : r.bankReference || r.paymentMethod || '—',
       // Subtotal rows are display only: they never add into the group totals.
       _amountPaidNgn: isDebt || isSubtotal ? 0 : Number(r.amountNgn) || 0,
       _outstandingBalanceNgn: isDebt ? Number(r.outstandingBalanceNgn) || 0 : 0,
@@ -331,8 +332,7 @@ export function salesReportPrintPayload(report, opts) {
       { key: 'amountPaidNgn', label: 'Paid', width: '8%', align: 'right', minWidth: '6rem' },
       { key: 'outstandingBalanceNgn', label: 'Balance', width: '8%', align: 'right', minWidth: '6rem' },
       { key: 'bank', label: 'Account', width: '7%' },
-      { key: 'check', label: 'Check', width: '10%', wrap: true },
-      { key: 'bankReference', label: 'Remarks', width: '8%', wrap: true },
+      { key: 'check', label: 'Check', width: '18%', wrap: true },
     ],
     rows,
     grouping: {
@@ -350,6 +350,12 @@ export function salesReportPrintPayload(report, opts) {
     summaryLines: [
       { label: '(1) Cash received in period (treasury, by posting date)', value: formatNgn(cash.totalNgn) },
       ...cash.byAccount.map((a) => ({ label: `      ${a.displayName || a.label}`, value: formatNgn(a.amountNgn) })),
+      ...(report.creditApplications
+        ? [{
+            label: 'Memo: Credit applied from refund fund (not cash)',
+            value: `${formatNgn(report.creditApplications.creditAppliedNgn)} (${report.creditApplications.count})`,
+          }]
+        : []),
       { label: '(2) Recognised sales (produced in period)', value: formatNgn(rec.totalNgn) },
       { label: '      Materials produced in period', value: formatNgn(rec.producedNgn) },
       { label: '      Materials not produced in period (credit)', value: formatNgn(rec.notProducedNgn) },
@@ -369,10 +375,6 @@ export function salesReportPrintPayload(report, opts) {
       { label: 'Less: Refunds paid in period', value: formatNgn(refunds) },
       { label: 'Company cut withdrawn in period', value: formatNgn(opts.companyCutInPeriodNgn || 0) },
       { label: 'Net sales (Recognised sales − Refunds)', value: formatNgn(rec.totalNgn - refunds) },
-      {
-        label: 'Outstanding balance (debtors)',
-        value: `${formatNgn(s.outstandingNgn)} · ${s.outstandingQuoteCount} quote(s)`,
-      },
     ],
     appendixSections: [
       {
@@ -398,6 +400,31 @@ export function salesReportPrintPayload(report, opts) {
         ],
         rows: exceptionRows,
       },
+      ...(report.creditApplications?.rows?.length
+        ? [{
+            title: `Memo: ${report.creditApplications.label}`,
+            columns: [
+              { key: 'dateISO', label: 'Date', width: '8%' },
+              { key: 'ledgerEntryId', label: 'Receipt (₦0)', width: '11%' },
+              { key: 'customerName', label: 'Customer', width: '16%' },
+              { key: 'quotationRef', label: 'Quote', width: '11%' },
+              { key: 'creditEntryIds', label: 'Credit entry', width: '14%' },
+              { key: 'creditAppliedNgn', label: 'Credit ₦', width: '11%', align: 'right' },
+              { key: 'treasuryMovementIds', label: 'Treasury lines left out', width: '17%' },
+              { key: 'treasuryLeftOutNgn', label: 'Left out of cash ₦', width: '12%', align: 'right' },
+            ],
+            rows: report.creditApplications.rows.map((c) => ({
+              dateISO: shortDate(c.dateISO),
+              ledgerEntryId: docNo(c.ledgerEntryId),
+              customerName: c.customerName || '—',
+              quotationRef: docNo(c.quotationRef),
+              creditEntryIds: c.creditEntryIds.join(', ') || '—',
+              creditAppliedNgn: formatNgn(c.creditAppliedNgn),
+              treasuryMovementIds: c.treasuryMovementIds.join(', '),
+              treasuryLeftOutNgn: c.treasuryLeftOutNgn ? signedNgn(c.treasuryLeftOutNgn) : '',
+            })),
+          }]
+        : []),
       ...accrualPrint.sections,
     ],
   };
@@ -415,7 +442,7 @@ export function salesReportExcelSheets(report) {
     firstProductionDateISO: r.firstProductionDateISO,
     customerName: r.customerName,
     paidBy: r.lineType === SALES_LINE_PAYMENT ? r.paidBy : '',
-    paidBySource: r.lineType === SALES_LINE_PAYMENT ? r.paidBySource || 'not matched' : '',
+    paidBySource: r.lineType === SALES_LINE_PAYMENT ? r.paidBySource || '' : '',
     quotationRef: r.quotationRef,
     receiptId: r.receiptNo,
     treasuryMovementId: r.treasuryMovementId || '',
@@ -428,7 +455,6 @@ export function salesReportExcelSheets(report) {
     outstandingBalanceNgn: r.lineType === SALES_LINE_DEBTOR ? r.outstandingBalanceNgn : '',
     check: r.check || '',
     paymentMethod: r.paymentMethod,
-    bankReference: r.bankReference,
   }));
   const cash = report.cashReceived.byAccount.map((a) => ({
     account: a.displayName || a.label,
@@ -500,9 +526,23 @@ export function salesReportExcelSheets(report) {
         { name: 'Accrual_exceptions', rows: accrualExceptionRows(acc) },
       ]
     : [];
+  const credit = (report.creditApplications?.rows || []).map((c) => ({
+    dateISO: c.dateISO,
+    ledgerEntryId: c.ledgerEntryId,
+    customerID: c.customerID,
+    customer: c.customerName,
+    quotationRef: c.quotationRef,
+    method: c.method,
+    creditEntryIds: c.creditEntryIds.join(', '),
+    creditAppliedNgn: c.creditAppliedNgn,
+    treasuryMovementIdsLeftOut: c.treasuryMovementIds.join(', '),
+    treasuryLeftOutNgn: c.treasuryLeftOutNgn,
+    receiptDatedInPeriod: c.inPeriod ? 'Yes' : 'No',
+  }));
   return [
     { name: 'Sales_report', rows: sales },
     { name: 'Cash_by_account', rows: cash },
+    { name: 'Credit_applied_memo', rows: credit },
     { name: 'Reconciliation', rows: reconciliation },
     { name: 'Exceptions', rows: exceptions },
     ...accrualSheets,

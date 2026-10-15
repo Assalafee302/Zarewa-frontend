@@ -3,7 +3,8 @@
  *
  * Two figures, never mixed:
  * - **Cash received in period** — treasury by posting date: RECEIPT_IN + ADVANCE_IN − RECEIPT_REVERSAL_OUT,
- *   split by the treasury account actually posted to.
+ *   split by the treasury account actually posted to. Lines of zero-amount ledger receipts (credit applied from
+ *   the refund fund) are left out and shown as one memo line (`creditApplications`).
  * - **Recognised sales (produced in period)** — the sales report rows (both cash groups, see
  *   `salesPaymentsReceivedRows`), excluding receipts whose treasury receipt was fully reversed by period end.
  *   Suspended receipts that reached the bank and were never reversed stay in, marked suspended.
@@ -20,7 +21,7 @@ import {
   salesPaymentsReceivedRows,
 } from './liveAnalytics.js';
 import { abbreviateBankName } from './bankAbbreviation.js';
-import { buildSalesAccrual } from './salesAccrualCore.js';
+import { buildSalesAccrual, creditApplicationReceipts } from './salesAccrualCore.js';
 
 export const SALES_CASH_TREASURY_TYPES = ['RECEIPT_IN', 'ADVANCE_IN', 'RECEIPT_REVERSAL_OUT'];
 
@@ -77,7 +78,8 @@ export function receiptMethodVersusTreasuryNote(method, postedAccountNames = [])
   return `Method says ${m[1].trim()}; posted to ${posted.join(' + ')}`;
 }
 
-export const SALES_PAID_BY_NOT_MATCHED = 'not matched';
+/** No payer typed and no bank link: the Paid by cell stays blank (round 2, R2). */
+export const SALES_PAID_BY_NOT_MATCHED = '';
 
 /** Payer name the cashier typed on the receipt ("Paid by", required from Phase 3; older receipts have none). */
 export function receiptPayerName(receipt) {
@@ -221,9 +223,15 @@ export function buildSalesReport(input = {}) {
   }
 
   // --- (1) Cash received in period, from treasury ---------------------------------------------
-  const cashLines = treasuryMovements.filter(
+  // Zero-amount ledger receipts are credit applications, not cash: their treasury lines stay out (round 2 A1).
+  const creditReceipts = creditApplicationReceipts(ledgerEntries);
+  const isCreditLine = (t) =>
+    String(t.sourceKind || '') === 'LEDGER_RECEIPT' && creditReceipts.has(String(t.sourceId || '').trim());
+  const periodTreasuryLines = treasuryMovements.filter(
     (t) => SALES_CASH_TREASURY_TYPES.includes(t.type) && inPeriod(t.postedAtISO)
   );
+  const cashLines = periodTreasuryLines.filter((t) => !isCreditLine(t));
+  const excludedCreditLines = periodTreasuryLines.filter(isCreditLine);
   const accountMap = new Map();
   for (const t of cashLines) {
     const key = String(t.treasuryAccountId ?? t.accountName ?? '');
@@ -463,6 +471,35 @@ export function buildSalesReport(input = {}) {
 
   exceptions.sort((a, b) => String(a.paymentDateISO).localeCompare(String(b.paymentDateISO)) || String(a.ledgerEntryId).localeCompare(String(b.ledgerEntryId)));
 
+  // --- Memo: credit applied from refund fund (not cash) -------------------------------------------
+  const creditTreasuryById = new Map();
+  for (const t of excludedCreditLines) {
+    const id = String(t.sourceId || '').trim();
+    const list = creditTreasuryById.get(id) || [];
+    list.push(t);
+    creditTreasuryById.set(id, list);
+  }
+  const creditRows = [...creditReceipts.values()]
+    .filter((c) => inPeriod(c.dateISO) || creditTreasuryById.has(c.ledgerEntryId))
+    .map((c) => {
+      const lines = creditTreasuryById.get(c.ledgerEntryId) || [];
+      return {
+        ...c,
+        treasuryMovementIds: lines.map((t) => t.id),
+        treasuryLeftOutNgn: sumBy(lines, 'amountNgn'),
+        inPeriod: inPeriod(c.dateISO),
+      };
+    })
+    .sort((a, b) => a.dateISO.localeCompare(b.dateISO) || a.ledgerEntryId.localeCompare(b.ledgerEntryId));
+  const creditApplications = {
+    label: 'Credit applied from refund fund (not cash)',
+    count: creditRows.filter((r) => r.inPeriod).length,
+    creditAppliedNgn: creditRows.filter((r) => r.inPeriod).reduce((s, r) => s + r.creditAppliedNgn, 0),
+    treasuryLeftOutNgn: sumBy(excludedCreditLines, 'amountNgn'),
+    treasuryLeftOutLineCount: excludedCreditLines.length,
+    rows: creditRows,
+  };
+
   const accrual = buildSalesAccrual({
     quotations,
     quotationLines: input.quotationLines,
@@ -484,6 +521,7 @@ export function buildSalesReport(input = {}) {
       Boolean(input.accrualTreasuryMovements) ||
       treasuryMovements.some((t) => startDate && day(t.postedAtISO) < startDate),
     cashReceived,
+    creditApplications,
     recognised,
     rows: [...recognisedRows, ...debtorRows],
     recognisedRows,

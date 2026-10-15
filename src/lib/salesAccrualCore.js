@@ -13,7 +13,8 @@
  *   identifiable product/accessory line at all; those are listed as exceptions.
  * - Customer balance = cash received − refunds paid out − value produced (from treasury, by posting date).
  *   > 0 is an advance, < 0 is a debt.
- * - Cash excludes: receipt and advance reversals (they reduce cash), and RECEIPT_IN lines that re-post an
+ * - Cash excludes: treasury lines of zero-amount ledger receipts (credit applications — see
+ *   `creditApplicationReceipts`), receipt and advance reversals (they reduce cash), and RECEIPT_IN lines that re-post an
  *   unconsumed earlier ADVANCE_IN of the same customer with no matching bank-statement inflow (double-counted
  *   advance applications; "unverified" when bank recon does not cover the date). Treasury lines with no
  *   customer are left out of balances and listed.
@@ -29,6 +30,8 @@ export const ACCRUAL_EXCEPTION_DOUBLE_COUNTED_ADVANCE = 'Double-counted advance 
 export const ACCRUAL_EXCEPTION_UNASSIGNED_CASH = 'Treasury receipt with no customer';
 export const ACCRUAL_EXCEPTION_UNASSIGNED_REFUND = 'Refund payout with no customer';
 export const ACCRUAL_EXCEPTION_STALE = 'Balance unchanged in the period';
+/** Exceptions under this amount are counted in one line, not listed (round 2, L10). */
+export const ACCRUAL_SMALL_ITEM_NGN = 50_000;
 
 const day = (v) => String(v || '').slice(0, 10);
 const ngn = (v) => Math.round(Number(v) || 0);
@@ -53,6 +56,43 @@ export function refundReasonList(refund) {
     /* plain text */
   }
   return text.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Zero-amount ledger receipts are credit applications (refund fund / overpayment applied), not cash: the money
+ * is the same-day OVERPAY_APPLIED / ADVANCE_APPLIED entry on the same quotation. Some of them also carry
+ * treasury RECEIPT_IN lines (no bank link; most reversed later). Those lines are left out of cash.
+ * @returns {Map<string, {ledgerEntryId: string, dateISO: string, customerID: string, customerName: string,
+ *   quotationRef: string, method: string, creditAppliedNgn: number, creditEntryIds: string[]}>}
+ */
+export function creditApplicationReceipts(ledgerEntries = []) {
+  const credits = new Map();
+  for (const e of ledgerEntries) {
+    if (e.type !== 'OVERPAY_APPLIED' && e.type !== 'ADVANCE_APPLIED') continue;
+    const k = `${String(e.quotationRef || '').trim()}|${day(e.atISO)}`;
+    const list = credits.get(k) || [];
+    list.push(e);
+    credits.set(k, list);
+  }
+  const out = new Map();
+  for (const e of ledgerEntries) {
+    if (e.type !== 'RECEIPT' || ngn(e.amountNgn) !== 0) continue;
+    const id = String(e.id || '').trim();
+    if (!id) continue;
+    const quotationRef = String(e.quotationRef || '').trim();
+    const applied = credits.get(`${quotationRef}|${day(e.atISO)}`) || [];
+    out.set(id, {
+      ledgerEntryId: id,
+      dateISO: day(e.atISO),
+      customerID: String(e.customerID || '').trim(),
+      customerName: e.customerName || '',
+      quotationRef,
+      method: String(e.paymentMethod || '').trim(),
+      creditAppliedNgn: applied.reduce((s, x) => s + Math.abs(ngn(x.amountNgn)), 0),
+      creditEntryIds: applied.map((x) => String(x.id)),
+    });
+  }
+  return out;
 }
 
 /** No stated reason is treated like "Overpayment": it does not reduce the quotation value. */
@@ -112,8 +152,12 @@ export function buildSalesAccrual(input = {}) {
   const nameOf = (id) => customerName.get(id) || '';
 
   // --- Customer cash lines ------------------------------------------------------------------------
+  // Treasury lines of zero-amount ledger receipts are credit applications, not cash (owner, round 2 A1).
+  const creditReceipts = creditApplicationReceipts(ledgerEntries);
+  const isCreditApplicationLine = (t) =>
+    String(t.sourceKind || '') === 'LEDGER_RECEIPT' && creditReceipts.has(String(t.sourceId || '').trim());
   const cashLines = treasuryMovements
-    .filter((t) => CASH_TYPES.has(t.type))
+    .filter((t) => CASH_TYPES.has(t.type) && !isCreditApplicationLine(t))
     .map((t) => ({
       id: t.id,
       type: t.type,
@@ -256,6 +300,7 @@ export function buildSalesAccrual(input = {}) {
   };
   for (const t of treasuryMovements) {
     if (t.sourceKind !== 'LEDGER_RECEIPT' || (t.type !== 'RECEIPT_IN' && t.type !== 'RECEIPT_REVERSAL_OUT')) continue;
+    if (isCreditApplicationLine(t)) continue; // the OVERPAY_APPLIED / ADVANCE_APPLIED entry below carries it
     addStayed(String(ledgerById.get(String(t.sourceId || '').trim())?.quotationRef || '').trim(), ngn(t.amountNgn));
   }
   for (const e of ledgerEntries) {
@@ -440,7 +485,8 @@ export function buildSalesAccrual(input = {}) {
   const opening = side('openingNgn');
   const closing = side('closingNgn');
   const stale = balanceRows.filter((b) => b.unchanged);
-  const staleBalances = stale.map((b) => ({
+  const staleSmall = stale.filter((b) => Math.abs(b.closingNgn) < ACCRUAL_SMALL_ITEM_NGN);
+  const staleBalances = stale.filter((b) => Math.abs(b.closingNgn) >= ACCRUAL_SMALL_ITEM_NGN).map((b) => ({
     kind: ACCRUAL_EXCEPTION_STALE,
     customerID: b.customerID,
     customerName: b.customerName,
@@ -496,6 +542,7 @@ export function buildSalesAccrual(input = {}) {
       unassignedCash,
       unassignedRefunds,
       staleBalances,
+      staleSmall: { count: staleSmall.length, amountNgn: staleSmall.reduce((s, b) => s + b.closingNgn, 0), customerIDs: staleSmall.map((b) => b.customerID) },
     },
   };
 }
