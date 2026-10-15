@@ -705,6 +705,20 @@ async function fetchPurchaseRegisterReport(apiFetch, startDate, endDate) {
   return { ok: true, report: data.report };
 }
 
+/**
+ * @param {{ bankOpening?: string, bankClosing?: string }} [balances] "accountId:amount,…" typed by the user
+ */
+async function fetchBankReconStatementReport(apiFetch, startDate, endDate, balances = {}) {
+  const q = new URLSearchParams({ startDate, endDate });
+  if (balances.bankOpening) q.set('bankOpening', balances.bankOpening);
+  if (balances.bankClosing) q.set('bankClosing', balances.bankClosing);
+  const { ok, data } = await apiFetch(`/api/reports/bank-recon-statement?${q.toString()}`);
+  if (!ok || !data?.ok) {
+    return { ok: false, error: data?.error || 'Could not load the bank reconciliation statement.' };
+  }
+  return { ok: true, report: data.report };
+}
+
 function downloadRows(name, rows, fmt) {
   const safe = name.toLowerCase().replace(/\s+/g, '-');
   if (!rows.length) return;
@@ -751,6 +765,7 @@ export {
   purchaseRegisterExcelSheets,
   purchaseRegisterHasRows,
   fetchPurchaseRegisterReport,
+  fetchBankReconStatementReport,
   fetchConversionSummaryReport,
   conversionSummaryExcelRows,
   fetchCoilStockTieOutReport,

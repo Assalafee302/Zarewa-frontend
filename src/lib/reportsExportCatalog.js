@@ -12,6 +12,7 @@ export const PACK_PURCHASE_REGISTER = 'Purchase register';
 export const PACK_MATERIAL_EXCEPTIONS = 'Material exceptions (offcut)';
 export const PACK_CONVERSION_SUMMARY = 'Conversion summary by material & gauge';
 export const PACK_COIL_STOCK_TIEOUT = 'Coil stock tie-out';
+export const PACK_BANK_RECON_STATEMENT = 'Bank reconciliation statement';
 
 /** Jobs on /reports — URL ?job= */
 export const REPORT_JOBS = {
@@ -432,6 +433,16 @@ export const EXPORT_SECTIONS = [
         icon: Landmark,
         formats: ['Excel', 'CSV'],
         printCoverage: 'summary',
+      },
+      {
+        id: 'bank-recon-statement',
+        kind: 'pack',
+        pack: PACK_BANK_RECON_STATEMENT,
+        title: 'Bank reconciliation statement',
+        desc: 'Per account: ERP opening → receipts → refunds → payments → transfers → charges = ERP closing vs bank closing; then bank lines with no ERP link and ERP movements with no bank link.',
+        icon: Landmark,
+        formats: ['Excel', 'CSV'],
+        printCoverage: 'full',
       },
       {
         id: 'gl-audit-pack',

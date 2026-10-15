@@ -32,7 +32,11 @@ import { buildSalesReport } from '../lib/salesReportCore';
 import { salesReportExcelSheets, salesReportPrintPayload, salesRowCheckText } from '../lib/salesReportPrint';
 import { buildExpensesReport } from '../lib/expensesReportCore';
 import { expensesReportExcelSheets, expensesReportPrintPayload } from '../lib/expensesReportPrint';
+import { accountTitle, bankReconStatementDocument, bankReconStatementExcelSheets } from '../shared/lib/bankReconStatementPrint.js';
+import { renderReportDocument } from '../shared/lib/reportPrintDocument.js';
+import { openReportPrintWindow } from '../lib/reportPrintWindow.js';
 import {
+  PACK_BANK_RECON_STATEMENT,
   PACK_CASH_BANK_AR,
   PACK_CONVERSION_SUMMARY,
   PACK_EXPENSES_REFUNDS,
@@ -51,6 +55,7 @@ import {
   conversionSummaryExcelRows,
   downloadRows,
   fetchCoilStockTieOutReport,
+  fetchBankReconStatementReport,
   fetchConversionSummaryReport,
   fetchMaterialTransactionReport,
   fetchPurchaseRegisterReport,
@@ -119,6 +124,7 @@ export function useReportsExport({
   liveProducts,
   purchaseOrders,
   accessoryUsage,
+  preparedBy = '',
 }) {
   const [printOpen, setPrintOpen] = useState(false);
   const [printPayload, setPrintPayload] = useState(null);
@@ -1114,6 +1120,28 @@ export function useReportsExport({
       return;
     }
 
+    if (name === PACK_BANK_RECON_STATEMENT) {
+      const res = await fetchBankReconStatementReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const sheets = bankReconStatementExcelSheets(res.report);
+      if (fmt === 'Excel') {
+        const wb = XLSX.utils.book_new();
+        for (const s of sheets) {
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(s.rows.length ? s.rows : [{}]), s.name.slice(0, 31));
+        }
+        XLSX.writeFile(wb, `${packSlug}.xlsx`);
+        showToast(`${name} exported as Excel (${sheets.length} sheets).`);
+        return;
+      }
+      const flat = sheets.flatMap((s) => s.rows.map((row) => ({ sheet: s.name, ...row })));
+      downloadRows(name, flat, fmt);
+      showToast(`${name} exported as ${fmt}.`);
+      return;
+    }
+
     if (name === PACK_PURCHASE_REGISTER) {
       const res = await fetchPurchaseRegisterReport(apiFetch, startDate, endDate);
       if (!res.ok) {
@@ -1323,6 +1351,34 @@ export function useReportsExport({
       setMaterialTxnPrintOpen(true);
       return;
     }
+    if (name === PACK_BANK_RECON_STATEMENT) {
+      const first = await fetchBankReconStatementReport(apiFetch, startDate, endDate);
+      if (!first.ok) {
+        showToast(first.error, { variant: 'error' });
+        return;
+      }
+      // The ERP stores no statement balance: ask for it per account (blank = leave "not entered").
+      const opening = [];
+      const closing = [];
+      for (const p of first.report.pages.filter((x) => x.hasBankStatement)) {
+        const o = window.prompt(`Bank statement balance at the START of ${startDate} for ${accountTitle(p.account)} (blank if not known)`, '');
+        if (o != null && o.trim() !== '' && Number.isFinite(Number(o.replace(/,/g, '')))) opening.push(`${p.account.id}:${Number(o.replace(/,/g, ''))}`);
+        const c = window.prompt(`Bank statement balance at the END of ${endDate} for ${accountTitle(p.account)} (optional check)`, '');
+        if (c != null && c.trim() !== '' && Number.isFinite(Number(c.replace(/,/g, '')))) closing.push(`${p.account.id}:${Number(c.replace(/,/g, ''))}`);
+      }
+      const res = opening.length || closing.length
+        ? await fetchBankReconStatementReport(apiFetch, startDate, endDate, { bankOpening: opening.join(','), bankClosing: closing.join(',') })
+        : first;
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const html = renderReportDocument(
+        bankReconStatementDocument(res.report, { preparedBy, preparedAtISO: new Date().toISOString() })
+      );
+      if (!openReportPrintWindow(html)) showToast('Allow pop-ups for this site to print the statement.', { variant: 'error' });
+      return;
+    }
     if (name === PACK_PURCHASE_REGISTER) {
       const res = await fetchPurchaseRegisterReport(apiFetch, startDate, endDate);
       if (!res.ok) {
@@ -1349,7 +1405,7 @@ export function useReportsExport({
     const cfg = getPrintConfig(name, period);
     setPrintPayload(cfg);
     setPrintOpen(true);
-  }, [apiFetch, branchId, endDate, getPrintConfig, hasFinanceView, showToast, startDate]);
+  }, [apiFetch, branchId, endDate, getPrintConfig, hasFinanceView, preparedBy, showToast, startDate]);
 
   const runApiWorkbook = useCallback(
     (workbook) => {

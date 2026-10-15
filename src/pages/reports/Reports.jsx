@@ -191,6 +191,7 @@ const Reports = () => {
     liveProducts,
     purchaseOrders,
     accessoryUsage,
+    preparedBy: ws.session?.user?.displayName || ws.session?.user?.name || ws.session?.user?.email || '',
   });
 
   const periodLabel = useMemo(() => formatPeriodLabel(startDate, endDate), [endDate, startDate]);
